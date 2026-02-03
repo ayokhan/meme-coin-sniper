@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Token {
+  id              String   @id @default(cuid())
+  contractAddress String   @unique
+  symbol          String
+  name            String
+  chain           String
+  
+  dexId           String?
+  pairAddress     String?
+  
+  marketCap       Float?
+  liquidity       Float?
+  volume24h       Float?
+  priceUSD        Float?
+  priceChange24h  Float?
+  
+  viralScore      Int      @default(0)
+  scoreBreakdown  Json?
+  
+  isHoneypot      Boolean  @default(false)
+  mintAuthority   Boolean  @default(false)
+  freezeAuthority Boolean  @default(false)
+  topHolderPct    Float?
+  securityData    Json?
+  
+  website         String?
+  twitter         String?
+  telegram        String?
+  discord         String?
+  
+  launchedAt      DateTime
+  firstSeenAt     DateTime @default(now())
+  lastUpdatedAt   DateTime @updatedAt
+  
+  @@index([chain])
+  @@index([viralScore])
+  @@index([firstSeenAt])
+}
+
+model ScanLog {
+  id          String   @id @default(cuid())
+  chain       String
+  tokensFound Int
+  scanTime    DateTime @default(now())
+  
+  @@index([scanTime])
+}
