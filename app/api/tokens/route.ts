@@ -12,10 +12,11 @@ export async function GET(request: Request) {
       orderBy: { viralScore: 'desc' },
       take: 50,
     });
-    const tokens = rows.map((t) => {
-      const breakdown = t.scoreBreakdown as { twitterData?: { mentions?: number; uniqueAccounts?: number } } | null;
+    const tokens = rows.map((row) => {
+      const r = row as Record<string, unknown>;
+      const breakdown = r.scoreBreakdown as { twitterData?: { mentions?: number; uniqueAccounts?: number } } | null | undefined;
       const kolCount = breakdown?.twitterData?.uniqueAccounts ?? breakdown?.twitterData?.mentions ?? undefined;
-      return { ...t, kolCount };
+      return { ...r, kolCount };
     });
     return NextResponse.json({ success: true, tokens });
   } catch (error: any) {
