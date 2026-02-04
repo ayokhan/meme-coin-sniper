@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const DEXSCREENER_BASE = 'https://api.dexscreener.com/latest';
+const DEXSCREENER_BASE = 'https://api.dexscreener.com';
 
 export interface DexPair {
   chainId: string;
@@ -19,13 +19,13 @@ export interface DexPair {
 }
 
 /** Fetch Solana pairs via search (official API has no "all pairs" endpoint). */
-async function fetchSolanaPairsViaSearch(): Promise<DexPair[]> {
-  const queries = ['SOL', 'USDC', 'BONK', 'WIF'];
+async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Promise<DexPair[]> {
+  const queries = ['SOL', 'USDC', 'BONK', 'WIF', 'PEPE', 'DOGE', 'FLOKI', ...extraQueries];
   const seen = new Set<string>();
   const all: DexPair[] = [];
   for (const q of queries) {
     try {
-      const res = await axios.get<{ pairs?: DexPair[] }>(`${DEXSCREENER_BASE}/dex/search`, {
+      const res = await axios.get<{ pairs?: DexPair[] }>(`${DEXSCREENER_BASE}/latest/dex/search`, {
         params: { q },
         timeout: 15000,
       });
@@ -63,13 +63,14 @@ export async function getNewSolanaPairs(minLiquidity = 5000, maxAgeMinutes = 60)
 export async function getTrendingSolanaPairs(limit = 20): Promise<DexPair[]> {
   try {
     const pairs = await fetchSolanaPairsViaSearch();
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
     const vol = (p: DexPair) => p.volume?.h24 ?? 0;
     const change = (p: DexPair) => p.priceChange?.h24 ?? p.priceChange?.h6 ?? 0;
+    const dexOk = (p: DexPair) => ['raydium', 'orca', 'meteora', 'pump.fun', 'pumpswap'].includes((p.dexId || '').toLowerCase());
+    // Very relaxed: any Solana pair with liquidity + volume, sorted by volume then price change
     return pairs
-      .filter((p) => p.pairCreatedAt > oneDayAgo && vol(p) > 5000 && change(p) > 20 && usd(p) > 10000)
-      .sort((a, b) => change(b) - change(a))
+      .filter((p) => dexOk(p) && usd(p) >= 500 && vol(p) >= 100)
+      .sort((a, b) => (vol(b) * (1 + (change(b) ?? 0) / 100)) - (vol(a) * (1 + (change(a) ?? 0) / 100)))
       .slice(0, limit);
   } catch {
     return [];

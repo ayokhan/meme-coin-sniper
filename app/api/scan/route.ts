@@ -76,8 +76,8 @@ export async function GET(request: Request) {
     const skipped: Array<{ symbol: string; reason: string }> = [];
     // New listings (Birdeye/Moralis) often have low liquidity/volume — use looser filters
     const isNewListing = dataSource === 'birdeye' || dataSource === 'moralis';
-    const qualityThreshold = isNewListing ? 0 : 20;
-    const scoreThreshold = isNewListing ? 15 : minScore;
+    const qualityThreshold = isNewListing ? 0 : 10;
+    const scoreThreshold = isNewListing ? 15 : Math.min(minScore, 28);
     
     for (const pair of pairs.slice(0, maxPairs)) {
       const quality = getQualityScore(pair);
@@ -132,6 +132,7 @@ export async function GET(request: Request) {
           symbol: pair.baseToken.symbol,
           name: pair.baseToken.name,
           chain: 'solana',
+          source: dataSource,
           dexId: pair.dexId,
           pairAddress: pair.pairAddress,
           liquidity: pair.liquidity?.usd ?? 0,
@@ -144,7 +145,7 @@ export async function GET(request: Request) {
           telegram: socials.telegram,
           launchedAt: new Date(pair.pairCreatedAt),
         },
-        update: { viralScore: viralScoreData.total },
+        update: { viralScore: viralScoreData.total, source: dataSource },
       });
       
       scanned.push(token);

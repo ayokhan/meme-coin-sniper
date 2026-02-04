@@ -34,7 +34,13 @@ const AUTO_REFRESH_SECONDS = 60;
 
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<"new" | "trending">("new");
+  const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<"new" | "trending" | "ct">("new");
+  const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState<"idle" | "scan" | "twitter">("idle");
@@ -43,11 +49,11 @@ export default function Dashboard() {
   const [dexTest, setDexTest] = useState<{ ok: boolean; message: string; newPairs?: number; trending?: number; sample?: string } | null>(null);
   const [moralisTest, setMoralisTest] = useState<{ ok: boolean; message: string; count?: number } | null>(null);
 
-  const fetchTokens = async (tab: "new" | "trending" = activeTab, showLoading = true) => {
+  const fetchTokens = async (tab: "new" | "trending" | "ct" = activeTab, showLoading = true) => {
     if (showLoading) setLoading(true);
     setError(null);
     try {
-      const url = tab === "trending" ? "/api/trending" : "/api/tokens";
+      const url = tab === "trending" ? "/api/trending" : tab === "ct" ? "/api/tokens?source=twitter" : "/api/tokens";
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
@@ -58,6 +64,16 @@ export default function Dashboard() {
       setError(e instanceof Error ? e.message : "Failed to fetch");
     } finally {
       if (showLoading) setLoading(false);
+    }
+  };
+
+  const fetchCtAccounts = async () => {
+    try {
+      const res = await fetch("/api/ct-accounts");
+      const data = await res.json();
+      if (data.success) setCtAccounts(data.accounts || []);
+    } catch {
+      setCtAccounts([]);
     }
   };
 
@@ -116,7 +132,11 @@ export default function Dashboard() {
           setError(null);
         }
       } else {
-        setError(data.error || "Scan failed");
+        const msg = data.error ? (data.hint ? `${data.error} ${data.hint}` : data.error) : data.hint || "Scan failed";
+        setError(msg);
+      }
+      if (data.success && type === "twitter" && data.tokens?.length > 0) {
+        setActiveTab("ct");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed");
@@ -191,7 +211,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => setTheme("light")}
                 className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-all ${
-                  theme === "light"
+                  !mounted ? "text-zinc-500 dark:text-zinc-400" : theme === "light"
                     ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100 shadow-sm"
                     : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
                 }`}
@@ -202,7 +222,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => setTheme("dark")}
                 className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-all ${
-                  theme === "dark"
+                  !mounted ? "text-zinc-500 dark:text-zinc-400" : theme === "dark"
                     ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100 shadow-sm"
                     : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
                 }`}
@@ -213,7 +233,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => setTheme("system")}
                 className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-all ${
-                  theme === "system"
+                  !mounted ? "text-zinc-500 dark:text-zinc-400" : theme === "system"
                     ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100 shadow-sm"
                     : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
                 }`}
@@ -324,14 +344,36 @@ export default function Dashboard() {
                 <li>For automatic scans, Vercel Cron calls <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">/api/cron</code> (see vercel.json).</li>
               </ul>
             </details>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "new" | "trending")} className="mt-4">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "new" | "trending" | "ct")} className="mt-4">
               <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80">
                 <TabsTrigger value="new">New pairs</TabsTrigger>
                 <TabsTrigger value="trending">Trending</TabsTrigger>
+                <TabsTrigger value="ct">CT Scan</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
           <CardContent className="p-0">
+            {activeTab === "ct" && ctAccounts.length > 0 && (
+              <details className="mx-6 mt-4 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
+                <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Accounts we track ({ctAccounts.length})
+                </summary>
+                <div className="px-4 pb-3 pt-1 flex flex-wrap gap-2">
+                  {ctAccounts.slice(0, 50).map((a) => (
+                    <a
+                      key={a.username}
+                      href={a.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 text-zinc-700 dark:text-zinc-300 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                    >
+                      @{a.username}
+                    </a>
+                  ))}
+                  {ctAccounts.length > 50 && <span className="text-xs text-muted-foreground">+{ctAccounts.length - 50} more</span>}
+                </div>
+              </details>
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-16 text-muted-foreground">
                 <span className="inline-block animate-[nova-shimmer_1.2s_ease-in-out_infinite]">Loading…</span>
@@ -339,17 +381,25 @@ export default function Dashboard() {
             ) : tokens.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
                 <p className="font-semibold text-zinc-700 dark:text-zinc-300">
-                  {activeTab === "trending" ? "No trending tokens right now." : "No tokens yet."}
+                  {activeTab === "ct"
+                    ? "No CT tokens yet."
+                    : activeTab === "trending"
+                      ? "No trending tokens right now."
+                      : "No tokens yet."}
                 </p>
                 <p className="mt-2">
-                  {activeTab === "trending"
-                    ? "Trending list is live from DexScreener (volume + price change). Try again in a moment."
-                    : "Run \"Scan new pairs\" or \"Scan Twitter\" to find candidates."}
+                  {activeTab === "ct"
+                    ? "Run \"Scan Twitter\" to find coins mentioned by tracked CT accounts. Requires APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY in Vercel."
+                    : activeTab === "trending"
+                      ? "Trending list is live from DexScreener (volume + price change). Try again in a moment."
+                      : "Run \"Scan new pairs\" or \"Scan Twitter\" to find candidates."}
                 </p>
                 <p className="mt-4 text-xs max-w-md text-zinc-500 dark:text-zinc-400">
-                  {activeTab === "new"
-                    ? "Scans run only when you click Scan. Set BIRDEYE_API_KEY and MORALIS_API_KEY in .env.local for best quality."
-                    : "Trending shows tokens with high volume and price change in the last 24h."}
+                  {activeTab === "ct"
+                    ? "CT Scan watches crypto Twitter accounts for $TICKER and contract addresses, resolves symbols via Birdeye, scores and saves."
+                    : activeTab === "new"
+                      ? "Scans run only when you click Scan. For better coins, add BIRDEYE_API_KEY and MORALIS_API_KEY in Vercel Environment Variables."
+                      : "Trending shows tokens with volume and price change. Relaxed filters for more results."}
                   {" "}List auto-refreshes every {AUTO_REFRESH_SECONDS}s.
                 </p>
               </div>

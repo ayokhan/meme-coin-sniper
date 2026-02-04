@@ -13,6 +13,7 @@ model Token {
   symbol          String
   name            String
   chain           String
+  source          String?  @default("dexscreener") // birdeye | moralis | dexscreener | twitter
   
   dexId           String?
   pairAddress     String?

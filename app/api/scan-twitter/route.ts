@@ -22,6 +22,13 @@ type ScannedToken = {
 
 export async function GET() {
   try {
+    if (!process.env.APIFY_API_TOKEN) {
+      return NextResponse.json({
+        success: false,
+        error: 'APIFY_API_TOKEN not set. Add it in Vercel → Settings → Environment Variables to enable Twitter scan.',
+        hint: 'Get a token at apify.com. Also set ANTHROPIC_API_KEY and BIRDEYE_API_KEY for full functionality.',
+      }, { status: 400 });
+    }
     const viralTokens = await detectViralTokens();
     const scanned: Awaited<ReturnType<typeof prisma.token.upsert>>[] = [];
 
@@ -82,7 +89,7 @@ export async function GET() {
           telegram: socials.telegram,
           launchedAt: new Date(dexData.pairCreatedAt),
         },
-        update: { viralScore: viralScoreData.total },
+        update: { viralScore: viralScoreData.total, source: 'twitter' },
       });
       
       scanned.push(token);
