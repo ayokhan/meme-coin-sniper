@@ -77,19 +77,24 @@ export async function GET() {
           symbol: dexData.baseToken.symbol,
           name: dexData.baseToken.name,
           chain: 'solana',
+          source: 'twitter',
           dexId: dexData.dexId,
           pairAddress: dexData.pairAddress,
           liquidity: dexData.liquidity?.usd ?? 0,
           priceUSD: parseFloat(dexData.priceUsd ?? '0'),
           viralScore: viralScoreData.total,
-          scoreBreakdown: { ...viralScoreData, twitterData: { mentions: viral.mentions, sentiment: viral.sentiment } } as any,
+          scoreBreakdown: { ...viralScoreData, twitterData: { mentions: viral.mentions, uniqueAccounts: viral.uniqueAccounts, sentiment: viral.sentiment } } as any,
           isHoneypot: false,
           website: socials.website,
           twitter: socials.twitter,
           telegram: socials.telegram,
           launchedAt: new Date(dexData.pairCreatedAt),
         },
-        update: { viralScore: viralScoreData.total, source: 'twitter' },
+        update: {
+          viralScore: viralScoreData.total,
+          source: 'twitter',
+          scoreBreakdown: { ...viralScoreData, twitterData: { mentions: viral.mentions, uniqueAccounts: viral.uniqueAccounts, sentiment: viral.sentiment } } as any,
+        },
       });
       
       scanned.push(token);

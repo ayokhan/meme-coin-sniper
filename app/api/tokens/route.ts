@@ -7,10 +7,15 @@ export async function GET(request: Request) {
     const source = searchParams.get('source'); // 'twitter' = CT scan results only
     const where: { chain: string; source?: string } = { chain: 'solana' };
     if (source) where.source = source;
-    const tokens = await prisma.token.findMany({
+    const rows = await prisma.token.findMany({
       where,
       orderBy: { viralScore: 'desc' },
       take: 50,
+    });
+    const tokens = rows.map((t) => {
+      const breakdown = t.scoreBreakdown as { twitterData?: { mentions?: number; uniqueAccounts?: number } } | null;
+      const kolCount = breakdown?.twitterData?.uniqueAccounts ?? breakdown?.twitterData?.mentions ?? undefined;
+      return { ...t, kolCount };
     });
     return NextResponse.json({ success: true, tokens });
   } catch (error: any) {

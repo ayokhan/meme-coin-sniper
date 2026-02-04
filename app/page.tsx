@@ -28,6 +28,17 @@ type Token = {
   telegram: string | null;
   website: string | null;
   launchedAt: string;
+  kolCount?: number;
+};
+
+type WalletAlert = {
+  contractAddress: string;
+  symbol: string;
+  name: string;
+  buyerCount: number;
+  buyers: Array<{ address: string; label?: string }>;
+  liquidity?: number | null;
+  priceUSD?: number | null;
 };
 
 const AUTO_REFRESH_SECONDS = 60;
@@ -35,8 +46,10 @@ const AUTO_REFRESH_SECONDS = 60;
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"new" | "trending" | "ct">("new");
+  const [activeTab, setActiveTab] = useState<"new" | "trending" | "ct" | "wallets">("new");
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
+  const [trackedWallets, setTrackedWallets] = useState<{ address: string; label?: string }[]>([]);
+  const [walletAlerts, setWalletAlerts] = useState<WalletAlert[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -48,11 +61,22 @@ export default function Dashboard() {
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [dexTest, setDexTest] = useState<{ ok: boolean; message: string; newPairs?: number; trending?: number; sample?: string } | null>(null);
   const [moralisTest, setMoralisTest] = useState<{ ok: boolean; message: string; count?: number } | null>(null);
+  const [twitterTest, setTwitterTest] = useState<{ ok: boolean; message: string; missing?: string[] } | null>(null);
 
-  const fetchTokens = async (tab: "new" | "trending" | "ct" = activeTab, showLoading = true) => {
+  const fetchTokens = async (tab: "new" | "trending" | "ct" | "wallets" = activeTab, showLoading = true) => {
     if (showLoading) setLoading(true);
     setError(null);
     try {
+      if (tab === "wallets") {
+        const res = await fetch("/api/wallet-tracker");
+        const data = await res.json();
+        if (data.success) {
+          setWalletAlerts(data.alerts ?? []);
+          setLastFetched(new Date());
+        } else setError(data.error || "Failed to load wallet alerts");
+        if (showLoading) setLoading(false);
+        return;
+      }
       const url = tab === "trending" ? "/api/trending" : tab === "ct" ? "/api/tokens?source=twitter" : "/api/tokens";
       const res = await fetch(url);
       const data = await res.json();
@@ -77,12 +101,25 @@ export default function Dashboard() {
     }
   };
 
+  const fetchTrackedWallets = async () => {
+    try {
+      const res = await fetch("/api/ct-wallets");
+      const data = await res.json();
+      if (data.success) setTrackedWallets(data.wallets || []);
+    } catch {
+      setTrackedWallets([]);
+    }
+  };
+
   useEffect(() => {
     fetchTokens(activeTab);
+    if (activeTab === "ct") fetchCtAccounts();
+    if (activeTab === "wallets") fetchTrackedWallets();
   }, [activeTab]);
 
-  // Auto-refresh current tab every 60s
+  // Auto-refresh current tab every 60s (skip wallet tab to avoid heavy Helius calls)
   useEffect(() => {
+    if (activeTab === "wallets") return;
     const interval = setInterval(() => fetchTokens(activeTab, false), AUTO_REFRESH_SECONDS * 1000);
     return () => clearInterval(interval);
   }, [activeTab]);
@@ -116,6 +153,21 @@ export default function Dashboard() {
       });
     } catch {
       setMoralisTest({ ok: false, message: "Request failed" });
+    }
+  };
+
+  const testTwitter = async () => {
+    setTwitterTest(null);
+    try {
+      const res = await fetch("/api/test-twitter");
+      const data = await res.json();
+      setTwitterTest({
+        ok: data.success,
+        message: data.message || (data.success ? "Twitter scan OK" : "Twitter scan failed"),
+        missing: data.missing || [],
+      });
+    } catch {
+      setTwitterTest({ ok: false, message: "Request failed" });
     }
   };
 
@@ -294,6 +346,14 @@ export default function Dashboard() {
           >
             Test Moralis
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={testTwitter}
+            className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50"
+          >
+            Test Twitter Scan
+          </Button>
         </div>
         {dexTest && (
           <div
@@ -326,6 +386,20 @@ export default function Dashboard() {
             )}
           </div>
         )}
+        {twitterTest && (
+          <div
+            className={`mb-6 rounded-xl border px-4 py-3 text-sm shadow-sm ${
+              twitterTest.ok
+                ? "border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200"
+                : "border-red-200/80 dark:border-red-800/80 bg-red-50/90 dark:bg-red-950/40 text-red-800 dark:text-red-200"
+            }`}
+          >
+            <strong>Twitter scan:</strong> {twitterTest.message}
+            {twitterTest.missing && twitterTest.missing.length > 0 && (
+              <span className="ml-2">— Missing: {twitterTest.missing.join(", ")}</span>
+            )}
+          </div>
+        )}
 
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg dark:shadow-none dark:shadow-[0_0_0_1px_rgba(34,211,238,0.06)] overflow-hidden">
           <CardHeader className="pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80">
@@ -340,15 +414,17 @@ export default function Dashboard() {
               <ul className="mt-2 list-inside list-disc space-y-1 pl-1">
                 <li><strong>Scans run only when you click</strong> Scan new pairs or Scan Twitter — the list auto-refreshes every {AUTO_REFRESH_SECONDS}s but does not trigger a new scan.</li>
                 <li><strong>Token sources (in order):</strong> <strong>Birdeye</strong> new listings → <strong>Moralis</strong> Pump.fun new → <strong>DexScreener</strong> trending (then new). Set BIRDEYE_API_KEY and/or MORALIS_API_KEY for best results.</li>
-                <li><strong>Twitter scan</strong> watches CT influencer tweets, finds $TICKER or contract addresses, resolves symbols via Birdeye, then scores and saves. Needs APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY.</li>
-                <li>For automatic scans, Vercel Cron calls <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">/api/cron</code> (see vercel.json).</li>
+                <li><strong>CT Scan</strong>: KOLs, smart money, influencers. When <strong>3+</strong> tweet about the same coin → potential viral. Needs APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY.</li>
+                <li><strong>Wallet Tracker</strong>: Whales, top gainers. When <strong>3+</strong> tracked wallets buy the same token → alert with coin + buyers. Needs HELIUS_API_KEY and wallets in <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">lib/config/ct-wallets.ts</code>.</li>
+                <li>Vercel Cron calls <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">/api/cron</code> for automatic scans (see vercel.json).</li>
               </ul>
             </details>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "new" | "trending" | "ct")} className="mt-4">
-              <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "new" | "trending" | "ct" | "wallets")} className="mt-4">
+              <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex-wrap h-auto gap-1 p-1">
                 <TabsTrigger value="new">New pairs</TabsTrigger>
                 <TabsTrigger value="trending">Trending</TabsTrigger>
                 <TabsTrigger value="ct">CT Scan</TabsTrigger>
+                <TabsTrigger value="wallets">Wallet Tracker</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
@@ -374,33 +450,102 @@ export default function Dashboard() {
                 </div>
               </details>
             )}
+            {activeTab === "wallets" && (
+              <details className="mx-6 mt-4 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
+                <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Wallets we track ({trackedWallets.length})
+                </summary>
+                <div className="px-4 pb-3 pt-1 flex flex-wrap gap-2">
+                  {trackedWallets.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">
+                      Add whales / top gainers in <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">lib/config/ct-wallets.ts</code>. When 3+ buy the same coin → alert.
+                    </span>
+                  ) : (
+                    trackedWallets.map((w) => (
+                      <a
+                        key={w.address}
+                        href={`https://solscan.io/account/${w.address}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 text-zinc-700 dark:text-zinc-300 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                      >
+                        {w.label ? `${w.label}: ` : ""}
+                        {w.address.slice(0, 4)}…{w.address.slice(-4)}
+                      </a>
+                    ))
+                  )}
+                </div>
+              </details>
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-16 text-muted-foreground">
                 <span className="inline-block animate-[nova-shimmer_1.2s_ease-in-out_infinite]">Loading…</span>
               </div>
+            ) : activeTab === "wallets" ? (
+              walletAlerts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
+                  <p className="font-semibold text-zinc-700 dark:text-zinc-300">No wallet alerts yet.</p>
+                  <p className="mt-2">
+                    Add whales / top gainers in <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">lib/config/ct-wallets.ts</code> and set <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">HELIUS_API_KEY</code> in Vercel. When 3+ tracked wallets buy the same token, it appears here.
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
+                      <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Coin</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Buyers</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
+                      <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Who bought</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {walletAlerts.map((a) => (
+                      <TableRow key={a.contractAddress} className="border-zinc-200/60 dark:border-zinc-800/60 transition-colors hover:bg-cyan-50/40 dark:hover:bg-cyan-950/20">
+                        <TableCell className="font-semibold text-zinc-900 dark:text-zinc-100">{a.symbol}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="secondary" className="bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200 border-0 font-semibold">{a.buyerCount}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-medium">{formatLiq(a.liquidity ?? null)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{formatPrice(a.priceUSD ?? null)}</TableCell>
+                        <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
+                          {a.buyers.slice(0, 5).map((b) => (b.label ? b.label : `${b.address.slice(0, 4)}…${b.address.slice(-4)}`)).join(", ")}
+                          {a.buyers.length > 5 && ` +${a.buyers.length - 5}`}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <a href={`https://dexscreener.com/solana/${a.contractAddress}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
+                            <a href={`https://pump.fun/${a.contractAddress}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Pump</a>
+                            <a href={`https://axiom.trade/swap?chain=sol&inputMint=${encodeURIComponent(a.contractAddress)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Axiom</a>
+                            <a href={`https://t.me/maestro?start=${encodeURIComponent(a.contractAddress)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="Maestro">Maestro</a>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )
             ) : tokens.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
                 <p className="font-semibold text-zinc-700 dark:text-zinc-300">
-                  {activeTab === "ct"
-                    ? "No CT tokens yet."
-                    : activeTab === "trending"
-                      ? "No trending tokens right now."
-                      : "No tokens yet."}
+                  {activeTab === "ct" ? "No CT tokens yet." : activeTab === "trending" ? "No trending tokens right now." : "No tokens yet."}
                 </p>
                 <p className="mt-2">
                   {activeTab === "ct"
-                    ? "Run \"Scan Twitter\" to find coins mentioned by tracked CT accounts. Requires APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY in Vercel."
+                    ? "Run \"Scan Twitter\" to find coins mentioned by 3+ tracked KOLs. Requires APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY in Vercel."
                     : activeTab === "trending"
                       ? "Trending list is live from DexScreener (volume + price change). Try again in a moment."
                       : "Run \"Scan new pairs\" or \"Scan Twitter\" to find candidates."}
                 </p>
                 <p className="mt-4 text-xs max-w-md text-zinc-500 dark:text-zinc-400">
                   {activeTab === "ct"
-                    ? "CT Scan watches crypto Twitter accounts for $TICKER and contract addresses, resolves symbols via Birdeye, scores and saves."
+                    ? "CT Scan: KOLs, smart money, influencers. When 3+ tweet about the same coin → potential viral."
                     : activeTab === "new"
                       ? "Scans run only when you click Scan. For better coins, add BIRDEYE_API_KEY and MORALIS_API_KEY in Vercel Environment Variables."
                       : "Trending shows tokens with volume and price change. Relaxed filters for more results."}
-                  {" "}List auto-refreshes every {AUTO_REFRESH_SECONDS}s.
+                  {" "}{activeTab !== "ct" && `List auto-refreshes every ${AUTO_REFRESH_SECONDS}s.`}
                 </p>
               </div>
             ) : (
@@ -427,12 +572,16 @@ export default function Dashboard() {
                         {t.name}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Badge
-                          variant="secondary"
-                          className="bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200 border-0 font-semibold"
-                        >
-                          {t.viralScore}
-                        </Badge>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Badge variant="secondary" className="bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200 border-0 font-semibold">
+                            {t.viralScore}
+                          </Badge>
+                          {activeTab === "ct" && t.kolCount != null && (
+                            <span className="text-xs text-muted-foreground" title="KOLs who tweeted">
+                              {t.kolCount} KOL{t.kolCount !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-muted-foreground text-xs">
                         {formatAge(t.launchedAt)}
