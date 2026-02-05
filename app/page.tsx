@@ -54,7 +54,7 @@ const AUTO_REFRESH_SECONDS = 60;
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"new" | "trending" | "surge" | "ct" | "wallets">("new");
+  const [activeTab, setActiveTab] = useState<"new" | "trending" | "surge" | "ct" | "wallets" | "transactions">("new");
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
   const [trackedWallets, setTrackedWallets] = useState<{ address: string; label?: string }[]>([]);
   const [walletAlerts, setWalletAlerts] = useState<WalletAlert[]>([]);
@@ -72,7 +72,8 @@ export default function Dashboard() {
   const [moralisTest, setMoralisTest] = useState<{ ok: boolean; message: string; count?: number } | null>(null);
   const [twitterTest, setTwitterTest] = useState<{ ok: boolean; message: string; missing?: string[] } | null>(null);
 
-  const fetchTokens = async (tab: "new" | "trending" | "surge" | "ct" | "wallets" = activeTab, showLoading = true) => {
+  type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions";
+  const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (showLoading) setLoading(true);
     setError(null);
     try {
@@ -90,6 +91,8 @@ export default function Dashboard() {
       const url =
         tab === "trending" ? "/api/trending"
         : tab === "surge" ? `/api/surge?window=${surgeWindowParam}&limit=80`
+        : tab === "transactions" ? "/api/surge?window=24h&limit=80"
+        : tab === "new" ? "/api/new-pairs?maxAgeMinutes=60&limit=50"
         : tab === "ct" ? "/api/tokens?source=twitter"
         : "/api/tokens";
       const res = await fetch(url);
@@ -141,6 +144,16 @@ export default function Dashboard() {
     const interval = setInterval(() => fetchTokens(activeTab, false), AUTO_REFRESH_SECONDS * 1000);
     return () => clearInterval(interval);
   }, [activeTab]);
+
+  // Sort transactions tab by total txns (buys + sells) desc
+  const tokensForDisplay =
+    activeTab === "transactions" && tokens.length > 0
+      ? [...tokens].sort((a, b) => {
+          const ta = (a.txnsBuys24h ?? 0) + (a.txnsSells24h ?? 0);
+          const tb = (b.txnsBuys24h ?? 0) + (b.txnsSells24h ?? 0);
+          return tb - ta;
+        })
+      : tokens;
 
   const formatVol = (v: number | null | undefined) =>
     v != null ? `$${(v / 1000).toFixed(1)}k` : "—";
@@ -433,20 +446,21 @@ export default function Dashboard() {
             <details className="mt-3 text-xs text-muted-foreground">
               <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">How scanning works</summary>
               <ul className="mt-2 list-inside list-disc space-y-1 pl-1">
-                <li><strong>New pairs</strong> = tokens from your <strong>last scan</strong> (saved in DB). Run Scan to refresh. <strong>Trending</strong> = <strong>live</strong> from DexScreener by 24h volume + price change. <strong>Surge</strong> = live coins with <strong>≥$20k 24h volume</strong> (volume spike).</li>
+                <li><strong>New pairs</strong> = <strong>live</strong> pairs created in the last 60 minutes (DexScreener). <strong>Trending</strong> = live by 24h volume + price change. <strong>Surge</strong> = high volume in 5m–24h window. <strong>Transactions</strong> = buys vs sells (24h), sorted by activity.</li>
                 <li><strong>Token sources for scan:</strong> Birdeye new listings → Moralis Pump.fun → DexScreener. Set BIRDEYE_API_KEY and/or MORALIS_API_KEY for best new pairs.</li>
                 <li><strong>CT Scan</strong>: KOLs, smart money. When <strong>3+</strong> tweet the same coin → potential viral. Needs APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY.</li>
                 <li><strong>Wallet Tracker</strong>: Whales, top gainers. When <strong>3+</strong> tracked wallets buy the same token → alert with coin + buyers. Needs HELIUS_API_KEY and wallets in <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">lib/config/ct-wallets.ts</code>.</li>
                 <li>Vercel Cron calls <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">/api/cron</code> for automatic scans (see vercel.json).</li>
               </ul>
             </details>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "new" | "trending" | "surge" | "ct" | "wallets")} className="mt-4">
-              <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex-wrap h-auto gap-1 p-1">
-                <TabsTrigger value="new">New pairs</TabsTrigger>
-                <TabsTrigger value="trending">Trending</TabsTrigger>
-                <TabsTrigger value="surge">Surge</TabsTrigger>
-                <TabsTrigger value="ct">CT Scan</TabsTrigger>
-                <TabsTrigger value="wallets">Wallet Tracker</TabsTrigger>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "new" | "trending" | "surge" | "ct" | "wallets" | "transactions")} className="mt-4">
+              <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex-wrap h-auto gap-1 p-1.5 rounded-lg">
+                <TabsTrigger value="new" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">New pairs</TabsTrigger>
+                <TabsTrigger value="trending" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trending</TabsTrigger>
+                <TabsTrigger value="surge" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Surge</TabsTrigger>
+                <TabsTrigger value="transactions" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
+                <TabsTrigger value="ct" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
+                <TabsTrigger value="wallets" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet Tracker</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
@@ -569,30 +583,74 @@ export default function Dashboard() {
                   </TableBody>
                 </Table>
               )
-            ) : tokens.length === 0 ? (
+            ) : tokensForDisplay.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
                 <p className="font-semibold text-zinc-700 dark:text-zinc-300">
-                  {activeTab === "ct" ? "No CT tokens yet." : activeTab === "surge" ? "No surge tokens right now." : activeTab === "trending" ? "No trending tokens right now." : "No tokens yet."}
+                  {activeTab === "ct" ? "No CT tokens yet." : activeTab === "surge" ? "No surge tokens right now." : activeTab === "transactions" ? "No transaction data yet." : activeTab === "trending" ? "No trending tokens right now." : activeTab === "new" ? "No new pairs in the last 60m." : "No tokens yet."}
                 </p>
                 <p className="mt-2">
                   {activeTab === "ct"
                     ? "Run \"Scan Twitter\" to find coins mentioned by 3+ tracked KOLs. Requires APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY in Vercel."
                     : activeTab === "surge"
                       ? `Surge shows coins with high volume in the selected window (${surgeWindow}). 5m/15m/30m estimated from 1h. Live from DexScreener, up to 80 coins.`
-                      : activeTab === "trending"
-                        ? "Trending = live by 24h volume + price change. Try again in a moment."
-                        : "New pairs = from your last scan (DB). Run \"Scan new pairs\" to refresh."}
+                      : activeTab === "transactions"
+                        ? "Transactions tab shows coins by 24h buy/sell counts. Data from Surge (DexScreener). Refreshes every 60s."
+                        : activeTab === "trending"
+                          ? "Trending = live by 24h volume + price change. Try again in a moment."
+                          : activeTab === "new"
+                            ? "Live new pairs = pairs created in the last 60 minutes (DexScreener). Refreshes every 60s."
+                            : "Run Scan to save tokens to the DB, or use New pairs for live recent listings."}
                 </p>
                 <p className="mt-4 text-xs max-w-md text-zinc-500 dark:text-zinc-400">
                   {activeTab === "surge"
                     ? `Surge: volume in last ${surgeWindow}. List auto-refreshes every 60s.`
-                    : activeTab === "ct"
-                      ? "CT Scan: KOLs, smart money. When 3+ tweet the same coin → potential viral."
-                      : activeTab === "new"
-                        ? "Scans run only when you click Scan. Add BIRDEYE_API_KEY and MORALIS_API_KEY for better new pairs."
-                        : "Trending = live movers. List auto-refreshes every 60s."}
+                    : activeTab === "transactions"
+                      ? "Sorted by total transactions (buys + sells) descending."
+                      : activeTab === "ct"
+                        ? "CT Scan: KOLs, smart money. When 3+ tweet the same coin → potential viral."
+                        : activeTab === "new"
+                          ? "New pairs = created in last 60m. List auto-refreshes every 60s."
+                          : "Trending = live movers. List auto-refreshes every 60s."}
                 </p>
               </div>
+            ) : activeTab === "transactions" ? (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
+                    <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Symbol</TableHead>
+                    <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">Name</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Age</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol 24h</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Buys</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Sells</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tokensForDisplay.map((t) => (
+                    <TableRow key={t.id} className="border-zinc-200/60 dark:border-zinc-800/60 transition-colors hover:bg-cyan-50/40 dark:hover:bg-cyan-950/20">
+                      <TableCell className="font-semibold text-zinc-900 dark:text-zinc-100">{t.symbol}</TableCell>
+                      <TableCell className="max-w-[140px] truncate hidden sm:table-cell text-muted-foreground">{t.name}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground text-xs">{formatAge(t.launchedAt)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium">{formatLiq(t.liquidity)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-cyan-700 dark:text-cyan-300">{formatVol(t.volume24h)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{(t.txnsBuys24h ?? 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-rose-600 dark:text-rose-400">{(t.txnsSells24h ?? 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">{formatPrice(t.priceUSD)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          <a href={dexUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
+                          <a href={pumpFunUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Pump</a>
+                          <a href={axiomUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Axiom</a>
+                          <a href={maestroUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="Maestro">Maestro</a>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : (
               <Table>
                 <TableHeader>
@@ -601,6 +659,7 @@ export default function Dashboard() {
                     <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">Name</TableHead>
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Score</TableHead>
                     {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol ({surgeWindow})</TableHead>}
+                    {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">TXNS</TableHead>}
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Age</TableHead>
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
@@ -608,7 +667,7 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tokens.map((t) => (
+                  {tokensForDisplay.map((t) => (
                     <TableRow
                       key={t.id}
                       className="border-zinc-200/60 dark:border-zinc-800/60 transition-colors hover:bg-cyan-50/40 dark:hover:bg-cyan-950/20"
