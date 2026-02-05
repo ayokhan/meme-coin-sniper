@@ -142,4 +142,5 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: '/register', newUser: '/register' },
   secret: process.env.NEXTAUTH_SECRET,
+  trustHost: true, // required for Vercel (uses host header for callbacks)
 };
