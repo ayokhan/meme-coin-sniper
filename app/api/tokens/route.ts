@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     }
     const where: { chain: string; source?: string } = { chain: 'solana' };
     if (source) where.source = source;
-    const take = isPaid ? 50 : FREE_LIMIT;
+    const take = isPaid ? 80 : FREE_LIMIT;
     const rows = await prisma.token.findMany({
       where,
       orderBy: { viralScore: 'desc' },

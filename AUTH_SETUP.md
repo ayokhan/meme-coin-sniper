@@ -55,4 +55,18 @@ Any user whose email matches `OWNER_EMAIL` will be treated as having an active s
 
 ## 4. View customers (owner only)
 
-Open **`/admin/customers`** when signed in with an owner email. That page lists all registered users with name, email, phone, country, experience (trading crypto), subscription plan, expiry date, and active status. Only users listed in `OWNER_EMAIL` can access it; others get "Not authorized."
+Open **`/admin/customers`** when signed in with an owner email. That page lists all registered users with name, email, phone, country, experience (trading crypto), subscription plan, expiry date, and active status. You can **Delete** a customer (removes the user and their subscriptions; cannot be undone). Only users listed in `OWNER_EMAIL` can access it; others get "Not authorized."
+
+---
+
+## 5. Where is customer/data stored? (Supabase)
+
+Your app uses **Supabase** (PostgreSQL) for the database. Customer and subscription data lives there, not in Vercel.
+
+- **Vercel** = runs your app (hosting, serverless). It does not store User/Subscription rows.
+- **Supabase** = database. To see or edit data:
+  1. Go to [Supabase Dashboard](https://supabase.com/dashboard) → your project.
+  2. Open **Table Editor** to browse `User`, `Account`, `Subscription`, `Token`, `ScanLog`.
+  3. Or use **SQL Editor** to run queries (e.g. `SELECT * FROM "User"`).
+
+So to see “who registered” or “who has a subscription” outside the app, use Supabase. Inside the app, use **Customers** (`/admin/customers`) when signed in as owner.

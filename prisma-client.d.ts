@@ -31,6 +31,7 @@ declare module '@prisma/client' {
         data: { email?: string; hashedPassword?: string; name?: string; image?: string; walletAddress?: string; phone?: string; country?: string; experienceTradingCrypto?: string };
       }) => Promise<PrismaUser>;
       update: (args: { where: { id: string }; data: unknown }) => Promise<PrismaUser>;
+      delete: (args: { where: { id: string } }) => Promise<PrismaUser>;
     };
     account: {
       findMany: (args?: { where?: { userId: string } }) => Promise<unknown[]>;

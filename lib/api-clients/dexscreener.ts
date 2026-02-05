@@ -57,7 +57,8 @@ export async function getNewSolanaPairs(minLiquidity = 5000, maxAgeMinutes = 60)
       .filter((p) => usd(p) >= minLiquidity && vol(p) > 100 && dexOk(p))
       .sort((a, b) => b.pairCreatedAt - a.pairCreatedAt);
     const inWindow = eligible.filter((p) => (now - p.pairCreatedAt) <= maxAgeMinutes * 60000);
-    return inWindow.length > 0 ? inWindow : eligible.slice(0, 30);
+    const source = inWindow.length > 0 ? inWindow : eligible;
+    return source.slice(0, 80);
   } catch {
     return [];
   }

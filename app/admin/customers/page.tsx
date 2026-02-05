@@ -24,9 +24,9 @@ export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (status !== "authenticated") return;
+  const loadCustomers = () => {
     fetch("/api/admin/customers")
       .then((r) => r.json())
       .then((data) => {
@@ -35,7 +35,29 @@ export default function AdminCustomersPage() {
       })
       .catch(() => setError("Failed to load"))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    setLoading(true);
+    setError("");
+    loadCustomers();
   }, [status]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this customer? This cannot be undone.")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) loadCustomers();
+      else setError(data.error ?? "Delete failed");
+    } catch {
+      setError("Delete failed");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (status === "loading" || !session) {
     return (
@@ -86,7 +108,8 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Experience</th>
                       <th className="pb-2 pr-4 font-semibold">Plan</th>
                       <th className="pb-2 pr-4 font-semibold">Expires</th>
-                      <th className="pb-2 font-semibold">Status</th>
+                      <th className="pb-2 pr-4 font-semibold">Status</th>
+                      <th className="pb-2 font-semibold">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -103,12 +126,22 @@ export default function AdminCustomersPage() {
                             ? new Date(c.subscriptionExpiresAt).toLocaleDateString()
                             : "—"}
                         </td>
-                        <td className="py-2">
+                        <td className="py-2 pr-4">
                           {c.isActive ? (
                             <span className="text-emerald-600 dark:text-emerald-400 font-medium">Active</span>
                           ) : (
                             <span className="text-zinc-500">Expired / None</span>
                           )}
+                        </td>
+                        <td className="py-2">
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(c.id)}
+                            disabled={deletingId === c.id}
+                            className="text-xs text-rose-600 dark:text-rose-400 hover:underline disabled:opacity-50"
+                          >
+                            {deletingId === c.id ? "Deleting…" : "Delete"}
+                          </button>
                         </td>
                       </tr>
                     ))}

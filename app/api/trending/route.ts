@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTrendingSolanaPairs, extractSocials, type DexPair } from '@/lib/api-clients/dexscreener';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 
-const FREE_LIMIT = 5;
+const FREE_LIMIT = 10;
 
 /** Map DexPair to the same Token-like shape the dashboard table expects. */
 function pairToToken(pair: DexPair): {
@@ -55,7 +55,7 @@ function pairToToken(pair: DexPair): {
 export async function GET() {
   try {
     const { isPaid } = await getSessionAndSubscription();
-    const pairs = await getTrendingSolanaPairs(isPaid ? 30 : FREE_LIMIT);
+    const pairs = await getTrendingSolanaPairs(isPaid ? 80 : FREE_LIMIT);
     const tokens = pairs.map(pairToToken);
     return NextResponse.json({ success: true, tokens });
   } catch (error: any) {

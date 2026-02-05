@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getNewSolanaPairs, extractSocials, type DexPair } from '@/lib/api-clients/dexscreener';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 
-const FREE_LIMIT = 5;
+const FREE_LIMIT = 10;
 
 /** Live new pairs (by pair creation time). Max age in minutes; default 60 = last hour. */
 function pairToToken(pair: DexPair) {
@@ -46,8 +46,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const maxAgeMinutes = Math.min(parseInt(searchParams.get('maxAgeMinutes') || '60', 10), 1440);
     const minLiquidity = parseInt(searchParams.get('minLiquidity') || '2000', 10);
-    const requestedLimit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 80);
-    const limit = isPaid ? requestedLimit : Math.min(requestedLimit, FREE_LIMIT);
+    const requestedLimit = Math.min(parseInt(searchParams.get('limit') || '80', 10), 100);
+    const limit = isPaid ? Math.max(80, requestedLimit) : Math.min(requestedLimit, FREE_LIMIT); // paid: min 80; free: max 10
     const pairs = await getNewSolanaPairs(minLiquidity, maxAgeMinutes);
     const tokens = pairs.slice(0, limit).map(pairToToken);
     return NextResponse.json({

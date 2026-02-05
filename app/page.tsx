@@ -112,11 +112,12 @@ export default function Dashboard() {
         return;
       }
       const surgeWindowParam = tab === "surge" ? surgeWindow : "24h";
+      const limit = isPaid ? 80 : 10;
       const url =
         tab === "trending" ? "/api/trending"
         : tab === "surge" ? `/api/surge?window=${surgeWindowParam}&limit=80`
         : tab === "transactions" ? "/api/surge?window=24h&limit=80"
-        : tab === "new" ? "/api/new-pairs?maxAgeMinutes=60&limit=50"
+        : tab === "new" ? `/api/new-pairs?maxAgeMinutes=60&limit=${limit}`
         : tab === "ct" ? "/api/tokens?source=twitter"
         : "/api/tokens";
       const res = await fetch(url);
