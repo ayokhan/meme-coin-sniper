@@ -18,9 +18,12 @@ export interface DexPair {
   info?: { socials?: Array<{ type?: string; platform?: string; url?: string; handle?: string }>; websites?: Array<{ url: string }> };
 }
 
-/** Fetch Solana pairs via search (official API has no "all pairs" endpoint). */
+/** Fetch Solana pairs via search (official API has no "all pairs" endpoint). More queries = more pairs. */
 async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Promise<DexPair[]> {
-  const queries = ['SOL', 'USDC', 'BONK', 'WIF', 'PEPE', 'DOGE', 'FLOKI', ...extraQueries];
+  const queries = [
+    'SOL', 'USDC', 'BONK', 'WIF', 'PEPE', 'DOGE', 'FLOKI', 'POPCAT', 'MEW', 'SLERF', 'SHIB',
+    'MEME', 'TOSHI', 'NEIRO', 'MOODENG', 'FARTCOIN', 'MOG', 'TURBO', ...extraQueries
+  ];
   const seen = new Set<string>();
   const all: DexPair[] = [];
   for (const q of queries) {
@@ -78,21 +81,33 @@ export async function getTrendingSolanaPairs(limit = 20): Promise<DexPair[]> {
   }
 }
 
-export type SurgeWindow = 'h1' | 'h6' | 'h24';
+export type SurgeWindow = 'm5' | 'm15' | 'm30' | 'h1' | 'h6' | 'h24';
 
-/** Surge = high volume in a time window. DexScreener provides h1, h6, h24. */
+/** Surge = high volume in a time window. DexScreener provides h1, h6, h24; 5m/15m/30m are estimated from 1h. */
+export function getVolumeForWindow(pair: DexPair, window: SurgeWindow): number {
+  const vol1h = pair.volume?.h1 ?? pair.volume?.h6 ?? pair.volume?.h24 ?? 0;
+  const vol6h = pair.volume?.h6 ?? pair.volume?.h24 ?? 0;
+  const vol24h = pair.volume?.h24 ?? 0;
+  switch (window) {
+    case 'm5':  return vol1h / 12;       // estimated 5m from 1h
+    case 'm15': return vol1h / 4;        // estimated 15m from 1h
+    case 'm30': return vol1h / 2;        // estimated 30m from 1h
+    case 'h1':  return vol1h;
+    case 'h6':  return vol6h;
+    case 'h24': return vol24h;
+    default:   return vol24h;
+  }
+}
+
 export async function getSurgeSolanaPairs(
   window: SurgeWindow,
   minVolume: number,
-  limit = 30
+  limit = 80
 ): Promise<DexPair[]> {
   try {
     const pairs = await fetchSolanaPairsViaSearch();
     const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
-    const vol = (p: DexPair) =>
-      window === 'h1' ? (p.volume?.h1 ?? p.volume?.h6 ?? p.volume?.h24 ?? 0)
-      : window === 'h6' ? (p.volume?.h6 ?? p.volume?.h24 ?? 0)
-      : (p.volume?.h24 ?? 0);
+    const vol = (p: DexPair) => getVolumeForWindow(p, window);
     const dexOk = (p: DexPair) => ['raydium', 'orca', 'meteora', 'pump.fun', 'pumpswap'].includes((p.dexId || '').toLowerCase());
     return pairs
       .filter((p) => dexOk(p) && usd(p) >= 1000 && vol(p) >= minVolume)

@@ -32,6 +32,9 @@ type Token = {
   volume24h?: number | null;
   volume1h?: number | null;
   volume6h?: number | null;
+  volume5m?: number | null;
+  volume15m?: number | null;
+  volume30m?: number | null;
 };
 
 type WalletAlert = {
@@ -53,7 +56,7 @@ export default function Dashboard() {
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
   const [trackedWallets, setTrackedWallets] = useState<{ address: string; label?: string }[]>([]);
   const [walletAlerts, setWalletAlerts] = useState<WalletAlert[]>([]);
-  const [surgeWindow, setSurgeWindow] = useState<"1h" | "6h" | "24h">("24h");
+  const [surgeWindow, setSurgeWindow] = useState<"5m" | "15m" | "30m" | "1h" | "6h" | "24h">("24h");
 
   useEffect(() => {
     setMounted(true);
@@ -84,7 +87,7 @@ export default function Dashboard() {
       const surgeWindowParam = tab === "surge" ? surgeWindow : "24h";
       const url =
         tab === "trending" ? "/api/trending"
-        : tab === "surge" ? `/api/surge?minVolume=20000&window=${surgeWindowParam}`
+        : tab === "surge" ? `/api/surge?window=${surgeWindowParam}&limit=80`
         : tab === "ct" ? "/api/tokens?source=twitter"
         : "/api/tokens";
       const res = await fetch(url);
@@ -553,14 +556,14 @@ export default function Dashboard() {
                   {activeTab === "ct"
                     ? "Run \"Scan Twitter\" to find coins mentioned by 3+ tracked KOLs. Requires APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY in Vercel."
                     : activeTab === "surge"
-                      ? "Surge shows coins with ≥$20k 24h volume (volume spike). Live from DexScreener."
+                      ? `Surge shows coins with high volume in the selected window (${surgeWindow}). 5m/15m/30m estimated from 1h. Live from DexScreener, up to 80 coins.`
                       : activeTab === "trending"
                         ? "Trending = live by 24h volume + price change. Try again in a moment."
                         : "New pairs = from your last scan (DB). Run \"Scan new pairs\" to refresh."}
                 </p>
                 <p className="mt-4 text-xs max-w-md text-zinc-500 dark:text-zinc-400">
                   {activeTab === "surge"
-                    ? `Surge filters by volume in last ${surgeWindow}. List auto-refreshes every 60s.`
+                    ? `Surge: volume in last ${surgeWindow}. List auto-refreshes every 60s.`
                     : activeTab === "ct"
                       ? "CT Scan: KOLs, smart money. When 3+ tweet the same coin → potential viral."
                       : activeTab === "new"
@@ -606,7 +609,14 @@ export default function Dashboard() {
                       </TableCell>
                       {activeTab === "surge" && (
                         <TableCell className="text-right tabular-nums font-medium text-cyan-700 dark:text-cyan-300">
-                          {formatVol(surgeWindow === "1h" ? t.volume1h : surgeWindow === "6h" ? t.volume6h : t.volume24h)}
+                          {formatVol(
+                            surgeWindow === "5m" ? t.volume5m
+                            : surgeWindow === "15m" ? t.volume15m
+                            : surgeWindow === "30m" ? t.volume30m
+                            : surgeWindow === "1h" ? t.volume1h
+                            : surgeWindow === "6h" ? t.volume6h
+                            : t.volume24h
+                          )}
                         </TableCell>
                       )}
                       <TableCell className="text-right tabular-nums text-muted-foreground text-xs">
