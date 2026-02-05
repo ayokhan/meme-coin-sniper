@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -52,10 +54,15 @@ type WalletAlert = {
 
 const AUTO_REFRESH_SECONDS = 60;
 
+type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis";
+const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "ct", "wallets"];
+
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
+  const { data: session, status } = useSession();
+  const isPaid = (session?.user as { isPaid?: boolean } | undefined)?.isPaid ?? false;
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis">("new");
+  const [activeTab, setActiveTab] = useState<TabId>("new");
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
   const [trackedWallets, setTrackedWallets] = useState<{ address: string; label?: string }[]>([]);
   const [walletAlerts, setWalletAlerts] = useState<WalletAlert[]>([]);
@@ -82,7 +89,6 @@ export default function Dashboard() {
   } | null>(null);
   const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
 
-  type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis";
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (tab === "ai-analysis") {
       if (showLoading) setLoading(false);
@@ -97,7 +103,10 @@ export default function Dashboard() {
         if (data.success) {
           setWalletAlerts(data.alerts ?? []);
           setLastFetched(new Date());
-        } else setError(data.error || "Failed to load wallet alerts");
+        } else {
+          if (res.status === 403 && data.locked) setError(data.error || "Subscribe to access this feature.");
+          else setError(data.error || "Failed to load wallet alerts");
+        }
         if (showLoading) setLoading(false);
         return;
       }
@@ -114,7 +123,10 @@ export default function Dashboard() {
       if (data.success) {
         setTokens(data.tokens);
         setLastFetched(new Date());
-      } else setError(data.error || "Failed to load tokens");
+      } else {
+        if (res.status === 403 && data.locked) setError(data.error || "Subscribe to access this feature.");
+        else setError(data.error || "Failed to load tokens");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to fetch");
     } finally {
@@ -141,6 +153,12 @@ export default function Dashboard() {
       setTrackedWallets([]);
     }
   };
+
+  // Free users: only allow New pairs and Trending tabs
+  useEffect(() => {
+    if (status === "loading") return;
+    if (!isPaid && PAID_TABS.includes(activeTab)) setActiveTab("new");
+  }, [isPaid, status, activeTab]);
 
   useEffect(() => {
     fetchTokens(activeTab);
@@ -183,7 +201,8 @@ export default function Dashboard() {
           tokenInfo: data.tokenInfo ?? {},
         });
       } else {
-        setAiAnalysisError(data.error || "Analysis failed.");
+        if (res.status === 403 && data.locked) setAiAnalysisError(data.error || "Subscribe to access AI Analysis.");
+        else setAiAnalysisError(data.error || "Analysis failed.");
       }
     } catch (e) {
       setAiAnalysisError(e instanceof Error ? e.message : "Request failed.");
@@ -375,6 +394,19 @@ export default function Dashboard() {
                 System
               </button>
             </div>
+            {status !== "authenticated" && (
+              <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
+                <Link href="/register">Sign in</Link>
+              </Button>
+            )}
+            {status === "authenticated" && !isPaid && (
+              <Button size="sm" asChild className="bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
+                <Link href="/subscribe">Upgrade to Pro</Link>
+              </Button>
+            )}
+            {status === "authenticated" && isPaid && (
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">Pro</span>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -501,11 +533,22 @@ export default function Dashboard() {
               <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex-wrap h-auto gap-1 p-1.5 rounded-lg">
                 <TabsTrigger value="new" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">New pairs</TabsTrigger>
                 <TabsTrigger value="trending" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trending</TabsTrigger>
-                <TabsTrigger value="surge" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Surge</TabsTrigger>
-                <TabsTrigger value="transactions" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
-                <TabsTrigger value="ai-analysis" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">NovaStaris AI Analysis</TabsTrigger>
-                <TabsTrigger value="ct" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
-                <TabsTrigger value="wallets" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet Tracker</TabsTrigger>
+                {isPaid && (
+                  <>
+                    <TabsTrigger value="surge" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Surge</TabsTrigger>
+                    <TabsTrigger value="transactions" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
+                    <TabsTrigger value="ai-analysis" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">NovaStaris AI Analysis</TabsTrigger>
+                    <TabsTrigger value="ct" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
+                    <TabsTrigger value="wallets" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet Tracker</TabsTrigger>
+                  </>
+                )}
+                {!isPaid && (
+                  <Link href="/subscribe">
+                    <span className="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 transition-colors cursor-pointer">
+                      Upgrade to Pro
+                    </span>
+                  </Link>
+                )}
               </TabsList>
             </Tabs>
           </CardHeader>

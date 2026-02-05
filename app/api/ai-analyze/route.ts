@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { getSolanaToken, extractSocials } from '@/lib/api-clients/dexscreener';
 import { checkSolanaTokenSecurity, getSecuritySummary, getTopHolderPercentage } from '@/lib/api-clients/goplus';
+import { getSessionAndSubscription } from '@/lib/auth-server';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -15,6 +16,10 @@ function isValidSolanaAddress(address: string): boolean {
 
 export async function POST(request: Request) {
   try {
+    const { isPaid } = await getSessionAndSubscription();
+    if (!isPaid) {
+      return NextResponse.json({ success: false, error: 'Subscribe to use NovaStaris AI Analysis.', locked: true }, { status: 403 });
+    }
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json(
         { success: false, error: 'AI analysis is not available right now. Please try again later.' },

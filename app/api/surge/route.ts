@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSurgeSolanaPairs, extractSocials, type DexPair, type SurgeWindow } from '@/lib/api-clients/dexscreener';
+import { getSessionAndSubscription } from '@/lib/auth-server';
 
 const WINDOW_LABELS: Record<string, string> = {
   m5: '5m',
@@ -89,6 +90,10 @@ function defaultMinVolumeForWindow(window: SurgeWindow): number {
 
 export async function GET(request: Request) {
   try {
+    const { isPaid } = await getSessionAndSubscription();
+    if (!isPaid) {
+      return NextResponse.json({ success: false, error: 'Subscribe to access Surge.', locked: true }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     const windowParam = (searchParams.get('window') || 'h24').toLowerCase();
     const window: SurgeWindow =

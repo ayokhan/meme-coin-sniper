@@ -19,6 +19,10 @@ export type WalletAlert = {
 
 export async function GET() {
   try {
+    const { isPaid } = await getSessionAndSubscription();
+    if (!isPaid) {
+      return NextResponse.json({ success: false, error: 'Subscribe to access Wallet Tracker.', locked: true }, { status: 403 });
+    }
     if (TRACKED_WALLETS.length === 0) {
       return NextResponse.json({
         success: true,

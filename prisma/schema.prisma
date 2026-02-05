@@ -55,3 +55,49 @@ model ScanLog {
   
   @@index([scanTime])
 }
+
+// Auth & subscriptions
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  hashedPassword String?
+  walletAddress String?   @unique  // Solana wallet for wallet-based login
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  subscriptions Subscription[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Subscription {
+  id           String   @id @default(cuid())
+  userId       String
+  plan         String   // "1month" | "3month" | "6month"
+  amountUsd    Int      // 250, 700, 1400
+  expiresAt    DateTime
+  txSignature  String?  // Solana tx signature for verification
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getSessionAndSubscription } from '@/lib/auth-server';
 import { detectViralTokens } from '@/lib/api-clients/twitter';
 import { getSolanaToken, extractSocials } from '@/lib/api-clients/dexscreener';
 import { searchTokenBySymbol } from '@/lib/api-clients/birdeye';
@@ -22,6 +23,10 @@ type ScannedToken = {
 
 export async function GET() {
   try {
+    const { isPaid } = await getSessionAndSubscription();
+    if (!isPaid) {
+      return NextResponse.json({ success: false, error: 'Subscribe to run Twitter scan.', locked: true }, { status: 403 });
+    }
     if (!process.env.APIFY_API_TOKEN) {
       return NextResponse.json({
         success: false,
