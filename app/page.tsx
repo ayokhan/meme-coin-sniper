@@ -35,6 +35,8 @@ type Token = {
   volume5m?: number | null;
   volume15m?: number | null;
   volume30m?: number | null;
+  txnsBuys24h?: number | null;
+  txnsSells24h?: number | null;
 };
 
 type WalletAlert = {
@@ -470,6 +472,26 @@ export default function Dashboard() {
                 </div>
               </details>
             )}
+            {activeTab === "surge" && (
+              <div className="mx-6 mt-4 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Volume window:</span>
+                {(["5m", "15m", "30m", "1h", "6h", "24h"] as const).map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => setSurgeWindow(w)}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      surgeWindow === w
+                        ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                        : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                    }`}
+                  >
+                    {w}
+                  </button>
+                ))}
+                <span className="text-xs text-muted-foreground ml-1">5m/15m/30m estimated from 1h. Up to 80 coins.</span>
+              </div>
+            )}
             {activeTab === "wallets" && (
               <details className="mx-6 mt-4 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
                 <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -616,6 +638,22 @@ export default function Dashboard() {
                             : surgeWindow === "1h" ? t.volume1h
                             : surgeWindow === "6h" ? t.volume6h
                             : t.volume24h
+                          )}
+                        </TableCell>
+                      )}
+                      {activeTab === "surge" && (
+                        <TableCell className="text-right tabular-nums text-xs">
+                          {t.txnsBuys24h != null || t.txnsSells24h != null ? (
+                            <>
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                                {((t.txnsBuys24h ?? 0) + (t.txnsSells24h ?? 0)).toLocaleString()}
+                              </span>
+                              <span className="block text-muted-foreground">
+                                {(t.txnsBuys24h ?? 0).toLocaleString()} / {(t.txnsSells24h ?? 0).toLocaleString()}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
                       )}

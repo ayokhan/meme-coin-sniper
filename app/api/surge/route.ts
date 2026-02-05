@@ -29,6 +29,8 @@ function pairToToken(pair: DexPair): {
   volume1h: number | null;
   volume6h: number | null;
   volume24h: number | null;
+  txnsBuys24h: number | null;
+  txnsSells24h: number | null;
 } {
   const socials = extractSocials(pair);
   const liq = pair.liquidity?.usd ?? 0;
@@ -37,6 +39,7 @@ function pairToToken(pair: DexPair): {
   const vol24 = pair.volume?.h24 ?? 0;
   const vol1hNum = vol1 ?? vol6 ?? vol24 ?? 0;
   const change = pair.priceChange?.h24 ?? pair.priceChange?.h6 ?? 0;
+  const txns = pair.txns?.h24 ?? pair.txns?.h6 ?? pair.txns?.h1;
   let score = 0;
   if (vol24 >= 100000) score += 25;
   else if (vol24 >= 50000) score += 20;
@@ -66,6 +69,8 @@ function pairToToken(pair: DexPair): {
     volume1h: vol1 != null && vol1 > 0 ? vol1 : null,
     volume6h: vol6 != null && vol6 > 0 ? vol6 : null,
     volume24h: vol24 > 0 ? vol24 : null,
+    txnsBuys24h: txns ? txns.buys : null,
+    txnsSells24h: txns ? txns.sells : null,
   };
 }
 
