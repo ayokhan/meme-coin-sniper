@@ -54,7 +54,7 @@ const AUTO_REFRESH_SECONDS = 60;
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"new" | "trending" | "surge" | "ct" | "wallets" | "transactions">("new");
+  const [activeTab, setActiveTab] = useState<"new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis">("new");
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
   const [trackedWallets, setTrackedWallets] = useState<{ address: string; label?: string }[]>([]);
   const [walletAlerts, setWalletAlerts] = useState<WalletAlert[]>([]);
@@ -71,9 +71,21 @@ export default function Dashboard() {
   const [dexTest, setDexTest] = useState<{ ok: boolean; message: string; newPairs?: number; trending?: number; sample?: string } | null>(null);
   const [moralisTest, setMoralisTest] = useState<{ ok: boolean; message: string; count?: number } | null>(null);
   const [twitterTest, setTwitterTest] = useState<{ ok: boolean; message: string; missing?: string[] } | null>(null);
+  const [aiAnalysisCa, setAiAnalysisCa] = useState("");
+  const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
+  const [aiAnalysisResult, setAiAnalysisResult] = useState<{
+    score: number;
+    reasons: string[];
+    tokenInfo: { symbol: string; name: string; liquidityUsd: number; volume24h: number; priceUsd: number | null; priceChange24hPct: number; securityIssues: string[]; securityWarnings: string[] };
+  } | null>(null);
+  const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
 
-  type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions";
+  type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis";
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
+    if (tab === "ai-analysis") {
+      if (showLoading) setLoading(false);
+      return;
+    }
     if (showLoading) setLoading(true);
     setError(null);
     try {
@@ -140,10 +152,42 @@ export default function Dashboard() {
 
   // Auto-refresh current tab every 60s (skip wallet tab to avoid heavy Helius calls)
   useEffect(() => {
-    if (activeTab === "wallets") return;
+    if (activeTab === "wallets" || activeTab === "ai-analysis") return;
     const interval = setInterval(() => fetchTokens(activeTab, false), AUTO_REFRESH_SECONDS * 1000);
     return () => clearInterval(interval);
   }, [activeTab]);
+
+  const runAiAnalysis = async () => {
+    const ca = aiAnalysisCa.trim();
+    if (!ca) {
+      setAiAnalysisError("Enter a contract address.");
+      return;
+    }
+    setAiAnalysisError(null);
+    setAiAnalysisResult(null);
+    setAiAnalysisLoading(true);
+    try {
+      const res = await fetch("/api/ai-analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contractAddress: ca }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiAnalysisResult({
+          score: data.score,
+          reasons: data.reasons ?? [],
+          tokenInfo: data.tokenInfo ?? {},
+        });
+      } else {
+        setAiAnalysisError(data.error || "Analysis failed.");
+      }
+    } catch (e) {
+      setAiAnalysisError(e instanceof Error ? e.message : "Request failed.");
+    } finally {
+      setAiAnalysisLoading(false);
+    }
+  };
 
   // Sort transactions tab by total txns (buys + sells) desc
   const tokensForDisplay =
@@ -449,16 +493,18 @@ export default function Dashboard() {
                 <li><strong>New pairs</strong> = <strong>live</strong> pairs created in the last 60 minutes (DexScreener). <strong>Trending</strong> = live by 24h volume + price change. <strong>Surge</strong> = high volume in 5m–24h window. <strong>Transactions</strong> = buys vs sells (24h), sorted by activity.</li>
                 <li><strong>Token sources for scan:</strong> Birdeye new listings → Moralis Pump.fun → DexScreener. Set BIRDEYE_API_KEY and/or MORALIS_API_KEY for best new pairs.</li>
                 <li><strong>CT Scan</strong>: KOLs, smart money. When <strong>3+</strong> tweet the same coin → potential viral. Needs APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY.</li>
+                <li><strong>AI Analysis</strong>: Paste a token contract address (CA); AI scores it 0–100 and explains why. Needs ANTHROPIC_API_KEY.</li>
                 <li><strong>Wallet Tracker</strong>: Whales, top gainers. When <strong>3+</strong> tracked wallets buy the same token → alert with coin + buyers. Needs HELIUS_API_KEY and wallets in <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">lib/config/ct-wallets.ts</code>.</li>
                 <li>Vercel Cron calls <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">/api/cron</code> for automatic scans (see vercel.json).</li>
               </ul>
             </details>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "new" | "trending" | "surge" | "ct" | "wallets" | "transactions")} className="mt-4">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4">
               <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex-wrap h-auto gap-1 p-1.5 rounded-lg">
                 <TabsTrigger value="new" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">New pairs</TabsTrigger>
                 <TabsTrigger value="trending" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trending</TabsTrigger>
                 <TabsTrigger value="surge" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Surge</TabsTrigger>
                 <TabsTrigger value="transactions" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
+                <TabsTrigger value="ai-analysis" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">AI Analysis</TabsTrigger>
                 <TabsTrigger value="ct" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
                 <TabsTrigger value="wallets" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet Tracker</TabsTrigger>
               </TabsList>
@@ -533,9 +579,74 @@ export default function Dashboard() {
                 </div>
               </details>
             )}
-            {loading ? (
+            {loading && activeTab !== "ai-analysis" ? (
               <div className="flex items-center justify-center py-16 text-muted-foreground">
                 <span className="inline-block animate-[nova-shimmer_1.2s_ease-in-out_infinite]">Loading…</span>
+              </div>
+            ) : activeTab === "ai-analysis" ? (
+              <div className="mx-6 py-8 max-w-2xl">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Enter a Solana token contract address (CA). AI will analyze on-chain data and security, then give a score (0–100) and reasons.
+                </p>
+                <div className="flex flex-wrap gap-2 items-end">
+                  <div className="flex-1 min-w-[200px]">
+                    <label htmlFor="ai-ca" className="sr-only">Contract address</label>
+                    <input
+                      id="ai-ca"
+                      type="text"
+                      placeholder="e.g. So11111111111111111111111111111111111111112"
+                      value={aiAnalysisCa}
+                      onChange={(e) => { setAiAnalysisCa(e.target.value); setAiAnalysisError(null); }}
+                      className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                  <Button
+                    onClick={runAiAnalysis}
+                    disabled={aiAnalysisLoading}
+                    className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700"
+                  >
+                    {aiAnalysisLoading ? "Analyzing…" : "Analyze"}
+                  </Button>
+                </div>
+                {aiAnalysisError && (
+                  <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{aiAnalysisError}</p>
+                )}
+                {aiAnalysisResult && (
+                  <div className="mt-6 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 p-5">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{aiAnalysisResult.tokenInfo?.symbol ?? "—"}</span>
+                        <span className="text-sm text-muted-foreground">{aiAnalysisResult.tokenInfo?.name}</span>
+                      </div>
+                      <div
+                        className={`text-4xl font-bold tabular-nums ${
+                          aiAnalysisResult.score >= 76 ? "text-emerald-600 dark:text-emerald-400" :
+                          aiAnalysisResult.score >= 51 ? "text-cyan-600 dark:text-cyan-400" :
+                          aiAnalysisResult.score >= 26 ? "text-amber-600 dark:text-amber-400" :
+                          "text-rose-600 dark:text-rose-400"
+                        }`}
+                      >
+                        {aiAnalysisResult.score}
+                        <span className="text-lg font-normal text-muted-foreground ml-1">/ 100</span>
+                      </div>
+                    </div>
+                    {aiAnalysisResult.tokenInfo && (aiAnalysisResult.tokenInfo.liquidityUsd != null || aiAnalysisResult.tokenInfo.volume24h != null) && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Liquidity ${(aiAnalysisResult.tokenInfo.liquidityUsd ?? 0).toLocaleString()} · Vol 24h ${(aiAnalysisResult.tokenInfo.volume24h ?? 0).toLocaleString()}
+                        {aiAnalysisResult.tokenInfo.priceChange24hPct != null && ` · ${aiAnalysisResult.tokenInfo.priceChange24hPct >= 0 ? "+" : ""}${aiAnalysisResult.tokenInfo.priceChange24hPct.toFixed(1)}% 24h`}
+                      </p>
+                    )}
+                    {aiAnalysisResult.tokenInfo?.securityIssues?.length > 0 && (
+                      <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{aiAnalysisResult.tokenInfo.securityIssues.join(" ")}</p>
+                    )}
+                    <ul className="mt-4 list-disc list-inside space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+                      {aiAnalysisResult.reasons.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <p className="mt-4 text-xs text-muted-foreground">Requires ANTHROPIC_API_KEY in Vercel. Data from DexScreener and GoPlus.</p>
               </div>
             ) : activeTab === "wallets" ? (
               walletAlerts.length === 0 ? (
