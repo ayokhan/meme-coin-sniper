@@ -48,3 +48,9 @@ To give your own account full access without a subscription:
 2. Redeploy.
 
 Any user whose email matches `OWNER_EMAIL` will be treated as having an active subscription (full access to paid tabs).
+
+---
+
+## 4. View customers (owner only)
+
+Open **`/admin/customers`** when signed in with an owner email. That page lists all registered users with name, email, phone, country, experience (trading crypto), subscription plan, expiry date, and active status. Only users listed in `OWNER_EMAIL` can access it; others get "Not authorized."

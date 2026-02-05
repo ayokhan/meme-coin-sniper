@@ -15,6 +15,9 @@ function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState("");
+  const [experienceTradingCrypto, setExperienceTradingCrypto] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -28,7 +31,14 @@ function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), password, name: name.trim() || undefined }),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          name: name.trim() || undefined,
+          phone: phone.trim() || undefined,
+          country: country.trim() || undefined,
+          experienceTradingCrypto: experienceTradingCrypto || undefined,
+        }),
       });
       const data = await res.json();
       if (!data.success) {
@@ -110,6 +120,30 @@ function RegisterForm() {
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
                 required
               />
+              <input
+                type="tel"
+                placeholder="Phone (optional)"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Country (optional)"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+              />
+              <select
+                value={experienceTradingCrypto}
+                onChange={(e) => setExperienceTradingCrypto(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+              >
+                <option value="">Experience trading crypto (optional)</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="expert">Expert</option>
+              </select>
               <input
                 type="password"
                 placeholder="Password (min 8 characters)"
