@@ -2,8 +2,10 @@ declare module '@prisma/client' {
   export interface PrismaUser {
     id: string;
     email: string | null;
-    hashedPassword: string | null;
+    emailVerified: Date | null;
     name: string | null;
+    image: string | null;
+    hashedPassword: string | null;
     walletAddress: string | null;
     createdAt: Date;
     updatedAt: Date;
