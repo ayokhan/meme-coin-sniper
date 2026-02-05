@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { TRACKED_WALLETS } from '@/lib/config/ct-wallets';
 import { getRecentTokenBuysForWallet } from '@/lib/api-clients/helius';
 import { getSolanaToken } from '@/lib/api-clients/dexscreener';
+import { getSessionAndSubscription } from '@/lib/auth-server';
 
 const MIN_BUYERS = 3;
 const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24h
