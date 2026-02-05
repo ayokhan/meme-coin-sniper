@@ -211,15 +211,23 @@ export default function Dashboard() {
     }
   };
 
-  // Sort transactions tab by total txns (buys + sells) desc
-  const tokensForDisplay =
-    activeTab === "transactions" && tokens.length > 0
-      ? [...tokens].sort((a, b) => {
-          const ta = (a.txnsBuys24h ?? 0) + (a.txnsSells24h ?? 0);
-          const tb = (b.txnsBuys24h ?? 0) + (b.txnsSells24h ?? 0);
-          return tb - ta;
-        })
-      : tokens;
+  // Sort transactions tab by total txns (buys + sells) desc; dedupe by id so React keys are unique
+  const tokensForDisplay = (() => {
+    const base =
+      activeTab === "transactions" && tokens.length > 0
+        ? [...tokens].sort((a, b) => {
+            const ta = (a.txnsBuys24h ?? 0) + (a.txnsSells24h ?? 0);
+            const tb = (b.txnsBuys24h ?? 0) + (b.txnsSells24h ?? 0);
+            return tb - ta;
+          })
+        : tokens;
+    const seen = new Set<string>();
+    return base.filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+  })();
 
   const formatVol = (v: number | null | undefined) =>
     v != null ? `$${(v / 1000).toFixed(1)}k` : "—";
