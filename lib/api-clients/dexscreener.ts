@@ -60,6 +60,7 @@ export async function getNewSolanaPairs(minLiquidity = 5000, maxAgeMinutes = 60)
   }
 }
 
+/** Trending = live movers by 24h volume + price change (distinct from "new pairs" which is DB scan result). */
 export async function getTrendingSolanaPairs(limit = 20): Promise<DexPair[]> {
   try {
     const pairs = await fetchSolanaPairsViaSearch();
@@ -67,10 +68,27 @@ export async function getTrendingSolanaPairs(limit = 20): Promise<DexPair[]> {
     const vol = (p: DexPair) => p.volume?.h24 ?? 0;
     const change = (p: DexPair) => p.priceChange?.h24 ?? p.priceChange?.h6 ?? 0;
     const dexOk = (p: DexPair) => ['raydium', 'orca', 'meteora', 'pump.fun', 'pumpswap'].includes((p.dexId || '').toLowerCase());
-    // Very relaxed: any Solana pair with liquidity + volume, sorted by volume then price change
+    // Min 24h volume so "trending" = real movers, not just any pair
     return pairs
-      .filter((p) => dexOk(p) && usd(p) >= 500 && vol(p) >= 100)
+      .filter((p) => dexOk(p) && usd(p) >= 2000 && vol(p) >= 5000)
       .sort((a, b) => (vol(b) * (1 + (change(b) ?? 0) / 100)) - (vol(a) * (1 + (change(a) ?? 0) / 100)))
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/** Surge = high volume in short window. DexScreener gives h24 (and sometimes h1); we use min 24h volume as proxy for "surge". */
+export async function getSurgeSolanaPairs(minVolume24h = 20000, limit = 30): Promise<DexPair[]> {
+  try {
+    const pairs = await fetchSolanaPairsViaSearch();
+    const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
+    const vol = (p: DexPair) => p.volume?.h24 ?? 0;
+    const volH1 = (p: DexPair) => p.volume?.h1 ?? p.volume?.h24 ?? 0;
+    const dexOk = (p: DexPair) => ['raydium', 'orca', 'meteora', 'pump.fun', 'pumpswap'].includes((p.dexId || '').toLowerCase());
+    return pairs
+      .filter((p) => dexOk(p) && usd(p) >= 1000 && vol(p) >= minVolume24h)
+      .sort((a, b) => (volH1(b) || vol(b)) - (volH1(a) || vol(a)))
       .slice(0, limit);
   } catch {
     return [];
