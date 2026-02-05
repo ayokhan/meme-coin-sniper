@@ -31,6 +31,7 @@ type Token = {
   kolCount?: number;
   volume24h?: number | null;
   volume1h?: number | null;
+  volume6h?: number | null;
 };
 
 type WalletAlert = {
@@ -52,6 +53,7 @@ export default function Dashboard() {
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
   const [trackedWallets, setTrackedWallets] = useState<{ address: string; label?: string }[]>([]);
   const [walletAlerts, setWalletAlerts] = useState<WalletAlert[]>([]);
+  const [surgeWindow, setSurgeWindow] = useState<"1h" | "6h" | "24h">("24h");
 
   useEffect(() => {
     setMounted(true);
@@ -79,9 +81,10 @@ export default function Dashboard() {
         if (showLoading) setLoading(false);
         return;
       }
+      const surgeWindowParam = tab === "surge" ? surgeWindow : "24h";
       const url =
         tab === "trending" ? "/api/trending"
-        : tab === "surge" ? "/api/surge?minVolume=20000"
+        : tab === "surge" ? `/api/surge?minVolume=20000&window=${surgeWindowParam}`
         : tab === "ct" ? "/api/tokens?source=twitter"
         : "/api/tokens";
       const res = await fetch(url);
@@ -122,6 +125,10 @@ export default function Dashboard() {
     if (activeTab === "ct") fetchCtAccounts();
     if (activeTab === "wallets") fetchTrackedWallets();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === "surge") fetchTokens("surge");
+  }, [surgeWindow]);
 
   // Auto-refresh current tab every 60s (skip wallet tab to avoid heavy Helius calls)
   useEffect(() => {
@@ -553,7 +560,7 @@ export default function Dashboard() {
                 </p>
                 <p className="mt-4 text-xs max-w-md text-zinc-500 dark:text-zinc-400">
                   {activeTab === "surge"
-                    ? "Surge filters by minimum 24h volume. List auto-refreshes every 60s."
+                    ? `Surge filters by volume in last ${surgeWindow}. List auto-refreshes every 60s.`
                     : activeTab === "ct"
                       ? "CT Scan: KOLs, smart money. When 3+ tweet the same coin → potential viral."
                       : activeTab === "new"
@@ -568,7 +575,7 @@ export default function Dashboard() {
                     <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Symbol</TableHead>
                     <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">Name</TableHead>
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Score</TableHead>
-                    {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol 24h</TableHead>}
+                    {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol ({surgeWindow})</TableHead>}
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Age</TableHead>
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
@@ -599,7 +606,7 @@ export default function Dashboard() {
                       </TableCell>
                       {activeTab === "surge" && (
                         <TableCell className="text-right tabular-nums font-medium text-cyan-700 dark:text-cyan-300">
-                          {formatVol(t.volume24h)}
+                          {formatVol(surgeWindow === "1h" ? t.volume1h : surgeWindow === "6h" ? t.volume6h : t.volume24h)}
                         </TableCell>
                       )}
                       <TableCell className="text-right tabular-nums text-muted-foreground text-xs">

@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getSurgeSolanaPairs, extractSocials, type DexPair } from '@/lib/api-clients/dexscreener';
+import { getSurgeSolanaPairs, extractSocials, type DexPair, type SurgeWindow } from '@/lib/api-clients/dexscreener';
 
-function pairToToken(pair: DexPair, minVol: number): {
+const WINDOW_LABELS: Record<string, string> = {
+  h1: '1h',
+  h6: '6h',
+  h24: '24h',
+};
+
+function pairToToken(pair: DexPair): {
   id: string;
   symbol: string;
   name: string;
@@ -14,13 +20,15 @@ function pairToToken(pair: DexPair, minVol: number): {
   telegram: string | null;
   website: string | null;
   launchedAt: string;
-  volume24h: number | null;
   volume1h: number | null;
+  volume6h: number | null;
+  volume24h: number | null;
 } {
   const socials = extractSocials(pair);
   const liq = pair.liquidity?.usd ?? 0;
-  const vol24 = pair.volume?.h24 ?? 0;
   const vol1 = pair.volume?.h1 ?? null;
+  const vol6 = pair.volume?.h6 ?? null;
+  const vol24 = pair.volume?.h24 ?? 0;
   const change = pair.priceChange?.h24 ?? pair.priceChange?.h6 ?? 0;
   let score = 0;
   if (vol24 >= 100000) score += 25;
@@ -45,25 +53,35 @@ function pairToToken(pair: DexPair, minVol: number): {
     telegram: socials.telegram,
     website: socials.website,
     launchedAt: new Date(pair.pairCreatedAt).toISOString(),
-    volume24h: vol24 > 0 ? vol24 : null,
     volume1h: vol1 != null && vol1 > 0 ? vol1 : null,
+    volume6h: vol6 != null && vol6 > 0 ? vol6 : null,
+    volume24h: vol24 > 0 ? vol24 : null,
   };
 }
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const windowParam = (searchParams.get('window') || 'h24').toLowerCase();
+    const window: SurgeWindow =
+      windowParam === 'h1' || windowParam === '1h' ? 'h1'
+      : windowParam === 'h6' || windowParam === '6h' ? 'h6'
+      : 'h24';
     const minVol = parseInt(searchParams.get('minVolume') || '20000', 10);
     const limit = Math.min(parseInt(searchParams.get('limit') || '30', 10), 50);
-    const pairs = await getSurgeSolanaPairs(minVol, limit);
-    const tokens = pairs.map((p) => pairToToken(p, minVol));
+    const pairs = await getSurgeSolanaPairs(window, minVol, limit);
+    const tokens = pairs.map(pairToToken);
+    const label = WINDOW_LABELS[window] || '24h';
     return NextResponse.json({
       success: true,
       tokens,
-      minVolume24h: minVol,
-      description: `Pairs with ≥$${(minVol / 1000).toFixed(0)}k 24h volume (surge movers)`,
+      window,
+      windowLabel: label,
+      minVolume: minVol,
+      description: `Surge: ≥$${(minVol / 1000).toFixed(0)}k volume in last ${label}`,
     });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Surge failed';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

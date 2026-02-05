@@ -78,17 +78,25 @@ export async function getTrendingSolanaPairs(limit = 20): Promise<DexPair[]> {
   }
 }
 
-/** Surge = high volume in short window. DexScreener gives h24 (and sometimes h1); we use min 24h volume as proxy for "surge". */
-export async function getSurgeSolanaPairs(minVolume24h = 20000, limit = 30): Promise<DexPair[]> {
+export type SurgeWindow = 'h1' | 'h6' | 'h24';
+
+/** Surge = high volume in a time window. DexScreener provides h1, h6, h24. */
+export async function getSurgeSolanaPairs(
+  window: SurgeWindow,
+  minVolume: number,
+  limit = 30
+): Promise<DexPair[]> {
   try {
     const pairs = await fetchSolanaPairsViaSearch();
     const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
-    const vol = (p: DexPair) => p.volume?.h24 ?? 0;
-    const volH1 = (p: DexPair) => p.volume?.h1 ?? p.volume?.h24 ?? 0;
+    const vol = (p: DexPair) =>
+      window === 'h1' ? (p.volume?.h1 ?? p.volume?.h6 ?? p.volume?.h24 ?? 0)
+      : window === 'h6' ? (p.volume?.h6 ?? p.volume?.h24 ?? 0)
+      : (p.volume?.h24 ?? 0);
     const dexOk = (p: DexPair) => ['raydium', 'orca', 'meteora', 'pump.fun', 'pumpswap'].includes((p.dexId || '').toLowerCase());
     return pairs
-      .filter((p) => dexOk(p) && usd(p) >= 1000 && vol(p) >= minVolume24h)
-      .sort((a, b) => (volH1(b) || vol(b)) - (volH1(a) || vol(a)))
+      .filter((p) => dexOk(p) && usd(p) >= 1000 && vol(p) >= minVolume)
+      .sort((a, b) => vol(b) - vol(a))
       .slice(0, limit);
   } catch {
     return [];
