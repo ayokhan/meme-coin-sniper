@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Zap } from "lucide-react";
 
 type Token = {
   id: string;
@@ -75,8 +76,9 @@ export default function Dashboard() {
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<{
     score: number;
+    signal: "buy" | "no_buy";
     reasons: string[];
-    tokenInfo: { symbol: string; name: string; liquidityUsd: number; volume24h: number; priceUsd: number | null; priceChange24hPct: number; securityIssues: string[]; securityWarnings: string[] };
+    tokenInfo: { symbol?: string; name?: string; liquidityUsd?: number; volume24h?: number; priceUsd?: number | null; priceChange24hPct?: number; securityIssues?: string[]; securityWarnings?: string[] };
   } | null>(null);
   const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
 
@@ -176,6 +178,7 @@ export default function Dashboard() {
       if (data.success) {
         setAiAnalysisResult({
           score: data.score,
+          signal: data.signal === "buy" ? "buy" : "no_buy",
           reasons: data.reasons ?? [],
           tokenInfo: data.tokenInfo ?? {},
         });
@@ -330,8 +333,9 @@ export default function Dashboard() {
               >
                 NovaStaris
               </span>
-              <span className="text-xs sm:text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-0.5 tracking-wide">
-                Your meme coin sniper
+              <span className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold mt-0.5 tracking-wide bg-gradient-to-r from-amber-400 via-yellow-300 to-cyan-400 bg-clip-text text-transparent dark:from-amber-300 dark:via-yellow-200 dark:to-cyan-300">
+                <Zap className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0 animate-[nova-zap-pulse_2s_ease-in-out_infinite]" aria-hidden />
+                Your Advanced AI Lightning Sniper
               </span>
             </h1>
           </div>
@@ -629,6 +633,15 @@ export default function Dashboard() {
                         {aiAnalysisResult.score}
                         <span className="text-lg font-normal text-muted-foreground ml-1">/ 100</span>
                       </div>
+                      <Badge
+                        className={`text-sm font-bold px-3 py-1 ${
+                          aiAnalysisResult.signal === "buy"
+                            ? "bg-emerald-500 text-white dark:bg-emerald-600 border-0 hover:bg-emerald-600 dark:hover:bg-emerald-700"
+                            : "bg-rose-500 text-white dark:bg-rose-600 border-0 hover:bg-rose-600 dark:hover:bg-rose-700"
+                        }`}
+                      >
+                        {aiAnalysisResult.signal === "buy" ? "BUY" : "NO BUY"}
+                      </Badge>
                     </div>
                     {aiAnalysisResult.tokenInfo && (aiAnalysisResult.tokenInfo.liquidityUsd != null || aiAnalysisResult.tokenInfo.volume24h != null) && (
                       <p className="mt-2 text-xs text-muted-foreground">
@@ -636,8 +649,8 @@ export default function Dashboard() {
                         {aiAnalysisResult.tokenInfo.priceChange24hPct != null && ` · ${aiAnalysisResult.tokenInfo.priceChange24hPct >= 0 ? "+" : ""}${aiAnalysisResult.tokenInfo.priceChange24hPct.toFixed(1)}% 24h`}
                       </p>
                     )}
-                    {aiAnalysisResult.tokenInfo?.securityIssues?.length > 0 && (
-                      <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{aiAnalysisResult.tokenInfo.securityIssues.join(" ")}</p>
+                    {(aiAnalysisResult.tokenInfo?.securityIssues?.length ?? 0) > 0 && (
+                      <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{(aiAnalysisResult.tokenInfo?.securityIssues ?? []).join(" ")}</p>
                     )}
                     <ul className="mt-4 list-disc list-inside space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
                       {aiAnalysisResult.reasons.map((r, i) => (

@@ -88,9 +88,12 @@ ${JSON.stringify(tokenSummary, null, 2)}
 
 Score meaning: 0–25 = avoid, 26–50 = risky/speculative, 51–75 = moderate potential, 76–100 = strong metrics / lower risk.
 
+Also give a clear signal: "buy" only if you would consider buying (e.g. score >= 51, no critical security issues). Use "no_buy" if avoid or too risky.
+
 Respond ONLY with valid JSON (no markdown, no code block):
 {
   "score": <number 0-100>,
+  "signal": "buy" or "no_buy",
   "reasons": [ "<reason 1>", "<reason 2>", ... ]
 }
 Keep reasons short (one line each). Include both positives and negatives. Mention liquidity, volume, security (honeypot/mintable/top holder), socials, and price action where relevant.`;
@@ -103,13 +106,15 @@ Keep reasons short (one line each). Include both positives and negatives. Mentio
 
     const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}';
     const cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const parsed = JSON.parse(cleaned) as { score?: number; reasons?: string[] };
+    const parsed = JSON.parse(cleaned) as { score?: number; signal?: string; reasons?: string[] };
     const score = typeof parsed.score === 'number' ? Math.min(100, Math.max(0, Math.round(parsed.score))) : 50;
+    const signal = (parsed.signal ?? '').toLowerCase() === 'buy' ? 'buy' : 'no_buy';
     const reasons = Array.isArray(parsed.reasons) ? parsed.reasons.filter((r) => typeof r === 'string') : ['No reasons provided.'];
 
     return NextResponse.json({
       success: true,
       score,
+      signal,
       reasons,
       tokenInfo: {
         symbol: tokenSummary.symbol,
