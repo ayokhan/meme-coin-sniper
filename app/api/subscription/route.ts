@@ -69,7 +69,11 @@ export async function POST(request: Request) {
   }
 
   const expiresAt = new Date();
-  expiresAt.setMonth(expiresAt.getMonth() + plan.months);
+  if (plan.months === 0) {
+    expiresAt.setDate(expiresAt.getDate() + 1); // 1-day trial
+  } else {
+    expiresAt.setMonth(expiresAt.getMonth() + plan.months);
+  }
 
   await prisma.subscription.create({
     data: {

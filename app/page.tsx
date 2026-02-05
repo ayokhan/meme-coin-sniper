@@ -330,8 +330,7 @@ export default function Dashboard() {
       ? `https://dexscreener.com/solana/${t.pairAddress}`
       : `https://dexscreener.com/solana/${t.contractAddress}`;
   const pumpFunUrl = (t: Token) => `https://pump.fun/coin/${t.contractAddress}`;
-  const axiomUrl = (t: Token) =>
-    `https://axiom.trade/swap?chain=sol&inputMint=${encodeURIComponent(t.contractAddress)}`;
+  const gmgnUrl = (t: Token) => `https://gmgn.ai/sol/token/${encodeURIComponent(t.contractAddress)}`;
   const maestroUrl = (t: Token) =>
     `https://t.me/maestro?start=${encodeURIComponent(t.contractAddress)}`;
 
@@ -404,6 +403,9 @@ export default function Dashboard() {
                 System
               </button>
             </div>
+            <Button variant="ghost" size="sm" asChild className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+              <Link href="/about">About</Link>
+            </Button>
             {status !== "authenticated" && (
               <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
                 <Link href="/register">Sign in</Link>
@@ -546,9 +548,9 @@ export default function Dashboard() {
               <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">How it works</summary>
               <ul className="mt-2 list-inside list-disc space-y-1 pl-1">
                 <li><strong>New pairs</strong> = live pairs created in the last 60 minutes. <strong>Trending</strong> = live by 24h volume + price change. <strong>Surge</strong> = high volume in 5m–24h window. <strong>Transactions</strong> = buys vs sells (24h), sorted by activity.</li>
-                <li><strong>CT Scan</strong>: When 3+ tracked KOLs tweet the same coin → potential viral.</li>
+                <li><strong>CT Scan</strong>: Spot coins going viral from smart money and influencer buzz before the crowd.</li>
                 <li><strong>NovaStaris AI Analysis</strong>: Paste a token contract address; NovaStaris AI scores it 0–100, gives a buy/no-buy signal, and explains why.</li>
-                <li><strong>Wallet Tracker</strong>: When 3+ tracked wallets buy the same token → alert with coin + buyers.</li>
+                <li><strong>Wallet Tracker</strong>: Get alerted when tracked wallets pile into the same token—so you can move with the flow.</li>
               </ul>
             </details>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4">
@@ -826,8 +828,9 @@ export default function Dashboard() {
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           <a href={dexUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
                           <a href={pumpFunUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Pump</a>
-                          <a href={axiomUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Axiom</a>
+                          <a href={gmgnUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">GMGN</a>
                           <a href={maestroUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="Maestro">Maestro</a>
+                          {isPaid && <a href={ttfTelegramUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="TTF Telegram">TTF</a>}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -927,12 +930,12 @@ export default function Dashboard() {
                             Pump
                           </a>
                           <a
-                            href={axiomUrl(t)}
+                            href={gmgnUrl(t)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
                           >
-                            Axiom
+                            GMGN
                           </a>
                           <a
                             href={maestroUrl(t)}

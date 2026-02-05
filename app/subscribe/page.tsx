@@ -17,7 +17,7 @@ export default function SubscribePage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [paymentWallet, setPaymentWallet] = useState("");
   const [usdcMint, setUsdcMint] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState<string>("1month");
+  const [selectedPlan, setSelectedPlan] = useState<string>("1day");
   const [txSignature, setTxSignature] = useState("");
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyError, setVerifyError] = useState("");
@@ -122,9 +122,14 @@ export default function SubscribePage() {
             <Zap className="h-5 w-5 text-cyan-500" />
             NovaStaris
           </Link>
-          <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-            ← Dashboard
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/about" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+              About
+            </Link>
+            <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+              ← Dashboard
+            </Link>
+          </div>
         </div>
       </header>
 
