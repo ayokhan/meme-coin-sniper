@@ -1,4 +1,14 @@
 declare module '@prisma/client' {
+  export interface PrismaUser {
+    id: string;
+    email: string | null;
+    hashedPassword: string | null;
+    name: string | null;
+    walletAddress: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
   export class PrismaClient {
     constructor(options?: unknown);
     token: {
@@ -10,9 +20,11 @@ declare module '@prisma/client' {
       create: (args: { data: { chain: string; tokensFound: number } }) => Promise<unknown>;
     };
     user: {
-      findUnique: (args: { where: { email?: string; id?: string; walletAddress?: string } }) => Promise<{ id: string; email: string | null; hashedPassword: string | null; name: string | null } | null>;
-      create: (args: { data: { email: string; hashedPassword: string; name?: string } }) => Promise<unknown>;
-      update: (args: { where: { id: string }; data: unknown }) => Promise<unknown>;
+      findUnique: (args: { where: { email?: string; id?: string; walletAddress?: string } }) => Promise<PrismaUser | null>;
+      create: (args: {
+        data: { email?: string; hashedPassword?: string; name?: string; walletAddress?: string };
+      }) => Promise<PrismaUser>;
+      update: (args: { where: { id: string }; data: unknown }) => Promise<PrismaUser>;
     };
     account: {
       findMany: (args?: { where?: { userId: string } }) => Promise<unknown[]>;
