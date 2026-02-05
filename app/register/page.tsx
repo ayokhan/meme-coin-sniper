@@ -73,10 +73,11 @@ export default function RegisterPage() {
         method: "signMessage",
         params: { message: nonceData.message, display: "utf8" },
       });
+      const rawSig = sig.signature as string | Uint8Array | number[];
       const signature =
-        typeof sig.signature === "string"
-          ? sig.signature
-          : bs58Encode(sig.signature instanceof Uint8Array ? sig.signature : new Uint8Array(sig.signature));
+        typeof rawSig === "string"
+          ? rawSig
+          : bs58Encode(rawSig instanceof Uint8Array ? rawSig : new Uint8Array(rawSig));
 
       const res = await signIn("wallet", {
         walletAddress,
