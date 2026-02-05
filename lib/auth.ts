@@ -134,7 +134,13 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string | null;
         session.user.name = token.name as string | null;
         session.user.image = token.picture as string | null;
-        session.user.isPaid = (token.isPaid as boolean) ?? false;
+        let isPaid = (token.isPaid as boolean) ?? false;
+        // Owner gets full access: set OWNER_EMAIL (comma-separated) in Vercel
+        if (session.user.email && process.env.OWNER_EMAIL) {
+          const ownerEmails = process.env.OWNER_EMAIL.split(',').map((e) => e.trim().toLowerCase());
+          if (ownerEmails.includes(session.user.email.toLowerCase())) isPaid = true;
+        }
+        session.user.isPaid = isPaid;
       }
       return session;
     },

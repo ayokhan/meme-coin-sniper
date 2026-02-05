@@ -14,12 +14,39 @@ function RegisterForm() {
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password, name: name.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || "Registration failed.");
+        return;
+      }
+      setSuccess("Account created. Sign in below.");
+    } catch {
+      setError("Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
     setLoading(true);
     try {
       const res = await signIn("email", { email, password, redirect: false });
@@ -49,7 +76,7 @@ function RegisterForm() {
             <Zap className="h-6 w-6 text-amber-500" />
             NovaStaris
           </Link>
-          <CardTitle className="text-lg mt-2">Sign in or register</CardTitle>
+          <CardTitle className="text-lg mt-2">Register or sign in</CardTitle>
           <p className="text-sm text-muted-foreground">Free: 5 New pairs + 5 Trending. Subscribe for full access.</p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -58,33 +85,80 @@ function RegisterForm() {
               {error}
             </div>
           )}
+          {success && (
+            <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-sm px-3 py-2">
+              {success}
+            </div>
+          )}
 
-          <form onSubmit={handleEmailSubmit} className="space-y-3">
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
-              required
-              minLength={8}
-            />
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in with email"}
-            </Button>
-          </form>
+          {/* Register */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Create an account</h3>
+            <form onSubmit={handleRegister} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Name (optional)"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+                required
+              />
+              <input
+                type="password"
+                placeholder="Password (min 8 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+                required
+                minLength={8}
+              />
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Creating account…" : "Register"}
+              </Button>
+            </form>
+          </div>
 
-          <p className="text-xs text-center text-muted-foreground">
-            No account? Use the same form — we’ll create one on first sign-in.
-          </p>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-zinc-200 dark:border-zinc-700" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase text-muted-foreground">
+              <span className="bg-white dark:bg-zinc-900 px-2">Already have an account? Sign in</span>
+            </div>
+          </div>
+
+          {/* Sign in */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Sign in</h3>
+            <form onSubmit={handleSignIn} className="space-y-3">
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+                required
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+                required
+              />
+              <Button type="submit" variant="secondary" className="w-full" disabled={loading}>
+                {loading ? "Signing in…" : "Sign in with email"}
+              </Button>
+            </form>
+          </div>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -117,7 +191,7 @@ function RegisterFallback() {
             <Zap className="h-6 w-6 text-amber-500" />
             NovaStaris
           </Link>
-          <CardTitle className="text-lg mt-2">Sign in or register</CardTitle>
+          <CardTitle className="text-lg mt-2">Register or sign in</CardTitle>
           <p className="text-sm text-muted-foreground">Loading…</p>
         </CardHeader>
       </Card>
