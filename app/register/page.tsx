@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
+import bs58 from "bs58";
 
 declare global {
   interface Window {
@@ -169,20 +170,4 @@ export default function RegisterPage() {
       </Card>
     </div>
   );
-}
-
-function bs58Encode(buf: Uint8Array): string {
-  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-  let num = BigInt("0x" + Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join(""));
-  let s = "";
-  while (num > 0n) {
-    const r = Number(num % 58n);
-    num = num / 58n;
-    s = alphabet[r] + s;
-  }
-  for (const b of buf) {
-    if (b === 0) s = alphabet[0] + s;
-    else break;
-  }
-  return s;
 }
