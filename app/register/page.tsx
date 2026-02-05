@@ -73,11 +73,6 @@ function RegisterForm() {
     }
   };
 
-  const handleGoogle = () => {
-    setError("");
-    signIn("google", { callbackUrl });
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
       <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -193,19 +188,6 @@ function RegisterForm() {
               </Button>
             </form>
           </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-zinc-200 dark:border-zinc-700" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase text-muted-foreground">
-              <span className="bg-white dark:bg-zinc-900 px-2">Or continue with</span>
-            </div>
-          </div>
-
-          <Button type="button" variant="outline" className="w-full" onClick={handleGoogle} disabled={loading}>
-            Google
-          </Button>
 
           <p className="text-xs text-center text-muted-foreground">
             <Link href="/" className="underline hover:no-underline">Back to app</Link>

@@ -1,6 +1,5 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import GoogleProvider from 'next-auth/providers/google';
 import { PublicKey } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
@@ -9,8 +8,16 @@ import { getActiveSubscription } from '@/lib/subscription';
 
 declare module 'next-auth' {
   interface Session {
-    user: { id: string; email?: string | null; name?: string | null; image?: string | null; isPaid: boolean };
+    user: { id: string; email?: string | null; name?: string | null; image?: string | null; isPaid: boolean; isOwner?: boolean };
   }
+}
+
+export function isOwnerEmail(email: string | null | undefined): boolean {
+  if (!email || !process.env.OWNER_EMAIL) return false;
+  const ownerEmails = process.env.OWNER_EMAIL.split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return ownerEmails.includes(email.toLowerCase().trim());
 }
 
 function verifyWalletSignature(message: string, signature: string, walletAddress: string): boolean {
@@ -71,60 +78,15 @@ export const authOptions: NextAuthOptions = {
         return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, isPaid };
       },
     }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-    }),
   ],
   callbacks: {
-    async signIn({ user: authUser, account }) {
-      if (account?.provider === 'google' && authUser.email) {
-        let user = await prisma.user.findUnique({ where: { email: authUser.email } });
-        if (!user) {
-          user = await prisma.user.create({
-            data: {
-              email: authUser.email,
-              name: authUser.name ?? undefined,
-              image: authUser.image ?? undefined,
-            },
-          });
-        }
-        await prisma.account.upsert({
-          where: {
-            provider_providerAccountId: {
-              provider: 'google',
-              providerAccountId: account.providerAccountId,
-            },
-          },
-          create: {
-            userId: user.id,
-            type: account.type,
-            provider: account.provider,
-            providerAccountId: account.providerAccountId,
-            access_token: account.access_token ?? undefined,
-            refresh_token: account.refresh_token ?? undefined,
-            expires_at: account.expires_at ?? undefined,
-          },
-          update: {},
-        });
-      }
-      return true;
-    },
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.picture = user.image;
         token.isPaid = (user as { isPaid?: boolean }).isPaid ?? false;
-      }
-      if (account?.provider === 'google' && profile?.email) {
-        const dbUser = await prisma.user.findUnique({ where: { email: profile.email } });
-        if (dbUser) {
-          token.id = dbUser.id;
-          const isPaid = await getActiveSubscription(dbUser.id);
-          token.isPaid = isPaid;
-        }
       }
       return token;
     },
@@ -135,12 +97,10 @@ export const authOptions: NextAuthOptions = {
         session.user.name = token.name as string | null;
         session.user.image = token.picture as string | null;
         let isPaid = (token.isPaid as boolean) ?? false;
-        // Owner gets full access: set OWNER_EMAIL (comma-separated) in Vercel
-        if (session.user.email && process.env.OWNER_EMAIL) {
-          const ownerEmails = process.env.OWNER_EMAIL.split(',').map((e) => e.trim().toLowerCase());
-          if (ownerEmails.includes(session.user.email.toLowerCase())) isPaid = true;
-        }
+        const owner = isOwnerEmail(session.user.email);
+        if (owner) isPaid = true;
         session.user.isPaid = isPaid;
+        session.user.isOwner = owner;
       }
       return session;
     },

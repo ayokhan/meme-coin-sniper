@@ -1,22 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions, isOwnerEmail } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 /** GET - List all customers (name, email, phone, country, experience, subscription). Owner-only. */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email;
+    const email = session?.user?.email ?? null;
     if (!email) {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
-    const ownerEmails = (process.env.OWNER_EMAIL ?? '')
-      .split(',')
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
-    if (!ownerEmails.includes(email.toLowerCase())) {
-      return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
+    if (!isOwnerEmail(email)) {
+      return NextResponse.json({ success: false, error: 'Not authorized. Only owner emails (OWNER_EMAIL) can access.' }, { status: 403 });
     }
 
     const users = await prisma.user.findMany({

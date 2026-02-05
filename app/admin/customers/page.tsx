@@ -63,7 +63,7 @@ export default function AdminCustomersPage() {
         </Link>
         <Card className="border-zinc-200 dark:border-zinc-800">
           <CardHeader>
-            <CardTitle>Customers</CardTitle>
+            <CardTitle>Admin — Customers</CardTitle>
             <p className="text-sm text-muted-foreground">Registered users and subscription status. Only visible to owners (OWNER_EMAIL).</p>
           </CardHeader>
           <CardContent>

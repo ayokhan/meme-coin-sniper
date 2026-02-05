@@ -61,6 +61,7 @@ export default function Dashboard() {
   const { theme, setTheme } = useTheme();
   const { data: session, status } = useSession();
   const isPaid = (session?.user as { isPaid?: boolean } | undefined)?.isPaid ?? false;
+  const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("new");
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
@@ -415,6 +416,11 @@ export default function Dashboard() {
             {status === "authenticated" && isPaid && (
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">Pro</span>
             )}
+            {status === "authenticated" && isOwner && (
+              <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
+                <Link href="/admin/customers">Customers</Link>
+              </Button>
+            )}
             {status === "authenticated" && (
               <Button variant="outline" size="sm" onClick={() => signOut()} className="border-zinc-200 dark:border-zinc-700">
                 Log out
@@ -456,33 +462,35 @@ export default function Dashboard() {
             {error}
           </div>
         )}
-        <div className="mb-6 flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={testDexScreener}
-            className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50"
-          >
-            Test DexScreener
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={testMoralis}
-            className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50"
-          >
-            Test Moralis
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={testTwitter}
-            className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50"
-          >
-            Test Twitter Scan
-          </Button>
-        </div>
-        {dexTest && (
+        {isOwner && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testDexScreener}
+              className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50"
+            >
+              Test DexScreener
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testMoralis}
+              className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50"
+            >
+              Test Moralis
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testTwitter}
+              className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50"
+            >
+              Test Twitter Scan
+            </Button>
+          </div>
+        )}
+        {isOwner && dexTest && (
           <div
             className={`mb-6 rounded-xl border px-4 py-3 text-sm shadow-sm ${
               dexTest.ok
@@ -513,7 +521,7 @@ export default function Dashboard() {
             )}
           </div>
         )}
-        {twitterTest && (
+        {isOwner && twitterTest && (
           <div
             className={`mb-6 rounded-xl border px-4 py-3 text-sm shadow-sm ${
               twitterTest.ok

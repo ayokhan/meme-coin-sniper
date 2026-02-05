@@ -39,13 +39,15 @@ The redirect URI must match exactly (no trailing slash, correct domain and path)
 
 ## 3. Owner full access (you as app owner)
 
-To give your own account full access without a subscription:
+To give your own account full access without a subscription and access to **Customers** (/admin/customers):
 
 1. In **Vercel → Settings → Environment Variables**, add:
    - **Name:** `OWNER_EMAIL`  
    - **Value:** your email, e.g. `ayokhan2006@gmail.com`  
-     For multiple owners use a comma-separated list: `email1@gmail.com,email2@gmail.com`
-2. Redeploy.
+     For multiple owners use a comma-separated list: `email1@gmail.com,email2@gmail.com`  
+     Use the **exact same email** you use to sign in (no extra spaces).
+2. **Redeploy** the project (e.g. push a commit or “Redeploy” in Vercel). Env vars apply on the next deployment; existing runs keep the old env.
+3. **Sign out and sign in again** so the new session includes `isOwner` and `isPaid`.
 
 Any user whose email matches `OWNER_EMAIL` will be treated as having an active subscription (full access to paid tabs).
 
