@@ -24,7 +24,10 @@ export default function SubscribePage() {
   const [verifySuccess, setVerifySuccess] = useState(false);
 
   useEffect(() => {
-    if (status === "unauthenticated") return;
+    if (status === "unauthenticated") {
+      setLoading(false);
+      return;
+    }
     if (status !== "authenticated") return;
     (async () => {
       try {
