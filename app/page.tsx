@@ -493,7 +493,7 @@ export default function Dashboard() {
               <ul className="mt-2 list-inside list-disc space-y-1 pl-1">
                 <li><strong>New pairs</strong> = live pairs created in the last 60 minutes. <strong>Trending</strong> = live by 24h volume + price change. <strong>Surge</strong> = high volume in 5m–24h window. <strong>Transactions</strong> = buys vs sells (24h), sorted by activity.</li>
                 <li><strong>CT Scan</strong>: When 3+ tracked KOLs tweet the same coin → potential viral.</li>
-                <li><strong>AI Analysis</strong>: Paste a token contract address; AI scores it 0–100, gives a buy/no-buy signal, and explains why.</li>
+                <li><strong>NovaStaris AI Analysis</strong>: Paste a token contract address; NovaStaris AI scores it 0–100, gives a buy/no-buy signal, and explains why.</li>
                 <li><strong>Wallet Tracker</strong>: When 3+ tracked wallets buy the same token → alert with coin + buyers.</li>
               </ul>
             </details>
@@ -503,7 +503,7 @@ export default function Dashboard() {
                 <TabsTrigger value="trending" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trending</TabsTrigger>
                 <TabsTrigger value="surge" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Surge</TabsTrigger>
                 <TabsTrigger value="transactions" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
-                <TabsTrigger value="ai-analysis" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">AI Analysis</TabsTrigger>
+                <TabsTrigger value="ai-analysis" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">NovaStaris AI Analysis</TabsTrigger>
                 <TabsTrigger value="ct" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
                 <TabsTrigger value="wallets" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet Tracker</TabsTrigger>
               </TabsList>
@@ -585,7 +585,7 @@ export default function Dashboard() {
             ) : activeTab === "ai-analysis" ? (
               <div className="mx-6 py-8 max-w-2xl">
                 <p className="text-sm text-muted-foreground mb-4">
-                  Enter a Solana token contract address (CA). AI will analyze on-chain data and security, then give a score (0–100) and reasons.
+                  Enter a Solana token contract address (CA). NovaStaris AI will analyze on-chain data and security, then give a score (0–100) and reasons.
                 </p>
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex-1 min-w-[200px]">
