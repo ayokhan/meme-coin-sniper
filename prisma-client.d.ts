@@ -24,7 +24,7 @@ declare module '@prisma/client' {
     user: {
       findUnique: (args: { where: { email?: string; id?: string; walletAddress?: string } }) => Promise<PrismaUser | null>;
       create: (args: {
-        data: { email?: string; hashedPassword?: string; name?: string; walletAddress?: string };
+        data: { email?: string; hashedPassword?: string; name?: string; image?: string; walletAddress?: string };
       }) => Promise<PrismaUser>;
       update: (args: { where: { id: string }; data: unknown }) => Promise<PrismaUser>;
     };
