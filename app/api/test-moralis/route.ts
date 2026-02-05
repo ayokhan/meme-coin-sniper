@@ -10,7 +10,7 @@ export async function GET() {
     if (!isMoralisConfigured()) {
       return NextResponse.json({
         success: false,
-        message: "MORALIS_API_KEY not set. Add it to .env.local for Pump.fun new tokens.",
+        message: "Moralis is not configured.",
         count: 0,
         sample: [],
       });

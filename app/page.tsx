@@ -477,9 +477,6 @@ export default function Dashboard() {
             }`}
           >
             <strong>Twitter scan:</strong> {twitterTest.message}
-            {twitterTest.missing && twitterTest.missing.length > 0 && (
-              <span className="ml-2">— Missing: {twitterTest.missing.join(", ")}</span>
-            )}
           </div>
         )}
 
@@ -492,14 +489,12 @@ export default function Dashboard() {
               Higher score = better liquidity, security &amp; socials. <strong className="text-cyan-600 dark:text-cyan-400">40+</strong> = high confidence · <strong>30–39</strong> = watch · <strong>20–29</strong> = risky · <strong>15–19</strong> = very new (Pump.fun).
             </p>
             <details className="mt-3 text-xs text-muted-foreground">
-              <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">How scanning works</summary>
+              <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">How it works</summary>
               <ul className="mt-2 list-inside list-disc space-y-1 pl-1">
-                <li><strong>New pairs</strong> = <strong>live</strong> pairs created in the last 60 minutes (DexScreener). <strong>Trending</strong> = live by 24h volume + price change. <strong>Surge</strong> = high volume in 5m–24h window. <strong>Transactions</strong> = buys vs sells (24h), sorted by activity.</li>
-                <li><strong>Token sources for scan:</strong> Birdeye new listings → Moralis Pump.fun → DexScreener. Set BIRDEYE_API_KEY and/or MORALIS_API_KEY for best new pairs.</li>
-                <li><strong>CT Scan</strong>: KOLs, smart money. When <strong>3+</strong> tweet the same coin → potential viral. Needs APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY.</li>
-                <li><strong>AI Analysis</strong>: Paste a token contract address (CA); AI scores it 0–100 and explains why. Needs ANTHROPIC_API_KEY.</li>
-                <li><strong>Wallet Tracker</strong>: Whales, top gainers. When <strong>3+</strong> tracked wallets buy the same token → alert with coin + buyers. Needs HELIUS_API_KEY and wallets in <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">lib/config/ct-wallets.ts</code>.</li>
-                <li>Vercel Cron calls <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">/api/cron</code> for automatic scans (see vercel.json).</li>
+                <li><strong>New pairs</strong> = live pairs created in the last 60 minutes. <strong>Trending</strong> = live by 24h volume + price change. <strong>Surge</strong> = high volume in 5m–24h window. <strong>Transactions</strong> = buys vs sells (24h), sorted by activity.</li>
+                <li><strong>CT Scan</strong>: When 3+ tracked KOLs tweet the same coin → potential viral.</li>
+                <li><strong>AI Analysis</strong>: Paste a token contract address; AI scores it 0–100, gives a buy/no-buy signal, and explains why.</li>
+                <li><strong>Wallet Tracker</strong>: When 3+ tracked wallets buy the same token → alert with coin + buyers.</li>
               </ul>
             </details>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4">
@@ -564,7 +559,7 @@ export default function Dashboard() {
                 <div className="px-4 pb-3 pt-1 flex flex-wrap gap-2">
                   {trackedWallets.length === 0 ? (
                     <span className="text-xs text-muted-foreground">
-                      Add whales / top gainers in <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">lib/config/ct-wallets.ts</code>. When 3+ buy the same coin → alert.
+                      When 3+ tracked wallets buy the same coin, it appears here. Configure tracked wallets in settings.
                     </span>
                   ) : (
                     trackedWallets.map((w) => (
@@ -659,14 +654,13 @@ export default function Dashboard() {
                     </ul>
                   </div>
                 )}
-                <p className="mt-4 text-xs text-muted-foreground">Requires ANTHROPIC_API_KEY in Vercel. Data from DexScreener and GoPlus.</p>
               </div>
             ) : activeTab === "wallets" ? (
               walletAlerts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
                   <p className="font-semibold text-zinc-700 dark:text-zinc-300">No wallet alerts yet.</p>
                   <p className="mt-2">
-                    Add whales / top gainers in <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">lib/config/ct-wallets.ts</code> and set <code className="rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">HELIUS_API_KEY</code> in Vercel. When 3+ tracked wallets buy the same token, it appears here.
+                    When 3+ tracked wallets buy the same token, it appears here. Configure wallet tracking in settings.
                   </p>
                 </div>
               ) : (
@@ -714,7 +708,7 @@ export default function Dashboard() {
                 </p>
                 <p className="mt-2">
                   {activeTab === "ct"
-                    ? "Run \"Scan Twitter\" to find coins mentioned by 3+ tracked KOLs. Requires APIFY_API_TOKEN, ANTHROPIC_API_KEY, BIRDEYE_API_KEY in Vercel."
+                    ? "Run \"Scan Twitter\" to find coins mentioned by 3+ tracked KOLs."
                     : activeTab === "surge"
                       ? `Surge shows coins with high volume in the selected window (${surgeWindow}). 5m/15m/30m estimated from 1h. Live from DexScreener, up to 80 coins.`
                       : activeTab === "transactions"

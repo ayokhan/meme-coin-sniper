@@ -17,8 +17,8 @@ export async function POST(request: Request) {
   try {
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json(
-        { success: false, error: 'ANTHROPIC_API_KEY not set. Add it in Vercel → Environment Variables.' },
-        { status: 400 }
+        { success: false, error: 'AI analysis is not available right now. Please try again later.' },
+        { status: 503 }
       );
     }
 

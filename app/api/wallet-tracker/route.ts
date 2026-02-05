@@ -23,7 +23,7 @@ export async function GET() {
       return NextResponse.json({
         success: true,
         alerts: [],
-        message: 'Add wallets in lib/config/ct-wallets.ts to track whales / top gainers.',
+        message: 'Wallet tracker is not configured yet.',
       });
     }
 
@@ -32,8 +32,8 @@ export async function GET() {
       return NextResponse.json({
         success: false,
         alerts: [],
-        error: 'HELIUS_API_KEY not set. Add it in Vercel to enable Wallet Tracker.',
-      }, { status: 400 });
+        error: 'Wallet tracker is not available right now. Please try again later.',
+      }, { status: 503 });
     }
 
     // For each tracked wallet, get recent token mints they swapped

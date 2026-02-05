@@ -172,10 +172,10 @@ export async function GET(request: Request) {
     
     const hint =
       dataSource === 'birdeye'
-        ? 'New listings from Birdeye (catch before viral).'
+        ? 'New listings (catch before viral).'
         : dataSource === 'moralis'
-          ? 'New listings from Moralis Pump.fun (Birdeye failed or empty).'
-          : 'Add BIRDEYE_API_KEY (or MORALIS_API_KEY) for new listings; using DexScreener (popular tokens).';
+          ? 'New listings from Pump.fun.'
+          : 'Using popular tokens from DexScreener.';
     return NextResponse.json({
       success: true,
       source: dataSource,

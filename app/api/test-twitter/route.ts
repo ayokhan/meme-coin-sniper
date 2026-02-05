@@ -10,15 +10,13 @@ export async function GET() {
     if (missing.length > 0) {
       return NextResponse.json({
         success: false,
-        message: "Twitter scan is not configured. Add missing environment variables in Vercel.",
-        missing,
+        message: "Twitter scan is not configured.",
       });
     }
 
     return NextResponse.json({
       success: true,
-      message: "Twitter scan environment looks configured.",
-      missing: [],
+      message: "Twitter scan is configured.",
     });
   } catch (error: any) {
     return NextResponse.json(
