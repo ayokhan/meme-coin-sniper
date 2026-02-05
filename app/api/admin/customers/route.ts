@@ -20,13 +20,14 @@ export async function GET() {
     }
 
     const users = await prisma.user.findMany({
-      include: { subscriptions: { orderBy: { expiresAt: 'desc' } } },
+      include: { subscriptions: true },
       orderBy: { createdAt: 'desc' },
     });
 
     const now = new Date();
     const customers = users.map((u) => {
-      const subs = (u as { subscriptions?: Array<{ plan: string; amountUsd: number; expiresAt: Date }> }).subscriptions ?? [];
+      const rawSubs = (u as { subscriptions?: Array<{ plan: string; amountUsd: number; expiresAt: Date }> }).subscriptions ?? [];
+      const subs = [...rawSubs].sort((a, b) => new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime());
       const activeSub = subs.find((s) => new Date(s.expiresAt) > now);
       const latestSub = subs[0];
       return {

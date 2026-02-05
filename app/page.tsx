@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -414,6 +414,11 @@ export default function Dashboard() {
             )}
             {status === "authenticated" && isPaid && (
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">Pro</span>
+            )}
+            {status === "authenticated" && (
+              <Button variant="outline" size="sm" onClick={() => signOut()} className="border-zinc-200 dark:border-zinc-700">
+                Log out
+              </Button>
             )}
             <Button
               variant="outline"
