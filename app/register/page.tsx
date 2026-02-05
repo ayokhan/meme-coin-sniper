@@ -7,13 +7,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
-import bs58 from "bs58";
-
-declare global {
-  interface Window {
-    phantom?: { solana?: { connect: () => Promise<{ publicKey: { toBase58: () => string } }>; request: (args: { method: string; params: { message: string; display: string } }) => Promise<{ signature: string }> } };
-  }
-}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,7 +16,6 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [walletLoading, setWalletLoading] = useState(false);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,57 +39,6 @@ export default function RegisterPage() {
   const handleGoogle = () => {
     setError("");
     signIn("google", { callbackUrl });
-  };
-
-  const handleWallet = async () => {
-    setError("");
-    setWalletLoading(true);
-    try {
-      const phantom = typeof window !== "undefined" ? window.phantom?.solana : null;
-      if (!phantom) {
-        setError("Install Phantom wallet extension to sign in with wallet.");
-        setWalletLoading(false);
-        return;
-      }
-      const { publicKey } = await phantom.connect();
-      const walletAddress = publicKey.toBase58();
-
-      const nonceRes = await fetch(`/api/auth/nonce?wallet=${encodeURIComponent(walletAddress)}`);
-      const nonceData = await nonceRes.json();
-      if (!nonceData.success || !nonceData.message) {
-        setError("Could not get login message.");
-        setWalletLoading(false);
-        return;
-      }
-
-      const sig = await phantom.request({
-        method: "signMessage",
-        params: { message: nonceData.message, display: "utf8" },
-      });
-      const rawSig = sig.signature as string | Uint8Array | number[];
-      const signature =
-        typeof rawSig === "string"
-          ? rawSig
-          : bs58Encode(rawSig instanceof Uint8Array ? rawSig : new Uint8Array(rawSig));
-
-      const res = await signIn("wallet", {
-        walletAddress,
-        message: nonceData.message,
-        signature,
-        redirect: false,
-      });
-      if (res?.error) {
-        setError("Wallet sign-in failed.");
-        setWalletLoading(false);
-        return;
-      }
-      router.push(callbackUrl);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Wallet sign-in failed.");
-    } finally {
-      setWalletLoading(false);
-    }
   };
 
   return (
@@ -154,14 +95,9 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="grid gap-2">
-            <Button type="button" variant="outline" className="w-full" onClick={handleGoogle} disabled={loading}>
-              Google
-            </Button>
-            <Button type="button" variant="outline" className="w-full" onClick={handleWallet} disabled={walletLoading}>
-              {walletLoading ? "Connecting…" : "Phantom / Solana wallet"}
-            </Button>
-          </div>
+          <Button type="button" variant="outline" className="w-full" onClick={handleGoogle} disabled={loading}>
+            Google
+          </Button>
 
           <p className="text-xs text-center text-muted-foreground">
             <Link href="/" className="underline hover:no-underline">Back to app</Link>
