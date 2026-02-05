@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
@@ -105,5 +105,30 @@ export default function RegisterPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function RegisterFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+      <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <CardHeader className="text-center">
+          <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-zinc-100">
+            <Zap className="h-6 w-6 text-amber-500" />
+            NovaStaris
+          </Link>
+          <CardTitle className="text-lg mt-2">Sign in or register</CardTitle>
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        </CardHeader>
+      </Card>
+    </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<RegisterFallback />}>
+      <RegisterForm />
+    </Suspense>
   );
 }
