@@ -34,8 +34,11 @@ declare module '@prisma/client' {
       upsert: (args: { where: unknown; create: unknown; update: unknown }) => Promise<unknown>;
     };
     subscription: {
-      findMany: (args?: { where?: { userId: string }; orderBy?: unknown }) => Promise<unknown[]>;
-      findFirst: (args?: { where: { userId?: string; txSignature?: string }; orderBy?: unknown }) => Promise<unknown>;
+      findMany: (args?: { where?: { userId?: string; expiresAt?: { gt: Date } }; orderBy?: unknown }) => Promise<unknown[]>;
+      findFirst: (args?: {
+        where?: { userId?: string; txSignature?: string; expiresAt?: { gt: Date } };
+        orderBy?: { expiresAt?: 'asc' | 'desc' };
+      }) => Promise<{ expiresAt: Date } | null>;
       create: (args: { data: unknown }) => Promise<unknown>;
     };
   }
