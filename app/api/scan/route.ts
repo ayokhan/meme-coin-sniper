@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getNewSolanaPairs, getTrendingSolanaPairs, getSolanaToken, extractSocials, getQualityScore } from '@/lib/api-clients/dexscreener';
 import { getNewListings, isBirdeyeConfigured } from '@/lib/api-clients/birdeye';
-import { getNewPumpFunTokens, isMoralisConfigured } from '@/lib/api-clients/moralis';
+import { getPumpFunNewTokens, isMoralisConfigured } from '@/lib/api-clients/moralis';
 import { checkSolanaTokenSecurity, calculateSecurityScore, getTopHolderPercentage, getSecuritySummary } from '@/lib/api-clients/goplus';
 import { calculateViralScore } from '@/lib/utils/viral-score';
 import { sendTokenAlerts } from '@/lib/telegram';
@@ -47,10 +47,10 @@ export async function GET(request: Request) {
       else {
         console.log('📊 Birdeye returned 0 tokens. Trying Moralis Pump.fun fallback...');
         if (isMoralisConfigured()) {
-          const moralisTokens = await getNewPumpFunTokens(maxPairs * 2);
+          const moralisTokens = await getPumpFunNewTokens(maxPairs * 2);
           console.log(`📊 Moralis Pump.fun fallback returned ${moralisTokens.length} tokens`);
         for (const token of moralisTokens.slice(0, maxPairs * 2)) {
-          const pair = await getSolanaToken(token.address);
+          const pair = await getSolanaToken(token.tokenAddress);
           if (pair) pairs.push(pair);
           await new Promise((r) => setTimeout(r, 200));
         }

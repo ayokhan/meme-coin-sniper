@@ -1,0 +1,15 @@
+---
+description: Keep Git in sync after code changes and deploys
+alwaysApply: true
+---
+
+# Git sync after changes
+
+When you make code changes in this project:
+
+1. **After editing files**: Run Git commit and push so the repo stays in sync with what is deployed.
+2. **Workflow**: `git add .` → `git commit -m "Short description of changes"` → `git push`.
+3. **Commit message**: Use a clear, short message (e.g. "Add Crypto Futures tab", "Fix AI analysis type", "Update NovaStaris heading").
+4. **When deploying** (`npx vercel --prod`): Commit and push first or immediately after, so Git and production stay in sync.
+
+Only run git commands when the user has requested changes or deploy; do not commit without meaningful changes.

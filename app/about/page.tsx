@@ -31,8 +31,7 @@ export default function AboutPage() {
         </div>
 
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg overflow-hidden mb-8">
-          <CardHeader className="pb-2">
-            <CardContent className="p-6 pt-0 space-y-6 text-zinc-700 dark:text-zinc-300">
+          <CardContent className="p-6 space-y-6 text-zinc-700 dark:text-zinc-300">
               <p className="text-base leading-relaxed">
                 <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris</strong> is an advanced AI-powered meme snipping system built for Solana. We combine real-time on-chain data, social signals, and AI analysis so you can discover and evaluate viral tokens before the crowd—and decide with confidence.
               </p>
@@ -80,7 +79,7 @@ export default function AboutPage() {
               <p className="text-sm text-zinc-500 dark:text-zinc-400 pt-2">
                 NovaStaris does not provide financial advice. Always do your own research and never risk more than you can afford to lose.
               </p>
-          </CardContent>
+            </CardContent>
         </Card>
 
         <div className="flex justify-center">

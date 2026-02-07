@@ -1,6 +1,8 @@
 import axios from 'axios';
+import WebSocket from 'ws';
 
 const DEXSCREENER_BASE = 'https://api.dexscreener.com';
+const DEXSCREENER_WS = 'wss://io.dexscreener.com/dex/screener/pairs/h24/1';
 
 export interface DexPair {
   chainId: string;
@@ -18,11 +20,17 @@ export interface DexPair {
   info?: { socials?: Array<{ type?: string; platform?: string; url?: string; handle?: string }>; websites?: Array<{ url: string }> };
 }
 
+function toMs(createdAt: number): number {
+  return createdAt < 1e12 ? createdAt * 1000 : createdAt;
+}
+
 /** Fetch Solana pairs via search (official API has no "all pairs" endpoint). More queries = more pairs. */
 async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Promise<DexPair[]> {
   const queries = [
     'SOL', 'USDC', 'BONK', 'WIF', 'PEPE', 'DOGE', 'FLOKI', 'POPCAT', 'MEW', 'SLERF', 'SHIB',
-    'MEME', 'TOSHI', 'NEIRO', 'MOODENG', 'FARTCOIN', 'MOG', 'TURBO', ...extraQueries
+    'MEME', 'TOSHI', 'NEIRO', 'MOODENG', 'FARTCOIN', 'MOG', 'TURBO',
+    'solana', 'pump', 'raydium', 'jup', 'meme coin', 'new token', 'pump.fun', 'pumpswap',
+    ...extraQueries
   ];
   const seen = new Set<string>();
   const all: DexPair[] = [];
@@ -46,7 +54,7 @@ async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Promise<D
   return all;
 }
 
-export async function getNewSolanaPairs(minLiquidity = 5000, maxAgeMinutes = 60): Promise<DexPair[]> {
+export async function getNewSolanaPairs(minLiquidity = 500, maxAgeMinutes = 120): Promise<DexPair[]> {
   try {
     const pairs = await fetchSolanaPairsViaSearch();
     const now = Date.now();
@@ -54,14 +62,106 @@ export async function getNewSolanaPairs(minLiquidity = 5000, maxAgeMinutes = 60)
     const vol = (p: DexPair) => p.volume?.h24 ?? 0;
     const dexOk = (p: DexPair) => ['raydium', 'orca', 'meteora', 'pump.fun', 'pumpswap'].includes((p.dexId || '').toLowerCase());
     const eligible = pairs
-      .filter((p) => usd(p) >= minLiquidity && vol(p) > 100 && dexOk(p))
-      .sort((a, b) => b.pairCreatedAt - a.pairCreatedAt);
-    const inWindow = eligible.filter((p) => (now - p.pairCreatedAt) <= maxAgeMinutes * 60000);
-    const source = inWindow.length > 0 ? inWindow : eligible;
-    return source.slice(0, 80);
+      .filter((p) => usd(p) >= minLiquidity && (vol(p) > 0 || usd(p) >= minLiquidity) && dexOk(p))
+      .sort((a, b) => toMs(b.pairCreatedAt) - toMs(a.pairCreatedAt));
+    const inWindow = eligible.filter((p) => (now - toMs(p.pairCreatedAt)) <= maxAgeMinutes * 60000);
+    const fallbackMinutes = Math.min(maxAgeMinutes * 2, 120);
+    const inFallback = eligible.filter((p) => (now - toMs(p.pairCreatedAt)) <= fallbackMinutes * 60000);
+    const source = inWindow.length > 0 ? inWindow : inFallback.length > 0 ? inFallback : eligible;
+    return source.slice(0, 300);
   } catch {
     return [];
   }
+}
+
+/** WS pair message shape (DexScreener streams slightly different fields). */
+interface WsPair {
+  chainId?: string;
+  dexId?: string;
+  pairAddress?: string;
+  baseToken?: { address?: string; name?: string; symbol?: string };
+  liquidity?: { usd?: number };
+  priceUsd?: string;
+  pairCreatedAt?: number;
+  txns?: { h24?: { buys?: number; sells?: number }; h6?: { buys?: number; sells?: number }; h1?: { buys?: number; sells?: number }; m5?: { buys?: number; sells?: number } };
+  priceChange?: { h24?: number; h6?: number; h1?: number; m5?: number };
+  volume?: { h24?: number; h6?: number; h1?: number };
+  marketCap?: number;
+  profile?: { website?: string; twitter?: string; header?: string; linkCount?: number; imgKey?: string };
+}
+
+function wsPairToDexPair(p: WsPair): DexPair | null {
+  if (!p?.baseToken?.address || p.chainId !== 'solana') return null;
+  const createdAt = p.pairCreatedAt != null ? (p.pairCreatedAt < 1e12 ? p.pairCreatedAt * 1000 : p.pairCreatedAt) : 0;
+  const profile = p.profile ?? {};
+  const socials = [];
+  if (profile.twitter) socials.push({ type: 'twitter', url: profile.twitter, platform: 'twitter' });
+  return {
+    chainId: 'solana',
+    dexId: p.dexId ?? '',
+    pairAddress: p.pairAddress ?? '',
+    baseToken: {
+      address: p.baseToken.address,
+      name: p.baseToken.name ?? '—',
+      symbol: p.baseToken.symbol ?? '—',
+    },
+    priceUsd: p.priceUsd ?? '0',
+    txns: p.txns
+      ? {
+          h24: p.txns.h24 ? { buys: p.txns.h24.buys ?? 0, sells: p.txns.h24.sells ?? 0 } : undefined,
+          h6: p.txns.h6 ? { buys: p.txns.h6.buys ?? 0, sells: p.txns.h6.sells ?? 0 } : undefined,
+          h1: p.txns.h1 ? { buys: p.txns.h1.buys ?? 0, sells: p.txns.h1.sells ?? 0 } : undefined,
+        }
+      : undefined,
+    volume: p.volume ? { h24: p.volume.h24 ?? 0, h6: p.volume?.h6, h1: p.volume?.h1 } : undefined,
+    priceChange: p.priceChange ? { h24: p.priceChange.h24 ?? 0, h6: p.priceChange.h6, h1: p.priceChange.h1 } : undefined,
+    liquidity: p.liquidity ? { usd: p.liquidity.usd ?? 0 } : undefined,
+    fdv: p.marketCap,
+    pairCreatedAt: createdAt,
+    info: {
+      websites: profile.website ? [{ url: profile.website }] : undefined,
+      socials: socials.length > 0 ? socials : undefined,
+    },
+  };
+}
+
+/**
+ * Fetch newest Solana pairs from DexScreener WebSocket (rank by pairCreatedAt desc).
+ * Returns up to 200 pairs. Falls back to [] on timeout or error.
+ */
+export function getNewSolanaPairsFromWebSocket(timeoutMs = 12000): Promise<DexPair[]> {
+  return new Promise((resolve) => {
+    const url = `${DEXSCREENER_WS}?rankBy[key]=pairCreatedAt&rankBy[order]=desc`;
+    const ws = new WebSocket(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; NovaStaris/1.0)',
+        Origin: 'https://dexscreener.com',
+      },
+    });
+    const t = setTimeout(() => {
+      try { ws.close(); } catch { /* noop */ }
+      resolve([]);
+    }, timeoutMs);
+    ws.on('message', (data: Buffer) => {
+      try {
+        const msg = JSON.parse(data.toString()) as { type?: string; pairs?: WsPair[] };
+        if (msg.type === 'pairs' && Array.isArray(msg.pairs)) {
+          clearTimeout(t);
+          ws.close();
+          const pairs = msg.pairs.map(wsPairToDexPair).filter((x): x is DexPair => x != null);
+          resolve(pairs.slice(0, 300));
+        }
+      } catch {
+        // ignore parse errors
+      }
+    });
+    ws.on('error', () => {
+      clearTimeout(t);
+      try { ws.close(); } catch { /* noop */ }
+      resolve([]);
+    });
+    ws.on('close', () => clearTimeout(t));
+  });
 }
 
 /** Trending = live movers by 24h volume + price change (distinct from "new pairs" which is DB scan result). */

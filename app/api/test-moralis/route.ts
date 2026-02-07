@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getNewPumpFunTokens, isMoralisConfigured } from "@/lib/api-clients/moralis";
+import { getPumpFunNewTokens, isMoralisConfigured } from "@/lib/api-clients/moralis";
 
 /**
  * GET /api/test-moralis
@@ -15,8 +15,8 @@ export async function GET() {
         sample: [],
       });
     }
-    const tokens = await getNewPumpFunTokens(10);
-    const sample = tokens.slice(0, 5).map((t) => ({ address: t.address }));
+    const tokens = await getPumpFunNewTokens(10);
+    const sample = tokens.slice(0, 5).map((t) => ({ address: t.tokenAddress }));
     return NextResponse.json({
       success: tokens.length > 0,
       message:

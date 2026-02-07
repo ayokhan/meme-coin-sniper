@@ -96,3 +96,47 @@ export async function sendTokenAlerts(tokens: TokenForAlert[]): Promise<void> {
     await new Promise((r) => setTimeout(r, 300));
   }
 }
+
+/** Wallet Tracker alert: 3+ tracked wallets bought the same token. */
+export type WalletAlertForTelegram = {
+  contractAddress: string;
+  symbol: string;
+  name: string;
+  buyerCount: number;
+  buyers: Array<{ address: string; label?: string }>;
+  liquidity?: number | null;
+  priceUSD?: number | null;
+};
+
+/**
+ * Format and send a single wallet-tracker alert to Telegram.
+ */
+export async function sendWalletAlert(alert: WalletAlertForTelegram): Promise<boolean> {
+  const dexUrl = `https://dexscreener.com/solana/${alert.contractAddress}`;
+  const gmgnUrl = `https://gmgn.ai/sol/token/${encodeURIComponent(alert.contractAddress)}`;
+  const liq = alert.liquidity != null ? `$${(alert.liquidity / 1000).toFixed(1)}k` : '—';
+  const price = alert.priceUSD != null ? `$${alert.priceUSD < 0.01 ? alert.priceUSD.toExponential(2) : alert.priceUSD.toFixed(6)}` : '—';
+  const who = alert.buyers.map((b) => b.label || `${b.address.slice(0, 4)}…${b.address.slice(-4)}`).join(', ');
+
+  const lines = [
+    `🔔 <b>Wallet Tracker</b> — 3+ tracked wallets bought`,
+    `🪙 <b>${escapeHtml(alert.symbol)}</b> — ${escapeHtml(alert.name)}`,
+    `👥 <b>${alert.buyerCount}</b> buyers: ${escapeHtml(who)}`,
+    `📊 Liq: ${liq} · Price: ${price}`,
+    `🔗 <a href="${dexUrl}">DexScreener</a> · <a href="${gmgnUrl}">GMGN</a>`,
+  ];
+
+  const text = lines.join('\n');
+  return sendTelegramMessage(text);
+}
+
+/**
+ * Send wallet-tracker alerts to Telegram (one message per alert).
+ */
+export async function sendWalletAlerts(alerts: WalletAlertForTelegram[]): Promise<void> {
+  if (!isTelegramConfigured() || alerts.length === 0) return;
+  for (const alert of alerts) {
+    await sendWalletAlert(alert);
+    await new Promise((r) => setTimeout(r, 300));
+  }
+}

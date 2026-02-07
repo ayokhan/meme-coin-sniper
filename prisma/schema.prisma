@@ -72,6 +72,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   subscriptions Subscription[]
+  pinnedTokens  PinnedToken[]
 }
 
 model Account {
@@ -103,4 +104,20 @@ model Subscription {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
   @@index([expiresAt])
+}
+
+// Pinned tokens for AI re-analysis every ~3 min
+model PinnedToken {
+  id              String    @id @default(cuid())
+  userId          String
+  contractAddress String
+  symbol          String?
+  name            String?
+  pinnedAt        DateTime  @default(now())
+  lastAnalyzedAt  DateTime?
+  analysisResult  Json?     // { score, signal, reasons, recommendations, tokenInfo, ... }
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, contractAddress])
+  @@index([userId])
+  @@index([lastAnalyzedAt])
 }
