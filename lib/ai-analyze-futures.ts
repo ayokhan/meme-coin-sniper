@@ -17,6 +17,7 @@ export type FuturesAnalysisParams = {
 export type FuturesAnalysisResult = {
   score: number;
   signal: 'buy' | 'no_buy';
+  tradeDirection?: 'long' | 'short';
   reasons: string[];
   recommendations?: {
     supportResistance?: string;
@@ -57,8 +58,9 @@ Trade context:
 Analyze the chart image and provide:
 1. A score 0-100 (0-25 = avoid / poor setup, 26-50 = risky or weak structure, 51-75 = decent setup with clear levels, 76-100 = strong setup with confluence).
 2. Signal: "buy" only if score >= 51 and the chart supports the intended direction; otherwise "no_buy".
-3. Reasons: 4-8 short bullet points (mix of positives and negatives) covering: structure, key levels, momentum, risk/reward, and any caveats.
-4. Trading levels (futures-style, price-based):
+3. tradeDirection: When the user asked to "analyze both", you MUST recommend whether to trade LONG or SHORT. Set "tradeDirection" to "long" or "short" — your clear recommendation (e.g. "long" if chart favors longs, "short" if it favors shorts). When the user already chose a direction, set tradeDirection to that direction if signal is buy, or to your preferred bias if no_buy.
+4. Reasons: 4-8 short bullet points (mix of positives and negatives) covering: structure, key levels, momentum, risk/reward, and any caveats.
+5. Trading levels (futures-style, price-based):
    - supportResistance: Clear support and resistance levels from the chart (use price levels, not market cap).
    - marketStructure: One line (e.g. "Higher highs and higher lows", "Range-bound", "Break of structure", "Consolidation before move").
    - entryZone: Recommended entry zone in price (e.g. "$97,000–$97,500" or "On pullback to $95,200–95,800"). For futures this is price-based.
@@ -71,6 +73,7 @@ Respond ONLY with valid JSON (no markdown, no code block):
 {
   "score": <number 0-100>,
   "signal": "buy" or "no_buy",
+  "tradeDirection": "long" or "short",
   "reasons": [ "<short reason 1>", ... ],
   "recommendations": {
     "supportResistance": "<one line, price levels>",
@@ -106,6 +109,7 @@ Keep reasons short and actionable.`;
   const parsed = JSON.parse(cleaned) as {
     score?: number;
     signal?: string;
+    tradeDirection?: string;
     reasons?: string[];
     recommendations?: {
       supportResistance?: string;
@@ -118,12 +122,15 @@ Keep reasons short and actionable.`;
 
   const score = typeof parsed.score === 'number' ? Math.min(100, Math.max(0, Math.round(parsed.score))) : 50;
   const signal = (parsed.signal ?? '').toLowerCase() === 'buy' ? 'buy' : 'no_buy';
+  const tradeDirectionRaw = (parsed.tradeDirection ?? '').toLowerCase();
+  const tradeDirection = tradeDirectionRaw === 'long' || tradeDirectionRaw === 'short' ? tradeDirectionRaw : undefined;
   const reasons = Array.isArray(parsed.reasons) ? parsed.reasons.filter((r) => typeof r === 'string') : ['No reasons provided.'];
   const recommendations = parsed.recommendations && typeof parsed.recommendations === 'object' ? parsed.recommendations : undefined;
 
   return {
     score,
     signal,
+    tradeDirection,
     reasons,
     recommendations,
   };

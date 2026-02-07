@@ -107,6 +107,7 @@ export async function POST(request: Request) {
       success: true,
       score: result.score,
       signal: result.signal,
+      tradeDirection: result.tradeDirection,
       reasons: result.reasons,
       recommendations: result.recommendations,
     });

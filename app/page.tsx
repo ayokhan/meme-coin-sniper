@@ -120,6 +120,7 @@ export default function Dashboard() {
   const [futuresAnalysisResult, setFuturesAnalysisResult] = useState<{
     score: number;
     signal: "buy" | "no_buy";
+    tradeDirection?: "long" | "short";
     reasons: string[];
     recommendations?: {
       supportResistance?: string;
@@ -422,6 +423,7 @@ export default function Dashboard() {
         setFuturesAnalysisResult({
           score: data.score,
           signal: data.signal === "buy" ? "buy" : "no_buy",
+          tradeDirection: data.tradeDirection === "long" || data.tradeDirection === "short" ? data.tradeDirection : undefined,
           reasons: data.reasons ?? [],
           recommendations: data.recommendations,
         });
@@ -1287,7 +1289,9 @@ export default function Dashboard() {
                             : "bg-rose-500 text-white dark:bg-rose-600 border-0 hover:bg-rose-600 dark:hover:bg-rose-700"
                         }`}
                       >
-                        {futuresAnalysisResult.signal === "buy" ? "BUY" : "NO BUY"}
+                        {futuresAnalysisResult.signal === "buy"
+                          ? (futuresAnalysisResult.tradeDirection === "long" ? "BUY LONG" : futuresAnalysisResult.tradeDirection === "short" ? "BUY SHORT" : "BUY")
+                          : (futuresAnalysisResult.tradeDirection === "long" ? "NO BUY (bias: Long)" : futuresAnalysisResult.tradeDirection === "short" ? "NO BUY (bias: Short)" : "NO BUY")}
                       </Badge>
                     </div>
                     {futuresAnalysisResult.recommendations && (futuresAnalysisResult.recommendations.supportResistance || futuresAnalysisResult.recommendations.marketStructure || futuresAnalysisResult.recommendations.entryZone || futuresAnalysisResult.recommendations.takeProfitPct || futuresAnalysisResult.recommendations.stopLossPct) && (
