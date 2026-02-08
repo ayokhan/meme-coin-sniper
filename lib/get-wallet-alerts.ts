@@ -46,7 +46,7 @@ export async function getWalletAlerts(): Promise<WalletAlert[]> {
   for (const [mint, walletSet] of alertMints) {
     const buyers = Array.from(walletSet).map((addr) => {
       const w = trackedWallets.find((x) => x.address === addr);
-      return { address: addr, label: w?.label };
+      return { address: addr, label: w?.label ?? undefined };
     });
     const dex = await getSolanaToken(mint);
     alerts.push({
