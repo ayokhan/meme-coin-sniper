@@ -23,7 +23,7 @@ export async function GET() {
     if (!isOwnerEmail(session?.user?.email ?? null)) {
       return NextResponse.json({ success: false, error: 'Admin only.' }, { status: 403 });
     }
-    const rows = await prisma.trackedWallet.findMany({ orderBy: { createdAt: 'asc' } });
+    const rows = db.trackedWallet ? await db.trackedWallet.findMany({ orderBy: { createdAt: 'asc' } }) : [];
     const wallets = rows.map((r) => ({ id: r.id, address: r.address, label: r.label }));
     return NextResponse.json({ success: true, wallets });
   } catch (e) {
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     if (existing) {
       return NextResponse.json({ success: false, error: 'Wallet already tracked.' }, { status: 400 });
     }
-    await prisma.trackedWallet.create({ data: { address, label } });
+    if (db.trackedWallet) await db.trackedWallet.create({ data: { address, label } });
     return NextResponse.json({ success: true, message: 'Wallet added.' });
   } catch (e) {
     console.error('Admin wallet-tracker wallets POST:', e);
