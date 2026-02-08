@@ -38,8 +38,31 @@ type HeliusTx = {
 };
 
 /**
- * Fetch recent parsed transactions for a wallet. Filter by type=SWAP to get DEX buys.
- * Returns list of token mints this wallet received (bought) in the last 24h.
+ * Fetch transactions for a wallet filtered by type.
+ * Helius: SWAP = Jupiter/Raydium/Elixir; BUY = Pump.fun bonding curve buys.
+ */
+async function fetchTransactionsByType(
+  walletAddress: string,
+  type: string,
+  limit: number
+): Promise<HeliusTx[]> {
+  const url = `${HELIUS_BASE}/v0/addresses/${walletAddress}/transactions`;
+  const params = new URLSearchParams({
+    'api-key': HELIUS_API_KEY!,
+    limit: String(limit),
+    type,
+  });
+  const res = await fetch(`${url}?${params}`, { cache: 'no-store', next: { revalidate: 0 } });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : data.transactions ?? [];
+}
+
+/**
+ * Fetch recent token buys for a wallet. Includes:
+ * - SWAP (Jupiter, Raydium, Elixir, etc.)
+ * - BUY (Pump.fun bonding curve buys — Helius uses BUY, not SWAP, for pump.fun)
+ * Returns list of token mints this wallet bought in the last 24h.
  */
 export async function getRecentTokenBuysForWallet(
   walletAddress: string,
@@ -48,35 +71,24 @@ export async function getRecentTokenBuysForWallet(
 ): Promise<WalletBuy[]> {
   if (!HELIUS_API_KEY) return [];
 
-  const url = `${HELIUS_BASE}/v0/addresses/${walletAddress}/transactions`;
-  const params = new URLSearchParams({
-    'api-key': HELIUS_API_KEY,
-    limit: String(limit),
-    type: 'SWAP', // DEX swaps only
-  });
-
   try {
-    const res = await fetch(`${url}?${params}`, { cache: 'no-store', next: { revalidate: 0 } });
-    if (!res.ok) {
-      console.warn(`Helius wallet tx: ${res.status} for ${walletAddress}`);
-      return [];
-    }
-    const data = await res.json();
-    const txs: HeliusTx[] = Array.isArray(data) ? data : data.transactions ?? [];
+    const perType = Math.min(limit, 25);
+    const [swapTxs, buyTxs] = await Promise.all([
+      fetchTransactionsByType(walletAddress, 'SWAP', perType),
+      fetchTransactionsByType(walletAddress, 'BUY', perType),
+    ]);
+    const txs = [...swapTxs, ...buyTxs];
     const cutoff = Date.now() - maxAgeMs;
-    const buys: WalletBuy[] = [];
+    const seen = new Map<string, WalletBuy>();
 
     for (const tx of txs) {
       const ts = tx.timestamp ? tx.timestamp * 1000 : 0;
       if (ts < cutoff) continue;
       const transfers = tx.tokenTransfers ?? [];
-      // Collect all token mints from this SWAP (wallet bought or sold; we want coins 3+ wallets touched)
-      const seen = new Set<string>();
       for (const t of transfers) {
         const mint = t.mint ?? '';
         if (mint && !seen.has(mint)) {
-          seen.add(mint);
-          buys.push({
+          seen.set(mint, {
             mint,
             timestamp: ts || Date.now(),
             signature: tx.signature,
@@ -85,7 +97,7 @@ export async function getRecentTokenBuysForWallet(
       }
     }
 
-    return buys;
+    return Array.from(seen.values()).sort((a, b) => b.timestamp - a.timestamp);
   } catch (e) {
     console.warn('Helius getRecentTokenBuysForWallet error:', e);
     return [];
