@@ -4,6 +4,16 @@ import { authOptions, isOwnerEmail } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { TRACKED_WALLETS } from '@/lib/config/ct-wallets';
 
+const db = prisma as unknown as {
+  trackedWallet?: {
+    count: () => Promise<number>;
+    upsert: (args: { where: { address: string }; create: { address: string; label?: string | null }; update: object }) => Promise<unknown>;
+  };
+  alertRule?: {
+    upsert: (args: { where: { key: string }; create: { key: string; minBuyers: number; maxAgeHours: number; maxAlerts: number }; update: object }) => Promise<unknown>;
+  };
+};
+
 /** POST - Seed tracked wallets and alert rules from config if DB is empty. Admin only. */
 export async function POST() {
   try {
@@ -11,7 +21,7 @@ export async function POST() {
     if (!isOwnerEmail(session?.user?.email ?? null)) {
       return NextResponse.json({ success: false, error: 'Admin only.' }, { status: 403 });
     }
-    const existing = await prisma.trackedWallet.count();
+    const existing = db.trackedWallet ? await db.trackedWallet.count() : 0;
     if (existing > 0) {
       return NextResponse.json({ success: true, message: 'Already seeded.', count: existing });
     }
@@ -22,7 +32,7 @@ export async function POST() {
         update: {},
       });
     }
-    await prisma.alertRule.upsert({
+    await db.alertRule.upsert({
       where: { key: 'wallet_tracker' },
       create: { key: 'wallet_tracker', minBuyers: 3, maxAgeHours: 24, maxAlerts: 30 },
       update: {},

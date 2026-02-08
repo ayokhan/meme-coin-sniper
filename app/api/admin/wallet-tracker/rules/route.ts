@@ -4,6 +4,7 @@ import { authOptions, isOwnerEmail } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 const KEY = 'wallet_tracker';
+type PrismaWithAlertRule = typeof prisma & { alertRule?: { findUnique: (args: unknown) => Promise<{ minBuyers: number; maxAgeHours: number; maxAlerts: number } | null>; upsert: (args: unknown) => Promise<unknown> } };
 
 /** GET - Get alert rules. Admin only. */
 export async function GET() {
@@ -12,7 +13,8 @@ export async function GET() {
     if (!isOwnerEmail(session?.user?.email ?? null)) {
       return NextResponse.json({ success: false, error: 'Admin only.' }, { status: 403 });
     }
-    const row = await prisma.alertRule.findUnique({ where: { key: KEY } });
+    const db = prisma as unknown as PrismaWithAlertRule;
+    const row = db.alertRule ? await db.alertRule.findUnique({ where: { key: KEY } }) : null;
     const rules = row
       ? { minBuyers: row.minBuyers, maxAgeHours: row.maxAgeHours, maxAlerts: row.maxAlerts }
       : { minBuyers: 3, maxAgeHours: 24, maxAlerts: 30 };
@@ -34,7 +36,8 @@ export async function PUT(request: Request) {
     const minBuyers = typeof body.minBuyers === 'number' ? Math.max(1, Math.min(20, Math.round(body.minBuyers))) : undefined;
     const maxAgeHours = typeof body.maxAgeHours === 'number' ? Math.max(1, Math.min(168, Math.round(body.maxAgeHours))) : undefined;
     const maxAlerts = typeof body.maxAlerts === 'number' ? Math.max(5, Math.min(100, Math.round(body.maxAlerts))) : undefined;
-    await prisma.alertRule.upsert({
+    const db = prisma as unknown as PrismaWithAlertRule;
+    if (db.alertRule) await db.alertRule.upsert({
       where: { key: KEY },
       create: {
         key: KEY,

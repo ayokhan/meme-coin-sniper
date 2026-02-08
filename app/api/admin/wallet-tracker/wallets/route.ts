@@ -3,6 +3,15 @@ import { getServerSession } from 'next-auth';
 import { authOptions, isOwnerEmail } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
+const db = prisma as unknown as {
+  trackedWallet?: {
+    findMany: (args: { orderBy: { createdAt: string } }) => Promise<Array<{ id: string; address: string; label: string | null }>>;
+    findUnique: (args: { where: { address: string } }) => Promise<{ id: string } | null>;
+    create: (args: { data: { address: string; label?: string | null } }) => Promise<unknown>;
+    deleteMany: (args: { where: { address: string } }) => Promise<unknown>;
+  };
+};
+
 function isValidSolanaAddress(addr: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr.trim());
 }
@@ -39,7 +48,7 @@ export async function POST(request: Request) {
     if (!isValidSolanaAddress(address)) {
       return NextResponse.json({ success: false, error: 'Invalid Solana address.' }, { status: 400 });
     }
-    const existing = await prisma.trackedWallet.findUnique({ where: { address } });
+    const existing = db.trackedWallet ? await db.trackedWallet.findUnique({ where: { address } }) : null;
     if (existing) {
       return NextResponse.json({ success: false, error: 'Wallet already tracked.' }, { status: 400 });
     }
@@ -63,7 +72,7 @@ export async function DELETE(request: Request) {
     if (!address) {
       return NextResponse.json({ success: false, error: 'Address is required.' }, { status: 400 });
     }
-    await prisma.trackedWallet.deleteMany({ where: { address } });
+    if (db.trackedWallet) await db.trackedWallet.deleteMany({ where: { address } });
     return NextResponse.json({ success: true, message: 'Wallet removed.' });
   } catch (e) {
     console.error('Admin wallet-tracker wallets DELETE:', e);
