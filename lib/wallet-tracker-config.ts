@@ -32,7 +32,7 @@ export async function getTrackedWallets(): Promise<TrackedWalletItem[]> {
   try {
     const db = prisma as unknown as PrismaWithWalletTracker;
     if (!db.trackedWallet) return TRACKED_WALLETS.map((w) => ({ address: w.address, label: w.label }));
-    const rows = await db.trackedWallet.findMany({ orderBy: { createdAt: 'asc' } } as Parameters<NonNullable<typeof db.trackedWallet>['findMany']>[0]);
+    const rows = await db.trackedWallet.findMany({ orderBy: { createdAt: 'asc' } } as { orderBy: { createdAt: string } });
     if (rows.length > 0) {
       return rows.map((r) => ({ address: r.address, label: r.label }));
     }
@@ -45,8 +45,9 @@ export async function getTrackedWallets(): Promise<TrackedWalletItem[]> {
 /** Get alert rules from DB, or defaults. */
 export async function getAlertRules(): Promise<AlertRuleConfig> {
   try {
+    const db = prisma as unknown as PrismaWithWalletTracker;
     if (!db.alertRule) return DEFAULT_RULES;
-    const row = await db.alertRule.findUnique({ where: { key: 'wallet_tracker' } });
+    const row = await db.alertRule.findUnique({ where: { key: 'wallet_tracker' } } as { where: { key: string } });
     if (row) {
       return {
         minBuyers: row.minBuyers ?? DEFAULT_RULES.minBuyers,
