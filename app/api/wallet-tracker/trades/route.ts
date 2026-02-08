@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
-import { TRACKED_WALLETS } from '@/lib/config/ct-wallets';
+import { getTrackedWallets, getAlertRules } from '@/lib/wallet-tracker-config';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { getRecentTokenBuysForWallet } from '@/lib/api-clients/helius';
 import { getSolanaToken } from '@/lib/api-clients/dexscreener';
-
-const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24h
 const BUYS_PER_WALLET = 15;
 const MAX_TRADES_TOTAL = 80;
 
@@ -27,16 +25,19 @@ export async function GET() {
     if (!isPaid) {
       return NextResponse.json({ success: false, error: 'Subscribe to view live wallet trades.', locked: true }, { status: 403 });
     }
-    if (TRACKED_WALLETS.length === 0) {
+    const trackedWallets = await getTrackedWallets();
+    if (trackedWallets.length === 0) {
       return NextResponse.json({ success: true, trades: [], message: 'No wallets configured.' });
     }
     if (!process.env.HELIUS_API_KEY) {
       return NextResponse.json({ success: false, trades: [], error: 'Wallet trades not available.' }, { status: 503 });
     }
 
+    const rules = await getAlertRules();
+    const MAX_AGE_MS = rules.maxAgeHours * 60 * 60 * 1000;
     const allTrades: WalletTrade[] = [];
 
-    for (const w of TRACKED_WALLETS) {
+    for (const w of trackedWallets) {
       const buys = await getRecentTokenBuysForWallet(w.address, BUYS_PER_WALLET, MAX_AGE_MS);
       for (const b of buys) {
         const dex = await getSolanaToken(b.mint);

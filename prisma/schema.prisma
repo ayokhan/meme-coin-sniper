@@ -106,6 +106,25 @@ model Subscription {
   @@index([expiresAt])
 }
 
+// Admin-managed tracked wallets for Wallet Tracker (3+ wallets buy same coin → alert)
+model TrackedWallet {
+  id        String   @id @default(cuid())
+  address   String   @unique
+  label     String?
+  createdAt DateTime @default(now())
+  @@index([address])
+}
+
+// Admin-managed alert rules (e.g. min wallets that must buy same coin to trigger alert)
+model AlertRule {
+  id        String   @id @default(cuid())
+  key       String   @unique // "wallet_tracker"
+  minBuyers Int      @default(3)
+  maxAgeHours Int    @default(24)
+  maxAlerts Int      @default(30)
+  updatedAt DateTime @updatedAt
+}
+
 // Pinned tokens for AI re-analysis every ~3 min
 model PinnedToken {
   id              String    @id @default(cuid())

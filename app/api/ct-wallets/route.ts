@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { TRACKED_WALLETS } from "@/lib/config/ct-wallets";
+import { getTrackedWallets } from "@/lib/wallet-tracker-config";
 
 export async function GET() {
+  const wallets = await getTrackedWallets();
   return NextResponse.json({
     success: true,
-    wallets: TRACKED_WALLETS,
+    wallets: wallets.map((w) => ({ address: w.address, label: w.label })),
   });
 }

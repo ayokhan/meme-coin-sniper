@@ -83,6 +83,11 @@ export default function AdminCustomersPage() {
           <Zap className="h-5 w-5 text-amber-500" />
           NovaStaris
         </Link>
+        <div className="flex gap-4 mb-4">
+          <Link href="/admin/wallet-tracker" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+            Wallet Tracker settings
+          </Link>
+        </div>
         <Card className="border-zinc-200 dark:border-zinc-800">
           <CardHeader>
             <CardTitle>Admin — Customers</CardTitle>
