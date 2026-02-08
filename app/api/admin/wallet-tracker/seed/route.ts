@@ -25,8 +25,11 @@ export async function POST() {
     if (existing > 0) {
       return NextResponse.json({ success: true, message: 'Already seeded.', count: existing });
     }
+    if (!db.trackedWallet || !db.alertRule) {
+      return NextResponse.json({ success: false, error: 'Wallet tracker tables not available.' }, { status: 503 });
+    }
     for (const w of TRACKED_WALLETS) {
-      await prisma.trackedWallet.upsert({
+      await db.trackedWallet!.upsert({
         where: { address: w.address },
         create: { address: w.address, label: w.label },
         update: {},
