@@ -125,6 +125,15 @@ model AlertRule {
   updatedAt DateTime @updatedAt
 }
 
+// Wallet Tracker: avoid sending same alert to Telegram repeatedly
+model WalletAlertSent {
+  id              String   @id @default(cuid())
+  contractAddress String
+  sentAt          DateTime @default(now())
+  @@index([contractAddress])
+  @@index([sentAt])
+}
+
 // Pinned tokens for AI re-analysis every ~3 min
 model PinnedToken {
   id              String    @id @default(cuid())

@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { TRACKED_WALLETS } from '@/lib/config/ct-wallets';
+import { getTrackedWallets, getAlertRules } from '@/lib/wallet-tracker-config';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { getWalletAlerts, type WalletAlert } from '@/lib/get-wallet-alerts';
 
 export type { WalletAlert };
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
@@ -11,10 +13,12 @@ export async function GET() {
     if (!isPaid) {
       return NextResponse.json({ success: false, error: 'Subscribe to access Wallet Tracker.', locked: true }, { status: 403 });
     }
-    if (TRACKED_WALLETS.length === 0) {
+    const [trackedWallets, rules] = await Promise.all([getTrackedWallets(), getAlertRules()]);
+    if (trackedWallets.length === 0) {
       return NextResponse.json({
         success: true,
         alerts: [],
+        minBuyers: rules.minBuyers,
         message: 'Wallet tracker is not configured yet.',
       });
     }
@@ -24,7 +28,8 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       alerts,
-      walletsTracked: TRACKED_WALLETS.length,
+      minBuyers: rules.minBuyers,
+      walletsTracked: trackedWallets.length,
     });
   } catch (error: any) {
     return NextResponse.json(

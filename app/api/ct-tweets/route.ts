@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { monitorCTAccounts } from '@/lib/api-clients/twitter';
 
-/** GET - Recent tweets from tracked CT accounts (Pro). Proves CT scan is working. */
+export const dynamic = 'force-dynamic';
+
+/** GET - Recent tweets from tracked CT accounts (Pro). Requires APIFY_API_TOKEN in Vercel. */
 export async function GET() {
   try {
     const { isPaid } = await getSessionAndSubscription();
@@ -13,14 +15,11 @@ export async function GET() {
       return NextResponse.json({
         success: false,
         tweets: [],
-        error: 'CT tweets are not available right now.',
+        error: 'CT Scan needs APIFY_API_TOKEN. Add it in Vercel → Settings → Environment Variables (get a token from apify.com).',
       }, { status: 503 });
     }
 
-    // Last 2 hours of tweets from tracked accounts
     const tweets = await monitorCTAccounts(undefined, 2);
-
-    // Newest first, normalize for UI
     const sorted = [...tweets].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );

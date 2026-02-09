@@ -78,6 +78,83 @@ export function isBirdeyeConfigured(): boolean {
   return Boolean(BIRDEYE_API_KEY);
 }
 
+/** Wallet buy from Birdeye tx_list – mint received and when */
+export type BirdeyeWalletBuy = {
+  mint: string;
+  timestamp: number;
+  signature?: string;
+};
+
+/** Birdeye wallet tx_list response item */
+type BirdeyeWalletTx = {
+  txHash?: string;
+  blockTime?: string;
+  from?: string;
+  to?: string;
+  balanceChange?: Array<{
+    amount?: number;
+    symbol?: string;
+    address?: string;
+  }>;
+};
+
+/**
+ * Get recent token buys for a wallet from Birdeye wallet tx_list.
+ * Parses balanceChange: positive token amount = wallet received (bought).
+ */
+export async function getWalletTokenBuysFromBirdeye(
+  walletAddress: string,
+  limit = 50,
+  maxAgeMs = 24 * 60 * 60 * 1000
+): Promise<BirdeyeWalletBuy[]> {
+  if (!BIRDEYE_API_KEY) return [];
+
+  try {
+    const res = await axios.get<{
+      success?: boolean;
+      data?: { solana?: BirdeyeWalletTx[] };
+    }>(`${BIRDEYE_BASE}/v1/wallet/tx_list`, {
+      params: { wallet: walletAddress, limit: Math.min(limit, 100) },
+      headers: {
+        'X-API-KEY': BIRDEYE_API_KEY,
+        'x-chain': 'solana',
+        accept: 'application/json',
+      },
+      timeout: 15000,
+    });
+
+    const txs = res.data?.data?.solana ?? [];
+    const cutoff = Date.now() - maxAgeMs;
+    const seen = new Map<string, BirdeyeWalletBuy>();
+
+    const SOL_MINT = 'So11111111111111111111111111111111111111112';
+
+    for (const tx of txs) {
+      const blockTime = tx.blockTime ? new Date(tx.blockTime).getTime() : 0;
+      if (blockTime < cutoff) continue;
+
+      const changes = tx.balanceChange ?? [];
+      for (const c of changes) {
+        const mint = c.address ?? '';
+        const amount = c.amount ?? 0;
+        if (!mint || mint === SOL_MINT) continue;
+        if (amount > 0 && !seen.has(mint)) {
+          seen.set(mint, {
+            mint,
+            timestamp: blockTime || Date.now(),
+            signature: tx.txHash ?? undefined,
+          });
+        }
+      }
+    }
+
+    return Array.from(seen.values()).sort((a, b) => b.timestamp - a.timestamp);
+  } catch (e) {
+    console.warn('Birdeye getWalletTokenBuys error:', e instanceof Error ? e.message : e);
+    return [];
+  }
+}
+
 /** Search tokens by symbol/name; returns first Solana token address or null. Used to resolve $TICKER from Twitter to contract. */
 export async function searchTokenBySymbol(symbol: string): Promise<string | null> {
   if (!BIRDEYE_API_KEY || !symbol?.trim()) return null;

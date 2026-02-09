@@ -50,6 +50,7 @@ type WalletAlert = {
   buyers: Array<{ address: string; label?: string }>;
   liquidity?: number | null;
   priceUSD?: number | null;
+  latestBuyAt?: number | null;
 };
 
 const AUTO_REFRESH_SECONDS = 60;
@@ -67,8 +68,10 @@ export default function Dashboard() {
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
   const [ctTweets, setCtTweets] = useState<{ id: string; text: string; author: { username: string; followers: number }; created_at: string; metrics: { likes: number; retweets: number }; url: string }[]>([]);
   const [ctTweetsLoading, setCtTweetsLoading] = useState(false);
+  const [ctTweetsError, setCtTweetsError] = useState<string | null>(null);
   const [trackedWallets, setTrackedWallets] = useState<{ address: string; label?: string }[]>([]);
   const [walletAlerts, setWalletAlerts] = useState<WalletAlert[]>([]);
+  const [alertMinBuyers, setAlertMinBuyers] = useState(3);
   const [walletTrades, setWalletTrades] = useState<{ walletLabel: string; walletAddress: string; mint: string; symbol: string; name: string; timestamp: number; txUrl: string; dexUrl: string }[]>([]);
   const [walletTradesLoading, setWalletTradesLoading] = useState(false);
   const [surgeWindow, setSurgeWindow] = useState<"5m" | "15m" | "30m" | "1h" | "6h" | "24h">("24h");
@@ -151,6 +154,7 @@ export default function Dashboard() {
         const data = await res.json();
         if (data.success) {
           setWalletAlerts(data.alerts ?? []);
+          if (data.minBuyers != null) setAlertMinBuyers(data.minBuyers);
           setLastFetched(new Date());
         } else {
           if (res.status === 403 && data.locked) setError(data.error || "Subscribe to access this feature.");
@@ -196,7 +200,7 @@ export default function Dashboard() {
 
   const fetchTrackedWallets = async () => {
     try {
-      const res = await fetch("/api/ct-wallets");
+      const res = await fetch("/api/ct-wallets", { cache: "no-store" });
       const data = await res.json();
       if (data.success) setTrackedWallets(data.wallets || []);
     } catch {
@@ -207,7 +211,7 @@ export default function Dashboard() {
   const fetchWalletTrades = async () => {
     setWalletTradesLoading(true);
     try {
-      const res = await fetch("/api/wallet-tracker/trades");
+      const res = await fetch("/api/wallet-tracker/trades", { cache: "no-store" });
       const data = await res.json();
       if (data.success) setWalletTrades(data.trades ?? []);
     } catch {
@@ -219,12 +223,19 @@ export default function Dashboard() {
 
   const fetchCtTweets = async () => {
     setCtTweetsLoading(true);
+    setCtTweetsError(null);
     try {
       const res = await fetch("/api/ct-tweets");
       const data = await res.json();
-      if (data.success) setCtTweets(data.tweets ?? []);
+      if (data.success) {
+        setCtTweets(data.tweets ?? []);
+      } else {
+        setCtTweets([]);
+        setCtTweetsError(data.error ?? "Failed to load CT tweets.");
+      }
     } catch {
       setCtTweets([]);
+      setCtTweetsError("Failed to load CT tweets.");
     } finally {
       setCtTweetsLoading(false);
     }
@@ -252,9 +263,16 @@ export default function Dashboard() {
     if (activeTab === "surge") fetchTokens("surge");
   }, [surgeWindow]);
 
-  // Auto-refresh current tab every 60s (skip wallet tab to avoid heavy Helius calls)
+  // Auto-refresh current tab every 60s (skip ai-analysis, futures). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "wallets" || activeTab === "ai-analysis" || activeTab === "futures") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures") return;
+    if (activeTab === "wallets") {
+      const interval = setInterval(() => {
+        fetchTrackedWallets();
+        fetchWalletTrades();
+      }, 2 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
     const interval = setInterval(() => fetchTokens(activeTab, false), AUTO_REFRESH_SECONDS * 1000);
     return () => clearInterval(interval);
   }, [activeTab]);
@@ -892,6 +910,8 @@ export default function Dashboard() {
                 <div className="px-4 pb-4 pt-1">
                   {ctTweetsLoading ? (
                     <p className="text-sm text-muted-foreground py-4">Loading tweets…</p>
+                  ) : ctTweetsError ? (
+                    <p className="text-sm text-amber-600 dark:text-amber-400 py-4">{ctTweetsError}</p>
                   ) : ctTweets.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4">No recent tweets. Run &quot;Scan Twitter&quot; to refresh, or tweets may be delayed.</p>
                   ) : (
@@ -1317,13 +1337,13 @@ export default function Dashboard() {
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
                   <p className="font-semibold text-zinc-700 dark:text-zinc-300">No wallet alerts yet.</p>
                   <p className="mt-2">
-                    When 3+ tracked wallets buy the same token, alerts appear here and are sent to Telegram.
+                    When {alertMinBuyers}+ tracked wallets buy the same token, alerts appear here and are sent to Telegram.
                   </p>
                 </div>
               ) : (
                 <div className="px-6 pt-2">
                   <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">
-                    Alerts — 3+ tracked wallets bought same token
+                    Alerts — {alertMinBuyers}+ tracked wallets bought same token
                   </h3>
                 <Table>
                   <TableHeader>
@@ -1333,6 +1353,7 @@ export default function Dashboard() {
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
                       <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Who bought</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Bought</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1348,6 +1369,9 @@ export default function Dashboard() {
                         <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
                           {a.buyers.slice(0, 5).map((b) => (b.label ? b.label : `${b.address.slice(0, 4)}…${b.address.slice(-4)}`)).join(", ")}
                           {a.buyers.length > 5 && ` +${a.buyers.length - 5}`}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-xs text-muted-foreground whitespace-nowrap">
+                          {a.latestBuyAt ? new Date(a.latestBuyAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "medium" }) : "—"}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">

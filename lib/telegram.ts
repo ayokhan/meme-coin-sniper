@@ -97,7 +97,7 @@ export async function sendTokenAlerts(tokens: TokenForAlert[]): Promise<void> {
   }
 }
 
-/** Wallet Tracker alert: 3+ tracked wallets bought the same token. */
+/** Wallet Tracker alert: minBuyers+ tracked wallets bought the same token (uses your configured rules). */
 export type WalletAlertForTelegram = {
   contractAddress: string;
   symbol: string;
@@ -110,8 +110,9 @@ export type WalletAlertForTelegram = {
 
 /**
  * Format and send a single wallet-tracker alert to Telegram.
+ * minBuyers = your configured threshold (e.g. 3) so message says "3+ tracked wallets bought".
  */
-export async function sendWalletAlert(alert: WalletAlertForTelegram): Promise<boolean> {
+export async function sendWalletAlert(alert: WalletAlertForTelegram, minBuyers: number = 3): Promise<boolean> {
   const dexUrl = `https://dexscreener.com/solana/${alert.contractAddress}`;
   const gmgnUrl = `https://gmgn.ai/sol/token/${encodeURIComponent(alert.contractAddress)}`;
   const liq = alert.liquidity != null ? `$${(alert.liquidity / 1000).toFixed(1)}k` : '—';
@@ -119,7 +120,7 @@ export async function sendWalletAlert(alert: WalletAlertForTelegram): Promise<bo
   const who = alert.buyers.map((b) => b.label || `${b.address.slice(0, 4)}…${b.address.slice(-4)}`).join(', ');
 
   const lines = [
-    `🔔 <b>Wallet Tracker</b> — 3+ tracked wallets bought`,
+    `🔔 <b>Wallet Tracker</b> — ${minBuyers}+ tracked wallets bought (per your settings)`,
     `🪙 <b>${escapeHtml(alert.symbol)}</b> — ${escapeHtml(alert.name)}`,
     `👥 <b>${alert.buyerCount}</b> buyers: ${escapeHtml(who)}`,
     `📊 Liq: ${liq} · Price: ${price}`,
@@ -131,12 +132,12 @@ export async function sendWalletAlert(alert: WalletAlertForTelegram): Promise<bo
 }
 
 /**
- * Send wallet-tracker alerts to Telegram (one message per alert).
+ * Send wallet-tracker alerts to Telegram (one message per alert). Uses your configured minBuyers in the message.
  */
-export async function sendWalletAlerts(alerts: WalletAlertForTelegram[]): Promise<void> {
+export async function sendWalletAlerts(alerts: WalletAlertForTelegram[], minBuyers: number = 3): Promise<void> {
   if (!isTelegramConfigured() || alerts.length === 0) return;
   for (const alert of alerts) {
-    await sendWalletAlert(alert);
+    await sendWalletAlert(alert, minBuyers);
     await new Promise((r) => setTimeout(r, 300));
   }
 }

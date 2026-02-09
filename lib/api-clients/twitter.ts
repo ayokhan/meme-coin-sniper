@@ -36,19 +36,20 @@ export interface TokenMention {
   firstSeenAt: Date;
 }
 
-const APIFY_ACTOR_ID = 'apidojo~tweet-scraper'; // apidojo/tweet-scraper on Apify Store
+// Apify Tweet Scraper V2 – same input schema (twitterHandles, maxItems)
+const APIFY_ACTOR_ID = 'apidojo~tweet-scraper';
 
 export async function monitorCTAccounts(
   accounts: string[] = ALL_CT_INFLUENCERS,
   hours: number = 1
 ): Promise<Tweet[]> {
-  try {
-    console.log(`🐦 Monitoring ${accounts.length} CT accounts...`);
+  if (!APIFY_API_TOKEN) {
+    console.warn('CT monitoring: APIFY_API_TOKEN not set. Add it in Vercel env vars.');
+    return [];
+  }
 
-    if (!APIFY_API_TOKEN) {
-      console.warn('CT monitoring: APIFY_API_TOKEN not set, skipping Apify call');
-      return [];
-    }
+  try {
+    console.log(`🐦 Monitoring ${accounts.length} CT accounts (Apify)...`);
 
     const response = await axios.post(
       `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/run-sync-get-dataset-items`,
@@ -59,43 +60,54 @@ export async function monitorCTAccounts(
       {
         headers: {
           'Content-Type': 'application/json',
-        },
-        params: {
-          token: APIFY_API_TOKEN,
+          Authorization: `Bearer ${APIFY_API_TOKEN}`,
         },
         timeout: 120000,
       }
     );
 
     const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
-    const rawItems = Array.isArray(response.data) ? response.data : [];
-    
+    const raw = response.data;
+    const rawItems = Array.isArray(raw)
+      ? raw
+      : Array.isArray((raw as any)?.data)
+        ? (raw as any).data
+        : Array.isArray((raw as any)?.items)
+          ? (raw as any).items
+          : [];
+
     const tweets = rawItems
-      .filter((tweet: any) => tweet && new Date(tweet.created_at || tweet.createdAt || 0) > cutoffTime)
+      .filter((tweet: any) => tweet && new Date(tweet.created_at || tweet.createdAt || 0).getTime() > cutoffTime.getTime())
       .map((tweet: any) => ({
-        id: String(tweet.id || tweet.tweetId || ''),
+        id: String(tweet.id ?? tweet.tweetId ?? ''),
         text: tweet.text || tweet.full_text || tweet.fullText || '',
         author: {
           username: tweet.author?.userName || tweet.user?.screen_name || tweet.user?.userName || tweet.username || 'unknown',
           verified: tweet.author?.isVerified ?? tweet.user?.verified ?? false,
-          followers: tweet.author?.followers ?? tweet.user?.followers ?? 0,
+          followers: Number(tweet.author?.followers ?? tweet.user?.followers ?? 0),
         },
         created_at: tweet.created_at || tweet.createdAt || tweet.postedAt,
         metrics: {
-          likes: tweet.favoriteCount ?? tweet.likeCount ?? tweet.metrics?.likes ?? 0,
-          retweets: tweet.retweetCount ?? tweet.retweetCount ?? tweet.metrics?.retweets ?? 0,
-          replies: tweet.replyCount ?? tweet.replyCount ?? tweet.metrics?.replies ?? 0,
+          likes: Number(tweet.favoriteCount ?? tweet.likeCount ?? tweet.metrics?.likes ?? 0),
+          retweets: Number(tweet.retweetCount ?? tweet.metrics?.retweets ?? 0),
+          replies: Number(tweet.replyCount ?? tweet.metrics?.replies ?? 0),
         },
       }));
 
     console.log(`Found ${tweets.length} recent tweets`);
     return tweets;
-
   } catch (error: any) {
-    const msg = error.response?.status === 404
-      ? 'Apify actor or URL not found (404). Check APIFY_API_TOKEN and actor ID.'
-      : error.message;
-    console.error('CT monitoring error:', msg);
+    const status = error.response?.status;
+    const data = error.response?.data;
+    const msg =
+      status === 401
+        ? 'Invalid APIFY_API_TOKEN. Check Apify Console → Settings → Integrations.'
+        : status === 404
+          ? 'Apify actor not found. Actor ID may have changed.'
+          : status === 408
+            ? 'Apify run timed out (Twitter scraper took too long).'
+            : data?.error?.message || error.message;
+    console.error('CT monitoring error:', msg, status ? `status=${status}` : '');
     return [];
   }
 }

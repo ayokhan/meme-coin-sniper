@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getTrackedWallets, getAlertRules } from '@/lib/wallet-tracker-config';
+
+export const dynamic = 'force-dynamic';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { getRecentTokenBuysForWallet } from '@/lib/api-clients/helius';
+import { getWalletTokenBuysFromBirdeye } from '@/lib/api-clients/birdeye';
+import { getWalletBuySwapsFromMoralis } from '@/lib/api-clients/moralis';
 import { getSolanaToken } from '@/lib/api-clients/dexscreener';
 const BUYS_PER_WALLET = 15;
 const MAX_TRADES_TOTAL = 80;
@@ -18,7 +22,22 @@ export type WalletTrade = {
   dexUrl: string;
 };
 
-/** GET - Recent buys from each tracked wallet (Pro). Proves wallet tracker is working. */
+type WalletBuy = { mint: string; timestamp: number; signature?: string };
+
+/** Get recent buys – Moralis first (you have it), then Helius, then Birdeye. */
+async function getRecentBuysForWallet(
+  address: string,
+  limit: number,
+  maxAgeMs: number
+): Promise<WalletBuy[]> {
+  const moralis = await getWalletBuySwapsFromMoralis(address, limit, maxAgeMs);
+  if (moralis.length > 0) return moralis;
+  const helius = await getRecentTokenBuysForWallet(address, limit, maxAgeMs);
+  if (helius.length > 0) return helius;
+  return getWalletTokenBuysFromBirdeye(address, limit, maxAgeMs);
+}
+
+/** GET - Recent buys from each tracked wallet (Pro). Uses Birdeye (primary) or Helius. */
 export async function GET() {
   try {
     const { isPaid } = await getSessionAndSubscription();
@@ -29,8 +48,11 @@ export async function GET() {
     if (trackedWallets.length === 0) {
       return NextResponse.json({ success: true, trades: [], message: 'No wallets configured.' });
     }
-    if (!process.env.HELIUS_API_KEY) {
-      return NextResponse.json({ success: false, trades: [], error: 'Wallet trades not available.' }, { status: 503 });
+    const hasMoralis = Boolean(process.env.MORALIS_API_KEY);
+    const hasHelius = Boolean(process.env.HELIUS_API_KEY);
+    const hasBirdeye = Boolean(process.env.BIRDEYE_API_KEY);
+    if (!hasMoralis && !hasHelius && !hasBirdeye) {
+      return NextResponse.json({ success: false, trades: [], error: 'Wallet trades require MORALIS_API_KEY, HELIUS_API_KEY, or BIRDEYE_API_KEY.' }, { status: 503 });
     }
 
     const rules = await getAlertRules();
@@ -38,7 +60,7 @@ export async function GET() {
     const allTrades: WalletTrade[] = [];
 
     for (const w of trackedWallets) {
-      const buys = await getRecentTokenBuysForWallet(w.address, BUYS_PER_WALLET, MAX_AGE_MS);
+      const buys = await getRecentBuysForWallet(w.address, BUYS_PER_WALLET, MAX_AGE_MS);
       for (const b of buys) {
         const dex = await getSolanaToken(b.mint);
         allTrades.push({
