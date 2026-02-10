@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
 import { getPumpFunNewTokens, isMoralisConfigured } from "@/lib/api-clients/moralis";
+import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 
 /**
  * GET /api/test-moralis
  * Check Moralis API: new Pump.fun tokens (used as fallback when Birdeye returns 0).
+ * When feature flag "Go Hunting (Moralis)" is OFF, returns without calling Moralis.
  */
 export async function GET() {
   try {
+    const moralisGoHunting = await getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_GO_HUNTING);
+    if (!moralisGoHunting) {
+      return NextResponse.json({
+        success: false,
+        message: "Moralis for Go Hunting is turned off (Admin → Feature flags).",
+        count: 0,
+        sample: [],
+      });
+    }
     if (!isMoralisConfigured()) {
       return NextResponse.json({
         success: false,

@@ -8,13 +8,21 @@ import { getRecentTokenBuysForWallet } from '@/lib/api-clients/helius';
 import { getWalletTokenBuysFromBirdeye } from '@/lib/api-clients/birdeye';
 import { getWalletBuySwapsFromMoralis } from '@/lib/api-clients/moralis';
 import { getSolanaToken } from '@/lib/api-clients/dexscreener';
+import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
 
 const LIMIT_PER_WALLET = 30;
 
-/** Get recent buys – Moralis first, then Helius, then Birdeye. */
-async function getBuysForWallet(address: string, limit: number, maxAgeMs: number) {
-  const moralis = await getWalletBuySwapsFromMoralis(address, limit, maxAgeMs);
-  if (moralis.length > 0) return moralis;
+/** Get recent buys – Moralis first (if enabled), then Helius, then Birdeye. */
+async function getBuysForWallet(
+  address: string,
+  limit: number,
+  maxAgeMs: number,
+  useMoralis: boolean
+) {
+  if (useMoralis) {
+    const moralis = await getWalletBuySwapsFromMoralis(address, limit, maxAgeMs);
+    if (moralis.length > 0) return moralis;
+  }
   const helius = await getRecentTokenBuysForWallet(address, limit, maxAgeMs);
   if (helius.length > 0) return helius;
   return getWalletTokenBuysFromBirdeye(address, limit, maxAgeMs);
@@ -33,10 +41,14 @@ export type WalletAlert = {
 };
 
 export async function getWalletAlerts(): Promise<WalletAlert[]> {
-  const [trackedWallets, rules] = await Promise.all([getTrackedWallets(), getAlertRules()]);
+  const [trackedWallets, rules, moralisWalletTracker] = await Promise.all([
+    getTrackedWallets(),
+    getAlertRules(),
+    getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_WALLET_TRACKER),
+  ]);
   if (trackedWallets.length === 0) return [];
 
-  const hasMoralis = Boolean(process.env.MORALIS_API_KEY);
+  const hasMoralis = moralisWalletTracker && Boolean(process.env.MORALIS_API_KEY);
   const hasHelius = Boolean(process.env.HELIUS_API_KEY);
   const hasBirdeye = Boolean(process.env.BIRDEYE_API_KEY);
   if (!hasMoralis && !hasHelius && !hasBirdeye) return [];
@@ -45,7 +57,7 @@ export async function getWalletAlerts(): Promise<WalletAlert[]> {
   const mintToWallets: Record<string, Set<string>> = {};
   const mintToLatestBuy: Record<string, number> = {};
   for (const w of trackedWallets) {
-    const buys = await getBuysForWallet(w.address, LIMIT_PER_WALLET, MAX_AGE_MS);
+    const buys = await getBuysForWallet(w.address, LIMIT_PER_WALLET, MAX_AGE_MS, hasMoralis);
     for (const b of buys) {
       if (!mintToWallets[b.mint]) mintToWallets[b.mint] = new Set();
       mintToWallets[b.mint].add(w.address);

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getNewSolanaPairs, getTrendingSolanaPairs, getSolanaToken, extractSocials, getQualityScore } from '@/lib/api-clients/dexscreener';
 import { getNewListings, isBirdeyeConfigured } from '@/lib/api-clients/birdeye';
 import { getPumpFunNewTokens, isMoralisConfigured } from '@/lib/api-clients/moralis';
+import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
 import { checkSolanaTokenSecurity, calculateSecurityScore, getTopHolderPercentage, getSecuritySummary } from '@/lib/api-clients/goplus';
 import { calculateViralScore } from '@/lib/utils/viral-score';
 import { sendTokenAlerts } from '@/lib/telegram';
@@ -45,8 +46,9 @@ export async function GET(request: Request) {
       pairs = pairs.slice(0, maxPairs);
       if (pairs.length > 0) dataSource = 'birdeye';
       else {
+        const moralisGoHunting = await getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_GO_HUNTING);
         console.log('📊 Birdeye returned 0 tokens. Trying Moralis Pump.fun fallback...');
-        if (isMoralisConfigured()) {
+        if (moralisGoHunting && isMoralisConfigured()) {
           const moralisTokens = await getPumpFunNewTokens(maxPairs * 2);
           console.log(`📊 Moralis Pump.fun fallback returned ${moralisTokens.length} tokens`);
         for (const token of moralisTokens.slice(0, maxPairs * 2)) {

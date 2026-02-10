@@ -678,9 +678,14 @@ export default function Dashboard() {
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">Pro</span>
             )}
             {status === "authenticated" && isOwner && (
-              <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
-                <Link href="/admin/customers">Customers</Link>
-              </Button>
+              <>
+                <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
+                  <Link href="/admin/customers">Customers</Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
+                  <Link href="/admin/feature-flags">Feature flags</Link>
+                </Button>
+              </>
             )}
             {status === "authenticated" && (
               <Button variant="outline" size="sm" onClick={() => signOut()} className="border-zinc-200 dark:border-zinc-700">

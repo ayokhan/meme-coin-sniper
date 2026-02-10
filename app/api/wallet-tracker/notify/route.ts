@@ -3,11 +3,13 @@ import { prisma } from '@/lib/db';
 import { getWalletAlerts } from '@/lib/get-wallet-alerts';
 import { getAlertRules } from '@/lib/wallet-tracker-config';
 import { sendWalletAlerts } from '@/lib/telegram';
+import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
 
 /**
  * Cron-only: run wallet-tracker logic and send NEW alerts to Telegram.
  * Uses your configured rules (minBuyers, maxAgeHours, maxAlerts). Cooldown = maxAgeHours so we don't re-send same token within your alert window.
  * Call with Authorization: Bearer CRON_SECRET. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in Vercel.
+ * If feature flag telegram_wallet_alerts is OFF (Admin), alerts are not sent.
  */
 export async function GET(request: Request) {
   const auth = request.headers.get('authorization');
@@ -17,6 +19,10 @@ export async function GET(request: Request) {
   }
 
   try {
+    const telegramEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.TELEGRAM_WALLET_ALERTS);
+    if (!telegramEnabled) {
+      return NextResponse.json({ success: true, sent: 0, skipped: 'telegram_disabled' });
+    }
     const [alerts, rules] = await Promise.all([getWalletAlerts(), getAlertRules()]);
     if (alerts.length === 0) {
       return NextResponse.json({ success: true, sent: 0 });

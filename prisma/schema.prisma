@@ -134,6 +134,15 @@ model WalletAlertSent {
   @@index([sentAt])
 }
 
+// Owner-only feature toggles (e.g. disable Moralis / Telegram during testing)
+model FeatureFlag {
+  id        String   @id @default(cuid())
+  key       String   @unique  // moralis_go_hunting | moralis_wallet_tracker | telegram_wallet_alerts
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  @@index([key])
+}
+
 // Pinned tokens for AI re-analysis every ~3 min
 model PinnedToken {
   id              String    @id @default(cuid())

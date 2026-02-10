@@ -3,6 +3,7 @@ import { getNewSolanaPairs, getNewSolanaPairsFromWebSocket, extractSocials, type
 import { getNewListings } from '@/lib/api-clients/birdeye';
 import { getPumpFunNewTokens, type MoralisNewToken } from '@/lib/api-clients/moralis';
 import { getSessionAndSubscription } from '@/lib/auth-server';
+import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
 
 const FREE_LIMIT = 50;
 const PAID_LIMIT = 300;
@@ -131,11 +132,12 @@ export async function GET(request: Request) {
     const limit = isPaid ? Math.min(PAID_LIMIT, Math.max(100, requestedLimit)) : Math.min(FREE_LIMIT, requestedLimit);
     const effectiveMaxAge = view === 'new_pairs' ? Math.min(maxAgeMinutes, 120) : maxAgeMinutes;
 
+    const moralisGoHunting = await getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_GO_HUNTING);
     const [wsPairs, searchPairs, birdeyeListings, moralisListings] = await Promise.all([
       view === 'new_pairs' ? getNewSolanaPairsFromWebSocket(10000) : Promise.resolve([]),
       getNewSolanaPairs(minLiquidity, effectiveMaxAge),
       getNewListings(20).catch(() => []),
-      view === 'new_pairs' ? getPumpFunNewTokens(50).catch(() => []) : Promise.resolve([]),
+      view === 'new_pairs' && moralisGoHunting ? getPumpFunNewTokens(50).catch(() => []) : Promise.resolve([]),
     ]);
 
     const pairs = view === 'new_pairs' && wsPairs.length > 0 ? wsPairs : searchPairs;
