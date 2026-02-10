@@ -12,6 +12,8 @@ export const FEATURE_FLAG_KEYS = {
   MORALIS_WALLET_TRACKER: 'moralis_wallet_tracker',
   /** Send wallet alerts to Telegram (cron notify). When OFF, cron does not send to Telegram. */
   TELEGRAM_WALLET_ALERTS: 'telegram_wallet_alerts',
+  /** Show/fetch live trades from tracked wallets. When OFF, no calls to /api/wallet-tracker/trades (saves Moralis). Alerts still work. */
+  LIVE_TRADES_ENABLED: 'live_trades_enabled',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];

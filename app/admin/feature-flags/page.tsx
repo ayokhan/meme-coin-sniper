@@ -16,6 +16,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Wallet Tracker (Moralis)",
     description: "Use Moralis for wallet alerts and live trades. When OFF, only Helius/Birdeye are used (saves CPU).",
   },
+  live_trades_enabled: {
+    label: "Live trades (Wallet Tracker)",
+    description: "Fetch and show live trades from tracked wallets. When OFF, no calls to trades API (saves Moralis). Alerts still work.",
+  },
   telegram_wallet_alerts: {
     label: "Telegram wallet alerts",
     description: "Send wallet alerts to Telegram when cron runs. When OFF, cron still runs but does not send messages.",

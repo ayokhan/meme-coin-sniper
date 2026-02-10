@@ -72,6 +72,8 @@ export default function Dashboard() {
   const [trackedWallets, setTrackedWallets] = useState<{ address: string; label?: string }[]>([]);
   const [walletAlerts, setWalletAlerts] = useState<WalletAlert[]>([]);
   const [alertMinBuyers, setAlertMinBuyers] = useState(3);
+  const [liveTradesEnabled, setLiveTradesEnabled] = useState(true);
+  const [liveTradesToggling, setLiveTradesToggling] = useState(false);
   const [walletTrades, setWalletTrades] = useState<{ walletLabel: string; walletAddress: string; mint: string; symbol: string; name: string; timestamp: number; txUrl: string; dexUrl: string }[]>([]);
   const [walletTradesLoading, setWalletTradesLoading] = useState(false);
   const [surgeWindow, setSurgeWindow] = useState<"5m" | "15m" | "30m" | "1h" | "6h" | "24h">("24h");
@@ -155,6 +157,7 @@ export default function Dashboard() {
         if (data.success) {
           setWalletAlerts(data.alerts ?? []);
           if (data.minBuyers != null) setAlertMinBuyers(data.minBuyers);
+          if (data.liveTradesEnabled !== undefined) setLiveTradesEnabled(data.liveTradesEnabled);
           setLastFetched(new Date());
         } else {
           if (res.status === 403 && data.locked) setError(data.error || "Subscribe to access this feature.");
@@ -221,6 +224,25 @@ export default function Dashboard() {
     }
   };
 
+  const toggleLiveTrades = async () => {
+    if (!isOwner) return;
+    setLiveTradesToggling(true);
+    try {
+      const res = await fetch("/api/admin/feature-flags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "live_trades_enabled", enabled: !liveTradesEnabled }),
+      });
+      const data = await res.json();
+      if (data.success && data.flags?.live_trades_enabled !== undefined) {
+        setLiveTradesEnabled(data.flags.live_trades_enabled);
+        if (data.flags.live_trades_enabled) fetchWalletTrades();
+      }
+    } finally {
+      setLiveTradesToggling(false);
+    }
+  };
+
   const fetchCtTweets = async () => {
     setCtTweetsLoading(true);
     setCtTweetsError(null);
@@ -255,7 +277,6 @@ export default function Dashboard() {
     }
     if (activeTab === "wallets") {
       fetchTrackedWallets();
-      fetchWalletTrades();
     }
   }, [activeTab, isPaid, goHuntingView]);
 
@@ -269,13 +290,13 @@ export default function Dashboard() {
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         fetchTrackedWallets();
-        fetchWalletTrades();
+        if (liveTradesEnabled) fetchWalletTrades();
       }, 2 * 60 * 1000);
       return () => clearInterval(interval);
     }
     const interval = setInterval(() => fetchTokens(activeTab, false), AUTO_REFRESH_SECONDS * 1000);
     return () => clearInterval(interval);
-  }, [activeTab]);
+  }, [activeTab, liveTradesEnabled]);
 
   const runAiAnalysis = async () => {
     const ca = aiAnalysisCa.trim();
@@ -1009,7 +1030,12 @@ export default function Dashboard() {
                   </Button>
                 </summary>
                 <div className="px-4 pb-4 pt-1">
-                  {walletTradesLoading && walletTrades.length === 0 ? (
+                  {!liveTradesEnabled ? (
+                    <p className="text-sm text-muted-foreground py-4">
+                      Live trades are paused to save API usage. Alerts above still run when {alertMinBuyers}+ tracked wallets buy the same token.
+                      {isOwner && " Click “Resume live trades” to fetch again."}
+                    </p>
+                  ) : walletTradesLoading && walletTrades.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4">Loading trades…</p>
                   ) : walletTrades.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4">No recent buys from tracked wallets. Try again later or refresh.</p>
