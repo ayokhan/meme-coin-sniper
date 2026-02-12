@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 const WELCOME_SCRIPT = "Welcome to NovaStaris! Let's print Money.";
 const SESSION_KEY = "novastaris_welcome_voice_played";
-const COINS_SOUND_PATH = "/sounds/coins-pour.mp3";
+const COINS_SOUND_PATH = "/sounds/coins-pour.mp3.wav";
 
 // Prefer female voices (names vary by OS/browser)
 const FEMALE_VOICE_HINTS = [
