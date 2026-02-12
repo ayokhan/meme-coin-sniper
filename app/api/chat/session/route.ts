@@ -11,11 +11,12 @@ export async function POST(req: Request) {
     const sessionId = (body.sessionId as string)?.trim() || null;
     const cookieStore = await cookies();
 
+    type SessionWithMessages = { id: string; status: string; customerName: string | null; customerEmail: string | null; messages: Array<{ id: string; role: string; content: string; createdAt: Date }> };
     if (sessionId) {
       const session = await prisma.chatSession.findUnique({
         where: { id: sessionId },
         include: { messages: { orderBy: { createdAt: 'asc' } } },
-      });
+      }) as SessionWithMessages | null;
       if (session) {
         return NextResponse.json({
           success: true,
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
     const newSession = await prisma.chatSession.create({
       data: { status: 'nja' },
       include: { messages: true },
-    });
+    }) as SessionWithMessages;
     const res = NextResponse.json({
       success: true,
       sessionId: newSession.id,

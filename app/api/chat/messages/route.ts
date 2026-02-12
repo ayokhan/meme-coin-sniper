@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     const messages = await prisma.chatMessage.findMany({
       where: { sessionId },
       orderBy: { createdAt: 'asc' },
-    });
+    }) as Array<{ id: string; role: string; content: string; createdAt: Date }>;
     return NextResponse.json({
       success: true,
       messages: messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt })),

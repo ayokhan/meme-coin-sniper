@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'sessionId and content required.' }, { status: 400 });
     }
 
-    const session = await prisma.chatSession.findUnique({ where: { id: sid } });
+    const session = await prisma.chatSession.findUnique({ where: { id: sid } }) as { status: string } | null;
     if (!session) {
       return NextResponse.json({ success: false, error: 'Session not found.' }, { status: 404 });
     }

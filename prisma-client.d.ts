@@ -16,6 +16,7 @@ declare module '@prisma/client' {
 
   export class PrismaClient {
     constructor(options?: unknown);
+    $transaction: (args: unknown[]) => Promise<unknown[]>;
     token: {
       findUnique: (args: { where: { contractAddress: string } }) => Promise<{ lastUpdatedAt: Date } | null>;
       findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<unknown[]>;
@@ -44,6 +45,25 @@ declare module '@prisma/client' {
         where?: { userId?: string; txSignature?: string; expiresAt?: { gt: Date } };
         orderBy?: { expiresAt?: 'asc' | 'desc' };
       }) => Promise<{ expiresAt: Date } | null>;
+      create: (args: { data: unknown }) => Promise<unknown>;
+    };
+    supportTicket: {
+      findUnique: (args: { where: { supportNumber?: string } }) => Promise<unknown>;
+      findMany: (args?: { orderBy?: unknown }) => Promise<unknown[]>;
+      create: (args: { data: unknown }) => Promise<unknown>;
+    };
+    agentPresence: {
+      findUnique: (args: { where: { id: string } }) => Promise<{ id: string; lastSeenAt: Date } | null>;
+      upsert: (args: { where: { id: string }; create: unknown; update: unknown }) => Promise<{ id: string; lastSeenAt: Date }>;
+    };
+    chatSession: {
+      findUnique: (args: { where: { id: string }; include?: unknown }) => Promise<unknown>;
+      findMany: (args?: { where?: unknown; orderBy?: unknown; include?: unknown }) => Promise<unknown[]>;
+      create: (args: { data: unknown; include?: unknown }) => Promise<unknown>;
+      update: (args: { where: { id: string }; data: unknown }) => Promise<unknown>;
+    };
+    chatMessage: {
+      findMany: (args?: { where?: unknown; orderBy?: unknown }) => Promise<unknown[]>;
       create: (args: { data: unknown }) => Promise<unknown>;
     };
   }

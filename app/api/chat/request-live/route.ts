@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const session = await prisma.chatSession.findUnique({
       where: { id: sid },
       include: { messages: { orderBy: { createdAt: 'asc' } } },
-    });
+    }) as { status: string; customerName: string | null; customerEmail: string | null; messages: Array<{ role: string; content: string }> } | null;
     if (!session) {
       return NextResponse.json({ success: false, error: 'Session not found.' }, { status: 404 });
     }

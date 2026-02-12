@@ -18,7 +18,15 @@ export async function GET() {
       include: {
         messages: { orderBy: { createdAt: 'asc' }, take: 50 },
       },
-    });
+    }) as Array<{
+      id: string;
+      status: string;
+      customerName: string | null;
+      customerEmail: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      messages: Array<{ id: string; role: string; content: string; createdAt: Date }>;
+    }>;
 
     return NextResponse.json({
       success: true,
