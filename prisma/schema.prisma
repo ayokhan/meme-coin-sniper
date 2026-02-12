@@ -162,15 +162,18 @@ model PinnedToken {
 
 // Support tickets (form submissions + from chat when agent offline)
 model SupportTicket {
-  id           String   @id @default(cuid())
-  supportNumber String  @unique  // e.g. NV-SUP-A1B2C3
-  title        String
-  message      String
-  name         String
-  email        String
-  source       String   @default("form")  // "form" | "chat"
-  createdAt    DateTime @default(now())
+  id            String   @id @default(cuid())
+  supportNumber String   @unique  // e.g. NV-SUP-A1B2C3
+  title         String
+  message       String
+  name          String
+  email         String
+  source        String   @default("form")  // "form" | "chat"
+  status        String   @default("new")  // "new" | "pending" | "assigned" | "open" | "resolved"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
   @@index([createdAt])
+  @@index([status])
 }
 
 // Single row (id = "default"): when owner last pinged (agent "online" if within ~2 min)

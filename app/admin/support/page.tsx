@@ -6,6 +6,14 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
 
+const TICKET_STATUSES = [
+  { value: "new", label: "New" },
+  { value: "pending", label: "Pending" },
+  { value: "assigned", label: "Assigned" },
+  { value: "open", label: "Open" },
+  { value: "resolved", label: "Resolved / Completed" },
+] as const;
+
 type Ticket = {
   id: string;
   supportNumber: string;
@@ -14,6 +22,7 @@ type Ticket = {
   name: string;
   email: string;
   source: string;
+  status: string;
   createdAt: string;
 };
 
@@ -22,6 +31,7 @@ export default function AdminSupportPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -36,6 +46,30 @@ export default function AdminSupportPage() {
       .catch(() => setError("Failed to load"))
       .finally(() => setLoading(false));
   }, [status]);
+
+  const updateStatus = async (ticketId: string, newStatus: string) => {
+    setUpdatingId(ticketId);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/support", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketId, status: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTickets((prev) =>
+          prev.map((t) => (t.id === ticketId ? { ...t, status: newStatus } : t))
+        );
+      } else {
+        setError(data.error ?? "Failed to update");
+      }
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   if (status === "loading" || !session) {
     return (
@@ -112,6 +146,24 @@ export default function AdminSupportPage() {
                           From chat
                         </span>
                       )}
+                      <span className="ml-auto flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Status:</span>
+                        <select
+                          value={t.status ?? "new"}
+                          onChange={(e) => updateStatus(t.id, e.target.value)}
+                          disabled={updatingId === t.id}
+                          className="text-xs rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50"
+                        >
+                          {TICKET_STATUSES.map((s) => (
+                            <option key={s.value} value={s.value}>
+                              {s.label}
+                            </option>
+                          ))}
+                        </select>
+                        {updatingId === t.id && (
+                          <span className="text-xs text-zinc-400">Updating…</span>
+                        )}
+                      </span>
                     </div>
                     <h3 className="font-medium text-zinc-900 dark:text-zinc-100 mb-1">{t.title}</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap mb-2">
