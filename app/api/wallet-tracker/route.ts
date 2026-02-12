@@ -12,7 +12,7 @@ export async function GET() {
   try {
     const { tier } = await getSessionAndSubscription();
     if (tier !== 'vip') {
-      return NextResponse.json({ success: false, error: 'VIP subscription required for Copy wallet / Wallet Tracker.', locked: true }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'VIP subscription required for Profitable Traders Wallet Tracker.', locked: true }, { status: 403 });
     }
     const [trackedWallets, rules, liveTradesEnabled] = await Promise.all([
       getTrackedWallets(),

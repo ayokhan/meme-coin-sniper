@@ -58,7 +58,7 @@ const AUTO_REFRESH_SECONDS = 60;
 
 type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "ct", "wallets"];
-/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct (Twitter tracker), wallets (Copy wallet). */
+/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct (Twitter tracker), wallets (Profitable Traders Wallet Tracker). */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets"];
 
 export default function Dashboard() {
@@ -866,7 +866,7 @@ export default function Dashboard() {
             {((VIP_ONLY_TABS.includes(activeTab) && !isVip) || (PAID_TABS.includes(activeTab) && !isPaid)) ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                  {VIP_ONLY_TABS.includes(activeTab) && !isVip && isPaid ? "VIP required" : "Subscribe for access"}
+                  {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "VIP required" : "Subscribe for access"}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground max-w-md">
                   {activeTab === "surge" && "Surge shows tokens with high volume in 5m–24h windows."}
@@ -874,12 +874,12 @@ export default function Dashboard() {
                   {activeTab === "ai-analysis" && "NovaStaris AI Analysis scores any token 0–100 and gives a buy/no-buy signal."}
                   {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
-                  {activeTab === "wallets" && "Wallet Tracker (Copy wallet) alerts you when 3+ tracked wallets buy the same token."}
+                  {activeTab === "wallets" && "Wallet Tracker (Profitable Traders Wallet Tracker) alerts you when 3+ tracked wallets buy the same token."}
                   {" "}
-                  {VIP_ONLY_TABS.includes(activeTab) && !isVip && isPaid ? "Upgrade to VIP to use this feature." : "Upgrade to Pro or VIP to use this feature."}
+                  {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP to use this feature." : "Upgrade to Pro or VIP to use this feature."}
                 </p>
                 <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
-                  <Link href="/subscribe">{isPaid ? "Upgrade to VIP" : "Subscribe to Pro"}</Link>
+                  <Link href="/subscribe">{VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP" : "Subscribe to Pro"}</Link>
                 </Button>
               </div>
             ) : (

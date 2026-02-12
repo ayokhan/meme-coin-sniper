@@ -145,7 +145,7 @@ export default function SubscribePage() {
       <main className="mx-auto max-w-4xl px-4 py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
         <p className="text-zinc-600 dark:text-zinc-400 mb-8">
-          Pro: Surge, Transactions, AI Analysis, Futures. VIP: everything + Twitter tracker & Copy wallet.
+          Pro: Surge, Transactions, NovaStaris AI Analysis, Futures. VIP: full access + Twitter tracker & Profitable Traders Wallet Tracker.
         </p>
 
         <div className="flex gap-2 mb-6">
@@ -174,7 +174,7 @@ export default function SubscribePage() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-          {tier === "pro" ? "Pro: everything except Twitter tracker and Copy wallet. $100/month." : "VIP: full access including Twitter tracker and Copy wallet."}
+          {tier === "pro" ? "Pro: everything except Twitter tracker and Profitable Traders Wallet Tracker. $100/month." : "VIP: full access including Twitter tracker and Profitable Traders Wallet Tracker."}
         </p>
 
         <div className="grid gap-4 sm:grid-cols-3 mb-8">

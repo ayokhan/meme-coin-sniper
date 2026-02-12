@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db';
 
 export type Tier = 'pro' | 'vip';
 
-/** Pro: everything except Twitter tracker and Copy wallet. $100/mo, 6mo $500, 12mo $1000 */
+/** Pro: everything except Twitter tracker and Profitable Traders Wallet Tracker. $100/mo, 6mo $500, 12mo $1000 */
 export const PRO_PLANS = [
   { id: '1month', label: '1 month', months: 1, priceUsd: 100 },
   { id: '6month', label: '6 months (1 month free)', months: 6, priceUsd: 500 },
@@ -50,7 +50,7 @@ export async function getSubscriptionExpiresAt(userId: string): Promise<Date | n
   return sub?.expiresAt ?? null;
 }
 
-/** True if user has VIP (includes Twitter tracker + Copy wallet). */
+/** True if user has VIP (includes Twitter tracker + Profitable Traders Wallet Tracker). */
 export async function hasVip(userId: string): Promise<boolean> {
   const tier = await getSubscriptionTier(userId);
   return tier === 'vip';

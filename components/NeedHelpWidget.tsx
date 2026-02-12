@@ -25,7 +25,7 @@ const VIP_PLANS_DISPLAY = [
   { label: "VIP 6 months", price: "$1,400" },
 ];
 const NJA_SUBSCRIPTION_INTRO = "We have two subscription types: Pro and VIP.";
-const NJA_SUBSCRIPTION_OUTRO = "Pro: everything except Twitter tracker & Copy wallet. VIP: full access. To subscribe, go to the Subscribe page from the app menu. Need something else?";
+const NJA_SUBSCRIPTION_OUTRO = "Pro: full access to Surge, Transactions, NovaStaris AI Analysis, and Crypto Futures. VIP adds the Twitter tracker (CT Scan) and Profitable Traders Wallet Tracker. To subscribe, go to the Subscribe page from the app menu. Need something else?";
 
 type Message = { id: string; role: string; content: string; createdAt: string };
 
