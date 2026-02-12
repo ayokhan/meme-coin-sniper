@@ -48,9 +48,10 @@ declare module '@prisma/client' {
       create: (args: { data: unknown }) => Promise<unknown>;
     };
     supportTicket: {
-      findUnique: (args: { where: { supportNumber?: string } }) => Promise<unknown>;
+      findUnique: (args: { where: { supportNumber?: string; id?: string } }) => Promise<unknown>;
       findMany: (args?: { orderBy?: unknown }) => Promise<unknown[]>;
       create: (args: { data: unknown }) => Promise<unknown>;
+      update: (args: { where: { id: string }; data: { status?: string } }) => Promise<unknown>;
     };
     agentPresence: {
       findUnique: (args: { where: { id: string } }) => Promise<{ id: string; lastSeenAt: Date } | null>;
