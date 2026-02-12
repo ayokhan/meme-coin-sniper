@@ -399,6 +399,25 @@ export default function FuturesWorkflow() {
 
       {view === "workflow" && (
         <>
+          <Card className="mb-6 border-cyan-200 dark:border-cyan-800 bg-cyan-50/30 dark:bg-cyan-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-cyan-800 dark:text-cyan-200">How the Institutional Workflow gives you an edge</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300">
+              <p className="leading-relaxed">
+                The workflow is built on one idea: institutions show their bias in data (COT, flows, funding). If you align with that bias instead of fading it, you improve your odds on leveraged trades.
+              </p>
+              <ul className="list-disc list-inside space-y-1.5">
+                <li><strong className="text-zinc-900 dark:text-zinc-100">Convergence rule:</strong> Only take leverage when at least 2 of the first 3 phases (macro, daily flow, pre-trade) agree. All 3 aligned = high conviction (e.g. up to 10x). Only 2 = moderate (3–5x). Only 1 = skip or spot only.</li>
+                <li><strong className="text-zinc-900 dark:text-zinc-100">Funding extreme:</strong> When funding is very positive, longs are crowded → bias to shorts (and vice versa). One of the most reliable free edges.</li>
+                <li><strong className="text-zinc-900 dark:text-zinc-100">Liquidation hunting:</strong> Price often sweeps the main liquidation cluster before reversing. Use the heatmap to set take profits near those levels.</li>
+                <li><strong className="text-zinc-900 dark:text-zinc-100">Stablecoin vs coin flows:</strong> Large stable inflows to exchanges often precede buying; large BTC/ETH inflows often precede selling. Gives you a short lead if you check flows regularly.</li>
+              </ul>
+              <p className="leading-relaxed pt-1">
+                <strong className="text-zinc-900 dark:text-zinc-100">Best use:</strong> do Phase 1 (macro) weekly, Phase 2 (daily flow) each morning, then Phase 3 (pre-trade) only when you’re about to open a trade. Use Phase 4 (execution rules) every time you enter. Never max leverage unless all three analysis phases agree.
+              </p>
+            </CardContent>
+          </Card>
           <div className="flex gap-1 mb-6">
             {PHASES.map((p, i) => (
               <div

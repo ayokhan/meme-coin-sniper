@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Brain, Target, Shield, Sparkles } from "lucide-react";
+import { Zap, Brain, Target, Shield, Sparkles, TrendingUp } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -26,20 +26,20 @@ export default function AboutPage() {
             About NovaStaris
           </h1>
           <p className="mt-3 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-            Advanced AI-powered meme snipping for Solana. Spot viral tokens early, analyze with AI, and move with smart money.
+            Advanced AI-powered meme snipping intelligent system for Solana. Spot viral tokens early, analyze with AI, and move with smart money.
           </p>
         </div>
 
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg overflow-hidden mb-8">
           <CardContent className="p-6 space-y-6 text-zinc-700 dark:text-zinc-300">
               <p className="text-base leading-relaxed">
-                <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris</strong> is an advanced AI-powered meme snipping system built for Solana. We combine real-time on-chain data, social signals, and NovaStaris AI Analysis so you can discover and evaluate viral tokens before the crowd—and decide with confidence.
+                <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris</strong> is an advanced AI-powered meme snipping intelligent system for Solana. We combine real-time on-chain data, social signals, and NovaStaris AI Analysis so you can discover and evaluate viral tokens before the crowd—and decide with confidence.
               </p>
               <p className="text-base leading-relaxed">
                 Our system surfaces new pairs, trending volume, and surge activity, then layers on <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Analysis</strong>: paste any token contract and get a 0–100 score, a clear buy/no-buy signal, and a concise explanation. Pro users also get CT Scan (influencer and smart-money buzz) and Wallet Tracker (alerts when tracked wallets pile into the same token), so you can move with the flow instead of chasing it.
               </p>
               <p className="text-base leading-relaxed">
-                <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong> gives Pro users two edges: <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong> — upload a chart (any timeframe), set margin and leverage, and get AI support/resistance, entry zone, take profit and stop loss tailored for futures. <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong> — a 4-phase checklist (macro bias, daily flow check, pre-trade setup, execution rules) using free tools (COT, Coinglass, CryptoQuant, Arkham, Whale Alert) and six non-negotiable rules so you trade with institutional flow instead of against it.
+                <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong> gives Pro users two edges: <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong> — upload a chart (any timeframe), set margin and leverage, and get AI support/resistance, entry zone, take profit and stop loss tailored for futures. <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong> — a 4-phase checklist (macro bias, daily flow check, pre-trade setup, execution rules) using powerful tools (COT, Coinglass, CryptoQuant, Arkham, Whale Alert) and six non-negotiable rules so you trade with institutional flow instead of against it.
               </p>
               <div className="grid gap-4 sm:grid-cols-2 pt-4">
                 <div className="flex gap-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4">
@@ -78,20 +78,16 @@ export default function AboutPage() {
                     </p>
                   </div>
                 </div>
+                <div className="flex gap-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4 sm:col-span-2">
+                  <TrendingUp className="h-6 w-6 text-cyan-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Crypto Futures</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                      <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong> — upload a chart, set margin and leverage; get AI support/resistance, entry zone, take profit and stop loss. <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong> — 4-phase system (macro bias, daily flow, pre-trade, execution) with powerful tools and six rules so you trade with institutional flow.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 pt-4 pb-2">How the Institutional Workflow gives you an edge</h3>
-              <p className="text-base leading-relaxed">
-                The workflow is built on one idea: institutions show their bias in data (COT, flows, funding). If you align with that bias instead of fading it, you improve your odds on leveraged trades.
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-base leading-relaxed">
-                <li><strong className="text-zinc-900 dark:text-zinc-100">Convergence rule:</strong> Only take leverage when at least 2 of the first 3 phases (macro, daily flow, pre-trade) agree. All 3 aligned = high conviction (e.g. up to 10x). Only 2 = moderate (3–5x). Only 1 = skip or spot only. That keeps you from fighting institutional flow.</li>
-                <li><strong className="text-zinc-900 dark:text-zinc-100">Funding extreme:</strong> When funding is very positive, longs are crowded → bias to shorts (and vice versa). One of the most reliable free edges.</li>
-                <li><strong className="text-zinc-900 dark:text-zinc-100">Liquidation hunting:</strong> Price often sweeps the main liquidation cluster before reversing. Use the heatmap to set take profits near those levels.</li>
-                <li><strong className="text-zinc-900 dark:text-zinc-100">Stablecoin vs coin flows:</strong> Large stable inflows to exchanges often precede buying; large BTC/ETH inflows often precede selling. Gives you a short lead if you check flows regularly.</li>
-              </ul>
-              <p className="text-base leading-relaxed">
-                Best use: do Phase 1 (macro) weekly, Phase 2 (daily flow) each morning, then Phase 3 (pre-trade) only when you’re about to open a trade. Use Phase 4 (execution rules) every time you enter. Never max leverage unless all three analysis phases agree.
-              </p>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 pt-2">
                 NovaStaris does not provide financial advice. Always do your own research and never risk more than you can afford to lose.
               </p>
