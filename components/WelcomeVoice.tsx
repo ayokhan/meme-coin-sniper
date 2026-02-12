@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const WELCOME_SCRIPT = "Welcome to NovaStaris! Let's print Money.";
 const SESSION_KEY = "novastaris_welcome_voice_played";
@@ -43,6 +43,8 @@ function pickFemaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice |
 }
 
 export function WelcomeVoice() {
+  const played = useRef(false);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem(SESSION_KEY)) return;
@@ -70,15 +72,35 @@ export function WelcomeVoice() {
       }
     };
 
+    // Preload and unlock audio in the same user gesture so play() in onend is allowed
+    let coinAudio: HTMLAudioElement | null = null;
+
     const playCoinsSound = () => {
-      const audio = new Audio(COINS_SOUND_PATH);
+      if (played.current) return;
+      played.current = true;
+      const audio = coinAudio ?? new Audio(COINS_SOUND_PATH);
       audio.volume = 0.7;
-      audio.play().then(() => {}).catch(playCoinsFallback);
-      audio.addEventListener("error", playCoinsFallback, { once: true });
+      const onError = () => playCoinsFallback();
+      audio.addEventListener("error", onError, { once: true });
+      audio.currentTime = 0;
+      audio.play().catch(onError);
     };
 
-    const speak = () => {
+    const runWelcome = () => {
+      if (sessionStorage.getItem(SESSION_KEY)) return;
       try {
+        coinAudio = new Audio(COINS_SOUND_PATH);
+        coinAudio.volume = 0;
+        coinAudio.preload = "auto";
+        // Unlock audio in this user gesture so play() in onend is allowed
+        coinAudio.play().then(() => {
+          coinAudio?.pause();
+          if (coinAudio) {
+            coinAudio.currentTime = 0;
+            coinAudio.volume = 0.7;
+          }
+        }).catch(() => {});
+
         const voices = speechSynthesis.getVoices();
         const voice = pickFemaleVoice(voices);
         const utterance = new SpeechSynthesisUtterance(WELCOME_SCRIPT);
@@ -94,14 +116,27 @@ export function WelcomeVoice() {
       }
     };
 
-    const run = () => {
-      const voices = speechSynthesis.getVoices();
-      if (voices.length > 0) speak();
-      else speechSynthesis.onvoiceschanged = () => speak();
+    const startOnInteraction = () => {
+      runWelcome();
+      document.removeEventListener("click", startOnInteraction);
+      document.removeEventListener("keydown", startOnInteraction);
     };
 
-    const id = window.setTimeout(run, 1000);
-    return () => clearTimeout(id);
+    // Prefer starting on first user interaction so the coin sound is allowed (browsers often block audio from callbacks)
+    document.addEventListener("click", startOnInteraction, { once: true });
+    document.addEventListener("keydown", startOnInteraction, { once: true });
+
+    // Fallback: auto-start after 2s if no interaction (voice may work; coin may be blocked)
+    const id = window.setTimeout(() => {
+      if (sessionStorage.getItem(SESSION_KEY)) return;
+      runWelcome();
+    }, 2000);
+
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener("click", startOnInteraction);
+      document.removeEventListener("keydown", startOnInteraction);
+    };
   }, []);
 
   return null;
