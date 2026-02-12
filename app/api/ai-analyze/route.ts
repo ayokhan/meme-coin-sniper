@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       tokenInfo: result.tokenInfo,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'AI analysis failed';
+    const message = error instanceof Error ? error.message : 'NovaStaris AI Analysis failed';
     console.error('AI analyze error:', error);
     const status = message.includes('not found') ? 404 : message.includes('not configured') ? 503 : 500;
     return NextResponse.json({ success: false, error: message }, { status });

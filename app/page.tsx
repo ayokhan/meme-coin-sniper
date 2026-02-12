@@ -325,7 +325,7 @@ export default function Dashboard() {
           tokenInfo: { ...data.tokenInfo, contractAddress: ca },
         });
       } else {
-        if (res.status === 403 && data.locked) setAiAnalysisError(data.error || "Subscribe to access AI Analysis.");
+        if (res.status === 403 && data.locked) setAiAnalysisError(data.error || "Subscribe to access NovaStaris AI Analysis.");
         else setAiAnalysisError(data.error || "Analysis failed.");
       }
     } catch (e) {
@@ -836,7 +836,7 @@ export default function Dashboard() {
                 <li><strong>Go Hunting</strong> = Newest pairs (last 2h, or newest available) / Final Stretch / Migrated from DexScreener + Birdeye. Each refresh shuffles order for variety. <strong>Trending</strong> = live by 24h volume + price change. <strong>Surge</strong> = high volume in 5m–24h window. <strong>Transactions</strong> = buys vs sells (24h), sorted by activity.</li>
                 <li><strong>CT Scan</strong>: Spot coins going viral from smart money and influencer buzz before the crowd.</li>
                 <li><strong>NovaStaris AI Analysis</strong>: Paste a token contract address; NovaStaris AI scores it 0–100, gives a buy/no-buy signal, and explains why.</li>
-                <li><strong>Crypto Futures</strong>: Upload a chart (any timeframe), set margin, leverage & timeframes; get AI support/resistance, entry zone, take profit & stop loss.</li>
+                <li><strong>Crypto Futures</strong>: <strong>NovaStaris AI Chart Analysis</strong> — upload a chart, set margin, leverage & timeframes; get AI support/resistance, entry zone, take profit & stop loss. <strong>Institutional Workflow</strong> — 4-phase system (macro bias, daily flow, pre-trade, execution) with free tools and rules for leverage trading.</li>
                 <li><strong>Wallet Tracker</strong>: Get alerted when tracked wallets pile into the same token—so you can move with the flow.</li>
               </ul>
             </details>
@@ -1201,7 +1201,7 @@ export default function Dashboard() {
                     className={futuresView === "ai" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
                     onClick={() => setFuturesView("ai")}
                   >
-                    AI Chart Analysis
+                    NovaStaris AI Chart Analysis
                   </Button>
                   <Button
                     variant={futuresView === "workflow" ? "default" : "outline"}

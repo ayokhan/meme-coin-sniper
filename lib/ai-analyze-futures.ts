@@ -34,7 +34,7 @@ export async function runFuturesAnalysis(
   params: FuturesAnalysisParams
 ): Promise<FuturesAnalysisResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('AI analysis is not configured.');
+    throw new Error('NovaStaris AI Analysis is not configured.');
   }
 
   const riskLine = params.riskAmount != null && params.riskAmount > 0

@@ -36,7 +36,7 @@ export type AnalysisResult = {
 
 export async function runAiAnalysis(contractAddress: string): Promise<AnalysisResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('AI analysis is not configured.');
+    throw new Error('NovaStaris AI Analysis is not configured.');
   }
 
   const [dexData, securityData] = await Promise.all([

@@ -56,7 +56,7 @@ This document describes the technologies, programming languages, external APIs, 
 | API / service | Env variable | Purpose |
 |---------------|--------------|---------|
 | **Apify (Tweet Scraper)** | `APIFY_API_TOKEN` | Scrape tweets from configured CT accounts for “CT Scan” and token mentions. Actor: `apidojo/tweet-scraper`. |
-| **Anthropic (Claude)** | `ANTHROPIC_API_KEY` | AI analysis of tokens and futures (viral score, sentiment, recommendations). `lib/ai-analyze.ts`, `lib/ai-analyze-futures.ts`. |
+| **Anthropic (Claude)** | `ANTHROPIC_API_KEY` | NovaStaris AI Analysis of tokens and futures (viral score, sentiment, recommendations). `lib/ai-analyze.ts`, `lib/ai-analyze-futures.ts`. |
 
 ### 4.3 Notifications & auth
 
@@ -93,7 +93,7 @@ Set these in Vercel (or `.env.local` for local dev):
 
 | Path | Description |
 |------|-------------|
-| `app/page.tsx` | Main dashboard: tabs (New, Trending, Surge, CT, Wallets, etc.), wallet alerts table, live trades, AI analysis UI. |
+| `app/page.tsx` | Main dashboard: tabs (New, Trending, Surge, CT, Wallets, etc.), wallet alerts table, live trades, NovaStaris AI Analysis UI. |
 | `app/api/*` | Next.js API routes (REST). |
 | `app/api/wallet-tracker/route.ts` | GET wallet alerts (and `minBuyers` from rules). |
 | `app/api/wallet-tracker/trades/route.ts` | GET live trades from tracked wallets (Moralis → Helius → Birdeye). |
@@ -125,7 +125,7 @@ Set these in Vercel (or `.env.local` for local dev):
 - **New/trending/surge tokens:** DexScreener (and optionally Birdeye/Moralis) → aggregate in API routes → dashboard.
 - **Wallet Tracker alerts:** Tracked wallets from DB → Moralis/Helius/Birdeye for recent buys → group by mint → filter by `minBuyers`/`maxAgeHours`/`maxAlerts` from `AlertRule` → return alerts with `latestBuyAt`; cron calls notify → Telegram + `WalletAlertSent` dedupe.
 - **CT Scan:** Apify scrapes tweets from configured accounts → tokens mentioned → stored/displayed.
-- **AI analysis:** Token metadata + optional context → Anthropic Claude → viral score, signal, recommendations.
+- **NovaStaris AI Analysis:** Token metadata + optional context → Anthropic Claude → viral score, signal, recommendations.
 
 ---
 

@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const { isPaid } = await getSessionAndSubscription();
     if (!isPaid) {
       return NextResponse.json(
-        { success: false, error: 'Subscribe to use Crypto Futures AI Analysis.', locked: true },
+        { success: false, error: 'Subscribe to use NovaStaris AI Chart Analysis (Crypto Futures).', locked: true },
         { status: 403 }
       );
     }
