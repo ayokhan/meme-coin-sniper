@@ -158,3 +158,46 @@ model PinnedToken {
   @@index([userId])
   @@index([lastAnalyzedAt])
 }
+
+// Support tickets (form submissions + from chat when agent offline)
+model SupportTicket {
+  id           String   @id @default(cuid())
+  supportNumber String  @unique  // e.g. NV-SUP-A1B2C3
+  title        String
+  message      String
+  name         String
+  email        String
+  source       String   @default("form")  // "form" | "chat"
+  createdAt    DateTime @default(now())
+  @@index([createdAt])
+}
+
+// Single row (id = "default"): when owner last pinged (agent "online" if within ~2 min)
+model AgentPresence {
+  id        String   @id  // use "default"
+  lastSeenAt DateTime @default(now()) @updatedAt
+}
+
+// Chat session: customer conversation with Nja and optionally live agent
+model ChatSession {
+  id              String   @id @default(cuid())
+  status          String   @default("nja")  // "nja" | "live" | "submitted"
+  customerName    String?
+  customerEmail   String?
+  supportTicketId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  messages        ChatMessage[]
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  role      String   // "customer" | "nja" | "agent"
+  content   String
+  createdAt DateTime @default(now())
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId])
+}
