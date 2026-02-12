@@ -14,10 +14,12 @@ export default function SubscribePage() {
   const [loading, setLoading] = useState(true);
   const [paid, setPaid] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [plans, setPlans] = useState<Plan[]>([]);
+  const [proPlans, setProPlans] = useState<Plan[]>([]);
+  const [vipPlans, setVipPlans] = useState<Plan[]>([]);
   const [paymentWallet, setPaymentWallet] = useState("");
   const [usdcMint, setUsdcMint] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState<string>("1day");
+  const [tier, setTier] = useState<"pro" | "vip">("pro");
+  const [selectedPlan, setSelectedPlan] = useState<string>("1month");
   const [txSignature, setTxSignature] = useState("");
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyError, setVerifyError] = useState("");
@@ -36,7 +38,8 @@ export default function SubscribePage() {
         if (data.success) {
           setPaid(!!data.paid);
           setExpiresAt(data.expiresAt ?? null);
-          setPlans(Array.isArray(data.plans) ? data.plans : []);
+          setProPlans(Array.isArray(data.proPlans) ? data.proPlans : []);
+          setVipPlans(Array.isArray(data.vipPlans) ? data.vipPlans : []);
           setPaymentWallet(data.paymentWallet ?? "");
           setUsdcMint(data.usdcMint ?? "");
         }
@@ -45,6 +48,15 @@ export default function SubscribePage() {
       }
     })();
   }, [status]);
+
+  const plans = tier === "pro" ? proPlans : vipPlans;
+  const plan = plans.find((p) => p.id === selectedPlan) ?? plans[0];
+  const amountUsdc = plan?.priceUsd ?? 100;
+
+  useEffect(() => {
+    const inTier = plans.some((p) => p.id === selectedPlan);
+    if (!inTier && plans.length) setSelectedPlan(plans[0].id);
+  }, [tier, plans, selectedPlan]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +72,7 @@ export default function SubscribePage() {
       const res = await fetch("/api/subscription", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: selectedPlan, txSignature: sig }),
+        body: JSON.stringify({ tier, planId: selectedPlan, txSignature: sig }),
       });
       const data = await res.json();
       if (data.success && data.subscribed) {
@@ -111,9 +123,6 @@ export default function SubscribePage() {
     );
   }
 
-  const plan = plans.find((p) => p.id === selectedPlan) ?? plans[0];
-  const amountUsdc = plan?.priceUsd ?? 250;
-
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950">
       <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur">
@@ -134,9 +143,38 @@ export default function SubscribePage() {
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-10">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Upgrade to Pro</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
         <p className="text-zinc-600 dark:text-zinc-400 mb-8">
-          Get full access: Surge, Transactions, NovaStaris AI Analysis, CT Scan, and Wallet Tracker.
+          Pro: Surge, Transactions, AI Analysis, Futures. VIP: everything + Twitter tracker & Copy wallet.
+        </p>
+
+        <div className="flex gap-2 mb-6">
+          <button
+            type="button"
+            onClick={() => setTier("pro")}
+            className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all ${
+              tier === "pro"
+                ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30 dark:border-cyan-500 text-cyan-700 dark:text-cyan-300"
+                : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
+            }`}
+          >
+            Pro
+          </button>
+          <button
+            type="button"
+            onClick={() => setTier("vip")}
+            className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all ${
+              tier === "vip"
+                ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30 dark:border-violet-500 text-violet-700 dark:text-violet-300"
+                : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
+            }`}
+          >
+            VIP
+          </button>
+        </div>
+
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+          {tier === "pro" ? "Pro: everything except Twitter tracker and Copy wallet. $100/month." : "VIP: full access including Twitter tracker and Copy wallet."}
         </p>
 
         <div className="grid gap-4 sm:grid-cols-3 mb-8">
@@ -160,7 +198,7 @@ export default function SubscribePage() {
 
         {verifySuccess && (
           <div className="mb-6 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-emerald-800 dark:text-emerald-200">
-            Subscription activated. You now have full access. <Link href="/" className="underline font-medium">Go to dashboard</Link>
+            Subscription activated. You now have {tier === "vip" ? "VIP" : "Pro"} access. <Link href="/" className="underline font-medium">Go to dashboard</Link>
           </div>
         )}
 
@@ -168,7 +206,7 @@ export default function SubscribePage() {
           <CardHeader>
             <CardTitle className="text-lg">Pay with USDC (Solana)</CardTitle>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Send <strong>{amountUsdc} USDC</strong> to the wallet below. Use the same Solana network (mainnet). After sending, paste the transaction signature to activate your subscription.
+              Send <strong>{amountUsdc} USDC</strong> to the wallet below. Use the same Solana network (mainnet). After sending, paste the transaction signature to activate your {tier.toUpperCase()} subscription.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">

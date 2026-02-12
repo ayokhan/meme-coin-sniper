@@ -22,10 +22,12 @@ export async function GET() {
 
     const now = new Date();
     const customers = users.map((u) => {
-      const rawSubs = (u as { subscriptions?: Array<{ plan: string; amountUsd: number; expiresAt: Date }> }).subscriptions ?? [];
+      const rawSubs = (u as { subscriptions?: Array<{ tier?: string; plan: string; amountUsd: number; expiresAt: Date }> }).subscriptions ?? [];
       const subs = [...rawSubs].sort((a, b) => new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime());
       const activeSub = subs.find((s) => new Date(s.expiresAt) > now);
       const latestSub = subs[0];
+      const subTier = activeSub?.tier ?? latestSub?.tier ?? null;
+      const subPlan = activeSub ? activeSub.plan : latestSub?.plan ?? null;
       return {
         id: u.id,
         name: u.name,
@@ -34,7 +36,8 @@ export async function GET() {
         country: u.country,
         experienceTradingCrypto: u.experienceTradingCrypto,
         createdAt: u.createdAt,
-        subscriptionPlan: activeSub ? activeSub.plan : latestSub?.plan ?? null,
+        subscriptionTier: subTier,
+        subscriptionPlan: subPlan,
         subscriptionExpiresAt: activeSub ? activeSub.expiresAt : latestSub?.expiresAt ?? null,
         isActive: !!activeSub,
       };

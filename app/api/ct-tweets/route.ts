@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic';
 /** GET - Recent tweets from tracked CT accounts (Pro). Requires APIFY_API_TOKEN in Vercel. */
 export async function GET() {
   try {
-    const { isPaid } = await getSessionAndSubscription();
-    if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to view live CT tweets.', locked: true }, { status: 403 });
+    const { tier } = await getSessionAndSubscription();
+    if (tier !== 'vip') {
+      return NextResponse.json({ success: false, error: 'VIP subscription required for Twitter tracker.', locked: true }, { status: 403 });
     }
     if (!process.env.APIFY_API_TOKEN) {
       return NextResponse.json({

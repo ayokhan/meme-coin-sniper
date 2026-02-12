@@ -13,6 +13,20 @@ const NJA_AFTER_OPTION = "Thanks, I'd be happy to help with that. May I have you
 const NJA_CHOICE_LIVE = "A live support agent is available. Would you like to chat with them now, or have us get back to you within 48 hours?";
 const NJA_CHOICE_OFFLINE = "No live agent is available right now. I'll send your details to our team and we'll get back to you within 48 hours. Would you like me to do that?";
 
+const PRO_PLANS_DISPLAY = [
+  { label: "Pro 1 month", price: "$100" },
+  { label: "Pro 6 months (1 month free)", price: "$500" },
+  { label: "Pro 12 months (2 months free)", price: "$1,000" },
+];
+const VIP_PLANS_DISPLAY = [
+  { label: "VIP 1 day trial", price: "$10" },
+  { label: "VIP 1 month", price: "$250" },
+  { label: "VIP 3 months", price: "$700" },
+  { label: "VIP 6 months", price: "$1,400" },
+];
+const NJA_SUBSCRIPTION_INTRO = "We have two subscription types: Pro and VIP.";
+const NJA_SUBSCRIPTION_OUTRO = "Pro: everything except Twitter tracker & Copy wallet. VIP: full access. To subscribe, go to the Subscribe page from the app menu. Need something else?";
+
 type Message = { id: string; role: string; content: string; createdAt: string };
 
 export default function NeedHelpWidget() {
@@ -30,9 +44,11 @@ export default function NeedHelpWidget() {
   const [requestingLive, setRequestingLive] = useState(false);
   const [error, setError] = useState("");
   const [minimized, setMinimized] = useState(false);
+  const [view, setView] = useState<"welcome" | "subscription" | "chat">("welcome");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const hasStarted = messages.length > 0;
+  const hasStarted = view === "chat" && messages.length > 0;
+  const showSubscriptionInfo = view === "subscription";
   const customerCount = messages.filter((m) => m.role === "customer").length;
   const step = customerCount === 0 ? "name" : customerCount === 1 ? "email" : customerCount === 2 ? "issue" : "choice";
   const showChoice = step === "choice" && status === "nja";
@@ -49,7 +65,9 @@ export default function NeedHelpWidget() {
     const sid = data.sessionId;
     setSessionId(sid);
     setStatus(data.status ?? "nja");
-    setMessages(data.messages ?? []);
+    const msgs = data.messages ?? [];
+    setMessages(msgs);
+    if (msgs.length > 0) setView("chat");
     setCustomerName(data.customerName ?? "");
     setCustomerEmail(data.customerEmail ?? "");
     return sid;
@@ -80,7 +98,33 @@ export default function NeedHelpWidget() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendOptionOrMessage = async (text: string, isOption = false) => {
+  const startTechSupportFlow = async () => {
+    setView("chat");
+    setSending(true);
+    setError("");
+    try {
+      const sid = await ensureSession();
+      if (!sid) return;
+      await fetch("/api/chat/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid, role: "customer", content: "I need technical support" }),
+      });
+      await fetch("/api/chat/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid, role: "nja", content: NJA_AFTER_OPTION }),
+      });
+      fetchMessages();
+    } catch {
+      setError("Failed to send");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const sendOptionOrMessage = async (text: string) => {
+    setView("chat");
     setSending(true);
     setError("");
     try {
@@ -98,12 +142,10 @@ export default function NeedHelpWidget() {
         setError(data.error ?? "Failed to send");
         return;
       }
-
-      const replyContent = isOption || !hasStarted ? NJA_AFTER_OPTION : step === "name" ? NJA_ASK_EMAIL : step === "email" ? NJA_ASK_ISSUE : agentOnline ? NJA_CHOICE_LIVE : NJA_CHOICE_OFFLINE;
       await fetch("/api/chat/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sid, role: "nja", content: replyContent }),
+        body: JSON.stringify({ sessionId: sid, role: "nja", content: NJA_AFTER_OPTION }),
       });
       setInput("");
       fetchMessages();
@@ -236,15 +278,44 @@ export default function NeedHelpWidget() {
           {!minimized && (
             <>
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-zinc-50 dark:bg-zinc-950">
-                {!hasStarted ? (
+                {showSubscriptionInfo ? (
+                  <>
+                    <p className="text-sm text-zinc-700 dark:text-zinc-300">{WELCOME}</p>
+                    <div className="rounded-2xl bg-violet-100 dark:bg-violet-900/40 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
+                      <p className="font-medium mb-2">{NJA_SUBSCRIPTION_INTRO}</p>
+                      <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-1">Pro</p>
+                      <ul className="list-disc list-inside space-y-0.5 text-xs">
+                        {PRO_PLANS_DISPLAY.map((p) => (
+                          <li key={p.label}>{p.label} — {p.price}</li>
+                        ))}
+                      </ul>
+                      <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-2">VIP</p>
+                      <ul className="list-disc list-inside space-y-0.5 text-xs">
+                        {VIP_PLANS_DISPLAY.map((p) => (
+                          <li key={p.label}>{p.label} — {p.price}</li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-zinc-600 dark:text-zinc-400">{NJA_SUBSCRIPTION_OUTRO}</p>
+                    </div>
+                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{ASK_START}</p>
+                    <div className="flex flex-col gap-2 pt-2">
+                      <Button type="button" variant="outline" size="sm" className="justify-start text-left" onClick={() => setView("subscription")} disabled={sending}>
+                        Subscription
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="justify-start text-left" onClick={() => startTechSupportFlow()} disabled={sending}>
+                        Get technical support
+                      </Button>
+                    </div>
+                  </>
+                ) : !hasStarted ? (
                   <>
                     <p className="text-sm text-zinc-700 dark:text-zinc-300">{WELCOME}</p>
                     <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{ASK_START}</p>
                     <div className="flex flex-col gap-2 pt-2">
-                      <Button type="button" variant="outline" size="sm" className="justify-start text-left" onClick={() => sendOptionOrMessage("I need help with payments", true)} disabled={sending}>
-                        Explore payment options
+                      <Button type="button" variant="outline" size="sm" className="justify-start text-left" onClick={() => setView("subscription")} disabled={sending}>
+                        Subscription
                       </Button>
-                      <Button type="button" variant="outline" size="sm" className="justify-start text-left" onClick={() => sendOptionOrMessage("I need technical support", true)} disabled={sending}>
+                      <Button type="button" variant="outline" size="sm" className="justify-start text-left" onClick={() => startTechSupportFlow()} disabled={sending}>
                         Get technical support
                       </Button>
                     </div>
@@ -335,11 +406,11 @@ export default function NeedHelpWidget() {
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && input.trim()) {
                           e.preventDefault();
-                          sendOptionOrMessage(input.trim(), false);
+                          sendOptionOrMessage(input.trim());
                         }
                       }}
                     />
-                    <Button type="button" size="icon" onClick={() => input.trim() && sendOptionOrMessage(input.trim(), false)} disabled={sending || !input.trim()} className="shrink-0">
+                    <Button type="button" size="icon" onClick={() => input.trim() && sendOptionOrMessage(input.trim())} disabled={sending || !input.trim()} className="shrink-0">
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>

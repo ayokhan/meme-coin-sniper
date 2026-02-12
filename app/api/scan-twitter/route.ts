@@ -23,9 +23,9 @@ type ScannedToken = {
 
 export async function GET() {
   try {
-    const { isPaid } = await getSessionAndSubscription();
-    if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to run Twitter scan.', locked: true }, { status: 403 });
+    const { tier } = await getSessionAndSubscription();
+    if (tier !== 'vip') {
+      return NextResponse.json({ success: false, error: 'VIP subscription required for Twitter scan.', locked: true }, { status: 403 });
     }
     if (!process.env.APIFY_API_TOKEN) {
       return NextResponse.json({

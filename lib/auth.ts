@@ -4,11 +4,11 @@ import { PublicKey } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 import { prisma } from '@/lib/db';
-import { getActiveSubscription } from '@/lib/subscription';
+import { getActiveSubscription, getSubscriptionTier, type Tier } from '@/lib/subscription';
 
 declare module 'next-auth' {
   interface Session {
-    user: { id: string; email?: string | null; name?: string | null; image?: string | null; isPaid: boolean; isOwner?: boolean };
+    user: { id: string; email?: string | null; name?: string | null; image?: string | null; isPaid: boolean; isOwner?: boolean; tier?: Tier | null };
   }
 }
 
@@ -45,7 +45,8 @@ export const authOptions: NextAuthOptions = {
         const ok = await bcrypt.compare(credentials.password, user.hashedPassword);
         if (!ok) return null;
         const isPaid = await getActiveSubscription(user.id);
-        return { id: user.id, email: user.email!, name: user.name, image: user.image, isPaid };
+        const tier = await getSubscriptionTier(user.id);
+        return { id: user.id, email: user.email!, name: user.name, image: user.image, isPaid, tier };
       },
     }),
     CredentialsProvider({
@@ -75,7 +76,8 @@ export const authOptions: NextAuthOptions = {
           });
         }
         const isPaid = await getActiveSubscription(user.id);
-        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, isPaid };
+        const tier = await getSubscriptionTier(user.id);
+        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, isPaid, tier };
       },
     }),
   ],
@@ -87,6 +89,7 @@ export const authOptions: NextAuthOptions = {
         token.name = user.name;
         token.picture = user.image;
         token.isPaid = (user as { isPaid?: boolean }).isPaid ?? false;
+        token.tier = (user as { tier?: Tier | null }).tier ?? null;
       }
       return token;
     },
@@ -97,10 +100,15 @@ export const authOptions: NextAuthOptions = {
         session.user.name = token.name as string | null;
         session.user.image = token.picture as string | null;
         let isPaid = (token.isPaid as boolean) ?? false;
+        let tier = (token.tier as Tier | null) ?? null;
         const owner = isOwnerEmail(session.user.email);
-        if (owner) isPaid = true;
+        if (owner) {
+          isPaid = true;
+          tier = 'vip';
+        }
         session.user.isPaid = isPaid;
         session.user.isOwner = owner;
+        session.user.tier = tier;
       }
       return session;
     },

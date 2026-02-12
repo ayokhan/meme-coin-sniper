@@ -14,6 +14,7 @@ type Customer = {
   country: string | null;
   experienceTradingCrypto: string | null;
   createdAt: string;
+  subscriptionTier: string | null;
   subscriptionPlan: string | null;
   subscriptionExpiresAt: string | null;
   isActive: boolean;
@@ -125,7 +126,7 @@ export default function AdminCustomersPage() {
                         <td className="py-2 pr-4">{c.phone ?? "—"}</td>
                         <td className="py-2 pr-4">{c.country ?? "—"}</td>
                         <td className="py-2 pr-4">{c.experienceTradingCrypto ?? "—"}</td>
-                        <td className="py-2 pr-4">{c.subscriptionPlan ?? "—"}</td>
+                        <td className="py-2 pr-4">{c.subscriptionTier ? `${c.subscriptionTier} · ${c.subscriptionPlan ?? ""}` : c.subscriptionPlan ?? "—"}</td>
                         <td className="py-2 pr-4">
                           {c.subscriptionExpiresAt
                             ? new Date(c.subscriptionExpiresAt).toLocaleDateString()

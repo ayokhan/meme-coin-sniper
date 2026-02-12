@@ -10,9 +10,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const { isPaid } = await getSessionAndSubscription();
-    if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to access Wallet Tracker.', locked: true }, { status: 403 });
+    const { tier } = await getSessionAndSubscription();
+    if (tier !== 'vip') {
+      return NextResponse.json({ success: false, error: 'VIP subscription required for Copy wallet / Wallet Tracker.', locked: true }, { status: 403 });
     }
     const [trackedWallets, rules, liveTradesEnabled] = await Promise.all([
       getTrackedWallets(),

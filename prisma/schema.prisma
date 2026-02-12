@@ -96,8 +96,9 @@ model Account {
 model Subscription {
   id           String   @id @default(cuid())
   userId       String
-  plan         String   // "1month" | "3month" | "6month"
-  amountUsd    Int      // 250, 700, 1400
+  tier         String   @default("vip")  // "pro" | "vip"
+  plan         String   // e.g. "1month", "6month", "12month" (pro) or "1day", "1month", "3month", "6month" (vip)
+  amountUsd    Int
   expiresAt    DateTime
   txSignature  String?  // Solana tx signature for verification
   createdAt    DateTime @default(now())

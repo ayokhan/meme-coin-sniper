@@ -6,12 +6,12 @@ const FREE_LIMIT = 5;
 
 export async function GET(request: Request) {
   try {
-    const { isPaid } = await getSessionAndSubscription();
+    const { isPaid, tier } = await getSessionAndSubscription();
     const { searchParams } = new URL(request.url);
     const source = searchParams.get('source');
-    // CT Scan (Twitter) is paid-only
-    if (source === 'twitter' && !isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to access CT Scan.', locked: true }, { status: 403 });
+    // CT Scan (Twitter) is VIP-only
+    if (source === 'twitter' && tier !== 'vip') {
+      return NextResponse.json({ success: false, error: 'VIP subscription required for CT Scan.', locked: true }, { status: 403 });
     }
     const where: { chain: string; source?: string } = { chain: 'solana' };
     if (source) where.source = source;

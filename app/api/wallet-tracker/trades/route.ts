@@ -44,9 +44,9 @@ async function getRecentBuysForWallet(
 /** GET - Recent buys from each tracked wallet (Pro). Uses Birdeye (primary) or Helius. */
 export async function GET() {
   try {
-    const { isPaid } = await getSessionAndSubscription();
-    if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to view live wallet trades.', locked: true }, { status: 403 });
+    const { tier } = await getSessionAndSubscription();
+    if (tier !== 'vip') {
+      return NextResponse.json({ success: false, error: 'VIP subscription required for wallet trades.', locked: true }, { status: 403 });
     }
     const trackedWallets = await getTrackedWallets();
     if (trackedWallets.length === 0) {

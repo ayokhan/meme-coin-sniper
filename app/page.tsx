@@ -58,11 +58,15 @@ const AUTO_REFRESH_SECONDS = 60;
 
 type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "ct", "wallets"];
+/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct (Twitter tracker), wallets (Copy wallet). */
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets"];
 
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
   const { data: session, status } = useSession();
   const isPaid = (session?.user as { isPaid?: boolean } | undefined)?.isPaid ?? false;
+  const tier = (session?.user as { tier?: "pro" | "vip" | null } | undefined)?.tier ?? null;
+  const isVip = tier === "vip";
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("new");
@@ -266,8 +270,10 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const onPaidTab = PAID_TABS.includes(activeTab);
-    if (onPaidTab && !isPaid) {
+    const needsPaid = PAID_TABS.includes(activeTab);
+    const needsVip = VIP_ONLY_TABS.includes(activeTab);
+    const canAccess = needsVip ? isVip : needsPaid ? isPaid : true;
+    if (needsPaid && !canAccess) {
       setLoading(false);
       setError(null);
       return;
@@ -280,7 +286,7 @@ export default function Dashboard() {
     if (activeTab === "wallets") {
       fetchTrackedWallets();
     }
-  }, [activeTab, isPaid, goHuntingView]);
+  }, [activeTab, isPaid, isVip, goHuntingView]);
 
   useEffect(() => {
     if (activeTab === "surge") fetchTokens("surge");
@@ -701,7 +707,7 @@ export default function Dashboard() {
               </Button>
             )}
             {status === "authenticated" && isPaid && (
-              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">Pro</span>
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">{tier === "vip" ? "VIP" : "Pro"}</span>
             )}
             {status === "authenticated" && isOwner && (
               <>
@@ -857,20 +863,23 @@ export default function Dashboard() {
             </Tabs>
           </CardHeader>
           <CardContent className="p-0">
-            {!isPaid && PAID_TABS.includes(activeTab) ? (
+            {((VIP_ONLY_TABS.includes(activeTab) && !isVip) || (PAID_TABS.includes(activeTab) && !isPaid)) ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Subscribe for access</p>
+                <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
+                  {VIP_ONLY_TABS.includes(activeTab) && !isVip && isPaid ? "VIP required" : "Subscribe for access"}
+                </p>
                 <p className="mt-2 text-sm text-muted-foreground max-w-md">
                   {activeTab === "surge" && "Surge shows tokens with high volume in 5m–24h windows."}
                   {activeTab === "transactions" && "Transactions shows buys vs sells (24h) and activity."}
                   {activeTab === "ai-analysis" && "NovaStaris AI Analysis scores any token 0–100 and gives a buy/no-buy signal."}
                   {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
-                  {activeTab === "ct" && "CT Scan surfaces coins when smart money and influencers are talking about them."}
-                  {activeTab === "wallets" && "Wallet Tracker alerts you when 3+ tracked wallets buy the same token."}
-                  {" "}Upgrade to Pro to use this feature.
+                  {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
+                  {activeTab === "wallets" && "Wallet Tracker (Copy wallet) alerts you when 3+ tracked wallets buy the same token."}
+                  {" "}
+                  {VIP_ONLY_TABS.includes(activeTab) && !isVip && isPaid ? "Upgrade to VIP to use this feature." : "Upgrade to Pro or VIP to use this feature."}
                 </p>
                 <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
-                  <Link href="/subscribe">Subscribe to Pro</Link>
+                  <Link href="/subscribe">{isPaid ? "Upgrade to VIP" : "Subscribe to Pro"}</Link>
                 </Button>
               </div>
             ) : (
