@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Zap } from "lucide-react";
+import FuturesWorkflow from "@/components/FuturesWorkflow";
 
 type Token = {
   id: string;
@@ -137,6 +138,7 @@ export default function Dashboard() {
   } | null>(null);
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
+  const [futuresView, setFuturesView] = useState<"ai" | "workflow">("ai");
 
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (tab === "ai-analysis") {
@@ -1191,7 +1193,29 @@ export default function Dashboard() {
                 )}
               </div>
             ) : activeTab === "futures" ? (
-              <div className="mx-6 py-8 max-w-2xl">
+              <div className="mx-6 py-8">
+                <div className="flex gap-2 mb-6">
+                  <Button
+                    variant={futuresView === "ai" ? "default" : "outline"}
+                    size="sm"
+                    className={futuresView === "ai" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
+                    onClick={() => setFuturesView("ai")}
+                  >
+                    AI Chart Analysis
+                  </Button>
+                  <Button
+                    variant={futuresView === "workflow" ? "default" : "outline"}
+                    size="sm"
+                    className={futuresView === "workflow" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
+                    onClick={() => setFuturesView("workflow")}
+                  >
+                    Institutional Workflow
+                  </Button>
+                </div>
+                {futuresView === "workflow" ? (
+                  <FuturesWorkflow />
+                ) : (
+                <div className="max-w-2xl">
                 <h2 className="text-xl sm:text-2xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
                   Trade with Confidence using NovaStaris Advanced AI System
                 </h2>
@@ -1361,6 +1385,8 @@ export default function Dashboard() {
                       ))}
                     </ul>
                   </div>
+                )}
+                </div>
                 )}
               </div>
             ) : activeTab === "wallets" ? (
