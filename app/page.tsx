@@ -694,6 +694,9 @@ export default function Dashboard() {
               <Link href="/about">About</Link>
             </Button>
             <Button variant="ghost" size="sm" asChild className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+              <Link href="/chat">Chat</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               <Link href="/support">Support</Link>
             </Button>
             {status !== "authenticated" && (
@@ -713,6 +716,12 @@ export default function Dashboard() {
               <>
                 <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
                   <Link href="/admin/customers">Customers</Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
+                  <Link href="/admin/support">Support tickets</Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
+                  <Link href="/admin/chat">Live chat</Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
                   <Link href="/admin/feature-flags">Feature flags</Link>

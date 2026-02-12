@@ -27,6 +27,22 @@ const VIP_PLANS_DISPLAY = [
 const NJA_SUBSCRIPTION_INTRO = "We have two subscription types: Pro and VIP.";
 const NJA_SUBSCRIPTION_OUTRO = "Pro: full access to Surge, Transactions, NovaStaris AI Analysis, and Crypto Futures. VIP adds the Twitter tracker (CT Scan) and Profitable Traders Wallet Tracker. To subscribe, go to the Subscribe page from the app menu. Need something else?";
 
+const SUBSCRIPTION_KEYWORDS = [
+  "subscription", "subscribe", "price", "pricing", "plan", "plans", "cost", "how much",
+  "pro", "vip", "pay", "payment", "fee", "fees", "trial", "monthly", "yearly",
+];
+
+function isSubscriptionQuestion(text: string): boolean {
+  const lower = text.trim().toLowerCase();
+  return SUBSCRIPTION_KEYWORDS.some((k) => lower.includes(k));
+}
+
+function getSubscriptionReply(): string {
+  const proList = PRO_PLANS_DISPLAY.map((p) => `${p.label} — ${p.price}`).join("\n");
+  const vipList = VIP_PLANS_DISPLAY.map((p) => `${p.label} — ${p.price}`).join("\n");
+  return `${NJA_SUBSCRIPTION_INTRO}\n\nPro:\n${proList}\n\nVIP:\n${vipList}\n\n${NJA_SUBSCRIPTION_OUTRO}`;
+}
+
 type Message = { id: string; role: string; content: string; createdAt: string };
 
 export default function NeedHelpWidget() {
@@ -50,7 +66,7 @@ export default function NeedHelpWidget() {
   const hasStarted = view === "chat" && messages.length > 0;
   const showSubscriptionInfo = view === "subscription";
   const customerCount = messages.filter((m) => m.role === "customer").length;
-  const step = customerCount === 0 ? "name" : customerCount === 1 ? "email" : customerCount === 2 ? "issue" : "choice";
+  const step = !customerName ? "name" : !customerEmail ? "email" : customerCount <= 2 ? "issue" : "choice";
   const showChoice = step === "choice" && status === "nja";
   const isSubmitted = status === "submitted";
 
@@ -132,21 +148,30 @@ export default function NeedHelpWidget() {
       if (!sid) sid = await ensureSession();
       if (!sid) return;
 
+      const trimmed = text.trim();
       const res = await fetch("/api/chat/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sid, role: "customer", content: text.trim() }),
+        body: JSON.stringify({ sessionId: sid, role: "customer", content: trimmed }),
       });
       const data = await res.json();
       if (!data.success) {
         setError(data.error ?? "Failed to send");
         return;
       }
-      await fetch("/api/chat/message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sid, role: "nja", content: NJA_AFTER_OPTION }),
-      });
+      if (isSubscriptionQuestion(trimmed)) {
+        await fetch("/api/chat/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: sid, role: "nja", content: getSubscriptionReply() }),
+        });
+      } else {
+        await fetch("/api/chat/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: sid, role: "nja", content: NJA_AFTER_OPTION }),
+        });
+      }
       setInput("");
       fetchMessages();
     } catch {
@@ -161,13 +186,14 @@ export default function NeedHelpWidget() {
     setSending(true);
     setError("");
     try {
+      const trimmed = text.trim();
       const res = await fetch("/api/chat/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId,
           role: "customer",
-          content: text.trim(),
+          content: trimmed,
           ...(name !== undefined && { customerName: name }),
           ...(email !== undefined && { customerEmail: email }),
         }),
@@ -178,8 +204,19 @@ export default function NeedHelpWidget() {
         return;
       }
       setInput("");
-      if (step === "name") setCustomerName(text.trim());
-      if (step === "email") setCustomerEmail(text.trim());
+
+      if (isSubscriptionQuestion(trimmed)) {
+        await fetch("/api/chat/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, role: "nja", content: getSubscriptionReply() }),
+        });
+        fetchMessages();
+        return;
+      }
+
+      if (step === "name") setCustomerName(trimmed);
+      if (step === "email") setCustomerEmail(trimmed);
 
       const nextStep = step === "name" ? "email" : step === "email" ? "issue" : "choice";
       const nextNja = nextStep === "email" ? NJA_ASK_EMAIL : nextStep === "issue" ? NJA_ASK_ISSUE : agentOnline ? NJA_CHOICE_LIVE : NJA_CHOICE_OFFLINE;
