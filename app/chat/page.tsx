@@ -62,25 +62,26 @@ export default function ChatPage() {
     }
   };
 
+  const presenceOpts = { cache: "no-store" as RequestCache };
   const fetchPresence = () => {
-    fetch("/api/chat/presence")
+    fetch("/api/chat/presence", presenceOpts)
       .then((r) => r.json())
       .then((d) => setAgentOnline(!!d.online))
       .catch(() => setAgentOnline(false));
   };
 
   const checkPresenceNow = (): Promise<boolean> =>
-    fetch("/api/chat/presence")
+    fetch("/api/chat/presence", presenceOpts)
       .then((r) => r.json())
       .then((d) => !!d.online)
       .catch(() => false);
 
-  const fetchMessages = () => {
-    if (!sessionId) return;
-    fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sessionId)}`)
+  const fetchMessages = (): Promise<void> => {
+    if (!sessionId) return Promise.resolve();
+    return fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sessionId)}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        if (d.success && d.messages?.length) setMessages(d.messages);
+        if (d.success) setMessages(d.messages ?? []);
       })
       .catch(() => {});
   };
@@ -166,7 +167,7 @@ export default function ChatPage() {
       // If user asked for live agent, re-check presence so we don't say "transferring" when agent just signed out
       let preferSubmit = preferSubmitOnly;
       if (!preferSubmitOnly) {
-        const presenceRes = await fetch("/api/chat/presence").catch(() => null);
+        const presenceRes = await fetch("/api/chat/presence", { cache: "no-store" }).catch(() => null);
         const presenceData = presenceRes?.ok ? await presenceRes.json() : null;
         if (!presenceData?.online) preferSubmit = true; // agent offline → create ticket and show offline message
       }

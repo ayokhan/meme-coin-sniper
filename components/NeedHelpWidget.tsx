@@ -99,15 +99,16 @@ export default function NeedHelpWidget() {
       .catch(() => {});
   };
 
+  const presenceOpts = { cache: "no-store" as RequestCache };
   const fetchPresence = () => {
-    fetch("/api/chat/presence")
+    fetch("/api/chat/presence", presenceOpts)
       .then((r) => r.json())
       .then((d) => setAgentOnline(!!d.online))
       .catch(() => setAgentOnline(false));
   };
 
   const checkPresenceNow = (): Promise<boolean> =>
-    fetch("/api/chat/presence")
+    fetch("/api/chat/presence", presenceOpts)
       .then((r) => r.json())
       .then((d) => !!d.online)
       .catch(() => false);
@@ -226,7 +227,7 @@ export default function NeedHelpWidget() {
       setInput("");
 
       if (status === "live") {
-        fetchMessages();
+        await fetchMessages();
         return;
       }
 
@@ -269,7 +270,7 @@ export default function NeedHelpWidget() {
       // If user asked for live agent, re-check presence so we don't say "transferring" when agent just signed out
       let preferSubmit = preferSubmitOnly;
       if (!preferSubmitOnly) {
-        const presenceRes = await fetch("/api/chat/presence").catch(() => null);
+        const presenceRes = await fetch("/api/chat/presence", { cache: "no-store" }).catch(() => null);
         const presenceData = presenceRes?.ok ? await presenceRes.json() : null;
         if (!presenceData?.online) preferSubmit = true; // agent offline → create ticket and show offline message
       }

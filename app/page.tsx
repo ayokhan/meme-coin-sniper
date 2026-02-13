@@ -750,7 +750,18 @@ export default function Dashboard() {
               </>
             )}
             {status === "authenticated" && (
-              <Button variant="outline" size="sm" onClick={() => signOut()} className="border-zinc-200 dark:border-zinc-700">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (isOwner) {
+                    fetch("/api/chat/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offline: true }) }).finally(() => signOut());
+                  } else {
+                    signOut();
+                  }
+                }}
+                className="border-zinc-200 dark:border-zinc-700"
+              >
                 Log out
               </Button>
             )}
