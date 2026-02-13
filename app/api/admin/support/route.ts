@@ -44,11 +44,10 @@ export async function GET() {
 export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email ?? null;
-    if (!email) {
+    if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
-    if (!isOwnerEmail(email)) {
+    if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 
