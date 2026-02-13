@@ -1286,40 +1286,38 @@ export default function Dashboard() {
                       >
                         {aiAnalysisCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy analysis</>}
                       </Button>
-                      {isOwner && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={aiAnalysisShareLoading}
-                          onClick={async () => {
-                            setAiAnalysisShareLoading(true);
-                            setAiAnalysisShareSuccess(false);
-                            try {
-                              const { title: t, content: c } = formatAiAnalysisForShare(aiAnalysisResult);
-                              const res = await fetch("/api/coach-calls", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ title: t, content: c }),
-                              });
-                              const data = await res.json();
-                              if (data.success) {
-                                setAiAnalysisShareSuccess(true);
-                                setTimeout(() => setAiAnalysisShareSuccess(false), 3000);
-                              } else {
-                                alert(data.error ?? "Failed to share");
-                              }
-                            } catch {
-                              alert("Failed to share");
-                            } finally {
-                              setAiAnalysisShareLoading(false);
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={aiAnalysisShareLoading}
+                        onClick={async () => {
+                          setAiAnalysisShareLoading(true);
+                          setAiAnalysisShareSuccess(false);
+                          try {
+                            const { title: t, content: c } = formatAiAnalysisForShare(aiAnalysisResult);
+                            const res = await fetch("/api/coach-calls", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ title: t, content: c }),
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              setAiAnalysisShareSuccess(true);
+                              setTimeout(() => setAiAnalysisShareSuccess(false), 3000);
+                            } else {
+                              alert(data.error ?? "Failed to share");
                             }
-                          }}
-                          className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
-                        >
-                          {aiAnalysisShareLoading ? "Sharing…" : aiAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
-                        </Button>
-                      )}
+                          } catch {
+                            alert("Failed to share");
+                          } finally {
+                            setAiAnalysisShareLoading(false);
+                          }
+                        }}
+                        className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
+                      >
+                        {aiAnalysisShareLoading ? "Sharing…" : aiAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
+                      </Button>
                       {isPaid && (aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim()) && (
                         <>
                           <Button type="button" variant="outline" size="sm" onClick={pinCurrentToken} className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50">
