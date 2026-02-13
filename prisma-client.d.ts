@@ -1,4 +1,11 @@
 declare module '@prisma/client' {
+  export interface CoachCallRow {
+    id: string;
+    title: string | null;
+    content: string;
+    createdAt: Date;
+  }
+
   export interface PrismaUser {
     id: string;
     email: string | null;
@@ -70,7 +77,7 @@ declare module '@prisma/client' {
       create: (args: { data: unknown }) => Promise<unknown>;
     };
     coachCall: {
-      findMany: (args?: { orderBy?: unknown }) => Promise<unknown[]>;
+      findMany: (args?: { orderBy?: unknown }) => Promise<CoachCallRow[]>;
       create: (args: { data: { title?: string; content: string } }) => Promise<{ id: string; title: string | null; content: string; createdAt: Date }>;
       delete: (args: { where: { id: string } }) => Promise<unknown>;
     };

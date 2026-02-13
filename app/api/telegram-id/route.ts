@@ -16,14 +16,14 @@ export async function GET(req: Request) {
       const rows = await prisma.userTelegram.findMany({
         include: { user: { select: { email: true, name: true } } },
         orderBy: { createdAt: 'desc' },
-      });
+      }) as { userId: string; telegramId: string; createdAt: Date; user: { email: string | null; name: string | null } }[];
       return NextResponse.json({
         success: true,
         list: rows.map((r) => ({
           userId: r.userId,
           telegramId: r.telegramId,
-          email: (r.user as { email: string | null }).email,
-          name: (r.user as { name: string | null }).name,
+          email: r.user.email,
+          name: r.user.name,
           createdAt: r.createdAt,
         })),
       });

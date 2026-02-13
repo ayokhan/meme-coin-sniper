@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Zap } from "lucide-react";
 import FuturesWorkflow from "@/components/FuturesWorkflow";
+import CoachCallsPanel from "@/components/CoachCallsPanel";
 
 type Token = {
   id: string;
