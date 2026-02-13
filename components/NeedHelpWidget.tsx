@@ -106,6 +106,12 @@ export default function NeedHelpWidget() {
       .catch(() => setAgentOnline(false));
   };
 
+  const checkPresenceNow = (): Promise<boolean> =>
+    fetch("/api/chat/presence")
+      .then((r) => r.json())
+      .then((d) => !!d.online)
+      .catch(() => false);
+
   useEffect(() => {
     if (open && sessionId) fetchPresence();
   }, [open, sessionId]);
@@ -238,7 +244,10 @@ export default function NeedHelpWidget() {
       if (step === "email") setCustomerEmail(trimmed);
 
       const nextStep = step === "name" ? "email" : step === "email" ? "issue" : "choice";
-      const nextNja = nextStep === "email" ? NJA_ASK_EMAIL : nextStep === "issue" ? NJA_ASK_ISSUE : agentOnline ? NJA_CHOICE_LIVE : NJA_CHOICE_OFFLINE;
+      const isChoice = nextStep === "choice";
+      const onlineNow = isChoice ? await checkPresenceNow() : agentOnline;
+      if (isChoice) setAgentOnline(onlineNow);
+      const nextNja = nextStep === "email" ? NJA_ASK_EMAIL : nextStep === "issue" ? NJA_ASK_ISSUE : onlineNow ? NJA_CHOICE_LIVE : NJA_CHOICE_OFFLINE;
       await fetch("/api/chat/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions, isOwnerEmail } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-const ONLINE_MS = 2 * 60 * 1000; // 2 min
+const ONLINE_MS = 5 * 60 * 1000; // 5 min
 
 /** GET - Check if live support agent is online */
 export async function GET() {

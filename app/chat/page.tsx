@@ -69,6 +69,12 @@ export default function ChatPage() {
       .catch(() => setAgentOnline(false));
   };
 
+  const checkPresenceNow = (): Promise<boolean> =>
+    fetch("/api/chat/presence")
+      .then((r) => r.json())
+      .then((d) => !!d.online)
+      .catch(() => false);
+
   const fetchMessages = () => {
     if (!sessionId) return;
     fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sessionId)}`)
@@ -129,12 +135,14 @@ export default function ChatPage() {
       if (step === "email") setCustomerEmail(text.trim());
 
       const nextStep = step === "name" ? "email" : step === "email" ? "issue" : "choice";
+      const onlineNow = nextStep === "choice" ? await checkPresenceNow() : agentOnline;
+      if (nextStep === "choice") setAgentOnline(onlineNow);
       const nextNjaContent =
         nextStep === "email"
           ? NJA_ASK_EMAIL
           : nextStep === "issue"
             ? NJA_ASK_ISSUE
-            : agentOnline
+            : onlineNow
               ? NJA_CHOICE_LIVE
               : NJA_CHOICE_OFFLINE;
       await fetch("/api/chat/message", {

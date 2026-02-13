@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
-const ONLINE_MS = 2 * 60 * 1000;
+const ONLINE_MS = 5 * 60 * 1000; // 5 min (match presence route)
 
 function generateSupportNumber(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
