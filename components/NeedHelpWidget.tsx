@@ -15,7 +15,7 @@ const NJA_AFTER_OPTION = "I'd be glad to help. To get you to the right place, ma
 const NJA_CHOICE_LIVE = "A live support agent is available. Would you like to chat with them now, or have us get back to you within 48 hours?";
 const NJA_CHOICE_OFFLINE = "No live agent is available right now. I'll send your details to our team and we'll get back to you within 48 hours. Would you like me to do that?";
 const NJA_PRODUCT_OVERVIEW =
-  "NovaStaris is an AI-powered platform that helps you discover and evaluate new crypto tokens. Key features include: Surge (volume and momentum), NovaStaris AI Analysis, Crypto Futures tools, and—on VIP—CT Scan (Twitter tracker), Profitable Traders Wallet Tracker, and Coach Calls (exclusive CA + Telegram). You can explore plans and pricing on our Subscribe page. Would you like details on subscriptions or something else?";
+  "NovaStaris is an AI-powered platform that helps you discover and evaluate new crypto tokens. Key features include: Surge (volume and momentum), NovaStaris AI Analysis, Crypto Futures tools, and—on VIP—CT Scan, Profitable Traders Wallet Tracker, and Coach Calls + Telegram (exclusive CA in-app and via Telegram). You can explore plans and pricing on our Subscribe page. Would you like details on subscriptions or something else?";
 
 const NJA_OUT_OF_SCOPE_LIVE =
   "I'm not able to answer that—I'm set up to help with NovaStaris products, subscriptions, and support. A live support agent may be able to help with your question. Would you like me to connect you with them now?";

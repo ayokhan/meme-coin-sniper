@@ -36,7 +36,7 @@ export default function AboutPage() {
                 <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris</strong> is an advanced AI-powered meme snipping intelligent system for Solana. We combine real-time on-chain data, social signals, and NovaStaris AI Analysis so you can discover and evaluate viral tokens before the crowd—and decide with confidence.
               </p>
               <p className="text-base leading-relaxed">
-                Our system surfaces new pairs, trending volume, and surge activity, then layers on <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Analysis</strong>: paste any token contract and get a 0–100 score, a clear buy/no-buy signal, and a concise explanation. <strong className="text-zinc-900 dark:text-zinc-100">Pro</strong> subscribers get Surge, Transactions, NovaStaris AI Analysis, and Crypto Futures. <strong className="text-zinc-900 dark:text-zinc-100">VIP</strong> adds the Twitter tracker (CT Scan), Profitable Traders Wallet Tracker, and <strong className="text-zinc-900 dark:text-zinc-100">Coach Calls</strong>—exclusive CA (call alerts) from the team, with optional Telegram notifications and a place to add your Telegram ID so we can invite you to the group.
+                Our system surfaces new pairs, trending volume, and surge activity, then layers on <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Analysis</strong>: paste any token contract and get a 0–100 score, a clear buy/no-buy signal, and a concise explanation. <strong className="text-zinc-900 dark:text-zinc-100">Pro</strong> subscribers get Surge, Transactions, NovaStaris AI Analysis, and Crypto Futures. <strong className="text-zinc-900 dark:text-zinc-100">VIP</strong> adds the Twitter tracker (CT Scan), Profitable Traders Wallet Tracker, and <strong className="text-zinc-900 dark:text-zinc-100">Coach Calls + Telegram</strong>—exclusive CA (call alerts) from the team, displayed in-app and sent to our Telegram Call channel; add your Telegram ID (one per user) to get signals there too.
               </p>
               <p className="text-base leading-relaxed">
                 <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong> gives Pro and VIP users two edges: <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong> — upload a chart (any timeframe), set margin and leverage, and get AI support/resistance, entry zone, take profit and stop loss tailored for futures. <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong> — a 4-phase checklist (macro bias, daily flow check, pre-trade setup, execution rules) using powerful tools (COT reports via CFTC and Tradingster, Coinglass, CryptoQuant, Arkham, Whale Alert) and six non-negotiable rules so you trade with institutional flow instead of against it.
@@ -72,9 +72,9 @@ export default function AboutPage() {
                 <div className="flex gap-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4">
                   <Sparkles className="h-6 w-6 text-amber-500 shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">VIP: Twitter tracker & Profitable Traders Wallet Tracker</h3>
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">VIP: CT Scan, Wallet Tracker & Coach Calls + Telegram</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                      VIP subscribers get CT Scan (Twitter tracker) and the Profitable Traders Wallet Tracker: spot coins going viral from smart money and get alerted when tracked wallets pile in.
+                      VIP subscribers get CT Scan (Twitter tracker), Profitable Traders Wallet Tracker, and Coach Calls + Telegram: exclusive CA in-app and via our Telegram Call channel; add your Telegram ID to get signals there.
                     </p>
                   </div>
                 </div>

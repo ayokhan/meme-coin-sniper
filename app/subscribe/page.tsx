@@ -145,7 +145,7 @@ export default function SubscribePage() {
       <main className="mx-auto max-w-4xl px-4 py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
         <p className="text-zinc-600 dark:text-zinc-400 mb-8">
-          Pro: Surge, Transactions, NovaStaris AI Analysis, Futures. VIP: full access + CT Scan (Twitter tracker), Profitable Traders Wallet Tracker, and Coach Calls (exclusive CA from the team + Telegram).
+          Pro: Surge, Transactions, NovaStaris AI Analysis, Futures. VIP: full access + CT Scan, Profitable Traders Wallet Tracker, and Coach Calls + Telegram (exclusive CA in-app and via Telegram).
         </p>
 
         <div className="flex gap-2 mb-6">
@@ -174,7 +174,7 @@ export default function SubscribePage() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-          {tier === "pro" ? "Pro: everything except CT Scan, Wallet Tracker and Coach Calls. $100/month." : "VIP: full access including CT Scan, Profitable Traders Wallet Tracker, and Coach Calls (CA + Telegram)."}
+          {tier === "pro" ? "Pro: everything except CT Scan, Wallet Tracker and Coach Calls + Telegram. $100/month." : "VIP: full access including CT Scan, Profitable Traders Wallet Tracker, and Coach Calls + Telegram."}
         </p>
 
         <div className="grid gap-4 sm:grid-cols-3 mb-8">

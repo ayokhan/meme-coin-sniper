@@ -136,7 +136,10 @@ export default function CoachCallsPanel({
 
   const callsList = (
     <div>
-      <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">Coach Calls</h3>
+      <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Coach Calls</h3>
+      <p className="text-xs text-muted-foreground mb-3">
+        All coach calls are displayed here and sent as notifications to our Telegram Call channel.
+      </p>
       {calls.length === 0 ? (
         <p className="text-sm text-muted-foreground py-6">No coach calls yet.</p>
       ) : (
@@ -200,7 +203,7 @@ export default function CoachCallsPanel({
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Add your Telegram ID</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Add your Telegram username or numeric ID so we can add you to the Coach Calls Telegram group and you’ll get new calls there too.
+          Add your Telegram username or numeric ID so you can be added to our telegram Call channel. Only 1 Telegram ID is allowed per user.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -312,7 +315,7 @@ export default function CoachCallsPanel({
             </TabsTrigger>
           </TabsList>
           <TabsContent value="calls" className="mt-4 space-y-6">
-            <p className="text-xs text-muted-foreground">VIP members use the form below to add their Telegram ID so you can add them to your group.</p>
+            <p className="text-xs text-muted-foreground">VIP members use the form below to add their Telegram ID so you can be added to our telegram Call channel.</p>
             {telegramIdForm}
             {callsList}
           </TabsContent>
