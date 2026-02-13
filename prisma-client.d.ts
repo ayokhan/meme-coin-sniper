@@ -69,5 +69,15 @@ declare module '@prisma/client' {
       findMany: (args?: { where?: unknown; orderBy?: unknown }) => Promise<unknown[]>;
       create: (args: { data: unknown }) => Promise<unknown>;
     };
+    coachCall: {
+      findMany: (args?: { orderBy?: unknown }) => Promise<unknown[]>;
+      create: (args: { data: { title?: string; content: string } }) => Promise<{ id: string; title: string | null; content: string; createdAt: Date }>;
+      delete: (args: { where: { id: string } }) => Promise<unknown>;
+    };
+    userTelegram: {
+      findUnique: (args: { where: { userId: string } }) => Promise<{ telegramId: string } | null>;
+      findMany: (args?: { include?: unknown; orderBy?: unknown }) => Promise<unknown[]>;
+      upsert: (args: { where: { userId: string }; create: { userId: string; telegramId: string }; update: { telegramId: string } }) => Promise<unknown>;
+    };
   }
 }

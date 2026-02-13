@@ -53,6 +53,16 @@ const PHASES: Phase[] = [
         },
       },
       {
+        name: "Tradingster COT (Futures breakdown)",
+        url: "https://tradingster.com/cot/futures/fin/133741",
+        free: true,
+        action: "View COT breakdown by category (commercial, non-commercial, etc.) for crypto futures",
+        signal: {
+          long: "Use with CFTC data to confirm institutional positioning",
+          short: "Use with CFTC data to confirm institutional positioning",
+        },
+      },
+      {
         name: "Glassnode (Free Tier)",
         url: "https://studio.glassnode.com",
         free: true,

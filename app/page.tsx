@@ -56,10 +56,10 @@ type WalletAlert = {
 
 const AUTO_REFRESH_SECONDS = 60;
 
-type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures";
-const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "ct", "wallets"];
-/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct (Twitter tracker), wallets (Profitable Traders Wallet Tracker). */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets"];
+type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "coach-calls";
+const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "ct", "wallets", "coach-calls"];
+/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. */
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls"];
 
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
@@ -888,6 +888,7 @@ export default function Dashboard() {
                 <li><strong>NovaStaris AI Analysis</strong>: Paste a token contract address; NovaStaris AI scores it 0–100, gives a buy/no-buy signal, and explains why.</li>
                 <li><strong>Crypto Futures</strong>: <strong>NovaStaris AI Chart Analysis</strong> — upload a chart, set margin, leverage & timeframes; get AI support/resistance, entry zone, take profit & stop loss. <strong>Institutional Workflow</strong> — 4-phase system (macro bias, daily flow, pre-trade, execution) with free tools and rules for leverage trading.</li>
                 <li><strong>Wallet Tracker</strong>: Get alerted when tracked wallets pile into the same token—so you can move with the flow.</li>
+                <li><strong>Coach Calls</strong> (VIP): Owner posts CA (call alerts) with details and date; new posts are sent to Telegram. VIP members can add their Telegram ID so you can add them to your group.</li>
               </ul>
             </details>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4">
@@ -916,6 +917,7 @@ export default function Dashboard() {
                   {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
                   {activeTab === "wallets" && "Wallet Tracker (Profitable Traders Wallet Tracker) alerts you when 3+ tracked wallets buy the same token."}
+                  {activeTab === "coach-calls" && "Coach Calls: exclusive CA (call alerts) from the team. VIP only."}
                   {" "}
                   {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP to use this feature." : "Upgrade to Pro or VIP to use this feature."}
                 </p>
@@ -1442,6 +1444,8 @@ export default function Dashboard() {
                 </div>
                 )}
               </div>
+            ) : activeTab === "coach-calls" ? (
+              <CoachCallsPanel isOwner={isOwner} isVip={isVip} />
             ) : activeTab === "wallets" ? (
               walletAlerts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">

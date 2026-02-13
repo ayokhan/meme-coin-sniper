@@ -73,6 +73,7 @@ model User {
   accounts      Account[]
   subscriptions Subscription[]
   pinnedTokens  PinnedToken[]
+  userTelegram  UserTelegram?
 }
 
 model Account {
@@ -204,4 +205,23 @@ model ChatMessage {
   createdAt DateTime @default(now())
   session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   @@index([sessionId])
+}
+
+// Coach Calls: owner-only posts, VIP members can view (CA / call alerts)
+model CoachCall {
+  id        String   @id @default(cuid())
+  title     String?  // optional short title
+  content   String   // CA details, contract address, notes, etc.
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+}
+
+// User Telegram ID for Coach Calls / group invites (members submit, owner can export)
+model UserTelegram {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  telegramId String   // e.g. @username or numeric id
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
 }
