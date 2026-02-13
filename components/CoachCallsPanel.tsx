@@ -29,6 +29,7 @@ export default function CoachCallsPanel({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [ownerSubTab, setOwnerSubTab] = useState<CoachSubTab>("calls");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedTitleId, setCopiedTitleId] = useState<string | null>(null);
 
   const loadCalls = () => {
     fetch("/api/coach-calls")
@@ -120,6 +121,20 @@ export default function CoachCallsPanel({
     );
   };
 
+  const copyTitleToClipboard = (c: CoachCallItem, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const toCopy = (c.title?.trim() || c.content.trim().split("\n")[0] || "").trim();
+    if (!toCopy) return;
+    navigator.clipboard.writeText(toCopy).then(
+      () => {
+        setCopiedTitleId(c.id);
+        setTimeout(() => setCopiedTitleId(null), 2000);
+      },
+      () => {}
+    );
+  };
+
   const handleSaveTelegram = async () => {
     const val = telegramId.trim();
     if (!val) return;
@@ -169,9 +184,24 @@ export default function CoachCallsPanel({
                   <p className="text-xs font-medium text-muted-foreground">
                     {new Date(c.createdAt).toLocaleString()}
                   </p>
-                  {c.title && (
-                    <p className="font-semibold text-zinc-900 dark:text-zinc-100 mt-1 break-words">{c.title}</p>
+                  {(c.title?.trim() || c.content.trim()) && (
+                    <button
+                      type="button"
+                      onClick={(e) => copyTitleToClipboard(c, e)}
+                      className="mt-1 w-full text-left rounded-lg py-2 px-2 -mx-2 active:bg-zinc-200/80 dark:active:bg-zinc-700/50 touch-manipulation min-h-[44px] flex items-center flex-wrap gap-2"
+                      style={{ minHeight: "44px" }}
+                    >
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-100 break-all">
+                        {c.title?.trim() || c.content.trim().split("\n")[0]}
+                      </span>
+                      {copiedTitleId === c.id ? (
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium shrink-0">Copied!</span>
+                      ) : (
+                        <Copy className="h-4 w-4 text-zinc-400 shrink-0" aria-hidden />
+                      )}
+                    </button>
                   )}
+                  <p className="text-xs text-muted-foreground mt-0.5 px-2">Tap title to copy</p>
                   <pre className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans break-words overflow-x-auto">
                     {c.content}
                   </pre>
