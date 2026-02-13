@@ -69,6 +69,7 @@ export default function Dashboard() {
   const isVip = tier === "vip";
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
   const [mounted, setMounted] = useState(false);
+  const [presencePingOk, setPresencePingOk] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("new");
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
   const [ctTweets, setCtTweets] = useState<{ id: string; text: string; author: { username: string; followers: number }; created_at: string; metrics: { likes: number; retweets: number }; url: string }[]>([]);
@@ -724,6 +725,16 @@ export default function Dashboard() {
             )}
             {status === "authenticated" && isOwner && (
               <>
+                {presencePingOk === true && (
+                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50" title="Visitors will see &quot;Live agent available&quot;">
+                    Live: online
+                  </span>
+                )}
+                {presencePingOk === false && (
+                  <span className="text-xs font-medium text-amber-600 dark:text-amber-400 px-2 py-1 rounded bg-amber-50 dark:bg-amber-950/50" title="Set OWNER_EMAIL in Vercel to your sign-in email and redeploy.">
+                    Live: not marked
+                  </span>
+                )}
                 <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
                   <Link href="/admin/customers">Customers</Link>
                 </Button>

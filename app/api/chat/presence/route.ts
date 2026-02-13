@@ -24,10 +24,11 @@ export async function POST() {
     if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
+    const now = new Date();
     await prisma.agentPresence.upsert({
       where: { id: 'default' },
-      create: { id: 'default' },
-      update: {},
+      create: { id: 'default', lastSeenAt: now },
+      update: { lastSeenAt: now },
     });
     return NextResponse.json({ success: true });
   } catch (e) {
