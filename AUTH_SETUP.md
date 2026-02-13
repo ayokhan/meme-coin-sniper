@@ -46,10 +46,11 @@ To give your own account full access without a subscription and access to **Cust
    - **Value:** your email, e.g. `ayokhan2006@gmail.com`  
      For multiple owners use a comma-separated list: `email1@gmail.com,email2@gmail.com`  
      Use the **exact same email** you use to sign in (no extra spaces).
+   - **Optional:** `OWNER_WALLET_ADDRESSES` = comma-separated Solana wallet addresses (for wallet sign-in owners).
 2. **Redeploy** the project (e.g. push a commit or “Redeploy” in Vercel). Env vars apply on the next deployment; existing runs keep the old env.
 3. **Sign out and sign in again** so the new session includes `isOwner` and `isPaid`.
 
-Any user whose email matches `OWNER_EMAIL` will be treated as having an active subscription (full access to paid tabs).
+Any user whose email matches `OWNER_EMAIL` or whose wallet (Solana) matches `OWNER_WALLET_ADDRESSES` (comma-separated) is treated as owner (full access to paid tabs, admin, and live agent presence).
 
 ---
 

@@ -8,7 +8,7 @@ import { getActiveSubscription, getSubscriptionTier, type Tier } from '@/lib/sub
 
 declare module 'next-auth' {
   interface Session {
-    user: { id: string; email?: string | null; name?: string | null; image?: string | null; isPaid: boolean; isOwner?: boolean; tier?: Tier | null };
+    user: { id: string; email?: string | null; name?: string | null; image?: string | null; walletAddress?: string | null; isPaid: boolean; isOwner?: boolean; tier?: Tier | null };
   }
 }
 
@@ -18,6 +18,19 @@ export function isOwnerEmail(email: string | null | undefined): boolean {
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   return ownerEmails.includes(email.toLowerCase().trim());
+}
+
+export function isOwnerWallet(walletAddress: string | null | undefined): boolean {
+  if (!walletAddress || !process.env.OWNER_WALLET_ADDRESSES) return false;
+  const ownerWallets = process.env.OWNER_WALLET_ADDRESSES.split(',')
+    .map((w) => w.trim())
+    .filter(Boolean);
+  return ownerWallets.some((w) => w === walletAddress.trim());
+}
+
+/** True if session belongs to an owner (by OWNER_EMAIL or OWNER_WALLET_ADDRESSES). */
+export function isOwnerSession(session: { user?: { email?: string | null; walletAddress?: string | null } } | null): boolean {
+  return !!session?.user && (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress));
 }
 
 function verifyWalletSignature(message: string, signature: string, walletAddress: string): boolean {
@@ -46,7 +59,7 @@ export const authOptions: NextAuthOptions = {
         if (!ok) return null;
         const isPaid = await getActiveSubscription(user.id);
         const tier = await getSubscriptionTier(user.id);
-        return { id: user.id, email: user.email!, name: user.name, image: user.image, isPaid, tier };
+        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier };
       },
     }),
     CredentialsProvider({
@@ -77,7 +90,7 @@ export const authOptions: NextAuthOptions = {
         }
         const isPaid = await getActiveSubscription(user.id);
         const tier = await getSubscriptionTier(user.id);
-        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, isPaid, tier };
+        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier };
       },
     }),
   ],
@@ -88,6 +101,7 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.picture = user.image;
+        token.walletAddress = (user as { walletAddress?: string | null }).walletAddress ?? null;
         token.isPaid = (user as { isPaid?: boolean }).isPaid ?? false;
         token.tier = (user as { tier?: Tier | null }).tier ?? null;
       }
@@ -99,9 +113,10 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string | null;
         session.user.name = token.name as string | null;
         session.user.image = token.picture as string | null;
+        session.user.walletAddress = token.walletAddress as string | null;
         let isPaid = (token.isPaid as boolean) ?? false;
         let tier = (token.tier as Tier | null) ?? null;
-        const owner = isOwnerEmail(session.user.email);
+        const owner = isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress);
         if (owner) {
           isPaid = true;
           tier = 'vip';

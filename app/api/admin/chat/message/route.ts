@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, isOwnerEmail } from '@/lib/auth';
+import { authOptions, isOwnerSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 /** POST - Send a message as live support agent. Owner-only. Customer sees "Support Agent". */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email ?? null;
-    if (!email || !isOwnerEmail(email)) {
+    if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 

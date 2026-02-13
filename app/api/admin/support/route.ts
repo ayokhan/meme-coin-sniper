@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, isOwnerEmail } from '@/lib/auth';
+import { authOptions, isOwnerSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 const VALID_STATUSES = ['new', 'pending', 'assigned', 'open', 'resolved'] as const;
@@ -9,11 +9,10 @@ const VALID_STATUSES = ['new', 'pending', 'assigned', 'open', 'resolved'] as con
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email ?? null;
-    if (!email) {
+    if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
-    if (!isOwnerEmail(email)) {
+    if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized. Only owners can view support tickets.' }, { status: 403 });
     }
 
@@ -79,11 +78,10 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email ?? null;
-    if (!email) {
+    if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
-    if (!isOwnerEmail(email)) {
+    if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 

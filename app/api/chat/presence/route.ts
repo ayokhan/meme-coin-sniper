@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, isOwnerEmail } from '@/lib/auth';
+import { authOptions, isOwnerSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 const ONLINE_MS = 5 * 60 * 1000; // 5 min
@@ -17,12 +17,11 @@ export async function GET() {
   }
 }
 
-/** POST - Agent heartbeat (owner only). Call every ~20s when admin chat page is open. */
+/** POST - Agent heartbeat (owner only). Call every ~20s when dashboard or admin chat is open. */
 export async function POST() {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email ?? null;
-    if (!email || !isOwnerEmail(email)) {
+    if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
     await prisma.agentPresence.upsert({

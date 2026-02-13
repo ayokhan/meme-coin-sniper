@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, isOwnerEmail } from '@/lib/auth';
+import { authOptions, isOwnerSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 /** GET - List chat sessions (nja and live). Owner-only. */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email ?? null;
-    if (!email || !isOwnerEmail(email)) {
+    if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 
@@ -50,8 +49,7 @@ export async function GET() {
 export async function DELETE(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email ?? null;
-    if (!email || !isOwnerEmail(email)) {
+    if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 
