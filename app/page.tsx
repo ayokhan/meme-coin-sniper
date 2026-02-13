@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Zap } from "lucide-react";
+import { Zap, Copy, Send } from "lucide-react";
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 
@@ -129,6 +129,9 @@ export default function Dashboard() {
   const [pinnedLoading, setPinnedLoading] = useState(false);
   const [pinSuccess, setPinSuccess] = useState<string | null>(null);
   const [refreshingPin, setRefreshingPin] = useState<string | null>(null);
+  const [aiAnalysisCopied, setAiAnalysisCopied] = useState(false);
+  const [aiAnalysisShareLoading, setAiAnalysisShareLoading] = useState(false);
+  const [aiAnalysisShareSuccess, setAiAnalysisShareSuccess] = useState(false);
   // Crypto Futures tab
   const [futuresChartFile, setFuturesChartFile] = useState<File | null>(null);
   const [futuresChartPreview, setFuturesChartPreview] = useState<string | null>(null);
@@ -622,6 +625,34 @@ export default function Dashboard() {
     if (h > 0) return `${h}h`;
     return `${m}m`;
   };
+  const formatAiAnalysisForShare = (r: NonNullable<typeof aiAnalysisResult>) => {
+    const symbol = r.tokenInfo?.symbol ?? "Token";
+    const name = r.tokenInfo?.name ?? "";
+    const title = name ? `${symbol} | ${name}` : symbol;
+    const lines: string[] = [];
+    lines.push(`${r.score} / 100 · ${r.signal === "buy" ? "BUY" : "NO BUY"}`);
+    if (r.tokenInfo && (r.tokenInfo.liquidityUsd != null || r.tokenInfo.volume24h != null)) {
+      const liq = r.tokenInfo.liquidityUsd != null ? `$${r.tokenInfo.liquidityUsd.toLocaleString()}` : "—";
+      const vol = r.tokenInfo.volume24h != null ? `$${r.tokenInfo.volume24h.toLocaleString()}` : "—";
+      const pct = r.tokenInfo.priceChange24hPct != null ? `${r.tokenInfo.priceChange24hPct >= 0 ? "+" : ""}${r.tokenInfo.priceChange24hPct.toFixed(1)}% 24h` : "";
+      lines.push(`Liquidity ${liq} · Vol 24h ${vol}${pct ? ` · ${pct}` : ""}`);
+    }
+    if (r.tokenInfo?.contractAddress) lines.push(`CA: ${r.tokenInfo.contractAddress}`);
+    lines.push("");
+    const rec = r.recommendations;
+    if (rec && (rec.supportResistance || rec.marketStructure || rec.buyZoneMcap || rec.takeProfitPct || rec.stopLossPct)) {
+      lines.push("Trading levels (meme coins are volatile — use risk management)");
+      if (rec.supportResistance) lines.push(`Support / Resistance: ${rec.supportResistance}`);
+      if (rec.marketStructure) lines.push(`Market structure: ${rec.marketStructure}`);
+      if (rec.buyZoneMcap) lines.push(`Buy zone (mcap): ${rec.buyZoneMcap}`);
+      if (rec.takeProfitPct) lines.push(`Take profit: ${rec.takeProfitPct}`);
+      if (rec.stopLossPct) lines.push(`Stop loss: ${rec.stopLossPct}`);
+      lines.push("");
+    }
+    r.reasons.forEach((reason) => lines.push(`• ${reason}`));
+    return { title, content: lines.join("\n") };
+  };
+
   const dexUrl = (t: Token) =>
     t.pairAddress
       ? `https://dexscreener.com/solana/${t.pairAddress}`
@@ -1238,14 +1269,66 @@ export default function Dashboard() {
                         <li key={i}>{r}</li>
                       ))}
                     </ul>
-                    {isPaid && (aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim()) && (
-                      <div className="mt-4 flex flex-wrap gap-2 items-center">
-                        <Button type="button" variant="outline" size="sm" onClick={pinCurrentToken} className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50">
-                          Pin to the Nova Staris monitoring board for 3-min updates
+                    <div className="mt-4 flex flex-wrap gap-2 items-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const { title: t, content: c } = formatAiAnalysisForShare(aiAnalysisResult);
+                          const full = [t, c].filter(Boolean).join("\n\n");
+                          navigator.clipboard.writeText(full).then(() => {
+                            setAiAnalysisCopied(true);
+                            setTimeout(() => setAiAnalysisCopied(false), 2000);
+                          });
+                        }}
+                        className="border-zinc-300 dark:border-zinc-600"
+                      >
+                        {aiAnalysisCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy analysis</>}
+                      </Button>
+                      {isOwner && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={aiAnalysisShareLoading}
+                          onClick={async () => {
+                            setAiAnalysisShareLoading(true);
+                            setAiAnalysisShareSuccess(false);
+                            try {
+                              const { title: t, content: c } = formatAiAnalysisForShare(aiAnalysisResult);
+                              const res = await fetch("/api/coach-calls", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ title: t, content: c }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                setAiAnalysisShareSuccess(true);
+                                setTimeout(() => setAiAnalysisShareSuccess(false), 3000);
+                              } else {
+                                alert(data.error ?? "Failed to share");
+                              }
+                            } catch {
+                              alert("Failed to share");
+                            } finally {
+                              setAiAnalysisShareLoading(false);
+                            }
+                          }}
+                          className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
+                        >
+                          {aiAnalysisShareLoading ? "Sharing…" : aiAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
                         </Button>
-                        {pinSuccess && <span className="text-xs text-emerald-600 dark:text-emerald-400">{pinSuccess}</span>}
-                      </div>
-                    )}
+                      )}
+                      {isPaid && (aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim()) && (
+                        <>
+                          <Button type="button" variant="outline" size="sm" onClick={pinCurrentToken} className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50">
+                            Pin to the Nova Staris monitoring board for 3-min updates
+                          </Button>
+                          {pinSuccess && <span className="text-xs text-emerald-600 dark:text-emerald-400">{pinSuccess}</span>}
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
