@@ -266,10 +266,17 @@ export default function NeedHelpWidget() {
     setRequestingLive(true);
     setError("");
     try {
+      // If user asked for live agent, re-check presence so we don't say "transferring" when agent just signed out
+      let preferSubmit = preferSubmitOnly;
+      if (!preferSubmitOnly) {
+        const presenceRes = await fetch("/api/chat/presence").catch(() => null);
+        const presenceData = presenceRes?.ok ? await presenceRes.json() : null;
+        if (!presenceData?.online) preferSubmit = true; // agent offline → create ticket and show offline message
+      }
       const res = await fetch("/api/chat/request-live", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, customerName: customerName || undefined, customerEmail: customerEmail || undefined, preferSubmit: preferSubmitOnly }),
+        body: JSON.stringify({ sessionId, customerName: customerName || undefined, customerEmail: customerEmail || undefined, preferSubmit }),
       });
       const data = await res.json();
       if (!data.success) {

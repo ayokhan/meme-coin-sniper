@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     if (online) {
       await prisma.$transaction([
         prisma.chatSession.update({ where: { id: sid }, data: { status: 'live', customerName: name, customerEmail: email || undefined } }),
-        prisma.chatMessage.create({ data: { sessionId: sid, role: 'nja', content: 'Transferring you to a live agent. You can chat with them now.' } }),
+        prisma.chatMessage.create({ data: { sessionId: sid, role: 'nja', content: 'Transferring you to a live agent. One moment please.' } }),
       ]);
       return NextResponse.json({ success: true, transferred: true });
     }
