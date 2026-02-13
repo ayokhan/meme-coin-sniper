@@ -7,13 +7,48 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Zap, Send, Bot, User, Headphones } from "lucide-react";
 
 const NJA_INTRO =
-  "Hi! I'm Nja, your AI assistant for NovaStaris. I'm here to help with any questions or issues. How can I assist you today?";
+  "Hello! I'm Nja, your AI assistant for NovaStaris—your advanced AI-powered platform for tracking and analyzing crypto tokens. I'm here to help with questions about our products, subscription plans (Pro and VIP), or technical support. How can I assist you today?";
 
 const NJA_ASK_NAME = "May I have your name?";
 const NJA_ASK_EMAIL = "Thanks! What's your email address?";
 const NJA_ASK_ISSUE = "What do you need help with? Please describe your question or issue in a few words.";
 const NJA_CHOICE_LIVE = "A live support agent is available. Would you like to chat with them now, or have us get back to you within 48 hours?";
 const NJA_CHOICE_OFFLINE = "No live agent is available right now. I'll send your details to our team and we'll get back to you within 48 hours. Would you like me to do that?";
+const NJA_OUT_OF_SCOPE_LIVE =
+  "I'm not able to answer that—I'm set up to help with NovaStaris products, subscriptions, and support. A live support agent may be able to help with your question. Would you like me to connect you with them now?";
+const NJA_OUT_OF_SCOPE_OFFLINE =
+  "I'm not able to answer that—I'm set up to help with NovaStaris products, subscriptions, and support. If you'd like help from our team, I can create a support ticket with your details and we'll get back to you within 48 hours. Would you like me to do that?";
+
+const GREETING_WORDS = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "hi there", "howdy", "greetings"];
+const PRODUCT_KEYWORDS = ["product", "products", "what is novastaris", "what do you offer", "features", "platform", "tell me about"];
+const SUPPORT_INTENT_KEYWORDS = [
+  "help", "support", "issue", "problem", "bug", "error", "not working", "can't", "cannot", "assistance",
+  "broken", "fix", "technical", "stuck", "trouble", "question about my", "need help",
+];
+const SUBSCRIPTION_KEYWORDS = [
+  "subscription", "subscribe", "price", "pricing", "plan", "plans", "cost", "how much",
+  "pro", "vip", "pay", "payment", "fee", "fees", "trial", "monthly", "yearly",
+];
+const NJA_SUBSCRIPTION_REPLY =
+  "NovaStaris offers Pro and VIP plans. Pro: 1 month $100, 6 months $500, 12 months $1,000. VIP: 1-day trial $10, 1 month $250, 3 months $700, 6 months $1,400. Use the Subscribe page in the app to sign up. Anything else?";
+
+function isGreeting(text: string): boolean {
+  const lower = text.trim().toLowerCase().replace(/[^\w\s]/g, "");
+  if (lower.length > 25) return false;
+  return GREETING_WORDS.some((g) => lower === g || lower.startsWith(g + " ") || lower.endsWith(" " + g));
+}
+function isProductQuestion(text: string): boolean {
+  return PRODUCT_KEYWORDS.some((k) => text.trim().toLowerCase().includes(k));
+}
+function isSupportIntent(text: string): boolean {
+  return SUPPORT_INTENT_KEYWORDS.some((k) => text.trim().toLowerCase().includes(k));
+}
+function isSubscriptionQuestion(text: string): boolean {
+  return SUBSCRIPTION_KEYWORDS.some((k) => text.trim().toLowerCase().includes(k));
+}
+function isOutOfScope(text: string): boolean {
+  return !isGreeting(text) && !isProductQuestion(text) && !isSupportIntent(text) && !isSubscriptionQuestion(text);
+}
 
 type Message = { id: string; role: string; content: string; createdAt: string };
 
@@ -30,12 +65,14 @@ export default function ChatPage() {
   const [supportNumber, setSupportNumber] = useState<string | null>(null);
   const [requestingLive, setRequestingLive] = useState(false);
   const [error, setError] = useState("");
+  const [showOutOfScopeChoice, setShowOutOfScopeChoice] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const customerCount = messages.filter((m) => m.role === "customer").length;
   const step = customerCount === 0 ? "name" : customerCount === 1 ? "email" : customerCount === 2 ? "issue" : "choice";
   const showChoice = step === "choice" && status === "nja";
+  const showTransferOrTicketButtons = (showChoice || showOutOfScopeChoice) && status === "nja";
   const isLive = status === "live";
   const isSubmitted = status === "submitted";
 
@@ -113,6 +150,7 @@ export default function ChatPage() {
 
   const sendMessage = async (text: string, name?: string, email?: string) => {
     if (!sessionId || !text.trim()) return;
+    setShowOutOfScopeChoice(false);
     setSending(true);
     setError("");
     const trimmed = text.trim();
@@ -138,6 +176,30 @@ export default function ChatPage() {
       if (isLive) {
         await fetchMessages();
         return;
+      }
+      if (customerCount === 0) {
+        if (isSubscriptionQuestion(trimmed)) {
+          await fetch("/api/chat/message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId, role: "nja", content: NJA_SUBSCRIPTION_REPLY }),
+          });
+          await fetchMessages();
+          return;
+        }
+        if (isOutOfScope(trimmed)) {
+          const onlineNow = await checkPresenceNow();
+          setAgentOnline(onlineNow);
+          setShowOutOfScopeChoice(true);
+          const outOfScopeContent = onlineNow ? NJA_OUT_OF_SCOPE_LIVE : NJA_OUT_OF_SCOPE_OFFLINE;
+          await fetch("/api/chat/message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId, role: "nja", content: outOfScopeContent }),
+          });
+          await fetchMessages();
+          return;
+        }
       }
       if (step === "name") setCustomerName(trimmed);
       if (step === "email") setCustomerEmail(trimmed);
@@ -168,6 +230,7 @@ export default function ChatPage() {
 
   const handleRequestLive = async (preferSubmitOnly: boolean) => {
     if (!sessionId) return;
+    setShowOutOfScopeChoice(false);
     setRequestingLive(true);
     setError("");
     try {
@@ -302,7 +365,7 @@ export default function ChatPage() {
               <div ref={bottomRef} />
             </div>
 
-            {showChoice && (
+            {showTransferOrTicketButtons && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {agentOnline && (
                   <Button
@@ -310,7 +373,7 @@ export default function ChatPage() {
                     disabled={requestingLive}
                     className="bg-emerald-600 hover:bg-emerald-700"
                   >
-                    {requestingLive ? "Connecting…" : "Talk to live agent"}
+                    {requestingLive ? "Connecting…" : showOutOfScopeChoice ? "Connect to live agent" : "Talk to live agent"}
                   </Button>
                 )}
                 <Button
@@ -319,12 +382,12 @@ export default function ChatPage() {
                   disabled={requestingLive}
                   title="We'll create a ticket and get back to you within 48 hours"
                 >
-                  {requestingLive ? "Sending…" : "Get back to me in 48 hours"}
+                  {requestingLive ? "Sending…" : showOutOfScopeChoice ? "Create support ticket" : "Get back to me in 48 hours"}
                 </Button>
               </div>
             )}
 
-            {!showChoice && !isSubmitted && (
+            {!showTransferOrTicketButtons && !isSubmitted && (
               <form
                 className="flex gap-2"
                 onSubmit={(e) => {
