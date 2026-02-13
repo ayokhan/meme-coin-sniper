@@ -52,6 +52,7 @@ declare module '@prisma/client' {
       findMany: (args?: { orderBy?: unknown }) => Promise<unknown[]>;
       create: (args: { data: unknown }) => Promise<unknown>;
       update: (args: { where: { id: string }; data: { status?: string } }) => Promise<unknown>;
+      delete: (args: { where: { id: string } }) => Promise<unknown>;
     };
     agentPresence: {
       findUnique: (args: { where: { id: string } }) => Promise<{ id: string; lastSeenAt: Date } | null>;

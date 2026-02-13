@@ -74,3 +74,32 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ success: false, error: 'Failed to update ticket.' }, { status: 500 });
   }
 }
+
+/** DELETE - Delete a support ticket (removes from DB). Owner-only. */
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    const email = session?.user?.email ?? null;
+    if (!email) {
+      return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
+    }
+    if (!isOwnerEmail(email)) {
+      return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const ticketId = typeof body.ticketId === 'string' ? body.ticketId.trim() : '';
+    if (!ticketId) {
+      return NextResponse.json({ success: false, error: 'ticketId required.' }, { status: 400 });
+    }
+
+    await prisma.supportTicket.delete({
+      where: { id: ticketId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    console.error('Admin support DELETE error:', e);
+    return NextResponse.json({ success: false, error: 'Failed to delete ticket.' }, { status: 500 });
+  }
+}

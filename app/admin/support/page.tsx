@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Zap, Trash2 } from "lucide-react";
 
 const TICKET_STATUSES = [
   { value: "new", label: "New" },
@@ -32,6 +33,10 @@ export default function AdminSupportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -46,6 +51,24 @@ export default function AdminSupportPage() {
       .catch(() => setError("Failed to load"))
       .finally(() => setLoading(false));
   }, [status]);
+
+  const filteredTickets = useMemo(() => {
+    if (!dateFrom && !dateTo) return tickets;
+    return tickets.filter((t) => {
+      const ticketTime = new Date(t.createdAt).getTime();
+      if (dateFrom) {
+        const from = new Date(dateFrom);
+        from.setHours(0, 0, 0, 0);
+        if (ticketTime < from.getTime()) return false;
+      }
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        if (ticketTime > to.getTime()) return false;
+      }
+      return true;
+    });
+  }, [tickets, dateFrom, dateTo]);
 
   const updateStatus = async (ticketId: string, newStatus: string) => {
     setUpdatingId(ticketId);
@@ -68,6 +91,29 @@ export default function AdminSupportPage() {
       setError("Failed to update");
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const deleteTicket = async (ticketId: string) => {
+    setDeletingId(ticketId);
+    setConfirmDeleteId(null);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/support", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTickets((prev) => prev.filter((t) => t.id !== ticketId));
+      } else {
+        setError(data.error ?? "Failed to delete");
+      }
+    } catch {
+      setError("Failed to delete");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -122,14 +168,42 @@ export default function AdminSupportPage() {
                 {error}
               </div>
             )}
+            {!loading && tickets.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 mb-4 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-700">
+                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Filter by date:</span>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="text-sm rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-zinc-900 dark:text-zinc-100"
+                />
+                <span className="text-sm text-zinc-500">to</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="text-sm rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-zinc-900 dark:text-zinc-100"
+                />
+                {(dateFrom || dateTo) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>
+                    Clear
+                  </Button>
+                )}
+                <span className="text-xs text-zinc-500">
+                  Showing {filteredTickets.length} of {tickets.length}
+                </span>
+              </div>
+            )}
             {loading ? (
               <p className="text-muted-foreground">Loading…</p>
             ) : (
               <div className="space-y-4">
-                {tickets.length === 0 && !error && (
-                  <p className="py-6 text-muted-foreground">No support tickets yet.</p>
+                {filteredTickets.length === 0 && !error && (
+                  <p className="py-6 text-muted-foreground">
+                    {tickets.length === 0 ? "No support tickets yet." : "No tickets match the date filter."}
+                  </p>
                 )}
-                {tickets.map((t) => (
+                {filteredTickets.map((t) => (
                   <div
                     key={t.id}
                     className="rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 bg-white dark:bg-zinc-900/50"
@@ -162,6 +236,27 @@ export default function AdminSupportPage() {
                         </select>
                         {updatingId === t.id && (
                           <span className="text-xs text-zinc-400">Updating…</span>
+                        )}
+                        {confirmDeleteId === t.id ? (
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-xs text-zinc-600 dark:text-zinc-400">Delete from DB?</span>
+                            <Button size="sm" variant="destructive" className="h-6 text-xs" onClick={() => deleteTicket(t.id)} disabled={deletingId === t.id}>
+                              {deletingId === t.id ? "Deleting…" : "Yes, delete"}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setConfirmDeleteId(null)} disabled={deletingId === t.id}>
+                              Cancel
+                            </Button>
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                            onClick={() => setConfirmDeleteId(t.id)}
+                            title="Delete ticket (removes from database)"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         )}
                       </span>
                     </div>
