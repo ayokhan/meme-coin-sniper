@@ -282,6 +282,7 @@ export default function NeedHelpWidget() {
       } else {
         setStatus("submitted");
         setSupportNumber(data.supportNumber ?? null);
+        fetchMessages(); // show Nja "live agent offline" message
       }
     } catch {
       setError("Something went wrong");

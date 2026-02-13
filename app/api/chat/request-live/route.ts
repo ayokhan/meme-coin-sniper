@@ -44,7 +44,10 @@ export async function POST(req: Request) {
     const online = !wantTicketOnly && (presence ? Date.now() - presence.lastSeenAt.getTime() < ONLINE_MS : false);
 
     if (online) {
-      await prisma.chatSession.update({ where: { id: sid }, data: { status: 'live', customerName: name, customerEmail: email || undefined } });
+      await prisma.$transaction([
+        prisma.chatSession.update({ where: { id: sid }, data: { status: 'live', customerName: name, customerEmail: email || undefined } }),
+        prisma.chatMessage.create({ data: { sessionId: sid, role: 'nja', content: 'Transferring you to a live agent. You can chat with them now.' } }),
+      ]);
       return NextResponse.json({ success: true, transferred: true });
     }
 
@@ -62,6 +65,8 @@ export async function POST(req: Request) {
       exists = await prisma.supportTicket.findUnique({ where: { supportNumber } });
     }
 
+    const njaOfflineMessage = `The live agent is currently offline. I've sent your request to our team and we'll get back to you within 48 hours. Your reference number is ${supportNumber}.`;
+
     await prisma.$transaction([
       prisma.supportTicket.create({
         data: {
@@ -77,6 +82,7 @@ export async function POST(req: Request) {
         where: { id: sid },
         data: { status: 'submitted', customerName: name, customerEmail: email || undefined },
       }),
+      prisma.chatMessage.create({ data: { sessionId: sid, role: 'nja', content: njaOfflineMessage } }),
     ]);
 
     return NextResponse.json({ success: true, transferred: false, supportNumber });
