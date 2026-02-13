@@ -103,6 +103,11 @@ export default function ChatPage() {
   }, [isLive, sessionId]);
 
   useEffect(() => {
+    if (!showChoice) return;
+    checkPresenceNow().then(setAgentOnline);
+  }, [showChoice]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -110,6 +115,7 @@ export default function ChatPage() {
     if (!sessionId || !text.trim()) return;
     setSending(true);
     setError("");
+    const trimmed = text.trim();
     try {
       const res = await fetch("/api/chat/message", {
         method: "POST",
@@ -117,7 +123,7 @@ export default function ChatPage() {
         body: JSON.stringify({
           sessionId,
           role: "customer",
-          content: text.trim(),
+          content: trimmed,
           ...(name !== undefined && { customerName: name }),
           ...(email !== undefined && { customerEmail: email }),
         }),
@@ -128,12 +134,13 @@ export default function ChatPage() {
         return;
       }
       setInput("");
+      setMessages((prev) => [...prev, { id: `opt-${Date.now()}`, role: "customer", content: trimmed, createdAt: new Date().toISOString() }]);
       if (isLive) {
-        fetchMessages();
+        await fetchMessages();
         return;
       }
-      if (step === "name") setCustomerName(text.trim());
-      if (step === "email") setCustomerEmail(text.trim());
+      if (step === "name") setCustomerName(trimmed);
+      if (step === "email") setCustomerEmail(trimmed);
 
       const nextStep = step === "name" ? "email" : step === "email" ? "issue" : "choice";
       const onlineNow = nextStep === "choice" ? await checkPresenceNow() : agentOnline;
@@ -151,7 +158,7 @@ export default function ChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId, role: "nja", content: nextNjaContent }),
       });
-      fetchMessages();
+      await fetchMessages();
     } catch {
       setError("Failed to send");
     } finally {

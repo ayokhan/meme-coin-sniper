@@ -89,9 +89,9 @@ export default function NeedHelpWidget() {
     return sid;
   };
 
-  const fetchMessages = () => {
-    if (!sessionId) return;
-    fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sessionId)}`)
+  const fetchMessages = (): Promise<void> => {
+    if (!sessionId) return Promise.resolve();
+    return fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sessionId)}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (d.success) setMessages(d.messages ?? []);
@@ -130,6 +130,12 @@ export default function NeedHelpWidget() {
     const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, [open, sessionId, status]);
+
+  // When we're at the choice step, re-check presence so we only show "Talk to live agent" when owner is really online
+  useEffect(() => {
+    if (!showChoice) return;
+    checkPresenceNow().then(setAgentOnline);
+  }, [showChoice]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -180,6 +186,8 @@ export default function NeedHelpWidget() {
         setError(data.error ?? "Failed to send");
         return;
       }
+      setMessages((prev) => [...prev, { id: `opt-${Date.now()}`, role: "customer", content: trimmed, createdAt: new Date().toISOString() }]);
+      setInput("");
       if (isSubscriptionQuestion(trimmed)) {
         await fetch("/api/chat/message", {
           method: "POST",
@@ -193,8 +201,7 @@ export default function NeedHelpWidget() {
           body: JSON.stringify({ sessionId: sid, role: "nja", content: NJA_AFTER_OPTION }),
         });
       }
-      setInput("");
-      fetchMessages();
+      await fetchMessages();
     } catch {
       setError("Failed to send");
     } finally {
@@ -206,8 +213,8 @@ export default function NeedHelpWidget() {
     if (!sessionId || !text.trim()) return;
     setSending(true);
     setError("");
+    const trimmed = text.trim();
     try {
-      const trimmed = text.trim();
       const res = await fetch("/api/chat/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -225,6 +232,7 @@ export default function NeedHelpWidget() {
         return;
       }
       setInput("");
+      setMessages((prev) => [...prev, { id: `opt-${Date.now()}`, role: "customer", content: trimmed, createdAt: new Date().toISOString() }]);
 
       if (status === "live") {
         await fetchMessages();
@@ -237,7 +245,7 @@ export default function NeedHelpWidget() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionId, role: "nja", content: getSubscriptionReply() }),
         });
-        fetchMessages();
+        await fetchMessages();
         return;
       }
 
@@ -254,7 +262,7 @@ export default function NeedHelpWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId, role: "nja", content: nextNja }),
       });
-      fetchMessages();
+      await fetchMessages();
     } catch {
       setError("Failed to send");
     } finally {
