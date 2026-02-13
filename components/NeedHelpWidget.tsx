@@ -89,9 +89,10 @@ export default function NeedHelpWidget() {
     return sid;
   };
 
-  const fetchMessages = (): Promise<void> => {
-    if (!sessionId) return Promise.resolve();
-    return fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sessionId)}`, { cache: "no-store" })
+  const fetchMessages = (overrideSessionId?: string): Promise<void> => {
+    const sid = overrideSessionId ?? sessionId;
+    if (!sid) return Promise.resolve();
+    return fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sid)}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (d.success) setMessages(d.messages ?? []);
@@ -158,7 +159,7 @@ export default function NeedHelpWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: sid, role: "nja", content: NJA_AFTER_OPTION }),
       });
-      fetchMessages();
+      await fetchMessages(sid);
     } catch {
       setError("Failed to send");
     } finally {
@@ -201,7 +202,7 @@ export default function NeedHelpWidget() {
           body: JSON.stringify({ sessionId: sid, role: "nja", content: NJA_AFTER_OPTION }),
         });
       }
-      await fetchMessages();
+      await fetchMessages(sid);
     } catch {
       setError("Failed to send");
     } finally {
