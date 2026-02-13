@@ -311,7 +311,9 @@ export default function CoachCallsPanel({
               Admin
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="calls" className="mt-4">
+          <TabsContent value="calls" className="mt-4 space-y-6">
+            <p className="text-xs text-muted-foreground">VIP members use the form below to add their Telegram ID so you can add them to your group.</p>
+            {telegramIdForm}
             {callsList}
           </TabsContent>
           <TabsContent value="admin" className="mt-4">
@@ -324,7 +326,10 @@ export default function CoachCallsPanel({
 
   return (
     <div className="mx-6 py-4 space-y-6">
-      {telegramIdForm}
+      <section aria-label="Telegram sign-up">
+        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Telegram sign-up</h3>
+        {telegramIdForm}
+      </section>
       {callsList}
     </div>
   );
