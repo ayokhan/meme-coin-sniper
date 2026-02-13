@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Trash2, MessageSquare, Shield } from "lucide-react";
+import { Trash2, MessageSquare, Shield, Copy, Check } from "lucide-react";
 
 type CoachCallItem = { id: string; title: string | null; content: string; createdAt: string };
 type TelegramRow = { userId: string; telegramId: string; email: string | null; name: string | null; createdAt: string };
@@ -28,6 +28,7 @@ export default function CoachCallsPanel({
   const [telegramList, setTelegramList] = useState<TelegramRow[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [ownerSubTab, setOwnerSubTab] = useState<CoachSubTab>("calls");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadCalls = () => {
     fetch("/api/coach-calls")
@@ -105,6 +106,20 @@ export default function CoachCallsPanel({
     }
   };
 
+  const copyCallToClipboard = (c: CoachCallItem) => {
+    const lines: string[] = [];
+    if (c.title?.trim()) lines.push(c.title.trim());
+    lines.push(c.content.trim());
+    const text = lines.join("\n\n");
+    navigator.clipboard.writeText(text).then(
+      () => {
+        setCopiedId(c.id);
+        setTimeout(() => setCopiedId(null), 2000);
+      },
+      () => {}
+    );
+  };
+
   const handleSaveTelegram = async () => {
     const val = telegramId.trim();
     if (!val) return;
@@ -150,20 +165,34 @@ export default function CoachCallsPanel({
               className="rounded-xl border border-zinc-200/90 dark:border-zinc-700/90 bg-white dark:bg-zinc-900/80 p-4"
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 select-text break-words">
                   <p className="text-xs font-medium text-muted-foreground">
                     {new Date(c.createdAt).toLocaleString()}
                   </p>
                   {c.title && (
-                    <p className="font-semibold text-zinc-900 dark:text-zinc-100 mt-1">{c.title}</p>
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100 mt-1 break-words">{c.title}</p>
                   )}
-                  <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-2 whitespace-pre-wrap">
+                  <pre className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans break-words overflow-x-auto">
                     {c.content}
-                  </p>
+                  </pre>
                 </div>
-                {isOwner && (
-                  <div className="shrink-0 flex items-center gap-1">
-                    {confirmDeleteId === c.id ? (
+                <div className="shrink-0 flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-zinc-500 hover:text-cyan-600"
+                    onClick={() => copyCallToClipboard(c)}
+                    aria-label="Copy"
+                    title="Copy to clipboard"
+                  >
+                    {copiedId === c.id ? (
+                      <Check className="h-4 w-4 text-emerald-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                  {isOwner && (
+                    confirmDeleteId === c.id ? (
                       <>
                         <Button
                           variant="outline"
@@ -187,9 +216,9 @@ export default function CoachCallsPanel({
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    )}
-                  </div>
-                )}
+                    )
+                  )}
+                </div>
               </div>
             </li>
           ))}
@@ -249,12 +278,15 @@ export default function CoachCallsPanel({
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500"
           />
           <textarea
-            placeholder="CA details, contract address, notes…"
+            placeholder="Paste CA details, contract, AI analysis (e.g. Viktor-style), or notes. Line breaks and emojis are kept—easy to copy on mobile."
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            rows={4}
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 resize-y"
+            rows={6}
+            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 resize-y font-[inherit]"
           />
+          <p className="text-xs text-muted-foreground">
+            Title is optional. Content is shown as-is so members can tap Copy on mobile.
+          </p>
           <Button
             onClick={handlePost}
             disabled={posting || !content.trim()}
