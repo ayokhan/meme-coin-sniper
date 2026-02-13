@@ -347,10 +347,20 @@ export default function Dashboard() {
         });
       } else {
         if (res.status === 403 && data.locked) setAiAnalysisError(data.error || "Subscribe to access NovaStaris AI Analysis.");
-        else setAiAnalysisError(data.error || "Analysis failed.");
+        else {
+          const msg = data.error || "Analysis failed.";
+          const friendly = (res.status === 529 || /overloaded/i.test(msg))
+            ? "AI is temporarily overloaded. Please try again in a minute."
+            : msg;
+          setAiAnalysisError(friendly);
+        }
       }
     } catch (e) {
-      setAiAnalysisError(e instanceof Error ? e.message : "Request failed.");
+      const msg = e instanceof Error ? e.message : "Request failed.";
+      const friendly = /529|overloaded/i.test(msg)
+        ? "AI is temporarily overloaded. Please try again in a minute."
+        : msg;
+      setAiAnalysisError(friendly);
     } finally {
       setAiAnalysisLoading(false);
     }

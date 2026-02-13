@@ -42,7 +42,11 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'NovaStaris AI Analysis failed';
     console.error('AI analyze error:', error);
-    const status = message.includes('not found') ? 404 : message.includes('not configured') ? 503 : 500;
-    return NextResponse.json({ success: false, error: message }, { status });
+    const isOverloaded = /overloaded|529/i.test(message);
+    const friendlyMessage = isOverloaded
+      ? 'AI is temporarily overloaded. Please try again in a minute.'
+      : message;
+    const status = message.includes('not found') ? 404 : message.includes('not configured') ? 503 : isOverloaded ? 503 : 500;
+    return NextResponse.json({ success: false, error: friendlyMessage }, { status });
   }
 }
