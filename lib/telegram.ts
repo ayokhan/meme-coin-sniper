@@ -1,10 +1,14 @@
 /**
  * Send messages to Telegram via Bot API.
- * Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env
+ * - TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID: primary destination (e.g. your signal group).
+ * - TELEGRAM_SIGNALS_CHANNEL_ID (optional): VIP channel; every message is also sent here.
+ *   Bot must be added as admin to the channel with "Post messages" permission.
+ *   Use @ChannelUsername for public channels or numeric ID (e.g. -100xxxxxxxxxx) for private.
  */
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const SIGNALS_CHANNEL_ID = process.env.TELEGRAM_SIGNALS_CHANNEL_ID;
 
 const TELEGRAM_API = 'https://api.telegram.org/bot';
 
@@ -25,28 +29,25 @@ export function isTelegramConfigured(): boolean {
   return Boolean(BOT_TOKEN && CHAT_ID);
 }
 
-/**
- * Send a plain text message to the configured Telegram chat.
- */
-export async function sendTelegramMessage(text: string): Promise<boolean> {
-  if (!BOT_TOKEN || !CHAT_ID) {
-    console.warn('Telegram: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set');
-    return false;
-  }
+/** Send one message to a single chat_id (same bot, same payload). */
+async function sendToChat(chatId: string, text: string): Promise<boolean> {
+  if (!BOT_TOKEN) return false;
+  const id = chatId.trim();
+  const payload: { chat_id: string | number; text: string; parse_mode: string; disable_web_page_preview: boolean } = {
+    chat_id: /^-?\d+$/.test(id) ? Number(id) : id,
+    text,
+    parse_mode: 'HTML',
+    disable_web_page_preview: false,
+  };
   try {
     const res = await fetch(`${TELEGRAM_API}${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: CHAT_ID,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: false,
-      }),
+      body: JSON.stringify(payload),
     });
+    const errText = await res.text();
     if (!res.ok) {
-      const err = await res.text();
-      console.error('Telegram sendMessage failed:', res.status, err);
+      console.error('Telegram sendMessage failed:', res.status, 'chat_id=', id, errText);
       return false;
     }
     return true;
@@ -54,6 +55,28 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
     console.error('Telegram sendMessage error:', e);
     return false;
   }
+}
+
+/**
+ * Send a plain text message to the configured Telegram chat (and to the VIP signals channel if set).
+ */
+export async function sendTelegramMessage(text: string): Promise<boolean> {
+  if (!BOT_TOKEN || !CHAT_ID) {
+    console.warn('Telegram: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set');
+    return false;
+  }
+  const okPrimary = await sendToChat(CHAT_ID, text);
+  const channelId = SIGNALS_CHANNEL_ID?.trim();
+  if (channelId) {
+    await new Promise((r) => setTimeout(r, 200));
+    const okChannel = await sendToChat(channelId, text);
+    if (!okChannel) {
+      console.error('Telegram: VIP channel send failed. Check bot is admin with "Post messages". Channel ID:', channelId);
+    }
+  } else {
+    console.warn('Telegram: TELEGRAM_SIGNALS_CHANNEL_ID not set, skipping VIP channel');
+  }
+  return okPrimary;
 }
 
 /**
