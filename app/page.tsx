@@ -637,7 +637,10 @@ export default function Dashboard() {
       const pct = r.tokenInfo.priceChange24hPct != null ? `${r.tokenInfo.priceChange24hPct >= 0 ? "+" : ""}${r.tokenInfo.priceChange24hPct.toFixed(1)}% 24h` : "";
       lines.push(`Liquidity ${liq} · Vol 24h ${vol}${pct ? ` · ${pct}` : ""}`);
     }
-    if (r.tokenInfo?.contractAddress) lines.push(`CA: ${r.tokenInfo.contractAddress}`);
+    if (r.tokenInfo?.contractAddress) {
+      lines.push(`CA: ${r.tokenInfo.contractAddress}`);
+      lines.push(`DexScreener: https://dexscreener.com/solana/${r.tokenInfo.contractAddress}`);
+    }
     lines.push("");
     const rec = r.recommendations;
     if (rec && (rec.supportResistance || rec.marketStructure || rec.buyZoneMcap || rec.takeProfitPct || rec.stopLossPct)) {
