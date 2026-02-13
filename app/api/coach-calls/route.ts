@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     const dateStr = new Date(call.createdAt).toLocaleString();
     const safeTitle = title ? escapeHtml(title) : '';
     const safeContent = escapeHtml(content);
-    const telegramText = `📢 <b>Coach Call</b>\n${safeTitle ? `Title: ${safeTitle}\n` : ''}${safeContent}\n\n<em>${escapeHtml(dateStr)}</em>`;
+    const telegramText = `📢 <b>Coach Call</b>\n${safeTitle ? `📌 ${safeTitle}\n` : ''}${safeContent}\n\n🕐 <em>${escapeHtml(dateStr)}</em>`;
     await sendTelegramMessage(telegramText);
     return NextResponse.json({
       success: true,

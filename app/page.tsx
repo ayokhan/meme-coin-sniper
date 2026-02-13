@@ -630,26 +630,26 @@ export default function Dashboard() {
     const name = r.tokenInfo?.name ?? "";
     const title = name ? `${symbol} | ${name}` : symbol;
     const lines: string[] = [];
-    lines.push(`${r.score} / 100 · ${r.signal === "buy" ? "BUY" : "NO BUY"}`);
+    lines.push(`📊 ${r.score}/100 · ${r.signal === "buy" ? "🟢 BUY" : "🔴 NO BUY"}`);
     if (r.tokenInfo && (r.tokenInfo.liquidityUsd != null || r.tokenInfo.volume24h != null)) {
       const liq = r.tokenInfo.liquidityUsd != null ? `$${r.tokenInfo.liquidityUsd.toLocaleString()}` : "—";
       const vol = r.tokenInfo.volume24h != null ? `$${r.tokenInfo.volume24h.toLocaleString()}` : "—";
       const pct = r.tokenInfo.priceChange24hPct != null ? `${r.tokenInfo.priceChange24hPct >= 0 ? "+" : ""}${r.tokenInfo.priceChange24hPct.toFixed(1)}% 24h` : "";
-      lines.push(`Liquidity ${liq} · Vol 24h ${vol}${pct ? ` · ${pct}` : ""}`);
+      lines.push(`💰 Liq: ${liq} · Vol 24h: ${vol}${pct ? ` · 📈 ${pct}` : ""}`);
     }
     if (r.tokenInfo?.contractAddress) {
-      lines.push(`CA: ${r.tokenInfo.contractAddress}`);
-      lines.push(`DexScreener: https://dexscreener.com/solana/${r.tokenInfo.contractAddress}`);
+      lines.push(`📌 CA: ${r.tokenInfo.contractAddress}`);
+      lines.push(`🔗 DexScreener: https://dexscreener.com/solana/${r.tokenInfo.contractAddress}`);
     }
     lines.push("");
     const rec = r.recommendations;
     if (rec && (rec.supportResistance || rec.marketStructure || rec.buyZoneMcap || rec.takeProfitPct || rec.stopLossPct)) {
-      lines.push("Trading levels (meme coins are volatile — use risk management)");
-      if (rec.supportResistance) lines.push(`Support / Resistance: ${rec.supportResistance}`);
-      if (rec.marketStructure) lines.push(`Market structure: ${rec.marketStructure}`);
-      if (rec.buyZoneMcap) lines.push(`Buy zone (mcap): ${rec.buyZoneMcap}`);
-      if (rec.takeProfitPct) lines.push(`Take profit: ${rec.takeProfitPct}`);
-      if (rec.stopLossPct) lines.push(`Stop loss: ${rec.stopLossPct}`);
+      lines.push("📐 Trading levels (meme coins are volatile — use risk management)");
+      if (rec.supportResistance) lines.push(`  📍 Support / Resistance: ${rec.supportResistance}`);
+      if (rec.marketStructure) lines.push(`  📈 Market structure: ${rec.marketStructure}`);
+      if (rec.buyZoneMcap) lines.push(`  🎯 Buy zone (mcap): ${rec.buyZoneMcap}`);
+      if (rec.takeProfitPct) lines.push(`  ✅ Take profit: ${rec.takeProfitPct}`);
+      if (rec.stopLossPct) lines.push(`  🛑 Stop loss: ${rec.stopLossPct}`);
       lines.push("");
     }
     r.reasons.forEach((reason) => lines.push(`• ${reason}`));
