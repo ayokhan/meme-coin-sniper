@@ -110,6 +110,13 @@ export default function NeedHelpWidget() {
     if (open && sessionId) fetchPresence();
   }, [open, sessionId]);
 
+  // Re-check presence periodically so "live agent" appears when owner opens dashboard
+  useEffect(() => {
+    if (!open) return;
+    const interval = setInterval(fetchPresence, 15000);
+    return () => clearInterval(interval);
+  }, [open]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);

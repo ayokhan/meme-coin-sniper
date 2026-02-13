@@ -88,6 +88,16 @@ export default function Dashboard() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Mark live agent as online when owner has dashboard open (so Nja shows "live agent available")
+  useEffect(() => {
+    if (status !== "authenticated" || !isOwner) return;
+    const ping = () => fetch("/api/chat/presence", { method: "POST" }).catch(() => {});
+    ping();
+    const interval = setInterval(ping, 20000);
+    return () => clearInterval(interval);
+  }, [status, isOwner]);
+
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState<"idle" | "scan" | "twitter">("idle");
