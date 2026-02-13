@@ -63,6 +63,7 @@ declare module '@prisma/client' {
       findMany: (args?: { where?: unknown; orderBy?: unknown; include?: unknown }) => Promise<unknown[]>;
       create: (args: { data: unknown; include?: unknown }) => Promise<unknown>;
       update: (args: { where: { id: string }; data: unknown }) => Promise<unknown>;
+      delete: (args: { where: { id: string } }) => Promise<unknown>;
     };
     chatMessage: {
       findMany: (args?: { where?: unknown; orderBy?: unknown }) => Promise<unknown[]>;

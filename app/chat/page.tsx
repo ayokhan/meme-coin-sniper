@@ -121,6 +121,10 @@ export default function ChatPage() {
         return;
       }
       setInput("");
+      if (isLive) {
+        fetchMessages();
+        return;
+      }
       if (step === "name") setCustomerName(text.trim());
       if (step === "email") setCustomerEmail(text.trim());
 

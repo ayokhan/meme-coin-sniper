@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap, Send, User, Bot, Headphones } from "lucide-react";
+import { Zap, Send, User, Bot, Headphones, Trash2 } from "lucide-react";
 
 type Message = { id: string; role: string; content: string; createdAt: string };
 type Session = {
@@ -26,6 +26,8 @@ export default function AdminChatPage() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const presenceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -60,6 +62,12 @@ export default function AdminChatPage() {
   }, [isOwner]);
 
   useEffect(() => {
+    if (!selectedId) return;
+    const interval = setInterval(loadSessions, 3000);
+    return () => clearInterval(interval);
+  }, [selectedId]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [selected?.messages]);
 
@@ -84,6 +92,30 @@ export default function AdminChatPage() {
       setError("Failed to send");
     } finally {
       setSending(false);
+    }
+  };
+
+  const deleteChat = async (sid: string) => {
+    setDeletingId(sid);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/chat/sessions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSessions((prev) => prev.filter((s) => s.id !== sid));
+        if (selectedId === sid) setSelectedId(null);
+        setConfirmDeleteId(null);
+      } else {
+        setError(data.error ?? "Failed to delete");
+      }
+    } catch {
+      setError("Failed to delete");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -192,6 +224,32 @@ export default function AdminChatPage() {
                     </div>
                   ) : (
                     <>
+                      <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900/50">
+                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                          {selected.customerName || selected.customerEmail || "Guest"}
+                        </span>
+                        {confirmDeleteId === selected.id ? (
+                          <span className="flex items-center gap-2 text-xs">
+                            <span className="text-zinc-500">Delete this chat?</span>
+                            <Button size="sm" variant="destructive" onClick={() => deleteChat(selected.id)} disabled={!!deletingId}>
+                              {deletingId === selected.id ? "Deleting…" : "Yes, delete"}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)} disabled={!!deletingId}>
+                              Cancel
+                            </Button>
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                            onClick={() => setConfirmDeleteId(selected.id)}
+                            title="Delete this chat and all messages"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-zinc-50/50 dark:bg-zinc-900/30">
                         {selected.messages.map((m) => (
                           <div

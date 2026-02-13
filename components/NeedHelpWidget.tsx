@@ -117,6 +117,13 @@ export default function NeedHelpWidget() {
     return () => clearInterval(interval);
   }, [open]);
 
+  // When in live mode, poll for new messages (agent replies) so customer sees them
+  useEffect(() => {
+    if (!open || !sessionId || status !== "live") return;
+    const interval = setInterval(fetchMessages, 3000);
+    return () => clearInterval(interval);
+  }, [open, sessionId, status]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -211,6 +218,11 @@ export default function NeedHelpWidget() {
         return;
       }
       setInput("");
+
+      if (status === "live") {
+        fetchMessages();
+        return;
+      }
 
       if (isSubscriptionQuestion(trimmed)) {
         await fetch("/api/chat/message", {

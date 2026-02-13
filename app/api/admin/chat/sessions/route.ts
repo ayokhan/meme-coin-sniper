@@ -45,3 +45,29 @@ export async function GET() {
     return NextResponse.json({ success: false, error: 'Failed to load sessions.' }, { status: 500 });
   }
 }
+
+/** DELETE - Delete a chat session and all its messages. Owner-only. */
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    const email = session?.user?.email ?? null;
+    if (!email || !isOwnerEmail(email)) {
+      return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
+    if (!sessionId) {
+      return NextResponse.json({ success: false, error: 'sessionId required.' }, { status: 400 });
+    }
+
+    await prisma.chatSession.delete({
+      where: { id: sessionId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    console.error('Admin chat sessions DELETE error:', e);
+    return NextResponse.json({ success: false, error: 'Failed to delete chat.' }, { status: 500 });
+  }
+}
