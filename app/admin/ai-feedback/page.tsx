@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, MessageSquare, Download } from "lucide-react";
 
-type FeedbackRow = {
+type FeedbackItem = {
   id: string;
   contractAddress: string;
   outcome: string;
@@ -18,7 +18,7 @@ type FeedbackRow = {
 
 export default function AdminAiFeedbackPage() {
   const { data: session, status } = useSession();
-  const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [outcomeFilter, setOutcomeFilter] = useState<"all" | "good" | "bad">("all");
@@ -27,12 +27,12 @@ export default function AdminAiFeedbackPage() {
     setLoading(true);
     setError("");
     const url = outcomeFilter === "all"
-      ? "/api/admin/ai-feedback"
-      : `/api/admin/ai-feedback?outcome=${outcomeFilter}`;
+      ? "/api/admin/ai-feedback?limit=500"
+      : `/api/admin/ai-feedback?outcome=${outcomeFilter}&limit=500`;
     fetch(url)
       .then((r) => r.json())
       .then((data) => {
-        if (data.success) setFeedback(data.feedback ?? []);
+        if (data.success) setFeedback(Array.isArray(data.feedback) ? data.feedback : []);
         else setError(data.error ?? "Failed to load");
       })
       .catch(() => setError("Failed to load"))
@@ -45,7 +45,7 @@ export default function AdminAiFeedbackPage() {
   }, [status, outcomeFilter]);
 
   const exportCsv = () => {
-    const headers = ["Date", "Contract", "Outcome", "Score", "Signal", "Note"];
+    const headers = ["Date", "Contract address", "Outcome", "Score", "Signal", "Note"];
     const rows = feedback.map((f) => [
       new Date(f.createdAt).toISOString(),
       f.contractAddress,
@@ -54,11 +54,11 @@ export default function AdminAiFeedbackPage() {
       f.signal ?? "",
       (f.note ?? "").replace(/"/g, '""'),
     ]);
-    const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
+    const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${String(c)}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `ai-feedback-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `ai-analysis-feedback-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -68,7 +68,7 @@ export default function AdminAiFeedbackPage() {
       <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
         <Card className="w-full max-w-4xl">
           <CardContent className="py-8 text-center text-muted-foreground">
-            {status === "loading" ? "Loading…" : "Sign in to view AI feedback."}
+            {status === "loading" ? "Loading…" : "Sign in to view AI Feedback."}
             {!session && (
               <p className="mt-2">
                 <Link href="/register" className="underline">Sign in</Link>
@@ -126,15 +126,15 @@ export default function AdminAiFeedbackPage() {
                 type="button"
                 onClick={exportCsv}
                 disabled={feedback.length === 0}
-                className="inline-flex items-center gap-1.5 text-sm text-cyan-600 dark:text-cyan-400 hover:underline disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
               >
-                <Download className="h-4 w-4" /> Export CSV
+                <Download className="h-3.5 w-3.5" /> Export CSV
               </button>
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Owner-only. Use this data to tune prompts and improve the AI. Export for training or review.
+              Owner-only. Use this list to tune prompts or train the model. Export for analysis.
             </p>
             {error && (
               <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2 mb-4">
@@ -151,11 +151,10 @@ export default function AdminAiFeedbackPage() {
                   <thead>
                     <tr className="bg-zinc-50 dark:bg-zinc-800/80 border-b border-zinc-200 dark:border-zinc-700">
                       <th className="text-left py-2 px-3 font-medium">Date</th>
-                      <th className="text-left py-2 px-3 font-medium">Contract</th>
                       <th className="text-left py-2 px-3 font-medium">Outcome</th>
-                      <th className="text-right py-2 px-3 font-medium">Score</th>
-                      <th className="text-left py-2 px-3 font-medium">Signal</th>
-                      <th className="text-left py-2 px-3 font-medium max-w-[200px]">Note</th>
+                      <th className="text-left py-2 px-3 font-medium">Score / Signal</th>
+                      <th className="text-left py-2 px-3 font-medium min-w-[200px]">Contract address</th>
+                      <th className="text-left py-2 px-3 font-medium">Note</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -164,16 +163,17 @@ export default function AdminAiFeedbackPage() {
                         <td className="py-2 px-3 whitespace-nowrap text-muted-foreground">
                           {new Date(f.createdAt).toLocaleString()}
                         </td>
-                        <td className="py-2 px-3 font-mono text-xs break-all">{f.contractAddress}</td>
                         <td className="py-2 px-3">
                           <span className={f.outcome === "good" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
                             {f.outcome === "good" ? "Worked well" : "Didn't work"}
                           </span>
                         </td>
-                        <td className="py-2 px-3 text-right tabular-nums">{f.score ?? "—"}</td>
-                        <td className="py-2 px-3">{f.signal ?? "—"}</td>
-                        <td className="py-2 px-3 max-w-[200px] truncate text-muted-foreground" title={f.note ?? undefined}>
-                          {f.note ?? "—"}
+                        <td className="py-2 px-3">
+                          {f.score != null ? f.score : "—"} {f.signal ? `· ${f.signal}` : ""}
+                        </td>
+                        <td className="py-2 px-3 font-mono text-xs break-all">{f.contractAddress}</td>
+                        <td className="py-2 px-3 text-muted-foreground max-w-[200px] truncate" title={f.note ?? undefined}>
+                          {f.note || "—"}
                         </td>
                       </tr>
                     ))}
