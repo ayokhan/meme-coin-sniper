@@ -8,6 +8,8 @@ import { Zap, BarChart3, Globe, MapPin, Calendar, Smartphone, FileText, Monitor 
 
 type Insights = {
   days: number;
+  all?: boolean;
+  date?: string | null;
   total: number;
   byCountry: [string, number][];
   byCity: [string, number][];
@@ -23,12 +25,19 @@ export default function AdminInsightsPage() {
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [viewMode, setViewMode] = useState<"date" | "range" | "all">("date");
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10)); // today YYYY-MM-DD
   const [days, setDays] = useState(30);
 
   const loadInsights = () => {
     setLoading(true);
     setError("");
-    fetch(`/api/admin/insights?days=${days}`)
+    const url = viewMode === "all"
+      ? "/api/admin/insights?all=1"
+      : viewMode === "date"
+        ? `/api/admin/insights?date=${selectedDate}`
+        : `/api/admin/insights?days=${days}`;
+    fetch(url)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) setInsights(data);
@@ -41,7 +50,7 @@ export default function AdminInsightsPage() {
   useEffect(() => {
     if (status !== "authenticated") return;
     loadInsights();
-  }, [status, days]);
+  }, [status, viewMode, selectedDate, days]);
 
   if (status === "loading" || !session) {
     return (
@@ -81,17 +90,38 @@ export default function AdminInsightsPage() {
               <BarChart3 className="h-5 w-5 text-cyan-500" />
               <CardTitle>App Insights</CardTitle>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Last</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground">View</span>
               <select
-                value={days}
-                onChange={(e) => setDays(Number(e.target.value))}
+                value={viewMode === "all" ? "all" : viewMode === "date" ? "date" : `range-${days}`}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "all") {
+                    setViewMode("all");
+                  } else if (v === "date") {
+                    setViewMode("date");
+                    setSelectedDate(new Date().toISOString().slice(0, 10));
+                  } else {
+                    setViewMode("range");
+                    setDays(Number(v.replace("range-", "")));
+                  }
+                }}
                 className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
               >
-                <option value={7}>7 days</option>
-                <option value={30}>30 days</option>
-                <option value={90}>90 days</option>
+                <option value="date">Specific date</option>
+                <option value="range-7">Last 7 days</option>
+                <option value="range-30">Last 30 days</option>
+                <option value="range-90">Last 90 days</option>
+                <option value="all">All</option>
               </select>
+              {viewMode === "date" && (
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                />
+              )}
               <button
                 type="button"
                 onClick={loadInsights}
@@ -114,6 +144,14 @@ export default function AdminInsightsPage() {
               <p className="text-muted-foreground">Loading…</p>
             ) : insights ? (
               <>
+                {insights.all && (
+                  <p className="text-sm text-muted-foreground">Viewing: All time</p>
+                )}
+                {insights.date && !insights.all && (
+                  <p className="text-sm text-muted-foreground">
+                    Viewing: {new Date(insights.date).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+                  </p>
+                )}
                 <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                   Total page views: {insights.total.toLocaleString()}
                 </p>
