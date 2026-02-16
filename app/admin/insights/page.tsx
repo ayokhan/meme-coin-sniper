@@ -149,7 +149,7 @@ export default function AdminInsightsPage() {
                 )}
                 {insights.date && !insights.all && (
                   <p className="text-sm text-muted-foreground">
-                    Viewing: {new Date(insights.date).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+                    Viewing: {new Date(insights.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
                   </p>
                 )}
                 <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
@@ -218,7 +218,7 @@ export default function AdminInsightsPage() {
                       <tbody>
                         {(insights.byDate ?? []).map(([dateStr, count]) => (
                           <tr key={dateStr} className="border-b border-zinc-100 dark:border-zinc-800">
-                            <td className="py-2 px-3">{new Date(dateStr).toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" })}</td>
+                            <td className="py-2 px-3">{new Date(dateStr + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" })}</td>
                             <td className="py-2 px-3 text-right tabular-nums">{count.toLocaleString()}</td>
                           </tr>
                         ))}
