@@ -10,13 +10,15 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const path = typeof body.path === 'string' ? body.path.trim().slice(0, 500) : '/';
     const country = (req.headers.get('x-vercel-ip-country') ?? req.headers.get('cf-ipcountry') ?? null) || null;
+    const cityRaw = req.headers.get('x-vercel-ip-city') ?? req.headers.get('cf-ipcity') ?? null;
+    const city = (typeof cityRaw === 'string' ? cityRaw.trim().slice(0, 200) : null) || null;
     const ua = req.headers.get('user-agent') ?? null;
     const { deviceType, browser, os } = parseUserAgent(ua);
     const session = await getServerSession(authOptions);
     const userId = session?.user ? (session.user as { id?: string }).id ?? null : null;
 
     await prisma.analyticsEvent.create({
-      data: { path, country, deviceType, browser, os, userId },
+      data: { path, country, city, deviceType, browser, os, userId },
     });
     return NextResponse.json({ success: true });
   } catch (e) {

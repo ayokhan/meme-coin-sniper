@@ -226,11 +226,12 @@ model UserTelegram {
   @@index([userId])
 }
 
-// App Insights: page views for owner-only analytics (country, device, path)
+// App Insights: page views for owner-only analytics (country, city, device, path)
 model AnalyticsEvent {
   id         String   @id @default(cuid())
   path       String   // e.g. / or /subscribe
   country    String?  // from Vercel x-vercel-ip-country or similar
+  city       String?  // from Vercel x-vercel-ip-city (deployed only)
   deviceType String?  // mobile | desktop | tablet
   browser    String?
   os         String?
@@ -238,6 +239,7 @@ model AnalyticsEvent {
   createdAt  DateTime @default(now())
   @@index([path])
   @@index([country])
+  @@index([city])
   @@index([deviceType])
   @@index([createdAt])
 }

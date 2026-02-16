@@ -87,7 +87,7 @@ declare module '@prisma/client' {
       upsert: (args: { where: { userId: string }; create: { userId: string; telegramId: string }; update: { telegramId: string } }) => Promise<unknown>;
     };
     analyticsEvent: {
-      create: (args: { data: { path: string; country?: string | null; deviceType?: string | null; browser?: string | null; os?: string | null; userId?: string | null } }) => Promise<unknown>;
+      create: (args: { data: { path: string; country?: string | null; city?: string | null; deviceType?: string | null; browser?: string | null; os?: string | null; userId?: string | null } }) => Promise<unknown>;
       findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<unknown[]>;
     };
   }

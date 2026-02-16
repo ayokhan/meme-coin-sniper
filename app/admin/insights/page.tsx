@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap, BarChart3, Globe, Smartphone, FileText, Monitor } from "lucide-react";
+import { Zap, BarChart3, Globe, MapPin, Smartphone, FileText, Monitor } from "lucide-react";
 
 type Insights = {
   days: number;
   total: number;
   byCountry: [string, number][];
+  byCity: [string, number][];
   byDevice: [string, number][];
   byPath: [string, number][];
   byBrowser: [string, number][];
@@ -139,6 +140,31 @@ export default function AdminInsightsPage() {
                       </table>
                     </div>
                   </div>
+                  <div>
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
+                      <MapPin className="h-4 w-4" /> By city
+                    </h3>
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-zinc-50 dark:bg-zinc-800/80 border-b border-zinc-200 dark:border-zinc-700">
+                            <th className="text-left py-2 px-3 font-medium">City</th>
+                            <th className="text-right py-2 px-3 font-medium">Views</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(insights.byCity ?? []).slice(0, 15).map(([name, count]) => (
+                            <tr key={name} className="border-b border-zinc-100 dark:border-zinc-800">
+                              <td className="py-2 px-3">{name}</td>
+                              <td className="py-2 px-3 text-right tabular-nums">{count.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2">
                   <div>
                     <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
                       <Smartphone className="h-4 w-4" /> By device

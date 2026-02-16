@@ -20,9 +20,10 @@ export async function GET(req: Request) {
       where: { createdAt: { gte: since } },
       orderBy: { createdAt: 'desc' },
       take: 50000,
-    }) as Array<{ path: string; country: string | null; deviceType: string | null; browser: string | null; os: string | null; createdAt: Date }>;
+    }) as Array<{ path: string; country: string | null; city: string | null; deviceType: string | null; browser: string | null; os: string | null; createdAt: Date }>;
 
     const byCountry: Record<string, number> = {};
+    const byCity: Record<string, number> = {};
     const byDevice: Record<string, number> = {};
     const byPath: Record<string, number> = {};
     const byBrowser: Record<string, number> = {};
@@ -32,6 +33,10 @@ export async function GET(req: Request) {
       total++;
       const c = e.country ?? 'Unknown';
       byCountry[c] = (byCountry[c] ?? 0) + 1;
+      const cityLabel = e.city && e.country ? `${e.city}, ${e.country}` : e.city ?? (e.country ? `Unknown, ${e.country}` : null);
+      if (cityLabel) {
+        byCity[cityLabel] = (byCity[cityLabel] ?? 0) + 1;
+      }
       const d = e.deviceType ?? 'Unknown';
       byDevice[d] = (byDevice[d] ?? 0) + 1;
       const p = e.path || '/';
@@ -48,6 +53,7 @@ export async function GET(req: Request) {
       days,
       total,
       byCountry: Object.entries(byCountry).sort(sortByCount),
+      byCity: Object.entries(byCity).sort(sortByCount),
       byDevice: Object.entries(byDevice).sort(sortByCount),
       byPath: Object.entries(byPath).sort(sortByCount),
       byBrowser: Object.entries(byBrowser).sort(sortByCount),
