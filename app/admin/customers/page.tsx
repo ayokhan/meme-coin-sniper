@@ -91,6 +91,9 @@ export default function AdminCustomersPage() {
           <Link href="/admin/wallet-tracker" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
             Wallet Tracker settings
           </Link>
+          <Link href="/admin/ai-feedback" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+            AI Feedback
+          </Link>
         </div>
         <Card className="border-zinc-200 dark:border-zinc-800">
           <CardHeader>

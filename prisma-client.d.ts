@@ -90,5 +90,9 @@ declare module '@prisma/client' {
       create: (args: { data: { path: string; country?: string | null; city?: string | null; deviceType?: string | null; browser?: string | null; os?: string | null; userId?: string | null } }) => Promise<unknown>;
       findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<unknown[]>;
     };
+    aiAnalysisFeedback: {
+      create: (args: { data: { contractAddress: string; outcome: string; note?: string | null; score?: number | null; signal?: string | null; userId?: string | null } }) => Promise<unknown>;
+      findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<unknown[]>;
+    };
   }
 }

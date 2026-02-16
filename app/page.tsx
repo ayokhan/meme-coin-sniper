@@ -109,11 +109,13 @@ export default function Dashboard() {
   const [moralisTest, setMoralisTest] = useState<{ ok: boolean; message: string; count?: number } | null>(null);
   const [twitterTest, setTwitterTest] = useState<{ ok: boolean; message: string; missing?: string[] } | null>(null);
   const [aiAnalysisCa, setAiAnalysisCa] = useState("");
+  const [aiAnalysisAmountUsd, setAiAnalysisAmountUsd] = useState("");
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<{
     score: number;
     signal: "buy" | "no_buy";
     reasons: string[];
+    amountRiskNote?: string;
     recommendations?: {
       supportResistance?: string;
       marketStructure?: string;
@@ -132,6 +134,9 @@ export default function Dashboard() {
   const [aiAnalysisCopied, setAiAnalysisCopied] = useState(false);
   const [aiAnalysisShareLoading, setAiAnalysisShareLoading] = useState(false);
   const [aiAnalysisShareSuccess, setAiAnalysisShareSuccess] = useState(false);
+  const [aiAnalysisFeedbackLoading, setAiAnalysisFeedbackLoading] = useState(false);
+  const [aiAnalysisFeedbackSent, setAiAnalysisFeedbackSent] = useState<"good" | "bad" | null>(null);
+  const [aiAnalysisFeedbackNote, setAiAnalysisFeedbackNote] = useState("");
   // Crypto Futures tab
   const [futuresChartFile, setFuturesChartFile] = useState<File | null>(null);
   const [futuresChartPreview, setFuturesChartPreview] = useState<string | null>(null);
@@ -329,12 +334,16 @@ export default function Dashboard() {
     }
     setAiAnalysisError(null);
     setAiAnalysisResult(null);
+    setAiAnalysisFeedbackSent(null);
+    setAiAnalysisFeedbackNote("");
     setAiAnalysisLoading(true);
     try {
+      const amountNum = aiAnalysisAmountUsd.trim() ? parseFloat(aiAnalysisAmountUsd.replace(/,/g, "")) : NaN;
+        const amountUsd = Number.isFinite(amountNum) && amountNum > 0 ? amountNum : undefined;
       const res = await fetch("/api/ai-analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contractAddress: ca }),
+        body: JSON.stringify({ contractAddress: ca, ...(amountUsd != null ? { amountUsd } : {}) }),
       });
       const data = await res.json();
       if (data.success) {
@@ -342,6 +351,7 @@ export default function Dashboard() {
           score: data.score,
           signal: data.signal === "buy" ? "buy" : "no_buy",
           reasons: data.reasons ?? [],
+          amountRiskNote: data.amountRiskNote,
           recommendations: data.recommendations,
           tokenInfo: { ...data.tokenInfo, contractAddress: ca },
         });
@@ -1205,7 +1215,7 @@ export default function Dashboard() {
                   </details>
                 )}
                 <p className="text-sm text-muted-foreground mb-4">
-                  Enter a Solana token contract address (CA). NovaStaris AI will analyze on-chain data, security, support/resistance, and give buy zone, take profit &amp; stop loss.
+                  Enter a Solana token contract address (CA). Optionally add the amount you plan to invest so the AI can say if it&apos;s too risky for the token&apos;s liquidity. NovaStaris AI will analyze on-chain data, security, support/resistance, and give buy zone, take profit &amp; stop loss.
                 </p>
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex-1 min-w-[200px]">
@@ -1216,6 +1226,18 @@ export default function Dashboard() {
                       placeholder="e.g. So11111111111111111111111111111111111111112"
                       value={aiAnalysisCa}
                       onChange={(e) => { setAiAnalysisCa(e.target.value); setAiAnalysisError(null); }}
+                      className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                  <div className="w-32">
+                    <label htmlFor="ai-amount" className="sr-only">Amount to invest ($)</label>
+                    <input
+                      id="ai-amount"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Amount ($)"
+                      value={aiAnalysisAmountUsd}
+                      onChange={(e) => { setAiAnalysisAmountUsd(e.target.value); setAiAnalysisError(null); }}
                       className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     />
                   </div>
@@ -1266,6 +1288,12 @@ export default function Dashboard() {
                     )}
                     {(aiAnalysisResult.tokenInfo?.securityIssues?.length ?? 0) > 0 && (
                       <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{(aiAnalysisResult.tokenInfo?.securityIssues ?? []).join(" ")}</p>
+                    )}
+                    {aiAnalysisResult.amountRiskNote && (
+                      <div className="mt-4 rounded-lg border border-amber-200/80 dark:border-amber-800/80 bg-amber-50/50 dark:bg-amber-950/30 p-3 text-sm">
+                        <p className="font-medium text-amber-800 dark:text-amber-200">Amount vs risk:</p>
+                        <p className="text-amber-700 dark:text-amber-300">{aiAnalysisResult.amountRiskNote}</p>
+                      </div>
                     )}
                     {aiAnalysisResult.recommendations && (aiAnalysisResult.recommendations.supportResistance || aiAnalysisResult.recommendations.marketStructure || aiAnalysisResult.recommendations.buyZoneMcap || aiAnalysisResult.recommendations.takeProfitPct || aiAnalysisResult.recommendations.stopLossPct) && (
                       <div className="mt-4 rounded-lg border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/50 dark:bg-cyan-950/30 p-4 space-y-2 text-sm">
@@ -1338,6 +1366,94 @@ export default function Dashboard() {
                           </Button>
                           {pinSuccess && <span className="text-xs text-emerald-600 dark:text-emerald-400">{pinSuccess}</span>}
                         </>
+                      )}
+                      {isOwner && (
+                        <div className="w-full mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700 space-y-2">
+                          <span className="text-xs text-muted-foreground">Was this analysis accurate?</span>
+                          {aiAnalysisFeedbackSent ? (
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400 block">Thanks — feedback recorded.</span>
+                          ) : (
+                            <>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={aiAnalysisFeedbackLoading}
+                                  onClick={async () => {
+                                    const ca = aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim();
+                                    if (!ca) return;
+                                    setAiAnalysisFeedbackLoading(true);
+                                    try {
+                                      const res = await fetch("/api/admin/ai-feedback", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                          contractAddress: ca,
+                                          outcome: "good",
+                                          score: aiAnalysisResult.score,
+                                          signal: aiAnalysisResult.signal,
+                                          note: aiAnalysisFeedbackNote.trim() || undefined,
+                                        }),
+                                      });
+                                      const data = await res.json();
+                                      if (data.success) { setAiAnalysisFeedbackSent("good"); setAiAnalysisFeedbackNote(""); }
+                                      else alert(data.error ?? "Failed to send feedback");
+                                    } catch {
+                                      alert("Failed to send feedback");
+                                    } finally {
+                                      setAiAnalysisFeedbackLoading(false);
+                                    }
+                                  }}
+                                  className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                                >
+                                  Yes, worked well
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={aiAnalysisFeedbackLoading}
+                                  onClick={async () => {
+                                    const ca = aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim();
+                                    if (!ca) return;
+                                    setAiAnalysisFeedbackLoading(true);
+                                    try {
+                                      const res = await fetch("/api/admin/ai-feedback", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                          contractAddress: ca,
+                                          outcome: "bad",
+                                          score: aiAnalysisResult.score,
+                                          signal: aiAnalysisResult.signal,
+                                          note: aiAnalysisFeedbackNote.trim() || undefined,
+                                        }),
+                                      });
+                                      const data = await res.json();
+                                      if (data.success) { setAiAnalysisFeedbackSent("bad"); setAiAnalysisFeedbackNote(""); }
+                                      else alert(data.error ?? "Failed to send feedback");
+                                    } catch {
+                                      alert("Failed to send feedback");
+                                    } finally {
+                                      setAiAnalysisFeedbackLoading(false);
+                                    }
+                                  }}
+                                  className="text-xs border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                                >
+                                  No, didn&apos;t work
+                                </Button>
+                              </div>
+                              <textarea
+                                placeholder="Optional note (e.g. took profit earlier, stop hit)"
+                                value={aiAnalysisFeedbackNote}
+                                onChange={(e) => setAiAnalysisFeedbackNote(e.target.value.slice(0, 500))}
+                                rows={2}
+                                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                              />
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

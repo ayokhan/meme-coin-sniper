@@ -29,13 +29,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await runAiAnalysis(contractAddress);
+    const amountUsd = typeof body.amountUsd === 'number' && Number.isFinite(body.amountUsd) && body.amountUsd > 0 ? body.amountUsd : undefined;
+
+    const result = await runAiAnalysis(contractAddress, amountUsd != null ? { amountUsd } : undefined);
 
     return NextResponse.json({
       success: true,
       score: result.score,
       signal: result.signal,
       reasons: result.reasons,
+      amountRiskNote: result.amountRiskNote,
       recommendations: result.recommendations,
       tokenInfo: result.tokenInfo,
     });

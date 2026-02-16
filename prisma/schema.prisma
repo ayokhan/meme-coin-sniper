@@ -74,6 +74,7 @@ model User {
   subscriptions Subscription[]
   pinnedTokens  PinnedToken[]
   userTelegram  UserTelegram?
+  aiAnalysisFeedbacks AiAnalysisFeedback[]
 }
 
 model Account {
@@ -241,5 +242,21 @@ model AnalyticsEvent {
   @@index([country])
   @@index([city])
   @@index([deviceType])
+  @@index([createdAt])
+}
+
+// Owner-only feedback on NovaStaris AI token analysis (for improving the model)
+model AiAnalysisFeedback {
+  id              String   @id @default(cuid())
+  contractAddress String   // token CA that was analyzed
+  outcome         String   // "good" | "bad"
+  note            String?  // optional owner note
+  score           Int?     // snapshot of analysis score when feedback was given
+  signal          String?  // "buy" | "no_buy"
+  userId          String?
+  createdAt       DateTime @default(now())
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([contractAddress])
+  @@index([outcome])
   @@index([createdAt])
 }

@@ -10,6 +10,7 @@ export type AnalysisResult = {
   score: number;
   signal: 'buy' | 'no_buy';
   reasons: string[];
+  amountRiskNote?: string;
   recommendations?: {
     supportResistance?: string;
     marketStructure?: string;
@@ -34,7 +35,7 @@ export type AnalysisResult = {
   };
 };
 
-export async function runAiAnalysis(contractAddress: string): Promise<AnalysisResult> {
+export async function runAiAnalysis(contractAddress: string, options?: { amountUsd?: number }): Promise<AnalysisResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('NovaStaris AI Analysis is not configured.');
   }
@@ -82,10 +83,16 @@ export async function runAiAnalysis(contractAddress: string): Promise<AnalysisRe
     },
   };
 
+  const amountUsd = options?.amountUsd != null && Number.isFinite(options.amountUsd) && options.amountUsd > 0 ? options.amountUsd : null;
+  const amountBlock = amountUsd != null
+    ? `\nThe user is considering investing $${amountUsd.toLocaleString()}. Add a field "amountRiskNote": one short line saying whether this amount is too risky given liquidity/mcap (e.g. "Investing $500 in a $20k liquidity pool is very risky — consider a smaller size" or "Amount is reasonable relative to liquidity").\n`
+    : '';
+
   const prompt = `You are an expert meme-coin analyst. Analyze this Solana token and provide a score, signal, reasons, AND trading levels.
 
 Token data (JSON):
 ${JSON.stringify(tokenSummary, null, 2)}
+${amountBlock}
 
 Score (0-100): 0-25 = avoid, 26-50 = risky/speculative, 51-75 = moderate potential, 76-100 = stronger metrics.
 Signal: "buy" only if score >= 51 and no critical security issues; otherwise "no_buy".
@@ -97,6 +104,7 @@ Also provide trading levels (infer from current price/mcap and volatility when n
 - buyZoneMcap: recommended market cap zone to consider buying (e.g. "Under $500k" or "Pullback to $200k-$300k"), or "Not recommended" if no_buy.
 - takeProfitPct: suggested take-profit as % from entry (e.g. "50-100%" or "2x-3x").
 - stopLossPct: suggested stop-loss as % from entry (e.g. "-30%" or "Tight -20% for memes").
+${amountUsd != null ? '- amountRiskNote: one line on whether investing the stated amount is too risky given liquidity/mcap.' : ''}
 
 Respond ONLY with valid JSON (no markdown, no code block):
 {
@@ -109,7 +117,7 @@ Respond ONLY with valid JSON (no markdown, no code block):
     "buyZoneMcap": "<one line>",
     "takeProfitPct": "<one line>",
     "stopLossPct": "<one line>"
-  }
+  }${amountUsd != null ? ',\n  "amountRiskNote": "<one line>"' : ''}
 }
 Keep reasons short. Include positives and negatives.`;
 
@@ -125,6 +133,7 @@ Keep reasons short. Include positives and negatives.`;
     score?: number;
     signal?: string;
     reasons?: string[];
+    amountRiskNote?: string;
     recommendations?: {
       supportResistance?: string;
       marketStructure?: string;
@@ -137,12 +146,14 @@ Keep reasons short. Include positives and negatives.`;
   const score = typeof parsed.score === 'number' ? Math.min(100, Math.max(0, Math.round(parsed.score))) : 50;
   const signal = (parsed.signal ?? '').toLowerCase() === 'buy' ? 'buy' : 'no_buy';
   const reasons = Array.isArray(parsed.reasons) ? parsed.reasons.filter((r) => typeof r === 'string') : ['No reasons provided.'];
+  const amountRiskNote = typeof parsed.amountRiskNote === 'string' ? parsed.amountRiskNote.trim().slice(0, 500) : undefined;
   const recommendations = parsed.recommendations && typeof parsed.recommendations === 'object' ? parsed.recommendations : undefined;
 
   return {
     score,
     signal,
     reasons,
+    amountRiskNote: amountRiskNote || undefined,
     recommendations,
     tokenInfo: {
       symbol: tokenSummary.symbol,
