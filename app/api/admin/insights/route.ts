@@ -24,6 +24,7 @@ export async function GET(req: Request) {
 
     const byCountry: Record<string, number> = {};
     const byCity: Record<string, number> = {};
+    const byDate: Record<string, number> = {};
     const byDevice: Record<string, number> = {};
     const byPath: Record<string, number> = {};
     const byBrowser: Record<string, number> = {};
@@ -31,6 +32,8 @@ export async function GET(req: Request) {
     let total = 0;
     for (const e of events) {
       total++;
+      const dateKey = e.createdAt.toISOString().slice(0, 10); // YYYY-MM-DD
+      byDate[dateKey] = (byDate[dateKey] ?? 0) + 1;
       const c = e.country ?? 'Unknown';
       byCountry[c] = (byCountry[c] ?? 0) + 1;
       const cityLabel = e.city && e.country ? `${e.city}, ${e.country}` : e.city ?? (e.country ? `Unknown, ${e.country}` : null);
@@ -48,12 +51,14 @@ export async function GET(req: Request) {
     }
 
     const sortByCount = (a: [string, number], b: [string, number]) => b[1] - a[1];
+    const byDateSorted = Object.entries(byDate).sort((a, b) => b[0].localeCompare(a[0])); // newest date first
     return NextResponse.json({
       success: true,
       days,
       total,
       byCountry: Object.entries(byCountry).sort(sortByCount),
       byCity: Object.entries(byCity).sort(sortByCount),
+      byDate: byDateSorted,
       byDevice: Object.entries(byDevice).sort(sortByCount),
       byPath: Object.entries(byPath).sort(sortByCount),
       byBrowser: Object.entries(byBrowser).sort(sortByCount),
