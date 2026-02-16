@@ -225,3 +225,19 @@ model UserTelegram {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
 }
+
+// App Insights: page views for owner-only analytics (country, device, path)
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  path       String   // e.g. / or /subscribe
+  country    String?  // from Vercel x-vercel-ip-country or similar
+  deviceType String?  // mobile | desktop | tablet
+  browser    String?
+  os         String?
+  userId     String?  // if logged in
+  createdAt  DateTime @default(now())
+  @@index([path])
+  @@index([country])
+  @@index([deviceType])
+  @@index([createdAt])
+}

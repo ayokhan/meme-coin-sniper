@@ -86,5 +86,9 @@ declare module '@prisma/client' {
       findMany: (args?: { include?: unknown; orderBy?: unknown }) => Promise<unknown[]>;
       upsert: (args: { where: { userId: string }; create: { userId: string; telegramId: string }; update: { telegramId: string } }) => Promise<unknown>;
     };
+    analyticsEvent: {
+      create: (args: { data: { path: string; country?: string | null; deviceType?: string | null; browser?: string | null; os?: string | null; userId?: string | null } }) => Promise<unknown>;
+      findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<unknown[]>;
+    };
   }
 }
