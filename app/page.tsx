@@ -727,9 +727,9 @@ export default function Dashboard() {
                 <Zap className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0 animate-[nova-zap-pulse_2s_ease-in-out_infinite]" aria-hidden />
                 Your Advanced AI Lightning Sniper
               </span>
-          </h1>
+            </h1>
           </div>
-          <div className="flex items-center gap-2 flex-wrap min-w-0 [&>*]:shrink-0">
+          <div className="flex items-center gap-2 flex-nowrap overflow-x-auto overflow-y-hidden sm:flex-wrap sm:overflow-visible min-w-0 [scrollbar-width:thin] [&>*]:shrink-0">
             <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 p-0.5" role="group" aria-label="Theme">
               <button
                 type="button"
@@ -956,19 +956,17 @@ export default function Dashboard() {
               </ul>
             </details>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4">
-              <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1 md:overflow-visible md:mx-0 md:px-0 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch] touch-pan-x">
-                <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex flex-nowrap md:flex-wrap w-max min-w-full md:w-full md:min-w-0 h-auto gap-1 p-1.5 rounded-lg">
+              <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex-nowrap overflow-x-auto overflow-y-hidden sm:flex-wrap sm:overflow-visible h-auto gap-1 p-1.5 rounded-lg w-full min-w-0 [scrollbar-width:thin]">
                 <TabsTrigger value="new" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
                 <TabsTrigger value="trending" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trending</TabsTrigger>
                 <TabsTrigger value="surge" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Surge</TabsTrigger>
                 <TabsTrigger value="transactions" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
-                <TabsTrigger value="ai-analysis" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><span className="hidden md:inline">NovaStaris </span>AI Analysis</TabsTrigger>
-                <TabsTrigger value="futures" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><span className="hidden md:inline">Crypto </span>Futures</TabsTrigger>
+                <TabsTrigger value="ai-analysis" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">AI Analysis</TabsTrigger>
+                <TabsTrigger value="futures" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Futures</TabsTrigger>
                 <TabsTrigger value="ct" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
-                <TabsTrigger value="wallets" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet<span className="md:hidden">s</span><span className="hidden md:inline"> Tracker</span></TabsTrigger>
-                <TabsTrigger value="coach-calls" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Coach Calls<span className="hidden md:inline"> + Telegram Signals</span></TabsTrigger>
+                <TabsTrigger value="wallets" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallets</TabsTrigger>
+                <TabsTrigger value="coach-calls" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Coach Calls</TabsTrigger>
               </TabsList>
-              </div>
             </Tabs>
           </CardHeader>
           <CardContent className="p-0">
@@ -1077,8 +1075,8 @@ export default function Dashboard() {
                               <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300 break-words line-clamp-3">{t.text}</p>
                               <p className="mt-1 text-xs text-muted-foreground">
                                 {new Date(t.created_at).toLocaleString()} · ♥ {t.metrics?.likes ?? 0} · 🔁 {t.metrics?.retweets ?? 0}
-          </p>
-        </div>
+                              </p>
+                            </div>
                             <a href={t.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">View</a>
                           </div>
                         </li>
@@ -1123,8 +1121,8 @@ export default function Dashboard() {
                       <a
                         key={w.address}
                         href={`https://solscan.io/account/${w.address}`}
-            target="_blank"
-            rel="noopener noreferrer"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-xs px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 text-zinc-700 dark:text-zinc-300 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
                       >
                         {w.label ? `${w.label}: ` : ""}
@@ -1882,11 +1880,11 @@ export default function Dashboard() {
                             className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
                           >
                             Dex
-          </a>
-          <a
+                          </a>
+                          <a
                             href={pumpFunUrl(t)}
-            target="_blank"
-            rel="noopener noreferrer"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
                           >
                             Pump
@@ -1939,7 +1937,7 @@ export default function Dashboard() {
                               🌐
                             </a>
                           )}
-        </div>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
