@@ -32,6 +32,11 @@ export async function GET() {
         mode: bot.mode,
         marginCurrency: bot.marginCurrency ?? 'USDT',
         positionSizeUsdt: bot.positionSizeUsdt ?? 50,
+        strategy: (bot as { strategy?: string }).strategy ?? 'simple',
+        emaPeriod: (bot as { emaPeriod?: number }).emaPeriod ?? 200,
+        fastMA: (bot as { fastMA?: number }).fastMA ?? 9,
+        slowMA: (bot as { slowMA?: number }).slowMA ?? 21,
+        rsiPeriod: (bot as { rsiPeriod?: number }).rsiPeriod ?? 14,
         enabled: bot.enabled,
         lastRunAt: bot.lastRunAt?.toISOString() ?? null,
         lastError: bot.lastError ?? null,
@@ -67,6 +72,12 @@ export async function PATCH(request: Request) {
     if (body.mode === 'demo' || body.mode === 'live') updates.mode = body.mode;
     if (body.marginCurrency === 'USDT' || body.marginCurrency === 'USDC') updates.marginCurrency = body.marginCurrency;
     if (typeof body.positionSizeUsdt === 'number' && body.positionSizeUsdt > 0 && body.positionSizeUsdt <= 1_000_000) updates.positionSizeUsdt = body.positionSizeUsdt;
+    const validStrategies = ['simple', 'indicators', 'ai', 'hybrid'];
+    if (typeof body.strategy === 'string' && validStrategies.includes(body.strategy)) updates.strategy = body.strategy;
+    if (typeof body.emaPeriod === 'number' && body.emaPeriod >= 1 && body.emaPeriod <= 500) updates.emaPeriod = body.emaPeriod;
+    if (typeof body.fastMA === 'number' && body.fastMA >= 1 && body.fastMA <= 100) updates.fastMA = body.fastMA;
+    if (typeof body.slowMA === 'number' && body.slowMA >= 1 && body.slowMA <= 200) updates.slowMA = body.slowMA;
+    if (typeof body.rsiPeriod === 'number' && body.rsiPeriod >= 2 && body.rsiPeriod <= 50) updates.rsiPeriod = body.rsiPeriod;
     const updated = await db.tradingBot.update({
       where: { id: bot.id },
       data: updates,
@@ -82,6 +93,11 @@ export async function PATCH(request: Request) {
         mode: updated.mode,
         marginCurrency: updated.marginCurrency ?? 'USDT',
         positionSizeUsdt: updated.positionSizeUsdt ?? 50,
+        strategy: (updated as { strategy?: string }).strategy ?? 'simple',
+        emaPeriod: (updated as { emaPeriod?: number }).emaPeriod ?? 200,
+        fastMA: (updated as { fastMA?: number }).fastMA ?? 9,
+        slowMA: (updated as { slowMA?: number }).slowMA ?? 21,
+        rsiPeriod: (updated as { rsiPeriod?: number }).rsiPeriod ?? 14,
         enabled: updated.enabled,
         lastRunAt: updated.lastRunAt?.toISOString() ?? null,
         lastError: updated.lastError ?? null,

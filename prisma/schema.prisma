@@ -256,6 +256,11 @@ model TradingBot {
   mode             String   @default("demo")     // demo | live
   marginCurrency   String   @default("USDT")     // USDT | USDC
   positionSizeUsdt Float    @default(50)        // position size in USDT (or USDC)
+  strategy         String   @default("simple")   // simple | indicators | ai | hybrid
+  emaPeriod        Int      @default(200)       // for indicators/hybrid
+  fastMA           Int      @default(9)         // fast MA for crossover
+  slowMA           Int      @default(21)        // slow MA for crossover
+  rsiPeriod        Int      @default(14)
   enabled          Boolean  @default(false)
   lastRunAt        DateTime?
   lastError        String?

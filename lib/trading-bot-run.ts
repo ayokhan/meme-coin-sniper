@@ -1,6 +1,5 @@
 /**
- * Run one cycle of the trading bot: load config, fetch candles, signal, place order if needed.
- * Called by cron or POST /api/admin/trading-bot/run.
+ * Run one cycle of the trading bot: load config, fetch candles, signal (simple | indicators | ai | hybrid), place order if needed.
  */
 
 import { prisma } from "@/lib/db";
@@ -15,6 +14,8 @@ import {
   isBlofinConfigured,
   type Candle,
 } from "@/lib/blofin";
+import { indicatorsSignal, maCrossoverSignal, candlePatternSignal, findSupportResistance, ema, rsi } from "@/lib/trading-bot-ta";
+import { getAITradingSignal } from "@/lib/ai-trading-signal";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -24,7 +25,7 @@ function parseFloatSafe(s: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Simple signal: last close vs previous close. Returns "long" | "short" | null (no trade). */
+/** Simple signal: last close vs previous close. */
 function simpleSignal(candles: Candle[]): "long" | "short" | null {
   if (candles.length < 2) return null;
   const last = parseFloatSafe(candles[0][4]);
@@ -32,6 +33,87 @@ function simpleSignal(candles: Candle[]): "long" | "short" | null {
   if (last > prev) return "long";
   if (last < prev) return "short";
   return null;
+}
+
+/** Resolve signal from strategy: simple | indicators | ai | hybrid. */
+async function resolveSignal(
+  strategy: string,
+  candles: Candle[],
+  currentPrice: number,
+  symbol: string,
+  timeframe: string,
+  emaPeriod: number,
+  fastMA: number,
+  slowMA: number,
+  rsiPeriod: number
+): Promise<{ signal: "long" | "short" | null; message?: string }> {
+  if (strategy === "simple") {
+    const s = simpleSignal(candles);
+    return { signal: s ?? null };
+  }
+
+  const closes = candles.map((c) => parseFloatSafe(c[4])).filter((c) => c > 0);
+
+  if (strategy === "indicators") {
+    const { signal, score, reasons } = indicatorsSignal(candles, currentPrice, {
+      emaPeriod,
+      fastMA,
+      slowMA,
+      rsiPeriod,
+      requireConfluence: true,
+    });
+    return { signal, message: reasons.length ? `${score}%: ${reasons.slice(0, 3).join("; ")}` : undefined };
+  }
+
+  if (strategy === "ai") {
+    const emaVal = ema(closes, emaPeriod);
+    const rsiVal = rsi(closes, rsiPeriod);
+    const { support, resistance } = findSupportResistance(candles, 8);
+    const maCross = maCrossoverSignal(closes, fastMA, slowMA);
+    const candlePat = candlePatternSignal(candles);
+    const summary = {
+      symbol,
+      timeframe,
+      lastCloses: closes,
+      currentPrice,
+      ema200: emaVal,
+      rsi: rsiVal,
+      supportLevels: support,
+      resistanceLevels: resistance,
+      maCrossover: maCross,
+      candlePattern: candlePat ? (candlePat === "long" ? "bullish engulfing" : "bearish engulfing") : null,
+    };
+    const ai = await getAITradingSignal(summary);
+    if (ai.signal === "no_buy") return { signal: null, message: ai.reason };
+    return { signal: ai.signal, message: ai.reason };
+  }
+
+  if (strategy === "hybrid") {
+    const { signal: indSignal, score: indScore, reasons } = indicatorsSignal(candles, currentPrice, { emaPeriod, fastMA, slowMA, rsiPeriod, requireConfluence: true });
+    const emaVal = ema(closes, emaPeriod);
+    const rsiVal = rsi(closes, rsiPeriod);
+    const { support, resistance } = findSupportResistance(candles, 8);
+    const maCross = maCrossoverSignal(closes, fastMA, slowMA);
+    const candlePat = candlePatternSignal(candles);
+    const ai = await getAITradingSignal({
+      symbol,
+      timeframe,
+      lastCloses: closes,
+      currentPrice,
+      ema200: emaVal,
+      rsi: rsiVal,
+      supportLevels: support,
+      resistanceLevels: resistance,
+      maCrossover: maCross,
+      candlePattern: candlePat ? (candlePat === "long" ? "bullish engulfing" : "bearish engulfing") : null,
+    });
+    if (indSignal && ai.signal !== "no_buy" && indSignal === ai.signal) {
+      return { signal: indSignal, message: `TA(${indScore}) + AI agree: ${ai.reason}` };
+    }
+    return { signal: null, message: "TA and AI did not agree" };
+  }
+
+  return { signal: simpleSignal(candles), message: undefined };
 }
 
 /** Round size to minSize and lotSize (e.g. 0.1 step). */
@@ -46,7 +128,22 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     return { ok: false, error: "Blofin API keys not set" };
   }
 
-  let bot: { id: string; symbol: string; timeframe: string; leverage: number; tpPct: number; slPct: number; mode: string; marginCurrency: string; positionSizeUsdt: number } | null = null;
+  let bot: {
+    id: string;
+    symbol: string;
+    timeframe: string;
+    leverage: number;
+    tpPct: number;
+    slPct: number;
+    mode: string;
+    marginCurrency: string;
+    positionSizeUsdt: number;
+    strategy: string;
+    emaPeriod: number;
+    fastMA: number;
+    slowMA: number;
+    rsiPeriod: number;
+  } | null = null;
   try {
     bot = await db.tradingBot.findFirst({ where: { enabled: true }, orderBy: { updatedAt: "desc" } });
   } catch (e) {
@@ -59,6 +156,9 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
 
   const instId = `${bot.symbol}-${bot.marginCurrency}`;
   const bar = toBlofinBar(bot.timeframe);
+  const strategy = bot.strategy ?? "simple";
+  const needMoreCandles = strategy === "indicators" || strategy === "ai" || strategy === "hybrid";
+  const candleLimit = needMoreCandles ? 250 : 50;
 
   const updateError = async (err: string | null) => {
     try {
@@ -73,13 +173,14 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
 
   try {
     const [candlesRes, tickerRes, instRes, positionsRes] = await Promise.all([
-      getCandles(instId, bar, 50),
+      getCandles(instId, bar, candleLimit),
       getTicker(instId),
       getInstrument(instId),
       getPositions(instId),
     ]);
 
-    if (candlesRes.length < 2) {
+    const minCandles = needMoreCandles ? Math.max(2, (bot.emaPeriod ?? 200) + 5) : 2;
+    if (candlesRes.length < minCandles) {
       await updateError("Not enough candle data");
       return { ok: false, error: "Not enough candle data" };
     }
@@ -98,10 +199,21 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
       return { ok: true, message: "Already in position, skip" };
     }
 
-    const signal = simpleSignal(candlesRes);
+    const resolved = await resolveSignal(
+      strategy,
+      candlesRes,
+      lastPrice,
+      bot.symbol,
+      bot.timeframe,
+      bot.emaPeriod ?? 200,
+      bot.fastMA ?? 9,
+      bot.slowMA ?? 21,
+      bot.rsiPeriod ?? 14
+    );
+    const signal = resolved.signal;
     if (!signal) {
       await updateError(null);
-      return { ok: true, message: "No signal" };
+      return { ok: true, message: resolved.message ?? "No signal" };
     }
 
     if (!instRes) {

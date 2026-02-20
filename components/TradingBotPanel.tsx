@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+type Strategy = "simple" | "indicators" | "ai" | "hybrid";
+
 type Config = {
   symbol: string;
   timeframe: string;
@@ -13,6 +15,11 @@ type Config = {
   mode: "demo" | "live";
   marginCurrency: "USDT" | "USDC";
   positionSizeUsdt: number;
+  strategy: Strategy;
+  emaPeriod: number;
+  fastMA: number;
+  slowMA: number;
+  rsiPeriod: number;
   enabled: boolean;
   lastRunAt: string | null;
   lastError: string | null;
@@ -45,6 +52,11 @@ export default function TradingBotPanel() {
           mode: data.config.mode,
           marginCurrency: data.config.marginCurrency ?? "USDT",
           positionSizeUsdt: data.config.positionSizeUsdt ?? 50,
+          strategy: data.config.strategy ?? "simple",
+          emaPeriod: data.config.emaPeriod ?? 200,
+          fastMA: data.config.fastMA ?? 9,
+          slowMA: data.config.slowMA ?? 21,
+          rsiPeriod: data.config.rsiPeriod ?? 14,
         });
       } else {
         setError(data.error ?? (res.status === 403 ? "Owner only." : "Failed to load config."));
@@ -80,6 +92,11 @@ export default function TradingBotPanel() {
           mode: form.mode ?? "demo",
           marginCurrency: form.marginCurrency ?? "USDT",
           positionSizeUsdt: form.positionSizeUsdt ?? 50,
+          strategy: form.strategy ?? "simple",
+          emaPeriod: form.emaPeriod ?? 200,
+          fastMA: form.fastMA ?? 9,
+          slowMA: form.slowMA ?? 21,
+          rsiPeriod: form.rsiPeriod ?? 14,
         }),
       });
       const data = await res.json();
@@ -229,6 +246,68 @@ export default function TradingBotPanel() {
               </select>
             </div>
           </div>
+          <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Strategy</label>
+              <select
+                value={form.strategy ?? "simple"}
+                onChange={(e) => setForm({ ...form, strategy: e.target.value as Strategy })}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                <option value="simple">Simple (price change)</option>
+                <option value="indicators">Indicators (EMA, MA cross, RSI, S/R, candles)</option>
+                <option value="ai">AI (LLM analysis)</option>
+                <option value="hybrid">Hybrid (indicators + AI must agree)</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">Hybrid and Indicators use the settings below.</p>
+            </div>
+            {(form.strategy === "indicators" || form.strategy === "ai" || form.strategy === "hybrid") && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">EMA period</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={form.emaPeriod ?? 200}
+                    onChange={(e) => setForm({ ...form, emaPeriod: Number(e.target.value) })}
+                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Fast MA</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={form.fastMA ?? 9}
+                    onChange={(e) => setForm({ ...form, fastMA: Number(e.target.value) })}
+                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Slow MA</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={form.slowMA ?? 21}
+                    onChange={(e) => setForm({ ...form, slowMA: Number(e.target.value) })}
+                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">RSI period</label>
+                  <input
+                    type="number"
+                    min={2}
+                    max={50}
+                    value={form.rsiPeriod ?? 14}
+                    onChange={(e) => setForm({ ...form, rsiPeriod: Number(e.target.value) })}
+                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                  />
+                </div>
+              </div>
+            )}
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Position size (USDT or USDC)</label>
             <input
