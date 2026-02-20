@@ -39,7 +39,8 @@ export async function GET() {
     });
   } catch (e) {
     console.error('Admin trading-bot GET:', e);
-    return NextResponse.json({ success: false, error: 'Failed to load config.' }, { status: 500 });
+    const message = e instanceof Error ? e.message : 'Failed to load config.';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 

@@ -33,7 +33,7 @@ export default function TradingBotPanel() {
       setLoading(true);
       setError(null);
       const res = await fetch("/api/admin/trading-bot");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (data.success && data.config) {
         setConfig(data.config);
         setForm({
@@ -47,10 +47,10 @@ export default function TradingBotPanel() {
           positionSizeUsdt: data.config.positionSizeUsdt ?? 50,
         });
       } else {
-        setError(data.error ?? "Failed to load config");
+        setError(data.error ?? (res.status === 403 ? "Owner only." : "Failed to load config."));
       }
-    } catch {
-      setError("Failed to load config");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load config.");
     } finally {
       setLoading(false);
     }
@@ -154,8 +154,13 @@ export default function TradingBotPanel() {
       </p>
 
       {error && (
-        <div className="rounded-lg border border-rose-200/80 dark:border-rose-800/80 bg-rose-50/50 dark:bg-rose-950/30 p-3 text-sm text-rose-700 dark:text-rose-300">
-          {error}
+        <div className="rounded-lg border border-rose-200/80 dark:border-rose-800/80 bg-rose-50/50 dark:bg-rose-950/30 p-3 text-sm text-rose-700 dark:text-rose-300 space-y-2">
+          <p>{error}</p>
+          {(error.includes("does not exist") || error.includes("column") || error.includes("relation") || error.includes("TradingBot")) && (
+            <p className="text-xs text-rose-600/90 dark:text-rose-400/90 mt-2">
+              Database may need updating. Run: <code className="bg-rose-200/50 dark:bg-rose-900/30 px-1 rounded">npx prisma db push</code> against your production DATABASE_URL.
+            </p>
+          )}
         </div>
       )}
 
