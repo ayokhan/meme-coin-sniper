@@ -71,7 +71,7 @@ Rules: signal "long" or "short" only if score >= 55 and setup has clear edge; ot
 
   const signalMatch = text.match(/SIGNAL:\s*(long|short|no_buy)/i);
   const scoreMatch = text.match(/SCORE:\s*(\d+)/);
-  const reasonMatch = text.match(/REASON:\s*(.+?)(?:\n|$)/s);
+  const reasonMatch = text.match(/REASON:\s*([\s\S]+?)(?:\n|$)/);
 
   if (signalMatch) signal = signalMatch[1].toLowerCase() as "long" | "short" | "no_buy";
   if (scoreMatch) score = Math.min(100, Math.max(0, parseInt(scoreMatch[1], 10)));
