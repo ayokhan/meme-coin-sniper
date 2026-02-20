@@ -247,18 +247,20 @@ model AnalyticsEvent {
 
 // Crypto Futures Trading Bot — owner-only, Blofin integration
 model TradingBot {
-  id          String   @id @default(cuid())
-  symbol      String   @default("BTC")      // e.g. BTC, ETH
-  timeframe   String   @default("15m")      // 1m, 5m, 15m, 1h, 4h, 1D
-  leverage    Int      @default(5)
-  tpPct       Float    @default(2)          // take profit %
-  slPct       Float    @default(1)          // stop loss %
-  mode        String   @default("demo")     // demo | live
-  enabled     Boolean  @default(false)
-  lastRunAt   DateTime?
-  lastError   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  symbol           String   @default("BTC")      // e.g. BTC, ETH
+  timeframe        String   @default("15m")      // 1m, 5m, 15m, 1h, 4h, 1D
+  leverage         Int      @default(5)
+  tpPct            Float    @default(2)          // take profit %
+  slPct            Float    @default(1)          // stop loss %
+  mode             String   @default("demo")     // demo | live
+  marginCurrency   String   @default("USDT")     // USDT | USDC
+  positionSizeUsdt Float    @default(50)        // position size in USDT (or USDC)
+  enabled          Boolean  @default(false)
+  lastRunAt        DateTime?
+  lastError        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
   @@index([enabled])
 }
 

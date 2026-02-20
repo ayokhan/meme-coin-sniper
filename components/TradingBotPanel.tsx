@@ -11,6 +11,8 @@ type Config = {
   tpPct: number;
   slPct: number;
   mode: "demo" | "live";
+  marginCurrency: "USDT" | "USDC";
+  positionSizeUsdt: number;
   enabled: boolean;
   lastRunAt: string | null;
   lastError: string | null;
@@ -22,6 +24,7 @@ export default function TradingBotPanel() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [running, setRunning] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
 
@@ -40,6 +43,8 @@ export default function TradingBotPanel() {
           tpPct: data.config.tpPct,
           slPct: data.config.slPct,
           mode: data.config.mode,
+          marginCurrency: data.config.marginCurrency ?? "USDT",
+          positionSizeUsdt: data.config.positionSizeUsdt ?? 50,
         });
       } else {
         setError(data.error ?? "Failed to load config");
@@ -73,6 +78,8 @@ export default function TradingBotPanel() {
           tpPct: form.tpPct ?? 2,
           slPct: form.slPct ?? 1,
           mode: form.mode ?? "demo",
+          marginCurrency: form.marginCurrency ?? "USDT",
+          positionSizeUsdt: form.positionSizeUsdt ?? 50,
         }),
       });
       const data = await res.json();
@@ -107,6 +114,25 @@ export default function TradingBotPanel() {
       setError("Failed to update");
     } finally {
       setToggling(false);
+    }
+  };
+
+  const runNow = async () => {
+    try {
+      setRunning(true);
+      setError(null);
+      const res = await fetch("/api/admin/trading-bot/run", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setError(null);
+        loadConfig();
+      } else {
+        setError(data.error ?? "Run failed");
+      }
+    } catch {
+      setError("Run failed");
+    } finally {
+      setRunning(false);
     }
   };
 
@@ -186,6 +212,30 @@ export default function TradingBotPanel() {
                 <option value="live">Live (real funds)</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Margin (currency)</label>
+              <select
+                value={form.marginCurrency ?? "USDT"}
+                onChange={(e) => setForm({ ...form, marginCurrency: e.target.value as "USDT" | "USDC" })}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                <option value="USDT">USDT</option>
+                <option value="USDC">USDC</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Position size (USDT or USDC)</label>
+            <input
+              type="number"
+              min="1"
+              max="1000000"
+              step="1"
+              value={form.positionSizeUsdt ?? 50}
+              onChange={(e) => setForm({ ...form, positionSizeUsdt: Number(e.target.value) })}
+              className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Amount in margin currency per trade (e.g. 50 = 50 USDT or 50 USDC).</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -249,6 +299,14 @@ export default function TradingBotPanel() {
               variant="destructive"
             >
               Stop bot
+            </Button>
+            <Button
+              onClick={runNow}
+              disabled={running || !config?.enabled}
+              variant="outline"
+              className="border-cyan-500 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
+            >
+              {running ? "Running…" : "Run now"}
             </Button>
           </div>
         </CardContent>

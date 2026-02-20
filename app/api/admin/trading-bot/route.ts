@@ -18,7 +18,7 @@ export async function GET() {
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (!bot) {
       bot = await db.tradingBot.create({
-        data: { symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', enabled: false },
+        data: { symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
       });
     }
     return NextResponse.json({
@@ -30,6 +30,8 @@ export async function GET() {
         tpPct: bot.tpPct,
         slPct: bot.slPct,
         mode: bot.mode,
+        marginCurrency: bot.marginCurrency ?? 'USDT',
+        positionSizeUsdt: bot.positionSizeUsdt ?? 50,
         enabled: bot.enabled,
         lastRunAt: bot.lastRunAt?.toISOString() ?? null,
         lastError: bot.lastError ?? null,
@@ -52,7 +54,7 @@ export async function PATCH(request: Request) {
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (!bot) {
       bot = await db.tradingBot.create({
-        data: { symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', enabled: false },
+        data: { symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
       });
     }
     const updates: Record<string, unknown> = {};
@@ -62,6 +64,8 @@ export async function PATCH(request: Request) {
     if (typeof body.tpPct === 'number' && body.tpPct > 0 && body.tpPct <= 100) updates.tpPct = body.tpPct;
     if (typeof body.slPct === 'number' && body.slPct > 0 && body.slPct <= 100) updates.slPct = body.slPct;
     if (body.mode === 'demo' || body.mode === 'live') updates.mode = body.mode;
+    if (body.marginCurrency === 'USDT' || body.marginCurrency === 'USDC') updates.marginCurrency = body.marginCurrency;
+    if (typeof body.positionSizeUsdt === 'number' && body.positionSizeUsdt > 0 && body.positionSizeUsdt <= 1_000_000) updates.positionSizeUsdt = body.positionSizeUsdt;
     const updated = await db.tradingBot.update({
       where: { id: bot.id },
       data: updates,
@@ -75,6 +79,8 @@ export async function PATCH(request: Request) {
         tpPct: updated.tpPct,
         slPct: updated.slPct,
         mode: updated.mode,
+        marginCurrency: updated.marginCurrency ?? 'USDT',
+        positionSizeUsdt: updated.positionSizeUsdt ?? 50,
         enabled: updated.enabled,
         lastRunAt: updated.lastRunAt?.toISOString() ?? null,
         lastError: updated.lastError ?? null,
@@ -101,7 +107,7 @@ export async function POST(request: Request) {
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (!bot) {
       bot = await db.tradingBot.create({
-        data: { symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', enabled: false },
+        data: { symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
       });
     }
     const enabled = action === 'start';

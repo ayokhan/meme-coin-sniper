@@ -25,6 +25,7 @@ export async function GET(request: Request) {
     scanTwitter?: { ok: boolean; message?: string };
     walletNotify?: { ok: boolean; sent?: number; message?: string };
     pinnedReanalyze?: { ok: boolean; updated?: number; message?: string };
+    tradingBot?: { ok: boolean; message?: string; error?: string };
   } = {};
 
   try {
@@ -97,6 +98,22 @@ export async function GET(request: Request) {
     }
   } catch (e) {
     results.pinnedReanalyze = { ok: false, message: e instanceof Error ? e.message : 'Pinned re-analyze failed' };
+  }
+
+  try {
+    const authHeader = request.headers.get('authorization');
+    const tradingRes = await fetch(`${base}/api/admin/trading-bot/run`, {
+      cache: 'no-store',
+      headers: authHeader ? { Authorization: authHeader } : {},
+    });
+    const tradingData = await tradingRes.json().catch(() => ({}));
+    results.tradingBot = {
+      ok: tradingData.success === true,
+      message: tradingData.message,
+      error: tradingData.error,
+    };
+  } catch (e) {
+    results.tradingBot = { ok: false, error: e instanceof Error ? e.message : 'Trading bot run failed' };
   }
 
   return NextResponse.json({ success: true, cron: results });
