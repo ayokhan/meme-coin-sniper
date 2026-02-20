@@ -31,6 +31,7 @@ export type BlofinConfig = {
   secretKey: string;
   passphrase: string;
   demo: boolean;
+  brokerId?: string;
 };
 
 function getConfig(): BlofinConfig | null {
@@ -39,7 +40,8 @@ function getConfig(): BlofinConfig | null {
   const passphrase = process.env.BLOFIN_PASSPHRASE;
   if (!apiKey || !secretKey || !passphrase) return null;
   const demo = process.env.BLOFIN_DEMO_MODE === "true";
-  return { apiKey, secretKey, passphrase, demo };
+  const brokerId = process.env.BLOFIN_BROKER_ID?.trim() || undefined;
+  return { apiKey, secretKey, passphrase, demo, brokerId };
 }
 
 /** Signed request to Blofin private API */
@@ -59,6 +61,7 @@ async function privateRequest<T>(method: "GET" | "POST", path: string, body?: Re
     "ACCESS-PASSPHRASE": config.passphrase,
     "Content-Type": "application/json",
   };
+  if (config.brokerId) headers["broker-id"] = config.brokerId;
   const res = await fetch(url, {
     method,
     headers,
@@ -131,13 +134,12 @@ export async function getTicker(instId: string): Promise<{ last: string } | null
   return Array.isArray(out.data) ? out.data[0] : null;
 }
 
-/** Set leverage. Blofin: POST /api/v1/account/set-leverage (check docs for exact path) */
+/** Set leverage. Blofin: POST /api/v1/account/set-leverage */
 export async function setLeverage(instId: string, leverage: number, marginMode: "isolated" | "cross"): Promise<{ ok: boolean; error?: string }> {
-  const out = await privateRequest("POST", "/api/v1/account/set-leverage", {
-    instId,
-    leverage: String(leverage),
-    marginMode,
-  });
+  const config = getConfig();
+  const body: Record<string, unknown> = { instId, leverage: String(leverage), marginMode };
+  if (config?.brokerId) body.brokerId = config.brokerId;
+  const out = await privateRequest("POST", "/api/v1/account/set-leverage", body);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true };
 }
@@ -149,13 +151,10 @@ export async function placeMarketOrder(
   size: string,
   marginMode: "isolated" | "cross" = "cross"
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
-  const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/order", {
-    instId,
-    marginMode,
-    side,
-    orderType: "market",
-    size,
-  });
+  const config = getConfig();
+  const body: Record<string, unknown> = { instId, marginMode, side, orderType: "market", size };
+  if (config?.brokerId) body.brokerId = config.brokerId;
+  const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/order", body);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true, orderId: out.data?.orderId };
 }

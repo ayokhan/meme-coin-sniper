@@ -87,6 +87,7 @@ Set these in Vercel (or `.env.local` for local dev):
 - **CT Scan:** `APIFY_API_TOKEN`.
 - **AI:** `ANTHROPIC_API_KEY`.
 - **Payments / RPC:** `SOLANA_RPC_URL` or `HELIUS_API_KEY` (reused for RPC if needed).
+- **Trading bot (Blofin):** `BLOFIN_API_KEY`, `BLOFIN_SECRET_KEY`, `BLOFIN_PASSPHRASE`; optional: `BLOFIN_DEMO_MODE` (true/false), `BLOFIN_BROKER_ID` (required if your API key is a broker/partner key).
 
 ---
 

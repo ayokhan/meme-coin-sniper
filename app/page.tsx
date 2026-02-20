@@ -164,6 +164,9 @@ export default function Dashboard() {
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
   const [futuresView, setFuturesView] = useState<"ai" | "workflow">("ai");
+  const [futuresAnalysisCopied, setFuturesAnalysisCopied] = useState(false);
+  const [futuresAnalysisShareLoading, setFuturesAnalysisShareLoading] = useState(false);
+  const [futuresAnalysisShareSuccess, setFuturesAnalysisShareSuccess] = useState(false);
 
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (tab === "ai-analysis") {
@@ -669,6 +672,31 @@ export default function Dashboard() {
       if (rec.supportResistance) lines.push(`  📍 Support / Resistance: ${rec.supportResistance}`);
       if (rec.marketStructure) lines.push(`  📈 Market structure: ${rec.marketStructure}`);
       if (rec.buyZoneMcap) lines.push(`  🎯 Buy zone (mcap): ${rec.buyZoneMcap}`);
+      if (rec.takeProfitPct) lines.push(`  ✅ Take profit: ${rec.takeProfitPct}`);
+      if (rec.stopLossPct) lines.push(`  🛑 Stop loss: ${rec.stopLossPct}`);
+      lines.push("");
+    }
+    r.reasons.forEach((reason) => lines.push(`• ${reason}`));
+    return { title, content: lines.join("\n") };
+  };
+
+  const formatFuturesAnalysisForShare = (r: NonNullable<typeof futuresAnalysisResult>) => {
+    const sym = futuresSymbol.trim() || "—";
+    const dir = r.tradeDirection ? ` (${r.tradeDirection})` : "";
+    const title = `Futures: ${sym} · ${r.score}/100 · ${r.signal === "buy" ? "BUY" : "NO BUY"}${dir}`;
+    const lines: string[] = [];
+    lines.push(`📊 ${r.score}/100 · ${r.signal === "buy" ? "🟢 BUY" : "🔴 NO BUY"}${r.tradeDirection ? ` · ${r.tradeDirection.toUpperCase()}` : ""}`);
+    lines.push(`📌 Symbol: ${sym}`);
+    if (futuresChartTimeframe.trim()) lines.push(`⏱ Chart TF: ${futuresChartTimeframe.trim()}`);
+    if (futuresTradeTimeframe.trim()) lines.push(`⏱ Trade TF: ${futuresTradeTimeframe.trim()}`);
+    if (futuresLeverage.trim()) lines.push(`📐 Leverage: ${futuresLeverage}x`);
+    lines.push("");
+    const rec = r.recommendations;
+    if (rec && (rec.supportResistance || rec.marketStructure || rec.entryZone || rec.takeProfitPct || rec.stopLossPct)) {
+      lines.push("📐 Trading levels (futures — use risk management)");
+      if (rec.supportResistance) lines.push(`  📍 Support / Resistance: ${rec.supportResistance}`);
+      if (rec.marketStructure) lines.push(`  📈 Market structure: ${rec.marketStructure}`);
+      if (rec.entryZone) lines.push(`  🎯 Entry zone: ${rec.entryZone}`);
       if (rec.takeProfitPct) lines.push(`  ✅ Take profit: ${rec.takeProfitPct}`);
       if (rec.stopLossPct) lines.push(`  🛑 Stop loss: ${rec.stopLossPct}`);
       lines.push("");
@@ -1314,56 +1342,59 @@ export default function Dashboard() {
                         <li key={i}>{r}</li>
                       ))}
                     </ul>
-                    <div className="mt-4 flex flex-wrap gap-2 items-center">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const { title: t, content: c } = formatAiAnalysisForShare(aiAnalysisResult);
-                          const full = [t, c].filter(Boolean).join("\n\n");
-                          navigator.clipboard.writeText(full).then(() => {
-                            setAiAnalysisCopied(true);
-                            setTimeout(() => setAiAnalysisCopied(false), 2000);
-                          });
-                        }}
-                        className="border-zinc-300 dark:border-zinc-600"
-                      >
-                        {aiAnalysisCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy analysis</>}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={aiAnalysisShareLoading}
-                        onClick={async () => {
-                          setAiAnalysisShareLoading(true);
-                          setAiAnalysisShareSuccess(false);
-                          try {
+                    {isOwner && (
+                      <div className="mt-4 flex flex-wrap gap-2 items-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
                             const { title: t, content: c } = formatAiAnalysisForShare(aiAnalysisResult);
-                            const res = await fetch("/api/coach-calls", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ title: t, content: c }),
+                            const full = [t, c].filter(Boolean).join("\n\n");
+                            navigator.clipboard.writeText(full).then(() => {
+                              setAiAnalysisCopied(true);
+                              setTimeout(() => setAiAnalysisCopied(false), 2000);
                             });
-                            const data = await res.json();
-                            if (data.success) {
-                              setAiAnalysisShareSuccess(true);
-                              setTimeout(() => setAiAnalysisShareSuccess(false), 3000);
-                            } else {
-                              alert(data.error ?? "Failed to share");
+                          }}
+                          className="border-zinc-300 dark:border-zinc-600"
+                        >
+                          {aiAnalysisCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy analysis</>}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={aiAnalysisShareLoading}
+                          onClick={async () => {
+                            setAiAnalysisShareLoading(true);
+                            setAiAnalysisShareSuccess(false);
+                            try {
+                              const { title: t, content: c } = formatAiAnalysisForShare(aiAnalysisResult);
+                              const res = await fetch("/api/coach-calls", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ title: t, content: c }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                setAiAnalysisShareSuccess(true);
+                                setTimeout(() => setAiAnalysisShareSuccess(false), 3000);
+                              } else {
+                                alert(data.error ?? "Failed to share");
+                              }
+                            } catch {
+                              alert("Failed to share");
+                            } finally {
+                              setAiAnalysisShareLoading(false);
                             }
-                          } catch {
-                            alert("Failed to share");
-                          } finally {
-                            setAiAnalysisShareLoading(false);
-                          }
-                        }}
-                        className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
-                      >
-                        {aiAnalysisShareLoading ? "Sharing…" : aiAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
-                      </Button>
-                      {isPaid && (aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim()) && (
+                          }}
+                          className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
+                        >
+                          {aiAnalysisShareLoading ? "Sharing…" : aiAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
+                        </Button>
+                      </div>
+                    )}
+                    {isPaid && (aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim()) && (
                         <>
                           <Button type="button" variant="outline" size="sm" onClick={pinCurrentToken} className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50">
                             Pin to the Nova Staris monitoring board for 3-min updates
@@ -1655,6 +1686,58 @@ export default function Dashboard() {
                         <li key={i}>{r}</li>
                       ))}
                     </ul>
+                    {isOwner && (
+                      <div className="mt-4 flex flex-wrap gap-2 items-center pt-3 border-t border-zinc-200 dark:border-zinc-600">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const { title: t, content: c } = formatFuturesAnalysisForShare(futuresAnalysisResult);
+                            const full = [t, c].filter(Boolean).join("\n\n");
+                            navigator.clipboard.writeText(full).then(() => {
+                              setFuturesAnalysisCopied(true);
+                              setTimeout(() => setFuturesAnalysisCopied(false), 2000);
+                            });
+                          }}
+                          className="border-zinc-300 dark:border-zinc-600"
+                        >
+                          {futuresAnalysisCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy analysis</>}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={futuresAnalysisShareLoading}
+                          onClick={async () => {
+                            setFuturesAnalysisShareLoading(true);
+                            setFuturesAnalysisShareSuccess(false);
+                            try {
+                              const { title: t, content: c } = formatFuturesAnalysisForShare(futuresAnalysisResult);
+                              const res = await fetch("/api/coach-calls", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ title: t, content: c }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                setFuturesAnalysisShareSuccess(true);
+                                setTimeout(() => setFuturesAnalysisShareSuccess(false), 3000);
+                              } else {
+                                alert(data.error ?? "Failed to share");
+                              }
+                            } catch {
+                              alert("Failed to share");
+                            } finally {
+                              setFuturesAnalysisShareLoading(false);
+                            }
+                          }}
+                          className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
+                        >
+                          {futuresAnalysisShareLoading ? "Sharing…" : futuresAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
                 </div>

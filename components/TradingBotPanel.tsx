@@ -180,6 +180,11 @@ export default function TradingBotPanel() {
               Database may need updating. Run: <code className="bg-rose-200/50 dark:bg-rose-900/30 px-1 rounded">npx prisma db push</code> against your production DATABASE_URL.
             </p>
           )}
+          {error.toLowerCase().includes("brokerid") && (
+            <p className="text-xs text-rose-600/90 dark:text-rose-400/90 mt-2">
+              Add <code className="bg-rose-200/50 dark:bg-rose-900/30 px-1 rounded">BLOFIN_BROKER_ID</code> to your server environment (e.g. Vercel env vars) with your Blofin broker ID, then redeploy.
+            </p>
+          )}
         </div>
       )}
 
@@ -385,7 +390,14 @@ export default function TradingBotPanel() {
             </div>
           )}
           {config?.lastError && (
-            <p className="text-xs text-rose-600 dark:text-rose-400">Last error: {config.lastError}</p>
+            <>
+              <p className="text-xs text-rose-600 dark:text-rose-400">Last error: {config.lastError}</p>
+              {config.lastError.toLowerCase().includes("brokerid") && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Set <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_BROKER_ID</code> in your server env (e.g. Vercel) to your Blofin broker ID, then redeploy.
+                </p>
+              )}
+            </>
           )}
           <div className="flex flex-wrap gap-2">
             <Button
