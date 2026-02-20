@@ -729,7 +729,7 @@ export default function Dashboard() {
               </span>
           </h1>
           </div>
-          <div className="flex items-center gap-2 flex-nowrap overflow-x-auto overflow-y-hidden md:flex-wrap md:overflow-visible min-w-0 [scrollbar-width:thin] [&>*]:shrink-0">
+          <div className="flex items-center gap-2 flex-wrap min-w-0 [&>*]:shrink-0">
             <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 p-0.5" role="group" aria-label="Theme">
               <button
                 type="button"
@@ -937,7 +937,7 @@ export default function Dashboard() {
         )}
 
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg dark:shadow-none dark:shadow-[0_0_0_1px_rgba(34,211,238,0.06)] overflow-hidden">
-          <CardHeader className="sticky top-14 sm:top-16 md:static z-10 pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80 md:bg-transparent md:shadow-none bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-[0_1px_0_0_rgba(0,0,0,0.05)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)]">
+          <CardHeader className="sticky top-14 sm:top-16 z-10 pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-[0_1px_0_0_rgba(0,0,0,0.05)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)]">
             <CardTitle className="text-lg font-bold bg-gradient-to-r from-zinc-900 to-zinc-700 dark:from-zinc-100 dark:to-zinc-300 bg-clip-text text-transparent">
               Tokens by viral score
             </CardTitle>
