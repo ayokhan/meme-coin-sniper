@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Zap, Copy, Send } from "lucide-react";
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
+import TradingBotPanel from "@/components/TradingBotPanel";
 
 type Token = {
   id: string;
@@ -57,7 +58,7 @@ type WalletAlert = {
 
 const AUTO_REFRESH_SECONDS = 60;
 
-type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "coach-calls";
+type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "trading-bot" | "coach-calls";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "ct", "wallets", "coach-calls"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls"];
@@ -170,7 +171,7 @@ export default function Dashboard() {
       if (isPaid) fetchPinnedTokens();
       return;
     }
-    if (tab === "futures") {
+    if (tab === "futures" || tab === "trading-bot") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -954,6 +955,9 @@ export default function Dashboard() {
                 <TabsTrigger value="transactions" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
                 <TabsTrigger value="ai-analysis" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">NovaStaris AI Analysis</TabsTrigger>
                 <TabsTrigger value="futures" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Crypto Futures</TabsTrigger>
+                {isOwner && (
+                  <TabsTrigger value="trading-bot" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trading Bot</TabsTrigger>
+                )}
                 <TabsTrigger value="ct" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
                 <TabsTrigger value="wallets" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet Tracker</TabsTrigger>
                 <TabsTrigger value="coach-calls" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Coach Calls + Telegram Signals</TabsTrigger>
@@ -1173,7 +1177,7 @@ export default function Dashboard() {
                 </div>
               </details>
             )}
-            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" ? (
+            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" ? (
               <div className="flex items-center justify-center py-16 text-muted-foreground">
                 <span className="inline-block animate-[nova-shimmer_1.2s_ease-in-out_infinite]">Loading…</span>
               </div>
@@ -1656,6 +1660,8 @@ export default function Dashboard() {
                 </div>
                 )}
               </div>
+            ) : activeTab === "trading-bot" ? (
+              <TradingBotPanel />
             ) : activeTab === "coach-calls" ? (
               <CoachCallsPanel isOwner={isOwner} isVip={isVip} />
             ) : activeTab === "wallets" ? (
