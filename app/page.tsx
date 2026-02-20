@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Copy, Send } from "lucide-react";
+import { Zap, Copy, Send, ChevronUp } from "lucide-react";
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 
@@ -70,6 +70,7 @@ export default function Dashboard() {
   const isVip = tier === "vip";
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
   const [mounted, setMounted] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [presencePingOk, setPresencePingOk] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("new");
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
@@ -89,6 +90,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(typeof window !== "undefined" && window.scrollY > 400);
+    if (typeof window === "undefined") return;
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   // Mark live agent as online when owner has dashboard open (so Nja shows "live agent available")
@@ -720,7 +729,7 @@ export default function Dashboard() {
               </span>
             </h1>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-nowrap overflow-x-auto overflow-y-hidden sm:flex-wrap sm:overflow-visible min-w-0 [scrollbar-width:thin] [&>*]:shrink-0">
             <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 p-0.5" role="group" aria-label="Theme">
               <button
                 type="button"
@@ -928,7 +937,7 @@ export default function Dashboard() {
         )}
 
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg dark:shadow-none dark:shadow-[0_0_0_1px_rgba(34,211,238,0.06)] overflow-hidden">
-          <CardHeader className="pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80">
+          <CardHeader className="sticky top-14 sm:top-16 z-10 pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-[0_1px_0_0_rgba(0,0,0,0.05)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)]">
             <CardTitle className="text-lg font-bold bg-gradient-to-r from-zinc-900 to-zinc-700 dark:from-zinc-100 dark:to-zinc-300 bg-clip-text text-transparent">
               Tokens by viral score
             </CardTitle>
@@ -947,16 +956,16 @@ export default function Dashboard() {
               </ul>
             </details>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4">
-              <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex-wrap h-auto gap-1 p-1.5 rounded-lg">
-                <TabsTrigger value="new" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
-                <TabsTrigger value="trending" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trending</TabsTrigger>
-                <TabsTrigger value="surge" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Surge</TabsTrigger>
-                <TabsTrigger value="transactions" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
-                <TabsTrigger value="ai-analysis" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">NovaStaris AI Analysis</TabsTrigger>
-                <TabsTrigger value="futures" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Crypto Futures</TabsTrigger>
-                <TabsTrigger value="ct" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
-                <TabsTrigger value="wallets" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet Tracker</TabsTrigger>
-                <TabsTrigger value="coach-calls" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Coach Calls + Telegram Signals</TabsTrigger>
+              <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex-nowrap overflow-x-auto overflow-y-hidden sm:flex-wrap sm:overflow-visible h-auto gap-1 p-1.5 rounded-lg w-full min-w-0 [scrollbar-width:thin]">
+                <TabsTrigger value="new" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
+                <TabsTrigger value="trending" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trending</TabsTrigger>
+                <TabsTrigger value="surge" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Surge</TabsTrigger>
+                <TabsTrigger value="transactions" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
+                <TabsTrigger value="ai-analysis" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">AI Analysis</TabsTrigger>
+                <TabsTrigger value="futures" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Futures</TabsTrigger>
+                <TabsTrigger value="ct" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
+                <TabsTrigger value="wallets" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallets</TabsTrigger>
+                <TabsTrigger value="coach-calls" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Coach Calls</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
@@ -1747,6 +1756,7 @@ export default function Dashboard() {
                 </p>
               </div>
             ) : activeTab === "transactions" ? (
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 w-full [scrollbar-width:thin]">
               <Table>
                 <TableHeader>
                   <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
@@ -1785,7 +1795,9 @@ export default function Dashboard() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 w-full [scrollbar-width:thin]">
               <Table>
                 <TableHeader>
                   <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
@@ -1931,12 +1943,23 @@ export default function Dashboard() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
               </>
             )}
           </CardContent>
         </Card>
       </main>
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-20 left-4 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500 text-white shadow-lg hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+          aria-label="Back to top"
+        >
+          <ChevronUp className="h-5 w-5" />
+        </button>
+      )}
     </div>
   );
 }
