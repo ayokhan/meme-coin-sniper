@@ -729,7 +729,7 @@ export default function Dashboard() {
               </span>
             </h1>
           </div>
-          <div className="flex items-center gap-2 flex-nowrap overflow-x-auto overflow-y-hidden sm:flex-wrap sm:overflow-visible min-w-0 [scrollbar-width:thin] [&>*]:shrink-0">
+          <div className="flex items-center gap-2 flex-nowrap overflow-x-auto overflow-y-hidden md:flex-wrap md:overflow-visible min-w-0 [scrollbar-width:thin] [&>*]:shrink-0">
             <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 p-0.5" role="group" aria-label="Theme">
               <button
                 type="button"
@@ -937,7 +937,7 @@ export default function Dashboard() {
         )}
 
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg dark:shadow-none dark:shadow-[0_0_0_1px_rgba(34,211,238,0.06)] overflow-hidden">
-          <CardHeader className="sticky top-14 sm:top-16 z-10 pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-[0_1px_0_0_rgba(0,0,0,0.05)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)]">
+          <CardHeader className="sticky top-14 sm:top-16 md:static z-10 pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80 md:bg-transparent md:shadow-none bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-[0_1px_0_0_rgba(0,0,0,0.05)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)]">
             <CardTitle className="text-lg font-bold bg-gradient-to-r from-zinc-900 to-zinc-700 dark:from-zinc-100 dark:to-zinc-300 bg-clip-text text-transparent">
               Tokens by viral score
             </CardTitle>
@@ -956,16 +956,16 @@ export default function Dashboard() {
               </ul>
             </details>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4">
-              <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex-nowrap overflow-x-auto overflow-y-hidden sm:flex-wrap sm:overflow-visible h-auto gap-1 p-1.5 rounded-lg w-full min-w-0 [scrollbar-width:thin]">
+              <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex-nowrap overflow-x-auto overflow-y-hidden md:flex-wrap md:overflow-visible h-auto gap-1 p-1.5 rounded-lg w-full min-w-0 md:min-w-0 [scrollbar-width:thin]">
                 <TabsTrigger value="new" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
                 <TabsTrigger value="trending" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trending</TabsTrigger>
                 <TabsTrigger value="surge" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Surge</TabsTrigger>
                 <TabsTrigger value="transactions" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
-                <TabsTrigger value="ai-analysis" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">AI Analysis</TabsTrigger>
-                <TabsTrigger value="futures" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Futures</TabsTrigger>
+                <TabsTrigger value="ai-analysis" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><span className="hidden md:inline">NovaStaris </span>AI Analysis</TabsTrigger>
+                <TabsTrigger value="futures" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><span className="hidden md:inline">Crypto </span>Futures</TabsTrigger>
                 <TabsTrigger value="ct" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
-                <TabsTrigger value="wallets" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallets</TabsTrigger>
-                <TabsTrigger value="coach-calls" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Coach Calls</TabsTrigger>
+                <TabsTrigger value="wallets" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet<span className="md:hidden">s</span><span className="hidden md:inline"> Tracker</span></TabsTrigger>
+                <TabsTrigger value="coach-calls" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Coach Calls<span className="hidden md:inline"> + Telegram Signals</span></TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
