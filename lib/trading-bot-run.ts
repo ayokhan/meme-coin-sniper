@@ -154,17 +154,30 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     return { ok: true, message: "No enabled bot" };
   }
 
-  const instId = `${bot.symbol}-${bot.marginCurrency}`;
+  // Blofin expects instId like "BTC-USDT". If user entered "BTC/USDT", normalize.
+  const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
+  const instId = rawSymbol.includes("/")
+    ? rawSymbol.replace("/", "-")
+    : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
   const bar = toBlofinBar(bot.timeframe);
   const strategy = bot.strategy ?? "simple";
   const needMoreCandles = strategy === "indicators" || strategy === "ai" || strategy === "hybrid";
   const candleLimit = needMoreCandles ? 250 : 50;
 
-  const updateError = async (err: string | null) => {
+  const updateLastRun = async (
+    err: string | null,
+    decision?: "no_trade" | "long" | "short",
+    decisionMsg?: string
+  ) => {
     try {
       await db.tradingBot.update({
         where: { id: bot!.id },
-        data: { lastRunAt: new Date(), lastError: err },
+        data: {
+          lastRunAt: new Date(),
+          lastError: err,
+          lastDecision: decision ?? null,
+          lastDecisionMsg: decisionMsg ?? null,
+        },
       });
     } catch {
       // ignore
@@ -181,13 +194,14 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
 
     const minCandles = needMoreCandles ? Math.max(2, (bot.emaPeriod ?? 200) + 5) : 2;
     if (candlesRes.length < minCandles) {
-      await updateError("Not enough candle data");
-      return { ok: false, error: "Not enough candle data" };
+      const msg = `Not enough candle data (got ${candlesRes.length}, need ${minCandles}). Use symbol like BTC or BTC-USDT, and a shorter timeframe (e.g. 15m) if needed.`;
+      await updateLastRun(msg, "no_trade", msg);
+      return { ok: false, error: msg };
     }
 
     const lastPrice = tickerRes?.last ? parseFloatSafe(tickerRes.last) : parseFloatSafe(candlesRes[0][4]);
     if (lastPrice <= 0) {
-      await updateError("Could not get price");
+      await updateLastRun("Could not get price", "no_trade", "Could not get price");
       return { ok: false, error: "Could not get price" };
     }
 
@@ -195,7 +209,7 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     const hasPosition = positions.length > 0;
 
     if (hasPosition) {
-      await updateError(null);
+      await updateLastRun(null, "no_trade", "Already in position, skip");
       return { ok: true, message: "Already in position, skip" };
     }
 
@@ -212,19 +226,20 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     );
     const signal = resolved.signal;
     if (!signal) {
-      await updateError(null);
-      return { ok: true, message: resolved.message ?? "No signal" };
+      const msg = resolved.message ?? "No signal";
+      await updateLastRun(null, "no_trade", msg);
+      return { ok: true, message: msg };
     }
 
     if (!instRes) {
-      await updateError("Could not get instrument");
+      await updateLastRun("Could not get instrument", "no_trade", "Could not get instrument");
       return { ok: false, error: "Could not get instrument" };
     }
 
     const contractValue = parseFloatSafe(instRes.contractValue);
     const minSize = parseFloatSafe(instRes.minSize);
     if (contractValue <= 0) {
-      await updateError("Invalid contract value");
+      await updateLastRun("Invalid contract value", "no_trade", "Invalid contract value");
       return { ok: false, error: "Invalid contract value" };
     }
 
@@ -233,8 +248,9 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     const lotSize = parseFloatSafe(instRes.minSize);
     const sizeStr = roundSize(sizeContracts, minSize, lotSize);
     if (parseFloat(sizeStr) < minSize) {
-      await updateError(`Size ${sizeStr} below min ${minSize}`);
-      return { ok: false, error: `Position size below minimum (min ${minSize} contracts)` };
+      const err = `Position size below minimum (min ${minSize} contracts)`;
+      await updateLastRun(err, "no_trade", err);
+      return { ok: false, error: err };
     }
 
     const leverageOk = await setLeverage(instId, bot.leverage, "cross");
@@ -246,15 +262,17 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     const side = signal === "long" ? "buy" : "sell";
     const order = await placeMarketOrder(instId, side, sizeStr, "cross");
     if (!order.ok) {
-      await updateError(order.error ?? "Order failed");
+      const err = order.error ?? "Order failed";
+      await updateLastRun(err, "no_trade", err);
       return { ok: false, error: order.error };
     }
 
-    await updateError(null);
-    return { ok: true, message: `Opened ${signal} ${sizeStr} @ ${lastPrice}` };
+    const successMsg = `Opened ${signal} ${sizeStr} @ ${lastPrice}`;
+    await updateLastRun(null, signal, successMsg);
+    return { ok: true, message: successMsg };
   } catch (e) {
     const err = e instanceof Error ? e.message : String(e);
-    await updateError(err);
+    await updateLastRun(err, "no_trade", err);
     return { ok: false, error: err };
   }
 }

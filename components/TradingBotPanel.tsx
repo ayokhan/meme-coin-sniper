@@ -23,6 +23,8 @@ type Config = {
   enabled: boolean;
   lastRunAt: string | null;
   lastError: string | null;
+  lastDecision: string | null;
+  lastDecisionMsg: string | null;
 };
 
 export default function TradingBotPanel() {
@@ -191,11 +193,12 @@ export default function TradingBotPanel() {
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Symbol</label>
               <input
                 type="text"
-                placeholder="e.g. BTC, ETH"
+                placeholder="e.g. BTC, ETH or BTC/USDT"
                 value={form.symbol ?? ""}
                 onChange={(e) => setForm({ ...form, symbol: e.target.value })}
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
+              <p className="text-xs text-muted-foreground mt-1">BTC or BTC/USDT both work; converted to Blofin format (e.g. BTC-USDT).</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Timeframe</label>
@@ -365,6 +368,21 @@ export default function TradingBotPanel() {
           </p>
           {config?.lastRunAt && (
             <p className="text-xs text-muted-foreground">Last run: {new Date(config.lastRunAt).toLocaleString()}</p>
+          )}
+          {(config?.lastDecision || config?.lastDecisionMsg) && (
+            <div className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900/40 p-2 text-xs">
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">Last decision: </span>
+              {config.lastDecision && config.lastDecision !== "no_trade" ? (
+                <span className={config.lastDecision === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                  {config.lastDecision.toUpperCase()}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">No trade</span>
+              )}
+              {config.lastDecisionMsg && (
+                <p className="mt-1 text-muted-foreground break-words">{config.lastDecisionMsg}</p>
+              )}
+            </div>
           )}
           {config?.lastError && (
             <p className="text-xs text-rose-600 dark:text-rose-400">Last error: {config.lastError}</p>

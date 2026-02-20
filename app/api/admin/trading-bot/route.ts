@@ -40,6 +40,8 @@ export async function GET() {
         enabled: bot.enabled,
         lastRunAt: bot.lastRunAt?.toISOString() ?? null,
         lastError: bot.lastError ?? null,
+        lastDecision: (bot as { lastDecision?: string | null }).lastDecision ?? null,
+        lastDecisionMsg: (bot as { lastDecisionMsg?: string | null }).lastDecisionMsg ?? null,
       },
     });
   } catch (e) {
@@ -101,6 +103,8 @@ export async function PATCH(request: Request) {
         enabled: updated.enabled,
         lastRunAt: updated.lastRunAt?.toISOString() ?? null,
         lastError: updated.lastError ?? null,
+        lastDecision: (updated as { lastDecision?: string | null }).lastDecision ?? null,
+        lastDecisionMsg: (updated as { lastDecisionMsg?: string | null }).lastDecisionMsg ?? null,
       },
     });
   } catch (e) {
