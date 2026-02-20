@@ -131,7 +131,8 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
       // continue anyway
     }
 
-    const order = await placeMarketOrder(instId, signal, sizeStr, "cross");
+    const side = signal === "long" ? "buy" : "sell";
+    const order = await placeMarketOrder(instId, side, sizeStr, "cross");
     if (!order.ok) {
       await updateError(order.error ?? "Order failed");
       return { ok: false, error: order.error };
