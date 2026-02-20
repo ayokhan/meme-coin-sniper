@@ -956,8 +956,7 @@ export default function Dashboard() {
               </ul>
             </details>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4">
-              <div className="relative -mx-1 px-1 md:mx-0 md:px-0">
-              <div className="overflow-x-auto overflow-y-hidden md:overflow-visible [scrollbar-width:thin] [-webkit-overflow-scrolling:touch] touch-pan-x">
+              <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1 md:overflow-visible md:mx-0 md:px-0 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch] touch-pan-x">
                 <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 flex flex-nowrap md:flex-wrap w-max min-w-full md:w-full md:min-w-0 h-auto gap-1 p-1.5 rounded-lg">
                 <TabsTrigger value="new" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
                 <TabsTrigger value="trending" className="rounded-md shrink-0 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trending</TabsTrigger>
