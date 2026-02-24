@@ -46,7 +46,9 @@ export async function runAiAnalysisBsc(contractAddress: string, options?: { amou
   ]);
 
   if (!dexData) {
-    throw new Error('Token not found on DexScreener (BSC).');
+    throw new Error(
+      'Token not found on DexScreener (BSC). Use the token contract address (0x + 40 hex). If you copied the DexScreener URL, try the token address shown under the token name on the page, or check for typos.'
+    );
   }
 
   const socials = extractSocials(dexData);

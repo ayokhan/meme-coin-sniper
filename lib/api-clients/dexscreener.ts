@@ -301,19 +301,48 @@ export async function getTrendingBscPairs(limit = 80): Promise<DexPair[]> {
   }
 }
 
+/** Normalize BSC address to 0x + 40 hex lowercase (no 0x prefix for API path). */
+function normalizeBscAddress(input: string): string {
+  const s = (input || '').trim().replace(/^0x/i, '');
+  return s.toLowerCase();
+}
+
 export async function getBscToken(contractAddress: string): Promise<DexPair | null> {
-  try {
-    const addr = contractAddress.replace(/^0x/, '').toLowerCase();
-    const response = await axios.get<DexPair[] | { pairs?: DexPair[] }>(
-      `https://api.dexscreener.com/tokens/v1/bsc/${addr}`,
-      { timeout: 15000 }
-    );
-    const raw = response.data;
-    const pairs = Array.isArray(raw) ? raw : (raw?.pairs ?? []);
+  const addrNorm = normalizeBscAddress(contractAddress);
+  const addrWith0x = addrNorm ? `0x${addrNorm}` : '';
+
+  const pickBest = (pairs: DexPair[]) => {
     const bscPairs = pairs.filter((p) => BSC_CHAIN_IDS.includes((p.chainId || '').toLowerCase()));
     if (bscPairs.length === 0) return null;
     const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
     return bscPairs.sort((a, b) => usd(b) - usd(a))[0];
+  };
+
+  try {
+    // 1) Token lookup by base token address (tokens/v1 expects the token contract, not the pair address)
+    if (addrNorm.length === 40) {
+      const response = await axios.get<DexPair[] | { pairs?: DexPair[] }>(
+        `https://api.dexscreener.com/tokens/v1/bsc/${addrNorm}`,
+        { timeout: 15000 }
+      );
+      const raw = response.data;
+      const pairs = Array.isArray(raw) ? raw : (raw?.pairs ?? []);
+      const best = pickBest(pairs);
+      if (best) return best;
+    }
+
+    // 2) Fallback: search by address (works when user pastes pair address from DexScreener URL, or token address with typo)
+    const searchRes = await axios.get<{ pairs?: DexPair[] }>(
+      `${DEXSCREENER_BASE}/latest/dex/search`,
+      { params: { q: addrWith0x || contractAddress.trim() }, timeout: 15000 }
+    );
+    const searchPairs = searchRes.data?.pairs ?? [];
+    const matching = searchPairs.filter((p) => {
+      const base = (p.baseToken?.address || '').replace(/^0x/, '').toLowerCase();
+      const pair = (p.pairAddress || '').replace(/^0x/, '').split(':')[0].toLowerCase();
+      return addrNorm && (base === addrNorm || pair === addrNorm);
+    });
+    return pickBest(matching);
   } catch {
     return null;
   }
