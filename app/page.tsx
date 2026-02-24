@@ -58,8 +58,8 @@ type WalletAlert = {
 
 const AUTO_REFRESH_SECONDS = 60;
 
-type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "trading-bot" | "coach-calls";
-const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "ct", "wallets", "coach-calls"];
+type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "narratives" | "trading-bot" | "coach-calls";
+const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "narratives", "ct", "wallets", "coach-calls"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls"];
 
@@ -316,9 +316,9 @@ export default function Dashboard() {
     if (activeTab === "surge") fetchTokens("surge");
   }, [surgeWindow]);
 
-  // Auto-refresh current tab every 60s (skip ai-analysis, futures). Wallets tab refreshes every 2 min.
+  // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "narratives") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         fetchTrackedWallets();
@@ -971,6 +971,7 @@ export default function Dashboard() {
                 <li><strong>CT Scan</strong>: Spot coins going viral from smart money and influencer buzz before the crowd.</li>
                 <li><strong>NovaStaris AI Analysis</strong>: Paste a token contract address; NovaStaris AI scores it 0–100, gives a buy/no-buy signal, and explains why.</li>
                 <li><strong>Crypto Futures</strong>: <strong>NovaStaris AI Chart Analysis</strong> — upload a chart, set margin, leverage & timeframes; get AI support/resistance, entry zone, take profit & stop loss. <strong>Institutional Workflow</strong> — 4-phase system (macro bias, daily flow, pre-trade, execution) with free tools and rules for leverage trading.</li>
+                <li><strong>Narratives</strong> (Pro/VIP): Global trends, US trends, trending memes, and trending meme coins—with links to sources and a checklist to spot narrative-driven plays (e.g. when a story like “aliens” breaks, coins follow).</li>
                 <li><strong>Wallet Tracker</strong>: Get alerted when tracked wallets pile into the same token—so you can move with the flow.</li>
                 <li><strong>Coach Calls + Telegram Signals</strong> (VIP): Exclusive CA from the team, displayed in-app and sent to our Telegram Call channel. VIP members add their Telegram ID (one per user) to get signals there.</li>
               </ul>
@@ -983,6 +984,9 @@ export default function Dashboard() {
                 <TabsTrigger value="transactions" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
                 <TabsTrigger value="ai-analysis" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">NovaStaris AI Analysis</TabsTrigger>
                 <TabsTrigger value="futures" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Crypto Futures</TabsTrigger>
+                {isPaid && (
+                  <TabsTrigger value="narratives" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Narratives</TabsTrigger>
+                )}
                 {isOwner && (
                   <TabsTrigger value="trading-bot" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trading Bot</TabsTrigger>
                 )}
@@ -1003,6 +1007,7 @@ export default function Dashboard() {
                   {activeTab === "transactions" && "Transactions shows buys vs sells (24h) and activity."}
                   {activeTab === "ai-analysis" && "NovaStaris AI Analysis scores any token 0–100 and gives a buy/no-buy signal."}
                   {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
+                  {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
                   {activeTab === "wallets" && "Wallet Tracker (Profitable Traders Wallet Tracker) alerts you when 3+ tracked wallets buy the same token."}
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
@@ -1741,6 +1746,10 @@ export default function Dashboard() {
                 )}
                 </div>
                 )}
+              </div>
+            ) : activeTab === "narratives" ? (
+              <div className="mx-6 py-8">
+                <NarrativesPanel />
               </div>
             ) : activeTab === "trading-bot" ? (
               <TradingBotPanel />
