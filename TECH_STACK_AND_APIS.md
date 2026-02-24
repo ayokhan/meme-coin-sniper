@@ -6,7 +6,7 @@ This document describes the **current implementation** of **NovaStaris** (novast
 
 ## 1. Project overview
 
-- **Purpose:** Discover new and trending Solana meme coins, track “smart money” wallets, get alerts when multiple tracked wallets buy the same token, analyze tokens with AI, and (owner-only) view app insights (visitor location, device, and pages).
+- **Purpose:** Discover new and trending meme coins on **Solana** and **BSC** (Binance Smart Chain), track “smart money” wallets, get alerts when multiple tracked wallets buy the same token, analyze tokens with AI (Solana and BSC; BSC AI Analysis is Pro/VIP only), **Crypto Futures** tools, and (owner-only) view app insights (visitor location, device, and pages).
 - **Deployment:** Vercel (production), with optional Cron for Telegram alerts.
 - **Database:** PostgreSQL (e.g. Supabase), accessed via Prisma.
 - **Programming language:** TypeScript (app and API); Node.js on the server.
@@ -140,7 +140,9 @@ App Insights gives the owner a dashboard of where visitors are from, what device
 | `app/api/new-pairs/route.ts` | New pairs from DexScreener, Birdeye, Moralis (Pump.fun). |
 | `app/api/scan/route.ts` | Scan and save tokens (Birdeye/Moralis/DexScreener) into DB. |
 | `app/api/ct-tweets/route.ts` | CT tweets via Apify. |
-| `app/api/ai-analyze/route.ts`, `app/api/ai-analyze-futures/route.ts` | AI token and futures analysis (Anthropic). |
+| `app/api/ai-analyze/route.ts`, `app/api/ai-analyze-futures/route.ts` | AI token (Solana) and futures analysis (Anthropic). |
+| `app/api/ai-analyze-bsc/route.ts` | BSC token AI analysis (Anthropic); Pro/VIP only. |
+| `app/api/new-pairs-bsc/route.ts`, `app/api/trending-bsc/route.ts` | BSC new pairs and trending (DexScreener). |
 | `lib/get-wallet-alerts.ts` | Core logic: which tokens have ≥ `minBuyers` tracked wallets that bought; returns alerts + `latestBuyAt`. |
 | `lib/wallet-tracker-config.ts` | Tracked wallets and alert rules from DB (with fallback to `lib/config/ct-wallets.ts`). |
 | `lib/telegram.ts` | Send wallet alerts to Telegram. |
@@ -150,7 +152,7 @@ App Insights gives the owner a dashboard of where visitors are from, what device
 | `lib/api-clients/dexscreener.ts` | DexScreener: search, token by mint, WebSocket pairs. |
 | `lib/api-clients/goplus.ts` | GoPlus: token security checks. |
 | `lib/api-clients/twitter.ts` | Apify tweet scraper + optional Anthropic for CT. |
-| `lib/ai-analyze.ts`, `lib/ai-analyze-futures.ts` | Claude prompts and scoring for tokens/futures. |
+| `lib/ai-analyze.ts`, `lib/ai-analyze-futures.ts`, `lib/ai-analyze-bsc.ts` | Claude prompts and scoring for Solana tokens, BSC tokens, and futures. |
 | `lib/auth.ts`, `lib/auth-server.ts` | NextAuth config and server-side session/subscription checks. |
 | `lib/ua-parse.ts` | User-Agent parsing for App Insights (device, browser, OS; no deps). |
 | `lib/verify-solana-payment.ts` | Solana payment verification for subscriptions. |
@@ -165,7 +167,7 @@ App Insights gives the owner a dashboard of where visitors are from, what device
 - **New/trending/surge tokens:** DexScreener (and optionally Birdeye/Moralis) → aggregate in API routes → dashboard.
 - **Wallet Tracker alerts:** Tracked wallets from DB → Moralis/Helius/Birdeye for recent buys → group by mint → filter by `minBuyers`/`maxAgeHours`/`maxAlerts` from `AlertRule` → return alerts with `latestBuyAt`; cron calls notify → Telegram + `WalletAlertSent` dedupe.
 - **CT Scan:** Apify scrapes tweets from configured accounts → tokens mentioned → stored/displayed.
-- **NovaStaris AI Analysis:** Token metadata + optional context → Anthropic Claude → viral score, signal, recommendations.
+- **NovaStaris AI Analysis:** Solana or BSC token metadata + optional context → Anthropic Claude → viral score, signal, recommendations. BSC AI Analysis is Pro/VIP only. BSC tab (Go Hunting: New pairs, Final Stretch, Migrated, Trending) is available to all users.
 - **App Insights:** Client sends path on navigation → POST `/api/analytics` → server adds country/city (Vercel/Cloudflare headers), device/browser/OS (User-Agent via `lib/ua-parse.ts`) → stored in `AnalyticsEvent`. Owner fetches GET `/api/admin/insights` → aggregated by country, city, device, path, browser, OS → dashboard at `/admin/insights`.
 
 ---

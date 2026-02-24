@@ -26,17 +26,17 @@ export default function AboutPage() {
             About NovaStaris
           </h1>
           <p className="mt-3 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-            Advanced AI-powered meme snipping intelligent system for Solana. Spot viral tokens early, analyze with AI, and move with smart money.
+            Advanced AI-powered meme snipping and analysis across Solana and BSC, plus Crypto Futures. Spot viral tokens early, analyze with AI, and move with smart money.
           </p>
         </div>
 
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg overflow-hidden mb-8">
           <CardContent className="p-6 space-y-6 text-zinc-700 dark:text-zinc-300">
               <p className="text-base leading-relaxed">
-                <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris</strong> is an advanced AI-powered meme snipping intelligent system for Solana. We combine real-time on-chain data, social signals, and NovaStaris AI Analysis so you can discover and evaluate viral tokens before the crowd—and decide with confidence.
+                <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris</strong> is not only about Solana: we cover <strong className="text-zinc-900 dark:text-zinc-100">Solana</strong> meme coins, <strong className="text-zinc-900 dark:text-zinc-100">BSC</strong> (Binance Smart Chain) meme coins, and <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong>. We combine real-time on-chain data, social signals, and NovaStaris AI Analysis so you can discover and evaluate viral tokens before the crowd—and decide with confidence.
               </p>
               <p className="text-base leading-relaxed">
-                Our system surfaces new pairs, trending volume, and surge activity, then layers on <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Analysis</strong>: paste any token contract and get a 0–100 score, a clear buy/no-buy signal, and a concise explanation. <strong className="text-zinc-900 dark:text-zinc-100">Pro</strong> subscribers get Surge, Transactions, NovaStaris AI Analysis, and Crypto Futures. <strong className="text-zinc-900 dark:text-zinc-100">VIP</strong> adds the Twitter tracker (CT Scan), Profitable Traders Wallet Tracker, and <strong className="text-zinc-900 dark:text-zinc-100">Coach Calls + Telegram Signals</strong>—exclusive CA (call alerts) from the team, displayed in-app and sent to our Telegram Call channel; add your Telegram ID (one per user) to get signals there too.
+                Our system surfaces new pairs, trending volume, and surge activity on Solana and BSC (BSC tab includes <strong className="text-zinc-900 dark:text-zinc-100">Go Hunting</strong>: New pairs, Final Stretch, Migrated, and Trending—all users can access the BSC tab). We layer on <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Analysis</strong>: paste any Solana or BSC token contract and get a 0–100 score, a clear buy/no-buy signal, and a concise explanation (BSC AI Analysis is <strong className="text-zinc-900 dark:text-zinc-100">Pro and VIP only</strong>). <strong className="text-zinc-900 dark:text-zinc-100">Pro</strong> subscribers get Surge, Transactions, NovaStaris AI Analysis (Solana and BSC), and Crypto Futures. <strong className="text-zinc-900 dark:text-zinc-100">VIP</strong> adds the Twitter tracker (CT Scan), Profitable Traders Wallet Tracker, and <strong className="text-zinc-900 dark:text-zinc-100">Coach Calls + Telegram Signals</strong>—exclusive CA (call alerts) from the team, displayed in-app and sent to our Telegram Call channel; add your Telegram ID (one per user) to get signals there too.
               </p>
               <p className="text-base leading-relaxed">
                 <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong> gives Pro and VIP users two edges: <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong> — upload a chart (any timeframe), set margin and leverage, and get AI support/resistance, entry zone, take profit and stop loss tailored for futures. <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong> — a 4-phase checklist (macro bias, daily flow check, pre-trade setup, execution rules) using powerful tools (COT reports via CFTC and Tradingster, Coinglass, CryptoQuant, Arkham, Whale Alert) and six non-negotiable rules so you trade with institutional flow instead of against it.
@@ -56,7 +56,7 @@ export default function AboutPage() {
                   <div>
                     <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Built to snipe</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                      New pairs, trending, surge, and transaction views put the right tokens in front of you—fast. No fluff, no noise.
+                      New pairs, trending, surge, and transaction views on Solana; BSC tab with Go Hunting (New pairs, Final Stretch, Migrated, Trending) for meme coins on Binance Smart Chain. No fluff, no noise.
                     </p>
                   </div>
                 </div>

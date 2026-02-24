@@ -59,9 +59,9 @@ type WalletAlert = {
 
 const AUTO_REFRESH_SECONDS = 60;
 
-type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "narratives" | "trading-bot" | "coach-calls";
+type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "narratives" | "trading-bot" | "coach-calls" | "bsc";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "narratives", "ct", "wallets", "coach-calls"];
-/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. */
+/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. BSC tab is free for all. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls"];
 
 export default function Dashboard() {
@@ -88,6 +88,9 @@ export default function Dashboard() {
   const [surgeWindow, setSurgeWindow] = useState<"5m" | "15m" | "30m" | "1h" | "6h" | "24h">("24h");
   type GoHuntingView = "new_pairs" | "final_stretch" | "migrated";
   const [goHuntingView, setGoHuntingView] = useState<GoHuntingView>("new_pairs");
+  type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
+  const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
+  const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
 
   useEffect(() => {
     setMounted(true);
@@ -182,6 +185,20 @@ export default function Dashboard() {
     if (showLoading) setLoading(true);
     setError(null);
     try {
+      if (tab === "bsc") {
+        const view = bscGoHuntingView;
+        const url = view === "trending" ? "/api/trending-bsc" : `/api/new-pairs-bsc?view=${view}&maxAgeMinutes=120&limit=150`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.success) {
+          setTokens(data.tokens ?? []);
+          setLastFetched(new Date());
+        } else {
+          setError(data.error ?? "Failed to load BSC tokens");
+        }
+        if (showLoading) setLoading(false);
+        return;
+      }
       if (tab === "wallets") {
         const res = await fetch("/api/wallet-tracker");
         const data = await res.json();
@@ -311,7 +328,7 @@ export default function Dashboard() {
     if (activeTab === "wallets") {
       fetchTrackedWallets();
     }
-  }, [activeTab, isPaid, isVip, goHuntingView]);
+  }, [activeTab, isPaid, isVip, goHuntingView, bscGoHuntingView]);
 
   useEffect(() => {
     if (activeTab === "surge") fetchTokens("surge");
@@ -319,7 +336,7 @@ export default function Dashboard() {
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "narratives") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "narratives" || activeTab === "trading-bot") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         fetchTrackedWallets();
@@ -337,6 +354,14 @@ export default function Dashboard() {
       setAiAnalysisError("Enter a contract address.");
       return;
     }
+    if (aiAnalysisChain === "bsc" && !isPaid) {
+      setAiAnalysisError("BSC AI Analysis is for Pro and VIP subscribers. Subscribe to use it.");
+      return;
+    }
+    if (aiAnalysisChain === "bsc" && !/^0x[0-9a-fA-F]{40}$/.test(ca)) {
+      setAiAnalysisError("Invalid BSC address. Use 0x followed by 40 hex characters.");
+      return;
+    }
     setAiAnalysisError(null);
     setAiAnalysisResult(null);
     setAiAnalysisFeedbackSent(null);
@@ -345,7 +370,8 @@ export default function Dashboard() {
     try {
       const amountNum = aiAnalysisAmountUsd.trim() ? parseFloat(aiAnalysisAmountUsd.replace(/,/g, "")) : NaN;
         const amountUsd = Number.isFinite(amountNum) && amountNum > 0 ? amountNum : undefined;
-      const res = await fetch("/api/ai-analyze", {
+      const endpoint = aiAnalysisChain === "bsc" ? "/api/ai-analyze-bsc" : "/api/ai-analyze";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contractAddress: ca, ...(amountUsd != null ? { amountUsd } : {}) }),
@@ -710,6 +736,11 @@ export default function Dashboard() {
     t.pairAddress
       ? `https://dexscreener.com/solana/${t.pairAddress}`
       : `https://dexscreener.com/solana/${t.contractAddress}`;
+  const dexUrlBsc = (t: Token) =>
+    t.pairAddress
+      ? `https://dexscreener.com/bsc/${t.pairAddress}`
+      : `https://dexscreener.com/bsc/${t.contractAddress}`;
+  const bscScanUrl = (t: Token) => `https://bscscan.com/token/${t.contractAddress}`;
   const pumpFunUrl = (t: Token) => `https://pump.fun/coin/${t.contractAddress}`;
   const gmgnUrl = (t: Token) => `https://gmgn.ai/sol/token/${encodeURIComponent(t.contractAddress)}`;
   const maestroUrl = (t: Token) =>
@@ -985,15 +1016,14 @@ export default function Dashboard() {
                 <TabsTrigger value="transactions" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
                 <TabsTrigger value="ai-analysis" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">NovaStaris AI Analysis</TabsTrigger>
                 <TabsTrigger value="futures" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Crypto Futures</TabsTrigger>
-                {isPaid && (
-                  <TabsTrigger value="narratives" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Narratives</TabsTrigger>
-                )}
+                <TabsTrigger value="narratives" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Narratives</TabsTrigger>
                 {isOwner && (
                   <TabsTrigger value="trading-bot" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trading Bot</TabsTrigger>
                 )}
                 <TabsTrigger value="ct" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
                 <TabsTrigger value="wallets" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet Tracker</TabsTrigger>
                 <TabsTrigger value="coach-calls" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Coach Calls + Telegram Signals</TabsTrigger>
+                <TabsTrigger value="bsc" className="rounded-md data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
@@ -1042,6 +1072,31 @@ export default function Dashboard() {
                   {goHuntingView === "new_pairs" && "All new pairs (last 60m — meme coins move fast)."}
                   {goHuntingView === "final_stretch" && "Pump.fun tokens still on bonding curve."}
                   {goHuntingView === "migrated" && "Recently migrated to Raydium/Orca."}
+                </span>
+              </div>
+            )}
+            {activeTab === "bsc" && (
+              <div className="mx-6 mt-4 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Go Hunting:</span>
+                {(["new_pairs", "final_stretch", "migrated", "trending"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setBscGoHuntingView(v)}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      bscGoHuntingView === v
+                        ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                        : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                    }`}
+                  >
+                    {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : v === "migrated" ? "Migrated" : "Trending"}
+                  </button>
+                ))}
+                <span className="text-xs text-muted-foreground ml-1">
+                  {bscGoHuntingView === "new_pairs" && "New BSC pairs (PancakeSwap etc.)."}
+                  {bscGoHuntingView === "final_stretch" && "BSC pairs on main DEXs."}
+                  {bscGoHuntingView === "migrated" && "Migrated BSC pairs."}
+                  {bscGoHuntingView === "trending" && "Trending BSC meme coins by volume and price change."}
                 </span>
               </div>
             )}
@@ -1252,8 +1307,30 @@ export default function Dashboard() {
                     </div>
                   </details>
                 )}
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Chain:</span>
+                  <button
+                    type="button"
+                    onClick={() => { setAiAnalysisChain("solana"); setAiAnalysisError(null); setAiAnalysisResult(null); }}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium ${aiAnalysisChain === "solana" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"}`}
+                  >
+                    Solana
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAiAnalysisChain("bsc"); setAiAnalysisError(null); setAiAnalysisResult(null); }}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium ${aiAnalysisChain === "bsc" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"}`}
+                  >
+                    BSC
+                  </button>
+                  {aiAnalysisChain === "bsc" && !isPaid && (
+                    <span className="text-xs text-amber-600 dark:text-amber-400">BSC AI Analysis is for Pro and VIP only.</span>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Enter a Solana token contract address (CA). Optionally add the amount you plan to invest so the AI can say if it&apos;s too risky for the token&apos;s liquidity. NovaStaris AI will analyze on-chain data, security, support/resistance, and give buy zone, take profit &amp; stop loss.
+                  {aiAnalysisChain === "bsc"
+                    ? "Enter a BSC token contract address (0x + 40 hex chars). Pro/VIP only. Optionally add the amount you plan to invest. NovaStaris AI will analyze on-chain data, security, and give buy zone, take profit &amp; stop loss."
+                    : "Enter a Solana token contract address (CA). Optionally add the amount you plan to invest so the AI can say if it&apos;s too risky for the token&apos;s liquidity. NovaStaris AI will analyze on-chain data, security, support/resistance, and give buy zone, take profit &amp; stop loss."}
                 </p>
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex-1 min-w-[200px]">
@@ -1261,7 +1338,7 @@ export default function Dashboard() {
                     <input
                       id="ai-ca"
                       type="text"
-                      placeholder="e.g. So11111111111111111111111111111111111111112"
+                      placeholder={aiAnalysisChain === "bsc" ? "e.g. 0x1234... (BSC contract)" : "e.g. So11111111111111111111111111111111111111112"}
                       value={aiAnalysisCa}
                       onChange={(e) => { setAiAnalysisCa(e.target.value); setAiAnalysisError(null); }}
                       className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -1817,10 +1894,12 @@ export default function Dashboard() {
             ) : tokensForDisplay.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
                 <p className="font-semibold text-zinc-700 dark:text-zinc-300">
-                  {activeTab === "ct" ? "No CT tokens yet." : activeTab === "surge" ? "No surge tokens right now." : activeTab === "transactions" ? "No transaction data yet." : activeTab === "trending" ? "No trending tokens right now." : activeTab === "new" ? "No tokens in this view. Try another filter or refresh." : "No tokens yet."}
+                  {activeTab === "bsc" ? "No BSC tokens in this view." : activeTab === "ct" ? "No CT tokens yet." : activeTab === "surge" ? "No surge tokens right now." : activeTab === "transactions" ? "No transaction data yet." : activeTab === "trending" ? "No trending tokens right now." : activeTab === "new" ? "No tokens in this view. Try another filter or refresh." : "No tokens yet."}
                 </p>
                 <p className="mt-2">
-                  {activeTab === "ct"
+                  {activeTab === "bsc"
+                    ? "BSC Go Hunting: new pairs, final stretch, migrated, or trending. Try another view or refresh."
+                    : activeTab === "ct"
                     ? "Run \"Scan Twitter\" to find coins mentioned by 3+ tracked KOLs."
                     : activeTab === "surge"
                       ? `Surge shows coins with high volume in the selected window (${surgeWindow}). 5m/15m/30m estimated from 1h. Live from DexScreener, up to 80 coins.`
@@ -1833,7 +1912,9 @@ export default function Dashboard() {
                             : "Run Scan to save tokens to the DB, or use New pairs for live recent listings."}
                 </p>
                 <p className="mt-4 text-xs max-w-md text-zinc-500 dark:text-zinc-400">
-                  {activeTab === "surge"
+                  {activeTab === "bsc"
+                    ? "BSC meme coins on PancakeSwap and other DEXs. Auto-refreshes every 60s."
+                    : activeTab === "surge"
                     ? `Surge: volume in last ${surgeWindow}. List auto-refreshes every 60s.`
                     : activeTab === "transactions"
                       ? "Sorted by total transactions (buys + sells) descending."
@@ -1872,11 +1953,20 @@ export default function Dashboard() {
                       <TableCell className="text-right tabular-nums text-muted-foreground">{formatPrice(t.priceUSD)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                          <a href={dexUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
-                          <a href={pumpFunUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Pump</a>
-                          <a href={gmgnUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">GMGN</a>
-                          <a href={maestroUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="Maestro">Maestro</a>
-                          {isPaid && <a href={ttfTelegramUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="TTF Telegram">TTF</a>}
+                          {activeTab === "bsc" ? (
+                            <>
+                              <a href={dexUrlBsc(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
+                              <a href={bscScanUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">BscScan</a>
+                            </>
+                          ) : (
+                            <>
+                              <a href={dexUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
+                              <a href={pumpFunUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Pump</a>
+                              <a href={gmgnUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">GMGN</a>
+                              <a href={maestroUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="Maestro">Maestro</a>
+                              {isPaid && <a href={ttfTelegramUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="TTF Telegram">TTF</a>}
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1959,39 +2049,19 @@ export default function Dashboard() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                          <a
-                            href={dexUrl(t)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
-                          >
-                            Dex
-                          </a>
-                          <a
-                            href={pumpFunUrl(t)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
-                          >
-                            Pump
-                          </a>
-                          <a
-                            href={gmgnUrl(t)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
-                          >
-                            GMGN
-                          </a>
-                          <a
-                            href={maestroUrl(t)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
-                            title="Open in Maestro Telegram bot"
-                          >
-                            Maestro
-                          </a>
+                          {activeTab === "bsc" ? (
+                            <>
+                              <a href={dexUrlBsc(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
+                              <a href={bscScanUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">BscScan</a>
+                            </>
+                          ) : (
+                            <>
+                              <a href={dexUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
+                              <a href={pumpFunUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Pump</a>
+                              <a href={gmgnUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">GMGN</a>
+                              <a href={maestroUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors" title="Open in Maestro Telegram bot">Maestro</a>
+                            </>
+                          )}
                           {t.twitter && (
                             <a
                               href={t.twitter}

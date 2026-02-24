@@ -18,6 +18,18 @@ export async function checkSolanaTokenSecurity(mintAddress: string): Promise<GoP
   } catch { return null; }
 }
 
+/** BSC (Binance Smart Chain) token security. Chain id 56. */
+export async function checkBscTokenSecurity(contractAddress: string): Promise<GoPlusSecurityData | null> {
+  try {
+    const addr = contractAddress.replace(/^0x/, '').toLowerCase();
+    const response = await axios.get('https://api.gopluslabs.io/api/v1/token_security/56', {
+      params: { contract_addresses: addr },
+      timeout: 10000,
+    });
+    return response.data.result?.[addr] || null;
+  } catch { return null; }
+}
+
 export function calculateSecurityScore(data: GoPlusSecurityData): number {
   let score = 100;
   if (data.is_honeypot === '1') return 0;

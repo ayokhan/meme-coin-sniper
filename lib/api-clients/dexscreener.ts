@@ -233,6 +233,92 @@ export async function getSolanaToken(mintAddress: string): Promise<DexPair | nul
   }
 }
 
+const BSC_CHAIN_IDS = ['bsc', 'bnb'];
+const BSC_DEX_IDS = ['pancakeswap', 'pancakeswap_v2', 'pancakeswap_v3', 'biswap', 'apeswap', 'thena'];
+
+/** Fetch BSC pairs via search (same API, filter by chainId). */
+async function fetchBscPairsViaSearch(extraQueries: string[] = []): Promise<DexPair[]> {
+  const queries = [
+    'BNB', 'BUSD', 'CAKE', 'PEPE', 'FLOKI', 'DOGE', 'SHIB', 'MEME', 'TURBO', 'WOJAK',
+    'bsc', 'pancakeswap', 'meme coin', 'new token', 'binance smart chain',
+    ...extraQueries,
+  ];
+  const seen = new Set<string>();
+  const all: DexPair[] = [];
+  for (const q of queries) {
+    try {
+      const res = await axios.get<{ pairs?: DexPair[] }>(`${DEXSCREENER_BASE}/latest/dex/search`, {
+        params: { q },
+        timeout: 15000,
+      });
+      const pairs = res.data?.pairs ?? [];
+      for (const p of pairs) {
+        const chain = (p.chainId || '').toLowerCase();
+        if (!BSC_CHAIN_IDS.includes(chain) && chain !== 'bnb') continue;
+        if (seen.has(p.pairAddress)) continue;
+        seen.add(p.pairAddress);
+        all.push(p);
+      }
+    } catch {
+      // skip
+    }
+  }
+  return all;
+}
+
+export async function getNewBscPairs(minLiquidity = 500, maxAgeMinutes = 120): Promise<DexPair[]> {
+  try {
+    const pairs = await fetchBscPairsViaSearch();
+    const now = Date.now();
+    const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
+    const vol = (p: DexPair) => p.volume?.h24 ?? 0;
+    const dexOk = (p: DexPair) => BSC_DEX_IDS.some((d) => (p.dexId || '').toLowerCase().includes(d));
+    const eligible = pairs
+      .filter((p) => usd(p) >= minLiquidity && (vol(p) > 0 || usd(p) >= minLiquidity) && dexOk(p))
+      .sort((a, b) => toMs(b.pairCreatedAt) - toMs(a.pairCreatedAt));
+    const inWindow = eligible.filter((p) => (now - toMs(p.pairCreatedAt)) <= maxAgeMinutes * 60000);
+    const fallback = eligible.filter((p) => (now - toMs(p.pairCreatedAt)) <= Math.min(maxAgeMinutes * 2, 120) * 60000);
+    const source = inWindow.length > 0 ? inWindow : fallback.length > 0 ? fallback : eligible;
+    return source.slice(0, 300);
+  } catch {
+    return [];
+  }
+}
+
+export async function getTrendingBscPairs(limit = 80): Promise<DexPair[]> {
+  try {
+    const pairs = await fetchBscPairsViaSearch();
+    const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
+    const vol = (p: DexPair) => p.volume?.h24 ?? 0;
+    const change = (p: DexPair) => p.priceChange?.h24 ?? p.priceChange?.h6 ?? 0;
+    const dexOk = (p: DexPair) => BSC_DEX_IDS.some((d) => (p.dexId || '').toLowerCase().includes(d));
+    return pairs
+      .filter((p) => dexOk(p) && usd(p) >= 2000 && vol(p) >= 5000)
+      .sort((a, b) => (vol(b) * (1 + (change(b) ?? 0) / 100)) - (vol(a) * (1 + (change(a) ?? 0) / 100)))
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+export async function getBscToken(contractAddress: string): Promise<DexPair | null> {
+  try {
+    const addr = contractAddress.replace(/^0x/, '').toLowerCase();
+    const response = await axios.get<DexPair[] | { pairs?: DexPair[] }>(
+      `https://api.dexscreener.com/tokens/v1/bsc/${addr}`,
+      { timeout: 15000 }
+    );
+    const raw = response.data;
+    const pairs = Array.isArray(raw) ? raw : (raw?.pairs ?? []);
+    const bscPairs = pairs.filter((p) => BSC_CHAIN_IDS.includes((p.chainId || '').toLowerCase()));
+    if (bscPairs.length === 0) return null;
+    const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
+    return bscPairs.sort((a, b) => usd(b) - usd(a))[0];
+  } catch {
+    return null;
+  }
+}
+
 export function extractSocials(pair: DexPair) {
   const socials = pair.info?.socials ?? [];
   const byType = (name: string) =>
