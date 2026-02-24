@@ -994,7 +994,7 @@ export default function Dashboard() {
               Tokens by viral score
             </CardTitle>
             <p className="text-muted-foreground text-sm mt-1">
-              Higher score = better liquidity, security &amp; socials. <strong className="text-cyan-600 dark:text-cyan-400">40+</strong> = high confidence · <strong>30–39</strong> = watch · <strong>20–29</strong> = risky · <strong>15–19</strong> = very new (Pump.fun).
+              Higher score = better liquidity, security & socials. <strong className="text-cyan-600 dark:text-cyan-400">40+</strong> = high confidence · <strong>30–39</strong> = watch · <strong>20–29</strong> = risky · <strong>15–19</strong> = very new (Pump.fun).
             </p>
             <details className="mt-3 text-xs text-muted-foreground">
               <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">How it works</summary>
@@ -1329,8 +1329,8 @@ export default function Dashboard() {
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   {aiAnalysisChain === "bsc"
-                    ? "Enter a BSC token contract address (0x + 40 hex chars). Pro/VIP only. Optionally add the amount you plan to invest. NovaStaris AI will analyze on-chain data, security, and give buy zone, take profit &amp; stop loss."
-                    : "Enter a Solana token contract address (CA). Optionally add the amount you plan to invest so the AI can say if it&apos;s too risky for the token&apos;s liquidity. NovaStaris AI will analyze on-chain data, security, support/resistance, and give buy zone, take profit &amp; stop loss."}
+                    ? "Enter a BSC token contract address (0x + 40 hex chars). Pro/VIP only. Optionally add the amount you plan to invest. NovaStaris AI will analyze on-chain data, security, and give buy zone, take profit & stop loss."
+                    : "Enter a Solana token contract address (CA). Optionally add the amount you plan to invest so the AI can say if it's too risky for the token's liquidity. NovaStaris AI will analyze on-chain data, security, support/resistance, and give buy zone, take profit & stop loss."}
                 </p>
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex-1 min-w-[200px]">
@@ -1559,7 +1559,7 @@ export default function Dashboard() {
                                   }}
                                   className="text-xs border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50"
                                 >
-                                  No, didn&apos;t work
+                                  No, didn't work
                                 </Button>
                               </div>
                               <textarea
@@ -1604,7 +1604,7 @@ export default function Dashboard() {
                   Trade with Confidence using NovaStaris Advanced AI System
                 </h2>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Upload a chart (any timeframe) and enter your trade parameters. NovaStaris AI will analyze support/resistance, market structure, entry zone, take profit &amp; stop loss, tailored for futures.
+                  Upload a chart (any timeframe) and enter your trade parameters. NovaStaris AI will analyze support/resistance, market structure, entry zone, take profit & stop loss, tailored for futures.
                 </p>
                 <div className="space-y-4">
                   <div>
