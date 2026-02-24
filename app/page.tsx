@@ -21,6 +21,7 @@ import FuturesWorkflow from "@/components/FuturesWorkflow";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 import TradingBotPanel from "@/components/TradingBotPanel";
+import SolanaTradingBotPanel from "@/components/SolanaTradingBotPanel";
 
 type Token = {
   id: string;
@@ -91,6 +92,8 @@ export default function Dashboard() {
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
   const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
+  type TradingBotView = "futures" | "solana";
+  const [tradingBotView, setTradingBotView] = useState<TradingBotView>("futures");
 
   useEffect(() => {
     setMounted(true);
@@ -1830,7 +1833,38 @@ export default function Dashboard() {
                 <NarrativesPanel />
               </div>
             ) : activeTab === "trading-bot" ? (
-              <TradingBotPanel />
+              <div>
+                <div className="mx-6 mt-4 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Bot:</span>
+                  <button
+                    type="button"
+                    onClick={() => setTradingBotView("futures")}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      tradingBotView === "futures"
+                        ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                        : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                    }`}
+                  >
+                    Crypto Futures
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTradingBotView("solana")}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      tradingBotView === "solana"
+                        ? "bg-violet-500 text-white dark:bg-violet-600"
+                        : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                    }`}
+                  >
+                    Solana
+                  </button>
+                  <span className="text-xs text-muted-foreground ml-1">
+                    {tradingBotView === "futures" && "Blofin-powered futures bot (demo/live)."}
+                    {tradingBotView === "solana" && "Jupiter + Phantom for meme coin swaps. Owner only."}
+                  </span>
+                </div>
+                {tradingBotView === "futures" ? <TradingBotPanel /> : <SolanaTradingBotPanel />}
+              </div>
             ) : activeTab === "coach-calls" ? (
               <CoachCallsPanel isOwner={isOwner} isVip={isVip} />
             ) : activeTab === "wallets" ? (
