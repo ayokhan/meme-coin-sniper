@@ -183,6 +183,20 @@ export default function AdminFeatureFlagsPage() {
             )}
           </CardContent>
         </Card>
+
+        <Card className="mt-6 border-zinc-200 dark:border-zinc-800 border-dashed">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Moralis API usage</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Daily usage and limits are not shown in-app yet. Check your usage in the{" "}
+              <a href="https://admin.moralis.io" target="_blank" rel="noopener noreferrer" className="underline text-cyan-600 dark:text-cyan-400 hover:no-underline">
+                Moralis dashboard
+              </a>
+              . In-app usage display can be added when Moralis exposes a usage or quota API.
+            </p>
+          </CardHeader>
+        </Card>
+
         <p className="mt-4 text-sm text-muted-foreground">
           <Link href="/" className="underline">Back to app</Link>
         </p>

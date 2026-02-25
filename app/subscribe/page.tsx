@@ -144,8 +144,11 @@ export default function SubscribePage() {
 
       <main className="mx-auto max-w-4xl px-4 py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
-        <p className="text-zinc-600 dark:text-zinc-400 mb-8">
+        <p className="text-zinc-600 dark:text-zinc-400 mb-4">
           Pro: Surge, Transactions, NovaStaris AI Analysis, Futures. VIP: full access + CT Scan, Profitable Traders Wallet Tracker, and Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram).
+        </p>
+        <p className="text-sm text-muted-foreground mb-8">
+          Usage this month: AI analyses — · Alerts — <span className="italic">(tracking coming soon)</span>
         </p>
 
         <div className="flex gap-2 mb-6">

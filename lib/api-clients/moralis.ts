@@ -28,24 +28,44 @@ export interface MoralisNewTokensResponse {
   cursor?: string;
 }
 
+const MORALIS_RETRIES = 2;
+const MORALIS_BACKOFF_MS = 800;
+
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= MORALIS_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (attempt < MORALIS_RETRIES) {
+        await new Promise((r) => setTimeout(r, MORALIS_BACKOFF_MS * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 export async function getPumpFunNewTokens(limit = 50): Promise<MoralisNewToken[]> {
   if (!MORALIS_API_KEY) {
     return [];
   }
   try {
-    const res = await axios.get<MoralisNewTokensResponse>(
-      `${MORALIS_GATEWAY}/token/mainnet/exchange/pumpfun/new`,
-      {
-        params: { limit: Math.min(100, Math.max(1, limit)) },
-        headers: {
-          'Accept': 'application/json',
-          'X-API-Key': MORALIS_API_KEY,
-        },
-        timeout: 15000,
-      }
-    );
-    const list = res.data?.result ?? [];
-    return Array.isArray(list) ? list : [];
+    return await withRetry(async () => {
+      const res = await axios.get<MoralisNewTokensResponse>(
+        `${MORALIS_GATEWAY}/token/mainnet/exchange/pumpfun/new`,
+        {
+          params: { limit: Math.min(100, Math.max(1, limit)) },
+          headers: {
+            'Accept': 'application/json',
+            'X-API-Key': MORALIS_API_KEY,
+          },
+          timeout: 15000,
+        }
+      );
+      const list = res.data?.result ?? [];
+      return Array.isArray(list) ? list : [];
+    });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     console.warn('Moralis pump.fun new tokens error:', msg);
@@ -88,20 +108,22 @@ export async function getWalletBuySwapsFromMoralis(
   if (!MORALIS_API_KEY) return [];
 
   try {
-    const res = await axios.get<{ result?: MoralisSwapResult[] }>(
-      `${MORALIS_GATEWAY}/account/mainnet/${walletAddress}/swaps`,
-      {
-        params: {
-          limit: Math.min(limit, 100),
-          order: 'DESC',
-          transactionTypes: 'buy',
-        },
-        headers: {
-          Accept: 'application/json',
-          'X-API-Key': MORALIS_API_KEY,
-        },
-        timeout: 15000,
-      }
+    const res = await withRetry(() =>
+      axios.get<{ result?: MoralisSwapResult[] }>(
+        `${MORALIS_GATEWAY}/account/mainnet/${walletAddress}/swaps`,
+        {
+          params: {
+            limit: Math.min(limit, 100),
+            order: 'DESC',
+            transactionTypes: 'buy',
+          },
+          headers: {
+            Accept: 'application/json',
+            'X-API-Key': MORALIS_API_KEY,
+          },
+          timeout: 15000,
+        }
+      )
     );
 
     const swaps = res.data?.result ?? [];

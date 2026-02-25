@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Copy, Send } from "lucide-react";
+import { Zap, Copy, Send, Star } from "lucide-react";
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
@@ -60,10 +60,12 @@ type WalletAlert = {
 
 const AUTO_REFRESH_SECONDS = 60;
 
-type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "narratives" | "trading-bot" | "coach-calls" | "bsc";
+type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "narratives" | "trading-bot" | "coach-calls" | "bsc" | "watchlist";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "narratives", "ct", "wallets", "coach-calls"];
-/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. BSC tab is free for all. */
+/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. BSC + Watchlist are free for all. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls"];
+const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
+type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc"; symbol?: string; name?: string };
 
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
@@ -98,9 +100,43 @@ export default function Dashboard() {
   type TradingBotView = "futures" | "solana";
   const [tradingBotView, setTradingBotView] = useState<TradingBotView>("futures");
 
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   useEffect(() => {
     setMounted(true);
+    try {
+      setOnboardingDismissed(localStorage.getItem("novastaris_onboarding_dismissed") === "1");
+      const raw = localStorage.getItem(WATCHLIST_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setWatchlist(parsed);
+      }
+    } catch {
+      // leave false so banner shows
+    }
   }, []);
+  const persistWatchlist = (next: WatchlistItem[]) => {
+    setWatchlist(next);
+    try {
+      localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+  };
+  const toggleWatchlist = (t: Token, chain: "solana" | "bsc") => {
+    const key = `${t.contractAddress}:${chain}`;
+    const inList = watchlist.some((w) => `${w.contractAddress}:${w.chain ?? "solana"}` === key);
+    if (inList) {
+      persistWatchlist(watchlist.filter((w) => `${w.contractAddress}:${w.chain ?? "solana"}` !== key));
+    } else {
+      persistWatchlist([...watchlist, { contractAddress: t.contractAddress, chain, symbol: t.symbol, name: t.name ?? undefined }]);
+    }
+  };
+  const isInWatchlist = (contractAddress: string, chain: "solana" | "bsc") =>
+    watchlist.some((w) => w.contractAddress === contractAddress && (w.chain ?? "solana") === chain);
+  const dismissOnboarding = () => {
+    setOnboardingDismissed(true);
+    try {
+      localStorage.setItem("novastaris_onboarding_dismissed", "1");
+    } catch {}
+  };
 
   // Mark live agent as online when owner has dashboard open (so Nja shows "live agent available")
   useEffect(() => {
@@ -148,6 +184,8 @@ export default function Dashboard() {
   const [aiAnalysisFeedbackLoading, setAiAnalysisFeedbackLoading] = useState(false);
   const [aiAnalysisFeedbackSent, setAiAnalysisFeedbackSent] = useState<"good" | "bad" | null>(null);
   const [aiAnalysisFeedbackNote, setAiAnalysisFeedbackNote] = useState("");
+  const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   // Crypto Futures tab
   const [futuresChartFile, setFuturesChartFile] = useState<File | null>(null);
   const [futuresChartPreview, setFuturesChartPreview] = useState<string | null>(null);
@@ -184,7 +222,7 @@ export default function Dashboard() {
       if (isPaid) fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "trading-bot") {
+    if (tab === "futures" || tab === "trading-bot" || tab === "watchlist") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -352,9 +390,9 @@ export default function Dashboard() {
     if (activeTab === "surge") fetchTokens("surge");
   }, [surgeWindow]);
 
-  // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives). Wallets tab refreshes every 2 min.
+  // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "narratives" || activeTab === "trading-bot") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "watchlist") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         fetchTrackedWallets();
@@ -846,6 +884,9 @@ export default function Dashboard() {
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               <Link href="/support">Support</Link>
             </Button>
+            <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+              <Link href="/status">Status</Link>
+            </Button>
             {status !== "authenticated" && (
               <>
                 <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
@@ -937,9 +978,19 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
+        {mounted && !onboardingDismissed && (
+          <div className="mb-6 rounded-xl border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/90 dark:bg-cyan-950/40 px-4 py-3 text-sm text-cyan-800 dark:text-cyan-200 shadow-sm flex items-center justify-between gap-3 flex-wrap">
+            <span><strong>New here?</strong> Start with <strong>Go Hunting</strong> or <strong>Trending</strong>, then use <strong>NovaStaris AI Analysis</strong> on tokens you like.</span>
+            <Button variant="ghost" size="sm" onClick={dismissOnboarding} className="shrink-0 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-200/50 dark:hover:bg-cyan-800/50">Dismiss</Button>
+          </div>
+        )}
         {error && (
-          <div className="mb-6 rounded-xl border border-amber-200/80 dark:border-amber-800/80 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200 shadow-sm">
-            {error}
+          <div className="mb-6 rounded-xl border border-amber-200/80 dark:border-amber-800/80 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2">
+            <span className="flex-1">{error}</span>
+            <span className="flex gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => { setError(null); fetchTokens(activeTab); }} className="border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200">Retry</Button>
+              <Link href="/support"><Button variant="ghost" size="sm" className="text-amber-800 dark:text-amber-200">Report issue</Button></Link>
+            </span>
           </div>
         )}
         {isOwner && (
@@ -1049,6 +1100,7 @@ export default function Dashboard() {
                 <TabsTrigger value="wallets" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet Tracker</TabsTrigger>
                 <TabsTrigger value="coach-calls" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Coach Calls + Telegram Signals</TabsTrigger>
                 <TabsTrigger value="bsc" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
+                <TabsTrigger value="watchlist" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Watchlist {watchlist.length > 0 ? `(${watchlist.length})` : ""}</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
@@ -1291,9 +1343,34 @@ export default function Dashboard() {
                 </div>
               </details>
             )}
-            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" ? (
-              <div className="flex items-center justify-center py-16 text-muted-foreground">
-                <span className="inline-block animate-[nova-shimmer_1.2s_ease-in-out_infinite]">Loading…</span>
+            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && tokensForDisplay.length === 0 ? (
+              <div className="px-4 py-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
+                      <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Symbol</TableHead>
+                      <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">Name</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Score</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Age</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                      <TableRow key={i} className="border-zinc-200/60 dark:border-zinc-800/60">
+                        <TableCell><div className="h-5 w-12 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" /></TableCell>
+                        <TableCell className="hidden sm:table-cell"><div className="h-5 w-24 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" /></TableCell>
+                        <TableCell className="text-right"><div className="h-5 w-8 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
+                        <TableCell className="text-right"><div className="h-5 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
+                        <TableCell className="text-right"><div className="h-5 w-14 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
+                        <TableCell className="text-right"><div className="h-5 w-16 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
+                        <TableCell className="text-right"><div className="h-5 w-20 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             ) : activeTab === "ai-analysis" ? (
               <div className="mx-6 py-8 max-w-2xl">
@@ -1422,6 +1499,12 @@ export default function Dashboard() {
                         {aiAnalysisResult.signal === "buy" ? "BUY" : "NO BUY"}
                       </Badge>
                     </div>
+                    <details className="mt-3 text-sm text-muted-foreground">
+                      <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">Why 0–100?</summary>
+                      <p className="mt-2 pl-2 border-l-2 border-cyan-300 dark:border-cyan-700">
+                        NovaStaris AI weighs liquidity, volume, security checks, and socials. 76+ = high confidence; 51–75 = watch; 26–50 = risky; 0–25 = very risky or new. The score is a snapshot — always do your own research and manage risk.
+                      </p>
+                    </details>
                     {aiAnalysisResult.tokenInfo && (aiAnalysisResult.tokenInfo.liquidityUsd != null || aiAnalysisResult.tokenInfo.volume24h != null) && (
                       <p className="mt-2 text-xs text-muted-foreground">
                         Liquidity ${(aiAnalysisResult.tokenInfo.liquidityUsd ?? 0).toLocaleString()} · Vol 24h ${(aiAnalysisResult.tokenInfo.volume24h ?? 0).toLocaleString()}
@@ -2032,6 +2115,45 @@ export default function Dashboard() {
                 </div>
                 )}
               </div>
+            ) : activeTab === "watchlist" ? (
+              watchlist.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
+                  <p className="font-semibold text-zinc-700 dark:text-zinc-300">Your watchlist is empty</p>
+                  <p className="mt-2">Star tokens from Go Hunting, Trending, BSC, or other tabs to see them here.</p>
+                </div>
+              ) : (
+                <div className="px-4 py-4 overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
+                        <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Symbol</TableHead>
+                        <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Contract</TableHead>
+                        <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Chain</TableHead>
+                        <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                        <TableHead className="w-10" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {watchlist.map((w) => {
+                        const dexUrl = (w.chain ?? "solana") === "bsc" ? `https://dexscreener.com/bsc/${w.contractAddress}` : `https://dexscreener.com/solana/${w.contractAddress}`;
+                        return (
+                          <TableRow key={`${w.contractAddress}-${w.chain ?? "solana"}`} className="border-zinc-200/60 dark:border-zinc-800/60">
+                            <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">{w.symbol ?? "—"}</TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground max-w-[120px] truncate" title={w.contractAddress}>{w.contractAddress.slice(0, 6)}…{w.contractAddress.slice(-4)}</TableCell>
+                            <TableCell className="text-zinc-600 dark:text-zinc-400">{(w.chain ?? "solana").toUpperCase()}</TableCell>
+                            <TableCell className="text-right">
+                              <a href={dexUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Dex</a>
+                            </TableCell>
+                            <TableCell>
+                              <button type="button" onClick={() => persistWatchlist(watchlist.filter((x) => x.contractAddress !== w.contractAddress || (x.chain ?? "solana") !== (w.chain ?? "solana")))} className="text-xs text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 font-medium" title="Remove from watchlist">Remove</button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )
             ) : tokensForDisplay.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
                 <p className="font-semibold text-zinc-700 dark:text-zinc-300">
@@ -2065,6 +2187,16 @@ export default function Dashboard() {
                           ? "Go Hunting: newest pairs (last 2h). Each refresh shuffles order. Auto-refreshes every 60s."
                           : "Trending = live movers. List auto-refreshes every 60s."}
                 </p>
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+                  <Button onClick={() => fetchTokens(activeTab)} disabled={loading} variant="outline" size="sm" className="border-zinc-300 dark:border-zinc-600">
+                    {loading ? "Loading…" : "Refresh"}
+                  </Button>
+                  {activeTab === "ct" && (
+                    <Button onClick={() => runScan("twitter")} disabled={scanning !== "idle"} size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700">
+                      {scanning === "twitter" ? "Scanning…" : "Scan Twitter"}
+                    </Button>
+                  )}
+                </div>
               </div>
             ) : activeTab === "transactions" ? (
               <Table>
@@ -2181,6 +2313,28 @@ export default function Dashboard() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => toggleWatchlist(t, activeTab === "bsc" ? "bsc" : "solana")}
+                            className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium transition-colors ${isInWatchlist(t.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300" : "text-zinc-500 hover:text-amber-500 dark:text-zinc-400 dark:hover:text-amber-400"}`}
+                            title={isInWatchlist(t.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "Remove from watchlist" : "Add to watchlist"}
+                          >
+                            <Star className={`h-3.5 w-3.5 ${isInWatchlist(t.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "fill-current" : ""}`} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = activeTab === "bsc" ? dexUrlBsc(t) : dexUrl(t);
+                              navigator.clipboard.writeText(url).then(() => {
+                                setCopiedTokenId(t.id);
+                                setTimeout(() => setCopiedTokenId(null), 2000);
+                              });
+                            }}
+                            className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                            title="Copy Dex link"
+                          >
+                            {copiedTokenId === t.id ? "Copied!" : <><Copy className="h-3 w-3 mr-0.5 inline" /> Share</>}
+                          </button>
                           {activeTab === "bsc" ? (
                             <>
                               <a href={dexUrlBsc(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
