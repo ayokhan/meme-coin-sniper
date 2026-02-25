@@ -35,6 +35,7 @@ export default function AdminFeatureFlagsPage() {
   const [flags, setFlags] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [toggling, setToggling] = useState<string | null>(null);
 
   const load = () =>
@@ -56,6 +57,7 @@ export default function AdminFeatureFlagsPage() {
     const next = !flags[key];
     setToggling(key);
     setError("");
+    setSuccessMessage("");
     try {
       const res = await fetch("/api/admin/feature-flags", {
         method: "PATCH",
@@ -63,8 +65,11 @@ export default function AdminFeatureFlagsPage() {
         body: JSON.stringify({ key, enabled: next }),
       });
       const data = await res.json();
-      if (data.success) setFlags(data.flags ?? {});
-      else setError(data.error ?? "Update failed");
+      if (data.success) {
+        setFlags(data.flags ?? {});
+        setSuccessMessage(next ? "Turned on." : "Turned off.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Update failed");
     } catch {
       setError("Update failed");
     } finally {
@@ -133,6 +138,11 @@ export default function AdminFeatureFlagsPage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
+            {successMessage && (
+              <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 text-sm px-3 py-2">
+                {successMessage}
+              </div>
+            )}
             {error && (
               <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2">
                 {error}

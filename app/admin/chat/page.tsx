@@ -26,6 +26,7 @@ export default function AdminChatPage() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -88,6 +89,8 @@ export default function AdminChatPage() {
       }
       setReply("");
       loadSessions();
+      setSuccessMessage("Message sent.");
+      setTimeout(() => setSuccessMessage(""), 4000);
     } catch {
       setError("Failed to send");
     } finally {
@@ -184,6 +187,11 @@ export default function AdminChatPage() {
             </p>
           </CardHeader>
           <CardContent className="p-0">
+            {successMessage && (
+              <div className="mx-4 mt-2 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 text-sm px-3 py-2">
+                {successMessage}
+              </div>
+            )}
             {error && (
               <div className="mx-4 mt-2 rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2">
                 {error}

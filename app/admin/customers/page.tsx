@@ -25,6 +25,7 @@ export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadCustomers = () => {
@@ -48,11 +49,15 @@ export default function AdminCustomersPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this customer? This cannot be undone.")) return;
     setDeletingId(id);
+    setError("");
     try {
       const res = await fetch(`/api/admin/customers/${id}`, { method: "DELETE" });
       const data = await res.json();
-      if (data.success) loadCustomers();
-      else setError(data.error ?? "Delete failed");
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage("Customer removed.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Delete failed");
     } catch {
       setError("Delete failed");
     } finally {
@@ -101,6 +106,11 @@ export default function AdminCustomersPage() {
             <p className="text-sm text-muted-foreground">Registered users and subscription status. Only visible to owners (OWNER_EMAIL).</p>
           </CardHeader>
           <CardContent>
+            {successMessage && (
+              <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 text-sm px-3 py-2 mb-4">
+                {successMessage}
+              </div>
+            )}
             {error && (
               <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2 mb-4">
                 {error}

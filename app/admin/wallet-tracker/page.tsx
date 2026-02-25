@@ -21,6 +21,7 @@ export default function AdminWalletTrackerPage() {
   const [firstBuyEnabled, setFirstBuyEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [newAddress, setNewAddress] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [adding, setAdding] = useState(false);
@@ -75,8 +76,10 @@ export default function AdminWalletTrackerPage() {
     try {
       const res = await fetch("/api/admin/wallet-tracker/seed", { method: "POST" });
       const data = await res.json();
-      if (data.success) load();
-      else setError(data.error ?? "Seed failed");
+      if (data.success) {
+        load();
+        showSuccess("Default wallets loaded.");
+      } else setError(data.error ?? "Seed failed");
     } catch {
       setError("Seed failed");
     } finally {
@@ -92,6 +95,7 @@ export default function AdminWalletTrackerPage() {
       const data = await res.json();
       if (data.success) {
         loadWallets();
+        showSuccess("Wallets imported from config.");
       } else setError(data.error ?? "Import failed");
     } catch {
       setError("Import failed");
@@ -132,8 +136,10 @@ export default function AdminWalletTrackerPage() {
         method: "DELETE",
       });
       const data = await res.json();
-      if (data.success) loadWallets();
-      else setError(data.error ?? "Remove failed");
+      if (data.success) {
+        loadWallets();
+        showSuccess("Wallet removed.");
+      } else setError(data.error ?? "Remove failed");
     } catch {
       setError("Remove failed");
     } finally {
@@ -141,8 +147,15 @@ export default function AdminWalletTrackerPage() {
     }
   };
 
+  const showSuccess = (msg: string) => {
+    setError("");
+    setSuccessMessage(msg);
+    setTimeout(() => setSuccessMessage(""), 4000);
+  };
+
   const handleSaveRules = async () => {
     setSavingRules(true);
+    setError("");
     try {
       const res = await fetch("/api/admin/wallet-tracker/rules", {
         method: "PUT",
@@ -150,8 +163,10 @@ export default function AdminWalletTrackerPage() {
         body: JSON.stringify(rules),
       });
       const data = await res.json();
-      if (data.success) loadRules();
-      else setError(data.error ?? "Save failed");
+      if (data.success) {
+        loadRules();
+        showSuccess("Alert rules saved.");
+      } else setError(data.error ?? "Save failed");
     } catch {
       setError("Save failed");
     } finally {
@@ -171,6 +186,7 @@ export default function AdminWalletTrackerPage() {
       const data = await res.json();
       if (data.success && typeof data.flags?.owner_first_buy_alerts === "boolean") {
         setFirstBuyEnabled(data.flags.owner_first_buy_alerts);
+        showSuccess(data.flags.owner_first_buy_alerts ? "First buy alerts turned ON." : "First buy alerts turned OFF.");
       } else setError(data.error ?? "Toggle failed");
     } catch {
       setError("Toggle failed");
@@ -407,11 +423,6 @@ export default function AdminWalletTrackerPage() {
             </p>
           </CardHeader>
           <CardContent>
-            {error && (
-              <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2 mb-4">
-                {error}
-              </div>
-            )}
             {wallets.length === 0 && !loading && (
               <div className="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200 text-sm px-3 py-3">
                 No wallets in database. Click &quot;Load default wallets&quot; to import from config, or add manually.
