@@ -840,41 +840,19 @@ export default function Dashboard() {
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 p-0.5" role="group" aria-label="Theme">
-              <button
-                type="button"
-                onClick={() => setTheme("light")}
-                className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-all ${
-                  !mounted ? "text-zinc-500 dark:text-zinc-400" : theme === "light"
-                    ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-                }`}
-              >
-                Light
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme("dark")}
-                className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-all ${
-                  !mounted ? "text-zinc-500 dark:text-zinc-400" : theme === "dark"
-                    ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-                }`}
-              >
-                Dark
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme("system")}
-                className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-all ${
-                  !mounted ? "text-zinc-500 dark:text-zinc-400" : theme === "system"
-                    ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-                }`}
-              >
-                System
-              </button>
-            </div>
+            <label htmlFor="theme-select" className="sr-only">Theme</label>
+            <select
+              id="theme-select"
+              value={mounted ? (theme ?? "dark") : "dark"}
+              onChange={(e) => setTheme(e.target.value as "light" | "dark" | "system" | "money")}
+              className="h-8 min-w-[7rem] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 cursor-pointer"
+              aria-label="Theme"
+            >
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="system">System</option>
+              <option value="money">$ Money</option>
+            </select>
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               <Link href="/about">About</Link>
             </Button>
