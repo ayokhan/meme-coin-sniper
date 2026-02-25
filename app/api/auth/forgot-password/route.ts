@@ -16,7 +16,6 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, hashedPassword: true },
     });
     // Always return success to avoid email enumeration
     if (!user?.hashedPassword) {
@@ -25,7 +24,7 @@ export async function POST(request: Request) {
 
     const token = randomBytes(TOKEN_BYTES).toString('hex');
     const expiresAt = new Date(Date.now() + EXPIRY_HOURS * 60 * 60 * 1000);
-    await prisma.passwordResetToken.create({
+    await (prisma as unknown as { passwordResetToken: { create: (args: { data: { token: string; userId: string; expiresAt: Date } }) => Promise<unknown> } }).passwordResetToken.create({
       data: { token, userId: user.id, expiresAt },
     });
 

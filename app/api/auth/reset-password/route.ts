@@ -15,9 +15,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 });
     }
 
-    const record = await prisma.passwordResetToken.findUnique({
+    const passwordResetToken = (prisma as unknown as { passwordResetToken: { findUnique: (args: { where: { token: string } }) => Promise<{ id: string; userId: string; expiresAt: Date } | null>; delete: (args: { where: { id: string } }) => Promise<unknown> } }).passwordResetToken;
+    const record = await passwordResetToken.findUnique({
       where: { token },
-      include: { user: { select: { id: true } } },
     });
     if (!record || record.expiresAt < new Date()) {
       return NextResponse.json({ error: 'Invalid or expired reset link. Request a new one.' }, { status: 400 });
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
         where: { id: record.userId },
         data: { hashedPassword },
       }),
-      prisma.passwordResetToken.delete({ where: { id: record.id } }),
+      passwordResetToken.delete({ where: { id: record.id } }),
     ]);
 
     return NextResponse.json({ success: true, message: 'Password updated. You can sign in.' });

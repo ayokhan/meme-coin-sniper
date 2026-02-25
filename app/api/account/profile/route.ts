@@ -10,12 +10,17 @@ export async function GET() {
   }
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { name: true, email: true, phone: true, country: true, experienceTradingCrypto: true },
   });
   if (!user) {
     return NextResponse.json({ error: 'User not found.' }, { status: 404 });
   }
-  return NextResponse.json(user);
+  return NextResponse.json({
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    country: user.country,
+    experienceTradingCrypto: user.experienceTradingCrypto,
+  });
 }
 
 export async function PATCH(request: Request) {

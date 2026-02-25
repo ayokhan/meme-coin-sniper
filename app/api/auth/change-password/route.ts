@@ -23,7 +23,6 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { hashedPassword: true },
     });
     if (!user?.hashedPassword) {
       return NextResponse.json({ error: 'Your account uses wallet sign-in. Password change is not available.' }, { status: 400 });
