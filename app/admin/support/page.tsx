@@ -128,7 +128,7 @@ export default function AdminSupportPage() {
             {status === "loading" ? "Loading…" : "Sign in to view support tickets."}
             {!session && (
               <p className="mt-2">
-                <Link href="/register" className="underline">Sign in</Link>
+                <Link href="/signin" className="underline">Sign in</Link>
               </p>
             )}
           </CardContent>

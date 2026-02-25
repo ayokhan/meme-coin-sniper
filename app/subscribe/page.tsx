@@ -103,7 +103,7 @@ export default function SubscribePage() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
         <p className="text-zinc-700 dark:text-zinc-300 mb-4">Sign in to subscribe.</p>
         <Button asChild>
-          <Link href="/register">Sign in</Link>
+          <Link href="/signin">Sign in</Link>
         </Button>
       </div>
     );

@@ -847,9 +847,15 @@ export default function Dashboard() {
               <Link href="/support">Support</Link>
             </Button>
             {status !== "authenticated" && (
-              <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
-                <Link href="/register">Sign in</Link>
-              </Button>
+              <span className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" asChild className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+                  <Link href="/register">Register</Link>
+                </Button>
+                <span className="text-zinc-400 dark:text-zinc-500 font-normal">/</span>
+                <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
+                  <Link href="/signin">Sign in</Link>
+                </Button>
+              </span>
             )}
             {status === "authenticated" && !isPaid && (
               <Button size="sm" asChild className="bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">

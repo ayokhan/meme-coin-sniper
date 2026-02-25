@@ -130,7 +130,7 @@ export default function AdminChatPage() {
             {authStatus === "loading" ? "Loading…" : "Sign in to view live chat."}
             {!session && (
               <p className="mt-2">
-                <Link href="/register" className="underline">Sign in</Link>
+                <Link href="/signin" className="underline">Sign in</Link>
               </p>
             )}
           </CardContent>

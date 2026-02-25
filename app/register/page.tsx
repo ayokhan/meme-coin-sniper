@@ -1,17 +1,16 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
 
 function RegisterForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const signInHref = callbackUrl !== "/" ? `/signin?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/signin";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -45,28 +44,7 @@ function RegisterForm() {
         setError(data.error || "Registration failed.");
         return;
       }
-      setSuccess("Registration successful. You can sign in below.");
-      setTimeout(() => document.getElementById("sign-in")?.scrollIntoView({ behavior: "smooth" }), 300);
-    } catch {
-      setError("Something went wrong.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-    setLoading(true);
-    try {
-      const res = await signIn("email", { email, password, redirect: false });
-      if (res?.error) {
-        setError(res.error === "CredentialsSignin" ? "Invalid email or password." : res.error);
-        return;
-      }
-      router.push(callbackUrl);
-      router.refresh();
+      setSuccess("Registration successful. Sign in to continue.");
     } catch {
       setError("Something went wrong.");
     } finally {
@@ -82,7 +60,8 @@ function RegisterForm() {
             <Zap className="h-6 w-6 text-amber-500" />
             NovaStaris
           </Link>
-          <CardTitle className="text-lg mt-2">Register or sign in</CardTitle>
+          <CardTitle className="text-lg mt-2">Create an account</CardTitle>
+          <p className="text-sm text-muted-foreground">Register with your email to get started.</p>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -91,14 +70,15 @@ function RegisterForm() {
             </div>
           )}
           {success && (
-            <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-sm px-3 py-2">
-              {success}
+            <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-sm px-3 py-2 flex flex-col gap-2">
+              <span>{success}</span>
+              <Button asChild size="sm" className="w-fit bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700">
+                <Link href={signInHref}>Sign in</Link>
+              </Button>
             </div>
           )}
 
-          {/* Register */}
           <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Create an account</h3>
             <form onSubmit={handleRegister} className="space-y-3">
               <input
                 type="text"
@@ -158,35 +138,11 @@ function RegisterForm() {
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t border-zinc-200 dark:border-zinc-700" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase text-muted-foreground">
-              <span className="bg-white dark:bg-zinc-900 px-2">Already have an account? Sign in</span>
-            </div>
-          </div>
-
-          {/* Sign in */}
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Sign in</h3>
-            <form onSubmit={handleSignIn} className="space-y-3">
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
-                required
-              />
-              <Button type="submit" variant="secondary" className="w-full" disabled={loading}>
-                {loading ? "Signing in…" : "Sign in with email"}
+            <div className="relative flex justify-center">
+              <Button variant="outline" size="sm" className="bg-white dark:bg-zinc-900" asChild>
+                <Link href={signInHref}>Already have an account? Sign in</Link>
               </Button>
-            </form>
+            </div>
           </div>
 
           <p className="text-xs text-center text-muted-foreground">
@@ -207,7 +163,7 @@ function RegisterFallback() {
             <Zap className="h-6 w-6 text-amber-500" />
             NovaStaris
           </Link>
-          <CardTitle className="text-lg mt-2">Register or sign in</CardTitle>
+          <CardTitle className="text-lg mt-2">Create an account</CardTitle>
         </CardHeader>
       </Card>
     </div>
