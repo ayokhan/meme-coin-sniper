@@ -113,7 +113,7 @@ export async function getCandles(instId: string, bar: string, limit = 100): Prom
 /** Last price (mark or index). */
 export async function getTicker(instId: string): Promise<{ last: string } | null> {
   const symbol = instIdToKucoinSymbol(instId);
-  const out = await publicRequest<{ data?: { markPrice?: string; lastTradePrice?: string } }>(
+  const out = await publicRequest<{ markPrice?: string; lastTradePrice?: string }>(
     `/api/v1/ticker?symbol=${encodeURIComponent(symbol)}`
   );
   if (out.code !== "200000" || !out.data) return null;
