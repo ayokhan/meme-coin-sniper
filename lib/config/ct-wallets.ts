@@ -18,6 +18,15 @@ export const TRACKED_WALLETS: TrackedWallet[] = [
   { address: "AowTUid5daQr9EqwazF7hDm3jBTQSisv6LaHGhQL8k92", label: "Tracker 5" },
   { address: "BKYYNoYNEmDNB4kgqQ12jHHEmGpLFK9hgjsBUjt3Cu6i", label: "Tracker 6" },
   { address: "Cr1n5ZTc1W42zxHQ2LEAHUyvKPrm3ABAHKmFABMh9bKT", label: "Tracker 7" },
+  // Admin UI wallets (also in DB – keep in config for reference/fallback)
+  { address: "BxwVRAXHSDYW4vQTY9fnu2ZyUwUm9BKej9V6udS9oPnv", label: "Person 2 watch" },
+  { address: "99i9uVA7Q56bY22ajKKUfTZTgTeP5yCtVGsrG9J4pDYQ", label: "Zrool" },
+  { address: "nya666pQkP3PzWxi7JngU3rRMHuc7zbLK8c8wxQ4qpT", label: "Good wins" },
+  { address: "kiwiC4pg5mC4N5AhpXc4Av3V6oV7Sn2p3CqB7NeHbJJ", label: "100% wins" },
+  { address: "AxCtikbNYYtU9yNU4eAkb3n6xka6tYMJQbq8nnnpa9Kf", label: "BONK 2" },
+  { address: "BbwF4wSwmxMVp7xubA7qigCUU6RMcvK2soMu8VrDHjDH", label: "steady 2" },
+  { address: "EQ2oeBESsspGe5qppFzfZjjboU1Nhoz52VxzkYKy3Z1C", label: "" },
+  { address: "tXboQ26vHHLDe2cuSoK3WpSZduRTx3LqdG2GcJuYcVG", label: "DEV1" },
   // Additional tracked wallets
   { address: "12zQYCKJbCkJtVQcNJd9hPtkC1YzUvU3EqLZAQ1JDN6m", label: "Fake Ansem" },
   { address: "26kZ9rg8Y5pd4j1tdT4cbT8BQRu5uDbXkaVs3L5QasHy", label: "ORANGIE" },

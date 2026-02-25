@@ -22,6 +22,7 @@ export default function AdminWalletTrackerPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [savingRules, setSavingRules] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const loadWallets = () =>
     fetch("/api/admin/wallet-tracker/wallets")
@@ -62,6 +63,22 @@ export default function AdminWalletTrackerPage() {
       setError("Seed failed");
     } finally {
       setSeeding(false);
+    }
+  };
+
+  const handleImportConfig = async () => {
+    setImporting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/wallet-tracker/import-config", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        loadWallets();
+      } else setError(data.error ?? "Import failed");
+    } catch {
+      setError("Import failed");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -246,6 +263,14 @@ export default function AdminWalletTrackerPage() {
                 </Button>
               </div>
             )}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleImportConfig} disabled={importing}>
+                {importing ? "Importing…" : "Import from config"}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Adds all wallets from config (lib/config/ct-wallets.ts) to the list. Does not remove existing wallets.
+              </span>
+            </div>
             <div className="flex flex-wrap gap-2 mb-4">
               <input
                 type="text"
