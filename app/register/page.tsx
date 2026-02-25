@@ -45,7 +45,8 @@ function RegisterForm() {
         setError(data.error || "Registration failed.");
         return;
       }
-      setSuccess("Account created. Sign in below.");
+      setSuccess("Registration successful. You can sign in below.");
+      setTimeout(() => document.getElementById("sign-in")?.scrollIntoView({ behavior: "smooth" }), 300);
     } catch {
       setError("Something went wrong.");
     } finally {
@@ -82,7 +83,6 @@ function RegisterForm() {
             NovaStaris
           </Link>
           <CardTitle className="text-lg mt-2">Register or sign in</CardTitle>
-          <p className="text-sm text-muted-foreground">Free: 5 New pairs + 5 Trending. Subscribe for full access.</p>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -208,7 +208,6 @@ function RegisterFallback() {
             NovaStaris
           </Link>
           <CardTitle className="text-lg mt-2">Register or sign in</CardTitle>
-          <p className="text-sm text-muted-foreground">Loading…</p>
         </CardHeader>
       </Card>
     </div>
