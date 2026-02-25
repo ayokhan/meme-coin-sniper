@@ -18,12 +18,13 @@ export async function GET() {
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (!bot) {
       bot = await db.tradingBot.create({
-        data: { symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
+        data: { provider: 'kucoin', symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
       });
     }
     return NextResponse.json({
       success: true,
       config: {
+        provider: (bot as { provider?: string }).provider ?? 'kucoin',
         symbol: bot.symbol,
         timeframe: bot.timeframe,
         leverage: bot.leverage,
@@ -62,10 +63,11 @@ export async function PATCH(request: Request) {
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (!bot) {
       bot = await db.tradingBot.create({
-        data: { symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
+        data: { provider: 'kucoin', symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
       });
     }
     const updates: Record<string, unknown> = {};
+    if (body.provider === 'blofin' || body.provider === 'hyperliquid' || body.provider === 'kucoin') updates.provider = body.provider;
     if (typeof body.symbol === 'string' && body.symbol.trim()) updates.symbol = body.symbol.trim().toUpperCase();
     if (typeof body.timeframe === 'string' && body.timeframe.trim()) updates.timeframe = body.timeframe.trim();
     if (typeof body.leverage === 'number' && body.leverage >= 1 && body.leverage <= 125) updates.leverage = body.leverage;
@@ -87,6 +89,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({
       success: true,
       config: {
+        provider: (updated as { provider?: string }).provider ?? 'kucoin',
         symbol: updated.symbol,
         timeframe: updated.timeframe,
         leverage: updated.leverage,
@@ -128,7 +131,7 @@ export async function POST(request: Request) {
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (!bot) {
       bot = await db.tradingBot.create({
-        data: { symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
+        data: { provider: 'kucoin', symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
       });
     }
     const enabled = action === 'start';

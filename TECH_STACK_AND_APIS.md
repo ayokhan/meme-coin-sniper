@@ -88,6 +88,21 @@ Set these in Vercel (or `.env.local` for local dev):
 - **AI:** `ANTHROPIC_API_KEY`.
 - **Payments / RPC:** `SOLANA_RPC_URL` or `HELIUS_API_KEY` (reused for RPC if needed).
 - **Trading bot (Blofin):** `BLOFIN_API_KEY`, `BLOFIN_SECRET_KEY`, `BLOFIN_PASSPHRASE`; optional: `BLOFIN_DEMO_MODE` (true/false), `BLOFIN_BROKER_ID` (required if your API key is a broker/partner key).
+- **Trading bot (Hyperliquid):** `HYPERLIQUID_PRIVATE_KEY` (wallet private key, 0x…); optional: `HYPERLIQUID_TESTNET` (true for testnet).
+- **Trading bot (KuCoin Futures):** `KUCOIN_FUTURES_API_KEY`, `KUCOIN_FUTURES_SECRET`, `KUCOIN_FUTURES_PASSPHRASE` (create a Futures API key with Trade permission at KuCoin).
+
+### 4.5 Crypto Futures bot — Blofin, Hyperliquid, KuCoin (Canada)
+
+The Trading Bot supports three **providers**: **KuCoin Futures** (default), **Blofin**, and **Hyperliquid**. **Ontario:** KuCoin and Hyperliquid are restricted there; use **Blofin**.
+
+| Provider | API? | Canada / Ontario | Note |
+|----------|------|-------------------|------|
+| **Kraken** | Yes (Kraken Futures API) | **No** — Kraken Futures is not available to clients in Canada. | Trusted brand; use Kraken for spot/margin in Canada, not perps. |
+| **KuCoin Futures** | Yes. Full REST: klines, ticker, positions, leverage, place order. | **Not available in Ontario.** Restricted in Ontario (and some other regions). | Default for non‑Ontario users. Use Blofin if you are in Ontario. |
+| **Blofin** | Yes. API key + secret + passphrase; optional broker ID. | Not listed as restricted; 150+ countries. | Use while waiting for Blofin broker/transaction API if needed. |
+| **Hyperliquid** | Yes. Wallet-signed (EIP-712); no broker ID. | **Restricted** in some jurisdictions (user may see “restricted jurisdiction” banner). | Good where allowed; avoid from restricted regions. |
+
+**Implementation:** Choose **provider** in the Trading Bot tab (KuCoin, Blofin, or Hyperliquid). Set the corresponding env vars; the bot uses the same strategies (simple, indicators, AI, hybrid) and places orders via the selected API. See `lib/kucoin-futures.ts`, `lib/blofin.ts`, `lib/hyperliquid.ts`, and `lib/trading-bot-run.ts`.
 
 ---
 

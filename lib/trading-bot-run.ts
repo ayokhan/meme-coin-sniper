@@ -1,19 +1,38 @@
 /**
  * Run one cycle of the trading bot: load config, fetch candles, signal (simple | indicators | ai | hybrid), place order if needed.
+ * Supports Blofin, Hyperliquid, or KuCoin Futures via config.provider.
  */
 
 import { prisma } from "@/lib/db";
 import {
-  getCandles,
-  getTicker,
-  getInstrument,
-  getPositions,
-  setLeverage,
-  placeMarketOrder,
+  getCandles as getCandlesBlofin,
+  getTicker as getTickerBlofin,
+  getInstrument as getInstrumentBlofin,
+  getPositions as getPositionsBlofin,
+  setLeverage as setLeverageBlofin,
+  placeMarketOrder as placeMarketOrderBlofin,
   toBlofinBar,
   isBlofinConfigured,
   type Candle,
 } from "@/lib/blofin";
+import {
+  getCandles as getCandlesHL,
+  getTicker as getTickerHL,
+  getInstrument as getInstrumentHL,
+  getPositions as getPositionsHL,
+  setLeverage as setLeverageHL,
+  placeMarketOrder as placeMarketOrderHL,
+  isHyperliquidConfigured,
+} from "@/lib/hyperliquid";
+import {
+  getCandles as getCandlesKuCoin,
+  getTicker as getTickerKuCoin,
+  getInstrument as getInstrumentKuCoin,
+  getPositions as getPositionsKuCoin,
+  setLeverage as setLeverageKuCoin,
+  placeMarketOrder as placeMarketOrderKuCoin,
+  isKuCoinFuturesConfigured,
+} from "@/lib/kucoin-futures";
 import { indicatorsSignal, maCrossoverSignal, candlePatternSignal, findSupportResistance, ema, rsi } from "@/lib/trading-bot-ta";
 import { getAITradingSignal } from "@/lib/ai-trading-signal";
 
@@ -124,12 +143,9 @@ function roundSize(size: number, minSize: number, lotSize: number): string {
 }
 
 export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: string; error?: string }> {
-  if (!isBlofinConfigured()) {
-    return { ok: false, error: "Blofin API keys not set" };
-  }
-
   let bot: {
     id: string;
+    provider: string;
     symbol: string;
     timeframe: string;
     leverage: number;
@@ -154,7 +170,17 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     return { ok: true, message: "No enabled bot" };
   }
 
-  // Blofin expects instId like "BTC-USDT". If user entered "BTC/USDT", normalize.
+  const provider = (bot.provider ?? "kucoin").toLowerCase();
+  if (provider === "blofin" && !isBlofinConfigured()) {
+    return { ok: false, error: "Blofin API keys not set" };
+  }
+  if (provider === "hyperliquid" && !isHyperliquidConfigured()) {
+    return { ok: false, error: "Hyperliquid private key not set (HYPERLIQUID_PRIVATE_KEY)" };
+  }
+  if (provider === "kucoin" && !isKuCoinFuturesConfigured()) {
+    return { ok: false, error: "KuCoin Futures API not set (KUCOIN_FUTURES_API_KEY, SECRET, PASSPHRASE)" };
+  }
+
   const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
   const instId = rawSymbol.includes("/")
     ? rawSymbol.replace("/", "-")
@@ -163,6 +189,19 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
   const strategy = bot.strategy ?? "simple";
   const needMoreCandles = strategy === "indicators" || strategy === "ai" || strategy === "hybrid";
   const candleLimit = needMoreCandles ? 250 : 50;
+
+  const getCandles =
+    provider === "hyperliquid" ? getCandlesHL : provider === "kucoin" ? getCandlesKuCoin : getCandlesBlofin;
+  const getTicker =
+    provider === "hyperliquid" ? getTickerHL : provider === "kucoin" ? getTickerKuCoin : getTickerBlofin;
+  const getInstrument =
+    provider === "hyperliquid" ? getInstrumentHL : provider === "kucoin" ? getInstrumentKuCoin : getInstrumentBlofin;
+  const getPositions =
+    provider === "hyperliquid" ? getPositionsHL : provider === "kucoin" ? getPositionsKuCoin : getPositionsBlofin;
+  const setLeverage =
+    provider === "hyperliquid" ? setLeverageHL : provider === "kucoin" ? setLeverageKuCoin : setLeverageBlofin;
+  const placeMarketOrder =
+    provider === "hyperliquid" ? placeMarketOrderHL : provider === "kucoin" ? placeMarketOrderKuCoin : placeMarketOrderBlofin;
 
   const updateLastRun = async (
     err: string | null,
@@ -255,7 +294,7 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
 
     const leverageOk = await setLeverage(instId, bot.leverage, "cross");
     if (!leverageOk.ok) {
-      console.warn("Blofin setLeverage:", leverageOk.error);
+      console.warn("setLeverage:", leverageOk.error);
       // continue anyway
     }
 

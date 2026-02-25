@@ -210,6 +210,7 @@ export default function Dashboard() {
           if (data.minBuyers != null) setAlertMinBuyers(data.minBuyers);
           if (data.liveTradesEnabled !== undefined) setLiveTradesEnabled(data.liveTradesEnabled);
           setLastFetched(new Date());
+          if (data.liveTradesEnabled) fetchWalletTrades();
         } else {
           if (res.status === 403 && data.locked) setError(data.error || "Subscribe to access this feature.");
           else setError(data.error || "Failed to load wallet alerts");
@@ -1859,7 +1860,7 @@ export default function Dashboard() {
                     Solana
                   </button>
                   <span className="text-xs text-muted-foreground ml-1">
-                    {tradingBotView === "futures" && "Blofin-powered futures bot (demo/live)."}
+                    {tradingBotView === "futures" && "Hyperliquid or Blofin futures bot (demo/live)."}
                     {tradingBotView === "solana" && "Jupiter + Phantom for meme coin swaps. Owner only."}
                   </span>
                 </div>
