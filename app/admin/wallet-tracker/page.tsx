@@ -9,13 +9,14 @@ import { Zap } from "lucide-react";
 
 type Wallet = { id: string; address: string; label?: string | null; firstBuyEnabled?: boolean };
 type Rules = { minBuyers: number; maxAgeHours: number; maxAlerts: number };
-type FirstBuyRules = { lookbackHours: number; maxAlerts: number };
+type FirstBuyRules = { lookbackMinutes: number; maxAlerts: number };
 
 export default function AdminWalletTrackerPage() {
   const { data: session, status } = useSession();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [rules, setRules] = useState<Rules>({ minBuyers: 3, maxAgeHours: 24, maxAlerts: 30 });
-  const [firstBuyRules, setFirstBuyRules] = useState<FirstBuyRules>({ lookbackHours: 24, maxAlerts: 50 });
+  const FIRST_BUY_LOOKBACK_OPTIONS = [1, 2, 5, 15, 30] as const;
+  const [firstBuyRules, setFirstBuyRules] = useState<FirstBuyRules>({ lookbackMinutes: 15, maxAlerts: 50 });
   const [firstBuyEnabled, setFirstBuyEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,7 +51,7 @@ export default function AdminWalletTrackerPage() {
       .then((r) => r.json())
       .then((d) => {
         if (d.success) {
-          setFirstBuyRules(d.rules ?? { lookbackHours: 24, maxAlerts: 50 });
+          setFirstBuyRules(d.rules ?? { lookbackMinutes: 15, maxAlerts: 50 });
           if (typeof d.firstBuyEnabled === "boolean") setFirstBuyEnabled(d.firstBuyEnabled);
         }
       });
@@ -344,16 +345,20 @@ export default function AdminWalletTrackerPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Lookback (hours)</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={168}
-                  value={firstBuyRules.lookbackHours}
-                  onChange={(e) => setFirstBuyRules((r) => ({ ...r, lookbackHours: Math.max(1, Math.min(168, parseInt(e.target.value, 10) || 1)) }))}
-                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
-                />
-                <p className="text-xs text-muted-foreground mt-0.5">How far back to check for first buys</p>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Lookback</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {FIRST_BUY_LOOKBACK_OPTIONS.map((mins) => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => setFirstBuyRules((r) => ({ ...r, lookbackMinutes: mins }))}
+                      className={`rounded-md border px-3 py-1.5 text-sm font-medium ${firstBuyRules.lookbackMinutes === mins ? "border-cyan-500 bg-cyan-500 text-white dark:bg-cyan-600" : "border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"}`}
+                    >
+                      {mins} min{mins !== 1 ? "s" : ""}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1.5">How far back to check for first buys</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Max first-buy alerts per cron run</label>

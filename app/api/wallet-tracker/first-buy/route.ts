@@ -74,7 +74,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       firstBuyEnabled,
-      rules: { lookbackHours: rules.lookbackHours, maxAlerts: rules.maxAlerts },
+      rules: { lookbackMinutes: rules.lookbackMinutes, maxAlerts: rules.maxAlerts },
       recentAlerts,
     });
   } catch (e: unknown) {

@@ -122,7 +122,7 @@ export async function getFirstBuyAlerts(): Promise<FirstBuyAlert[]> {
   const hasBirdeye = Boolean(process.env.BIRDEYE_API_KEY);
   if (!hasMoralis && !hasHelius && !hasBirdeye) return [];
 
-  const lookbackMs = rules.lookbackHours * 60 * 60 * 1000;
+  const lookbackMs = rules.lookbackMinutes * 60 * 1000;
   const sentSet = new Set<string>();
   const db = prisma as unknown as {
     walletFirstBuyAlertSent?: {
