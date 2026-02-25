@@ -134,7 +134,7 @@ export default function Dashboard() {
     tokenInfo: { symbol?: string; name?: string; contractAddress?: string; liquidityUsd?: number; volume24h?: number; priceUsd?: number | null; priceChange24hPct?: number; marketCapUsd?: number | null; securityIssues?: string[]; securityWarnings?: string[] };
   } | null>(null);
   const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
-  type PinnedItem = { contractAddress: string; symbol?: string | null; name?: string | null; pinnedAt: string; lastAnalyzedAt: string | null; analysisResult: Record<string, unknown> | null };
+  type PinnedItem = { contractAddress: string; chain?: string; symbol?: string | null; name?: string | null; pinnedAt: string; lastAnalyzedAt: string | null; analysisResult: Record<string, unknown> | null };
   const [pinnedTokens, setPinnedTokens] = useState<PinnedItem[]>([]);
   const [pinnedLoading, setPinnedLoading] = useState(false);
   const [pinSuccess, setPinSuccess] = useState<string | null>(null);
@@ -437,6 +437,7 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contractAddress: ca,
+          chain: aiAnalysisChain,
           symbol: aiAnalysisResult?.tokenInfo?.symbol,
           name: aiAnalysisResult?.tokenInfo?.name,
         }),
@@ -558,6 +559,7 @@ export default function Dashboard() {
   const viewPinnedResult = (p: PinnedItem) => {
     const r = p.analysisResult as { score?: number; signal?: string; reasons?: string[]; recommendations?: { supportResistance?: string; marketStructure?: string; buyZoneMcap?: string; takeProfitPct?: string; stopLossPct?: string }; tokenInfo?: { symbol?: string; name?: string; [k: string]: unknown } } | null;
     if (!r) return;
+    setAiAnalysisChain((p.chain === "bsc" ? "bsc" : "solana"));
     setAiAnalysisResult({
       score: r.score ?? 0,
       signal: r.signal === "buy" ? "buy" : "no_buy",
@@ -1292,6 +1294,7 @@ export default function Dashboard() {
                           {pinnedTokens.map((p) => {
                             const res = p.analysisResult as { score?: number; signal?: string; tokenInfo?: { symbol?: string } } | null;
                             const last = p.lastAnalyzedAt ? `${Math.round((Date.now() - new Date(p.lastAnalyzedAt).getTime()) / 60000)}m ago` : "pending";
+                            const pinDexUrl = p.chain === "bsc" ? `https://dexscreener.com/bsc/${p.contractAddress}` : `https://dexscreener.com/solana/${p.contractAddress}`;
                             return (
                               <li key={p.contractAddress} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-900/80 px-3 py-2 text-sm">
                                 <div className="min-w-0">
@@ -1300,6 +1303,7 @@ export default function Dashboard() {
                                 </div>
                                 <div className="flex gap-1.5 shrink-0">
                                   <Button type="button" variant="outline" size="sm" onClick={() => viewPinnedResult(p)} className="text-xs">View</Button>
+                                  <a href={pinDexUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800">Dex</a>
                                   <Button type="button" variant="outline" size="sm" onClick={() => refreshPinnedAnalysis(p.contractAddress)} disabled={refreshingPin === p.contractAddress} className="text-xs">{refreshingPin === p.contractAddress ? "…" : "Refresh"}</Button>
                                   <Button type="button" variant="ghost" size="sm" onClick={() => unpinToken(p.contractAddress)} className="text-xs text-rose-600 dark:text-rose-400">Unpin</Button>
                                 </div>

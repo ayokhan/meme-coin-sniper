@@ -7,6 +7,21 @@ function isValidSolanaAddress(address: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address.trim());
 }
 
+function isValidBscAddress(address: string): boolean {
+  if (!address || typeof address !== 'string') return false;
+  return /^0x[0-9a-fA-F]{40}$/.test(address.trim());
+}
+
+function validateAddressByChain(contractAddress: string, chain: string): { ok: boolean; error?: string } {
+  const addr = contractAddress.trim();
+  if (chain === 'bsc') {
+    if (!isValidBscAddress(addr)) return { ok: false, error: 'Invalid BSC address. Use 0x followed by 40 hex characters.' };
+  } else {
+    if (!isValidSolanaAddress(addr)) return { ok: false, error: 'Invalid Solana address.' };
+  }
+  return { ok: true };
+}
+
 /** GET /api/pins — list current user's pinned tokens with latest analysis */
 export async function GET() {
   try {
@@ -18,13 +33,14 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'Subscribe to use pinned tokens.', locked: true }, { status: 403 });
     }
 
-    const pins = await (prisma as unknown as { pinnedToken: { findMany: (args: { where: { userId: string }; orderBy: { pinnedAt: string } }) => Promise<{ contractAddress: string; symbol: string | null; name: string | null; pinnedAt: Date; lastAnalyzedAt: Date | null; analysisResult: unknown }[]> } }).pinnedToken.findMany({
+    const pins = await (prisma as unknown as { pinnedToken: { findMany: (args: { where: { userId: string }; orderBy: { pinnedAt: string } }) => Promise<{ contractAddress: string; chain: string; symbol: string | null; name: string | null; pinnedAt: Date; lastAnalyzedAt: Date | null; analysisResult: unknown }[]> } }).pinnedToken.findMany({
       where: { userId },
       orderBy: { pinnedAt: 'desc' },
     });
 
     const list = pins.map((p) => ({
       contractAddress: p.contractAddress,
+      chain: p.chain ?? 'solana',
       symbol: p.symbol,
       name: p.name,
       pinnedAt: p.pinnedAt.toISOString(),
@@ -55,8 +71,10 @@ export async function POST(request: Request) {
     if (!contractAddress) {
       return NextResponse.json({ success: false, error: 'Missing contractAddress.' }, { status: 400 });
     }
-    if (!isValidSolanaAddress(contractAddress)) {
-      return NextResponse.json({ success: false, error: 'Invalid Solana address.' }, { status: 400 });
+    const chain = (body.chain === 'bsc' ? 'bsc' : 'solana') as 'solana' | 'bsc';
+    const validation = validateAddressByChain(contractAddress, chain);
+    if (!validation.ok) {
+      return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
     }
 
     const symbol = typeof body.symbol === 'string' ? body.symbol : null;
@@ -69,12 +87,14 @@ export async function POST(request: Request) {
       create: {
         userId,
         contractAddress,
+        chain,
         symbol,
         name,
         lastAnalyzedAt: null,
         analysisResult: null,
       },
       update: {
+        chain,
         symbol: symbol ?? undefined,
         name: name ?? undefined,
         lastAnalyzedAt: null,
@@ -105,8 +125,9 @@ export async function DELETE(request: Request) {
     if (!contractAddress) {
       return NextResponse.json({ success: false, error: 'Missing contractAddress query.' }, { status: 400 });
     }
-    if (!isValidSolanaAddress(contractAddress)) {
-      return NextResponse.json({ success: false, error: 'Invalid Solana address.' }, { status: 400 });
+    // Accept either Solana or BSC format so unpinning works for both chains
+    if (!isValidSolanaAddress(contractAddress) && !isValidBscAddress(contractAddress)) {
+      return NextResponse.json({ success: false, error: 'Invalid contract address.' }, { status: 400 });
     }
 
     await (prisma as unknown as { pinnedToken: { deleteMany: (args: { where: { userId: string; contractAddress: string } }) => Promise<unknown> } }).pinnedToken.deleteMany({

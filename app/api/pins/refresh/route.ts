@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { prisma } from '@/lib/db';
 import { runAiAnalysis } from '@/lib/ai-analyze';
+import { runAiAnalysisBsc } from '@/lib/ai-analyze-bsc';
 
 /**
  * POST /api/pins/refresh — run AI re-analysis for one pinned token and save result.
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
 
     const prismaPins = prisma as unknown as {
       pinnedToken: {
-        findUnique: (args: { where: { userId_contractAddress: { userId: string; contractAddress: string } } }) => Promise<{ id: string; symbol: string | null; name: string | null } | null>;
+        findUnique: (args: { where: { userId_contractAddress: { userId: string; contractAddress: string } } }) => Promise<{ id: string; chain: string; symbol: string | null; name: string | null } | null>;
         update: (args: unknown) => Promise<unknown>;
       };
     };
@@ -36,7 +37,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Pin not found.' }, { status: 404 });
     }
 
-    const result = await runAiAnalysis(contractAddress);
+    const chain = (pin.chain === 'bsc' ? 'bsc' : 'solana') as 'solana' | 'bsc';
+    const result = chain === 'bsc'
+      ? await runAiAnalysisBsc(contractAddress)
+      : await runAiAnalysis(contractAddress);
 
     await prismaPins.pinnedToken.update({
       where: { id: pin.id },

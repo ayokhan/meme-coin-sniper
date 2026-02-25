@@ -146,11 +146,12 @@ model FeatureFlag {
   @@index([key])
 }
 
-// Pinned tokens for AI re-analysis every ~3 min
+// Pinned tokens for AI re-analysis every ~3 min (Solana or BSC)
 model PinnedToken {
   id              String    @id @default(cuid())
   userId          String
   contractAddress String
+  chain           String    @default("solana") // "solana" | "bsc"
   symbol          String?
   name            String?
   pinnedAt        DateTime  @default(now())
