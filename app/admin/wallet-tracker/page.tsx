@@ -22,6 +22,8 @@ export default function AdminWalletTrackerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [rulesSavedAt, setRulesSavedAt] = useState<number | null>(null);
+  const [firstBuyRulesSavedAt, setFirstBuyRulesSavedAt] = useState<number | null>(null);
   const [newAddress, setNewAddress] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [adding, setAdding] = useState(false);
@@ -150,7 +152,7 @@ export default function AdminWalletTrackerPage() {
   const showSuccess = (msg: string) => {
     setError("");
     setSuccessMessage(msg);
-    setTimeout(() => setSuccessMessage(""), 4000);
+    setTimeout(() => setSuccessMessage(""), 6000);
   };
 
   const handleSaveRules = async () => {
@@ -165,6 +167,8 @@ export default function AdminWalletTrackerPage() {
       const data = await res.json();
       if (data.success) {
         loadRules();
+        setRulesSavedAt(Date.now());
+        setTimeout(() => setRulesSavedAt(null), 5000);
         showSuccess("Alert rules saved.");
       } else setError(data.error ?? "Save failed");
     } catch {
@@ -204,8 +208,12 @@ export default function AdminWalletTrackerPage() {
         body: JSON.stringify(firstBuyRules),
       });
       const data = await res.json();
-      if (data.success) loadFirstBuy();
-      else setError(data.error ?? "Save failed");
+      if (data.success) {
+        loadFirstBuy();
+        setFirstBuyRulesSavedAt(Date.now());
+        setTimeout(() => setFirstBuyRulesSavedAt(null), 5000);
+        showSuccess("First-buy rules saved.");
+      } else setError(data.error ?? "Save failed");
     } catch {
       setError("Save failed");
     } finally {
@@ -283,6 +291,17 @@ export default function AdminWalletTrackerPage() {
           <span className="text-sm font-medium">Admin — Wallet Tracker</span>
         </div>
 
+        {successMessage && (
+          <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 text-sm px-3 py-2 mb-4 font-medium">
+            ✓ {successMessage}
+          </div>
+        )}
+        {error && (
+          <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2 mb-4">
+            {error}
+          </div>
+        )}
+
         <Card className="border-zinc-200 dark:border-zinc-800 mb-6">
           <CardHeader>
             <CardTitle>Alert rules</CardTitle>
@@ -330,9 +349,14 @@ export default function AdminWalletTrackerPage() {
                 />
               </div>
             </div>
-            <Button onClick={handleSaveRules} disabled={savingRules} size="sm">
-              {savingRules ? "Saving…" : "Save rules"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={handleSaveRules} disabled={savingRules} size="sm">
+                {savingRules ? "Saving…" : "Save rules"}
+              </Button>
+              {rulesSavedAt != null && (
+                <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">✓ Saved</span>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -406,9 +430,14 @@ export default function AdminWalletTrackerPage() {
                 />
               </div>
             </div>
-            <Button onClick={handleSaveFirstBuyRules} disabled={savingFirstBuyRules} size="sm">
-              {savingFirstBuyRules ? "Saving…" : "Save first-buy rules"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={handleSaveFirstBuyRules} disabled={savingFirstBuyRules} size="sm">
+                {savingFirstBuyRules ? "Saving…" : "Save first-buy rules"}
+              </Button>
+              {firstBuyRulesSavedAt != null && (
+                <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">✓ Saved</span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               Recent first-buy alerts appear in the app under Wallet Tracker (owner view).
             </p>
