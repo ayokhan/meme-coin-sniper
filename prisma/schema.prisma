@@ -137,6 +137,17 @@ model WalletAlertSent {
   @@index([sentAt])
 }
 
+// Owner-only: first time a tracked wallet buys a token (one alert per wallet+token ever)
+model WalletFirstBuyAlertSent {
+  id              String   @id @default(cuid())
+  walletAddress   String
+  contractAddress String
+  sentAt          DateTime @default(now())
+  @@unique([walletAddress, contractAddress])
+  @@index([walletAddress])
+  @@index([sentAt])
+}
+
 // Owner-only feature toggles (e.g. disable Moralis / Telegram during testing)
 model FeatureFlag {
   id        String   @id @default(cuid())

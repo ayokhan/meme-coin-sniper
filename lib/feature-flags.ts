@@ -14,6 +14,8 @@ export const FEATURE_FLAG_KEYS = {
   TELEGRAM_WALLET_ALERTS: 'telegram_wallet_alerts',
   /** Show/fetch live trades from tracked wallets. When OFF, no calls to /api/wallet-tracker/trades (saves Moralis). Alerts still work. */
   LIVE_TRADES_ENABLED: 'live_trades_enabled',
+  /** Owner-only: notify (in-app + Telegram) the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token. */
+  OWNER_FIRST_BUY_ALERTS: 'owner_first_buy_alerts',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];

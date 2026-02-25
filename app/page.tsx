@@ -86,6 +86,9 @@ export default function Dashboard() {
   const [liveTradesToggling, setLiveTradesToggling] = useState(false);
   const [walletTrades, setWalletTrades] = useState<{ walletLabel: string; walletAddress: string; mint: string; symbol: string; name: string; timestamp: number; txUrl: string; dexUrl: string }[]>([]);
   const [walletTradesLoading, setWalletTradesLoading] = useState(false);
+  const [firstBuyEnabled, setFirstBuyEnabled] = useState(false);
+  const [firstBuyAlerts, setFirstBuyAlerts] = useState<Array<{ walletAddress: string; walletLabel?: string | null; contractAddress: string; symbol: string; name: string; liquidity?: number | null; priceUSD?: number | null; sentAt: string }>>([]);
+  const [firstBuyToggling, setFirstBuyToggling] = useState(false);
   const [surgeWindow, setSurgeWindow] = useState<"5m" | "15m" | "30m" | "1h" | "6h" | "24h">("24h");
   type GoHuntingView = "new_pairs" | "final_stretch" | "migrated";
   const [goHuntingView, setGoHuntingView] = useState<GoHuntingView>("new_pairs");
@@ -214,6 +217,17 @@ export default function Dashboard() {
         } else {
           if (res.status === 403 && data.locked) setError(data.error || "Subscribe to access this feature.");
           else setError(data.error || "Failed to load wallet alerts");
+        }
+        if (isOwner) {
+          fetch("/api/wallet-tracker/first-buy")
+            .then((r) => r.json())
+            .then((d) => {
+              if (d.success) {
+                setFirstBuyEnabled(d.firstBuyEnabled ?? false);
+                setFirstBuyAlerts(d.recentAlerts ?? []);
+              }
+            })
+            .catch(() => {});
         }
         if (showLoading) setLoading(false);
         return;
@@ -1873,15 +1887,97 @@ export default function Dashboard() {
             ) : activeTab === "coach-calls" ? (
               <CoachCallsPanel isOwner={isOwner} isVip={isVip} />
             ) : activeTab === "wallets" ? (
-              walletAlerts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
-                  <p className="font-semibold text-zinc-700 dark:text-zinc-300">No wallet alerts yet.</p>
-                  <p className="mt-2">
-                    When {alertMinBuyers}+ tracked wallets buy the same token, alerts appear here and are sent to Telegram.
-                  </p>
-                </div>
-              ) : (
-                <div className="px-6 pt-2">
+              <div className="px-6 pt-2 space-y-6">
+                {isOwner && (
+                  <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                      <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                        First buy alerts (owner only)
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={firstBuyEnabled}
+                          onClick={async () => {
+                            setFirstBuyToggling(true);
+                            try {
+                              const res = await fetch("/api/admin/feature-flags", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ key: "owner_first_buy_alerts", enabled: !firstBuyEnabled }),
+                              });
+                              const data = await res.json();
+                              if (data.success && typeof data.flags?.owner_first_buy_alerts === "boolean") {
+                                setFirstBuyEnabled(data.flags.owner_first_buy_alerts);
+                                const r = await fetch("/api/wallet-tracker/first-buy");
+                                const d = await r.json();
+                                if (d.success) setFirstBuyAlerts(d.recentAlerts ?? []);
+                              }
+                            } finally {
+                              setFirstBuyToggling(false);
+                            }
+                          }}
+                          disabled={firstBuyToggling}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 ${firstBuyEnabled ? "bg-cyan-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
+                        >
+                          <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${firstBuyEnabled ? "translate-x-5" : "translate-x-1"}`} />
+                        </button>
+                        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                          {firstBuyToggling ? "…" : firstBuyEnabled ? "ON" : "OFF"}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Notify in-app and Telegram the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token. Rules: Admin → Wallet Tracker.
+                    </p>
+                    {firstBuyEnabled && firstBuyAlerts.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
+                              <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Wallet</TableHead>
+                              <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Coin</TableHead>
+                              <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
+                              <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Alerted</TableHead>
+                              <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {firstBuyAlerts.map((a) => (
+                              <TableRow key={`${a.walletAddress}-${a.contractAddress}`} className="border-zinc-200/60 dark:border-zinc-800/60">
+                                <TableCell className="text-xs font-mono text-zinc-700 dark:text-zinc-300 max-w-[120px] truncate" title={a.walletAddress}>
+                                  {a.walletLabel ?? `${a.walletAddress.slice(0, 4)}…${a.walletAddress.slice(-4)}`}
+                                </TableCell>
+                                <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">{a.symbol}</TableCell>
+                                <TableCell className="text-right tabular-nums text-muted-foreground">{formatLiq(a.liquidity ?? null)}</TableCell>
+                                <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">
+                                  {a.sentAt ? new Date(a.sentAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : "—"}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <a href={`https://dexscreener.com/solana/${a.contractAddress}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                    {firstBuyEnabled && firstBuyAlerts.length === 0 && (
+                      <p className="text-xs text-muted-foreground">No first-buy alerts in the last 48h. Alerts appear here and in Telegram when a tracked wallet buys a token for the first time.</p>
+                    )}
+                  </div>
+                )}
+
+                {walletAlerts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
+                    <p className="font-semibold text-zinc-700 dark:text-zinc-300">No wallet alerts yet.</p>
+                    <p className="mt-2">
+                      When {alertMinBuyers}+ tracked wallets buy the same token, alerts appear here and are sent to Telegram.
+                    </p>
+                  </div>
+                ) : (
+                <div>
                   <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">
                     Alerts — {alertMinBuyers}+ tracked wallets bought same token
                   </h3>
@@ -1929,7 +2025,8 @@ export default function Dashboard() {
                   </TableBody>
                 </Table>
                 </div>
-              )
+                )}
+              </div>
             ) : tokensForDisplay.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
                 <p className="font-semibold text-zinc-700 dark:text-zinc-300">

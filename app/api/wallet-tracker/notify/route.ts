@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getWalletAlerts } from '@/lib/get-wallet-alerts';
+import { getWalletAlerts, getFirstBuyAlerts } from '@/lib/get-wallet-alerts';
 import { getAlertRules } from '@/lib/wallet-tracker-config';
-import { sendWalletAlerts } from '@/lib/telegram';
+import { sendWalletAlerts, sendFirstBuyAlerts } from '@/lib/telegram';
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
 
 /**
  * Cron-only: run wallet-tracker logic and send NEW alerts to Telegram.
- * Uses your configured rules (minBuyers, maxAgeHours, maxAlerts). Cooldown = maxAgeHours so we don't re-send same token within your alert window.
- * Call with Authorization: Bearer CRON_SECRET. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in Vercel.
- * If feature flag telegram_wallet_alerts is OFF (Admin), alerts are not sent.
+ * 1) minBuyers+ wallets bought same token (cooldown by token).
+ * 2) Owner-only first-buy: first time a tracked wallet buys a token (one alert per wallet+token ever).
+ * Call with Authorization: Bearer CRON_SECRET.
  */
 export async function GET(request: Request) {
   const auth = request.headers.get('authorization');
@@ -20,49 +20,66 @@ export async function GET(request: Request) {
 
   try {
     const telegramEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.TELEGRAM_WALLET_ALERTS);
-    if (!telegramEnabled) {
-      return NextResponse.json({ success: true, sent: 0, skipped: 'telegram_disabled' });
-    }
-    const [alerts, rules] = await Promise.all([getWalletAlerts(), getAlertRules()]);
-    if (alerts.length === 0) {
-      return NextResponse.json({ success: true, sent: 0 });
-    }
+    const firstBuyEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.OWNER_FIRST_BUY_ALERTS);
 
-    const cooldownHours = rules.maxAgeHours;
-    const db = prisma as unknown as {
-      walletAlertSent?: {
-        findMany: (args: { where: { sentAt: { gte: Date } }; select: { contractAddress: true } }) => Promise<{ contractAddress: string }[]>;
-        createMany: (args: { data: { contractAddress: string }[] }) => Promise<unknown>;
-        deleteMany: (args: { where: { sentAt: { lt: Date } } }) => Promise<unknown>;
+    let sent = 0;
+    let firstBuySent = 0;
+
+    if (telegramEnabled) {
+      const [alerts, rules] = await Promise.all([getWalletAlerts(), getAlertRules()]);
+      const db = prisma as unknown as {
+        walletAlertSent?: {
+          findMany: (args: { where: { sentAt: { gte: Date } }; select: { contractAddress: true } }) => Promise<{ contractAddress: string }[]>;
+          createMany: (args: { data: { contractAddress: string }[] }) => Promise<unknown>;
+          deleteMany: (args: { where: { sentAt: { lt: Date } } }) => Promise<unknown>;
+        };
       };
-    };
-
-    let toSend = alerts;
-    if (db.walletAlertSent) {
-      const since = new Date(Date.now() - cooldownHours * 60 * 60 * 1000);
-      const recent = await db.walletAlertSent.findMany({
-        where: { sentAt: { gte: since } },
-        select: { contractAddress: true },
-      });
-      const sentSet = new Set(recent.map((r) => r.contractAddress));
-      toSend = alerts.filter((a) => !sentSet.has(a.contractAddress));
+      const cooldownHours = rules.maxAgeHours;
+      let toSend = alerts;
+      if (db.walletAlertSent) {
+        const since = new Date(Date.now() - cooldownHours * 60 * 60 * 1000);
+        const recent = await db.walletAlertSent.findMany({
+          where: { sentAt: { gte: since } },
+          select: { contractAddress: true },
+        });
+        const sentSet = new Set(recent.map((r) => r.contractAddress));
+        toSend = alerts.filter((a) => !sentSet.has(a.contractAddress));
+      }
+      if (toSend.length > 0) {
+        await sendWalletAlerts(toSend, rules.minBuyers);
+        if (db.walletAlertSent) {
+          await db.walletAlertSent.createMany({
+            data: toSend.map((a) => ({ contractAddress: a.contractAddress })),
+          });
+          const pruneBefore = new Date(Date.now() - (cooldownHours * 2 + 24) * 60 * 60 * 1000);
+          await db.walletAlertSent.deleteMany({ where: { sentAt: { lt: pruneBefore } } });
+        }
+        sent = toSend.length;
+      }
     }
 
-    if (toSend.length > 0) {
-      await sendWalletAlerts(toSend, rules.minBuyers);
-      if (db.walletAlertSent) {
-        await db.walletAlertSent.createMany({
-          data: toSend.map((a) => ({ contractAddress: a.contractAddress })),
-        });
-        const pruneBefore = new Date(Date.now() - (cooldownHours * 2 + 24) * 60 * 60 * 1000);
-        await db.walletAlertSent.deleteMany({ where: { sentAt: { lt: pruneBefore } } });
+    if (firstBuyEnabled && telegramEnabled) {
+      const firstBuyAlerts = await getFirstBuyAlerts();
+      if (firstBuyAlerts.length > 0) {
+        await sendFirstBuyAlerts(firstBuyAlerts);
+        const db = prisma as unknown as {
+          walletFirstBuyAlertSent?: {
+            createMany: (args: { data: Array<{ walletAddress: string; contractAddress: string }> }) => Promise<unknown>;
+          };
+        };
+        if (db.walletFirstBuyAlertSent) {
+          await db.walletFirstBuyAlertSent.createMany({
+            data: firstBuyAlerts.map((a) => ({ walletAddress: a.walletAddress, contractAddress: a.contractAddress })),
+          });
+        }
+        firstBuySent = firstBuyAlerts.length;
       }
     }
 
     return NextResponse.json({
       success: true,
-      sent: toSend.length,
-      total: alerts.length,
+      sent,
+      firstBuySent,
     });
   } catch (e: any) {
     return NextResponse.json(

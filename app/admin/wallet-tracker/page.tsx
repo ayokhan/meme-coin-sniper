@@ -9,11 +9,14 @@ import { Zap } from "lucide-react";
 
 type Wallet = { id: string; address: string; label?: string | null };
 type Rules = { minBuyers: number; maxAgeHours: number; maxAlerts: number };
+type FirstBuyRules = { lookbackHours: number; maxAlerts: number };
 
 export default function AdminWalletTrackerPage() {
   const { data: session, status } = useSession();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [rules, setRules] = useState<Rules>({ minBuyers: 3, maxAgeHours: 24, maxAlerts: 30 });
+  const [firstBuyRules, setFirstBuyRules] = useState<FirstBuyRules>({ lookbackHours: 24, maxAlerts: 50 });
+  const [firstBuyEnabled, setFirstBuyEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newAddress, setNewAddress] = useState("");
@@ -23,6 +26,8 @@ export default function AdminWalletTrackerPage() {
   const [savingRules, setSavingRules] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [savingFirstBuyRules, setSavingFirstBuyRules] = useState(false);
+  const [togglingFirstBuy, setTogglingFirstBuy] = useState(false);
 
   const loadWallets = () =>
     fetch("/api/admin/wallet-tracker/wallets")
@@ -39,10 +44,20 @@ export default function AdminWalletTrackerPage() {
         if (d.success) setRules(d.rules ?? { minBuyers: 3, maxAgeHours: 24, maxAlerts: 30 });
       });
 
+  const loadFirstBuy = () =>
+    fetch("/api/admin/wallet-tracker/first-buy-rules")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) {
+          setFirstBuyRules(d.rules ?? { lookbackHours: 24, maxAlerts: 50 });
+          if (typeof d.firstBuyEnabled === "boolean") setFirstBuyEnabled(d.firstBuyEnabled);
+        }
+      });
+
   const load = () => {
     setLoading(true);
     setError("");
-    Promise.all([loadWallets(), loadRules()])
+    Promise.all([loadWallets(), loadRules(), loadFirstBuy()])
       .catch(() => setError("Failed to load"))
       .finally(() => setLoading(false));
   };
@@ -138,6 +153,44 @@ export default function AdminWalletTrackerPage() {
       setError("Save failed");
     } finally {
       setSavingRules(false);
+    }
+  };
+
+  const handleToggleFirstBuy = async () => {
+    setTogglingFirstBuy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/feature-flags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "owner_first_buy_alerts", enabled: !firstBuyEnabled }),
+      });
+      const data = await res.json();
+      if (data.success && typeof data.flags?.owner_first_buy_alerts === "boolean") {
+        setFirstBuyEnabled(data.flags.owner_first_buy_alerts);
+      } else setError(data.error ?? "Toggle failed");
+    } catch {
+      setError("Toggle failed");
+    } finally {
+      setTogglingFirstBuy(false);
+    }
+  };
+
+  const handleSaveFirstBuyRules = async () => {
+    setSavingFirstBuyRules(true);
+    try {
+      const res = await fetch("/api/admin/wallet-tracker/first-buy-rules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(firstBuyRules),
+      });
+      const data = await res.json();
+      if (data.success) loadFirstBuy();
+      else setError(data.error ?? "Save failed");
+    } catch {
+      setError("Save failed");
+    } finally {
+      setSavingFirstBuyRules(false);
     }
   };
 
@@ -239,6 +292,64 @@ export default function AdminWalletTrackerPage() {
             <Button onClick={handleSaveRules} disabled={savingRules} size="sm">
               {savingRules ? "Saving…" : "Save rules"}
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-200 dark:border-zinc-800 mb-6">
+          <CardHeader>
+            <CardTitle>First buy alerts (owner only)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Notify in-app and Telegram the <strong>first time</strong> a tracked wallet buys a coin. No repeat alerts for the same wallet+token. Toggle and rules below.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={firstBuyEnabled}
+                onClick={handleToggleFirstBuy}
+                disabled={togglingFirstBuy}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 ${firstBuyEnabled ? "bg-cyan-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${firstBuyEnabled ? "translate-x-5" : "translate-x-1"}`} />
+              </button>
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                {firstBuyEnabled ? "First buy alerts ON" : "First buy alerts OFF"}
+              </span>
+              {togglingFirstBuy && <span className="text-xs text-muted-foreground">Updating…</span>}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Lookback (hours)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={168}
+                  value={firstBuyRules.lookbackHours}
+                  onChange={(e) => setFirstBuyRules((r) => ({ ...r, lookbackHours: Math.max(1, Math.min(168, parseInt(e.target.value, 10) || 1)) }))}
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                />
+                <p className="text-xs text-muted-foreground mt-0.5">How far back to check for first buys</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Max first-buy alerts per cron run</label>
+                <input
+                  type="number"
+                  min={5}
+                  max={200}
+                  value={firstBuyRules.maxAlerts}
+                  onChange={(e) => setFirstBuyRules((r) => ({ ...r, maxAlerts: Math.max(5, Math.min(200, parseInt(e.target.value, 10) || 5)) }))}
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                />
+              </div>
+            </div>
+            <Button onClick={handleSaveFirstBuyRules} disabled={savingFirstBuyRules} size="sm">
+              {savingFirstBuyRules ? "Saving…" : "Save first-buy rules"}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Recent first-buy alerts appear in the app under Wallet Tracker (owner view).
+            </p>
           </CardContent>
         </Card>
 

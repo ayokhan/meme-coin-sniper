@@ -164,3 +164,43 @@ export async function sendWalletAlerts(alerts: WalletAlertForTelegram[], minBuye
     await new Promise((r) => setTimeout(r, 300));
   }
 }
+
+/** Owner-only: first time a tracked wallet bought a token. */
+export type FirstBuyAlertForTelegram = {
+  walletAddress: string;
+  walletLabel?: string;
+  contractAddress: string;
+  symbol: string;
+  name: string;
+  liquidity?: number | null;
+  priceUSD?: number | null;
+  firstBuyAt: number;
+};
+
+export async function sendFirstBuyAlert(alert: FirstBuyAlertForTelegram): Promise<boolean> {
+  const dexUrl = `https://dexscreener.com/solana/${alert.contractAddress}`;
+  const gmgnUrl = `https://gmgn.ai/sol/token/${encodeURIComponent(alert.contractAddress)}`;
+  const liq = alert.liquidity != null ? `$${(alert.liquidity / 1000).toFixed(1)}k` : '—';
+  const price = alert.priceUSD != null ? `$${alert.priceUSD < 0.01 ? alert.priceUSD.toExponential(2) : alert.priceUSD.toFixed(6)}` : '—';
+  const who = alert.walletLabel || `${alert.walletAddress.slice(0, 4)}…${alert.walletAddress.slice(-4)}`;
+  const time = new Date(alert.firstBuyAt).toISOString().replace('T', ' ').slice(0, 19);
+
+  const lines = [
+    `🆕 <b>First buy</b> — tracked wallet bought this token for the first time`,
+    `👤 ${escapeHtml(who)}`,
+    `🪙 <b>${escapeHtml(alert.symbol)}</b> — ${escapeHtml(alert.name)}`,
+    `📊 Liq: ${liq} · Price: ${price}`,
+    `🕐 ${time}`,
+    `🔗 <a href="${dexUrl}">DexScreener</a> · <a href="${gmgnUrl}">GMGN</a>`,
+  ];
+  const text = lines.join('\n');
+  return sendTelegramMessage(text);
+}
+
+export async function sendFirstBuyAlerts(alerts: FirstBuyAlertForTelegram[]): Promise<void> {
+  if (!isTelegramConfigured() || alerts.length === 0) return;
+  for (const alert of alerts) {
+    await sendFirstBuyAlert(alert);
+    await new Promise((r) => setTimeout(r, 300));
+  }
+}

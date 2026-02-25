@@ -1,9 +1,9 @@
 /**
  * Shared wallet-tracker logic: compute alerts (minBuyers+ tracked wallets bought same token).
- * Used by GET /api/wallet-tracker and by cron notify (Telegram).
- * Rules (minBuyers, maxAgeHours, maxAlerts) are configurable via admin.
+ * Owner-only: first-buy alerts (notify once per wallet+token).
  */
-import { getTrackedWallets, getAlertRules } from '@/lib/wallet-tracker-config';
+import { prisma } from '@/lib/db';
+import { getTrackedWallets, getAlertRules, getFirstBuyRules } from '@/lib/wallet-tracker-config';
 import { getRecentTokenBuysForWallet } from '@/lib/api-clients/helius';
 import { getWalletTokenBuysFromBirdeye } from '@/lib/api-clients/birdeye';
 import { getWalletBuySwapsFromMoralis } from '@/lib/api-clients/moralis';
@@ -92,5 +92,81 @@ export async function getWalletAlerts(): Promise<WalletAlert[]> {
     await new Promise((r) => setTimeout(r, 150));
   }
 
+  return alerts;
+}
+
+/** Owner-only: first time a tracked wallet bought a token (one alert per wallet+token ever). */
+export type FirstBuyAlert = {
+  walletAddress: string;
+  walletLabel?: string;
+  contractAddress: string;
+  symbol: string;
+  name: string;
+  liquidity?: number | null;
+  priceUSD?: number | null;
+  firstBuyAt: number;
+};
+
+export async function getFirstBuyAlerts(): Promise<FirstBuyAlert[]> {
+  const [trackedWallets, rules, moralisWalletTracker] = await Promise.all([
+    getTrackedWallets(),
+    getFirstBuyRules(),
+    getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_WALLET_TRACKER),
+  ]);
+  if (trackedWallets.length === 0) return [];
+
+  const hasMoralis = moralisWalletTracker && Boolean(process.env.MORALIS_API_KEY);
+  const hasHelius = Boolean(process.env.HELIUS_API_KEY);
+  const hasBirdeye = Boolean(process.env.BIRDEYE_API_KEY);
+  if (!hasMoralis && !hasHelius && !hasBirdeye) return [];
+
+  const lookbackMs = rules.lookbackHours * 60 * 60 * 1000;
+  const sentSet = new Set<string>();
+  const db = prisma as unknown as {
+    walletFirstBuyAlertSent?: {
+      findMany: (args: { select: { walletAddress: true; contractAddress: true } }) => Promise<Array<{ walletAddress: string; contractAddress: string }>>;
+    };
+  };
+  if (db.walletFirstBuyAlertSent) {
+    const rows = await db.walletFirstBuyAlertSent.findMany({
+      select: { walletAddress: true, contractAddress: true },
+    });
+    rows.forEach((r) => sentSet.add(`${r.walletAddress}:${r.contractAddress}`));
+  }
+
+  const candidates: Array<{ walletAddress: string; walletLabel?: string; contractAddress: string; firstBuyAt: number }> = [];
+  for (const w of trackedWallets) {
+    const buys = await getBuysForWallet(w.address, LIMIT_PER_WALLET, lookbackMs, hasMoralis);
+    for (const b of buys) {
+      const key = `${w.address}:${b.mint}`;
+      if (sentSet.has(key)) continue;
+      sentSet.add(key);
+      candidates.push({
+        walletAddress: w.address,
+        walletLabel: w.label ?? undefined,
+        contractAddress: b.mint,
+        firstBuyAt: b.timestamp ?? Date.now(),
+      });
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+
+  candidates.sort((a, b) => b.firstBuyAt - a.firstBuyAt);
+  const toReturn = candidates.slice(0, rules.maxAlerts);
+  const alerts: FirstBuyAlert[] = [];
+  for (const c of toReturn) {
+    const dex = await getSolanaToken(c.contractAddress);
+    alerts.push({
+      walletAddress: c.walletAddress,
+      walletLabel: c.walletLabel,
+      contractAddress: c.contractAddress,
+      symbol: dex?.baseToken?.symbol ?? '—',
+      name: dex?.baseToken?.name ?? '—',
+      liquidity: dex?.liquidity?.usd ?? null,
+      priceUSD: dex?.priceUsd ? parseFloat(dex.priceUsd) : null,
+      firstBuyAt: c.firstBuyAt,
+    });
+    await new Promise((r) => setTimeout(r, 150));
+  }
   return alerts;
 }
