@@ -15,7 +15,8 @@ export default function AdminWalletTrackerPage() {
   const { data: session, status } = useSession();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [rules, setRules] = useState<Rules>({ minBuyers: 3, maxAgeHours: 24, maxAlerts: 30 });
-  const FIRST_BUY_LOOKBACK_OPTIONS = [1, 2, 5, 15, 30] as const;
+  const FIRST_BUY_LOOKBACK_MINS = [1, 2, 5, 15, 30] as const;
+  const FIRST_BUY_LOOKBACK_HOURS = [1, 2, 6, 12, 24] as const; // stored as mins: 60, 120, 360, 720, 1440
   const [firstBuyRules, setFirstBuyRules] = useState<FirstBuyRules>({ lookbackMinutes: 15, maxAlerts: 50 });
   const [firstBuyEnabled, setFirstBuyEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -347,7 +348,7 @@ export default function AdminWalletTrackerPage() {
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Lookback</label>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {FIRST_BUY_LOOKBACK_OPTIONS.map((mins) => (
+                  {FIRST_BUY_LOOKBACK_MINS.map((mins) => (
                     <button
                       key={mins}
                       type="button"
@@ -357,6 +358,23 @@ export default function AdminWalletTrackerPage() {
                       {mins} min{mins !== 1 ? "s" : ""}
                     </button>
                   ))}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <label htmlFor="first-buy-lookback-hours" className="text-xs text-muted-foreground whitespace-nowrap">Hours:</label>
+                  <select
+                    id="first-buy-lookback-hours"
+                    value={FIRST_BUY_LOOKBACK_HOURS.some((h) => h * 60 === firstBuyRules.lookbackMinutes) ? firstBuyRules.lookbackMinutes : ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val) setFirstBuyRules((r) => ({ ...r, lookbackMinutes: Number(val) }));
+                    }}
+                    className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
+                  >
+                    <option value="">—</option>
+                    {FIRST_BUY_LOOKBACK_HOURS.map((h) => (
+                      <option key={h} value={h * 60}>{h} h</option>
+                    ))}
+                  </select>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1.5">How far back to check for first buys</p>
               </div>

@@ -17,14 +17,23 @@ export type AlertRuleConfig = {
   maxAlerts: number;
 };
 
-/** Owner first-buy alerts: lookback in minutes (1, 2, 5, 15, 30) and max alerts per cron run. */
+/** Owner first-buy alerts: lookback in minutes (mins or hours stored as mins) and max alerts per cron run. */
 export type FirstBuyRuleConfig = {
   lookbackMinutes: number;
   maxAlerts: number;
 };
 
-/** Allowed first-buy lookback values in minutes. */
+/** Allowed first-buy lookback values in minutes (1, 2, 5, 15, 30 mins). */
 export const FIRST_BUY_LOOKBACK_MINUTES = [1, 2, 5, 15, 30] as const;
+
+/** Hour options for first-buy lookback (stored as minutes: 60, 120, 360, 720, 1440). */
+export const FIRST_BUY_LOOKBACK_HOURS = [1, 2, 6, 12, 24] as const;
+
+/** All allowed lookback values in minutes (mins + hours as minutes). */
+export const FIRST_BUY_LOOKBACK_ALL_MINUTES = [
+  ...FIRST_BUY_LOOKBACK_MINUTES,
+  ...FIRST_BUY_LOOKBACK_HOURS.map((h) => h * 60),
+] as const;
 
 const DEFAULT_RULES: AlertRuleConfig = {
   minBuyers: 3,
@@ -90,7 +99,7 @@ export async function getFirstBuyRules(): Promise<FirstBuyRuleConfig> {
     const row = await db.alertRule.findUnique({ where: { key: FIRST_BUY_KEY } } as { where: { key: string } });
     if (row && 'maxAgeHours' in row && 'maxAlerts' in row) {
       const stored = (row as { maxAgeHours: number }).maxAgeHours;
-      const lookbackMinutes = FIRST_BUY_LOOKBACK_MINUTES.includes(stored as 1 | 2 | 5 | 15 | 30) ? stored : DEFAULT_FIRST_BUY_RULES.lookbackMinutes;
+      const lookbackMinutes = (FIRST_BUY_LOOKBACK_ALL_MINUTES as readonly number[]).includes(stored) ? stored : DEFAULT_FIRST_BUY_RULES.lookbackMinutes;
       return {
         lookbackMinutes,
         maxAlerts: (row as { maxAlerts: number }).maxAlerts ?? DEFAULT_FIRST_BUY_RULES.maxAlerts,

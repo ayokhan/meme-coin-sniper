@@ -3,10 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions, isOwnerEmail } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
-import { FIRST_BUY_LOOKBACK_MINUTES } from '@/lib/wallet-tracker-config';
+import { FIRST_BUY_LOOKBACK_ALL_MINUTES } from '@/lib/wallet-tracker-config';
 
 const KEY = 'first_buy';
-const ALLOWED_LOOKBACK = new Set(FIRST_BUY_LOOKBACK_MINUTES);
+const ALLOWED_LOOKBACK = new Set(FIRST_BUY_LOOKBACK_ALL_MINUTES as readonly number[]);
 
 type PrismaWithAlertRule = typeof prisma & {
   alertRule?: {
@@ -28,7 +28,7 @@ export async function GET() {
       getFeatureFlag(FEATURE_FLAG_KEYS.OWNER_FIRST_BUY_ALERTS),
     ]);
     const raw = row?.maxAgeHours;
-    const lookbackMinutes = (raw != null && (FIRST_BUY_LOOKBACK_MINUTES as readonly number[]).includes(raw)) ? raw : 15;
+    const lookbackMinutes = (raw != null && ALLOWED_LOOKBACK.has(raw)) ? raw : 15;
     const rules = row
       ? { lookbackMinutes, maxAlerts: row.maxAlerts }
       : { lookbackMinutes: 15, maxAlerts: 50 };
@@ -47,7 +47,8 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Admin only.' }, { status: 403 });
     }
     const body = await request.json().catch(() => ({}));
-    const lookbackMinutes = typeof body.lookbackMinutes === 'number' && ALLOWED_LOOKBACK.has(body.lookbackMinutes) ? body.lookbackMinutes : undefined;
+    const rawMins = typeof body.lookbackMinutes === 'number' ? body.lookbackMinutes : undefined;
+    const lookbackMinutes = rawMins != null && ALLOWED_LOOKBACK.has(rawMins) ? rawMins : undefined;
     const maxAlerts = typeof body.maxAlerts === 'number' ? Math.max(5, Math.min(200, Math.round(body.maxAlerts))) : undefined;
     const db = prisma as unknown as PrismaWithAlertRule;
     if (db.alertRule) {
