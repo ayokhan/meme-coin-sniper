@@ -111,10 +111,11 @@ model Subscription {
 
 // Admin-managed tracked wallets for Wallet Tracker (3+ wallets buy same coin → alert)
 model TrackedWallet {
-  id        String   @id @default(cuid())
-  address   String   @unique
-  label     String?
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  address         String   @unique
+  label           String?
+  firstBuyEnabled Boolean  @default(true) // when true, first-buy alerts fire when this wallet buys a token for the first time
+  createdAt       DateTime @default(now())
   @@index([address])
 }
 

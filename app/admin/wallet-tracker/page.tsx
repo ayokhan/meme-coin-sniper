@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Zap } from "lucide-react";
 
-type Wallet = { id: string; address: string; label?: string | null };
+type Wallet = { id: string; address: string; label?: string | null; firstBuyEnabled?: boolean };
 type Rules = { minBuyers: number; maxAgeHours: number; maxAlerts: number };
 type FirstBuyRules = { lookbackHours: number; maxAlerts: number };
 
@@ -28,12 +28,13 @@ export default function AdminWalletTrackerPage() {
   const [importing, setImporting] = useState(false);
   const [savingFirstBuyRules, setSavingFirstBuyRules] = useState(false);
   const [togglingFirstBuy, setTogglingFirstBuy] = useState(false);
+  const [togglingFirstAlertWallet, setTogglingFirstAlertWallet] = useState<string | null>(null);
 
   const loadWallets = () =>
     fetch("/api/admin/wallet-tracker/wallets")
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) setWallets(d.wallets ?? []);
+        if (d.success) setWallets((d.wallets ?? []).map((w: Wallet) => ({ ...w, firstBuyEnabled: w.firstBuyEnabled !== false })));
         else setError(d.error ?? "Failed to load");
       });
 
@@ -191,6 +192,28 @@ export default function AdminWalletTrackerPage() {
       setError("Save failed");
     } finally {
       setSavingFirstBuyRules(false);
+    }
+  };
+
+  const handleToggleFirstAlert = async (address: string) => {
+    const w = wallets.find((x) => x.address === address);
+    if (w == null) return;
+    const next = !(w.firstBuyEnabled !== false);
+    setTogglingFirstAlertWallet(address);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/wallet-tracker/wallets", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, firstBuyEnabled: next }),
+      });
+      const data = await res.json();
+      if (data.success) loadWallets();
+      else setError(data.error ?? "Update failed");
+    } catch {
+      setError("Update failed");
+    } finally {
+      setTogglingFirstAlertWallet(null);
     }
   };
 
@@ -357,7 +380,7 @@ export default function AdminWalletTrackerPage() {
           <CardHeader>
             <CardTitle>Tracked wallets</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Add Solana wallet addresses to track. Alerts fire when {rules.minBuyers}+ of these wallets buy the same token.
+              Add Solana wallet addresses to track. Alerts fire when {rules.minBuyers}+ of these wallets buy the same token. Use <strong>First alert</strong> to choose which wallets trigger first-buy alerts (first time they buy a coin).
             </p>
           </CardHeader>
           <CardContent>
@@ -406,10 +429,25 @@ export default function AdminWalletTrackerPage() {
             ) : (
               <ul className="space-y-2">
                 {wallets.map((w) => (
-                  <li key={w.id} className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-sm">
-                    <div className="min-w-0">
+                  <li key={w.id} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-sm">
+                    <div className="min-w-0 flex-1">
                       <span className="font-mono text-zinc-900 dark:text-zinc-100">{w.address}</span>
                       {w.label && <span className="ml-2 text-muted-foreground">({w.label})</span>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">First alert</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={w.firstBuyEnabled !== false}
+                        onClick={() => handleToggleFirstAlert(w.address)}
+                        disabled={togglingFirstAlertWallet === w.address}
+                        title={w.firstBuyEnabled !== false ? "First-buy alerts ON for this wallet" : "First-buy alerts OFF for this wallet"}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 ${w.firstBuyEnabled !== false ? "bg-cyan-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
+                      >
+                        <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${w.firstBuyEnabled !== false ? "translate-x-4" : "translate-x-0.5"}`} />
+                      </button>
+                      {togglingFirstAlertWallet === w.address && <span className="text-xs text-muted-foreground">…</span>}
                     </div>
                     <Button
                       variant="ghost"

@@ -108,11 +108,13 @@ export type FirstBuyAlert = {
 };
 
 export async function getFirstBuyAlerts(): Promise<FirstBuyAlert[]> {
-  const [trackedWallets, rules, moralisWalletTracker] = await Promise.all([
+  const [allWallets, rules, moralisWalletTracker] = await Promise.all([
     getTrackedWallets(),
     getFirstBuyRules(),
     getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_WALLET_TRACKER),
   ]);
+  // Only wallets with firstBuyEnabled get first-buy alerts (default true when not set)
+  const trackedWallets = allWallets.filter((w) => w.firstBuyEnabled !== false);
   if (trackedWallets.length === 0) return [];
 
   const hasMoralis = moralisWalletTracker && Boolean(process.env.MORALIS_API_KEY);
