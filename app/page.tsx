@@ -868,9 +868,11 @@ export default function Dashboard() {
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               <Link href="/support">Support</Link>
             </Button>
-            <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              <Link href="/status">Status</Link>
-            </Button>
+            {isOwner && (
+              <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+                <Link href="/status">Status</Link>
+              </Button>
+            )}
             {status !== "authenticated" && (
               <>
                 <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">

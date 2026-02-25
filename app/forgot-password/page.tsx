@@ -57,7 +57,8 @@ export default function ForgotPasswordPage() {
           )}
           {sent && (
             <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-sm px-3 py-2">
-              If an account exists with that email, we sent a reset link. Check your inbox (and spam).
+              If an account exists with that email, we&apos;ve sent a reset link—check your inbox (and spam). If you don&apos;t receive it or the link doesn&apos;t work, please open a{" "}
+                <Link href="/support" className="underline hover:no-underline font-medium">support ticket</Link>.
             </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-3">

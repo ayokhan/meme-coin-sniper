@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,11 @@ import { Zap } from "lucide-react";
 type Service = { name: string; status: "ok" | "degraded" | "error" | "skip"; message: string };
 
 export default function StatusPage() {
+  const { data: session, status: authStatus } = useSession();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isOwner = !!session?.user && (session.user as { isOwner?: boolean }).isOwner === true;
 
   const fetchStatus = () => {
     setLoading(true);
@@ -27,8 +30,9 @@ export default function StatusPage() {
   };
 
   useEffect(() => {
-    fetchStatus();
-  }, []);
+    if (isOwner) fetchStatus();
+    else setLoading(false);
+  }, [isOwner]);
 
   const statusColor = (status: Service["status"]) => {
     switch (status) {
@@ -47,6 +51,37 @@ export default function StatusPage() {
       default: return "Skipped";
     }
   };
+
+  if (authStatus === "loading" || !isOwner) {
+    return (
+      <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-4 py-8">
+        <div className="max-w-lg mx-auto">
+          <Link href="/" className="inline-flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-6">
+            <Zap className="h-5 w-5 text-amber-500" />
+            NovaStaris
+          </Link>
+          <Card className="border-zinc-200 dark:border-zinc-800">
+            <CardHeader>
+              <CardTitle>API status</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {authStatus === "loading" ? "Loading…" : "Owner only. Sign in with an owner account to view."}
+              </p>
+            </CardHeader>
+            {authStatus !== "loading" && (
+              <CardContent>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={authStatus === "unauthenticated" ? "/signin" : "/"}>{authStatus === "unauthenticated" ? "Sign in" : "Back to app"}</Link>
+                </Button>
+              </CardContent>
+            )}
+          </Card>
+          <p className="mt-4 text-sm text-muted-foreground">
+            <Link href="/" className="underline hover:no-underline">Back to app</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-4 py-8">

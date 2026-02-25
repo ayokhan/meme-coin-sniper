@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions, isOwnerSession } from "@/lib/auth";
 
 type ServiceStatus = "ok" | "degraded" | "error" | "skip";
 
 /**
  * GET /api/status
  * Lightweight health check for key APIs (DexScreener, Moralis).
- * Used by /status page so you can see when an integration is down.
+ * Owner only. Used by /status page.
  */
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!isOwnerSession(session)) {
+    return NextResponse.json({ error: "Owner only." }, { status: 403 });
+  }
   const timeoutMs = 8000;
   const results: Array<{ name: string; status: ServiceStatus; message: string }> = [];
 
