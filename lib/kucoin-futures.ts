@@ -125,12 +125,10 @@ export async function getTicker(instId: string): Promise<{ last: string } | null
 export async function getInstrument(instId: string): Promise<{ minSize: string; contractValue: string; settleCurrency: string } | null> {
   const symbol = instIdToKucoinSymbol(instId);
   const out = await publicRequest<{
-    data?: {
-      symbol?: string;
-      multiplier?: number;
-      minOrderSize?: number;
-      quoteCurrency?: string;
-    };
+    symbol?: string;
+    multiplier?: number;
+    minOrderSize?: number;
+    quoteCurrency?: string;
   }>(`/api/v1/contracts/${encodeURIComponent(symbol)}`);
   if (out.code !== "200000" || !out.data) return null;
   const mult = out.data.multiplier ?? 0.001;
@@ -146,7 +144,7 @@ export async function getInstrument(instId: string): Promise<{ minSize: string; 
 export async function getPositions(instId?: string): Promise<{ instId: string; posSide: string; pos: string; avgPx: string }[]> {
   const config = getConfig();
   if (!config) return [];
-  const out = await privateRequest<{ data?: { currentPage?: number; items?: Array<{ symbol: string; realLeverage: number; currentQty: number; avgFillPrice: string }> } }>(
+  const out = await privateRequest<{ currentPage?: number; items?: Array<{ symbol: string; realLeverage: number; currentQty: number; avgFillPrice: string }> }>(
     "GET",
     "/api/v1/positions"
   );
@@ -177,7 +175,7 @@ export async function placeMarketOrder(
   _marginMode: "isolated" | "cross" = "cross"
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
   const symbol = instIdToKucoinSymbol(instId);
-  const out = await privateRequest<{ data?: { orderId?: string } }>("POST", "/api/v1/orders", {
+  const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/orders", {
     symbol,
     side: side.toUpperCase(),
     type: "market",
