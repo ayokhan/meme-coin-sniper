@@ -115,41 +115,6 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-/* Money theme – green/gold, dollars vibe (dark base) */
-.money {
-  --background: oklch(0.14 0.03 155);
-  --foreground: oklch(0.96 0.02 120);
-  --card: oklch(0.19 0.035 150);
-  --card-foreground: oklch(0.96 0.02 120);
-  --popover: oklch(0.19 0.035 150);
-  --popover-foreground: oklch(0.96 0.02 120);
-  --primary: oklch(0.65 0.2 155);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.25 0.04 140);
-  --secondary-foreground: oklch(0.96 0.02 120);
-  --muted: oklch(0.25 0.04 140);
-  --muted-foreground: oklch(0.68 0.06 130);
-  --accent: oklch(0.72 0.18 85);
-  --accent-foreground: oklch(0.2 0.03 80);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.4 0.06 150 / 25%);
-  --input: oklch(0.35 0.05 150 / 30%);
-  --ring: oklch(0.65 0.2 155);
-  --chart-1: oklch(0.65 0.2 155);
-  --chart-2: oklch(0.72 0.18 85);
-  --chart-3: oklch(0.6 0.15 130);
-  --chart-4: oklch(0.75 0.15 75);
-  --chart-5: oklch(0.55 0.12 160);
-  --sidebar: oklch(0.19 0.035 150);
-  --sidebar-foreground: oklch(0.96 0.02 120);
-  --sidebar-primary: oklch(0.65 0.2 155);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.25 0.04 140);
-  --sidebar-accent-foreground: oklch(0.96 0.02 120);
-  --sidebar-border: oklch(0.4 0.06 150 / 25%);
-  --sidebar-ring: oklch(0.65 0.2 155);
-}
-
 /* NovaStaris electric brand */
 :root {
   --nova-cyan: #22d3ee;
@@ -162,14 +127,6 @@
 .dark {
   --nova-glow: rgba(34, 211, 238, 0.08);
   --nova-glow-strong: rgba(167, 139, 250, 0.2);
-}
-
-.money {
-  --nova-cyan: #34d399;
-  --nova-violet: #fbbf24;
-  --nova-blue: #4ade80;
-  --nova-glow: rgba(52, 211, 153, 0.12);
-  --nova-glow-strong: rgba(251, 191, 36, 0.25);
 }
 
 @keyframes nova-shimmer {

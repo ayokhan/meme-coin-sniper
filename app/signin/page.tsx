@@ -71,6 +71,11 @@ function SignInForm() {
               className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
               required
             />
+            <p className="text-xs text-right -mt-1">
+              <Link href="/forgot-password" className="text-muted-foreground hover:text-zinc-900 dark:hover:text-zinc-100 underline">
+                Forgot password?
+              </Link>
+            </p>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
             </Button>

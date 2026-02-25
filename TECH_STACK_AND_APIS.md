@@ -194,14 +194,23 @@ App Insights gives the owner a dashboard of where visitors are from, what device
 
 ---
 
-## 10. Quick reference
+## 10. Theme, account, and password reset
+
+- **Theme:** Light / Dark / System only (flap-style selector with “Theme” label in header). Implemented in `components/theme-provider.tsx` and `app/page.tsx`; no “Money” theme.
+- **Account:** `/account` (link in header when signed in). Update profile (name, phone, country, experience); change password for email/password users. APIs: `GET/PATCH /api/account/profile`, `POST /api/auth/change-password`.
+- **Forgot password:** `/forgot-password` → request reset → email with link to `/reset-password?token=...`. APIs: `POST /api/auth/forgot-password`, `POST /api/auth/reset-password`. Tokens stored in `PasswordResetToken` (Prisma), expiry 1 hour.
+- **Reset emails:** Sent via Resend when `RESEND_API_KEY` is set. In Vercel: Settings → Environment Variables → add `RESEND_API_KEY` (from [resend.com](https://resend.com) API Keys). Optional: `RESEND_FROM` (e.g. `NovaStaris <onboarding@resend.dev>` or your verified domain), `RESEND_REPLY_TO`. Without the key, reset flow still creates the token but no email is sent (dev logs the link).
+
+---
+
+## 11. Quick reference
 
 | Topic | Summary |
 |-------|--------|
 | **Language** | TypeScript (app + API); Node.js server. |
 | **Framework** | Next.js 16 (App Router), React 19. |
 | **Database** | PostgreSQL (e.g. Supabase); Prisma ORM. |
-| **Auth** | NextAuth.js (email/password + Solana wallet); owner via `OWNER_EMAIL`. |
+| **Auth** | NextAuth.js (email/password + Solana wallet); owner via `OWNER_EMAIL`. Account: `/account`; forgot/reset password: Resend (set `RESEND_API_KEY` in Vercel). |
 | **Data sources** | DexScreener, Moralis, Birdeye, Helius, GoPlus, Apify, Anthropic; Vercel/Cloudflare headers for App Insights geo. |
 | **Hosting** | Vercel (serverless + Cron). |
 
