@@ -192,20 +192,63 @@ export async function setLeverage(instId: string, leverage: number, marginMode: 
   return { ok: true };
 }
 
-/** Place market order. size in contracts (e.g. 0.1 for BTC-USDT). options.demo: use bot mode. */
+/** Place market order. size in contracts (e.g. 0.1 for BTC-USDT). reduceOnly: set true when closing. options.demo: use bot mode. */
 export async function placeMarketOrder(
   instId: string,
   side: "buy" | "sell",
   size: string,
   marginMode: "isolated" | "cross" = "cross",
-  options?: { demo?: boolean }
+  options?: { demo?: boolean; reduceOnly?: boolean }
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
   const config = getConfig();
   const body: Record<string, unknown> = { instId, marginMode, side, orderType: "market", size };
   if (config?.brokerId) body.brokerId = config.brokerId;
+  if (options?.reduceOnly) body.reduceOnly = true;
   const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true, orderId: out.data?.orderId };
+}
+
+/** Place TP/SL order for an existing position. Trigger prices from entry ± tpPct/slPct. options.demo: use bot mode. */
+export async function placeTPSLOrder(
+  instId: string,
+  side: "buy" | "sell",
+  size: string,
+  marginMode: "isolated" | "cross",
+  entryPrice: number,
+  tpPct: number,
+  slPct: number,
+  options?: { demo?: boolean }
+): Promise<{ ok: boolean; error?: string }> {
+  const config = getConfig();
+  if (!config) return { ok: false, error: "Blofin API keys not configured" };
+  const isLong = side === "buy";
+  const tpPrice = isLong
+    ? entryPrice * (1 + tpPct / 100)
+    : entryPrice * (1 - tpPct / 100);
+  const slPrice = isLong
+    ? entryPrice * (1 - slPct / 100)
+    : entryPrice * (1 + slPct / 100);
+  const body: Record<string, unknown> = {
+    instId,
+    marginMode,
+    side,
+    size,
+    orderType: "market",
+    tpTriggerPrice: String(roundPrice(tpPrice)),
+    slTriggerPrice: String(roundPrice(slPrice)),
+  };
+  if (config.brokerId) body.brokerId = config.brokerId;
+  const path = "/api/v1/trade/order-tpsl";
+  const out = await privateRequest<{ orderId?: string }>("POST", path, body, options?.demo);
+  if (out.code !== "0") return { ok: false, error: out.msg || out.code };
+  return { ok: true };
+}
+
+function roundPrice(p: number): number {
+  if (!Number.isFinite(p) || p <= 0) return p;
+  const scale = p >= 1000 ? 1 : p >= 1 ? 2 : 4;
+  return Math.round(p * Math.pow(10, scale)) / Math.pow(10, scale);
 }
 
 /** Get instrument info. options.demo: use bot mode. */

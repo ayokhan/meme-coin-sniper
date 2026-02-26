@@ -11,6 +11,7 @@ import {
   getPositions as getPositionsBlofin,
   setLeverage as setLeverageBlofin,
   placeMarketOrder as placeMarketOrderBlofin,
+  placeTPSLOrder as placeTPSLOrderBlofin,
   toBlofinBar,
   isBlofinConfigured,
   type Candle,
@@ -259,8 +260,9 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
       return { ok: false, error: "Invalid contract value" };
     }
 
-    // Linear contract: notional = size * contractValue * price; we want notional ≈ positionSizeUsdt
-    const sizeContracts = bot.positionSizeUsdt / (lastPrice * contractValue);
+    // Position size in config = margin (USDT). Notional = margin × leverage so exchange margin matches.
+    const notionalUsdt = bot.positionSizeUsdt * (bot.leverage ?? 1);
+    const sizeContracts = notionalUsdt / (lastPrice * contractValue);
     const lotSize = parseFloatSafe(instRes.minSize);
     const sizeStr = roundSize(sizeContracts, minSize, lotSize);
     if (parseFloat(sizeStr) < minSize) {
@@ -277,7 +279,8 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     }
 
     const side = signal === "long" ? "buy" : "sell";
-    const order = await placeMarketOrder(instId, side, sizeStr, marginMode);
+    const isDemo = bot.mode === "demo";
+    const order = await placeMarketOrder(instId, side, sizeStr, marginMode, { demo: isDemo });
     if (!order.ok) {
       const err = order.error ?? "Order failed";
       await updateLastRun(err, "no_trade", err);
@@ -286,6 +289,21 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
 
     const successMsg = `Opened ${signal} ${sizeStr} @ ${lastPrice}`;
     await updateLastRun(null, signal, successMsg);
+
+    if (bot.tpPct > 0 || bot.slPct > 0) {
+      const tpsl = await placeTPSLOrderBlofin(
+        instId,
+        side,
+        sizeStr,
+        marginMode,
+        lastPrice,
+        bot.tpPct,
+        bot.slPct,
+        { demo: isDemo }
+      );
+      if (!tpsl.ok) console.warn("TP/SL order failed:", tpsl.error);
+    }
+
     return { ok: true, message: successMsg };
   } catch (e) {
     const err = e instanceof Error ? e.message : String(e);
@@ -326,7 +344,7 @@ export async function closeTradingBotPosition(): Promise<{ ok: boolean; message?
     if (sizeNum <= 0 || !Number.isFinite(sizeNum)) continue;
     const size = String(sizeNum);
     const closeSide = (pos.posSide ?? "").toLowerCase() === "long" ? "sell" : "buy";
-    const result = await placeMarketOrderBlofin(instId, closeSide, size, marginMode, { demo: isDemo });
+    const result = await placeMarketOrderBlofin(instId, closeSide, size, marginMode, { demo: isDemo, reduceOnly: true });
     if (!result.ok) {
       return { ok: false, error: result.error ?? "Failed to close position." };
     }

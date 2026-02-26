@@ -483,7 +483,7 @@ export default function TradingBotPanel() {
               onChange={(e) => setForm({ ...form, positionSizeUsdt: Number(e.target.value) })}
               className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
-            <p className="text-xs text-muted-foreground mt-1">Target notional per trade in USDT/USDC. Margin used on exchange = notional ÷ leverage. Actual position may be slightly larger if the exchange minimum contract size is above this.</p>
+            <p className="text-xs text-muted-foreground mt-1">Margin per trade in USDT/USDC. Notional = margin × leverage. Actual position may be rounded up to the exchange minimum contract size.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
