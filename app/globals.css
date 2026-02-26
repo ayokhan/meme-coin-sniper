@@ -150,6 +150,18 @@
   50% { opacity: 0.9; filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.9)); }
 }
 
+/* Animated flame for "hot" tabs – noticeable motion like a gif */
+@keyframes flame-flicker {
+  0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 4px rgba(251, 146, 60, 0.8)); }
+  25% { opacity: 0.95; transform: scale(1.08); filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.9)); }
+  50% { opacity: 1; transform: scale(1.02); filter: drop-shadow(0 0 5px rgba(251, 146, 60, 0.85)); }
+  75% { opacity: 0.98; transform: scale(1.05); filter: drop-shadow(0 0 7px rgba(251, 191, 36, 0.95)); }
+}
+
+.animate-flame-flicker {
+  animation: flame-flicker 1.2s ease-in-out infinite;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
