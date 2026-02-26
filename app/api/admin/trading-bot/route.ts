@@ -151,6 +151,13 @@ export async function PATCH(request: Request) {
     if (typeof body.fastMA === 'number' && body.fastMA >= 1 && body.fastMA <= 100) updates.fastMA = body.fastMA;
     if (typeof body.slowMA === 'number' && body.slowMA >= 1 && body.slowMA <= 200) updates.slowMA = body.slowMA;
     if (typeof body.rsiPeriod === 'number' && body.rsiPeriod >= 2 && body.rsiPeriod <= 50) updates.rsiPeriod = body.rsiPeriod;
+    if (Array.isArray(body.monitorSymbols)) {
+      updates.monitorSymbols = body.monitorSymbols.map((s: string) => String(s).trim()).filter(Boolean).join(',') || null;
+    } else if (body.monitorSymbols === null || body.monitorSymbols === undefined) {
+      // leave unchanged
+    } else {
+      updates.monitorSymbols = String(body.monitorSymbols).trim() || null;
+    }
     const updated = await db.tradingBot.update({
       where: { id: bot.id },
       data: updates,
@@ -179,6 +186,9 @@ export async function PATCH(request: Request) {
         lastDecision: (updated as { lastDecision?: string | null }).lastDecision ?? null,
         lastDecisionMsg: (updated as { lastDecisionMsg?: string | null }).lastDecisionMsg ?? null,
         lastDecisionReason: (updated as { lastDecisionReason?: string | null }).lastDecisionReason ?? null,
+        monitorSymbols: (updated as { monitorSymbols?: string | null }).monitorSymbols
+          ? (updated as { monitorSymbols: string }).monitorSymbols.split(',').map((s: string) => s.trim()).filter(Boolean)
+          : [],
       },
     });
   } catch (e) {

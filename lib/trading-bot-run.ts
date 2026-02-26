@@ -422,8 +422,31 @@ export async function runAIMonitorCycle(): Promise<{ ok: boolean; closed: number
   const isDemo = bot.mode === "demo";
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
   const strategy = (bot as { strategy?: string }).strategy ?? "simple";
-  const positions = await getPositionsBlofin(undefined, { demo: isDemo });
-  if (!positions.length) return { ok: true, closed: 0, message: "No open positions to monitor." };
+  let positions = await getPositionsBlofin(undefined, { demo: isDemo });
+  const monitorSymbolsRaw = (bot as { monitorSymbols?: string | null }).monitorSymbols;
+  const monitorSet = monitorSymbolsRaw
+    ? new Set(
+        monitorSymbolsRaw
+          .split(",")
+          .map((s) => s.trim().toUpperCase().replace("/", "-"))
+          .filter(Boolean)
+      )
+    : null;
+  if (monitorSet && monitorSet.size > 0) {
+    positions = positions.filter((p) => {
+      const id = (p.instId ?? "").trim().toUpperCase().replace("/", "-");
+      return id && monitorSet.has(id);
+    });
+  }
+  if (!positions.length) {
+    return {
+      ok: true,
+      closed: 0,
+      message: monitorSet?.size
+        ? "No open positions match your monitoring board."
+        : "No open positions to monitor.",
+    };
+  }
   const bar = toBlofinBar(bot.timeframe);
   const candleLimit = 100;
   let closed = 0;

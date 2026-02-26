@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, Bot, BarChart3 } from "lucide-react";
+import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, BarChart3 } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -92,7 +92,7 @@ export default function AboutPage() {
                   <div>
                     <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Trading Bot — Crypto Futures automation</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                      Automate long/short with simple, indicators, AI, or <strong className="text-zinc-900 dark:text-zinc-100">hybrid</strong> (TA + AI must agree). Configure symbol, leverage, TP/SL; run demo or live on Blofin. Start, stop, or close with one click. <strong className="text-amber-700 dark:text-amber-400">VIP + On demand.</strong>
+                      Automate long/short with simple, indicators, AI, or <strong className="text-zinc-900 dark:text-zinc-100">hybrid</strong> (TA + AI must agree). Configure symbol, leverage, TP/SL; run demo or live on Blofin. Place limit orders at AI-suggested entry; optional AI monitor evaluates positions and can close on negative trend. Start, stop, or close with one click. <strong className="text-amber-700 dark:text-amber-400">VIP + On demand.</strong>
                     </p>
                   </div>
                 </div>

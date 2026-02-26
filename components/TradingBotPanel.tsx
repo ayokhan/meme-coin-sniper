@@ -37,6 +37,7 @@ type Config = {
   lastDecision: string | null;
   lastDecisionMsg: string | null;
   lastDecisionReason: string | null;
+  monitorSymbols?: string[];
 };
 
 export default function TradingBotPanel() {
@@ -102,6 +103,7 @@ export default function TradingBotPanel() {
       const data = await res.json().catch(() => ({}));
       if (data.success && data.config) {
         setConfig(data.config);
+        setMonitorBoardSymbols(Array.isArray(data.config.monitorSymbols) ? data.config.monitorSymbols : []);
         setForm({
           provider: "blofin",
           symbol: data.config.symbol,
@@ -695,9 +697,92 @@ export default function TradingBotPanel() {
             </div>
           </div>
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-3">
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Monitoring board</p>
+            <p className="text-xs text-muted-foreground">
+              Choose which positions the AI monitor evaluates. <strong>Leave empty to monitor all</strong> open positions. Add symbols (e.g. ETH-USDT, BTC-USDT) to only monitor those.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                placeholder="e.g. ETH-USDT"
+                value={monitorBoardInput}
+                onChange={(e) => setMonitorBoardInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const v = monitorBoardInput.trim().toUpperCase().replace("/", "-");
+                    if (v && !monitorBoardSymbols.includes(v)) setMonitorBoardSymbols([...monitorBoardSymbols, v]);
+                    setMonitorBoardInput("");
+                  }
+                }}
+                className="w-36 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const v = monitorBoardInput.trim().toUpperCase().replace("/", "-");
+                  if (v && !monitorBoardSymbols.includes(v)) setMonitorBoardSymbols([...monitorBoardSymbols, v]);
+                  setMonitorBoardInput("");
+                }}
+              >
+                Add
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={savingMonitorBoard}
+                onClick={async () => {
+                  try {
+                    setSavingMonitorBoard(true);
+                    clearFeedback();
+                    const res = await fetch("/api/admin/trading-bot", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ monitorSymbols: monitorBoardSymbols }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (data.success) {
+                      setSuccess("Monitoring board saved.");
+                      setError(null);
+                    } else setError(data.error ?? "Failed to save.");
+                  } catch {
+                    setError("Failed to save.");
+                  } finally {
+                    setSavingMonitorBoard(false);
+                  }
+                }}
+              >
+                {savingMonitorBoard ? "Saving…" : "Save"}
+              </Button>
+            </div>
+            {monitorBoardSymbols.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {monitorBoardSymbols.map((s) => (
+                  <span
+                    key={s}
+                    className="inline-flex items-center gap-1 rounded-md bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 text-xs"
+                  >
+                    {s}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${s}`}
+                      onClick={() => setMonitorBoardSymbols(monitorBoardSymbols.filter((x) => x !== s))}
+                      className="hover:text-rose-600 dark:hover:text-rose-400"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-3">
             <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">AI Monitor</p>
             <p className="text-xs text-muted-foreground">
-              Run NovaStaris AI to evaluate open positions. If the trend is opposite or the analysis is negative, the position will be closed automatically. Enable auto-refresh to run periodically.
+              Run NovaStaris AI to evaluate open positions{monitorBoardSymbols.length > 0 ? " on your monitoring board" : ""}. If the trend is opposite or the analysis is negative, the position will be closed automatically. Enable auto-refresh to run periodically.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Auto-refresh:</span>

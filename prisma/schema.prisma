@@ -295,6 +295,7 @@ model TradingBot {
   lastDecision       String?   // e.g. "no_trade" | "long" | "short"
   lastDecisionMsg    String?   // human-readable: "No signal", "Opened long 0.001 @ 97234", etc.
   lastDecisionReason String?   // e.g. AI reason: "Long: strong support at 95k, RSI oversold"
+  monitorSymbols    String?   // comma-separated instIds e.g. "ETH-USDT,BTC-USDT"; when set, AI monitor only evaluates these
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   @@index([enabled])
