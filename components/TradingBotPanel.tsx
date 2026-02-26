@@ -47,8 +47,35 @@ export default function TradingBotPanel() {
   const [toggling, setToggling] = useState(false);
   const [running, setRunning] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [positionsData, setPositionsData] = useState<{
+    positions: PositionWithPnl[];
+    totalUnrealizedPnl: number;
+    markPrice: number | null;
+  } | null>(null);
+  const [positionsLoading, setPositionsLoading] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
+
+  const fetchPositions = useCallback(async () => {
+    try {
+      setPositionsLoading(true);
+      const res = await fetch("/api/admin/trading-bot/positions");
+      const data = await res.json().catch(() => ({}));
+      if (data.success && Array.isArray(data.positions)) {
+        setPositionsData({
+          positions: data.positions,
+          totalUnrealizedPnl: data.totalUnrealizedPnl ?? 0,
+          markPrice: data.markPrice ?? null,
+        });
+      } else {
+        setPositionsData(null);
+      }
+    } catch {
+      setPositionsData(null);
+    } finally {
+      setPositionsLoading(false);
+    }
+  }, []);
 
   const clearFeedback = () => {
     setError(null);
