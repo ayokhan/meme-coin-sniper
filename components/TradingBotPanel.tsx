@@ -700,7 +700,7 @@ export default function TradingBotPanel() {
               {running ? "Running…" : "Run now"}
             </Button>
             <Button
-              onClick={closePosition}
+              onClick={() => closePosition()}
               disabled={closing}
               variant="outline"
               className="border-amber-500 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50"
