@@ -72,6 +72,8 @@ export type WalletAlert = {
   priceUSD?: number | null;
   /** Latest buy timestamp (ms) among the tracked wallets for this token */
   latestBuyAt?: number | null;
+  /** Simple 0–100 score from liquidity + socials + age; used to filter Telegram alerts (e.g. only send if > 60). */
+  viralScore?: number;
 };
 
 export async function getWalletAlerts(): Promise<WalletAlert[]> {
