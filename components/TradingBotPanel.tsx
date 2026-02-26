@@ -41,7 +41,7 @@ export default function TradingBotPanel() {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      setError(null);
+      clearFeedback();
       const res = await fetch("/api/admin/trading-bot");
       const data = await res.json().catch(() => ({}));
       if (data.success && data.config) {
@@ -125,11 +125,15 @@ export default function TradingBotPanel() {
       const data = await res.json();
       if (data.success && data.config) {
         setConfig(data.config);
+        setSuccess("Configuration saved successfully.");
+        setError(null);
       } else {
         setError(data.error ?? "Failed to save");
+        setSuccess(null);
       }
     } catch {
       setError("Failed to save");
+      setSuccess(null);
     } finally {
       setSaving(false);
     }
@@ -154,11 +158,15 @@ export default function TradingBotPanel() {
       const data = await res.json();
       if (data.success && config) {
         setConfig({ ...config, enabled: data.enabled });
+        setSuccess(start ? "Bot started. It will run on schedule." : "Bot stopped.");
+        setError(null);
       } else {
         setError(data.error ?? "Failed to update");
+        setSuccess(null);
       }
     } catch {
       setError("Failed to update");
+      setSuccess(null);
     } finally {
       setToggling(false);
     }
@@ -168,23 +176,50 @@ export default function TradingBotPanel() {
     const err = validateForm();
     if (err) {
       setError(err);
+      setSuccess(null);
       return;
     }
     try {
       setRunning(true);
-      setError(null);
+      clearFeedback();
       const res = await fetch("/api/admin/trading-bot/run", { method: "POST" });
       const data = await res.json();
       if (data.success) {
+        setSuccess(data.message ? `Run completed. ${data.message}` : "Run completed. Check last decision below.");
         setError(null);
         loadConfig();
       } else {
         setError(data.error ?? "Run failed");
+        setSuccess(null);
       }
     } catch {
       setError("Run failed");
+      setSuccess(null);
     } finally {
       setRunning(false);
+    }
+  };
+
+  const closePosition = async () => {
+    if (!config?.symbol || !window.confirm(`Close open position for ${config.symbol}? This will place a market order to exit.`)) return;
+    try {
+      setClosing(true);
+      clearFeedback();
+      const res = await fetch("/api/admin/trading-bot/close", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(data.message ?? "Position closed.");
+        setError(null);
+        loadConfig();
+      } else {
+        setError(data.error ?? "Failed to close position");
+        setSuccess(null);
+      }
+    } catch {
+      setError("Failed to close position");
+      setSuccess(null);
+    } finally {
+      setClosing(false);
     }
   };
 
@@ -205,6 +240,19 @@ export default function TradingBotPanel() {
         Crypto futures bot (long/short) via <strong>Blofin</strong>. Configure symbol, timeframe, leverage, take profit &amp; stop loss.
       </p>
 
+      {success && (
+        <div className="rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/60 dark:bg-emerald-950/30 p-3 text-sm text-emerald-800 dark:text-emerald-200 flex items-start justify-between gap-2">
+          <p className="font-medium">{success}</p>
+          <button
+            type="button"
+            onClick={() => setSuccess(null)}
+            className="shrink-0 text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {error && (
         <div className="rounded-lg border border-rose-200/80 dark:border-rose-800/80 bg-rose-50/50 dark:bg-rose-950/30 p-3 text-sm text-rose-700 dark:text-rose-300 space-y-2">
           <p>{error}</p>
@@ -413,16 +461,19 @@ export default function TradingBotPanel() {
           {config?.lastRunAt && (
             <p className="text-xs text-muted-foreground">Last run: {new Date(config.lastRunAt).toLocaleString()}</p>
           )}
-          {(config?.lastDecision || config?.lastDecisionMsg) && (
+          {config?.lastDecision && config.lastDecision !== "no_trade" && config?.lastDecisionMsg && (
+            <div className="rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/30 p-3 text-sm">
+              <p className="font-semibold text-emerald-800 dark:text-emerald-200">Position opened</p>
+              <p className="mt-1 text-emerald-700 dark:text-emerald-300 break-words">{config.lastDecisionMsg}</p>
+              <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+                Direction: <span className={config.lastDecision === "long" ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>{config.lastDecision.toUpperCase()}</span>
+              </p>
+            </div>
+          )}
+          {(config?.lastDecision || config?.lastDecisionMsg) && (config?.lastDecision === "no_trade" || !config?.lastDecision) && (
             <div className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900/40 p-2 text-xs">
               <span className="font-medium text-zinc-700 dark:text-zinc-300">Last decision: </span>
-              {config.lastDecision && config.lastDecision !== "no_trade" ? (
-                <span className={config.lastDecision === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-                  {config.lastDecision.toUpperCase()}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">No trade</span>
-              )}
+              <span className="text-muted-foreground">No trade</span>
               {config.lastDecisionMsg && (
                 <p className="mt-1 text-muted-foreground break-words">{config.lastDecisionMsg}</p>
               )}
@@ -461,7 +512,18 @@ export default function TradingBotPanel() {
             >
               {running ? "Running…" : "Run now"}
             </Button>
+            <Button
+              onClick={closePosition}
+              disabled={closing}
+              variant="outline"
+              className="border-amber-500 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50"
+            >
+              {closing ? "Closing…" : "Close position"}
+            </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Close position: closes any open position for the configured symbol with a market order. You will be asked to confirm.
+          </p>
         </CardContent>
       </Card>
     </div>

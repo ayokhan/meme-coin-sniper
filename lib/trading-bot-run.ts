@@ -291,3 +291,37 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     return { ok: false, error: err };
   }
 }
+
+/**
+ * Close any open position for the trading bot's symbol (Blofin). Owner-only; call from API.
+ */
+export async function closeTradingBotPosition(): Promise<{ ok: boolean; message?: string; error?: string }> {
+  const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
+  if (!bot) return { ok: false, error: "No bot config." };
+  if (!isBlofinConfigured()) {
+    return { ok: false, error: "Blofin API keys not set." };
+  }
+  const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
+  if (!rawSymbol) return { ok: false, error: "Symbol is required." };
+  const instId = rawSymbol.includes("/")
+    ? rawSymbol.replace("/", "-")
+    : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
+
+  const positions = await getPositionsBlofin(instId);
+  if (!positions.length) {
+    return { ok: false, error: "No open position for this symbol." };
+  }
+
+  for (const pos of positions) {
+    const rawSize = String(pos.pos ?? "0").trim();
+    const sizeNum = Math.abs(parseFloat(rawSize));
+    if (sizeNum <= 0 || !Number.isFinite(sizeNum)) continue;
+    const size = String(sizeNum);
+    const closeSide = (pos.posSide ?? "").toLowerCase() === "long" ? "sell" : "buy";
+    const result = await placeMarketOrderBlofin(instId, closeSide, size, "cross");
+    if (!result.ok) {
+      return { ok: false, error: result.error ?? "Failed to close position." };
+    }
+  }
+  return { ok: true, message: "Position closed." };
+}

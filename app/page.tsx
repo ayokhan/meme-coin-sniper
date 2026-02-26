@@ -1098,9 +1098,7 @@ export default function Dashboard() {
                 <TabsTrigger value="ai-analysis" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">NovaStaris AI Analysis</TabsTrigger>
                 <TabsTrigger value="futures" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Crypto Futures</TabsTrigger>
                 <TabsTrigger value="narratives" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Narratives</TabsTrigger>
-                {isOwner && (
-                  <TabsTrigger value="trading-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trading Bot</TabsTrigger>
-                )}
+                <TabsTrigger value="trading-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trading Bot</TabsTrigger>
                 <TabsTrigger value="ct" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
                 <TabsTrigger value="wallets" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Wallet Tracker</TabsTrigger>
                 <TabsTrigger value="coach-calls" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Coach Calls + Telegram Signals</TabsTrigger>
@@ -1945,38 +1943,65 @@ export default function Dashboard() {
                 <NarrativesPanel />
               </div>
             ) : activeTab === "trading-bot" ? (
-              <div>
-                <div className="mx-6 mt-4 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Bot:</span>
-                  <button
-                    type="button"
-                    onClick={() => setTradingBotView("futures")}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      tradingBotView === "futures"
-                        ? "bg-cyan-500 text-white dark:bg-cyan-600"
-                        : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
-                    }`}
-                  >
-                    Crypto Futures
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTradingBotView("solana")}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      tradingBotView === "solana"
-                        ? "bg-violet-500 text-white dark:bg-violet-600"
-                        : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
-                    }`}
-                  >
-                    Solana
-                  </button>
-                  <span className="text-xs text-muted-foreground ml-1">
-                    {tradingBotView === "futures" && "Hyperliquid or Blofin futures bot (demo/live)."}
-                    {tradingBotView === "solana" && "Jupiter + Phantom for meme coin swaps. Owner only."}
-                  </span>
+              !isOwner ? (
+                <div className="flex flex-col items-center justify-center py-20 px-6 text-center max-w-lg mx-auto">
+                  <div className="rounded-2xl border border-amber-200/80 dark:border-amber-800/80 bg-gradient-to-b from-amber-50/80 to-white dark:from-amber-950/40 dark:to-zinc-900/80 p-8 shadow-lg">
+                    <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center mb-5">
+                      <svg className="w-7 h-7 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-100">
+                      Trading Bot — On demand service
+                    </h2>
+                    <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                      Automated crypto futures and Solana trading bots are available as an <strong className="text-zinc-700 dark:text-zinc-300">on demand</strong> service. Access requires <strong className="text-amber-700 dark:text-amber-400">VIP</strong> plus <strong className="text-amber-700 dark:text-amber-400">On demand</strong>.
+                    </p>
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      Contact us to upgrade and get access to configurable bots, risk settings, and live or demo trading.
+                    </p>
+                    <a
+                      href="/support"
+                      className="mt-6 inline-flex items-center justify-center rounded-lg bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white font-medium px-5 py-2.5 text-sm transition-colors"
+                    >
+                      Contact for access
+                    </a>
+                  </div>
                 </div>
-                {tradingBotView === "futures" ? <TradingBotPanel /> : <SolanaTradingBotPanel />}
-              </div>
+              ) : (
+                <div>
+                  <div className="mx-6 mt-4 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Bot:</span>
+                    <button
+                      type="button"
+                      onClick={() => setTradingBotView("futures")}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        tradingBotView === "futures"
+                          ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                          : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                      }`}
+                    >
+                      Crypto Futures
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTradingBotView("solana")}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        tradingBotView === "solana"
+                          ? "bg-violet-500 text-white dark:bg-violet-600"
+                          : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                      }`}
+                    >
+                      Solana
+                    </button>
+                    <span className="text-xs text-muted-foreground ml-1">
+                      {tradingBotView === "futures" && "Blofin futures bot (demo/live)."}
+                      {tradingBotView === "solana" && "Jupiter + Phantom for meme coin swaps."}
+                    </span>
+                  </div>
+                  {tradingBotView === "futures" ? <TradingBotPanel /> : <SolanaTradingBotPanel />}
+                </div>
+              )
             ) : activeTab === "coach-calls" ? (
               <CoachCallsPanel isOwner={isOwner} isVip={isVip} />
             ) : activeTab === "wallets" ? (
