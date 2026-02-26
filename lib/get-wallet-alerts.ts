@@ -7,8 +7,42 @@ import { getTrackedWallets, getAlertRules, getFirstBuyRules } from '@/lib/wallet
 import { getRecentTokenBuysForWallet } from '@/lib/api-clients/helius';
 import { getWalletTokenBuysFromBirdeye } from '@/lib/api-clients/birdeye';
 import { getWalletBuySwapsFromMoralis } from '@/lib/api-clients/moralis';
-import { getSolanaToken } from '@/lib/api-clients/dexscreener';
+import { getSolanaToken, type DexPair } from '@/lib/api-clients/dexscreener';
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
+
+/** Min viral score (0–100) for a wallet-tracker alert to be sent to Telegram. Alerts below this are not sent. */
+export const MIN_VIRAL_SCORE_FOR_TELEGRAM = 60;
+
+/** Simple 0–100 score from DexPair (liquidity + socials + age) for filtering Telegram wallet alerts. */
+function simpleViralScoreFromDex(dex: DexPair | null): number {
+  if (!dex) return 0;
+  const liq = dex.liquidity?.usd ?? 0;
+  const socials = dex.info?.socials ?? [];
+  const websites = dex.info?.websites ?? [];
+  const hasTwitter = socials.some((s) => (s.type ?? s.platform ?? '').toLowerCase().includes('twitter'));
+  const hasTelegram = socials.some((s) => (s.type ?? s.platform ?? '').toLowerCase().includes('telegram'));
+  const hasWebsite = websites.length > 0;
+  const now = Date.now();
+  const createdMs = dex.pairCreatedAt < 1e12 ? dex.pairCreatedAt * 1000 : dex.pairCreatedAt;
+  const ageMinutes = (now - createdMs) / 60000;
+
+  let liquidityScore = 0;
+  if (liq >= 1_000_000) liquidityScore = 35;
+  else if (liq >= 500_000) liquidityScore = 30;
+  else if (liq >= 100_000) liquidityScore = 25;
+  else if (liq >= 50_000) liquidityScore = 18;
+  else if (liq >= 20_000) liquidityScore = 12;
+  else if (liq >= 5_000) liquidityScore = 6;
+
+  const socialScore = (hasWebsite ? 10 : 0) + (hasTwitter ? 15 : 0) + (hasTelegram ? 10 : 0);
+
+  let timingScore = 0;
+  if (ageMinutes >= 10 && ageMinutes <= 120) timingScore = 30;
+  else if (ageMinutes >= 5 && ageMinutes <= 180) timingScore = 20;
+  else if (ageMinutes <= 60) timingScore = 12;
+
+  return Math.min(100, Math.round(liquidityScore + socialScore + timingScore));
+}
 
 const LIMIT_PER_WALLET = 30;
 
@@ -79,6 +113,7 @@ export async function getWalletAlerts(): Promise<WalletAlert[]> {
       return { address: addr, label: w?.label ?? undefined };
     });
     const dex = await getSolanaToken(mint);
+    const viralScore = simpleViralScoreFromDex(dex ?? null);
     alerts.push({
       contractAddress: mint,
       symbol: dex?.baseToken?.symbol ?? '—',
@@ -88,6 +123,7 @@ export async function getWalletAlerts(): Promise<WalletAlert[]> {
       liquidity: dex?.liquidity?.usd ?? null,
       priceUSD: dex?.priceUsd ? parseFloat(dex.priceUsd) : null,
       latestBuyAt: mintToLatestBuy[mint] ?? null,
+      viralScore,
     });
     await new Promise((r) => setTimeout(r, 150));
   }

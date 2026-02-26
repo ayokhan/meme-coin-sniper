@@ -7,7 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "export-docs": "npx --yes @mohtasham/md-to-docx TECH_STACK_AND_APIS.md docs-word/NovaStaris-Tech-Stack-and-APIs.docx && npx --yes @mohtasham/md-to-docx PRD.md docs-word/NovaStaris-PRD.docx && npx --yes @mohtasham/md-to-docx GO_TO_MARKET.md docs-word/NovaStaris-Go-to-Market.docx && npx --yes @mohtasham/md-to-docx JOBS_TO_BE_DONE.md docs-word/NovaStaris-Jobs-to-be-Done.docx && npx --yes @mohtasham/md-to-docx AUTH_SETUP.md docs-word/NovaStaris-Auth-Setup.docx"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -36,6 +37,7 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
+    "@mohtasham/md-to-docx": "^2.8.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcrypt": "^5.0.2",
     "@types/node": "^20",

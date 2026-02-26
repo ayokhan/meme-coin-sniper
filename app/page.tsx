@@ -147,6 +147,20 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [status, isOwner]);
 
+  // Load first-buy alert flag on mount for owner so toggle shows correct state when navigating back
+  useEffect(() => {
+    if (status !== "authenticated" || !isOwner) return;
+    fetch("/api/wallet-tracker/first-buy")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) {
+          setFirstBuyEnabled(d.firstBuyEnabled ?? false);
+          setFirstBuyAlerts(d.recentAlerts ?? []);
+        }
+      })
+      .catch(() => {});
+  }, [status, isOwner]);
+
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState<"idle" | "scan" | "twitter">("idle");

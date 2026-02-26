@@ -108,7 +108,7 @@ The Trading Bot supports three **providers**: **KuCoin Futures** (default), **Bl
 
 ## 6. App Insights (owner-only analytics)
 
-App Insights gives the owner a dashboard of where visitors are from, what device they use, and which pages they view. Only users whose email (or wallet) matches `OWNER_EMAIL` can access it.
+App Insights gives the owner a dashboard of where visitors are from, what device they use, and which pages they view. Only users whose email (or wallet) matches `OWNER_EMAIL` or `OWNER_WALLET_ADDRESSES` can access it. The **Status** page (`/status`) and **Status** button in the header are also owner-only; the API `/api/status` returns 403 for non-owners.
 
 ### 6.1 Data source and technology
 
@@ -177,6 +177,73 @@ App Insights gives the owner a dashboard of where visitors are from, what device
 
 ---
 
+## 7b. API routes reference (complete list)
+
+| Route | Method | Auth | Purpose |
+|-------|--------|------|---------|
+| `/api/account/profile` | GET, PATCH | Session | Get or update user profile (name, phone, country, experience). |
+| `/api/analytics` | POST | — | Record page view (path, geo, device); used by AnalyticsPing. |
+| `/api/auth/[...nextauth]` | * | — | NextAuth.js handlers (sign in, sign out, session). |
+| `/api/auth/change-password` | POST | Session | Change password (current + new); email/password users only. |
+| `/api/auth/forgot-password` | POST | — | Request password reset; creates token, sends email via Resend. |
+| `/api/auth/register` | POST | — | Create account (email, password, optional name/phone/country). |
+| `/api/auth/reset-password` | POST | — | Set new password with token from email. |
+| `/api/auth/nonce` | GET | — | Nonce for Solana wallet sign-in. |
+| `/api/auth/wallet-login` | POST | — | Wallet signature verification and session. |
+| `/api/status` | GET | Owner | Health check for DexScreener, Moralis; owner-only. |
+| `/api/new-pairs` | GET | — | New Solana pairs (DexScreener, Birdeye, Moralis Pump.fun). |
+| `/api/new-pairs-bsc` | GET | — | New BSC pairs (DexScreener). |
+| `/api/trending` | GET | — | Trending Solana tokens (DexScreener). |
+| `/api/trending-bsc` | GET | — | Trending BSC tokens. |
+| `/api/surge` | GET | — | Surge / volume spike tokens (DexScreener). |
+| `/api/tokens` | GET | — | Tokens from DB (e.g. scan results). |
+| `/api/scan` | POST | — | Scan and persist tokens (Birdeye/Moralis/DexScreener). |
+| `/api/scan-twitter` | POST | — | Trigger CT Scan (Apify tweet scraper). |
+| `/api/ct-tweets` | GET | — | CT tweets (Apify). |
+| `/api/ct-accounts` | GET, PATCH | Owner | CT accounts list for scan. |
+| `/api/ct-wallets` | GET | — | CT wallet config (for UI). |
+| `/api/ai-analyze` | POST | — | NovaStaris AI Analysis (Solana token; Claude). |
+| `/api/ai-analyze-bsc` | POST | Session (Pro/VIP) | BSC token AI analysis (Claude). |
+| `/api/ai-analyze-futures` | POST | — | Crypto futures AI analysis (Claude). |
+| `/api/pins` | GET, POST, DELETE | Session | Pinned tokens (watchlist, re-analysis). |
+| `/api/pins/refresh` | POST | Session | Refresh pinned token analyses. |
+| `/api/subscription` | GET, POST | Session | Subscription status, plans, verify Solana payment. |
+| `/api/support` | POST | — | Submit support ticket (form). |
+| `/api/chat/session` | GET, POST | — | Get or create chat session. |
+| `/api/chat/message` | POST | — | Send chat message. |
+| `/api/chat/messages` | GET | — | Get messages for session. |
+| `/api/chat/presence` | POST | Owner | Ping agent presence (live indicator). |
+| `/api/chat/request-live` | POST | — | Request live agent. |
+| `/api/coach-calls` | GET | Session (VIP) | Coach Calls (CA / call alerts). |
+| `/api/telegram-id` | GET, POST | Session | User Telegram ID for Coach Calls; owner can list. |
+| `/api/wallet-tracker` | GET | — | Wallet Tracker alerts (tokens with ≥ N tracked wallet buys). |
+| `/api/wallet-tracker/trades` | GET | — | Live trades from tracked wallets. |
+| `/api/wallet-tracker/notify` | POST | — | Called by cron; send alerts to Telegram, dedupe. |
+| `/api/wallet-tracker/first-buy` | GET | Session | First-buy alerts (tracked wallet bought token first time). |
+| `/api/cron` | GET | Vercel Cron | Entrypoint; calls wallet-tracker notify. |
+| `/api/admin/insights` | GET | Owner | App Insights aggregates (country, city, device, path, etc.). |
+| `/api/admin/customers` | GET | Owner | List users and subscription status. |
+| `/api/admin/customers/[userId]` | GET, DELETE | Owner | Customer detail or delete. |
+| `/api/admin/support` | GET, PATCH | Owner | Support tickets list and status updates. |
+| `/api/admin/feature-flags` | GET, PATCH | Owner | Feature toggles (Moralis, Telegram, etc.). |
+| `/api/admin/ai-feedback` | GET, POST | Owner | AI analysis feedback (good/bad) for model improvement. |
+| `/api/admin/chat/sessions` | GET, PATCH | Owner | Chat sessions (NJA/live). |
+| `/api/admin/chat/message` | POST | Owner | Send message as agent. |
+| `/api/admin/wallet-tracker/wallets` | GET, POST, DELETE | Owner | Tracked wallets CRUD. |
+| `/api/admin/wallet-tracker/rules` | GET, PATCH | Owner | Alert rules (minBuyers, maxAgeHours, maxAlerts). |
+| `/api/admin/wallet-tracker/first-buy-rules` | GET, PATCH | Owner | First-buy alert rules. |
+| `/api/admin/wallet-tracker/import-config` | POST | Owner | Import wallet config. |
+| `/api/admin/wallet-tracker/seed` | POST | Owner | Seed default wallets. |
+| `/api/admin/trading-bot` | GET, PATCH | Owner | Trading bot config (provider, symbol, strategy, etc.). |
+| `/api/admin/trading-bot/run` | POST | Owner | Run trading bot (manual trigger). |
+| `/api/admin/solana-bot/quote` | GET | Owner | Solana bot quote (if used). |
+| `/api/test-db` | GET | — | Test DB connection. |
+| `/api/test-dexscreener` | GET | — | Test DexScreener. |
+| `/api/test-moralis` | GET | — | Test Moralis. |
+| `/api/test-twitter` | GET | — | Test Twitter/Apify. |
+
+---
+
 ## 8. Data flow (high level)
 
 - **New/trending/surge tokens:** DexScreener (and optionally Birdeye/Moralis) → aggregate in API routes → dashboard.
@@ -210,9 +277,20 @@ App Insights gives the owner a dashboard of where visitors are from, what device
 | **Language** | TypeScript (app + API); Node.js server. |
 | **Framework** | Next.js 16 (App Router), React 19. |
 | **Database** | PostgreSQL (e.g. Supabase); Prisma ORM. |
-| **Auth** | NextAuth.js (email/password + Solana wallet); owner via `OWNER_EMAIL`. Account: `/account`; forgot/reset password: Resend (set `RESEND_API_KEY` in Vercel). |
+| **Auth** | NextAuth.js (email/password + Solana wallet); owner via `OWNER_EMAIL` or `OWNER_WALLET_ADDRESSES`. Account: `/account`; forgot/reset password: Resend (`RESEND_API_KEY`). Status: owner-only. |
 | **Data sources** | DexScreener, Moralis, Birdeye, Helius, GoPlus, Apify, Anthropic; Vercel/Cloudflare headers for App Insights geo. |
 | **Hosting** | Vercel (serverless + Cron). |
+
+---
+
+## Related documents
+
+| Document | Purpose |
+|----------|---------|
+| **PRD.md** | Product vision, goals, personas, features, user stories, success metrics. |
+| **GO_TO_MARKET.md** | Go-to-market strategy: target market, positioning, pricing, channels, launch phases. |
+| **JOBS_TO_BE_DONE.md** | Jobs to be done: When / I want to / So that for discovery, wallet tracking, AI, account, support, owner. |
+| **AUTH_SETUP.md** | Auth setup: NextAuth, owner config, Resend for password reset. |
 
 ---
 

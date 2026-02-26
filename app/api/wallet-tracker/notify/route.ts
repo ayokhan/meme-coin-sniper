@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getWalletAlerts, getFirstBuyAlerts } from '@/lib/get-wallet-alerts';
+import { getWalletAlerts, getFirstBuyAlerts, MIN_VIRAL_SCORE_FOR_TELEGRAM } from '@/lib/get-wallet-alerts';
 import { getAlertRules } from '@/lib/wallet-tracker-config';
 import { sendWalletAlerts, sendFirstBuyAlerts } from '@/lib/telegram';
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
@@ -45,6 +45,8 @@ export async function GET(request: Request) {
         const sentSet = new Set(recent.map((r) => r.contractAddress));
         toSend = alerts.filter((a) => !sentSet.has(a.contractAddress));
       }
+      // Only send wallet-tracker alerts to Telegram for tokens with viral score > 60
+      toSend = toSend.filter((a) => (a.viralScore ?? 0) > MIN_VIRAL_SCORE_FOR_TELEGRAM);
       if (toSend.length > 0) {
         await sendWalletAlerts(toSend, rules.minBuyers);
         if (db.walletAlertSent) {
