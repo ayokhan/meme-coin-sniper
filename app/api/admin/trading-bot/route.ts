@@ -74,6 +74,7 @@ export async function GET() {
         slPct: bot.slPct,
         mode: bot.mode,
         marginCurrency: bot.marginCurrency ?? 'USDT',
+        marginMode: (bot as { marginMode?: string }).marginMode ?? 'cross',
         positionSizeUsdt: bot.positionSizeUsdt ?? 50,
         strategy: (bot as { strategy?: string }).strategy ?? 'simple',
         emaPeriod: (bot as { emaPeriod?: number }).emaPeriod ?? 200,
@@ -144,6 +145,7 @@ export async function PATCH(request: Request) {
     updates.strategy = merged.strategy;
     if (body.mode === 'demo' || body.mode === 'live') updates.mode = body.mode;
     if (body.marginCurrency === 'USDT' || body.marginCurrency === 'USDC') updates.marginCurrency = body.marginCurrency;
+    if (body.marginMode === 'cross' || body.marginMode === 'isolated') updates.marginMode = body.marginMode;
     if (typeof body.emaPeriod === 'number' && body.emaPeriod >= 1 && body.emaPeriod <= 500) updates.emaPeriod = body.emaPeriod;
     if (typeof body.fastMA === 'number' && body.fastMA >= 1 && body.fastMA <= 100) updates.fastMA = body.fastMA;
     if (typeof body.slowMA === 'number' && body.slowMA >= 1 && body.slowMA <= 200) updates.slowMA = body.slowMA;
@@ -163,6 +165,7 @@ export async function PATCH(request: Request) {
         slPct: updated.slPct,
         mode: updated.mode,
         marginCurrency: updated.marginCurrency ?? 'USDT',
+        marginMode: (updated as { marginMode?: string }).marginMode ?? 'cross',
         positionSizeUsdt: updated.positionSizeUsdt ?? 50,
         strategy: (updated as { strategy?: string }).strategy ?? 'simple',
         emaPeriod: (updated as { emaPeriod?: number }).emaPeriod ?? 200,

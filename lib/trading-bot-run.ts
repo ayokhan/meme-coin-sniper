@@ -268,14 +268,15 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
       return { ok: false, error: err };
     }
 
-    const leverageOk = await setLeverage(instId, bot.leverage, "cross");
+    const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
+    const leverageOk = await setLeverage(instId, bot.leverage, marginMode);
     if (!leverageOk.ok) {
       console.warn("setLeverage:", leverageOk.error);
       // continue anyway
     }
 
     const side = signal === "long" ? "buy" : "sell";
-    const order = await placeMarketOrder(instId, side, sizeStr, "cross");
+    const order = await placeMarketOrder(instId, side, sizeStr, marginMode);
     if (!order.ok) {
       const err = order.error ?? "Order failed";
       await updateLastRun(err, "no_trade", err);
@@ -312,13 +313,14 @@ export async function closeTradingBotPosition(): Promise<{ ok: boolean; message?
     return { ok: false, error: "No open position for this symbol." };
   }
 
+  const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
   for (const pos of positions) {
     const rawSize = String(pos.pos ?? "0").trim();
     const sizeNum = Math.abs(parseFloat(rawSize));
     if (sizeNum <= 0 || !Number.isFinite(sizeNum)) continue;
     const size = String(sizeNum);
     const closeSide = (pos.posSide ?? "").toLowerCase() === "long" ? "sell" : "buy";
-    const result = await placeMarketOrderBlofin(instId, closeSide, size, "cross");
+    const result = await placeMarketOrderBlofin(instId, closeSide, size, marginMode);
     if (!result.ok) {
       return { ok: false, error: result.error ?? "Failed to close position." };
     }

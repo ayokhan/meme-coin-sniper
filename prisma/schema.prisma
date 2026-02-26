@@ -282,7 +282,8 @@ model TradingBot {
   slPct            Float    @default(1)          // stop loss %
   mode             String   @default("demo")     // demo | live
   marginCurrency   String   @default("USDT")     // USDT | USDC
-  positionSizeUsdt Float    @default(50)        // position size in USDT (or USDC)
+  marginMode       String   @default("cross")    // cross | isolated
+  positionSizeUsdt Float    @default(50)        // target notional in USDT (or USDC); actual may be ≥ due to min contract
   strategy         String   @default("simple")   // simple | indicators | ai | hybrid
   emaPeriod        Int      @default(200)       // for indicators/hybrid
   fastMA           Int      @default(9)         // fast MA for crossover
