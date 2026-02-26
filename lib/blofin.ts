@@ -330,27 +330,41 @@ export async function getInstrument(instId: string, options?: { demo?: boolean }
   return { minSize: d.minSize, contractValue: d.contractValue, settleCurrency: d.settleCurrency };
 }
 
-/** GET open (pending/live) orders. options.demo: use bot mode. Blofin: GET /api/v1/trade/orders. */
+/** Normalize open-order row from Blofin response. */
+function mapOpenOrder(o: Record<string, unknown>): { orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; createdAt?: string } {
+  return {
+    orderId: String(o.orderId ?? o.order_id ?? ""),
+    instId: String(o.instId ?? o.inst_id ?? ""),
+    side: String(o.side ?? ""),
+    orderType: String(o.orderType ?? o.order_type ?? ""),
+    size: String(o.size ?? o.sz ?? "0"),
+    price: String(o.price ?? "0"),
+    state: String(o.state ?? o.status ?? "live"),
+    createdAt: o.createTime != null ? String(o.createTime) : (o.create_time != null ? String(o.create_time) : undefined),
+  };
+}
+
+/** GET open (pending/live) orders. options.demo: use bot mode. Tries Blofin orders then orders-pending. */
 export async function getOpenOrders(options?: { demo?: boolean; instId?: string; limit?: number }): Promise<
   { orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; createdAt?: string }[]
 > {
   const limit = options?.limit ?? 50;
-  const path = options?.instId
-    ? `/api/v1/trade/orders?instId=${encodeURIComponent(options.instId)}&limit=${limit}`
-    : `/api/v1/trade/orders?limit=${limit}`;
-  const out = await privateRequest<{ orderId?: string; instId?: string; side?: string; orderType?: string; size?: string; price?: string; state?: string; createTime?: string }[]>("GET", path, undefined, options?.demo);
-  if (out.code !== "0" || !out.data) return [];
-  const list = Array.isArray(out.data) ? out.data : [];
-  return list.map((o) => ({
-    orderId: String(o.orderId ?? ""),
-    instId: String(o.instId ?? ""),
-    side: String(o.side ?? ""),
-    orderType: String(o.orderType ?? ""),
-    size: String(o.size ?? "0"),
-    price: String(o.price ?? "0"),
-    state: String(o.state ?? "live"),
-    createdAt: o.createTime != null ? String(o.createTime) : undefined,
-  }));
+  const base = options?.instId ? `instId=${encodeURIComponent(options.instId)}&limit=${limit}` : `limit=${limit}`;
+  const paths = [`/api/v1/trade/orders?${base}`, `/api/v1/trade/orders-pending?${base}`];
+  for (const path of paths) {
+    const out = await privateRequest<unknown>("GET", path, undefined, options?.demo);
+    if (out.code !== "0") continue;
+    const raw = out.data;
+    const list: Record<string, unknown>[] = Array.isArray(raw)
+      ? (raw as Record<string, unknown>[])
+      : raw && typeof raw === "object" && Array.isArray((raw as { data?: unknown[] }).data)
+        ? (raw as { data: Record<string, unknown>[] }).data
+        : raw && typeof raw === "object" && Array.isArray((raw as { orders?: unknown[] }).orders)
+          ? (raw as { orders: Record<string, unknown>[] }).orders
+          : [];
+    return list.map((o) => mapOpenOrder(o));
+  }
+  return [];
 }
 
 /** GET order history (filled/canceled). options.demo: use bot mode. Includes pnl when present (e.g. closing orders). */

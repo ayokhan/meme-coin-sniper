@@ -864,6 +864,7 @@ export default function TradingBotPanel() {
                   </button>
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground mb-2 -mt-1">Open orders = pending (unfilled). Positions = open positions only. Order history = filled/canceled.</p>
               {activeTab === "open_orders" && (
                 <div className="mt-2 max-h-64 overflow-auto">
                   {openOrdersLoading ? (
