@@ -76,9 +76,27 @@ export default function TradingBotPanel() {
     loadConfig();
   }, []);
 
+  const VALID_TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1D"];
+  const validateForm = (): string | null => {
+    const symbol = (form.symbol ?? "").trim().toUpperCase();
+    if (!symbol) return "Symbol is required (e.g. BTC or BTC/USDT).";
+    const tf = (form.timeframe ?? "").trim();
+    if (!VALID_TIMEFRAMES.includes(tf)) return `Timeframe must be one of: ${VALID_TIMEFRAMES.join(", ")}.`;
+    const lev = form.leverage ?? 0;
+    if (lev < 1 || lev > 125) return "Leverage must be between 1 and 125.";
+    const tp = form.tpPct ?? 0;
+    if (tp <= 0 || tp > 100) return "Take profit % must be between 0.1 and 100.";
+    const sl = form.slPct ?? 0;
+    if (sl <= 0 || sl > 100) return "Stop loss % must be between 0.1 and 100.";
+    const pos = form.positionSizeUsdt ?? 0;
+    if (pos <= 0 || pos > 1_000_000) return "Position size must be between 1 and 1,000,000.";
+    return null;
+  };
+
   const saveConfig = async () => {
-    if (!form.symbol || !form.timeframe) {
-      setError("Symbol and timeframe are required");
+    const err = validateForm();
+    if (err) {
+      setError(err);
       return;
     }
     try {
@@ -88,8 +106,9 @@ export default function TradingBotPanel() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          symbol: form.symbol,
-          timeframe: form.timeframe,
+          provider: "blofin",
+          symbol: (form.symbol ?? "").trim().toUpperCase(),
+          timeframe: (form.timeframe ?? "").trim(),
           leverage: form.leverage ?? 5,
           tpPct: form.tpPct ?? 2,
           slPct: form.slPct ?? 1,
@@ -146,6 +165,11 @@ export default function TradingBotPanel() {
   };
 
   const runNow = async () => {
+    const err = validateForm();
+    if (err) {
+      setError(err);
+      return;
+    }
     try {
       setRunning(true);
       setError(null);
