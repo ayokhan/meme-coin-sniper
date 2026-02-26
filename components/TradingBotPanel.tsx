@@ -66,6 +66,9 @@ export default function TradingBotPanel() {
   const [monitoring, setMonitoring] = useState(false);
   const [monitorIntervalMins, setMonitorIntervalMins] = useState<0 | 5 | 10 | 15 | 60>(0);
   const [lastMonitorResult, setLastMonitorResult] = useState<string | null>(null);
+  const [monitorBoardSymbols, setMonitorBoardSymbols] = useState<string[]>([]);
+  const [monitorBoardInput, setMonitorBoardInput] = useState("");
+  const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
 
