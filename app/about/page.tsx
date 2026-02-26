@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Brain, Target, Shield, Sparkles, TrendingUp } from "lucide-react";
+import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, Bot, BarChart3 } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -26,7 +26,7 @@ export default function AboutPage() {
             About NovaStaris
           </h1>
           <p className="mt-3 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-            Spot viral tokens before the crowd. Analyze with NovaStaris Advanced AI System in seconds. Move with smart money—Solana, BSC, and Crypto Futures in one platform.
+            Spot viral tokens before the crowd. Analyze with NovaStaris Advanced AI System in seconds. Move with smart money—Solana, BSC, Crypto Futures, and an automated <strong className="text-cyan-600 dark:text-cyan-400">Crypto Futures Trading Bot</strong> in one platform.
           </p>
         </div>
 
@@ -84,6 +84,15 @@ export default function AboutPage() {
                     <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Crypto Futures</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
                       <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong> — upload a chart, set margin and leverage; get AI support/resistance, entry zone, take profit and stop loss. <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong> — 4-phase system (macro bias, daily flow, pre-trade, execution) with powerful tools and six rules so you trade with institutional flow.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 rounded-xl border-2 border-cyan-200/80 dark:border-cyan-700/80 bg-cyan-50/50 dark:bg-cyan-950/30 p-4 sm:col-span-2">
+                  <BarChart3 className="h-6 w-6 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Trading Bot — Crypto Futures automation</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                      Automate long/short with simple, indicators, AI, or <strong className="text-zinc-900 dark:text-zinc-100">hybrid</strong> (TA + AI must agree). Configure symbol, leverage, TP/SL; run demo or live on Blofin. Start, stop, or close with one click. <strong className="text-amber-700 dark:text-amber-400">VIP + On demand.</strong>
                     </p>
                   </div>
                 </div>
