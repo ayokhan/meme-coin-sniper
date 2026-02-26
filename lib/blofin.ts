@@ -120,13 +120,13 @@ export async function getFuturesBalance(): Promise<{ currency: string; available
   return d.details ?? [];
 }
 
-/** Get position size from object (pos, sz, or position). */
+/** Get position size from object. Blofin uses "positions" (plural); others use pos, sz, position, size. */
 function getPosSize(h: Record<string, unknown>): string {
-  const v = h.pos ?? h.sz ?? h.position ?? h.size;
+  const v = h.positions ?? h.pos ?? h.sz ?? h.position ?? h.size;
   return v != null ? String(v) : "0";
 }
 
-/** Extract positions array from Blofin API response (various shapes). */
+/** Extract positions array from Blofin API response (various shapes). Blofin: data[] with positions, averagePrice, positionSide (net). */
 function extractPositionsList(data: unknown): Array<{ instId: string; posSide: string; pos: string; avgPx: string }> {
   if (!data || typeof data !== "object") return [];
   const raw = data as Record<string, unknown>;
@@ -140,8 +140,12 @@ function extractPositionsList(data: unknown): Array<{ instId: string; posSide: s
     const posStr = getPosSize(obj);
     if (parseFloat(posStr) === 0) continue;
     const instId = String(obj.instId ?? obj.inst_id ?? obj.symbol ?? "");
-    const posSide = String(obj.posSide ?? obj.pos_side ?? obj.side ?? "long");
-    const avgPx = String(obj.avgPx ?? obj.avg_px ?? obj.avgPrice ?? obj.entryPrice ?? "0");
+    const positionSide = String(obj.positionSide ?? obj.posSide ?? obj.pos_side ?? obj.side ?? "").toLowerCase();
+    const posSide =
+      positionSide === "net"
+        ? (parseFloat(posStr) >= 0 ? "long" : "short")
+        : String(obj.posSide ?? obj.pos_side ?? obj.side ?? "long");
+    const avgPx = String(obj.averagePrice ?? obj.avgPx ?? obj.avg_px ?? obj.avgPrice ?? obj.entryPrice ?? "0");
     result.push({ instId, posSide, pos: posStr, avgPx });
   }
   return result;
@@ -294,17 +298,17 @@ export async function getInstrument(instId: string, options?: { demo?: boolean }
   return { minSize: d.minSize, contractValue: d.contractValue, settleCurrency: d.settleCurrency };
 }
 
-/** GET order history (filled/canceled). options.demo: use bot mode. */
+/** GET order history (filled/canceled). options.demo: use bot mode. Includes pnl when present (e.g. closing orders). */
 export async function getOrderHistory(options?: { demo?: boolean; instId?: string; limit?: number }): Promise<
-  { orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string }[]
+  { orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string; pnl?: string }[]
 > {
   const limit = options?.limit ?? 50;
   const path = options?.instId
     ? `/api/v1/trade/orders-history?instId=${encodeURIComponent(options.instId)}&limit=${limit}`
     : `/api/v1/trade/orders-history?limit=${limit}`;
-  const out = await privateRequest<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createTime?: string }[]>("GET", path, undefined, options?.demo);
+  const out = await privateRequest<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createTime?: string; pnl?: string }[]>("GET", path, undefined, options?.demo);
   if (out.code !== "0" || !out.data) return [];
-  type OrderRow = { orderId?: string; instId?: string; side?: string; orderType?: string; size?: string; price?: string; state?: string; fillPrice?: string; createTime?: string };
+  type OrderRow = { orderId?: string; instId?: string; side?: string; orderType?: string; size?: string; price?: string; state?: string; fillPrice?: string; createTime?: string; pnl?: string };
   const list: OrderRow[] = Array.isArray(out.data) ? (out.data as OrderRow[]) : ((out.data as { data?: OrderRow[] })?.data ?? []);
   return list.map((o) => ({
     orderId: String(o.orderId ?? ""),
@@ -316,6 +320,7 @@ export async function getOrderHistory(options?: { demo?: boolean; instId?: strin
     state: String(o.state ?? ""),
     fillPrice: o.fillPrice != null ? String(o.fillPrice) : undefined,
     createdAt: o.createTime != null ? String(o.createTime) : undefined,
+    pnl: o.pnl != null && o.pnl !== "" ? String(o.pnl) : undefined,
   }));
 }
 

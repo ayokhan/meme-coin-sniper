@@ -54,7 +54,7 @@ export default function TradingBotPanel() {
     markPrice: number | null;
   } | null>(null);
   const [positionsLoading, setPositionsLoading] = useState(false);
-  const [orderHistory, setOrderHistory] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string }[]>([]);
+  const [orderHistory, setOrderHistory] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string; pnl?: string }[]>([]);
   const [orderHistoryLoading, setOrderHistoryLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"positions" | "orders">("positions");
 
@@ -363,7 +363,7 @@ export default function TradingBotPanel() {
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Provider</label>
             <p className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/80 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">
-              Blofin (API key + optional broker ID). Set <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_API_KEY</code>, <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_SECRET_KEY</code>, <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_PASSPHRASE</code> in your server env (e.g. Vercel). Permissions: <strong>Read + Trade</strong> are enough; no need for Withdraw or Transfer.
+              Blofin
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -644,6 +644,11 @@ export default function TradingBotPanel() {
                           <span>{o.orderType}</span>
                           <span>size {o.size}</span>
                           {o.fillPrice != null && <span>@ {o.fillPrice}</span>}
+                          {o.pnl != null && o.pnl !== "" && (
+                            <span className={Number(o.pnl) >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
+                              PNL: {Number(o.pnl) >= 0 ? "+" : ""}{Number(o.pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} USDT
+                            </span>
+                          )}
                           <span className="text-muted-foreground">{o.state}</span>
                           {o.createdAt != null && <span className="text-muted-foreground">{new Date(Number(o.createdAt)).toLocaleString()}</span>}
                         </div>
