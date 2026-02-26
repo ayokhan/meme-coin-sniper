@@ -330,6 +330,29 @@ export async function getInstrument(instId: string, options?: { demo?: boolean }
   return { minSize: d.minSize, contractValue: d.contractValue, settleCurrency: d.settleCurrency };
 }
 
+/** GET open (pending/live) orders. options.demo: use bot mode. Blofin: GET /api/v1/trade/orders. */
+export async function getOpenOrders(options?: { demo?: boolean; instId?: string; limit?: number }): Promise<
+  { orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; createdAt?: string }[]
+> {
+  const limit = options?.limit ?? 50;
+  const path = options?.instId
+    ? `/api/v1/trade/orders?instId=${encodeURIComponent(options.instId)}&limit=${limit}`
+    : `/api/v1/trade/orders?limit=${limit}`;
+  const out = await privateRequest<{ orderId?: string; instId?: string; side?: string; orderType?: string; size?: string; price?: string; state?: string; createTime?: string }[]>("GET", path, undefined, options?.demo);
+  if (out.code !== "0" || !out.data) return [];
+  const list = Array.isArray(out.data) ? out.data : [];
+  return list.map((o) => ({
+    orderId: String(o.orderId ?? ""),
+    instId: String(o.instId ?? ""),
+    side: String(o.side ?? ""),
+    orderType: String(o.orderType ?? ""),
+    size: String(o.size ?? "0"),
+    price: String(o.price ?? "0"),
+    state: String(o.state ?? "live"),
+    createdAt: o.createTime != null ? String(o.createTime) : undefined,
+  }));
+}
+
 /** GET order history (filled/canceled). options.demo: use bot mode. Includes pnl when present (e.g. closing orders). */
 export async function getOrderHistory(options?: { demo?: boolean; instId?: string; limit?: number }): Promise<
   { orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string; pnl?: string }[]

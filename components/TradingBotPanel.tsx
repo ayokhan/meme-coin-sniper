@@ -56,11 +56,15 @@ export default function TradingBotPanel() {
   const [positionsLoading, setPositionsLoading] = useState(false);
   const [orderHistory, setOrderHistory] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string; pnl?: string }[]>([]);
   const [orderHistoryLoading, setOrderHistoryLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"positions" | "orders">("positions");
+  const [openOrders, setOpenOrders] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; createdAt?: string }[]>([]);
+  const [openOrdersLoading, setOpenOrdersLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"open_orders" | "positions" | "orders">("positions");
   const [limitOrderPrice, setLimitOrderPrice] = useState("");
   const [limitOrderSide, setLimitOrderSide] = useState<"long" | "short">("long");
   const [placingLimit, setPlacingLimit] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
+  const [monitorIntervalMins, setMonitorIntervalMins] = useState<0 | 5 | 10 | 15 | 60>(0);
+  const [lastMonitorResult, setLastMonitorResult] = useState<string | null>(null);
 
   const [form, setForm] = useState<Partial<Config>>({});
 
@@ -143,6 +147,20 @@ export default function TradingBotPanel() {
     }
   }, []);
 
+  const fetchOpenOrders = useCallback(async () => {
+    try {
+      setOpenOrdersLoading(true);
+      const res = await fetch("/api/admin/trading-bot/open-orders?limit=50");
+      const data = await res.json().catch(() => ({}));
+      if (data.success && Array.isArray(data.orders)) setOpenOrders(data.orders);
+      else setOpenOrders([]);
+    } catch {
+      setOpenOrders([]);
+    } finally {
+      setOpenOrdersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (config != null) fetchPositions();
   }, [config, fetchPositions]);
@@ -153,6 +171,33 @@ export default function TradingBotPanel() {
       return () => clearInterval(interval);
     }
   }, [positionsData?.positions?.length, fetchPositions]);
+
+  useEffect(() => {
+    if (activeTab === "open_orders") fetchOpenOrders();
+  }, [activeTab, fetchOpenOrders]);
+
+  // AI Monitor auto-refresh when interval is set
+  useEffect(() => {
+    if (monitorIntervalMins <= 0) return undefined;
+    const runMonitor = async () => {
+      try {
+        setMonitoring(true);
+        const res = await fetch("/api/admin/trading-bot/monitor", { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        const msg = data.success ? (data.message ?? "Done.") : (data.error ?? "Failed.");
+        setLastMonitorResult(msg);
+        if (data.success && (data.closed ?? 0) > 0) fetchPositions();
+      } catch {
+        setLastMonitorResult("Failed.");
+      } finally {
+        setMonitoring(false);
+      }
+    };
+    const intervalMs = monitorIntervalMins * 60 * 1000;
+    const t = setInterval(runMonitor, intervalMs);
+    runMonitor();
+    return () => clearInterval(t);
+  }, [monitorIntervalMins, fetchPositions]);
 
   useEffect(() => {
     if (activeTab === "orders") fetchOrderHistory();
@@ -302,6 +347,7 @@ export default function TradingBotPanel() {
         setSuccess(data.message ?? "Limit order placed.");
         setError(null);
         fetchOrderHistory();
+        fetchOpenOrders();
       } else {
         setError(data.error ?? "Failed to place limit order.");
         setSuccess(null);
@@ -598,6 +644,9 @@ export default function TradingBotPanel() {
               />
             </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            TP/SL are sent to Blofin when the bot opens a position. If they don’t trigger, confirm with Blofin that <code className="rounded bg-zinc-200 dark:bg-zinc-700 px-0.5">order-tpsl</code> is supported for your account. Blofin also supports <strong>trailing stop</strong>; we use fixed TP/SL for now—ask Blofin for trailing-stop API details if you want that.
+          </p>
           <div className="flex flex-wrap gap-2">
             <Button onClick={saveConfig} disabled={saving} className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700">
               {saving ? "Saving…" : "Save config"}
@@ -645,14 +694,31 @@ export default function TradingBotPanel() {
               </Button>
             </div>
           </div>
-          <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-2">
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-3">
             <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">AI Monitor</p>
             <p className="text-xs text-muted-foreground">
-              Run NovaStaris AI once to evaluate open positions. If the trend is opposite (e.g. you’re long but AI says short) or the analysis is negative, the position will be closed automatically.
+              Run NovaStaris AI to evaluate open positions. If the trend is opposite or the analysis is negative, the position will be closed automatically. Enable auto-refresh to run periodically.
             </p>
-            <Button onClick={runAIMonitor} disabled={monitoring} variant="outline" size="sm" className="border-cyan-500 text-cyan-700 dark:text-cyan-300">
-              {monitoring ? "Running…" : "Run AI monitor"}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Auto-refresh:</span>
+              <select
+                value={monitorIntervalMins}
+                onChange={(e) => setMonitorIntervalMins(Number(e.target.value) as 0 | 5 | 10 | 15 | 60)}
+                className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm"
+              >
+                <option value={0}>Off</option>
+                <option value={5}>Every 5 min</option>
+                <option value={10}>Every 10 min</option>
+                <option value={15}>Every 15 min</option>
+                <option value={60}>Every 1 hour</option>
+              </select>
+              <Button onClick={runAIMonitor} disabled={monitoring} variant="outline" size="sm" className="border-cyan-500 text-cyan-700 dark:text-cyan-300">
+                {monitoring ? "Running…" : "Run now"}
+              </Button>
+            </div>
+            {lastMonitorResult != null && (
+              <p className="text-xs text-muted-foreground">Last monitor: {lastMonitorResult}</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -685,8 +751,15 @@ export default function TradingBotPanel() {
           {config != null && (
             <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-900/40 p-3 text-sm">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="font-semibold text-zinc-800 dark:text-zinc-200">Open positions &amp; Live PNL</p>
+                <p className="font-semibold text-zinc-800 dark:text-zinc-200">Open orders, positions &amp; history</p>
                 <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("open_orders")}
+                    className={`px-2 py-0.5 rounded text-xs ${activeTab === "open_orders" ? "bg-zinc-300 dark:bg-zinc-600" : "bg-zinc-200/60 dark:bg-zinc-700/60"}`}
+                  >
+                    Open orders
+                  </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab("positions")}
@@ -703,6 +776,32 @@ export default function TradingBotPanel() {
                   </button>
                 </div>
               </div>
+              {activeTab === "open_orders" && (
+                <div className="mt-2 max-h-64 overflow-auto">
+                  {openOrdersLoading ? (
+                    <p className="text-muted-foreground text-xs">Loading open orders…</p>
+                  ) : openOrders.length === 0 ? (
+                    <p className="text-muted-foreground text-xs">No open (pending) orders.</p>
+                  ) : (
+                    <div className="space-y-1 text-xs">
+                      {openOrders.map((o, i) => (
+                        <div key={o.orderId || i} className="flex flex-wrap gap-x-2 gap-y-0.5 p-1.5 rounded border border-zinc-200 dark:border-zinc-600">
+                          <span className="font-medium">{o.instId}</span>
+                          <span className={o.side === "buy" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{o.side.toUpperCase()}</span>
+                          <span>{o.orderType}</span>
+                          <span>size {o.size}</span>
+                          <span>@ {o.price}</span>
+                          <span className="text-muted-foreground">{o.state}</span>
+                          {o.createdAt != null && <span className="text-muted-foreground">{new Date(Number(o.createdAt)).toLocaleString()}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 text-xs" onClick={fetchOpenOrders} disabled={openOrdersLoading}>
+                    {openOrdersLoading ? "Refreshing…" : "Refresh"}
+                  </Button>
+                </div>
+              )}
               {activeTab === "positions" && (
                 <>
                   {positionsLoading && !positionsData ? (
@@ -834,6 +933,9 @@ export default function TradingBotPanel() {
           </div>
           <p className="text-xs text-muted-foreground">
             Close: uses Blofin close-position API for the configured symbol (or choose &quot;Close all&quot; when multiple positions). You will be asked to confirm.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <strong>Run now</strong> runs one cycle. If you already have a position, the bot skips opening (no second position). To add size at a specific price, use <strong>Place limit order</strong> above—no need to stop the bot.
           </p>
         </CardContent>
       </Card>
