@@ -312,7 +312,11 @@ export async function closeTradingBotPosition(): Promise<{ ok: boolean; message?
   const isDemo = bot.mode === "demo";
   const positions = await getPositionsBlofin(instId, { demo: isDemo });
   if (!positions.length) {
-    return { ok: false, error: "No open position for this symbol. Ensure the bot’s Mode (demo/live) matches the account where the position was opened." };
+    return {
+      ok: false,
+      error:
+        "No open position found for this symbol. Check: (1) Bot Mode is Live if the position is on live Blofin. (2) Your Blofin API key has permission to read positions (e.g. READ or Trade+Read). (3) Symbol matches (e.g. BTC/USDT → BTC-USDT).",
+    };
   }
 
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";

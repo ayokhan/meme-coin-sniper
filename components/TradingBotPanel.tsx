@@ -397,6 +397,18 @@ export default function TradingBotPanel() {
                 <option value="USDC">USDC</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Margin mode</label>
+              <select
+                value={form.marginMode ?? "cross"}
+                onChange={(e) => setForm({ ...form, marginMode: e.target.value as "cross" | "isolated" })}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                <option value="cross">Cross</option>
+                <option value="isolated">Isolated</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">Cross uses full account balance; isolated limits risk per position.</p>
+            </div>
           </div>
           <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Strategy</label>

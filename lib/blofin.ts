@@ -120,29 +120,54 @@ export async function getFuturesBalance(): Promise<{ currency: string; available
   return d.details ?? [];
 }
 
+/** Get position size from object (pos, sz, or position). */
+function getPosSize(h: Record<string, unknown>): string {
+  const v = h.pos ?? h.sz ?? h.position ?? h.size;
+  return v != null ? String(v) : "0";
+}
+
+/** Extract positions array from Blofin API response (various shapes). */
+function extractPositionsList(data: unknown): Array<{ instId: string; posSide: string; pos: string; avgPx: string }> {
+  if (!data || typeof data !== "object") return [];
+  const raw = data as Record<string, unknown>;
+  const list =
+    raw.holdings ?? raw.positions ?? raw.data ?? (Array.isArray(raw) ? raw : []);
+  if (!Array.isArray(list)) return [];
+  const result: Array<{ instId: string; posSide: string; pos: string; avgPx: string }> = [];
+  for (const h of list) {
+    if (!h || typeof h !== "object") continue;
+    const obj = h as Record<string, unknown>;
+    const posStr = getPosSize(obj);
+    if (parseFloat(posStr) === 0) continue;
+    const instId = String(obj.instId ?? obj.inst_id ?? obj.symbol ?? "");
+    const posSide = String(obj.posSide ?? obj.pos_side ?? obj.side ?? "long");
+    const avgPx = String(obj.avgPx ?? obj.avg_px ?? obj.avgPrice ?? obj.entryPrice ?? "0");
+    result.push({ instId, posSide, pos: posStr, avgPx });
+  }
+  return result;
+}
+
+const normInstId = (s: string) => (s || "").replace(/-/g, "").toUpperCase();
+
 /** GET /api/v1/account/positions - open positions. options.demo: use bot mode so close/PNL match run. */
 export async function getPositions(instId?: string, options?: { demo?: boolean }): Promise<{ instId: string; posSide: string; pos: string; avgPx: string }[]> {
-  const path = instId
-    ? `/api/v1/account/positions?instId=${encodeURIComponent(instId)}`
-    : "/api/v1/account/positions";
+  // For non-broker and some accounts, filtered-by-instId returns empty. Fetch all first, then filter.
+  const path = "/api/v1/account/positions";
   const out = await privateRequest<unknown>("GET", path, undefined, options?.demo);
-  if (out.code !== "0" || !out.data) return [];
-  const raw = out.data as { holdings?: Array<{ instId: string; posSide: string; pos: string; avgPx: string }>; data?: unknown[] };
-  let list = raw.holdings ?? raw.data ?? (Array.isArray(raw) ? raw : []);
-  if (!Array.isArray(list)) list = [];
-  const withPos = list.filter((h: { pos?: string }) => h && h.pos != null && parseFloat(String(h.pos)) !== 0);
-  if (withPos.length > 0 || !instId) return withPos;
-  // Fallback: some accounts (e.g. without broker) may return empty when filtering by instId; fetch all and filter
-  const outAll = await privateRequest<unknown>("GET", "/api/v1/account/positions", undefined, options?.demo);
-  if (outAll.code !== "0" || !outAll.data) return [];
-  const rawAll = outAll.data as { holdings?: Array<{ instId: string; posSide: string; pos: string; avgPx: string }>; data?: unknown[] };
-  const listAll = rawAll.holdings ?? rawAll.data ?? (Array.isArray(rawAll) ? rawAll : []);
-  const allWithPos = (Array.isArray(listAll) ? listAll : []).filter(
-    (h: { pos?: string }) => h && h.pos != null && parseFloat(String(h.pos)) !== 0
-  );
-  const norm = (s: string) => (s || "").replace(/-/g, "").toUpperCase();
-  const target = norm(instId);
-  return allWithPos.filter((h: { instId?: string }) => norm(h.instId ?? "") === target);
+  if (out.code !== "0" || out.data == null) return [];
+  const all = extractPositionsList(out.data);
+  if (!instId) return all;
+  const target = normInstId(instId);
+  const filtered = all.filter((h) => normInstId(h.instId ?? "") === target);
+  if (filtered.length > 0) return filtered;
+  // Try with instId in query in case response differs when filtering
+  const pathFiltered = `/api/v1/account/positions?instId=${encodeURIComponent(instId)}`;
+  const out2 = await privateRequest<unknown>("GET", pathFiltered, undefined, options?.demo);
+  if (out2.code === "0" && out2.data != null) {
+    const byInst = extractPositionsList(out2.data);
+    if (byInst.length > 0) return byInst;
+  }
+  return [];
 }
 
 /** GET /api/v1/market/tickers - last price. demoOverride: use bot mode when provided. */
