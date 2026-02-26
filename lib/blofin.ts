@@ -272,8 +272,9 @@ export async function getOrderHistory(options?: { demo?: boolean; instId?: strin
     : `/api/v1/trade/orders-history?limit=${limit}`;
   const out = await privateRequest<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createTime?: string }[]>("GET", path, undefined, options?.demo);
   if (out.code !== "0" || !out.data) return [];
-  const list = Array.isArray(out.data) ? out.data : (out.data as unknown as { data?: unknown[] })?.data ?? [];
-  return list.map((o: { orderId?: string; instId?: string; side?: string; orderType?: string; size?: string; price?: string; state?: string; fillPrice?: string; createTime?: string }) => ({
+  type OrderRow = { orderId?: string; instId?: string; side?: string; orderType?: string; size?: string; price?: string; state?: string; fillPrice?: string; createTime?: string };
+  const list: OrderRow[] = Array.isArray(out.data) ? (out.data as OrderRow[]) : ((out.data as { data?: OrderRow[] })?.data ?? []);
+  return list.map((o) => ({
     orderId: String(o.orderId ?? ""),
     instId: String(o.instId ?? ""),
     side: String(o.side ?? ""),
