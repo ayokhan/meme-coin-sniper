@@ -1,6 +1,6 @@
 /**
  * Run one cycle of the trading bot: load config, fetch candles, signal (simple | indicators | ai | hybrid), place order if needed.
- * Supports Blofin, Hyperliquid, or KuCoin Futures via config.provider.
+ * Blofin only.
  */
 
 import { prisma } from "@/lib/db";
@@ -15,24 +15,6 @@ import {
   isBlofinConfigured,
   type Candle,
 } from "@/lib/blofin";
-import {
-  getCandles as getCandlesHL,
-  getTicker as getTickerHL,
-  getInstrument as getInstrumentHL,
-  getPositions as getPositionsHL,
-  setLeverage as setLeverageHL,
-  placeMarketOrder as placeMarketOrderHL,
-  isHyperliquidConfigured,
-} from "@/lib/hyperliquid";
-import {
-  getCandles as getCandlesKuCoin,
-  getTicker as getTickerKuCoin,
-  getInstrument as getInstrumentKuCoin,
-  getPositions as getPositionsKuCoin,
-  setLeverage as setLeverageKuCoin,
-  placeMarketOrder as placeMarketOrderKuCoin,
-  isKuCoinFuturesConfigured,
-} from "@/lib/kucoin-futures";
 import { indicatorsSignal, maCrossoverSignal, candlePatternSignal, findSupportResistance, ema, rsi } from "@/lib/trading-bot-ta";
 import { getAITradingSignal } from "@/lib/ai-trading-signal";
 
@@ -170,18 +152,18 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     return { ok: true, message: "No enabled bot" };
   }
 
-  const provider = (bot.provider ?? "kucoin").toLowerCase();
-  if (provider === "blofin" && !isBlofinConfigured()) {
-    return { ok: false, error: "Blofin API keys not set" };
+  const provider = (bot.provider ?? "blofin").toLowerCase();
+  if (provider !== "blofin") {
+    return { ok: false, error: "Only Blofin is supported. Set provider to Blofin in config." };
   }
-  if (provider === "hyperliquid" && !isHyperliquidConfigured()) {
-    return { ok: false, error: "Hyperliquid private key not set (HYPERLIQUID_PRIVATE_KEY)" };
-  }
-  if (provider === "kucoin" && !isKuCoinFuturesConfigured()) {
-    return { ok: false, error: "KuCoin Futures API not set (KUCOIN_FUTURES_API_KEY, SECRET, PASSPHRASE)" };
+  if (!isBlofinConfigured()) {
+    return { ok: false, error: "Blofin API keys not set. Set BLOFIN_API_KEY, BLOFIN_SECRET_KEY, BLOFIN_PASSPHRASE in your server env (e.g. Vercel)." };
   }
 
   const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
+  if (!rawSymbol) {
+    return { ok: false, error: "Symbol is required (e.g. BTC or BTC/USDT)." };
+  }
   const instId = rawSymbol.includes("/")
     ? rawSymbol.replace("/", "-")
     : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
@@ -190,18 +172,12 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
   const needMoreCandles = strategy === "indicators" || strategy === "ai" || strategy === "hybrid";
   const candleLimit = needMoreCandles ? 250 : 50;
 
-  const getCandles =
-    provider === "hyperliquid" ? getCandlesHL : provider === "kucoin" ? getCandlesKuCoin : getCandlesBlofin;
-  const getTicker =
-    provider === "hyperliquid" ? getTickerHL : provider === "kucoin" ? getTickerKuCoin : getTickerBlofin;
-  const getInstrument =
-    provider === "hyperliquid" ? getInstrumentHL : provider === "kucoin" ? getInstrumentKuCoin : getInstrumentBlofin;
-  const getPositions =
-    provider === "hyperliquid" ? getPositionsHL : provider === "kucoin" ? getPositionsKuCoin : getPositionsBlofin;
-  const setLeverage =
-    provider === "hyperliquid" ? setLeverageHL : provider === "kucoin" ? setLeverageKuCoin : setLeverageBlofin;
-  const placeMarketOrder =
-    provider === "hyperliquid" ? placeMarketOrderHL : provider === "kucoin" ? placeMarketOrderKuCoin : placeMarketOrderBlofin;
+  const getCandles = getCandlesBlofin;
+  const getTicker = getTickerBlofin;
+  const getInstrument = getInstrumentBlofin;
+  const getPositions = getPositionsBlofin;
+  const setLeverage = setLeverageBlofin;
+  const placeMarketOrder = placeMarketOrderBlofin;
 
   const updateLastRun = async (
     err: string | null,

@@ -2,11 +2,53 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions, isOwnerSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { isBlofinConfigured } from '@/lib/blofin';
 
 export const dynamic = 'force-dynamic';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
+
+const VALID_TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1D'];
+const VALID_STRATEGIES = ['simple', 'indicators', 'ai', 'hybrid'];
+
+/** Returns error message if config is invalid; otherwise undefined. */
+function validateConfig(c: {
+  symbol?: string;
+  timeframe?: string;
+  leverage?: number;
+  tpPct?: number;
+  slPct?: number;
+  positionSizeUsdt?: number;
+  strategy?: string;
+  emaPeriod?: number;
+  fastMA?: number;
+  slowMA?: number;
+  rsiPeriod?: number;
+}): string | undefined {
+  const symbol = (c.symbol ?? '').trim().toUpperCase();
+  if (!symbol) return 'Symbol is required (e.g. BTC or BTC/USDT).';
+  if (typeof c.timeframe !== 'string' || !VALID_TIMEFRAMES.includes(c.timeframe.trim())) {
+    return `Timeframe must be one of: ${VALID_TIMEFRAMES.join(', ')}.`;
+  }
+  const leverage = c.leverage ?? 0;
+  if (typeof leverage !== 'number' || leverage < 1 || leverage > 125) {
+    return 'Leverage must be between 1 and 125.';
+  }
+  if (typeof c.tpPct === 'number' && (c.tpPct <= 0 || c.tpPct > 100)) {
+    return 'Take profit % must be between 0.1 and 100.';
+  }
+  if (typeof c.slPct === 'number' && (c.slPct <= 0 || c.slPct > 100)) {
+    return 'Stop loss % must be between 0.1 and 100.';
+  }
+  if (typeof c.positionSizeUsdt === 'number' && (c.positionSizeUsdt <= 0 || c.positionSizeUsdt > 1_000_000)) {
+    return 'Position size must be between 1 and 1,000,000.';
+  }
+  if (typeof c.strategy === 'string' && !VALID_STRATEGIES.includes(c.strategy)) {
+    return `Strategy must be one of: ${VALID_STRATEGIES.join(', ')}.`;
+  }
+  return undefined;
+}
 
 /** GET - Get trading bot config and status (owner only). */
 export async function GET() {
@@ -18,13 +60,13 @@ export async function GET() {
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (!bot) {
       bot = await db.tradingBot.create({
-        data: { provider: 'kucoin', symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
+        data: { provider: 'blofin', symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
       });
     }
     return NextResponse.json({
       success: true,
       config: {
-        provider: (bot as { provider?: string }).provider ?? 'kucoin',
+        provider: (bot as { provider?: string }).provider ?? 'blofin',
         symbol: bot.symbol,
         timeframe: bot.timeframe,
         leverage: bot.leverage,
@@ -52,7 +94,7 @@ export async function GET() {
   }
 }
 
-/** PATCH - Update trading bot config (owner only). Body: { symbol?, timeframe?, leverage?, tpPct?, slPct?, mode? } */
+/** PATCH - Update trading bot config (owner only). Only Blofin supported. Validates config and Blofin env before saving. */
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -60,24 +102,48 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: 'Owner only.' }, { status: 403 });
     }
     const body = await request.json().catch(() => ({}));
+    if (body.provider && body.provider !== 'blofin') {
+      return NextResponse.json({ success: false, error: 'Only Blofin is supported.' }, { status: 400 });
+    }
+    if (!isBlofinConfigured()) {
+      return NextResponse.json({
+        success: false,
+        error: 'Blofin API keys not set. Set BLOFIN_API_KEY, BLOFIN_SECRET_KEY, BLOFIN_PASSPHRASE in your server env (e.g. Vercel), then redeploy.',
+      }, { status: 400 });
+    }
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (!bot) {
       bot = await db.tradingBot.create({
-        data: { provider: 'kucoin', symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
+        data: { provider: 'blofin', symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
       });
     }
-    const updates: Record<string, unknown> = {};
-    if (body.provider === 'blofin' || body.provider === 'hyperliquid' || body.provider === 'kucoin') updates.provider = body.provider;
-    if (typeof body.symbol === 'string' && body.symbol.trim()) updates.symbol = body.symbol.trim().toUpperCase();
-    if (typeof body.timeframe === 'string' && body.timeframe.trim()) updates.timeframe = body.timeframe.trim();
-    if (typeof body.leverage === 'number' && body.leverage >= 1 && body.leverage <= 125) updates.leverage = body.leverage;
-    if (typeof body.tpPct === 'number' && body.tpPct > 0 && body.tpPct <= 100) updates.tpPct = body.tpPct;
-    if (typeof body.slPct === 'number' && body.slPct > 0 && body.slPct <= 100) updates.slPct = body.slPct;
+    const merged = {
+      symbol: (body.symbol ?? bot.symbol ?? '').toString().trim(),
+      timeframe: (body.timeframe ?? bot.timeframe ?? '').toString().trim(),
+      leverage: typeof body.leverage === 'number' ? body.leverage : bot.leverage ?? 5,
+      tpPct: typeof body.tpPct === 'number' ? body.tpPct : bot.tpPct ?? 2,
+      slPct: typeof body.slPct === 'number' ? body.slPct : bot.slPct ?? 1,
+      positionSizeUsdt: typeof body.positionSizeUsdt === 'number' ? body.positionSizeUsdt : (bot.positionSizeUsdt ?? 50),
+      strategy: (body.strategy ?? (bot as { strategy?: string }).strategy ?? 'simple') as string,
+      emaPeriod: typeof body.emaPeriod === 'number' ? body.emaPeriod : (bot as { emaPeriod?: number }).emaPeriod,
+      fastMA: typeof body.fastMA === 'number' ? body.fastMA : (bot as { fastMA?: number }).fastMA,
+      slowMA: typeof body.slowMA === 'number' ? body.slowMA : (bot as { slowMA?: number }).slowMA,
+      rsiPeriod: typeof body.rsiPeriod === 'number' ? body.rsiPeriod : (bot as { rsiPeriod?: number }).rsiPeriod,
+    };
+    const validationError = validateConfig(merged);
+    if (validationError) {
+      return NextResponse.json({ success: false, error: validationError }, { status: 400 });
+    }
+    const updates: Record<string, unknown> = { provider: 'blofin' };
+    updates.symbol = merged.symbol.toUpperCase();
+    updates.timeframe = merged.timeframe;
+    updates.leverage = merged.leverage;
+    updates.tpPct = merged.tpPct;
+    updates.slPct = merged.slPct;
+    updates.positionSizeUsdt = merged.positionSizeUsdt;
+    updates.strategy = merged.strategy;
     if (body.mode === 'demo' || body.mode === 'live') updates.mode = body.mode;
     if (body.marginCurrency === 'USDT' || body.marginCurrency === 'USDC') updates.marginCurrency = body.marginCurrency;
-    if (typeof body.positionSizeUsdt === 'number' && body.positionSizeUsdt > 0 && body.positionSizeUsdt <= 1_000_000) updates.positionSizeUsdt = body.positionSizeUsdt;
-    const validStrategies = ['simple', 'indicators', 'ai', 'hybrid'];
-    if (typeof body.strategy === 'string' && validStrategies.includes(body.strategy)) updates.strategy = body.strategy;
     if (typeof body.emaPeriod === 'number' && body.emaPeriod >= 1 && body.emaPeriod <= 500) updates.emaPeriod = body.emaPeriod;
     if (typeof body.fastMA === 'number' && body.fastMA >= 1 && body.fastMA <= 100) updates.fastMA = body.fastMA;
     if (typeof body.slowMA === 'number' && body.slowMA >= 1 && body.slowMA <= 200) updates.slowMA = body.slowMA;
@@ -89,7 +155,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({
       success: true,
       config: {
-        provider: (updated as { provider?: string }).provider ?? 'kucoin',
+        provider: (updated as { provider?: string }).provider ?? 'blofin',
         symbol: updated.symbol,
         timeframe: updated.timeframe,
         leverage: updated.leverage,
@@ -116,7 +182,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-/** POST - Start or stop bot (owner only). Body: { action: 'start' | 'stop' } */
+/** POST - Start or stop bot (owner only). Body: { action: 'start' | 'stop' }. Validates config and Blofin before start. */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -131,10 +197,38 @@ export async function POST(request: Request) {
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (!bot) {
       bot = await db.tradingBot.create({
-        data: { provider: 'kucoin', symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
+        data: { provider: 'blofin', symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
       });
     }
     const enabled = action === 'start';
+    if (enabled) {
+      const provider = ((bot as { provider?: string }).provider ?? 'blofin').toLowerCase();
+      if (provider !== 'blofin') {
+        return NextResponse.json({ success: false, error: 'Only Blofin is supported. Config must use Blofin.' }, { status: 400 });
+      }
+      if (!isBlofinConfigured()) {
+        return NextResponse.json({
+          success: false,
+          error: 'Blofin API keys not set. Set BLOFIN_API_KEY, BLOFIN_SECRET_KEY, BLOFIN_PASSPHRASE in your server env (e.g. Vercel), then redeploy.',
+        }, { status: 400 });
+      }
+      const validationError = validateConfig({
+        symbol: bot.symbol,
+        timeframe: bot.timeframe,
+        leverage: bot.leverage,
+        tpPct: bot.tpPct,
+        slPct: bot.slPct,
+        positionSizeUsdt: bot.positionSizeUsdt ?? 50,
+        strategy: (bot as { strategy?: string }).strategy,
+        emaPeriod: (bot as { emaPeriod?: number }).emaPeriod,
+        fastMA: (bot as { fastMA?: number }).fastMA,
+        slowMA: (bot as { slowMA?: number }).slowMA,
+        rsiPeriod: (bot as { rsiPeriod?: number }).rsiPeriod,
+      });
+      if (validationError) {
+        return NextResponse.json({ success: false, error: validationError }, { status: 400 });
+      }
+    }
     await db.tradingBot.update({
       where: { id: bot.id },
       data: { enabled, lastError: enabled ? null : bot.lastError },

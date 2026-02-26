@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 type Strategy = "simple" | "indicators" | "ai" | "hybrid";
 
 type Config = {
-  provider: "blofin" | "hyperliquid" | "kucoin";
+  provider: "blofin";
   symbol: string;
   timeframe: string;
   leverage: number;
@@ -47,7 +47,7 @@ export default function TradingBotPanel() {
       if (data.success && data.config) {
         setConfig(data.config);
         setForm({
-          provider: data.config.provider === "blofin" ? "blofin" : data.config.provider === "hyperliquid" ? "hyperliquid" : "kucoin",
+          provider: "blofin",
           symbol: data.config.symbol,
           timeframe: data.config.timeframe,
           leverage: data.config.leverage,
@@ -117,6 +117,13 @@ export default function TradingBotPanel() {
   };
 
   const toggleBot = async (start: boolean) => {
+    if (start) {
+      const err = validateForm();
+      if (err) {
+        setError(err);
+        return;
+      }
+    }
     try {
       setToggling(true);
       setError(null);
@@ -171,7 +178,7 @@ export default function TradingBotPanel() {
         Crypto Futures Trading Bot
       </h2>
       <p className="text-sm text-muted-foreground">
-        Crypto futures bot (long/short) via <strong>KuCoin</strong>, Blofin, or Hyperliquid. KuCoin works from Canada. Configure provider, symbol, timeframe, leverage, take profit &amp; stop loss.
+        Crypto futures bot (long/short) via <strong>Blofin</strong>. Configure symbol, timeframe, leverage, take profit &amp; stop loss.
       </p>
 
       {error && (
@@ -185,11 +192,6 @@ export default function TradingBotPanel() {
           {error.toLowerCase().includes("brokerid") && (
             <p className="text-xs text-rose-600/90 dark:text-rose-400/90 mt-2">
               Add <code className="bg-rose-200/50 dark:bg-rose-900/30 px-1 rounded">BLOFIN_BROKER_ID</code> to your server environment (e.g. Vercel env vars) with your Blofin broker ID, then redeploy.
-            </p>
-          )}
-          {(error.toLowerCase().includes("hyperliquid") || error.toLowerCase().includes("hyperliquid_private_key")) && (
-            <p className="text-xs text-rose-600/90 dark:text-rose-400/90 mt-2">
-              Set <code className="bg-rose-200/50 dark:bg-rose-900/30 px-1 rounded">HYPERLIQUID_PRIVATE_KEY</code> in your server env (e.g. Vercel) to your wallet private key (0x...), then redeploy. Optional: <code className="bg-rose-200/50 dark:bg-rose-900/30 px-1 rounded">HYPERLIQUID_TESTNET=true</code> for testnet.
             </p>
           )}
         </div>
@@ -417,16 +419,6 @@ export default function TradingBotPanel() {
               {config.lastError.toLowerCase().includes("brokerid") && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Set <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_BROKER_ID</code> in your server env (e.g. Vercel) to your Blofin broker ID, then redeploy.
-                </p>
-              )}
-              {(config.lastError.toLowerCase().includes("hyperliquid") || config.lastError.toLowerCase().includes("private key")) && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Set <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">HYPERLIQUID_PRIVATE_KEY</code> in your server env (e.g. Vercel), then redeploy.
-                </p>
-              )}
-              {config.lastError.toLowerCase().includes("kucoin") && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Set <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">KUCOIN_FUTURES_*</code> in your server env, then redeploy.
                 </p>
               )}
             </>
