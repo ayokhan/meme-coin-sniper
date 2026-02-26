@@ -183,7 +183,8 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
   const updateLastRun = async (
     err: string | null,
     decision?: "no_trade" | "long" | "short",
-    decisionMsg?: string
+    decisionMsg?: string,
+    decisionReason?: string
   ) => {
     try {
       await db.tradingBot.update({
@@ -193,6 +194,7 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
           lastError: err,
           lastDecision: decision ?? null,
           lastDecisionMsg: decisionMsg ?? null,
+          lastDecisionReason: decisionReason ?? null,
         },
       });
     } catch {
@@ -287,7 +289,7 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     }
 
     const successMsg = `Opened ${signal} ${sizeStr} @ ${lastPrice}`;
-    await updateLastRun(null, signal, successMsg);
+    await updateLastRun(null, signal, successMsg, resolved.message ?? undefined);
 
     if (bot.tpPct > 0 || bot.slPct > 0) {
       const tpsl = await placeTPSLOrderBlofin(
@@ -312,22 +314,27 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
 }
 
 /**
- * Close any open position for the trading bot's symbol (Blofin). Owner-only; call from API.
+ * Close open position(s). If instId is set, close only that symbol; otherwise close bot's symbol. Owner-only.
  */
-export async function closeTradingBotPosition(): Promise<{ ok: boolean; message?: string; error?: string }> {
+export async function closeTradingBotPosition(closeInstId?: string): Promise<{ ok: boolean; message?: string; error?: string }> {
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) return { ok: false, error: "No bot config." };
   if (!isBlofinConfigured()) {
     return { ok: false, error: "Blofin API keys not set." };
   }
-  const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
-  if (!rawSymbol) return { ok: false, error: "Symbol is required." };
-  const instId = rawSymbol.includes("/")
-    ? rawSymbol.replace("/", "-")
-    : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
+  const targetInstId = closeInstId?.trim()
+    ? closeInstId.replace("/", "-")
+    : (() => {
+        const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
+        if (!rawSymbol) return null;
+        return rawSymbol.includes("/")
+          ? rawSymbol.replace("/", "-")
+          : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
+      })();
+  if (!targetInstId) return { ok: false, error: "Symbol is required." };
 
   const isDemo = bot.mode === "demo";
-  const positions = await getPositionsBlofin(instId, { demo: isDemo });
+  const positions = await getPositionsBlofin(targetInstId, { demo: isDemo });
   if (!positions.length) {
     return {
       ok: false,
@@ -343,7 +350,7 @@ export async function closeTradingBotPosition(): Promise<{ ok: boolean; message?
     if (sizeNum <= 0 || !Number.isFinite(sizeNum)) continue;
     const size = String(sizeNum);
     const closeSide = (pos.posSide ?? "").toLowerCase() === "long" ? "sell" : "buy";
-    const result = await placeMarketOrderBlofin(instId, closeSide, size, marginMode, { demo: isDemo, reduceOnly: true });
+    const result = await placeMarketOrderBlofin(targetInstId, closeSide, size, marginMode, { demo: isDemo, reduceOnly: true });
     if (!result.ok) {
       return { ok: false, error: result.error ?? "Failed to close position." };
     }

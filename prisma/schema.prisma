@@ -292,8 +292,9 @@ model TradingBot {
   enabled          Boolean  @default(false)
   lastRunAt        DateTime?
   lastError        String?
-  lastDecision     String?   // e.g. "no_trade" | "long" | "short"
-  lastDecisionMsg  String?   // human-readable: "No signal", "Opened long 0.001 @ 97234", etc.
+  lastDecision       String?   // e.g. "no_trade" | "long" | "short"
+  lastDecisionMsg    String?   // human-readable: "No signal", "Opened long 0.001 @ 97234", etc.
+  lastDecisionReason String?   // e.g. AI reason: "Long: strong support at 95k, RSI oversold"
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   @@index([enabled])

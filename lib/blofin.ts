@@ -203,7 +203,7 @@ export async function placeMarketOrder(
   const config = getConfig();
   const body: Record<string, unknown> = { instId, marginMode, side, orderType: "market", size };
   if (config?.brokerId) body.brokerId = config.brokerId;
-  if (options?.reduceOnly) body.reduceOnly = true;
+  if (options?.reduceOnly) body.reduce_only = true;
   const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true, orderId: out.data?.orderId };
@@ -260,6 +260,30 @@ export async function getInstrument(instId: string, options?: { demo?: boolean }
   if (out.code !== "0" || !out.data?.length) return null;
   const d = out.data[0];
   return { minSize: d.minSize, contractValue: d.contractValue, settleCurrency: d.settleCurrency };
+}
+
+/** GET order history (filled/canceled). options.demo: use bot mode. */
+export async function getOrderHistory(options?: { demo?: boolean; instId?: string; limit?: number }): Promise<
+  { orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string }[]
+> {
+  const limit = options?.limit ?? 50;
+  const path = options?.instId
+    ? `/api/v1/trade/orders-history?instId=${encodeURIComponent(options.instId)}&limit=${limit}`
+    : `/api/v1/trade/orders-history?limit=${limit}`;
+  const out = await privateRequest<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createTime?: string }[]>("GET", path, undefined, options?.demo);
+  if (out.code !== "0" || !out.data) return [];
+  const list = Array.isArray(out.data) ? out.data : (out.data as unknown as { data?: unknown[] })?.data ?? [];
+  return list.map((o: { orderId?: string; instId?: string; side?: string; orderType?: string; size?: string; price?: string; state?: string; fillPrice?: string; createTime?: string }) => ({
+    orderId: String(o.orderId ?? ""),
+    instId: String(o.instId ?? ""),
+    side: String(o.side ?? ""),
+    orderType: String(o.orderType ?? ""),
+    size: String(o.size ?? "0"),
+    price: String(o.price ?? "0"),
+    state: String(o.state ?? ""),
+    fillPrice: o.fillPrice != null ? String(o.fillPrice) : undefined,
+    createdAt: o.createTime != null ? String(o.createTime) : undefined,
+  }));
 }
 
 export function isBlofinConfigured(): boolean {

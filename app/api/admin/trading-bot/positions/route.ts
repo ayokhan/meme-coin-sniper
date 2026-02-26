@@ -14,7 +14,7 @@ function parseNum(s: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** GET - Open positions with unrealized PNL for the bot's symbol. Owner only. */
+/** GET - All open positions with unrealized PNL (all symbols). Owner only. */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -25,61 +25,61 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Blofin not configured." }, { status: 400 });
     }
     const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
-    if (!bot) {
-      return NextResponse.json({ success: true, positions: [], totalUnrealizedPnl: 0 });
-    }
-    const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
-    if (!rawSymbol) {
-      return NextResponse.json({ success: true, positions: [], totalUnrealizedPnl: 0 });
-    }
-    const instId = rawSymbol.includes("/")
-      ? rawSymbol.replace("/", "-")
-      : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
-
-    const isDemo = bot.mode === "demo";
-    const [positions, instrument, ticker] = await Promise.all([
-      getPositionsBlofin(instId, { demo: isDemo }),
-      getInstrument(instId, { demo: isDemo }),
-      getTicker(instId, isDemo),
-    ]);
+    const isDemo = bot?.mode === "demo";
+    const positions = await getPositionsBlofin(undefined, { demo: isDemo });
 
     if (!positions.length) {
       return NextResponse.json({
         success: true,
         positions: [],
         totalUnrealizedPnl: 0,
-        markPrice: ticker?.last ? parseNum(ticker.last) : null,
+        markPrice: null,
       });
     }
 
-    const contractValue = instrument ? parseNum(instrument.contractValue) : 0;
-    const markPrice = ticker?.last ? parseNum(ticker.last) : 0;
+    const uniqueInstIds = [...new Set(positions.map((p) => p.instId).filter(Boolean))];
+    const instData = await Promise.all(
+      uniqueInstIds.map(async (id) => {
+        const [instrument, ticker] = await Promise.all([
+          getInstrument(id, { demo: isDemo }),
+          getTicker(id, isDemo),
+        ]);
+        return {
+          instId: id,
+          contractValue: instrument ? parseNum(instrument.contractValue) : 0,
+          markPrice: ticker?.last ? parseNum(ticker.last) : 0,
+        };
+      })
+    );
+    const byInst = Object.fromEntries(instData.map((d) => [d.instId, d]));
 
     const withPnl = positions.map((pos) => {
       const size = Math.abs(parseNum(pos.pos));
       const entryPrice = parseNum(pos.avgPx);
       const posSide = (pos.posSide ?? "").toLowerCase();
+      const d = byInst[pos.instId] ?? { contractValue: 0, markPrice: 0 };
       const unrealizedPnl =
         posSide === "long"
-          ? (markPrice - entryPrice) * size * contractValue
-          : (entryPrice - markPrice) * size * contractValue;
+          ? (d.markPrice - entryPrice) * size * d.contractValue
+          : (entryPrice - d.markPrice) * size * d.contractValue;
       return {
         instId: pos.instId,
         posSide: pos.posSide,
         size,
         entryPrice,
-        markPrice,
+        markPrice: d.markPrice,
         unrealizedPnl,
       };
     });
 
     const totalUnrealizedPnl = withPnl.reduce((sum, p) => sum + p.unrealizedPnl, 0);
+    const singleMark = withPnl.length === 1 ? withPnl[0].markPrice : null;
 
     return NextResponse.json({
       success: true,
       positions: withPnl,
       totalUnrealizedPnl,
-      markPrice,
+      markPrice: singleMark,
     });
   } catch (e) {
     console.error("Trading bot positions:", e);

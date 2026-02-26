@@ -36,6 +36,7 @@ type Config = {
   lastError: string | null;
   lastDecision: string | null;
   lastDecisionMsg: string | null;
+  lastDecisionReason: string | null;
 };
 
 export default function TradingBotPanel() {
@@ -53,6 +54,9 @@ export default function TradingBotPanel() {
     markPrice: number | null;
   } | null>(null);
   const [positionsLoading, setPositionsLoading] = useState(false);
+  const [orderHistory, setOrderHistory] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string }[]>([]);
+  const [orderHistoryLoading, setOrderHistoryLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"positions" | "orders">("positions");
 
   const [form, setForm] = useState<Partial<Config>>({});
 
@@ -121,15 +125,34 @@ export default function TradingBotPanel() {
     loadConfig();
   }, []);
 
+  const fetchOrderHistory = useCallback(async () => {
+    try {
+      setOrderHistoryLoading(true);
+      const res = await fetch("/api/admin/trading-bot/orders-history?limit=50");
+      const data = await res.json().catch(() => ({}));
+      if (data.success && Array.isArray(data.orders)) setOrderHistory(data.orders);
+      else setOrderHistory([]);
+    } catch {
+      setOrderHistory([]);
+    } finally {
+      setOrderHistoryLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (config?.lastDecision && config.lastDecision !== "no_trade") {
-      fetchPositions();
+    if (config != null) fetchPositions();
+  }, [config, fetchPositions]);
+
+  useEffect(() => {
+    if (positionsData?.positions?.length) {
       const interval = setInterval(fetchPositions, 30_000);
       return () => clearInterval(interval);
-    } else {
-      setPositionsData(null);
     }
-  }, [config?.lastDecision, fetchPositions]);
+  }, [positionsData?.positions?.length, fetchPositions]);
+
+  useEffect(() => {
+    if (activeTab === "orders") fetchOrderHistory();
+  }, [activeTab, fetchOrderHistory]);
 
   const VALID_TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1D"];
   const validateForm = (): string | null => {
@@ -256,17 +279,23 @@ export default function TradingBotPanel() {
     }
   };
 
-  const closePosition = async () => {
-    if (!config?.symbol || !window.confirm(`Close open position for ${config.symbol}? This will place a market order to exit.`)) return;
+  const closePosition = async (instId?: string) => {
+    const label = instId ?? config?.symbol ?? "position";
+    if (!window.confirm(`Close open position for ${label}? This will place a reduce-only market order to exit.`)) return;
     try {
       setClosing(true);
       clearFeedback();
-      const res = await fetch("/api/admin/trading-bot/close", { method: "POST" });
+      const res = await fetch("/api/admin/trading-bot/close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: instId ? JSON.stringify({ instId }) : "{}",
+      });
       const data = await res.json();
       if (data.success) {
         setSuccess(data.message ?? "Position closed.");
         setError(null);
         setPositionsData(null);
+        fetchPositions();
         loadConfig();
       } else {
         setError(data.error ?? "Failed to close position");
@@ -334,7 +363,7 @@ export default function TradingBotPanel() {
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Provider</label>
             <p className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/80 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">
-              Blofin (API key + optional broker ID). Set <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_API_KEY</code>, <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_SECRET_KEY</code>, <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_PASSPHRASE</code> in your server env (e.g. Vercel).
+              Blofin (API key + optional broker ID). Set <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_API_KEY</code>, <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_SECRET_KEY</code>, <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_PASSPHRASE</code> in your server env (e.g. Vercel). Permissions: <strong>Read + Trade</strong> are enough; no need for Withdraw or Transfer.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -531,30 +560,58 @@ export default function TradingBotPanel() {
             <p className="text-xs text-muted-foreground">Last run: {new Date(config.lastRunAt).toLocaleString()}</p>
           )}
           {config?.lastDecision && config.lastDecision !== "no_trade" && config?.lastDecisionMsg && (
-            <>
-              <div className="rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/30 p-3 text-sm">
-                <p className="font-semibold text-emerald-800 dark:text-emerald-200">Position opened</p>
-                <p className="mt-1 text-emerald-700 dark:text-emerald-300 break-words">{config.lastDecisionMsg}</p>
-                <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-                  Direction: <span className={config.lastDecision === "long" ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>{config.lastDecision.toUpperCase()}</span>
+            <div className="rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/30 p-3 text-sm">
+              <p className="font-semibold text-emerald-800 dark:text-emerald-200">Position opened</p>
+              <p className="mt-1 text-emerald-700 dark:text-emerald-300 break-words">{config.lastDecisionMsg}</p>
+              <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+                Direction: <span className={config.lastDecision === "long" ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>{config.lastDecision.toUpperCase()}</span>
+              </p>
+              {(config as { lastDecisionReason?: string | null }).lastDecisionReason && (
+                <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 border-t border-emerald-200/60 dark:border-emerald-800/60 pt-2">
+                  <span className="font-medium">Reason: </span>{(config as { lastDecisionReason?: string }).lastDecisionReason}
                 </p>
+              )}
+            </div>
+          )}
+          {config != null && (
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-900/40 p-3 text-sm">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="font-semibold text-zinc-800 dark:text-zinc-200">Open positions &amp; Live PNL</p>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("positions")}
+                    className={`px-2 py-0.5 rounded text-xs ${activeTab === "positions" ? "bg-zinc-300 dark:bg-zinc-600" : "bg-zinc-200/60 dark:bg-zinc-700/60"}`}
+                  >
+                    Positions
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("orders")}
+                    className={`px-2 py-0.5 rounded text-xs ${activeTab === "orders" ? "bg-zinc-300 dark:bg-zinc-600" : "bg-zinc-200/60 dark:bg-zinc-700/60"}`}
+                  >
+                    Order history
+                  </button>
+                </div>
               </div>
-              {(positionsLoading || positionsData) && (
-                <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-900/40 p-3 text-sm">
-                  <p className="font-semibold text-zinc-800 dark:text-zinc-200">Unrealized PNL</p>
+              {activeTab === "positions" && (
+                <>
                   {positionsLoading && !positionsData ? (
-                    <p className="mt-1 text-muted-foreground text-xs">Loading…</p>
+                    <p className="text-muted-foreground text-xs">Loading…</p>
                   ) : positionsData && positionsData.positions.length > 0 ? (
-                    <div className="mt-2 space-y-1.5">
+                    <div className="mt-2 space-y-2">
                       {positionsData.positions.map((p, i) => (
-                        <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
-                          <span className="text-zinc-600 dark:text-zinc-400">{p.instId}</span>
+                        <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs p-2 rounded border border-zinc-200 dark:border-zinc-600">
+                          <span className="text-zinc-600 dark:text-zinc-400 font-medium">{p.instId}</span>
                           <span className={p.posSide === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{p.posSide.toUpperCase()}</span>
                           <span className="text-muted-foreground">Entry: {p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          {positionsData.markPrice != null && <span className="text-muted-foreground">Mark: {positionsData.markPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                          {(p.markPrice ?? positionsData.markPrice) != null && <span className="text-muted-foreground">Mark: {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                           <span className={p.unrealizedPnl >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
-                            {p.unrealizedPnl >= 0 ? "+" : ""}{p.unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+                            PNL: {p.unrealizedPnl >= 0 ? "+" : ""}{p.unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                           </span>
+                          <Button type="button" variant="outline" size="sm" className="ml-auto h-6 text-xs border-amber-500 text-amber-700 dark:text-amber-300" onClick={() => closePosition(p.instId)} disabled={closing}>
+                            Close
+                          </Button>
                         </div>
                       ))}
                       <p className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-600 font-semibold">
@@ -568,11 +625,37 @@ export default function TradingBotPanel() {
                       </Button>
                     </div>
                   ) : positionsData && positionsData.positions.length === 0 ? (
-                    <p className="mt-1 text-muted-foreground text-xs">No open position on exchange.</p>
+                    <p className="text-muted-foreground text-xs">No open positions on exchange.</p>
                   ) : null}
+                </>
+              )}
+              {activeTab === "orders" && (
+                <div className="mt-2 max-h-64 overflow-auto">
+                  {orderHistoryLoading ? (
+                    <p className="text-muted-foreground text-xs">Loading order history…</p>
+                  ) : orderHistory.length === 0 ? (
+                    <p className="text-muted-foreground text-xs">No orders in history.</p>
+                  ) : (
+                    <div className="space-y-1 text-xs">
+                      {orderHistory.map((o, i) => (
+                        <div key={o.orderId || i} className="flex flex-wrap gap-x-2 gap-y-0.5 p-1.5 rounded border border-zinc-200 dark:border-zinc-600">
+                          <span className="font-medium">{o.instId}</span>
+                          <span className={o.side === "buy" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{o.side.toUpperCase()}</span>
+                          <span>{o.orderType}</span>
+                          <span>size {o.size}</span>
+                          {o.fillPrice != null && <span>@ {o.fillPrice}</span>}
+                          <span className="text-muted-foreground">{o.state}</span>
+                          {o.createdAt != null && <span className="text-muted-foreground">{new Date(Number(o.createdAt)).toLocaleString()}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 text-xs" onClick={fetchOrderHistory} disabled={orderHistoryLoading}>
+                    {orderHistoryLoading ? "Refreshing…" : "Refresh"}
+                  </Button>
                 </div>
               )}
-            </>
+            </div>
           )}
           {(config?.lastDecision || config?.lastDecisionMsg) && (config?.lastDecision === "no_trade" || !config?.lastDecision) && (
             <div className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900/40 p-2 text-xs">

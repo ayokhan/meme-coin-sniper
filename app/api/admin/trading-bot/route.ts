@@ -177,6 +177,7 @@ export async function PATCH(request: Request) {
         lastError: updated.lastError ?? null,
         lastDecision: (updated as { lastDecision?: string | null }).lastDecision ?? null,
         lastDecisionMsg: (updated as { lastDecisionMsg?: string | null }).lastDecisionMsg ?? null,
+        lastDecisionReason: (updated as { lastDecisionReason?: string | null }).lastDecisionReason ?? null,
       },
     });
   } catch (e) {
