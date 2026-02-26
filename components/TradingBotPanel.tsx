@@ -228,17 +228,8 @@ export default function TradingBotPanel() {
         <CardContent className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Provider</label>
-            <select
-              value={form.provider ?? "kucoin"}
-              onChange={(e) => setForm({ ...form, provider: e.target.value as "blofin" | "hyperliquid" | "kucoin" })}
-              className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <option value="kucoin">KuCoin Futures (not available in Ontario)</option>
-              <option value="blofin">Blofin (Ontario-friendly; API key + optional broker ID)</option>
-              <option value="hyperliquid">Hyperliquid (no broker ID; restricted in some regions)</option>
-            </select>
-            <p className="text-xs text-muted-foreground mt-1">
-              KuCoin: set <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">KUCOIN_FUTURES_API_KEY</code>, <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">KUCOIN_FUTURES_SECRET</code>, <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">KUCOIN_FUTURES_PASSPHRASE</code>. Blofin: <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_*</code>. Hyperliquid: <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">HYPERLIQUID_PRIVATE_KEY</code>.
+            <p className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/80 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">
+              Blofin (API key + optional broker ID). Set <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_API_KEY</code>, <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_SECRET_KEY</code>, <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">BLOFIN_PASSPHRASE</code> in your server env (e.g. Vercel).
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
