@@ -199,12 +199,13 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     }
   };
 
+  const isDemo = bot.mode === "demo";
   try {
     const [candlesRes, tickerRes, instRes, positionsRes] = await Promise.all([
-      getCandles(instId, bar, candleLimit),
-      getTicker(instId),
-      getInstrument(instId),
-      getPositions(instId),
+      getCandles(instId, bar, candleLimit, isDemo),
+      getTicker(instId, isDemo),
+      getInstrument(instId, { demo: isDemo }),
+      getPositions(instId, { demo: isDemo }),
     ]);
 
     const minCandles = needMoreCandles ? Math.max(2, (bot.emaPeriod ?? 200) + 5) : 2;
@@ -308,9 +309,10 @@ export async function closeTradingBotPosition(): Promise<{ ok: boolean; message?
     ? rawSymbol.replace("/", "-")
     : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
 
-  const positions = await getPositionsBlofin(instId);
+  const isDemo = bot.mode === "demo";
+  const positions = await getPositionsBlofin(instId, { demo: isDemo });
   if (!positions.length) {
-    return { ok: false, error: "No open position for this symbol." };
+    return { ok: false, error: "No open position for this symbol. Ensure the bot’s Mode (demo/live) matches the account where the position was opened." };
   }
 
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
@@ -320,7 +322,7 @@ export async function closeTradingBotPosition(): Promise<{ ok: boolean; message?
     if (sizeNum <= 0 || !Number.isFinite(sizeNum)) continue;
     const size = String(sizeNum);
     const closeSide = (pos.posSide ?? "").toLowerCase() === "long" ? "sell" : "buy";
-    const result = await placeMarketOrderBlofin(instId, closeSide, size, marginMode);
+    const result = await placeMarketOrderBlofin(instId, closeSide, size, marginMode, { demo: isDemo });
     if (!result.ok) {
       return { ok: false, error: result.error ?? "Failed to close position." };
     }

@@ -44,11 +44,17 @@ function getConfig(): BlofinConfig | null {
   return { apiKey, secretKey, passphrase, demo, brokerId };
 }
 
-/** Signed request to Blofin private API */
-async function privateRequest<T>(method: "GET" | "POST", path: string, body?: Record<string, unknown>): Promise<{ code: string; msg: string; data?: T }> {
+/** Signed request to Blofin private API. demoOverride: when set, use this for base URL (so bot demo/live matches). */
+async function privateRequest<T>(
+  method: "GET" | "POST",
+  path: string,
+  body?: Record<string, unknown>,
+  demoOverride?: boolean
+): Promise<{ code: string; msg: string; data?: T }> {
   const config = getConfig();
   if (!config) throw new Error("Blofin API keys not configured");
-  const base = getBaseUrl(config.demo);
+  const useDemo = demoOverride !== undefined ? demoOverride : config.demo;
+  const base = getBaseUrl(useDemo);
   const pathWithQuery = path.startsWith("/") ? path : `/${path}`;
   const url = base + pathWithQuery;
   const bodyStr = body ? JSON.stringify(body) : "";
@@ -71,10 +77,11 @@ async function privateRequest<T>(method: "GET" | "POST", path: string, body?: Re
   return { code: json.code ?? String(res.status), msg: json.msg ?? "", data: json.data };
 }
 
-/** Public request (no auth) */
-async function publicRequest<T>(path: string): Promise<{ code: string; msg: string; data?: T }> {
+/** Public request (no auth). demoOverride: use bot's mode when provided. */
+async function publicRequest<T>(path: string, demoOverride?: boolean): Promise<{ code: string; msg: string; data?: T }> {
   const config = getConfig();
-  const base = config ? getBaseUrl(config.demo) : LIVE_BASE;
+  const demo = demoOverride !== undefined ? demoOverride : config?.demo ?? false;
+  const base = config ? getBaseUrl(demo) : getBaseUrl(demo);
   const url = base + (path.startsWith("/") ? path : `/${path}`);
   const res = await fetch(url, { cache: "no-store" });
   const json = (await res.json().catch(() => ({}))) as { code?: string; msg?: string; data?: T };
@@ -94,10 +101,10 @@ export function toBlofinBar(timeframe: string): string {
 /** Candlestick: [ts, open, high, low, close, vol, volCurrency, volCurrencyQuote, confirm] */
 export type Candle = [string, string, string, string, string, string, string, string, string];
 
-/** GET /api/v1/market/candles */
-export async function getCandles(instId: string, bar: string, limit = 100): Promise<Candle[]> {
+/** GET /api/v1/market/candles. demoOverride: use bot mode when provided. */
+export async function getCandles(instId: string, bar: string, limit = 100, demoOverride?: boolean): Promise<Candle[]> {
   const path = `/api/v1/market/candles?instId=${encodeURIComponent(instId)}&bar=${encodeURIComponent(bar)}&limit=${limit}`;
-  const out = await publicRequest<Candle[]>(path);
+  const out = await publicRequest<Candle[]>(path, demoOverride);
   if (out.code !== "0" || !out.data) return [];
   return out.data;
 }
@@ -113,56 +120,74 @@ export async function getFuturesBalance(): Promise<{ currency: string; available
   return d.details ?? [];
 }
 
-/** GET /api/v1/account/positions - open positions */
-export async function getPositions(instId?: string): Promise<{ instId: string; posSide: string; pos: string; avgPx: string }[]> {
+/** GET /api/v1/account/positions - open positions. options.demo: use bot mode so close/PNL match run. */
+export async function getPositions(instId?: string, options?: { demo?: boolean }): Promise<{ instId: string; posSide: string; pos: string; avgPx: string }[]> {
   const path = instId
     ? `/api/v1/account/positions?instId=${encodeURIComponent(instId)}`
     : "/api/v1/account/positions";
-  const out = await privateRequest<unknown>("GET", path);
+  const out = await privateRequest<unknown>("GET", path, undefined, options?.demo);
   if (out.code !== "0" || !out.data) return [];
   const raw = out.data as { holdings?: Array<{ instId: string; posSide: string; pos: string; avgPx: string }>; data?: unknown[] };
-  const list = raw.holdings ?? raw.data ?? (Array.isArray(raw) ? raw : []);
-  return (Array.isArray(list) ? list : []).filter(
+  let list = raw.holdings ?? raw.data ?? (Array.isArray(raw) ? raw : []);
+  if (!Array.isArray(list)) list = [];
+  const withPos = list.filter((h: { pos?: string }) => h && h.pos != null && parseFloat(String(h.pos)) !== 0);
+  if (withPos.length > 0 || !instId) return withPos;
+  // Fallback: some accounts (e.g. without broker) may return empty when filtering by instId; fetch all and filter
+  const outAll = await privateRequest<unknown>("GET", "/api/v1/account/positions", undefined, options?.demo);
+  if (outAll.code !== "0" || !outAll.data) return [];
+  const rawAll = outAll.data as { holdings?: Array<{ instId: string; posSide: string; pos: string; avgPx: string }>; data?: unknown[] };
+  const listAll = rawAll.holdings ?? rawAll.data ?? (Array.isArray(rawAll) ? rawAll : []);
+  const allWithPos = (Array.isArray(listAll) ? listAll : []).filter(
     (h: { pos?: string }) => h && h.pos != null && parseFloat(String(h.pos)) !== 0
   );
+  const norm = (s: string) => (s || "").replace(/-/g, "").toUpperCase();
+  const target = norm(instId);
+  return allWithPos.filter((h: { instId?: string }) => norm(h.instId ?? "") === target);
 }
 
-/** GET /api/v1/market/tickers - last price */
-export async function getTicker(instId: string): Promise<{ last: string } | null> {
-  const out = await publicRequest<{ last: string }[]>(`/api/v1/market/tickers?instId=${encodeURIComponent(instId)}`);
+/** GET /api/v1/market/tickers - last price. demoOverride: use bot mode when provided. */
+export async function getTicker(instId: string, demoOverride?: boolean): Promise<{ last: string } | null> {
+  const out = await publicRequest<{ last: string }[]>(
+    `/api/v1/market/tickers?instId=${encodeURIComponent(instId)}`,
+    demoOverride
+  );
   if (out.code !== "0" || !out.data?.length) return null;
   return Array.isArray(out.data) ? out.data[0] : null;
 }
 
-/** Set leverage. Blofin: POST /api/v1/account/set-leverage */
-export async function setLeverage(instId: string, leverage: number, marginMode: "isolated" | "cross"): Promise<{ ok: boolean; error?: string }> {
+/** Set leverage. options.demo: use bot mode. */
+export async function setLeverage(instId: string, leverage: number, marginMode: "isolated" | "cross", options?: { demo?: boolean }): Promise<{ ok: boolean; error?: string }> {
   const config = getConfig();
+  if (!config) return { ok: false, error: "Blofin API keys not configured" };
   const body: Record<string, unknown> = { instId, leverage: String(leverage), marginMode };
-  if (config?.brokerId) body.brokerId = config.brokerId;
-  const out = await privateRequest("POST", "/api/v1/account/set-leverage", body);
+  if (config.brokerId) body.brokerId = config.brokerId;
+  const out = await privateRequest("POST", "/api/v1/account/set-leverage", body, options?.demo);
+  if (!config) return { ok: false, error: "Blofin API keys not configured" };
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true };
 }
 
-/** Place market order. size in contracts (e.g. 0.1 for BTC-USDT). */
+/** Place market order. size in contracts (e.g. 0.1 for BTC-USDT). options.demo: use bot mode. */
 export async function placeMarketOrder(
   instId: string,
   side: "buy" | "sell",
   size: string,
-  marginMode: "isolated" | "cross" = "cross"
+  marginMode: "isolated" | "cross" = "cross",
+  options?: { demo?: boolean }
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
   const config = getConfig();
   const body: Record<string, unknown> = { instId, marginMode, side, orderType: "market", size };
   if (config?.brokerId) body.brokerId = config.brokerId;
-  const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/order", body);
+  const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true, orderId: out.data?.orderId };
 }
 
-/** Get instrument info (min size, contract value) */
-export async function getInstrument(instId: string): Promise<{ minSize: string; contractValue: string; settleCurrency: string } | null> {
+/** Get instrument info. options.demo: use bot mode. */
+export async function getInstrument(instId: string, options?: { demo?: boolean }): Promise<{ minSize: string; contractValue: string; settleCurrency: string } | null> {
   const out = await publicRequest<{ instId: string; minSize: string; contractValue: string; settleCurrency: string }[]>(
-    `/api/v1/market/instruments?instId=${encodeURIComponent(instId)}`
+    `/api/v1/market/instruments?instId=${encodeURIComponent(instId)}`,
+    options?.demo
   );
   if (out.code !== "0" || !out.data?.length) return null;
   const d = out.data[0];

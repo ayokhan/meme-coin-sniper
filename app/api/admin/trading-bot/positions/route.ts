@@ -36,10 +36,11 @@ export async function GET() {
       ? rawSymbol.replace("/", "-")
       : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
 
+    const isDemo = bot.mode === "demo";
     const [positions, instrument, ticker] = await Promise.all([
-      getPositionsBlofin(instId),
-      getInstrument(instId),
-      getTicker(instId),
+      getPositionsBlofin(instId, { demo: isDemo }),
+      getInstrument(instId, { demo: isDemo }),
+      getTicker(instId, isDemo),
     ]);
 
     if (!positions.length) {
