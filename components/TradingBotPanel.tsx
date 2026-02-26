@@ -32,11 +32,18 @@ export default function TradingBotPanel() {
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [running, setRunning] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
+
+  const clearFeedback = () => {
+    setError(null);
+    setSuccess(null);
+  };
 
   const loadConfig = async () => {
     try {
