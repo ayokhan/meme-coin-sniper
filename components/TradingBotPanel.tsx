@@ -57,6 +57,10 @@ export default function TradingBotPanel() {
   const [orderHistory, setOrderHistory] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string; pnl?: string }[]>([]);
   const [orderHistoryLoading, setOrderHistoryLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"positions" | "orders">("positions");
+  const [limitOrderPrice, setLimitOrderPrice] = useState("");
+  const [limitOrderSide, setLimitOrderSide] = useState<"long" | "short">("long");
+  const [placingLimit, setPlacingLimit] = useState(false);
+  const [monitoring, setMonitoring] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
 
@@ -276,6 +280,60 @@ export default function TradingBotPanel() {
       setSuccess(null);
     } finally {
       setRunning(false);
+    }
+  };
+
+  const placeLimitOrder = async () => {
+    const price = parseFloat(limitOrderPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      setError("Enter a valid entry price (e.g. from NovaStaris AI suggested entry).");
+      return;
+    }
+    try {
+      setPlacingLimit(true);
+      clearFeedback();
+      const res = await fetch("/api/admin/trading-bot/place-limit-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ price, side: limitOrderSide }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(data.message ?? "Limit order placed.");
+        setError(null);
+        fetchOrderHistory();
+      } else {
+        setError(data.error ?? "Failed to place limit order.");
+        setSuccess(null);
+      }
+    } catch {
+      setError("Failed to place limit order.");
+      setSuccess(null);
+    } finally {
+      setPlacingLimit(false);
+    }
+  };
+
+  const runAIMonitor = async () => {
+    try {
+      setMonitoring(true);
+      clearFeedback();
+      const res = await fetch("/api/admin/trading-bot/monitor", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(data.message ?? (data.closed ? "Positions closed." : "No positions closed."));
+        setError(null);
+        setPositionsData(null);
+        fetchPositions();
+      } else {
+        setError(data.error ?? "Monitor failed.");
+        setSuccess(null);
+      }
+    } catch {
+      setError("Monitor failed.");
+      setSuccess(null);
+    } finally {
+      setMonitoring(false);
     }
   };
 
@@ -543,6 +601,57 @@ export default function TradingBotPanel() {
           <div className="flex flex-wrap gap-2">
             <Button onClick={saveConfig} disabled={saving} className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700">
               {saving ? "Saving…" : "Save config"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">Place limit order &amp; AI Monitor</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-3">
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Place limit order at entry price</p>
+            <p className="text-xs text-muted-foreground">
+              When NovaStaris AI suggests an entry price, set an order to be placed at that price (uses bot symbol, size, leverage).
+            </p>
+            <div className="flex flex-wrap items-end gap-2">
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Entry price</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="e.g. 97234.5"
+                  value={limitOrderPrice}
+                  onChange={(e) => setLimitOrderPrice(e.target.value)}
+                  className="w-32 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Side</label>
+                <select
+                  value={limitOrderSide}
+                  onChange={(e) => setLimitOrderSide(e.target.value as "long" | "short")}
+                  className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                >
+                  <option value="long">Long</option>
+                  <option value="short">Short</option>
+                </select>
+              </div>
+              <Button onClick={placeLimitOrder} disabled={placingLimit} size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white">
+                {placingLimit ? "Placing…" : "Place limit order"}
+              </Button>
+            </div>
+          </div>
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-2">
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">AI Monitor</p>
+            <p className="text-xs text-muted-foreground">
+              Run NovaStaris AI once to evaluate open positions. If the trend is opposite (e.g. you’re long but AI says short) or the analysis is negative, the position will be closed automatically.
+            </p>
+            <Button onClick={runAIMonitor} disabled={monitoring} variant="outline" size="sm" className="border-cyan-500 text-cyan-700 dark:text-cyan-300">
+              {monitoring ? "Running…" : "Run AI monitor"}
             </Button>
           </div>
         </CardContent>

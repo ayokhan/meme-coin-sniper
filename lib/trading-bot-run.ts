@@ -11,6 +11,7 @@ import {
   getPositions as getPositionsBlofin,
   setLeverage as setLeverageBlofin,
   placeMarketOrder as placeMarketOrderBlofin,
+  placeLimitOrder as placeLimitOrderBlofin,
   placeTPSLOrder as placeTPSLOrderBlofin,
   closePositionViaApi as closePositionViaApiBlofin,
   toBlofinBar,
@@ -364,12 +365,104 @@ export async function closeTradingBotPosition(options?: {
     if (sizeNum <= 0 || !Number.isFinite(sizeNum)) continue;
     const instId = (pos.instId ?? "").trim() || closeInstId;
     if (!instId) continue;
-    const posSide = (pos.posSide ?? "net").toLowerCase();
-    const positionSide = (posSide === "long" || posSide === "short" ? posSide : "net") as "long" | "short" | "net";
-    const result = await closePositionViaApiBlofin(instId, marginMode, positionSide, { demo: isDemo });
+    // Blofin one-way mode returns positionSide "net"; close-position API expects "net" in that case, not long/short.
+    const rawPosSide = (pos as { rawPositionSide?: string }).rawPositionSide?.toLowerCase();
+    const positionSide = (rawPosSide === "net" ? "net" : (pos.posSide === "long" || pos.posSide === "short" ? pos.posSide : "net")) as "long" | "short" | "net";
+    let result = await closePositionViaApiBlofin(instId, marginMode, positionSide, { demo: isDemo });
+    if (!result.ok && positionSide !== "net") {
+      const errMsg = (result.error ?? "").toLowerCase();
+      if (errMsg.includes("closed") || errMsg.includes("position")) {
+        result = await closePositionViaApiBlofin(instId, marginMode, "net", { demo: isDemo });
+      }
+    }
     if (!result.ok) {
       return { ok: false, error: result.error ?? "Failed to close position." };
     }
   }
   return { ok: true, message: positions.length > 1 ? `${positions.length} positions closed.` : "Position closed." };
+}
+
+/**
+ * Place a limit order at the given entry price (e.g. from NovaStaris AI suggested entry).
+ * Uses bot config for symbol, size, margin mode, demo/live.
+ */
+export async function placeLimitOrderTradingBot(options: {
+  price: number;
+  side: "long" | "short";
+}): Promise<{ ok: boolean; orderId?: string; message?: string; error?: string }> {
+  const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
+  if (!bot) return { ok: false, error: "No bot config." };
+  if (!isBlofinConfigured()) return { ok: false, error: "Blofin API keys not set." };
+  const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
+  if (!rawSymbol) return { ok: false, error: "Symbol required." };
+  const instId = rawSymbol.includes("/") ? rawSymbol.replace("/", "-") : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
+  const isDemo = bot.mode === "demo";
+  const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
+  const instRes = await getInstrumentBlofin(instId, { demo: isDemo });
+  if (!instRes) return { ok: false, error: "Could not get instrument." };
+  const contractValue = parseFloatSafe(instRes.contractValue);
+  const minSize = parseFloatSafe(instRes.minSize);
+  if (contractValue <= 0) return { ok: false, error: "Invalid contract value." };
+  const notionalUsdt = bot.positionSizeUsdt * (bot.leverage ?? 1);
+  const sizeContracts = notionalUsdt / (options.price * contractValue);
+  const sizeStr = roundSize(sizeContracts, minSize, minSize);
+  if (parseFloat(sizeStr) < minSize) return { ok: false, error: `Size below minimum (${minSize} contracts).` };
+  await setLeverageBlofin(instId, bot.leverage, marginMode, { demo: isDemo });
+  const side = options.side === "long" ? "buy" : "sell";
+  const result = await placeLimitOrderBlofin(instId, side, sizeStr, String(options.price), marginMode, { demo: isDemo });
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, orderId: result.orderId, message: `Limit ${options.side} ${sizeStr} @ ${options.price} placed.` };
+}
+
+/** Run AI monitor: evaluate open positions; close if trend is opposite or AI suggests exit (negative). */
+export async function runAIMonitorCycle(): Promise<{ ok: boolean; closed: number; message?: string; error?: string }> {
+  const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
+  if (!bot) return { ok: false, closed: 0, error: "No bot config." };
+  if (!isBlofinConfigured()) return { ok: false, closed: 0, error: "Blofin API keys not set." };
+  const isDemo = bot.mode === "demo";
+  const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
+  const strategy = (bot as { strategy?: string }).strategy ?? "simple";
+  const positions = await getPositionsBlofin(undefined, { demo: isDemo });
+  if (!positions.length) return { ok: true, closed: 0, message: "No open positions to monitor." };
+  const bar = toBlofinBar(bot.timeframe);
+  const candleLimit = 100;
+  let closed = 0;
+  for (const pos of positions) {
+    const rawSize = String(pos.pos ?? "0").trim();
+    if (Math.abs(parseFloat(rawSize)) <= 0) continue;
+    const instId = (pos.instId ?? "").trim();
+    if (!instId) continue;
+    const posSide = (pos.posSide ?? "").toLowerCase();
+    const isLongPos = posSide === "long";
+    const candles = await getCandlesBlofin(instId, bar, candleLimit, isDemo);
+    const ticker = await getTickerBlofin(instId, isDemo);
+    const lastPrice = ticker?.last ? parseFloatSafe(ticker.last) : (candles.length ? parseFloatSafe(candles[0][4]) : 0);
+    if (candles.length < 5 || lastPrice <= 0) continue;
+    const resolved = await resolveSignal(
+      strategy,
+      candles,
+      lastPrice,
+      bot.symbol,
+      bot.timeframe,
+      bot.emaPeriod ?? 200,
+      bot.fastMA ?? 9,
+      bot.slowMA ?? 21,
+      bot.rsiPeriod ?? 14
+    );
+    const signal = resolved.signal;
+    const message = (resolved.message ?? "").toLowerCase();
+    const bearish = /negative|down|bearish|exit|sell|weaken|drop|fall/.test(message);
+    const bullish = /positive|up|bullish|buy|strengthen|rise/.test(message);
+    const shouldClose =
+      (isLongPos && signal === "short") ||
+      (isLongPos && !signal && bearish) ||
+      (!isLongPos && signal === "long") ||
+      (!isLongPos && !signal && bullish);
+    if (!shouldClose) continue;
+    const rawPosSide = (pos as { rawPositionSide?: string }).rawPositionSide?.toLowerCase();
+    const positionSide = (rawPosSide === "net" ? "net" : (posSide === "long" || posSide === "short" ? posSide : "net")) as "long" | "short" | "net";
+    const result = await closePositionViaApiBlofin(instId, marginMode, positionSide, { demo: isDemo });
+    if (result.ok) closed++;
+  }
+  return { ok: true, closed, message: closed > 0 ? `AI monitor closed ${closed} position(s).` : "No positions closed." };
 }

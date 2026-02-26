@@ -126,14 +126,17 @@ function getPosSize(h: Record<string, unknown>): string {
   return v != null ? String(v) : "0";
 }
 
+/** Position row: posSide is long/short for display; rawPositionSide is what Blofin returned (e.g. "net") for close-position API. */
+export type PositionRow = { instId: string; posSide: string; pos: string; avgPx: string; rawPositionSide?: string };
+
 /** Extract positions array from Blofin API response (various shapes). Blofin: data[] with positions, averagePrice, positionSide (net). */
-function extractPositionsList(data: unknown): Array<{ instId: string; posSide: string; pos: string; avgPx: string }> {
+function extractPositionsList(data: unknown): PositionRow[] {
   if (!data || typeof data !== "object") return [];
   const raw = data as Record<string, unknown>;
   const list =
     raw.holdings ?? raw.positions ?? raw.data ?? (Array.isArray(raw) ? raw : []);
   if (!Array.isArray(list)) return [];
-  const result: Array<{ instId: string; posSide: string; pos: string; avgPx: string }> = [];
+  const result: PositionRow[] = [];
   for (const h of list) {
     if (!h || typeof h !== "object") continue;
     const obj = h as Record<string, unknown>;
@@ -141,12 +144,13 @@ function extractPositionsList(data: unknown): Array<{ instId: string; posSide: s
     if (parseFloat(posStr) === 0) continue;
     const instId = String(obj.instId ?? obj.inst_id ?? obj.symbol ?? "");
     const positionSide = String(obj.positionSide ?? obj.posSide ?? obj.pos_side ?? obj.side ?? "").toLowerCase();
+    const rawPositionSide = positionSide === "net" ? "net" : (positionSide || "net");
     const posSide =
       positionSide === "net"
         ? (parseFloat(posStr) >= 0 ? "long" : "short")
         : String(obj.posSide ?? obj.pos_side ?? obj.side ?? "long");
     const avgPx = String(obj.averagePrice ?? obj.avgPx ?? obj.avg_px ?? obj.avgPrice ?? obj.entryPrice ?? "0");
-    result.push({ instId, posSide, pos: posStr, avgPx });
+    result.push({ instId, posSide, pos: posStr, avgPx, rawPositionSide });
   }
   return result;
 }
@@ -154,7 +158,7 @@ function extractPositionsList(data: unknown): Array<{ instId: string; posSide: s
 const normInstId = (s: string) => (s || "").replace(/-/g, "").toUpperCase();
 
 /** GET /api/v1/account/positions - open positions. options.demo: use bot mode so close/PNL match run. */
-export async function getPositions(instId?: string, options?: { demo?: boolean }): Promise<{ instId: string; posSide: string; pos: string; avgPx: string }[]> {
+export async function getPositions(instId?: string, options?: { demo?: boolean }): Promise<PositionRow[]> {
   // For non-broker and some accounts, filtered-by-instId returns empty. Fetch all first, then filter.
   const path = "/api/v1/account/positions";
   const out = await privateRequest<unknown>("GET", path, undefined, options?.demo);
@@ -213,6 +217,34 @@ export async function closePositionViaApi(
   const out = await privateRequest<{ instId?: string; positionSide?: string }>("POST", "/api/v1/trade/close-position", body, options?.demo);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true };
+}
+
+/** Place limit order. size in contracts; price as string. options.demo: use bot mode. */
+export async function placeLimitOrder(
+  instId: string,
+  side: "buy" | "sell",
+  size: string,
+  price: string,
+  marginMode: "isolated" | "cross" = "cross",
+  options?: { demo?: boolean }
+): Promise<{ ok: boolean; orderId?: string; error?: string }> {
+  const config = getConfig();
+  if (!config) return { ok: false, error: "Blofin API keys not configured" };
+  const body: Record<string, unknown> = {
+    instId,
+    marginMode,
+    positionSide: "net",
+    side,
+    orderType: "limit",
+    size,
+    price: String(price),
+  };
+  if (config.brokerId) body.brokerId = config.brokerId;
+  const out = await privateRequest<{ orderId?: string }[] | { orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo);
+  if (out.code !== "0") return { ok: false, error: out.msg || out.code };
+  const data = out.data;
+  const orderId = Array.isArray(data) ? data[0]?.orderId : (data as { orderId?: string } | undefined)?.orderId;
+  return { ok: true, orderId };
 }
 
 /** Place market order. size in contracts (e.g. 0.1 for BTC-USDT). reduceOnly: set true when closing. options.demo: use bot mode. */
