@@ -86,6 +86,7 @@ export async function GET() {
         lastError: bot.lastError ?? null,
         lastDecision: (bot as { lastDecision?: string | null }).lastDecision ?? null,
         lastDecisionMsg: (bot as { lastDecisionMsg?: string | null }).lastDecisionMsg ?? null,
+        lastDecisionReason: (bot as { lastDecisionReason?: string | null }).lastDecisionReason ?? null,
       },
     });
   } catch (e) {

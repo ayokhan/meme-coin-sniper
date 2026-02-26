@@ -279,16 +279,16 @@ export default function TradingBotPanel() {
     }
   };
 
-  const closePosition = async (instId?: string) => {
-    const label = instId ?? config?.symbol ?? "position";
-    if (!window.confirm(`Close open position for ${label}? This will place a reduce-only market order to exit.`)) return;
+  const closePosition = async (instId?: string, closeAll?: boolean) => {
+    const label = closeAll ? "all positions" : instId ?? config?.symbol ?? "position";
+    if (!window.confirm(`Close ${label}? NovaStaris will use Blofin's close-position API to exit.`)) return;
     try {
       setClosing(true);
       clearFeedback();
       const res = await fetch("/api/admin/trading-bot/close", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: instId ? JSON.stringify({ instId }) : "{}",
+        body: JSON.stringify(closeAll ? { closeAll: true } : instId ? { instId } : {}),
       });
       const data = await res.json();
       if (data.success) {
@@ -323,7 +323,7 @@ export default function TradingBotPanel() {
         Crypto Futures Trading Bot
       </h2>
       <p className="text-sm text-muted-foreground">
-        Crypto futures bot (long/short) via <strong>Blofin</strong>. Configure symbol, timeframe, leverage, take profit &amp; stop loss.
+        <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris</strong> futures bot (long/short) via <strong>Blofin</strong>. Configure symbol, timeframe, leverage, take profit &amp; stop loss.
       </p>
 
       {success && (
@@ -707,9 +707,19 @@ export default function TradingBotPanel() {
             >
               {closing ? "Closing…" : "Close position"}
             </Button>
+            {positionsData && positionsData.positions.length > 1 && (
+              <Button
+                onClick={() => closePosition(undefined, true)}
+                disabled={closing}
+                variant="outline"
+                className="border-rose-500 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+              >
+                Close all
+              </Button>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Close position: closes any open position for the configured symbol with a market order. You will be asked to confirm.
+            Close: uses Blofin close-position API for the configured symbol (or choose &quot;Close all&quot; when multiple positions). You will be asked to confirm.
           </p>
         </CardContent>
       </Card>

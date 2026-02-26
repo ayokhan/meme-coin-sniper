@@ -12,6 +12,7 @@ import {
   setLeverage as setLeverageBlofin,
   placeMarketOrder as placeMarketOrderBlofin,
   placeTPSLOrder as placeTPSLOrderBlofin,
+  closePositionViaApi as closePositionViaApiBlofin,
   toBlofinBar,
   isBlofinConfigured,
   type Candle,
@@ -314,46 +315,61 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
 }
 
 /**
- * Close open position(s). If instId is set, close only that symbol; otherwise close bot's symbol. Owner-only.
+ * Close open position(s). If closeInstId is set, close only that symbol; if closeAll is true, close all positions; otherwise close bot's symbol. Owner-only.
+ * Uses Blofin dedicated close-position API when possible.
  */
-export async function closeTradingBotPosition(closeInstId?: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+export async function closeTradingBotPosition(options?: {
+  closeInstId?: string;
+  closeAll?: boolean;
+}): Promise<{ ok: boolean; message?: string; error?: string }> {
+  const closeInstId = options?.closeInstId?.trim();
+  const closeAll = options?.closeAll === true;
+
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) return { ok: false, error: "No bot config." };
   if (!isBlofinConfigured()) {
     return { ok: false, error: "Blofin API keys not set." };
   }
-  const targetInstId = closeInstId?.trim()
-    ? closeInstId.replace("/", "-")
-    : (() => {
-        const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
-        if (!rawSymbol) return null;
-        return rawSymbol.includes("/")
-          ? rawSymbol.replace("/", "-")
-          : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
-      })();
-  if (!targetInstId) return { ok: false, error: "Symbol is required." };
 
   const isDemo = bot.mode === "demo";
-  const positions = await getPositionsBlofin(targetInstId, { demo: isDemo });
+  const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
+
+  const positions = closeAll
+    ? await getPositionsBlofin(undefined, { demo: isDemo })
+    : await getPositionsBlofin(
+        closeInstId
+          ? closeInstId.replace("/", "-")
+          : (() => {
+              const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
+              if (!rawSymbol) return undefined;
+              return rawSymbol.includes("/")
+                ? rawSymbol.replace("/", "-")
+                : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
+            })(),
+        { demo: isDemo }
+      );
+
   if (!positions.length) {
     return {
       ok: false,
-      error:
-        "No open position found for this symbol. Check: (1) Bot Mode is Live if the position is on live Blofin. (2) Your Blofin API key has permission to read positions (e.g. READ or Trade+Read). (3) Symbol matches (e.g. BTC/USDT → BTC-USDT).",
+      error: closeAll
+        ? "No open positions. Check Bot Mode (Demo/Live) and Blofin API permissions."
+        : "No open position found for this symbol. Check: (1) Bot Mode is Live if the position is on live Blofin. (2) Your Blofin API key has permission to read positions. (3) Symbol matches (e.g. BTC/USDT → BTC-USDT).",
     };
   }
 
-  const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
   for (const pos of positions) {
     const rawSize = String(pos.pos ?? "0").trim();
     const sizeNum = Math.abs(parseFloat(rawSize));
     if (sizeNum <= 0 || !Number.isFinite(sizeNum)) continue;
-    const size = String(sizeNum);
-    const closeSide = (pos.posSide ?? "").toLowerCase() === "long" ? "sell" : "buy";
-    const result = await placeMarketOrderBlofin(targetInstId, closeSide, size, marginMode, { demo: isDemo, reduceOnly: true });
+    const instId = (pos.instId ?? "").trim() || closeInstId;
+    if (!instId) continue;
+    const posSide = (pos.posSide ?? "net").toLowerCase();
+    const positionSide = (posSide === "long" || posSide === "short" ? posSide : "net") as "long" | "short" | "net";
+    const result = await closePositionViaApiBlofin(instId, marginMode, positionSide, { demo: isDemo });
     if (!result.ok) {
       return { ok: false, error: result.error ?? "Failed to close position." };
     }
   }
-  return { ok: true, message: "Position closed." };
+  return { ok: true, message: positions.length > 1 ? `${positions.length} positions closed.` : "Position closed." };
 }

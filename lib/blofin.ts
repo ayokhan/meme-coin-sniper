@@ -192,6 +192,25 @@ export async function setLeverage(instId: string, leverage: number, marginMode: 
   return { ok: true };
 }
 
+/**
+ * Close position via Blofin dedicated endpoint (POST /api/v1/trade/close-position).
+ * Uses a market order to close the full position for instId + positionSide. options.demo: use bot mode.
+ */
+export async function closePositionViaApi(
+  instId: string,
+  marginMode: "isolated" | "cross",
+  positionSide: "long" | "short" | "net",
+  options?: { demo?: boolean }
+): Promise<{ ok: boolean; error?: string }> {
+  const config = getConfig();
+  if (!config) return { ok: false, error: "Blofin API keys not configured" };
+  const body: Record<string, unknown> = { instId, marginMode, positionSide };
+  if (config.brokerId) body.brokerId = config.brokerId;
+  const out = await privateRequest<{ instId?: string; positionSide?: string }>("POST", "/api/v1/trade/close-position", body, options?.demo);
+  if (out.code !== "0") return { ok: false, error: out.msg || out.code };
+  return { ok: true };
+}
+
 /** Place market order. size in contracts (e.g. 0.1 for BTC-USDT). reduceOnly: set true when closing. options.demo: use bot mode. */
 export async function placeMarketOrder(
   instId: string,
@@ -201,15 +220,25 @@ export async function placeMarketOrder(
   options?: { demo?: boolean; reduceOnly?: boolean }
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
   const config = getConfig();
-  const body: Record<string, unknown> = { instId, marginMode, side, orderType: "market", size };
+  const body: Record<string, unknown> = {
+    instId,
+    marginMode,
+    positionSide: "net",
+    side,
+    orderType: "market",
+    size,
+  };
   if (config?.brokerId) body.brokerId = config.brokerId;
-  if (options?.reduceOnly) body.reduce_only = true;
-  const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo);
+  if (options?.reduceOnly) body.reduceOnly = true;
+  const out = await privateRequest<{ orderId?: string }[] | { orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
-  return { ok: true, orderId: out.data?.orderId };
+  const data = out.data;
+  const orderId = Array.isArray(data) ? data[0]?.orderId : (data as { orderId?: string } | undefined)?.orderId;
+  return { ok: true, orderId };
 }
 
-/** Place TP/SL order for an existing position. Trigger prices from entry ± tpPct/slPct. options.demo: use bot mode. */
+/** Place TP/SL order for an existing position. Trigger prices from entry ± tpPct/slPct. options.demo: use bot mode.
+ * Blofin: POST /api/v1/trade/order-tpsl requires positionSide, tpOrderPrice/slOrderPrice (-1 = market). */
 export async function placeTPSLOrder(
   instId: string,
   side: "buy" | "sell",
@@ -232,15 +261,18 @@ export async function placeTPSLOrder(
   const body: Record<string, unknown> = {
     instId,
     marginMode,
+    positionSide: "net",
     side,
     size,
-    orderType: "market",
+    reduceOnly: "true",
     tpTriggerPrice: String(roundPrice(tpPrice)),
+    tpOrderPrice: "-1",
     slTriggerPrice: String(roundPrice(slPrice)),
+    slOrderPrice: "-1",
   };
   if (config.brokerId) body.brokerId = config.brokerId;
   const path = "/api/v1/trade/order-tpsl";
-  const out = await privateRequest<{ orderId?: string }>("POST", path, body, options?.demo);
+  const out = await privateRequest<{ tpslId?: string }>("POST", path, body, options?.demo);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true };
 }

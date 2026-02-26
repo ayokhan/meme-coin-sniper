@@ -5,21 +5,23 @@ import { closeTradingBotPosition } from "@/lib/trading-bot-run";
 
 export const dynamic = "force-dynamic";
 
-/** POST - Close open position. Body: { instId?: string } to close a specific symbol; omit to close bot's symbol. Owner only. */
+/** POST - Close open position(s). Body: { instId?: string } close one symbol; { closeAll: true } close all positions; omit to close bot's symbol. Owner only. */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
     }
-    let instId: string | undefined;
+    let closeInstId: string | undefined;
+    let closeAll = false;
     try {
       const body = await req.json().catch(() => ({}));
-      instId = typeof body?.instId === "string" ? body.instId.trim() || undefined : undefined;
+      closeInstId = typeof body?.instId === "string" ? body.instId.trim() || undefined : undefined;
+      closeAll = body?.closeAll === true;
     } catch {
       // no body
     }
-    const result = await closeTradingBotPosition(instId);
+    const result = await closeTradingBotPosition({ closeInstId, closeAll });
     if (!result.ok) {
       return NextResponse.json(
         { success: false, error: result.error ?? "Failed to close position." },
