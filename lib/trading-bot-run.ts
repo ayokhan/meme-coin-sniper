@@ -422,7 +422,7 @@ export async function runAIMonitorCycle(): Promise<{ ok: boolean; closed: number
   const isDemo = bot.mode === "demo";
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
   const strategy = (bot as { strategy?: string }).strategy ?? "simple";
-  let positions = await getPositionsBlofin(undefined, { demo: isDemo });
+  const allPositions = await getPositionsBlofin(undefined, { demo: isDemo });
   const monitorSymbolsRaw = (bot as { monitorSymbols?: string | null }).monitorSymbols;
   const monitorSet = monitorSymbolsRaw
     ? new Set(
@@ -432,6 +432,7 @@ export async function runAIMonitorCycle(): Promise<{ ok: boolean; closed: number
           .filter(Boolean)
       )
     : null;
+  let positions = allPositions;
   if (monitorSet && monitorSet.size > 0) {
     positions = positions.filter((p) => {
       const id = (p.instId ?? "").trim().toUpperCase().replace("/", "-");
@@ -439,12 +440,26 @@ export async function runAIMonitorCycle(): Promise<{ ok: boolean; closed: number
     });
   }
   if (!positions.length) {
+    const openSymbols = [...new Set(allPositions.map((p) => (p.instId ?? "").trim()).filter(Boolean))];
+    const modeLabel = isDemo ? "Demo" : "Live";
+    if (monitorSet?.size && openSymbols.length > 0) {
+      return {
+        ok: true,
+        closed: 0,
+        message: `No open positions match your monitoring board. You have open positions: ${openSymbols.join(", ")}. Pin them from the Positions tab or add these symbols to the board; or clear the board to monitor all. (AI monitor uses ${modeLabel} account.)`,
+      };
+    }
+    if (openSymbols.length > 0) {
+      return {
+        ok: true,
+        closed: 0,
+        message: `No positions to evaluate after filtering. (AI monitor uses ${modeLabel} account; you have: ${openSymbols.join(", ")}.)`,
+      };
+    }
     return {
       ok: true,
       closed: 0,
-      message: monitorSet?.size
-        ? "No open positions match your monitoring board."
-        : "No open positions to monitor.",
+      message: `No open positions to monitor. (AI monitor uses ${modeLabel} account—same as Positions above.)`,
     };
   }
   const bar = toBlofinBar(bot.timeframe);

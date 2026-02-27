@@ -219,6 +219,21 @@ export async function closePositionViaApi(
   return { ok: true };
 }
 
+/** Cancel an open order by instId and orderId. options.demo: use bot mode. */
+export async function cancelOrder(
+  instId: string,
+  orderId: string,
+  options?: { demo?: boolean }
+): Promise<{ ok: boolean; error?: string }> {
+  const config = getConfig();
+  if (!config) return { ok: false, error: "Blofin API keys not configured" };
+  const body: Record<string, unknown> = { instId, orderId };
+  if (config.brokerId) body.brokerId = config.brokerId;
+  const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/cancel-order", body, options?.demo);
+  if (out.code !== "0") return { ok: false, error: out.msg || out.code };
+  return { ok: true };
+}
+
 /** Place limit order. size in contracts; price as string. options.demo: use bot mode. */
 export async function placeLimitOrder(
   instId: string,
