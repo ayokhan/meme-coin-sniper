@@ -67,6 +67,7 @@ export default function TradingBotPanel() {
   const [monitoring, setMonitoring] = useState(false);
   const [monitorIntervalMins, setMonitorIntervalMins] = useState<0 | 5 | 10 | 15 | 60>(0);
   const [lastMonitorResult, setLastMonitorResult] = useState<string | null>(null);
+  const [lastMonitorReasons, setLastMonitorReasons] = useState<string[]>([]);
   const [monitorBoardSymbols, setMonitorBoardSymbols] = useState<string[]>([]);
   const [monitorBoardInput, setMonitorBoardInput] = useState("");
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
@@ -206,9 +207,11 @@ export default function TradingBotPanel() {
         const data = await res.json().catch(() => ({}));
         const msg = data.success ? (data.message ?? "Done.") : (data.error ?? "Failed.");
         setLastMonitorResult(msg);
+        setLastMonitorReasons(data.success && Array.isArray(data.reasons) ? data.reasons : []);
         if (data.success && (data.closed ?? 0) > 0) fetchPositions();
       } catch {
         setLastMonitorResult("Failed.");
+        setLastMonitorReasons([]);
       } finally {
         setMonitoring(false);
       }
@@ -385,19 +388,26 @@ export default function TradingBotPanel() {
       setMonitoring(true);
       clearFeedback();
       const res = await fetch("/api/admin/trading-bot/monitor", { method: "POST" });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (data.success) {
-        setSuccess(data.message ?? (data.closed ? "Positions closed." : "No positions closed."));
+        const msg = data.message ?? (data.closed ? "Positions closed." : "No positions closed.");
+        setSuccess(msg);
         setError(null);
+        setLastMonitorResult(msg);
+        setLastMonitorReasons(Array.isArray(data.reasons) ? data.reasons : []);
         setPositionsData(null);
         fetchPositions();
       } else {
         setError(data.error ?? "Monitor failed.");
         setSuccess(null);
+        setLastMonitorResult(null);
+        setLastMonitorReasons([]);
       }
     } catch {
       setError("Monitor failed.");
       setSuccess(null);
+      setLastMonitorResult(null);
+      setLastMonitorReasons([]);
     } finally {
       setMonitoring(false);
     }
@@ -784,7 +794,7 @@ export default function TradingBotPanel() {
               )}
             </p>
             <p className="text-xs text-muted-foreground">
-              Pin positions or add symbols to choose which positions the AI monitor evaluates. <strong>Leave empty to monitor all</strong> open positions. Use <strong>Run now</strong> / <strong>Auto-refresh</strong> below to refresh PNL independently of the AI monitor.
+              Pin positions or add symbols to choose which positions the AI monitor evaluates. <strong>Leave empty to monitor all</strong> open positions. <strong>Click Save</strong> after pinning so the AI monitor uses this list (it reads the saved board, not the list on screen). Use <strong>Run now</strong> / <strong>Auto-refresh</strong> below to refresh PNL only (no AI).
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <input
@@ -859,7 +869,9 @@ export default function TradingBotPanel() {
               )}
             </div>
             {monitorBoardSymbols.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <>
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Click <strong>Save</strong> above so the AI monitor uses these symbols.</p>
+                <div className="flex flex-wrap gap-1.5">
                 {monitorBoardSymbols.map((s) => (
                   <span
                     key={s}
@@ -877,6 +889,7 @@ export default function TradingBotPanel() {
                   </span>
                 ))}
               </div>
+              </>
             )}
             <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-zinc-200 dark:border-zinc-600">
               <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Board refresh:</span>
@@ -917,7 +930,7 @@ export default function TradingBotPanel() {
               )}
             </p>
             <p className="text-xs text-muted-foreground">
-              Run NovaStaris AI to evaluate open positions{monitorBoardSymbols.length > 0 ? " on your monitoring board" : ""}. If the trend is opposite or the analysis is negative, the position will be closed automatically. Enable auto-refresh to run periodically. Uses the same account (<strong>{config?.mode === "demo" ? "Demo" : "Live"}</strong>) as the bot—positions above must be in that account to be seen.
+              Run NovaStaris AI to evaluate open positions{monitorBoardSymbols.length > 0 ? " on your saved monitoring board" : ""}. It <strong>makes the decision itself</strong>: if the trend is opposite or the analysis is negative, it <strong>closes the position automatically</strong> (no separate analysis or recommendation step). Enable auto-refresh to run periodically. Uses the same account (<strong>{config?.mode === "demo" ? "Demo" : "Live"}</strong>) as the bot—positions above must be in that account to be seen.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Auto-refresh:</span>
@@ -937,7 +950,20 @@ export default function TradingBotPanel() {
               </Button>
             </div>
             {lastMonitorResult != null && (
-              <p className="text-xs text-muted-foreground">Last monitor: {lastMonitorResult}</p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>Last monitor: {lastMonitorResult}</p>
+                {lastMonitorReasons.length > 0 && (
+                  <div className="mt-1.5 rounded border border-zinc-200 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-900/40 p-2 space-y-0.5">
+                    <p className="font-medium text-zinc-700 dark:text-zinc-300">Reasons:</p>
+                    {lastMonitorReasons.map((r, i) => (
+                      <p key={i} className="pl-0 text-muted-foreground">{r}</p>
+                    ))}
+                  </div>
+                )}
+                {lastMonitorResult === "No positions closed." && lastMonitorReasons.length === 0 && (
+                  <span className="block mt-0.5 text-muted-foreground/90">Your position(s) were evaluated; none met the exit criteria.</span>
+                )}
+              </div>
             )}
           </div>
         </CardContent>

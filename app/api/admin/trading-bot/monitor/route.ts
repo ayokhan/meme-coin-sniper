@@ -20,6 +20,7 @@ export async function POST() {
       success: true,
       closed: result.closed ?? 0,
       message: result.message ?? (result.closed ? "Positions closed." : "No positions closed."),
+      reasons: result.reasons,
     });
   } catch (e) {
     console.error("Trading bot monitor:", e);
