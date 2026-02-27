@@ -1363,7 +1363,9 @@ export default function Dashboard() {
                             <span className="text-muted-foreground truncate">{t.name}</span>
                             <span className="text-xs text-muted-foreground mt-0.5 block">· {t.walletLabel}</span>
                           </div>
-                          <span className="text-xs text-muted-foreground shrink-0">{new Date(t.timestamp).toLocaleString()}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {new Date(t.timestamp).toLocaleString("en-CA", { timeZone: "America/Toronto" })}
+                          </span>
                           <div className="flex gap-1.5 shrink-0">
                             <a href={t.dexUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Dex</a>
                             <a href={t.txUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Tx</a>
