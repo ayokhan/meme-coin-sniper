@@ -25,20 +25,26 @@ export type WalletTrade = {
 
 type WalletBuy = { mint: string; timestamp: number; signature?: string };
 
-/** Get recent buys – Moralis first (if enabled), then Helius, then Birdeye. */
+/** Get recent buys from all available providers and merge (dedupe by mint, keep newest). */
 async function getRecentBuysForWallet(
   address: string,
   limit: number,
   maxAgeMs: number,
-  useMoralis: boolean
+  providers: { moralis: boolean; helius: boolean; birdeye: boolean }
 ): Promise<WalletBuy[]> {
-  if (useMoralis) {
-    const moralis = await getWalletBuySwapsFromMoralis(address, limit, maxAgeMs);
-    if (moralis.length > 0) return moralis;
+  const promises: Promise<WalletBuy[]>[] = [];
+  if (providers.moralis) promises.push(getWalletBuySwapsFromMoralis(address, limit, maxAgeMs));
+  if (providers.helius) promises.push(getRecentTokenBuysForWallet(address, limit, maxAgeMs));
+  if (providers.birdeye) promises.push(getWalletTokenBuysFromBirdeye(address, limit, maxAgeMs));
+  const results = await Promise.all(promises);
+  const byMint = new Map<string, WalletBuy>();
+  for (const list of results) {
+    for (const b of list) {
+      const existing = byMint.get(b.mint);
+      if (!existing || b.timestamp > existing.timestamp) byMint.set(b.mint, b);
+    }
   }
-  const helius = await getRecentTokenBuysForWallet(address, limit, maxAgeMs);
-  if (helius.length > 0) return helius;
-  return getWalletTokenBuysFromBirdeye(address, limit, maxAgeMs);
+  return Array.from(byMint.values()).sort((a, b) => b.timestamp - a.timestamp);
 }
 
 /** GET - Recent buys from each tracked wallet (Pro). Uses Birdeye (primary) or Helius. */
@@ -62,9 +68,10 @@ export async function GET() {
 
     const MAX_AGE_MS = rules.maxAgeHours * 60 * 60 * 1000;
     const allTrades: WalletTrade[] = [];
+    const providers = { moralis: hasMoralis, helius: hasHelius, birdeye: hasBirdeye };
 
     for (const w of trackedWallets) {
-      const buys = await getRecentBuysForWallet(w.address, BUYS_PER_WALLET, MAX_AGE_MS, hasMoralis);
+      const buys = await getRecentBuysForWallet(w.address, BUYS_PER_WALLET, MAX_AGE_MS, providers);
       for (const b of buys) {
         const dex = await getSolanaToken(b.mint);
         allTrades.push({

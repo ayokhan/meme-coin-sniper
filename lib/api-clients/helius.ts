@@ -88,8 +88,9 @@ function getReceivedMints(tx: HeliusTx, walletAddress: string): string[] {
         if (n > 0) mints.push(tc.mint);
       }
     }
-    return mints;
+    break;
   }
+  if (mints.length > 0) return mints;
 
   // 2. Fallback: tokenTransfers where wallet is recipient (toUserAccount)
   for (const t of tx.tokenTransfers ?? []) {
