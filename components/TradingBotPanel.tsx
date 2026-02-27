@@ -175,12 +175,13 @@ export default function TradingBotPanel() {
     if (config != null) fetchPositions();
   }, [config, fetchPositions]);
 
+  // Optional: refresh PNL every 30s only when user has enabled Board refresh (so "Off" means no background calls)
   useEffect(() => {
-    if (positionsData?.positions?.length) {
-      const interval = setInterval(fetchPositions, 30_000);
-      return () => clearInterval(interval);
-    }
-  }, [positionsData?.positions?.length, fetchPositions]);
+    if (boardRefreshMins <= 0) return undefined;
+    if (!positionsData?.positions?.length) return undefined;
+    const interval = setInterval(fetchPositions, 30_000);
+    return () => clearInterval(interval);
+  }, [boardRefreshMins, positionsData?.positions?.length, fetchPositions]);
 
   useEffect(() => {
     if (activeTab === "open_orders") fetchOpenOrders();
