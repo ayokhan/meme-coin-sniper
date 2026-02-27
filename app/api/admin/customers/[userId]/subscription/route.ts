@@ -47,10 +47,17 @@ export async function POST(
     if (action === 'clear') {
       const now = new Date();
       const expiredAt = new Date(now.getTime() - 60 * 1000);
-      await prisma.subscription.updateMany({
+      const activeSubs = await prisma.subscription.findMany({
         where: { userId, expiresAt: { gt: now } },
-        data: { expiresAt: expiredAt },
       });
+      await Promise.all(
+        activeSubs.map((sub) =>
+          prisma.subscription.update({
+            where: { id: sub.id },
+            data: { expiresAt: expiredAt },
+          })
+        )
+      );
       return NextResponse.json({ success: true, cleared: true });
     }
 
