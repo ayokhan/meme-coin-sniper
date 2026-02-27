@@ -25,32 +25,20 @@ export type WalletTrade = {
 
 type WalletBuy = { mint: string; timestamp: number; signature?: string };
 
-/** Get recent buys: Moralis first when available. If Moralis returns empty, merge Helius + Birdeye for max coverage (how it worked before). */
+/** Get recent buys – Moralis first (if enabled), then Helius, then Birdeye. */
 async function getRecentBuysForWallet(
   address: string,
   limit: number,
   maxAgeMs: number,
-  useMoralis: boolean,
-  hasHelius: boolean,
-  hasBirdeye: boolean
+  useMoralis: boolean
 ): Promise<WalletBuy[]> {
   if (useMoralis) {
     const moralis = await getWalletBuySwapsFromMoralis(address, limit, maxAgeMs);
     if (moralis.length > 0) return moralis;
   }
-  const fallbacks: Promise<WalletBuy[]>[] = [];
-  if (hasHelius) fallbacks.push(getRecentTokenBuysForWallet(address, limit, maxAgeMs));
-  if (hasBirdeye) fallbacks.push(getWalletTokenBuysFromBirdeye(address, limit, maxAgeMs));
-  if (fallbacks.length === 0) return [];
-  const results = await Promise.all(fallbacks);
-  const byMint = new Map<string, WalletBuy>();
-  for (const list of results) {
-    for (const b of list) {
-      const existing = byMint.get(b.mint);
-      if (!existing || b.timestamp > existing.timestamp) byMint.set(b.mint, b);
-    }
-  }
-  return Array.from(byMint.values()).sort((a, b) => b.timestamp - a.timestamp);
+  const helius = await getRecentTokenBuysForWallet(address, limit, maxAgeMs);
+  if (helius.length > 0) return helius;
+  return getWalletTokenBuysFromBirdeye(address, limit, maxAgeMs);
 }
 
 /** GET - Recent buys from each tracked wallet (Pro). Uses Birdeye (primary) or Helius. */
@@ -76,14 +64,9 @@ export async function GET() {
     const allTrades: WalletTrade[] = [];
 
     for (const w of trackedWallets) {
-      const buys = await getRecentBuysForWallet(w.address, BUYS_PER_WALLET, MAX_AGE_MS, hasMoralis, hasHelius, hasBirdeye);
+      const buys = await getRecentBuysForWallet(w.address, BUYS_PER_WALLET, MAX_AGE_MS, hasMoralis);
       for (const b of buys) {
-        let dex: Awaited<ReturnType<typeof getSolanaToken>> = null;
-        try {
-          dex = await getSolanaToken(b.mint);
-        } catch {
-          /* use — for symbol/name if lookup fails */
-        }
+        const dex = await getSolanaToken(b.mint);
         allTrades.push({
           walletLabel: w.label || `${w.address.slice(0, 4)}…${w.address.slice(-4)}`,
           walletAddress: w.address,
