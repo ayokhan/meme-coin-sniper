@@ -42,14 +42,19 @@ async function getRecentBuysForWallet(
   return getWalletTokenBuysFromBirdeye(address, limit, maxAgeMs);
 }
 
-/** GET - Recent buys from each tracked wallet (Pro). Uses Birdeye (primary) or Helius. */
-export async function GET() {
+/** GET - Recent trades from each tracked wallet (Pro). Optional ?address=... to debug a single wallet. */
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const debugAddress = url.searchParams.get('address')?.trim() || null;
+
     const { tier } = await getSessionAndSubscription();
     if (tier !== 'vip') {
       return NextResponse.json({ success: false, error: 'VIP subscription required for wallet trades.', locked: true }, { status: 403 });
     }
-    const trackedWallets = await getTrackedWallets();
+    const trackedWallets = debugAddress
+      ? [{ address: debugAddress, label: debugAddress }]
+      : await getTrackedWallets();
     if (trackedWallets.length === 0) {
       return NextResponse.json({ success: true, trades: [], message: 'No wallets configured.' });
     }
