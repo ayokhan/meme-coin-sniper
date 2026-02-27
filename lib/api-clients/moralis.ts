@@ -135,11 +135,9 @@ export async function getWalletBuySwapsFromMoralis(
       const ts = s.blockTimestamp ? new Date(s.blockTimestamp).getTime() : 0;
       if (ts < cutoff) continue;
 
-      const mint =
-        s.tokenMint ??
-        s.tokenAddress ??
-        (typeof s.baseToken === 'string' ? s.baseToken : '') ||
-        (s.bought && typeof s.bought.address === 'string' ? s.bought.address : '');
+      let mint = s.tokenMint ?? s.tokenAddress ?? '';
+      if (!mint && typeof s.baseToken === 'string') mint = s.baseToken;
+      if (!mint && typeof s.bought?.address === 'string') mint = s.bought.address;
       if (!mint) continue;
 
       if (!seen.has(mint)) {
