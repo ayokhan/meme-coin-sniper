@@ -87,6 +87,7 @@ export default function Dashboard() {
   const [liveTradesEnabled, setLiveTradesEnabled] = useState(true);
   const [liveTradesToggling, setLiveTradesToggling] = useState(false);
   const [walletTrades, setWalletTrades] = useState<{ walletLabel: string; walletAddress: string; mint: string; symbol: string; name: string; timestamp: number; txUrl: string; dexUrl: string }[]>([]);
+  const [walletTradesError, setWalletTradesError] = useState<string | null>(null);
   const [walletTradesLoading, setWalletTradesLoading] = useState(false);
   const [firstBuyEnabled, setFirstBuyEnabled] = useState(false);
   const [firstBuyAlerts, setFirstBuyAlerts] = useState<Array<{ walletAddress: string; walletLabel?: string | null; contractAddress: string; symbol: string; name: string; liquidity?: number | null; priceUSD?: number | null; sentAt: string }>>([]);
@@ -331,12 +332,19 @@ export default function Dashboard() {
 
   const fetchWalletTrades = async () => {
     setWalletTradesLoading(true);
+    setWalletTradesError(null);
     try {
       const res = await fetch("/api/wallet-tracker/trades", { cache: "no-store" });
       const data = await res.json();
-      if (data.success) setWalletTrades(data.trades ?? []);
+      if (data.success) {
+        setWalletTrades(data.trades ?? []);
+      } else {
+        setWalletTrades([]);
+        setWalletTradesError(data.error ?? (res.status === 403 ? "VIP subscription required for live trades." : "Could not load live trades."));
+      }
     } catch {
       setWalletTrades([]);
+      setWalletTradesError("Failed to load live trades.");
     } finally {
       setWalletTradesLoading(false);
     }
@@ -1321,12 +1329,17 @@ export default function Dashboard() {
                       Live trades are paused to save API usage. Alerts above still run when {alertMinBuyers}+ tracked wallets buy the same token.
                       {isOwner && " Click “Resume live trades” to fetch again."}
                     </p>
+                  ) : walletTradesError ? (
+                    <div className="text-sm py-4 space-y-1">
+                      <p className="font-medium text-amber-700 dark:text-amber-400">{walletTradesError}</p>
+                      <p className="text-xs text-muted-foreground">Live trades need: feature flag ON (Admin → Feature flags), VIP subscription, and at least one of Moralis/Helius/Birdeye API keys set on the server.</p>
+                    </div>
                   ) : walletTradesLoading && walletTrades.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4">Loading trades…</p>
                   ) : walletTrades.length === 0 ? (
                     <div className="text-sm text-muted-foreground py-4 space-y-1">
                       <p>No recent buys from tracked wallets. Try again later or refresh.</p>
-                      <p className="text-xs">Live trades use Moralis/Helius/Birdeye; if you expect activity, ensure &quot;Live trades (Wallet Tracker)&quot; is ON in Admin → Feature flags.</p>
+                      <p className="text-xs">Live trades use Moralis/Helius/Birdeye; ensure &quot;Live trades (Wallet Tracker)&quot; is ON in Admin → Feature flags. Requires VIP.</p>
                     </div>
                   ) : (
                     <ul className="space-y-2 max-h-[380px] overflow-y-auto">
