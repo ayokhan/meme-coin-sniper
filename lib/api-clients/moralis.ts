@@ -77,8 +77,8 @@ export function isMoralisConfigured(): boolean {
   return Boolean(MORALIS_API_KEY);
 }
 
-/** Wallet buy from Moralis swaps – mint received and when */
-export type MoralisWalletBuy = {
+/** Wallet swap from Moralis – mint involved and when (used for buys and sells). */
+export type MoralisWalletSwap = {
   mint: string;
   timestamp: number;
   signature?: string;
@@ -97,14 +97,14 @@ type MoralisSwapResult = {
 };
 
 /**
- * Get recent BUY swaps for a wallet from Moralis.
- * Uses GET /account/mainnet/:address/swaps with transactionTypes=buy.
+ * Internal helper: get recent swaps for a wallet from Moralis with a given transactionTypes filter.
  */
-export async function getWalletBuySwapsFromMoralis(
+async function getWalletSwapsInternal(
   walletAddress: string,
   limit = 50,
-  maxAgeMs = 24 * 60 * 60 * 1000
-): Promise<MoralisWalletBuy[]> {
+  maxAgeMs = 24 * 60 * 60 * 1000,
+  transactionTypes: string
+): Promise<MoralisWalletSwap[]> {
   if (!MORALIS_API_KEY) return [];
 
   try {
@@ -115,7 +115,7 @@ export async function getWalletBuySwapsFromMoralis(
           params: {
             limit: Math.min(limit, 100),
             order: 'DESC',
-            transactionTypes: 'buy',
+            transactionTypes,
           },
           headers: {
             Accept: 'application/json',
@@ -128,7 +128,7 @@ export async function getWalletBuySwapsFromMoralis(
 
     const swaps = res.data?.result ?? [];
     const cutoff = Date.now() - maxAgeMs;
-    const seen = new Map<string, MoralisWalletBuy>();
+    const seen = new Map<string, MoralisWalletSwap>();
 
     for (const s of swaps) {
       const ts = s.blockTimestamp ? new Date(s.blockTimestamp).getTime() : 0;
@@ -149,7 +149,32 @@ export async function getWalletBuySwapsFromMoralis(
 
     return Array.from(seen.values()).sort((a, b) => b.timestamp - a.timestamp);
   } catch (e) {
-    console.warn('Moralis getWalletBuySwaps error:', e instanceof Error ? e.message : e);
+    console.warn('Moralis getWalletSwapsInternal error:', e instanceof Error ? e.message : e);
     return [];
   }
+}
+
+/**
+ * Get recent BUY swaps only for a wallet from Moralis.
+ * Uses GET /account/mainnet/:address/swaps with transactionTypes=buy.
+ * Used by alerts logic (3+ wallets buying same token, first-buy alerts).
+ */
+export async function getWalletBuySwapsFromMoralis(
+  walletAddress: string,
+  limit = 50,
+  maxAgeMs = 24 * 60 * 60 * 1000
+): Promise<MoralisWalletSwap[]> {
+  return getWalletSwapsInternal(walletAddress, limit, maxAgeMs, 'buy');
+}
+
+/**
+ * Get recent BUY and SELL swaps for a wallet from Moralis.
+ * Uses transactionTypes=buy,sell. Used by the live trades UI so you see all swaps.
+ */
+export async function getWalletSwapsFromMoralis(
+  walletAddress: string,
+  limit = 50,
+  maxAgeMs = 24 * 60 * 60 * 1000
+): Promise<MoralisWalletSwap[]> {
+  return getWalletSwapsInternal(walletAddress, limit, maxAgeMs, 'buy,sell');
 }

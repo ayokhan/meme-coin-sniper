@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { getRecentTokenBuysForWallet } from '@/lib/api-clients/helius';
 import { getWalletTokenBuysFromBirdeye } from '@/lib/api-clients/birdeye';
-import { getWalletBuySwapsFromMoralis } from '@/lib/api-clients/moralis';
+import { getWalletSwapsFromMoralis, type MoralisWalletSwap } from '@/lib/api-clients/moralis';
 import { getSolanaToken } from '@/lib/api-clients/dexscreener';
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
 const BUYS_PER_WALLET = 15;
@@ -23,17 +23,17 @@ export type WalletTrade = {
   dexUrl: string;
 };
 
-type WalletBuy = { mint: string; timestamp: number; signature?: string };
+type WalletTradeSource = { mint: string; timestamp: number; signature?: string };
 
-/** Get recent buys – Moralis first (if enabled), then Helius, then Birdeye. */
+/** Get recent trades – Moralis swaps first (buys + sells when enabled), then Helius, then Birdeye. */
 async function getRecentBuysForWallet(
   address: string,
   limit: number,
   maxAgeMs: number,
   useMoralis: boolean
-): Promise<WalletBuy[]> {
+): Promise<WalletTradeSource[]> {
   if (useMoralis) {
-    const moralis = await getWalletBuySwapsFromMoralis(address, limit, maxAgeMs);
+    const moralis: MoralisWalletSwap[] = await getWalletSwapsFromMoralis(address, limit, maxAgeMs);
     if (moralis.length > 0) return moralis;
   }
   const helius = await getRecentTokenBuysForWallet(address, limit, maxAgeMs);
