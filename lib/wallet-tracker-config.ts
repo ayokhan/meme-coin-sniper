@@ -47,7 +47,7 @@ const DEFAULT_FIRST_BUY_RULES: FirstBuyRuleConfig = {
 };
 
 type PrismaWithWalletTracker = typeof prisma & {
-  trackedWallet?: { findMany: (args: unknown) => Promise<Array<{ address: string; label: string | null; firstBuyEnabled: boolean }>> };
+  trackedWallet?: { findMany: (args: unknown) => Promise<Array<{ address: string; label: string | null; active: boolean; firstBuyEnabled: boolean }>> };
   alertRule?: {
     findUnique: (args: unknown) => Promise<{ minBuyers: number; maxAgeHours: number; maxAlerts: number } | null>;
     findMany?: (args: unknown) => Promise<Array<{ key: string; maxAgeHours: number; maxAlerts: number }>>;
@@ -60,7 +60,7 @@ export async function getTrackedWallets(): Promise<TrackedWalletItem[]> {
   try {
     const db = prisma as unknown as PrismaWithWalletTracker;
     if (!db.trackedWallet) return TRACKED_WALLETS.map((w) => ({ address: w.address, label: w.label, firstBuyEnabled: true }));
-    const rows = await db.trackedWallet.findMany({ orderBy: { createdAt: 'asc' } } as { orderBy: { createdAt: string } });
+    const rows = await db.trackedWallet.findMany({ where: { active: true }, orderBy: { createdAt: 'asc' } } as { where: { active: boolean }; orderBy: { createdAt: string } });
     if (rows.length > 0) {
       return rows.map((r) => ({ address: r.address, label: r.label, firstBuyEnabled: r.firstBuyEnabled ?? true }));
     }

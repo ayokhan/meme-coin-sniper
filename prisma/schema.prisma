@@ -127,6 +127,7 @@ model TrackedWallet {
   id              String   @id @default(cuid())
   address         String   @unique
   label           String?
+  active          Boolean  @default(true)  // when false, wallet is temporarily excluded from tracking (not removed)
   firstBuyEnabled Boolean  @default(true) // when true, first-buy alerts fire when this wallet buys a token for the first time
   createdAt       DateTime @default(now())
   @@index([address])

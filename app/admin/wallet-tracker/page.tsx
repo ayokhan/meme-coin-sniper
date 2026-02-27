@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Zap } from "lucide-react";
 
-type Wallet = { id: string; address: string; label?: string | null; firstBuyEnabled?: boolean };
+type Wallet = { id: string; address: string; label?: string | null; active?: boolean; firstBuyEnabled?: boolean };
 type Rules = { minBuyers: number; maxAgeHours: number; maxAlerts: number };
 type FirstBuyRules = { lookbackMinutes: number; maxAlerts: number };
 
@@ -36,12 +36,15 @@ export default function AdminWalletTrackerPage() {
   const [togglingFirstAlertWallet, setTogglingFirstAlertWallet] = useState<string | null>(null);
   const [bulkRemoveInput, setBulkRemoveInput] = useState("");
   const [bulkRemoving, setBulkRemoving] = useState(false);
+  const [bulkAddInput, setBulkAddInput] = useState("");
+  const [bulkAdding, setBulkAdding] = useState(false);
+  const [togglingActiveWallet, setTogglingActiveWallet] = useState<string | null>(null);
 
   const loadWallets = () =>
     fetch("/api/admin/wallet-tracker/wallets")
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) setWallets((d.wallets ?? []).map((w: Wallet) => ({ ...w, firstBuyEnabled: w.firstBuyEnabled !== false })));
+        if (d.success) setWallets((d.wallets ?? []).map((w: Wallet) => ({ ...w, active: w.active !== false, firstBuyEnabled: w.firstBuyEnabled !== false })));
         else setError(d.error ?? "Failed to load");
       });
 
@@ -174,6 +177,76 @@ export default function AdminWalletTrackerPage() {
       setError("Bulk remove failed");
     } finally {
       setBulkRemoving(false);
+    }
+  };
+
+  const handleBulkAdd = async () => {
+    const raw = bulkAddInput.trim();
+    if (!raw) return;
+    let wallets: { address: string; label?: string | null }[] = [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        wallets = parsed.map((item: unknown) => {
+          if (typeof item === "string") return { address: item.trim(), label: null };
+          if (item && typeof item === "object" && "trackedWalletAddress" in item) {
+            const o = item as { trackedWalletAddress: string; name?: string };
+            return { address: String(o.trackedWalletAddress).trim(), label: o.name ?? null };
+          }
+          if (item && typeof item === "object" && "address" in item) {
+            const o = item as { address: string; label?: string };
+            return { address: String(o.address).trim(), label: o.label ?? null };
+          }
+          return { address: "", label: null };
+        }).filter((x: { address: string }) => x.address.length > 0);
+      }
+    } catch {
+      wallets = raw.split(/[\n,]+/).map((line) => {
+        const [addr, ...rest] = line.trim().split(/\s+/);
+        return { address: addr ?? "", label: rest.length > 0 ? rest.join(" ") : null };
+      }).filter((x) => x.address.length > 0);
+    }
+    if (wallets.length === 0) {
+      setError("Paste a JSON array of wallets (with address or trackedWalletAddress) or one address per line (optional label after space).");
+      return;
+    }
+    setBulkAdding(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/wallet-tracker/wallets/add-bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallets }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBulkAddInput("");
+        loadWallets();
+        showSuccess(data.message ?? `${data.added ?? 0} wallet(s) added.`);
+      } else setError(data.error ?? "Bulk add failed");
+    } catch {
+      setError("Bulk add failed");
+    } finally {
+      setBulkAdding(false);
+    }
+  };
+
+  const handleSetActive = async (address: string, active: boolean) => {
+    setTogglingActiveWallet(address);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/wallet-tracker/wallets", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, active }),
+      });
+      const data = await res.json();
+      if (data.success) loadWallets();
+      else setError(data.error ?? "Update failed");
+    } catch {
+      setError("Update failed");
+    } finally {
+      setTogglingActiveWallet(null);
     }
   };
 
@@ -493,9 +566,12 @@ export default function AdminWalletTrackerPage() {
 
         <Card className="border-zinc-200 dark:border-zinc-800">
           <CardHeader>
-            <CardTitle>Tracked wallets</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Tracked wallets
+              <span className="text-base font-normal text-muted-foreground">({wallets.length} total{wallets.some((w) => w.active === false) ? `, ${wallets.filter((w) => w.active !== false).length} active` : ""})</span>
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Add Solana wallet addresses to track. Alerts fire when {rules.minBuyers}+ of these wallets buy the same token. Use <strong>First alert</strong> to choose which wallets trigger first-buy alerts (first time they buy a coin).
+              Add Solana wallet addresses to track. Alerts fire when {rules.minBuyers}+ of these wallets buy the same token. Use <strong>First alert</strong> for first-buy alerts. <strong>Deactivate</strong> to temporarily exclude a wallet without removing it.
             </p>
           </CardHeader>
           <CardContent>
@@ -515,6 +591,20 @@ export default function AdminWalletTrackerPage() {
                 Adds all wallets from config (lib/config/ct-wallets.ts) to the list. Does not remove existing wallets.
               </span>
             </div>
+            <details className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2">
+              <summary className="cursor-pointer text-sm font-medium text-zinc-700 dark:text-zinc-300">Bulk add wallets</summary>
+              <p className="text-xs text-muted-foreground mt-2 mb-1">Paste a JSON array (with <code className="bg-zinc-200 dark:bg-zinc-700 px-0.5 rounded">address</code> or <code className="bg-zinc-200 dark:bg-zinc-700 px-0.5 rounded">trackedWalletAddress</code>, optional <code className="bg-zinc-200 dark:bg-zinc-700 px-0.5 rounded">label</code>/<code className="bg-zinc-200 dark:bg-zinc-700 px-0.5 rounded">name</code>) or one address per line (optional label after space).</p>
+              <textarea
+                placeholder='[{"address":"...","label":"..."}, ...] or one address per line'
+                value={bulkAddInput}
+                onChange={(e) => setBulkAddInput(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-mono text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 mb-2"
+              />
+              <Button variant="outline" size="sm" className="border-emerald-500 text-emerald-700 dark:text-emerald-300" onClick={handleBulkAdd} disabled={bulkAdding || !bulkAddInput.trim()}>
+                {bulkAdding ? "Adding…" : "Add listed wallets"}
+              </Button>
+            </details>
             <details className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2">
               <summary className="cursor-pointer text-sm font-medium text-zinc-700 dark:text-zinc-300">Bulk remove wallets</summary>
               <p className="text-xs text-muted-foreground mt-2 mb-1">Paste a JSON array (with <code className="bg-zinc-200 dark:bg-zinc-700 px-0.5 rounded">trackedWalletAddress</code> or <code className="bg-zinc-200 dark:bg-zinc-700 px-0.5 rounded">address</code>) or one address per line.</p>
@@ -553,12 +643,22 @@ export default function AdminWalletTrackerPage() {
             ) : (
               <ul className="space-y-2">
                 {wallets.map((w) => (
-                  <li key={w.id} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-sm">
+                  <li key={w.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${w.active !== false ? "border-zinc-200 dark:border-zinc-700" : "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"}`}>
                     <div className="min-w-0 flex-1">
-                      <span className="font-mono text-zinc-900 dark:text-zinc-100">{w.address}</span>
+                      <span className={`font-mono ${w.active !== false ? "text-zinc-900 dark:text-zinc-100" : "text-muted-foreground"}`}>{w.address}</span>
                       {w.label && <span className="ml-2 text-muted-foreground">({w.label})</span>}
+                      {w.active === false && <span className="ml-2 text-xs font-medium text-amber-700 dark:text-amber-400">Inactive</span>}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      {w.active !== false ? (
+                        <Button variant="outline" size="sm" className="h-7 text-xs border-amber-500 text-amber-700 dark:text-amber-300" onClick={() => handleSetActive(w.address, false)} disabled={togglingActiveWallet === w.address}>
+                          {togglingActiveWallet === w.address ? "…" : "Deactivate"}
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" className="h-7 text-xs border-emerald-500 text-emerald-700 dark:text-emerald-300" onClick={() => handleSetActive(w.address, true)} disabled={togglingActiveWallet === w.address}>
+                          {togglingActiveWallet === w.address ? "…" : "Activate"}
+                        </Button>
+                      )}
                       <span className="text-xs text-muted-foreground whitespace-nowrap">First alert</span>
                       <button
                         type="button"
