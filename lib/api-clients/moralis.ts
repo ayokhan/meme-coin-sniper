@@ -77,11 +77,12 @@ export function isMoralisConfigured(): boolean {
   return Boolean(MORALIS_API_KEY);
 }
 
-/** Wallet swap from Moralis – mint involved and when (used for buys and sells). */
+/** Wallet swap from Moralis – mint involved, when, and side (buy/sell). */
 export type MoralisWalletSwap = {
   mint: string;
   timestamp: number;
   signature?: string;
+  side?: 'buy' | 'sell';
 };
 
 /** Moralis swap result item (Solana) */
@@ -139,10 +140,13 @@ async function getWalletSwapsInternal(
       if (!mint) continue;
 
       if (!seen.has(mint)) {
+        const side: 'buy' | 'sell' | undefined =
+          s.transactionType === 'buy' || s.transactionType === 'sell' ? s.transactionType : undefined;
         seen.set(mint, {
           mint,
           timestamp: ts || Date.now(),
           signature: s.transactionHash ?? undefined,
+          side,
         });
       }
     }
