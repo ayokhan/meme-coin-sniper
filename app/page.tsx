@@ -1324,7 +1324,10 @@ export default function Dashboard() {
                   ) : walletTradesLoading && walletTrades.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4">Loading trades…</p>
                   ) : walletTrades.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">No recent buys from tracked wallets. Try again later or refresh.</p>
+                    <div className="text-sm text-muted-foreground py-4 space-y-1">
+                      <p>No recent buys from tracked wallets. Try again later or refresh.</p>
+                      <p className="text-xs">Live trades use Moralis/Helius/Birdeye; if you expect activity, ensure &quot;Live trades (Wallet Tracker)&quot; is ON in Admin → Feature flags.</p>
+                    </div>
                   ) : (
                     <ul className="space-y-2 max-h-[380px] overflow-y-auto">
                       {walletTrades.slice(0, 60).map((t, i) => (

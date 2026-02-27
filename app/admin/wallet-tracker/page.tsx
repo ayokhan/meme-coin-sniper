@@ -34,6 +34,8 @@ export default function AdminWalletTrackerPage() {
   const [savingFirstBuyRules, setSavingFirstBuyRules] = useState(false);
   const [togglingFirstBuy, setTogglingFirstBuy] = useState(false);
   const [togglingFirstAlertWallet, setTogglingFirstAlertWallet] = useState<string | null>(null);
+  const [bulkRemoveInput, setBulkRemoveInput] = useState("");
+  const [bulkRemoving, setBulkRemoving] = useState(false);
 
   const loadWallets = () =>
     fetch("/api/admin/wallet-tracker/wallets")
@@ -127,6 +129,51 @@ export default function AdminWalletTrackerPage() {
       setError("Add failed");
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleBulkRemove = async () => {
+    const raw = bulkRemoveInput.trim();
+    if (!raw) return;
+    let addresses: string[] = [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        addresses = parsed
+          .map((item: unknown) => {
+            if (typeof item === "string") return item.trim();
+            if (item && typeof item === "object" && "trackedWalletAddress" in item) return String((item as { trackedWalletAddress: string }).trackedWalletAddress).trim();
+            if (item && typeof item === "object" && "address" in item) return String((item as { address: string }).address).trim();
+            return "";
+          })
+          .filter((a: string) => a.length > 0);
+      }
+    } catch {
+      addresses = raw.split(/[\n,]+/).map((a) => a.trim()).filter(Boolean);
+    }
+    if (addresses.length === 0) {
+      setError("Paste a JSON array of wallets (with trackedWalletAddress or address) or one address per line.");
+      return;
+    }
+    if (!confirm(`Remove ${addresses.length} wallet(s) from tracking? This cannot be undone.`)) return;
+    setBulkRemoving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/wallet-tracker/wallets/delete-bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ addresses }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBulkRemoveInput("");
+        loadWallets();
+        showSuccess(data.message ?? `${data.deleted ?? 0} wallet(s) removed.`);
+      } else setError(data.error ?? "Bulk remove failed");
+    } catch {
+      setError("Bulk remove failed");
+    } finally {
+      setBulkRemoving(false);
     }
   };
 
@@ -468,6 +515,20 @@ export default function AdminWalletTrackerPage() {
                 Adds all wallets from config (lib/config/ct-wallets.ts) to the list. Does not remove existing wallets.
               </span>
             </div>
+            <details className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2">
+              <summary className="cursor-pointer text-sm font-medium text-zinc-700 dark:text-zinc-300">Bulk remove wallets</summary>
+              <p className="text-xs text-muted-foreground mt-2 mb-1">Paste a JSON array (with <code className="bg-zinc-200 dark:bg-zinc-700 px-0.5 rounded">trackedWalletAddress</code> or <code className="bg-zinc-200 dark:bg-zinc-700 px-0.5 rounded">address</code>) or one address per line.</p>
+              <textarea
+                placeholder='[{"trackedWalletAddress":"12zQ...","name":"..."}, ...] or one address per line'
+                value={bulkRemoveInput}
+                onChange={(e) => setBulkRemoveInput(e.target.value)}
+                rows={4}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-mono text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 mb-2"
+              />
+              <Button variant="outline" size="sm" className="border-rose-500 text-rose-700 dark:text-rose-300" onClick={handleBulkRemove} disabled={bulkRemoving || !bulkRemoveInput.trim()}>
+                {bulkRemoving ? "Removing…" : "Remove listed wallets"}
+              </Button>
+            </details>
             <div className="flex flex-wrap gap-2 mb-4">
               <input
                 type="text"
