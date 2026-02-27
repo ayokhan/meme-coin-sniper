@@ -85,7 +85,7 @@ export async function POST(
       expiresAt.setMonth(expiresAt.getMonth() + months);
     }
 
-    const sub = await prisma.subscription.create({
+    await prisma.subscription.create({
       data: {
         userId,
         tier,
@@ -99,9 +99,9 @@ export async function POST(
     return NextResponse.json({
       success: true,
       subscription: {
-        tier: sub.tier,
-        plan: sub.plan,
-        expiresAt: sub.expiresAt.toISOString(),
+        tier,
+        plan: plan.id,
+        expiresAt: expiresAt.toISOString(),
       },
     });
   } catch (e) {
