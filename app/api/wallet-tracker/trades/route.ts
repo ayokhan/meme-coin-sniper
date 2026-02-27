@@ -42,11 +42,12 @@ async function getRecentBuysForWallet(
   return getWalletTokenBuysFromBirdeye(address, limit, maxAgeMs);
 }
 
-/** GET - Recent trades from each tracked wallet (Pro). Optional ?address=... to debug a single wallet. */
+/** GET - Recent trades from each tracked wallet (Pro). Optional ?address=... to debug a single wallet; ?skipMoralis=1 to test Helius+Birdeye only. */
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const debugAddress = url.searchParams.get('address')?.trim() || null;
+    const skipMoralis = url.searchParams.get('skipMoralis') === '1';
 
     const { tier } = await getSessionAndSubscription();
     if (tier !== 'vip') {
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, trades: [], message: 'No wallets configured.' });
     }
     const [rules, moralisWalletTracker] = await Promise.all([getAlertRules(), getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_WALLET_TRACKER)]);
-    const hasMoralis = moralisWalletTracker && Boolean(process.env.MORALIS_API_KEY);
+    const hasMoralis = !skipMoralis && moralisWalletTracker && Boolean(process.env.MORALIS_API_KEY);
     const hasHelius = Boolean(process.env.HELIUS_API_KEY);
     const hasBirdeye = Boolean(process.env.BIRDEYE_API_KEY);
     if (!hasMoralis && !hasHelius && !hasBirdeye) {
@@ -95,10 +96,12 @@ export async function GET(request: Request) {
     // Newest first
     allTrades.sort((a, b) => b.timestamp - a.timestamp);
 
-    return NextResponse.json({
+    const payload: { success: true; trades: typeof allTrades; _debug?: { skipMoralis: boolean } } = {
       success: true,
       trades: allTrades.slice(0, MAX_TRADES_TOTAL),
-    });
+    };
+    if (skipMoralis) payload._debug = { skipMoralis: true };
+    return NextResponse.json(payload);
   } catch (error: any) {
     return NextResponse.json(
       { success: false, trades: [], error: error?.message ?? 'Failed to load wallet trades' },

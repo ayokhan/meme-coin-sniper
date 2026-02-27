@@ -140,7 +140,9 @@ export async function GET(request: Request) {
       view === 'new_pairs' && moralisGoHunting ? getPumpFunNewTokens(50).catch(() => []) : Promise.resolve([]),
     ]);
 
-    const pairs = view === 'new_pairs' && wsPairs.length > 0 ? wsPairs : searchPairs;
+    // Prefer WebSocket only when it returns enough pairs; otherwise use REST so we don't show "1 token" when WS is flaky
+    const minWsPairs = 5;
+    const pairs = view === 'new_pairs' && wsPairs.length >= minWsPairs ? wsPairs : searchPairs;
 
     let filteredPairs = pairs;
     if (view === 'final_stretch') {
