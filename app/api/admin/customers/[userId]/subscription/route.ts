@@ -47,17 +47,13 @@ export async function POST(
     if (action === 'clear') {
       const now = new Date();
       const expiredAt = new Date(now.getTime() - 60 * 1000);
-      const activeSubs = await prisma.subscription.findMany({
+      // Cast to any here to avoid strict client type limitations; we only use this
+      // in an owner-only admin endpoint to expire active subscriptions.
+      const client: any = prisma;
+      await client.subscription.updateMany({
         where: { userId, expiresAt: { gt: now } },
+        data: { expiresAt: expiredAt },
       });
-      await Promise.all(
-        activeSubs.map((sub) =>
-          prisma.subscription.update({
-            where: { id: sub.id },
-            data: { expiresAt: expiredAt },
-          })
-        )
-      );
       return NextResponse.json({ success: true, cleared: true });
     }
 
