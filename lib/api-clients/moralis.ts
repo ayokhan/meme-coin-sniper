@@ -84,7 +84,7 @@ export type MoralisWalletBuy = {
   signature?: string;
 };
 
-/** Moralis swap result item (Solana) */
+/** Moralis swap result item (Solana). Mint can be top-level or in bought.address. */
 type MoralisSwapResult = {
   transactionHash?: string;
   blockTimestamp?: string;
@@ -93,6 +93,7 @@ type MoralisSwapResult = {
   tokenAddress?: string;
   baseToken?: string;
   pairAddress?: string;
+  bought?: { address?: string; [key: string]: unknown };
   [key: string]: unknown;
 };
 
@@ -135,7 +136,10 @@ export async function getWalletBuySwapsFromMoralis(
       if (ts < cutoff) continue;
 
       const mint =
-        s.tokenMint ?? s.tokenAddress ?? (typeof s.baseToken === 'string' ? s.baseToken : '');
+        s.tokenMint ??
+        s.tokenAddress ??
+        (typeof s.baseToken === 'string' ? s.baseToken : '') ||
+        (s.bought && typeof s.bought.address === 'string' ? s.bought.address : '');
       if (!mint) continue;
 
       if (!seen.has(mint)) {
