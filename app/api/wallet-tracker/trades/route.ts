@@ -23,7 +23,7 @@ export type WalletTrade = {
   dexUrl: string;
 };
 
-type WalletTradeSource = { mint: string; timestamp: number; signature?: string };
+type WalletTradeSource = { mint: string; timestamp: number; signature?: string; side?: 'buy' | 'sell' | string };
 
 /** Get recent trades – Moralis swaps first (buys + sells when enabled), then Helius, then Birdeye. */
 async function getRecentBuysForWallet(
@@ -75,6 +75,7 @@ export async function GET() {
           name: dex?.baseToken?.name ?? '—',
           timestamp: b.timestamp,
           signature: b.signature ?? null,
+          side: b.side === 'buy' || b.side === 'sell' ? b.side : undefined,
           txUrl: b.signature ? `https://solscan.io/tx/${b.signature}` : `https://solscan.io/account/${w.address}`,
           dexUrl: `https://dexscreener.com/solana/${b.mint}`,
         });

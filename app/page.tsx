@@ -86,7 +86,7 @@ export default function Dashboard() {
   const [alertMinBuyers, setAlertMinBuyers] = useState(3);
   const [liveTradesEnabled, setLiveTradesEnabled] = useState(true);
   const [liveTradesToggling, setLiveTradesToggling] = useState(false);
-  const [walletTrades, setWalletTrades] = useState<{ walletLabel: string; walletAddress: string; mint: string; symbol: string; name: string; timestamp: number; txUrl: string; dexUrl: string }[]>([]);
+  const [walletTrades, setWalletTrades] = useState<{ walletLabel: string; walletAddress: string; mint: string; symbol: string; name: string; timestamp: number; txUrl: string; dexUrl: string; side?: "buy" | "sell" | "unknown" }[]>([]);
   const [walletTradesError, setWalletTradesError] = useState<string | null>(null);
   const [walletTradesLoading, setWalletTradesLoading] = useState(false);
   const [firstBuyEnabled, setFirstBuyEnabled] = useState(false);
@@ -1338,7 +1338,7 @@ export default function Dashboard() {
                     <p className="text-sm text-muted-foreground py-4">Loading trades…</p>
                   ) : walletTrades.length === 0 ? (
                     <div className="text-sm text-muted-foreground py-4 space-y-1">
-                      <p>No recent buys from tracked wallets. Try again later or refresh.</p>
+                      <p>No recent swaps from tracked wallets. Try again later or refresh.</p>
                       <p className="text-xs">Live trades use Moralis/Helius/Birdeye; ensure &quot;Live trades (Wallet Tracker)&quot; is ON in Admin → Feature flags. Requires VIP.</p>
                     </div>
                   ) : (
@@ -1346,9 +1346,22 @@ export default function Dashboard() {
                       {walletTrades.slice(0, 60).map((t, i) => (
                         <li key={`${t.walletAddress}-${t.mint}-${t.timestamp}-${i}`} className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-900/80 px-3 py-2 flex items-center justify-between gap-2 text-sm">
                           <div className="min-w-0 flex-1">
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">{t.symbol}</span>
-                            <span className="text-muted-foreground ml-1 truncate">{t.name}</span>
-                            <span className="text-xs text-muted-foreground ml-2">· {t.walletLabel}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100">{t.symbol}</span>
+                              {t.side && (
+                                <span
+                                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                                    t.side === "buy"
+                                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                      : "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                  }`}
+                                >
+                                  {t.side === "buy" ? "Buy" : "Sell"}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-muted-foreground truncate">{t.name}</span>
+                            <span className="text-xs text-muted-foreground mt-0.5 block">· {t.walletLabel}</span>
                           </div>
                           <span className="text-xs text-muted-foreground shrink-0">{new Date(t.timestamp).toLocaleString()}</span>
                           <div className="flex gap-1.5 shrink-0">
