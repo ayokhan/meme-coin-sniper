@@ -27,6 +27,7 @@ export default function AdminCustomersPage() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const loadCustomers = () => {
     fetch("/api/admin/customers")
@@ -62,6 +63,39 @@ export default function AdminCustomersPage() {
       setError("Delete failed");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleSetSubscription = async (id: string, action: "pro" | "vip" | "clear") => {
+    setUpdatingId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}/subscription`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body:
+          action === "clear"
+            ? JSON.stringify({ action: "clear" })
+            : JSON.stringify({ action: "set", tier: action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        if (action === "clear") {
+          setSuccessMessage("Subscription cleared.");
+        } else if (action === "vip") {
+          setSuccessMessage("Set to VIP.");
+        } else {
+          setSuccessMessage("Set to Pro.");
+        }
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else {
+        setError(data.error ?? "Failed to update subscription");
+      }
+    } catch {
+      setError("Failed to update subscription");
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -156,14 +190,42 @@ export default function AdminCustomersPage() {
                           )}
                         </td>
                         <td className="py-2">
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(c.id)}
-                            disabled={deletingId === c.id}
-                            className="text-xs text-rose-600 dark:text-rose-400 hover:underline disabled:opacity-50"
-                          >
-                            {deletingId === c.id ? "Deleting…" : "Delete"}
-                          </button>
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleSetSubscription(c.id, "pro")}
+                              disabled={updatingId === c.id}
+                              className="text-xs text-cyan-700 dark:text-cyan-300 hover:underline disabled:opacity-50 text-left"
+                            >
+                              {updatingId === c.id ? "Updating…" : "Set Pro"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSetSubscription(c.id, "vip")}
+                              disabled={updatingId === c.id}
+                              className="text-xs text-amber-700 dark:text-amber-300 hover:underline disabled:opacity-50 text-left"
+                            >
+                              {updatingId === c.id ? "Updating…" : "Set VIP"}
+                            </button>
+                            {c.isActive && (
+                              <button
+                                type="button"
+                                onClick={() => handleSetSubscription(c.id, "clear")}
+                                disabled={updatingId === c.id}
+                                className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline disabled:opacity-50 text-left"
+                              >
+                                {updatingId === c.id ? "Updating…" : "Clear subscription"}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(c.id)}
+                              disabled={deletingId === c.id}
+                              className="text-xs text-rose-600 dark:text-rose-400 hover:underline disabled:opacity-50 text-left"
+                            >
+                              {deletingId === c.id ? "Deleting…" : "Delete user"}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

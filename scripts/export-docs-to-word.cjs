@@ -8,6 +8,8 @@ const fs = require("fs");
 const path = require("path");
 
 const DOCS = [
+  { md: "AYO-PERVEZ-KHAN-AI-Product-Manager-Resume.md", docx: "Ayo-Perez-Khan-AI-Product-Manager-Resume.docx" },
+  { md: "AYO-PERVEZ-KHAN-AI-PM-Portfolio.md", docx: "Ayo-Perez-Khan-AI-PM-Portfolio.docx" },
   { md: "TECH_STACK_AND_APIS.md", docx: "NovaStaris-Tech-Stack-and-APIs.docx" },
   { md: "PRD.md", docx: "NovaStaris-PRD.docx" },
   { md: "GO_TO_MARKET.md", docx: "NovaStaris-Go-to-Market.docx" },
