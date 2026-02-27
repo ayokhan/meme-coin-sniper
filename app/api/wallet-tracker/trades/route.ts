@@ -19,6 +19,7 @@ export type WalletTrade = {
   name: string;
   timestamp: number;
   signature: string | null;
+  side?: 'buy' | 'sell';
   txUrl: string;
   dexUrl: string;
 };
