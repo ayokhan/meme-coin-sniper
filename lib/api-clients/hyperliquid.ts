@@ -36,8 +36,11 @@ export type HyperliquidPosition = {
 export type TopTraderState = {
   address: string;
   label?: string;
+  nickname?: string | null;
   accountValue?: string;
   positions: HyperliquidPosition[];
+  lastTradeTimeMs?: number | null;
+  alertEnabled?: boolean;
 };
 
 function parsePosition(ap: RawAssetPosition): HyperliquidPosition | null {
@@ -61,9 +64,9 @@ function parsePosition(ap: RawAssetPosition): HyperliquidPosition | null {
 function parseStateToTrader(
   state: RawClearinghouseState,
   address: string,
-  traders: { address: string; label?: string }[]
+  traders: { address: string; label?: string; nickname?: string | null; alertEnabled?: boolean }[]
 ): TopTraderState {
-  const trader = traders.find((t) => t.address.toLowerCase() === address.toLowerCase()) ?? { address, label: undefined };
+  const trader = traders.find((t) => t.address.toLowerCase() === address.toLowerCase()) ?? { address, label: undefined, nickname: null, alertEnabled: false };
   const positions: HyperliquidPosition[] = (state.assetPositions ?? [])
     .map(parsePosition)
     .filter((p): p is HyperliquidPosition => p != null);
@@ -72,9 +75,32 @@ function parseStateToTrader(
   return {
     address: trader.address,
     label: trader.label,
+    nickname: trader.nickname,
     accountValue,
     positions,
+    alertEnabled: trader.alertEnabled,
   };
+}
+
+/** Fetch last fill time (ms) for a user. Returns undefined if API fails or no fills. */
+export async function getLastFillTimeMs(user: string): Promise<number | undefined> {
+  try {
+    const end = Date.now();
+    const start = end - 7 * 24 * 60 * 60 * 1000;
+    const res = await fetch(HYPERLIQUID_INFO, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "userFillsByTime", user, startTime: start, endTime: end }),
+    });
+    if (!res.ok) return undefined;
+    const raw = await res.json();
+    const fills = Array.isArray(raw) ? raw : [];
+    if (fills.length === 0) return undefined;
+    const times = fills.map((f: { time?: number }) => (typeof f.time === "number" ? f.time : 0)).filter((t: number) => t > 0);
+    return times.length > 0 ? Math.max(...times) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Fetch one user's clearinghouse state (fallback when batch fails). */
@@ -133,5 +159,6 @@ export async function getTopTradersPositions(
   }
 
   if (rawStates.length === 0) return [];
-  return rawStates.map((state, i) => parseStateToTrader(state, addresses[i] ?? "", traders));
+  const results = rawStates.map((state, i) => parseStateToTrader(state, addresses[i] ?? "", traders));
+  return results;
 }

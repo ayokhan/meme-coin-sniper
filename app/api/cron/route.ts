@@ -25,6 +25,7 @@ export async function GET(request: Request) {
     scan?: { ok: boolean; message?: string };
     scanTwitter?: { ok: boolean; message?: string };
     walletNotify?: { ok: boolean; sent?: number; message?: string };
+    leverageNotify?: { ok: boolean; sent?: number; message?: string };
     pinnedReanalyze?: { ok: boolean; updated?: number; message?: string };
     tradingBot?: { ok: boolean; message?: string; error?: string };
   } = {};
@@ -59,6 +60,22 @@ export async function GET(request: Request) {
     };
   } catch (e) {
     results.walletNotify = { ok: false, message: e instanceof Error ? e.message : 'Request failed' };
+  }
+
+  try {
+    const authCron = request.headers.get('authorization');
+    const leverageRes = await fetch(`${base}/api/leverage-wallet-tracker/notify`, {
+      cache: 'no-store',
+      headers: authCron ? { Authorization: authCron } : {},
+    });
+    const leverageData = await leverageRes.json().catch(() => ({}));
+    results.leverageNotify = {
+      ok: leverageData.success === true,
+      sent: leverageData.sent,
+      message: leverageData.error ?? leverageData.message,
+    };
+  } catch (e) {
+    results.leverageNotify = { ok: false, message: e instanceof Error ? e.message : 'Leverage notify failed' };
   }
 
   try {

@@ -16,6 +16,8 @@ export const FEATURE_FLAG_KEYS = {
   LIVE_TRADES_ENABLED: 'live_trades_enabled',
   /** Owner-only: notify (in-app + Telegram) the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token. */
   OWNER_FIRST_BUY_ALERTS: 'owner_first_buy_alerts',
+  /** Send Top Leverage Traders new-trade alerts to Telegram when an alert-enabled wallet changes positions. */
+  TELEGRAM_LEVERAGE_ALERTS: 'telegram_leverage_alerts',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];

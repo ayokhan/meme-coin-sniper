@@ -408,6 +408,10 @@ export default function AdminWalletTrackerPage() {
             Admin — Customers
           </Link>
           <span className="text-muted-foreground">·</span>
+          <Link href="/admin/leverage-wallet-tracker" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline">
+            Leverage Wallet Tracker
+          </Link>
+          <span className="text-muted-foreground">·</span>
           <span className="text-sm font-medium">Admin — Wallet Tracker</span>
         </div>
 

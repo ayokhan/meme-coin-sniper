@@ -152,6 +152,27 @@ model WalletAlertSent {
   @@index([sentAt])
 }
 
+// Leverage Wallet Tracker: Hyperliquid/EVM wallets (Top Leverage Traders). Admin can add, nickname, activate, alert.
+model LeverageWallet {
+  id           String   @id @default(cuid())
+  address      String   @unique  // 0x... EVM address (Hyperliquid)
+  nickname     String?
+  active       Boolean  @default(true)
+  alertEnabled Boolean  @default(false)  // when true, send Telegram alert on new trade
+  createdAt    DateTime @default(now())
+  @@index([address])
+  @@index([active])
+}
+
+// Last known positions snapshot per leverage wallet (for new-trade alert diff)
+model LeverageWalletSnapshot {
+  id           String   @id @default(cuid())
+  walletAddress String  @unique
+  positionsJson String  @default("[]")  // JSON array of { coin, side, szi, ... }
+  updatedAt    DateTime @updatedAt
+  @@index([walletAddress])
+}
+
 // Owner-only: first time a tracked wallet buys a token (one alert per wallet+token ever)
 model WalletFirstBuyAlertSent {
   id              String   @id @default(cuid())

@@ -229,7 +229,7 @@ export default function Dashboard() {
   const [futuresView, setFuturesView] = useState<"ai" | "workflow">("ai");
   const [futuresAnalysisCopied, setFuturesAnalysisCopied] = useState(false);
   // ApexLiquid / Hyperliquid top traders (under Trading Bot tab, owner only)
-  type TopTraderRow = { address: string; label?: string; accountValue?: string; positions: { coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string; unrealizedPnl: string; leverage?: number }[] };
+  type TopTraderRow = { address: string; label?: string; nickname?: string | null; accountValue?: string; lastTradeTimeMs?: number | null; apexLiquidUrl?: string; positions: { coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string; unrealizedPnl: string; leverage?: number }[] };
   const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
   const [topTradersLoading, setTopTradersLoading] = useState(false);
   const [topTradersError, setTopTradersError] = useState<string | null>(null);
@@ -2088,6 +2088,7 @@ export default function Dashboard() {
                             <TableRow>
                               <TableHead>Trader</TableHead>
                               <TableHead>Account</TableHead>
+                              <TableHead>Last trade</TableHead>
                               <TableHead>Symbol</TableHead>
                               <TableHead>Side</TableHead>
                               <TableHead className="text-right">Size</TableHead>
@@ -2097,17 +2098,25 @@ export default function Dashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {topTradersData.flatMap((t) =>
-                              t.positions.length === 0
-                                ? [<TableRow key={t.address}><TableCell className="font-mono text-xs">{t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`}</TableCell><TableCell className="font-mono text-xs">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell colSpan={6} className="text-muted-foreground">No open positions</TableCell></TableRow>]
+                            {topTradersData.flatMap((t) => {
+                              const displayName = t.nickname ?? t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`;
+                              const lastTradeStr = t.lastTradeTimeMs
+                                ? new Date(t.lastTradeTimeMs).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })
+                                : "—";
+                              const traderCell = t.apexLiquidUrl ? (
+                                <a href={t.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono text-xs">{displayName}</a>
+                              ) : (
+                                <span className="font-mono text-xs">{displayName}</span>
+                              );
+                              return t.positions.length === 0
+                                ? [<TableRow key={t.address}><TableCell className="font-mono text-xs">{traderCell}</TableCell><TableCell className="font-mono text-xs">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-xs text-muted-foreground">{lastTradeStr}</TableCell><TableCell colSpan={6} className="text-muted-foreground">No open positions</TableCell></TableRow>]
                                 : t.positions.map((pos, i) => (
                                     <TableRow key={`${t.address}-${pos.coin}-${i}`}>
                                       {i === 0 ? (
                                         <>
-                                          <TableCell className="font-mono text-xs" rowSpan={t.positions.length}>{t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`}</TableCell>
-                                          <TableCell className="font-mono text-xs align-top" rowSpan={t.positions.length}>
-                                            {t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
-                                          </TableCell>
+                                          <TableCell className="text-xs align-top" rowSpan={t.positions.length}>{traderCell}</TableCell>
+                                          <TableCell className="font-mono text-xs align-top" rowSpan={t.positions.length}>{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
+                                          <TableCell className="text-xs text-muted-foreground align-top" rowSpan={t.positions.length}>{lastTradeStr}</TableCell>
                                         </>
                                       ) : null}
                                       <TableCell>{pos.coin}</TableCell>
@@ -2123,10 +2132,10 @@ export default function Dashboard() {
                                         ${Number(pos.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                       </TableCell>
                                     </TableRow>
-                                  ))
-                            ).filter(Boolean)}
+                                  ));
+                            })}
                             {topTradersData.length === 0 && !topTradersLoading && !topTradersError && (
-                              <TableRow><TableCell colSpan={8} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
+                              <TableRow><TableCell colSpan={9} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
                             )}
                           </TableBody>
                         </Table>

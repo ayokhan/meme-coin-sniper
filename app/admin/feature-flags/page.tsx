@@ -28,6 +28,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "First buy alerts (owner only)",
     description: "Notify in-app and Telegram the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token.",
   },
+  telegram_leverage_alerts: {
+    label: "Telegram Top Leverage Traders alerts",
+    description: "Send Telegram when an alert-enabled leverage wallet changes positions (cron). Toggle per wallet in Admin → Leverage Wallet Tracker.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {
@@ -125,6 +129,10 @@ export default function AdminFeatureFlagsPage() {
           <span className="text-muted-foreground">·</span>
           <Link href="/admin/wallet-tracker" className="text-sm text-muted-foreground hover:underline">
             Admin — Wallet Tracker
+          </Link>
+          {" · "}
+          <Link href="/admin/leverage-wallet-tracker" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline">
+            Leverage Wallet Tracker
           </Link>
           <span className="text-muted-foreground">·</span>
           <span className="text-sm font-medium">Admin — Feature flags</span>

@@ -204,3 +204,22 @@ export async function sendFirstBuyAlerts(alerts: FirstBuyAlertForTelegram[]): Pr
     await new Promise((r) => setTimeout(r, 300));
   }
 }
+
+/** Top Leverage Traders: new trade / position change alert. */
+export type LeverageTradeAlert = {
+  nickname?: string | null;
+  address: string;
+  positionsSummary: string; // e.g. "BTC Long $50k | ETH Short $3k"
+};
+
+export async function sendLeverageTradeAlert(alert: LeverageTradeAlert): Promise<boolean> {
+  const apexUrl = `https://apexliquid.bot/trade/detail?address=${encodeURIComponent(alert.address)}`;
+  const who = alert.nickname || `${alert.address.slice(0, 6)}…${alert.address.slice(-4)}`;
+  const lines = [
+    '⚡ <b>Top Leverage Traders</b> — position change',
+    `👤 ${escapeHtml(who)}`,
+    `📊 ${escapeHtml(alert.positionsSummary)}`,
+    `🔗 <a href="${apexUrl}">View on ApexLiquid</a>`,
+  ];
+  return sendTelegramMessage(lines.join('\n'));
+}
