@@ -21,9 +21,8 @@ export async function GET() {
     }
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { walletTrackerMinBuyers: true },
     });
-    const minBuyers = user?.walletTrackerMinBuyers ?? null;
+    const minBuyers = (user as { walletTrackerMinBuyers?: number | null } | null)?.walletTrackerMinBuyers ?? null;
     return NextResponse.json({ success: true, minBuyers });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to load settings";
