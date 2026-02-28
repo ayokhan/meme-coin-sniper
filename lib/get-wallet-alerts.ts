@@ -76,7 +76,7 @@ export type WalletAlert = {
   viralScore?: number;
 };
 
-export async function getWalletAlerts(): Promise<WalletAlert[]> {
+export async function getWalletAlerts(overrideMinBuyers?: number): Promise<WalletAlert[]> {
   const [trackedWallets, rules, moralisWalletTracker] = await Promise.all([
     getTrackedWallets(),
     getAlertRules(),
@@ -89,6 +89,7 @@ export async function getWalletAlerts(): Promise<WalletAlert[]> {
   const hasBirdeye = Boolean(process.env.BIRDEYE_API_KEY);
   if (!hasMoralis && !hasHelius && !hasBirdeye) return [];
 
+  const minBuyers = overrideMinBuyers ?? rules.minBuyers;
   const MAX_AGE_MS = rules.maxAgeHours * 60 * 60 * 1000;
   const mintToWallets: Record<string, Set<string>> = {};
   const mintToLatestBuy: Record<string, number> = {};
@@ -104,7 +105,7 @@ export async function getWalletAlerts(): Promise<WalletAlert[]> {
   }
 
   const alertMints = Object.entries(mintToWallets)
-    .filter(([, wallets]) => wallets.size >= rules.minBuyers)
+    .filter(([, wallets]) => wallets.size >= minBuyers)
     .sort((a, b) => b[1].size - a[1].size)
     .slice(0, rules.maxAlerts);
 

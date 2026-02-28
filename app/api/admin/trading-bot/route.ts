@@ -87,6 +87,10 @@ export async function GET() {
         lastDecision: (bot as { lastDecision?: string | null }).lastDecision ?? null,
         lastDecisionMsg: (bot as { lastDecisionMsg?: string | null }).lastDecisionMsg ?? null,
         lastDecisionReason: (bot as { lastDecisionReason?: string | null }).lastDecisionReason ?? null,
+        monitorSymbols: (bot as { monitorSymbols?: string | null }).monitorSymbols
+          ? String((bot as { monitorSymbols: string }).monitorSymbols).split(',').map((s: string) => s.trim()).filter(Boolean)
+          : [],
+        aiMonitorAutopilot: (bot as { aiMonitorAutopilot?: boolean }).aiMonitorAutopilot ?? false,
       },
     });
   } catch (e) {
@@ -158,6 +162,7 @@ export async function PATCH(request: Request) {
     } else {
       updates.monitorSymbols = String(body.monitorSymbols).trim() || null;
     }
+    if (typeof body.aiMonitorAutopilot === 'boolean') updates.aiMonitorAutopilot = body.aiMonitorAutopilot;
     const updated = await db.tradingBot.update({
       where: { id: bot.id },
       data: updates,
@@ -189,6 +194,7 @@ export async function PATCH(request: Request) {
         monitorSymbols: (updated as { monitorSymbols?: string | null }).monitorSymbols
           ? (updated as { monitorSymbols: string }).monitorSymbols.split(',').map((s: string) => s.trim()).filter(Boolean)
           : [],
+        aiMonitorAutopilot: (updated as { aiMonitorAutopilot?: boolean }).aiMonitorAutopilot ?? false,
       },
     });
   } catch (e) {

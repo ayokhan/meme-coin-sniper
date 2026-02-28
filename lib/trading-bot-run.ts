@@ -330,15 +330,17 @@ export async function runTradingBotCycle(userId?: string): Promise<{ ok: boolean
 }
 
 /**
- * Close open position(s). If closeInstId is set, close only that symbol; if closeAll is true, close all positions; otherwise close bot's symbol. Owner-only.
+ * Close open position(s). If closeInstId is set, close only that symbol (optionally filtered by posSide); if closeAll is true, close all positions; otherwise close bot's symbol. Owner-only.
  * Uses Blofin dedicated close-position API when possible.
  */
 export async function closeTradingBotPosition(options?: {
   closeInstId?: string;
   closeAll?: boolean;
+  posSide?: "long" | "short" | "net";
 }): Promise<{ ok: boolean; message?: string; error?: string }> {
   const closeInstId = options?.closeInstId?.trim();
   const closeAll = options?.closeAll === true;
+  const filterPosSide = options?.posSide;
 
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) return { ok: false, error: "No bot config." };
@@ -349,7 +351,7 @@ export async function closeTradingBotPosition(options?: {
   const isDemo = bot.mode === "demo";
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
 
-  const positions = closeAll
+  let positions = closeAll
     ? await getPositionsBlofin(undefined, { demo: isDemo })
     : await getPositionsBlofin(
         closeInstId
@@ -363,6 +365,14 @@ export async function closeTradingBotPosition(options?: {
             })(),
         { demo: isDemo }
       );
+
+  if (filterPosSide) {
+    positions = positions.filter((p) => {
+      const rawPosSide = (p as { rawPositionSide?: string }).rawPositionSide?.toLowerCase();
+      const pSide = rawPosSide === "net" ? "net" : (p.posSide === "long" || p.posSide === "short" ? p.posSide : "net");
+      return pSide === filterPosSide;
+    });
+  }
 
   if (!positions.length) {
     return {
@@ -428,8 +438,18 @@ export async function placeLimitOrderTradingBot(options: {
   return { ok: true, orderId: result.orderId, message: `Limit ${options.side} ${sizeStr} @ ${options.price} placed.` };
 }
 
-/** Run AI monitor: evaluate open positions; close if trend is opposite or AI suggests exit (negative). */
-export async function runAIMonitorCycle(): Promise<{ ok: boolean; closed: number; message?: string; error?: string; reasons?: string[] }> {
+export type SuggestedClose = { instId: string; posSide: "long" | "short" | "net"; reason: string };
+
+/** Run AI monitor: evaluate open positions. When dryRun is true, returns suggested closes only (no auto-close). When dryRun is false, closes positions (used only after user confirmation). */
+export async function runAIMonitorCycle(options?: { dryRun?: boolean }): Promise<{
+  ok: boolean;
+  closed: number;
+  message?: string;
+  error?: string;
+  reasons?: string[];
+  suggestedCloses?: SuggestedClose[];
+}> {
+  const dryRun = options?.dryRun !== false; // default true: require user confirmation, never auto-close
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) return { ok: false, closed: 0, error: "No bot config." };
   if (!isBlofinConfigured()) return { ok: false, closed: 0, error: "Blofin API keys not set." };
@@ -480,6 +500,7 @@ export async function runAIMonitorCycle(): Promise<{ ok: boolean; closed: number
   const candleLimit = 100;
   let closed = 0;
   const reasons: string[] = [];
+  const suggestedCloses: SuggestedClose[] = [];
   for (const pos of positions) {
     const rawSize = String(pos.pos ?? "0").trim();
     if (Math.abs(parseFloat(rawSize)) <= 0) continue;
@@ -521,6 +542,11 @@ export async function runAIMonitorCycle(): Promise<{ ok: boolean; closed: number
     }
     const rawPosSide = (pos as { rawPositionSide?: string }).rawPositionSide?.toLowerCase();
     const positionSide = (rawPosSide === "net" ? "net" : (posSide === "long" || posSide === "short" ? posSide : "net")) as "long" | "short" | "net";
+    if (dryRun) {
+      suggestedCloses.push({ instId, posSide: positionSide, reason: analysisMsg });
+      reasons.push(`${instId} ${positionSide.toUpperCase()}: suggested close — ${analysisMsg}`);
+      continue;
+    }
     const result = await closePositionViaApiBlofin(instId, marginMode, positionSide, { demo: isDemo });
     if (result.ok) {
       closed++;
@@ -532,7 +558,10 @@ export async function runAIMonitorCycle(): Promise<{ ok: boolean; closed: number
   return {
     ok: true,
     closed,
-    message: closed > 0 ? `AI monitor closed ${closed} position(s).` : "No positions closed.",
+    message: dryRun
+      ? (suggestedCloses.length > 0 ? `AI suggests closing ${suggestedCloses.length} position(s). Confirm in the UI to close.` : "No positions suggested for close.")
+      : closed > 0 ? `AI monitor closed ${closed} position(s).` : "No positions closed.",
     reasons: reasons.length > 0 ? reasons : undefined,
+    suggestedCloses: suggestedCloses.length > 0 ? suggestedCloses : undefined,
   };
 }

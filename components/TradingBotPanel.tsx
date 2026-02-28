@@ -41,7 +41,10 @@ type Config = {
   lastDecisionMsg: string | null;
   lastDecisionReason: string | null;
   monitorSymbols?: string[];
+  aiMonitorAutopilot?: boolean;
 };
+
+type SuggestedClose = { instId: string; posSide: "long" | "short" | "net"; reason: string };
 
 export default function TradingBotPanel() {
   const [config, setConfig] = useState<Config | null>(null);
@@ -71,6 +74,7 @@ export default function TradingBotPanel() {
   const [monitorIntervalMins, setMonitorIntervalMins] = useState<0 | 5 | 10 | 15 | 60>(0);
   const [lastMonitorResult, setLastMonitorResult] = useState<string | null>(null);
   const [lastMonitorReasons, setLastMonitorReasons] = useState<string[]>([]);
+  const [suggestedCloses, setSuggestedCloses] = useState<SuggestedClose[]>([]);
   const [monitorBoardSymbols, setMonitorBoardSymbols] = useState<string[]>([]);
   const [monitorBoardInput, setMonitorBoardInput] = useState("");
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
@@ -226,6 +230,7 @@ export default function TradingBotPanel() {
         const msg = data.success ? (data.message ?? "Done.") : (data.error ?? "Failed.");
         setLastMonitorResult(msg);
         setLastMonitorReasons(data.success && Array.isArray(data.reasons) ? data.reasons : []);
+        setSuggestedCloses(data.success && Array.isArray(data.suggestedCloses) ? data.suggestedCloses : []);
         if (data.success && (data.closed ?? 0) > 0) fetchPositions();
       } catch {
         setLastMonitorResult("Failed.");
@@ -405,27 +410,30 @@ export default function TradingBotPanel() {
     try {
       setMonitoring(true);
       clearFeedback();
+      setSuggestedCloses([]);
       const res = await fetch("/api/admin/trading-bot/monitor", { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (data.success) {
-        const msg = data.message ?? (data.closed ? "Positions closed." : "No positions closed.");
+        const msg = data.message ?? "Evaluation complete.";
         setSuccess(msg);
         setError(null);
         setLastMonitorResult(msg);
         setLastMonitorReasons(Array.isArray(data.reasons) ? data.reasons : []);
-        setPositionsData(null);
+        setSuggestedCloses(Array.isArray(data.suggestedCloses) ? data.suggestedCloses : []);
         fetchPositions();
       } else {
         setError(data.error ?? "Monitor failed.");
         setSuccess(null);
         setLastMonitorResult(null);
         setLastMonitorReasons([]);
+        setSuggestedCloses([]);
       }
     } catch {
       setError("Monitor failed.");
       setSuccess(null);
       setLastMonitorResult(null);
       setLastMonitorReasons([]);
+      setSuggestedCloses([]);
     } finally {
       setMonitoring(false);
     }
@@ -854,6 +862,35 @@ export default function TradingBotPanel() {
             <p className="text-xs text-muted-foreground">
               Pin positions or add symbols to choose which positions the AI monitor evaluates. <strong>Leave empty to monitor all</strong> open positions. <strong>Click Save</strong> after pinning so the AI monitor uses this list (it reads the saved board, not the list on screen). Use <strong>Run now</strong> / <strong>Auto-refresh</strong> below to refresh PNL only (no AI).
             </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-zinc-200 dark:border-zinc-600">
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Autopilot mode</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={config?.aiMonitorAutopilot ?? false}
+                onClick={async () => {
+                  const next = !(config?.aiMonitorAutopilot ?? false);
+                  try {
+                    const res = await fetch("/api/admin/trading-bot", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ aiMonitorAutopilot: next }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (data.success && data.config) {
+                      setConfig(data.config);
+                      setSuccess(next ? "Autopilot on: you can confirm and close from AI Monitor." : "Autopilot off: monitor only suggests.");
+                    }
+                  } catch {
+                    setError("Failed to update Autopilot.");
+                  }
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 ${(config?.aiMonitorAutopilot ?? false) ? "bg-cyan-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${(config?.aiMonitorAutopilot ?? false) ? "translate-x-5" : "translate-x-1"}`} />
+              </button>
+              <span className="text-xs text-muted-foreground">{(config?.aiMonitorAutopilot ?? false) ? "On — AI closes positions automatically" : "Off — monitor only suggests"}</span>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
@@ -988,8 +1025,37 @@ export default function TradingBotPanel() {
               )}
             </p>
             <p className="text-xs text-muted-foreground">
-              Run NovaStaris AI to evaluate open positions{monitorBoardSymbols.length > 0 ? " on your saved monitoring board" : ""}. It <strong>makes the decision itself</strong>: if the trend is opposite or the analysis is negative, it <strong>closes the position automatically</strong> (no separate analysis or recommendation step). Enable auto-refresh to run periodically. Uses the same account (<strong>{config?.mode === "demo" ? "Demo" : "Live"}</strong>) as the bot—positions above must be in that account to be seen.
+              Run NovaStaris AI to evaluate open positions{monitorBoardSymbols.length > 0 ? " on your saved monitoring board" : ""}. When the trend is opposite or the analysis is negative, it suggests or closes positions. With <strong>Autopilot on</strong>, AI closes positions automatically. With <strong>Autopilot off</strong>, it only suggests (no close). Enable auto-refresh to run periodically. Uses the same account (<strong>{config?.mode === "demo" ? "Demo" : "Live"}</strong>) as the bot—positions above must be in that account to be seen.
             </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-zinc-200 dark:border-zinc-600">
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Autopilot mode</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={config?.aiMonitorAutopilot ?? false}
+                onClick={async () => {
+                  const next = !(config?.aiMonitorAutopilot ?? false);
+                  try {
+                    const res = await fetch("/api/admin/trading-bot", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ aiMonitorAutopilot: next }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (data.success && data.config) {
+                      setConfig(data.config);
+                      setSuccess(next ? "Autopilot on: you can confirm and close from AI Monitor." : "Autopilot off: monitor only suggests.");
+                    }
+                  } catch {
+                    setError("Failed to update Autopilot.");
+                  }
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 ${(config?.aiMonitorAutopilot ?? false) ? "bg-cyan-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${(config?.aiMonitorAutopilot ?? false) ? "translate-x-5" : "translate-x-1"}`} />
+              </button>
+              <span className="text-xs text-muted-foreground">{(config?.aiMonitorAutopilot ?? false) ? "On — AI closes automatically" : "Off — suggestions only"}</span>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Auto-refresh:</span>
               <select
@@ -1010,6 +1076,19 @@ export default function TradingBotPanel() {
             {lastMonitorResult != null && (
               <div className="text-xs text-muted-foreground space-y-1">
                 <p>Last monitor: {lastMonitorResult}</p>
+                {suggestedCloses.length > 0 && (
+                  <div className="mt-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 p-2 space-y-2">
+                    <p className="font-medium text-amber-800 dark:text-amber-200">AI suggests closing ({suggestedCloses.length})</p>
+                    <ul className="space-y-1">
+                      {suggestedCloses.map((s, i) => (
+                        <li key={i} className="text-amber-700 dark:text-amber-300">
+                          {s.instId} {s.posSide.toUpperCase()} — {s.reason}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-amber-700 dark:text-amber-300">Turn on Autopilot to let AI close these positions automatically.</p>
+                  </div>
+                )}
                 {lastMonitorReasons.length > 0 && (
                   <div className="mt-1.5 rounded border border-zinc-200 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-900/40 p-2 space-y-0.5">
                     <p className="font-medium text-zinc-700 dark:text-zinc-300">Reasons:</p>
@@ -1018,7 +1097,7 @@ export default function TradingBotPanel() {
                     ))}
                   </div>
                 )}
-                {lastMonitorResult === "No positions closed." && lastMonitorReasons.length === 0 && (
+                {suggestedCloses.length === 0 && lastMonitorReasons.length === 0 && lastMonitorResult != null && (lastMonitorResult.includes("No positions") || lastMonitorResult.includes("evaluate")) && (
                   <span className="block mt-0.5 text-muted-foreground/90">Your position(s) were evaluated; none met the exit criteria.</span>
                 )}
               </div>

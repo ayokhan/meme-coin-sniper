@@ -14,14 +14,16 @@ export async function POST(req: Request) {
     }
     let closeInstId: string | undefined;
     let closeAll = false;
+    let posSide: "long" | "short" | "net" | undefined;
     try {
       const body = await req.json().catch(() => ({}));
       closeInstId = typeof body?.instId === "string" ? body.instId.trim() || undefined : undefined;
       closeAll = body?.closeAll === true;
+      if (body?.posSide === "long" || body?.posSide === "short" || body?.posSide === "net") posSide = body.posSide;
     } catch {
       // no body
     }
-    const result = await closeTradingBotPosition({ closeInstId, closeAll });
+    const result = await closeTradingBotPosition({ closeInstId, closeAll, posSide });
     if (!result.ok) {
       return NextResponse.json(
         { success: false, error: result.error ?? "Failed to close position." },

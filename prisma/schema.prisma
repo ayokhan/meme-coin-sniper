@@ -80,6 +80,8 @@ model User {
   userLeverageWallets  UserLeverageWallet[]
   userMemeCoinWallets  UserMemeCoinWallet[]
   userBlofinConfig     UserBlofinConfig?
+  /** Eligible (e.g. VIP) users can set 2–5; alert when this many tracked wallets buy same token. */
+  walletTrackerMinBuyers Int?
 }
 
 // Per-user Blofin API keys (encrypted at rest). When set, trading bot uses these for that user.
@@ -388,7 +390,8 @@ model TradingBot {
   lastDecision       String?   // e.g. "no_trade" | "long" | "short"
   lastDecisionMsg    String?   // human-readable: "No signal", "Opened long 0.001 @ 97234", etc.
   lastDecisionReason String?   // e.g. AI reason: "Long: strong support at 95k, RSI oversold"
-  monitorSymbols    String?   // comma-separated instIds e.g. "ETH-USDT,BTC-USDT"; when set, AI monitor only evaluates these
+  monitorSymbols       String?   // comma-separated instIds e.g. "ETH-USDT,BTC-USDT"; when set, AI monitor only evaluates these
+  aiMonitorAutopilot   Boolean   @default(false)  // when true, user can confirm and close from AI Monitor; when false, monitor only suggests (no close)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   @@index([enabled])
