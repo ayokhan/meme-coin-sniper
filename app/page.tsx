@@ -98,7 +98,7 @@ export default function Dashboard() {
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
   const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
-  type TradingBotView = "futures" | "solana";
+  type TradingBotView = "futures" | "solana" | "top-traders";
   const [tradingBotView, setTradingBotView] = useState<TradingBotView>("futures");
 
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
