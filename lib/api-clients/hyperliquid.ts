@@ -28,6 +28,7 @@ export type HyperliquidPosition = {
   szi: string;
   entryPx: string;
   positionValue: string;
+  marginUsed?: string;  // margin invested for this position
   unrealizedPnl: string;
   leverage?: number;
   liquidationPx?: string;
@@ -55,6 +56,7 @@ function parsePosition(ap: RawAssetPosition): HyperliquidPosition | null {
     szi: szi,
     entryPx: p.entryPx ?? "0",
     positionValue: p.positionValue ?? "0",
+    marginUsed: p.marginUsed,
     unrealizedPnl: p.unrealizedPnl ?? "0",
     leverage: p.leverage?.value,
     liquidationPx: p.liquidationPx,
@@ -82,6 +84,17 @@ function parseStateToTrader(
   };
 }
 
+export type UserFill = {
+  time: number;
+  coin: string;
+  dir: string;   // e.g. "Open Long", "Close Short", "Add Long"
+  side: string;  // A | B
+  sz: string;
+  px: string;
+  closedPnl?: string;
+  fee?: string;
+};
+
 /** Fetch last fill time (ms) for a user. Returns undefined if API fails or no fills. */
 export async function getLastFillTimeMs(user: string): Promise<number | undefined> {
   try {
@@ -101,6 +114,32 @@ export async function getLastFillTimeMs(user: string): Promise<number | undefine
   } catch {
     return undefined;
   }
+}
+
+/** Fetch recent fills for a user (last 7 days). Returns array sorted by time desc. */
+export async function getUserFills(user: string, startTime?: number, endTime?: number): Promise<UserFill[]> {
+  const end = endTime ?? Date.now();
+  const start = startTime ?? end - 7 * 24 * 60 * 60 * 1000;
+  const res = await fetch(HYPERLIQUID_INFO, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "userFillsByTime", user, startTime: start, endTime: end }),
+  });
+  if (!res.ok) return [];
+  const raw = await res.json();
+  const fills = Array.isArray(raw) ? raw : [];
+  const out: UserFill[] = fills.map((f: { time?: number; coin?: string; dir?: string; side?: string; sz?: string; px?: string; closedPnl?: string; fee?: string }) => ({
+    time: typeof f.time === "number" ? f.time : 0,
+    coin: f.coin ?? "",
+    dir: f.dir ?? "",
+    side: f.side ?? "",
+    sz: f.sz ?? "0",
+    px: f.px ?? "0",
+    closedPnl: f.closedPnl,
+    fee: f.fee,
+  }));
+  out.sort((a, b) => b.time - a.time);
+  return out;
 }
 
 /** Fetch one user's clearinghouse state (fallback when batch fails). */

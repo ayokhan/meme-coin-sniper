@@ -173,6 +173,16 @@ model LeverageWalletSnapshot {
   @@index([walletAddress])
 }
 
+// In-app recent leverage alerts (when position changes; keep last N)
+model LeverageAlert {
+  id              String   @id @default(cuid())
+  walletAddress   String
+  nickname        String?
+  positionsSummary String  // e.g. "SOL long $180 | ETH short $3200"
+  createdAt       DateTime @default(now())
+  @@index([createdAt])
+}
+
 // Owner-only: first time a tracked wallet buys a token (one alert per wallet+token ever)
 model WalletFirstBuyAlertSent {
   id              String   @id @default(cuid())

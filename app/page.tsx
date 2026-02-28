@@ -229,10 +229,18 @@ export default function Dashboard() {
   const [futuresView, setFuturesView] = useState<"ai" | "workflow">("ai");
   const [futuresAnalysisCopied, setFuturesAnalysisCopied] = useState(false);
   // ApexLiquid / Hyperliquid top traders (under Trading Bot tab, owner only)
-  type TopTraderRow = { address: string; label?: string; nickname?: string | null; accountValue?: string; lastTradeTimeMs?: number | null; apexLiquidUrl?: string; positions: { coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string; unrealizedPnl: string; leverage?: number }[] };
+  type TopTraderRow = { address: string; label?: string; nickname?: string | null; accountValue?: string; lastTradeTimeMs?: number | null; apexLiquidUrl?: string; positions: { coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string; marginUsed?: string; unrealizedPnl: string; leverage?: number }[] };
   const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
   const [topTradersLoading, setTopTradersLoading] = useState(false);
   const [topTradersError, setTopTradersError] = useState<string | null>(null);
+  type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
+  const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
+  const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
+  type FillRow = { time: number; coin: string; dir: string; side: string; sz: string; px: string; closedPnl?: string; fee?: string };
+  const [historyAddress, setHistoryAddress] = useState<string | null>(null);
+  const [historyNickname, setHistoryNickname] = useState<string | null>(null);
+  const [historyFills, setHistoryFills] = useState<FillRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [futuresAnalysisShareLoading, setFuturesAnalysisShareLoading] = useState(false);
   const [futuresAnalysisShareSuccess, setFuturesAnalysisShareSuccess] = useState(false);
 
@@ -402,6 +410,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.success) {
         setTopTradersData(data.traders ?? []);
+        if (isOwner) fetchLeverageAlerts();
       } else {
         setTopTradersData([]);
         setTopTradersError(data.error ?? "Failed to load Top Leverage Traders.");
@@ -412,6 +421,35 @@ export default function Dashboard() {
     } finally {
       setTopTradersLoading(false);
     }
+  };
+
+  const fetchLeverageAlerts = async () => {
+    setLeverageAlertsLoading(true);
+    try {
+      const res = await fetch("/api/leverage-wallet-tracker/alerts", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success) setLeverageAlerts(data.alerts ?? []);
+      else setLeverageAlerts([]);
+    } catch {
+      setLeverageAlerts([]);
+    } finally {
+      setLeverageAlertsLoading(false);
+    }
+  };
+
+  const openTraderHistory = (address: string, nickname: string | null) => {
+    setHistoryAddress(address);
+    setHistoryNickname(nickname ?? null);
+    setHistoryFills([]);
+    setHistoryLoading(true);
+    fetch(`/api/leverage-wallet-tracker/history?address=${encodeURIComponent(address)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setHistoryFills(data.fills ?? []);
+        else setHistoryFills([]);
+      })
+      .catch(() => setHistoryFills([]))
+      .finally(() => setHistoryLoading(false));
   };
 
   useEffect(() => {
@@ -438,7 +476,10 @@ export default function Dashboard() {
   }, [surgeWindow]);
 
   useEffect(() => {
-    if (activeTab === "trading-bot" && tradingBotView === "top-traders" && isOwner) fetchTopTraders();
+    if (activeTab === "trading-bot" && tradingBotView === "top-traders" && isOwner) {
+      fetchTopTraders();
+      fetchLeverageAlerts();
+    }
   }, [activeTab, tradingBotView, isOwner]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
@@ -2082,18 +2123,92 @@ export default function Dashboard() {
                         {topTradersLoading ? "Loading…" : "Refresh"}
                       </Button>
                       {topTradersError && <p className="text-sm text-rose-600 dark:text-rose-400">{topTradersError}</p>}
+                      {isOwner && (
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                          <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Recent activity (in-app alerts)</h4>
+                          <p className="text-xs text-muted-foreground mb-2">When tracked traders change positions (open/add/reduce/close), alerts appear here and can be sent via Telegram if enabled.</p>
+                          {leverageAlertsLoading ? (
+                            <p className="text-xs text-muted-foreground">Loading…</p>
+                          ) : leverageAlerts.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No recent activity.</p>
+                          ) : (
+                            <ul className="space-y-1.5 max-h-40 overflow-y-auto">
+                              {leverageAlerts.map((a) => {
+                                const at = new Date(a.createdAt).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" });
+                                const label = a.nickname ?? `${a.walletAddress.slice(0, 6)}…${a.walletAddress.slice(-4)}`;
+                                const apexUrl = `https://apexliquid.bot/trade/detail?address=${encodeURIComponent(a.walletAddress)}`;
+                                return (
+                                  <li key={a.id} className="text-xs flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
+                                    <span className="text-muted-foreground shrink-0">{at}</span>
+                                    <a href={apexUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono">{label}</a>
+                                    <span className="text-zinc-600 dark:text-zinc-400">{a.positionsSummary}</span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                      {historyAddress && (
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                              Trade history: {historyNickname ?? `${historyAddress.slice(0, 6)}…${historyAddress.slice(-4)}`}
+                            </h4>
+                            <Button variant="ghost" size="sm" onClick={() => { setHistoryAddress(null); setHistoryNickname(null); setHistoryFills([]); }}>Close</Button>
+                          </div>
+                          {historyLoading ? (
+                            <p className="text-xs text-muted-foreground">Loading fills…</p>
+                          ) : historyFills.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No fills in the last 7 days.</p>
+                          ) : (
+                            <div className="overflow-x-auto max-h-60 overflow-y-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="text-xs">Time</TableHead>
+                                    <TableHead className="text-xs">Asset</TableHead>
+                                    <TableHead className="text-xs">Direction</TableHead>
+                                    <TableHead className="text-right text-xs">Size</TableHead>
+                                    <TableHead className="text-right text-xs">Price</TableHead>
+                                    <TableHead className="text-right text-xs">Closed PnL</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {historyFills.map((f, i) => (
+                                    <TableRow key={`${f.time}-${i}`}>
+                                      <TableCell className="text-xs text-muted-foreground">
+                                        {new Date(f.time).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })}
+                                      </TableCell>
+                                      <TableCell className="text-xs font-mono">{f.coin}</TableCell>
+                                      <TableCell className="text-xs">{f.dir}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs">{f.sz}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs">${Number(f.px).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                      <TableCell className={`text-right font-mono text-xs ${f.closedPnl != null && Number(f.closedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                        {f.closedPnl != null ? `$${Number(f.closedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
                         <Table>
                           <TableHeader>
                             <TableRow>
                               <TableHead>Trader</TableHead>
                               <TableHead>Account</TableHead>
-                              <TableHead>Last trade</TableHead>
+                              <TableHead title="Last fill (open/add/reduce/close) in last 7 days">Last activity</TableHead>
                               <TableHead>Symbol</TableHead>
                               <TableHead>Side</TableHead>
                               <TableHead className="text-right">Size</TableHead>
                               <TableHead className="text-right">Entry</TableHead>
+                              <TableHead className="text-right">Margin</TableHead>
                               <TableHead className="text-right">Notional</TableHead>
+                              <TableHead className="text-right">Leverage</TableHead>
                               <TableHead className="text-right">Unrealized PnL</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -2103,20 +2218,25 @@ export default function Dashboard() {
                               const lastTradeStr = t.lastTradeTimeMs
                                 ? new Date(t.lastTradeTimeMs).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })
                                 : "—";
-                              const traderCell = t.apexLiquidUrl ? (
-                                <a href={t.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono text-xs">{displayName}</a>
-                              ) : (
-                                <span className="font-mono text-xs">{displayName}</span>
+                              const traderCell = (
+                                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                  {t.apexLiquidUrl ? (
+                                    <a href={t.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono text-xs">{displayName}</a>
+                                  ) : (
+                                    <span className="font-mono text-xs">{displayName}</span>
+                                  )}
+                                  <button type="button" onClick={() => openTraderHistory(t.address, t.nickname ?? null)} className="text-xs text-muted-foreground hover:text-cyan-600 dark:hover:text-cyan-400 underline">History</button>
+                                </span>
                               );
                               return t.positions.length === 0
-                                ? [<TableRow key={t.address}><TableCell className="font-mono text-xs">{traderCell}</TableCell><TableCell className="font-mono text-xs">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-xs text-muted-foreground">{lastTradeStr}</TableCell><TableCell colSpan={6} className="text-muted-foreground">No open positions</TableCell></TableRow>]
+                                ? [<TableRow key={t.address}><TableCell className="font-mono text-xs">{traderCell}</TableCell><TableCell className="font-mono text-xs">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-xs text-muted-foreground" title="Last fill in last 7d">{lastTradeStr}</TableCell><TableCell colSpan={8} className="text-muted-foreground">No open positions</TableCell></TableRow>]
                                 : t.positions.map((pos, i) => (
                                     <TableRow key={`${t.address}-${pos.coin}-${i}`}>
                                       {i === 0 ? (
                                         <>
                                           <TableCell className="text-xs align-top" rowSpan={t.positions.length}>{traderCell}</TableCell>
                                           <TableCell className="font-mono text-xs align-top" rowSpan={t.positions.length}>{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
-                                          <TableCell className="text-xs text-muted-foreground align-top" rowSpan={t.positions.length}>{lastTradeStr}</TableCell>
+                                          <TableCell className="text-xs text-muted-foreground align-top" rowSpan={t.positions.length} title="Last fill (open/add/reduce/close) in last 7d">{lastTradeStr}</TableCell>
                                         </>
                                       ) : null}
                                       <TableCell>{pos.coin}</TableCell>
@@ -2127,7 +2247,9 @@ export default function Dashboard() {
                                       </TableCell>
                                       <TableCell className="text-right font-mono">{pos.szi}</TableCell>
                                       <TableCell className="text-right font-mono">${Number(pos.entryPx).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                      <TableCell className="text-right font-mono">{pos.marginUsed != null && pos.marginUsed !== "" ? `$${Number(pos.marginUsed).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
                                       <TableCell className="text-right font-mono">${Number(pos.positionValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                      <TableCell className="text-right font-mono">{pos.leverage != null ? `${pos.leverage}x` : "—"}</TableCell>
                                       <TableCell className={`text-right font-mono ${Number(pos.unrealizedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                                         ${Number(pos.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                       </TableCell>
@@ -2135,7 +2257,7 @@ export default function Dashboard() {
                                   ));
                             })}
                             {topTradersData.length === 0 && !topTradersLoading && !topTradersError && (
-                              <TableRow><TableCell colSpan={9} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
+                              <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
                             )}
                           </TableBody>
                         </Table>

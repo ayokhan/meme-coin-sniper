@@ -15,4 +15,10 @@ export const leverageDb = prisma as unknown as {
     findUnique: (args: { where: { walletAddress: string } }) => Promise<{ positionsJson: string } | null>;
     upsert: (args: { where: { walletAddress: string }; create: { walletAddress: string; positionsJson: string }; update: { positionsJson: string } }) => Promise<unknown>;
   };
+  leverageAlert: {
+    create: (args: { data: { walletAddress: string; nickname?: string | null; positionsSummary: string } }) => Promise<{ id: string; createdAt: Date }>;
+    findMany: (args: { orderBy: { createdAt: "desc" } | { createdAt: "asc" }; take: number }) => Promise<Array<{ id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: Date }>>;
+    count: () => Promise<number>;
+    deleteMany: (args: { where: { id: { in: string[] } } }) => Promise<{ count: number }>;
+  };
 };

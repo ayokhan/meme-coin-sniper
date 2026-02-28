@@ -61,7 +61,23 @@ export async function GET(request: Request) {
                 .map((p) => `${p.coin} ${p.side} $${Number(p.entryPx).toLocaleString(undefined, { maximumFractionDigits: 0 })}`)
                 .join(" | ");
         await sendLeverageTradeAlert({ nickname, address: t.address, positionsSummary });
+        await leverageDb.leverageAlert.create({
+          data: { walletAddress: t.address, nickname: nickname ?? undefined, positionsSummary },
+        });
         sent++;
+        // Cap in-app alerts to last 100
+        const total = await leverageDb.leverageAlert.count();
+        if (total > 100) {
+          const oldest = await leverageDb.leverageAlert.findMany({
+            orderBy: { createdAt: "asc" },
+            take: total - 100,
+          });
+          if (oldest.length > 0) {
+            await leverageDb.leverageAlert.deleteMany({
+              where: { id: { in: oldest.map((a) => a.id) } },
+            });
+          }
+        }
       }
       await leverageDb.leverageWalletSnapshot.upsert({
         where: { walletAddress: t.address },
