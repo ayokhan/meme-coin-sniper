@@ -219,7 +219,6 @@ export async function runTradingBotCycle(userId?: string): Promise<{ ok: boolean
     }
   };
 
-  const isDemo = bot.mode === "demo";
   try {
     const [candlesRes, tickerRes, instRes, positionsRes] = await Promise.all([
       getCandles(instId, bar, candleLimit, isDemo, blofinOpts),

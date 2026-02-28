@@ -2173,6 +2173,7 @@ export default function Dashboard() {
                           </ul>
                         )}
                     </div>
+                    )}
                     {historyAddress && (
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                         <div className="flex items-center justify-between gap-2 mb-2">
