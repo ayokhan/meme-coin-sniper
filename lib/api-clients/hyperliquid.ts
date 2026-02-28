@@ -58,9 +58,41 @@ function parsePosition(ap: RawAssetPosition): HyperliquidPosition | null {
   };
 }
 
+function parseStateToTrader(
+  state: RawClearinghouseState,
+  address: string,
+  traders: { address: string; label?: string }[]
+): TopTraderState {
+  const trader = traders.find((t) => t.address.toLowerCase() === address.toLowerCase()) ?? { address, label: undefined };
+  const positions: HyperliquidPosition[] = (state.assetPositions ?? [])
+    .map(parsePosition)
+    .filter((p): p is HyperliquidPosition => p != null);
+  const accountValue =
+    state.marginSummary?.accountValue ?? state.crossMarginSummary?.accountValue;
+  return {
+    address: trader.address,
+    label: trader.label,
+    accountValue,
+    positions,
+  };
+}
+
+/** Fetch one user's clearinghouse state (fallback when batch fails). */
+async function fetchOneClearinghouseState(user: string): Promise<RawClearinghouseState> {
+  const res = await fetch(HYPERLIQUID_INFO, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "clearinghouseState", user }),
+  });
+  if (!res.ok) throw new Error(`Hyperliquid API error: ${res.status}`);
+  const data = await res.json();
+  return data as RawClearinghouseState;
+}
+
 /**
  * Fetch clearinghouse state for multiple Hyperliquid users (e.g. ApexLiquid top traders).
  * Returns one entry per address with their open perp positions (long/short).
+ * Retries once on 5xx; falls back to single-user requests if batch returns 5xx.
  */
 export async function getTopTradersPositions(
   traders: { address: string; label?: string }[]
@@ -68,33 +100,38 @@ export async function getTopTradersPositions(
   const addresses = traders.map((t) => t.address).filter((a) => /^0x[a-fA-F0-9]{40}$/.test(a));
   if (addresses.length === 0) return [];
 
-  const res = await fetch(HYPERLIQUID_INFO, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type: "batchClearinghouseStates", users: addresses }),
-    next: { revalidate: 30 },
-  });
+  const doBatch = async (): Promise<RawClearinghouseState[]> => {
+    const res = await fetch(HYPERLIQUID_INFO, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "batchClearinghouseStates", users: addresses }),
+      next: { revalidate: 30 },
+    });
+    if (!res.ok) throw new Error(`Hyperliquid API error: ${res.status}`);
+    const raw = await res.json();
+    return Array.isArray(raw) ? raw : [];
+  };
 
-  if (!res.ok) {
-    throw new Error(`Hyperliquid API error: ${res.status}`);
+  let rawStates: RawClearinghouseState[] = [];
+  try {
+    rawStates = await doBatch();
+  } catch (e) {
+    const is5xx = e instanceof Error && /Hyperliquid API error: 5\d\d/.test(e.message);
+    if (is5xx) {
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        rawStates = await doBatch();
+      } catch {
+        // Fallback: fetch each user individually when batch is flaky
+        rawStates = await Promise.all(
+          addresses.map((addr) => fetchOneClearinghouseState(addr).catch(() => ({ assetPositions: [] as RawAssetPosition[], marginSummary: undefined, crossMarginSummary: undefined })))
+        );
+      }
+    } else {
+      throw e;
+    }
   }
 
-  const rawStates: RawClearinghouseState[] = await res.json();
-  if (!Array.isArray(rawStates)) return [];
-
-  return rawStates.map((state, i) => {
-    const address = addresses[i] ?? "";
-    const trader = traders.find((t) => t.address.toLowerCase() === address.toLowerCase()) ?? { address, label: undefined };
-    const positions: HyperliquidPosition[] = (state.assetPositions ?? [])
-      .map(parsePosition)
-      .filter((p): p is HyperliquidPosition => p != null);
-    const accountValue =
-      state.marginSummary?.accountValue ?? state.crossMarginSummary?.accountValue;
-    return {
-      address: trader.address,
-      label: trader.label,
-      accountValue,
-      positions,
-    };
-  });
+  if (rawStates.length === 0) return [];
+  return rawStates.map((state, i) => parseStateToTrader(state, addresses[i] ?? "", traders));
 }
