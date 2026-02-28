@@ -140,9 +140,19 @@ export async function GET(request: Request) {
       view === 'new_pairs' && moralisGoHunting ? getPumpFunNewTokens(50).catch(() => []) : Promise.resolve([]),
     ]);
 
-    // Prefer WebSocket only when it returns enough pairs; otherwise use REST so we don't show "1 token" when WS is flaky
-    const minWsPairs = 5;
-    const pairs = view === 'new_pairs' && wsPairs.length >= minWsPairs ? wsPairs : searchPairs;
+    // Merge WebSocket + REST for new_pairs so we get more tokens (WS can be flaky; REST can be sparse)
+    const byPairAddress = new Map<string, DexPair>();
+    const add = (p: DexPair) => {
+      const key = p.pairAddress || p.baseToken?.address;
+      if (key && !byPairAddress.has(key)) byPairAddress.set(key, p);
+    };
+    if (view === 'new_pairs') {
+      wsPairs.forEach(add);
+      searchPairs.forEach(add);
+    }
+    const pairs = view === 'new_pairs'
+      ? Array.from(byPairAddress.values()).sort((a, b) => (b.pairCreatedAt ?? 0) - (a.pairCreatedAt ?? 0))
+      : searchPairs;
 
     let filteredPairs = pairs;
     if (view === 'final_stretch') {
