@@ -21,6 +21,7 @@ export async function GET() {
       );
     }
     let rows: { address: string; nickname: string | null }[];
+    let globalAddressesForResponse: Set<string> | null = null;
     if (isOwnerSession(session)) {
       let adminRows = await leverageDb.leverageWallet.findMany({
         where: { active: true },
@@ -49,10 +50,12 @@ export async function GET() {
           orderBy: { createdAt: "asc" },
         }),
       ]);
+      globalAddressesForResponse = new Set(globalAdminRows.map((r) => r.address.toLowerCase()));
       const byAddr = new Map<string, string | null>();
-      for (const r of globalAdminRows) byAddr.set(r.address, r.nickname);
+      for (const r of globalAdminRows) byAddr.set(r.address.toLowerCase(), r.nickname);
       for (const r of userRows as { address: string; nickname: string | null }[]) {
-        if (!byAddr.has(r.address)) byAddr.set(r.address, r.nickname);
+        const addr = r.address.toLowerCase();
+        if (!byAddr.has(addr)) byAddr.set(addr, r.nickname);
       }
       rows = Array.from(byAddr.entries()).map(([address, nickname]) => ({ address, nickname }));
     }
@@ -69,10 +72,12 @@ export async function GET() {
     const withTime = await Promise.all(
       traders.map(async (t) => {
         const lastTradeTimeMs = await getLastFillTimeMs(t.address).catch(() => undefined);
+        const isGlobal = globalAddressesForResponse === null ? true : globalAddressesForResponse.has(t.address.toLowerCase());
         return {
           ...t,
           lastTradeTimeMs: lastTradeTimeMs ?? null,
           apexLiquidUrl: `${APEXLIQUID_DETAIL_URL}?address=${encodeURIComponent(t.address)}`,
+          isGlobal,
         };
       })
     );

@@ -230,7 +230,7 @@ export default function Dashboard() {
   const [futuresView, setFuturesView] = useState<"ai" | "workflow">("ai");
   const [futuresAnalysisCopied, setFuturesAnalysisCopied] = useState(false);
   // ApexLiquid / Hyperliquid top traders (under Trading Bot tab, owner only)
-  type TopTraderRow = { address: string; label?: string; nickname?: string | null; accountValue?: string; lastTradeTimeMs?: number | null; apexLiquidUrl?: string; positions: { coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string; marginUsed?: string; unrealizedPnl: string; leverage?: number }[] };
+  type TopTraderRow = { address: string; label?: string; nickname?: string | null; accountValue?: string; lastTradeTimeMs?: number | null; apexLiquidUrl?: string; isGlobal?: boolean; positions: { coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string; marginUsed?: string; unrealizedPnl: string; leverage?: number }[] };
   const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
   const [topTradersLoading, setTopTradersLoading] = useState(false);
   const [topTradersError, setTopTradersError] = useState<string | null>(null);
@@ -1414,11 +1414,11 @@ export default function Dashboard() {
                 </div>
               </details>
             )}
-            {activeTab === "wallets" && (
+            {activeTab === "wallets" && walletTrackerView === "meme" && (
               <details className="mx-6 mt-2 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50" open>
                 <summary className="cursor-pointer px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between gap-2">
                   <span>
-                    Live trades from tracked wallets
+                    Live trades from tracked wallets (meme)
                     {walletTrades.length > 0 && <span className="ml-2 text-xs font-normal text-muted-foreground">({walletTrades.length} in last 24h)</span>}
                   </span>
                   <Button
@@ -2339,10 +2339,74 @@ export default function Dashboard() {
                   <TabsContent value="leverage" className="mt-0 space-y-4">
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
+                      <strong>Global Top Traders (NovaStaris)</strong> — Curated list from NovaStaris. You can also add your own traders below.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
                       Open long/short positions from Top Leverage Traders (ApexLiquid) on Hyperliquid. Copy them via{" "}
                       <a href="https://apexliquid.bot/trade/topTraders" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">ApexLiquid</a> or{" "}
                       <a href="https://app.hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">Hyperliquid</a>.
                     </p>
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                      <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">My traders</h3>
+                      <p className="text-xs text-muted-foreground mb-2">Add your own 0x addresses to track alongside NovaStaris Global Top Traders.</p>
+                      <details className="mb-2">
+                        <summary className="cursor-pointer text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Add my own traders</summary>
+                        <form
+                          className="flex flex-wrap gap-2 mt-2"
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            const form = e.currentTarget;
+                            const addr = (form.querySelector('input[name="leverage-address"]') as HTMLInputElement)?.value?.trim();
+                            const nickname = (form.querySelector('input[name="leverage-nickname"]') as HTMLInputElement)?.value?.trim() || undefined;
+                            if (!addr) return;
+                            try {
+                              const res = await fetch("/api/user/leverage-wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: addr, nickname }) });
+                              const data = await res.json();
+                              if (data.success) {
+                                setUserLeverageWallets(data.wallets ?? []);
+                                (form.querySelector('input[name="leverage-address"]') as HTMLInputElement).value = "";
+                                (form.querySelector('input[name="leverage-nickname"]') as HTMLInputElement).value = "";
+                                fetchTopTraders();
+                              }
+                            } catch {}
+                          }}
+                        >
+                          <input name="leverage-address" placeholder="0x… address" className="font-mono text-sm border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1.5 bg-white dark:bg-zinc-800 w-52" />
+                          <input name="leverage-nickname" placeholder="Nickname (optional)" className="text-sm border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1.5 bg-white dark:bg-zinc-800 w-28" />
+                          <Button type="submit" size="sm">Add</Button>
+                        </form>
+                      </details>
+                      {userLeverageWallets.length > 0 && (
+                        <ul className="text-xs space-y-1 mt-2">
+                          {userLeverageWallets.map((w) => (
+                            <li key={w.id} className="flex items-center gap-2">
+                              <span className="font-mono text-muted-foreground">{w.nickname ?? `${w.address.slice(0, 6)}…${w.address.slice(-4)}`}</span>
+                              <button type="button" onClick={async () => { await fetch("/api/user/leverage-wallets?address=" + encodeURIComponent(w.address), { method: "DELETE" }); fetchUserLeverageWallets(); fetchTopTraders(); }} className="text-rose-600 dark:text-rose-400 hover:underline">Remove</button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    {topTradersData.length > 0 && (
+                      <details className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
+                        <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                          Wallets we track — Top Leverage Traders ({topTradersData.length})
+                        </summary>
+                        <div className="px-4 pb-3 pt-1 flex flex-wrap gap-2">
+                          {topTradersData.map((t) => (
+                            <a
+                              key={t.address}
+                              href={t.apexLiquidUrl ?? "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 text-zinc-700 dark:text-zinc-300 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors font-mono"
+                            >
+                              {t.nickname ?? t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`}
+                            </a>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                     <Button variant="outline" size="sm" onClick={fetchTopTraders} disabled={topTradersLoading}>
                       {topTradersLoading ? "Loading…" : "Refresh"}
                     </Button>
@@ -2481,7 +2545,7 @@ export default function Dashboard() {
                                 ));
                           })}
                           {topTradersData.length === 0 && !topTradersLoading && !topTradersError && (
-                            <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={12} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
                           )}
                         </TableBody>
                       </Table>

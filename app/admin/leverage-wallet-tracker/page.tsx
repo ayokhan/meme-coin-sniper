@@ -211,6 +211,27 @@ export default function AdminLeverageWalletTrackerPage() {
     }
   };
 
+  const handleSetGlobal = async (address: string, global: boolean) => {
+    setTogglingGlobal(address);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/leverage-wallet-tracker/wallets", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, global }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadWallets();
+        showSuccess(global ? "Wallet shown globally for all users." : "Wallet hidden from global list.");
+      } else setError(data.error ?? "Update failed");
+    } catch {
+      setError("Update failed");
+    } finally {
+      setTogglingGlobal(null);
+    }
+  };
+
   const handleSaveNickname = async (address: string) => {
     setError("");
     try {
@@ -391,8 +412,9 @@ export default function AdminLeverageWalletTrackerPage() {
                     </div>
                     {!w.active && <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Inactive</span>}
                     <div className="flex items-center gap-1">
-                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleSetActive(w.address, !w.active)} disabled={togglingActive === w.address}>
-                        {togglingActive === w.address ? "…" : w.active ? "Deactivate" : "Activate"}
+                      <span className="text-xs text-muted-foreground">Global</span>
+                      <Button variant="outline" size="sm" className={`h-7 text-xs ${w.global ? "bg-amber-100 dark:bg-amber-900/30 border-amber-400 dark:border-amber-600" : ""}`} onClick={() => handleSetGlobal(w.address, !w.global)} disabled={togglingGlobal === w.address} title={w.global ? "Shown on global list for all users" : "Hidden from global list"}>
+                        {togglingGlobal === w.address ? "…" : w.global ? "On" : "Off"}
                       </Button>
                       <span className="text-xs text-muted-foreground">Alert</span>
                       <button
