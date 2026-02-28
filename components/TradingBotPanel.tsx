@@ -83,6 +83,7 @@ export default function TradingBotPanel() {
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
   const [boardRefreshMins, setBoardRefreshMins] = useState<0 | 1 | 2 | 5>(0);
   const [lastBoardRefreshAt, setLastBoardRefreshAt] = useState<number | null>(null);
+  const [boardRunNowFeedback, setBoardRunNowFeedback] = useState<{ message: string; isError: boolean } | null>(null);
   const [cancelingAll, setCancelingAll] = useState(false);
   const [userBlofinConfigured, setUserBlofinConfigured] = useState<boolean | null>(null);
   const [blofinKeysForm, setBlofinKeysForm] = useState({ apiKey: "", secretKey: "", passphrase: "", demoMode: true, brokerId: "" });
@@ -94,7 +95,10 @@ export default function TradingBotPanel() {
   const fetchPositions = useCallback(async (fromMonitoringBoard?: boolean) => {
     try {
       setPositionsLoading(true);
-      if (fromMonitoringBoard) clearFeedback();
+      if (fromMonitoringBoard) {
+        clearFeedback();
+        setBoardRunNowFeedback(null);
+      }
       const res = await fetch("/api/admin/trading-bot/positions");
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.positions)) {
@@ -105,16 +109,27 @@ export default function TradingBotPanel() {
         });
         if (fromMonitoringBoard) {
           const n = data.positions.length;
-          setSuccess(n > 0 ? `Positions & PNL refreshed (${n} position${n === 1 ? "" : "s"}). See Positions tab below.` : "Positions refreshed. No open positions. See Positions tab below.");
-          setTimeout(clearFeedback, 4000);
+          setBoardRunNowFeedback({
+            message: n > 0 ? `Refreshed: ${n} position${n === 1 ? "" : "s"} with PNL. Switched to Positions tab below.` : "Refreshed. No open positions (see Positions tab below).",
+            isError: false,
+          });
+          setActiveTab("positions");
+          setTimeout(() => setBoardRunNowFeedback(null), 6000);
         }
       } else {
         setPositionsData(null);
-        if (fromMonitoringBoard) setError(data.error ?? "Failed to load positions.");
+        if (fromMonitoringBoard) {
+          const errMsg = data.error ?? (res.status === 403 ? "Owner only. This feature requires bot owner access." : "Failed to load positions.");
+          setBoardRunNowFeedback({ message: errMsg, isError: true });
+          setError(errMsg);
+        }
       }
     } catch {
       setPositionsData(null);
-      if (fromMonitoringBoard) setError("Failed to refresh positions.");
+      if (fromMonitoringBoard) {
+        setBoardRunNowFeedback({ message: "Network or server error. Check you have access and try again.", isError: true });
+        setError("Failed to refresh positions.");
+      }
     } finally {
       setPositionsLoading(false);
       setLastBoardRefreshAt(Date.now());
@@ -1025,6 +1040,11 @@ export default function TradingBotPanel() {
               )}
               <span className="text-xs text-muted-foreground">Refreshes positions &amp; PNL only (no AI).</span>
             </div>
+            {boardRunNowFeedback && (
+              <div className={`rounded-md px-3 py-2 text-xs ${boardRunNowFeedback.isError ? "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800" : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"}`}>
+                {boardRunNowFeedback.message}
+              </div>
+            )}
           </div>
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-900/30 p-3 space-y-3">
             <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
