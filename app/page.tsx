@@ -228,6 +228,11 @@ export default function Dashboard() {
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
   const [futuresView, setFuturesView] = useState<"ai" | "workflow">("ai");
   const [futuresAnalysisCopied, setFuturesAnalysisCopied] = useState(false);
+  // ApexLiquid / Hyperliquid top traders (under Trading Bot tab, owner only)
+  type TopTraderRow = { address: string; label?: string; accountValue?: string; positions: { coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string; unrealizedPnl: string; leverage?: number }[] };
+  const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
+  const [topTradersLoading, setTopTradersLoading] = useState(false);
+  const [topTradersError, setTopTradersError] = useState<string | null>(null);
   const [futuresAnalysisShareLoading, setFuturesAnalysisShareLoading] = useState(false);
   const [futuresAnalysisShareSuccess, setFuturesAnalysisShareSuccess] = useState(false);
 
@@ -389,6 +394,26 @@ export default function Dashboard() {
     }
   };
 
+  const fetchTopTraders = async () => {
+    setTopTradersLoading(true);
+    setTopTradersError(null);
+    try {
+      const res = await fetch("/api/hyperliquid/top-traders", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success) {
+        setTopTradersData(data.traders ?? []);
+      } else {
+        setTopTradersData([]);
+        setTopTradersError(data.error ?? "Failed to load Top Leverage Traders.");
+      }
+    } catch {
+      setTopTradersData([]);
+      setTopTradersError("Failed to load top traders.");
+    } finally {
+      setTopTradersLoading(false);
+    }
+  };
+
   useEffect(() => {
     const needsPaid = PAID_TABS.includes(activeTab);
     const needsVip = VIP_ONLY_TABS.includes(activeTab);
@@ -411,6 +436,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (activeTab === "surge") fetchTokens("surge");
   }, [surgeWindow]);
+
+  useEffect(() => {
+    if (activeTab === "trading-bot" && tradingBotView === "top-traders" && isOwner) fetchTopTraders();
+  }, [activeTab, tradingBotView, isOwner]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
@@ -1722,7 +1751,7 @@ export default function Dashboard() {
               </div>
             ) : activeTab === "futures" ? (
               <div className="mx-6 py-8">
-                <div className="flex gap-2 mb-6">
+                <div className="flex flex-wrap gap-2 mb-6">
                   <Button
                     variant={futuresView === "ai" ? "default" : "outline"}
                     size="sm"
@@ -1986,10 +2015,10 @@ export default function Dashboard() {
                       Trading Bot — On demand service
                     </h2>
                     <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                      Automated crypto futures and Solana trading bots are available as an <strong className="text-zinc-700 dark:text-zinc-300">on demand</strong> service. Access requires <strong className="text-amber-700 dark:text-amber-400">VIP</strong> plus <strong className="text-amber-700 dark:text-amber-400">On demand</strong>.
+                      Automated crypto futures and Solana trading bots, plus <strong className="text-zinc-700 dark:text-zinc-300">Top Leverage Traders</strong> for Hyperliquid long/short, are available as an <strong className="text-zinc-700 dark:text-zinc-300">on demand</strong> service. Access requires <strong className="text-amber-700 dark:text-amber-400">VIP</strong> plus <strong className="text-amber-700 dark:text-amber-400">On demand</strong>.
                     </p>
                     <p className="mt-4 text-sm text-muted-foreground">
-                      Contact us to upgrade and get access to configurable bots, risk settings, and live or demo trading.
+                      Contact us to upgrade and get access to configurable bots, risk settings, Top Leverage Traders positions, and live or demo trading.
                     </p>
                     <a
                       href="/support"
@@ -2025,12 +2054,85 @@ export default function Dashboard() {
                     >
                       Solana
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setTradingBotView("top-traders")}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        tradingBotView === "top-traders"
+                          ? "bg-amber-500 text-white dark:bg-amber-600"
+                          : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                      }`}
+                    >
+                      Top Leverage Traders
+                    </button>
                     <span className="text-xs text-muted-foreground ml-1">
                       {tradingBotView === "futures" && "Blofin futures bot (demo/live)."}
                       {tradingBotView === "solana" && "Jupiter + Phantom for meme coin swaps."}
+                      {tradingBotView === "top-traders" && "Hyperliquid long/short — VIP + on demand."}
                     </span>
                   </div>
-                  {tradingBotView === "futures" ? <TradingBotPanel /> : <SolanaTradingBotPanel />}
+                  {tradingBotView === "top-traders" ? (
+                    <div className="mx-6 py-6 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Open long/short positions from Top Leverage Traders (ApexLiquid) on Hyperliquid. Copy them via{" "}
+                        <a href="https://apexliquid.bot/trade/topTraders" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">ApexLiquid</a> or{" "}
+                        <a href="https://app.hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">Hyperliquid</a>.
+                      </p>
+                      <Button variant="outline" size="sm" onClick={fetchTopTraders} disabled={topTradersLoading}>
+                        {topTradersLoading ? "Loading…" : "Refresh"}
+                      </Button>
+                      {topTradersError && <p className="text-sm text-rose-600 dark:text-rose-400">{topTradersError}</p>}
+                      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Trader</TableHead>
+                              <TableHead>Account</TableHead>
+                              <TableHead>Symbol</TableHead>
+                              <TableHead>Side</TableHead>
+                              <TableHead className="text-right">Size</TableHead>
+                              <TableHead className="text-right">Entry</TableHead>
+                              <TableHead className="text-right">Notional</TableHead>
+                              <TableHead className="text-right">Unrealized PnL</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {topTradersData.flatMap((t) =>
+                              t.positions.length === 0
+                                ? [<TableRow key={t.address}><TableCell className="font-mono text-xs">{t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`}</TableCell><TableCell className="font-mono text-xs">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell colSpan={6} className="text-muted-foreground">No open positions</TableCell></TableRow>]
+                                : t.positions.map((pos, i) => (
+                                    <TableRow key={`${t.address}-${pos.coin}-${i}`}>
+                                      {i === 0 ? (
+                                        <>
+                                          <TableCell className="font-mono text-xs" rowSpan={t.positions.length}>{t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`}</TableCell>
+                                          <TableCell className="font-mono text-xs align-top" rowSpan={t.positions.length}>
+                                            {t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
+                                          </TableCell>
+                                        </>
+                                      ) : null}
+                                      <TableCell>{pos.coin}</TableCell>
+                                      <TableCell>
+                                        <Badge variant={pos.side === "long" ? "default" : "secondary"} className={pos.side === "long" ? "bg-emerald-600" : "bg-rose-600"}>
+                                          {pos.side === "long" ? "Long" : "Short"}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="text-right font-mono">{pos.szi}</TableCell>
+                                      <TableCell className="text-right font-mono">${Number(pos.entryPx).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                      <TableCell className="text-right font-mono">${Number(pos.positionValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                      <TableCell className={`text-right font-mono ${Number(pos.unrealizedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                        ${Number(pos.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                            ).filter(Boolean)}
+                            {topTradersData.length === 0 && !topTradersLoading && !topTradersError && (
+                              <TableRow><TableCell colSpan={8} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  ) : tradingBotView === "futures" ? <TradingBotPanel /> : <SolanaTradingBotPanel />}
                 </div>
               )
             ) : activeTab === "coach-calls" ? (
