@@ -58,10 +58,17 @@ export async function GET() {
       const entryPrice = parseNum(pos.avgPx);
       const posSide = (pos.posSide ?? "").toLowerCase();
       const d = byInst[pos.instId] ?? { contractValue: 0, markPrice: 0 };
+      const contractValue = d.contractValue ?? 0;
       const unrealizedPnl =
-        posSide === "long"
-          ? (d.markPrice - entryPrice) * size * d.contractValue
-          : (entryPrice - d.markPrice) * size * d.contractValue;
+        contractValue > 0 && posSide === "long"
+          ? (d.markPrice - entryPrice) * size * contractValue
+          : contractValue > 0
+            ? (entryPrice - d.markPrice) * size * contractValue
+            : 0;
+      const notional = size * entryPrice * contractValue;
+      const pnlPct = notional > 0 ? (unrealizedPnl / notional) * 100 : null;
+      const liqPrice = pos.liqPx != null && pos.liqPx !== "" ? parseNum(pos.liqPx) : null;
+      const marginNum = pos.margin != null && pos.margin !== "" ? parseNum(pos.margin) : null;
       return {
         instId: pos.instId,
         posSide: pos.posSide,
@@ -69,6 +76,9 @@ export async function GET() {
         entryPrice,
         markPrice: d.markPrice,
         unrealizedPnl,
+        pnlPct: pnlPct != null ? Math.round(pnlPct * 100) / 100 : null,
+        liqPrice: Number.isFinite(liqPrice) ? liqPrice : null,
+        margin: Number.isFinite(marginNum) ? marginNum : null,
       };
     });
 

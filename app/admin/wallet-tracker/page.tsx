@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Zap } from "lucide-react";
+import { Zap, Copy } from "lucide-react";
 
 type Wallet = { id: string; address: string; label?: string | null; active?: boolean; firstBuyEnabled?: boolean; global?: boolean };
 type Rules = { minBuyers: number; maxAgeHours: number; maxAlerts: number };
@@ -670,11 +670,12 @@ export default function AdminWalletTrackerPage() {
             ) : (
               <ul className="space-y-2">
                 {wallets.map((w) => (
-                  <li key={w.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${w.active !== false ? "border-zinc-200 dark:border-zinc-700" : "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"}`}>
-                    <div className="min-w-0 flex-1">
-                      <span className={`font-mono ${w.active !== false ? "text-zinc-900 dark:text-zinc-100" : "text-muted-foreground"}`}>{w.address}</span>
+                  <li key={w.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${w.active !== false ? "border-zinc-200 dark:border-zinc-700" : "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"}`}>
+                    <div className="min-w-0 flex-1 basis-full sm:basis-0">
+                      <span className={`font-mono text-xs sm:text-sm break-all ${w.active !== false ? "text-zinc-900 dark:text-zinc-100" : "text-muted-foreground"}`} title={w.address}>{w.address}</span>
                       {w.label && <span className="ml-2 text-muted-foreground">({w.label})</span>}
                       {w.active === false && <span className="ml-2 text-xs font-medium text-amber-700 dark:text-amber-400">Inactive</span>}
+                      <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 ml-1 inline-flex shrink-0" onClick={() => { void navigator.clipboard.writeText(w.address); showSuccess("Address copied"); setTimeout(() => setSuccessMessage(""), 2000); }} title="Copy address"><Copy className="h-3.5 w-3.5" /></Button>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {w.active !== false ? (

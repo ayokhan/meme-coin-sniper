@@ -11,6 +11,9 @@ type PositionWithPnl = {
   entryPrice: number;
   markPrice: number;
   unrealizedPnl: number;
+  pnlPct?: number | null;
+  liqPrice?: number | null;
+  margin?: number | null;
 };
 
 type Strategy = "simple" | "indicators" | "ai" | "hybrid";
@@ -1129,8 +1132,13 @@ export default function TradingBotPanel() {
                             <span className={p.posSide === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{p.posSide.toUpperCase()}</span>
                             <span className="text-muted-foreground">Entry: {p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             {(p.markPrice ?? positionsData.markPrice) != null && <span className="text-muted-foreground">Mark: {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                            {p.liqPrice != null && Number.isFinite(p.liqPrice) && <span className="text-muted-foreground">Liq: {p.liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                            {p.margin != null && Number.isFinite(p.margin) && <span className="text-muted-foreground">Margin: {p.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</span>}
                             <span className={p.unrealizedPnl >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
                               PNL: {p.unrealizedPnl >= 0 ? "+" : ""}{p.unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+                              {p.pnlPct != null && Number.isFinite(p.pnlPct) && (
+                                <span className="ml-1">({p.pnlPct >= 0 ? "+" : ""}{p.pnlPct.toFixed(2)}%)</span>
+                              )}
                             </span>
                             {instIdNorm && (
                               <Button
@@ -1158,9 +1166,102 @@ export default function TradingBotPanel() {
                           {positionsData.totalUnrealizedPnl >= 0 ? "+" : ""}{positionsData.totalUnrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                         </span>
                       </p>
-                      <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 text-xs" onClick={fetchPositions} disabled={positionsLoading}>
-                        {positionsLoading ? "Refreshing…" : "Refresh PNL"}
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={fetchPositions} disabled={positionsLoading}>
+                          {positionsLoading ? "Refreshing…" : "Refresh PNL"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
+                          onClick={() => {
+                            const date = new Date().toISOString().slice(0, 10);
+                            const lines = [
+                              "— NovaStaris AI —",
+                              "PNL Report",
+                              `Date: ${new Date().toLocaleString()}`,
+                              "",
+                              ...positionsData.positions.map((p) => {
+                                const pct = p.pnlPct != null ? ` (${p.pnlPct >= 0 ? "+" : ""}${p.pnlPct.toFixed(2)}%)` : "";
+                                return `${p.instId} ${p.posSide.toUpperCase()} | Entry: ${p.entryPrice.toFixed(2)} | Mark: ${(p.markPrice ?? 0).toFixed(2)} | PNL: ${p.unrealizedPnl >= 0 ? "+" : ""}${p.unrealizedPnl.toFixed(2)} USDT${pct}`;
+                              }),
+                              "",
+                              `Total unrealized: ${positionsData.totalUnrealizedPnl >= 0 ? "+" : ""}${positionsData.totalUnrealizedPnl.toFixed(2)} USDT`,
+                              "",
+                              "Your Advanced AI Lightning Sniper and Trading Intelligence",
+                              "novastaris.ai",
+                            ];
+                            const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `NovaStaris_PNL_Report_${date}.txt`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                        >
+                          Download PNL
+                        </Button>
+                        <span className="text-xs text-muted-foreground">Share:</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            const sign = (n: number) => (n >= 0 ? "+" : "");
+                            const summary = [
+                              "NovaStaris AI — PNL summary",
+                              "Total unrealized: " + sign(positionsData.totalUnrealizedPnl) + positionsData.totalUnrealizedPnl.toFixed(2) + " USDT",
+                              ...positionsData.positions.map((p) => p.instId + " " + p.posSide + ": " + sign(p.unrealizedPnl) + p.unrealizedPnl.toFixed(2) + " USDT"),
+                              "novastaris.ai",
+                            ].join("\n");
+                            const u = encodeURIComponent(summary);
+                            window.open("https://t.me/share/url?url=" + encodeURIComponent("https://novastaris.ai") + "&text=" + u, "_blank", "noopener,noreferrer");
+                          }}
+                        >
+                          Telegram
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            const sign = (n: number) => (n >= 0 ? "+" : "");
+                            const summary = [
+                              "NovaStaris AI — PNL summary",
+                              "Total unrealized: " + sign(positionsData.totalUnrealizedPnl) + positionsData.totalUnrealizedPnl.toFixed(2) + " USDT",
+                              ...positionsData.positions.map((p) => p.instId + " " + p.posSide + ": " + sign(p.unrealizedPnl) + p.unrealizedPnl.toFixed(2) + " USDT"),
+                              "https://novastaris.ai",
+                            ].join("\n");
+                            window.open("https://wa.me/?text=" + encodeURIComponent(summary), "_blank", "noopener,noreferrer");
+                          }}
+                        >
+                          WhatsApp
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            const sign = (n: number) => (n >= 0 ? "+" : "");
+                            const lines = [
+                              "— NovaStaris AI — PNL Report",
+                              "Total: " + sign(positionsData.totalUnrealizedPnl) + positionsData.totalUnrealizedPnl.toFixed(2) + " USDT",
+                              ...positionsData.positions.map((p) => p.instId + " " + p.posSide + ": " + sign(p.unrealizedPnl) + p.unrealizedPnl.toFixed(2) + " USDT"),
+                              "novastaris.ai",
+                            ];
+                            void navigator.clipboard.writeText(lines.join("\n"));
+                            setSuccess("Copied to clipboard. Paste in Instagram or anywhere.");
+                            setTimeout(clearFeedback, 3000);
+                          }}
+                        >
+                          Copy (Instagram)
+                        </Button>
+                      </div>
                     </div>
                   ) : positionsData && positionsData.positions.length === 0 ? (
                     <p className="text-muted-foreground text-xs">No open positions on exchange.</p>

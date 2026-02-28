@@ -2122,187 +2122,22 @@ export default function Dashboard() {
               <CoachCallsPanel isOwner={isOwner} isVip={isVip} />
             ) : activeTab === "wallets" ? (
               <div className="px-6 pt-2 space-y-6">
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Wallet Tracker:</span>
-                  <button
-                    type="button"
-                    onClick={() => setWalletTrackerView("meme")}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      walletTrackerView === "meme"
-                        ? "bg-cyan-500 text-white dark:bg-cyan-600"
-                        : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
-                    }`}
-                  >
-                    Meme Coins Traders
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setWalletTrackerView("leverage")}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      walletTrackerView === "leverage"
-                        ? "bg-amber-500 text-white dark:bg-amber-600"
-                        : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
-                    }`}
-                  >
-                    Top Leverage Traders
-                  </button>
-                  <span className="text-xs text-muted-foreground ml-1">
-                    {walletTrackerView === "meme" && "When 3+ tracked wallets buy same token → alert. First-buy alerts (owner)."}
-                    {walletTrackerView === "leverage" && "Hyperliquid long/short positions. Add your own or view admin list (owner)."}
-                  </span>
-                </div>
-                {walletTrackerView === "leverage" ? (
-                  <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Open long/short positions from Top Leverage Traders (ApexLiquid) on Hyperliquid. Copy them via{" "}
-                      <a href="https://apexliquid.bot/trade/topTraders" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">ApexLiquid</a> or{" "}
-                      <a href="https://app.hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">Hyperliquid</a>.
-                    </p>
-                    <Button variant="outline" size="sm" onClick={fetchTopTraders} disabled={topTradersLoading}>
-                      {topTradersLoading ? "Loading…" : "Refresh"}
-                    </Button>
-                    {topTradersError && <p className="text-sm text-rose-600 dark:text-rose-400">{topTradersError}</p>}
-                    {isOwner && (
-                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
-                        <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Recent activity (in-app alerts)</h4>
-                        <p className="text-xs text-muted-foreground mb-2">When tracked traders change positions (open/add/reduce/close), alerts appear here and can be sent via Telegram if enabled.</p>
-                        {leverageAlertsLoading ? (
-                          <p className="text-xs text-muted-foreground">Loading…</p>
-                        ) : leverageAlerts.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">No recent activity.</p>
-                        ) : (
-                          <ul className="space-y-1.5 max-h-40 overflow-y-auto">
-                            {leverageAlerts.map((a) => {
-                              const at = new Date(a.createdAt).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" });
-                              const label = a.nickname ?? `${a.walletAddress.slice(0, 6)}…${a.walletAddress.slice(-4)}`;
-                              const apexUrl = `https://apexliquid.bot/trade/detail?address=${encodeURIComponent(a.walletAddress)}`;
-                              return (
-                                <li key={a.id} className="text-xs flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
-                                  <span className="text-muted-foreground shrink-0">{at}</span>
-                                  <a href={apexUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono">{label}</a>
-                                  <span className="text-zinc-600 dark:text-zinc-400">{a.positionsSummary}</span>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                    </div>
-                    )}
-                    {historyAddress && (
-                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                            Trade history: {historyNickname ?? `${historyAddress.slice(0, 6)}…${historyAddress.slice(-4)}`}
-                          </h4>
-                          <Button variant="ghost" size="sm" onClick={() => { setHistoryAddress(null); setHistoryNickname(null); setHistoryFills([]); }}>Close</Button>
-                        </div>
-                        {historyLoading ? (
-                          <p className="text-xs text-muted-foreground">Loading fills…</p>
-                        ) : historyFills.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">No fills in the last 7 days.</p>
-                        ) : (
-                          <div className="overflow-x-auto max-h-60 overflow-y-auto">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="text-xs">Time</TableHead>
-                                  <TableHead className="text-xs">Asset</TableHead>
-                                  <TableHead className="text-xs">Direction</TableHead>
-                                  <TableHead className="text-right text-xs">Size</TableHead>
-                                  <TableHead className="text-right text-xs">Price</TableHead>
-                                  <TableHead className="text-right text-xs">Closed PnL</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {historyFills.map((f, i) => (
-                                  <TableRow key={`${f.time}-${i}`}>
-                                    <TableCell className="text-xs text-muted-foreground">
-                                      {new Date(f.time).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })}
-                                    </TableCell>
-                                    <TableCell className="text-xs font-mono">{f.coin}</TableCell>
-                                    <TableCell className="text-xs">{f.dir}</TableCell>
-                                    <TableCell className="text-right font-mono text-xs">{f.sz}</TableCell>
-                                    <TableCell className="text-right font-mono text-xs">${Number(f.px).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className={`text-right font-mono text-xs ${f.closedPnl != null && Number(f.closedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                                      {f.closedPnl != null ? `$${Number(f.closedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Trader</TableHead>
-                            <TableHead>Account</TableHead>
-                            <TableHead title="Last fill (open/add/reduce/close) in last 7 days">Last activity</TableHead>
-                            <TableHead>Symbol</TableHead>
-                            <TableHead>Side</TableHead>
-                            <TableHead className="text-right">Size</TableHead>
-                            <TableHead className="text-right">Entry</TableHead>
-                            <TableHead className="text-right">Margin</TableHead>
-                            <TableHead className="text-right">Notional</TableHead>
-                            <TableHead className="text-right">Leverage</TableHead>
-                            <TableHead className="text-right">Unrealized PnL</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {topTradersData.flatMap((t) => {
-                            const displayName = t.nickname ?? t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`;
-                            const lastTradeStr = t.lastTradeTimeMs
-                              ? new Date(t.lastTradeTimeMs).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })
-                              : "—";
-                            const traderCell = (
-                              <span className="inline-flex items-center gap-1.5 flex-wrap">
-                                {t.apexLiquidUrl ? (
-                                  <a href={t.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono text-xs">{displayName}</a>
-                                ) : (
-                                  <span className="font-mono text-xs">{displayName}</span>
-                                )}
-                                <button type="button" onClick={() => openTraderHistory(t.address, t.nickname ?? null)} className="text-xs text-muted-foreground hover:text-cyan-600 dark:hover:text-cyan-400 underline">History</button>
-                              </span>
-                            );
-                            return t.positions.length === 0
-                              ? [<TableRow key={t.address}><TableCell className="font-mono text-xs">{traderCell}</TableCell><TableCell className="font-mono text-xs">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-xs text-muted-foreground" title="Last fill in last 7d">{lastTradeStr}</TableCell><TableCell colSpan={8} className="text-muted-foreground">No open positions</TableCell></TableRow>]
-                              : t.positions.map((pos, i) => (
-                                  <TableRow key={`${t.address}-${pos.coin}-${i}`}>
-                                    {i === 0 ? (
-                                      <>
-                                        <TableCell className="text-xs align-top" rowSpan={t.positions.length}>{traderCell}</TableCell>
-                                        <TableCell className="font-mono text-xs align-top" rowSpan={t.positions.length}>{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
-                                        <TableCell className="text-xs text-muted-foreground align-top" rowSpan={t.positions.length} title="Last fill (open/add/reduce/close) in last 7d">{lastTradeStr}</TableCell>
-                                      </>
-                                    ) : null}
-                                    <TableCell>{pos.coin}</TableCell>
-                                    <TableCell>
-                                      <Badge variant={pos.side === "long" ? "default" : "secondary"} className={pos.side === "long" ? "bg-emerald-600" : "bg-rose-600"}>
-                                        {pos.side === "long" ? "Long" : "Short"}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono">{pos.szi}</TableCell>
-                                    <TableCell className="text-right font-mono">${Number(pos.entryPx).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="text-right font-mono">{pos.marginUsed != null && pos.marginUsed !== "" ? `$${Number(pos.marginUsed).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
-                                    <TableCell className="text-right font-mono">${Number(pos.positionValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                                    <TableCell className="text-right font-mono">{pos.leverage != null ? `${pos.leverage}x` : "—"}</TableCell>
-                                    <TableCell className={`text-right font-mono ${Number(pos.unrealizedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                                      ${Number(pos.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                    </TableCell>
-                                  </TableRow>
-                                ));
-                          })}
-                          {topTradersData.length === 0 && !topTradersLoading && !topTradersError && (
-                            <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
+                <Tabs value={walletTrackerView} onValueChange={(v) => setWalletTrackerView(v as WalletTrackerView)} className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg">
+                      <TabsTrigger value="meme" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
+                        Meme Coins Traders
+                      </TabsTrigger>
+                      <TabsTrigger value="leverage" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
+                        Top Leverage Traders
+                      </TabsTrigger>
+                    </TabsList>
+                    <span className="text-xs text-muted-foreground">
+                      {walletTrackerView === "meme" && "When 3+ tracked wallets buy same token → alert. First-buy alerts (owner)."}
+                      {walletTrackerView === "leverage" && "Hyperliquid long/short positions. Add your own or view admin list (owner)."}
+                    </span>
                   </div>
-                ) : (
+                  <TabsContent value="meme" className="mt-0 space-y-4">
                 <>
                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                   <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">Your meme coin wallets (max 5)</h3>
@@ -2500,7 +2335,160 @@ export default function Dashboard() {
                 </div>
                 )}
                 </>
-                )}
+                  </TabsContent>
+                  <TabsContent value="leverage" className="mt-0 space-y-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Open long/short positions from Top Leverage Traders (ApexLiquid) on Hyperliquid. Copy them via{" "}
+                      <a href="https://apexliquid.bot/trade/topTraders" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">ApexLiquid</a> or{" "}
+                      <a href="https://app.hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">Hyperliquid</a>.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={fetchTopTraders} disabled={topTradersLoading}>
+                      {topTradersLoading ? "Loading…" : "Refresh"}
+                    </Button>
+                    {topTradersError && <p className="text-sm text-rose-600 dark:text-rose-400">{topTradersError}</p>}
+                    {isOwner && (
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                        <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Recent activity (in-app alerts)</h4>
+                        <p className="text-xs text-muted-foreground mb-2">When tracked traders change positions (open/add/reduce/close), alerts appear here and can be sent via Telegram if enabled.</p>
+                        {leverageAlertsLoading ? (
+                          <p className="text-xs text-muted-foreground">Loading…</p>
+                        ) : leverageAlerts.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No recent activity.</p>
+                        ) : (
+                          <ul className="space-y-1.5 max-h-40 overflow-y-auto">
+                            {leverageAlerts.map((a) => {
+                              const at = new Date(a.createdAt).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" });
+                              const label = a.nickname ?? `${a.walletAddress.slice(0, 6)}…${a.walletAddress.slice(-4)}`;
+                              const apexUrl = `https://apexliquid.bot/trade/detail?address=${encodeURIComponent(a.walletAddress)}`;
+                              return (
+                                <li key={a.id} className="text-xs flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
+                                  <span className="text-muted-foreground shrink-0">{at}</span>
+                                  <a href={apexUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono">{label}</a>
+                                  <span className="text-zinc-600 dark:text-zinc-400">{a.positionsSummary}</span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                    </div>
+                    )}
+                    {historyAddress && (
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                            Trade history: {historyNickname ?? `${historyAddress.slice(0, 6)}…${historyAddress.slice(-4)}`}
+                          </h4>
+                          <Button variant="ghost" size="sm" onClick={() => { setHistoryAddress(null); setHistoryNickname(null); setHistoryFills([]); }}>Close</Button>
+                        </div>
+                        {historyLoading ? (
+                          <p className="text-xs text-muted-foreground">Loading fills…</p>
+                        ) : historyFills.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No fills in the last 7 days.</p>
+                        ) : (
+                          <div className="overflow-x-auto max-h-60 overflow-y-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-xs">Time</TableHead>
+                                  <TableHead className="text-xs">Asset</TableHead>
+                                  <TableHead className="text-xs">Direction</TableHead>
+                                  <TableHead className="text-right text-xs">Size</TableHead>
+                                  <TableHead className="text-right text-xs">Price</TableHead>
+                                  <TableHead className="text-right text-xs">Closed PnL</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {historyFills.map((f, i) => (
+                                  <TableRow key={`${f.time}-${i}`}>
+                                    <TableCell className="text-xs text-muted-foreground">
+                                      {new Date(f.time).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })}
+                                    </TableCell>
+                                    <TableCell className="text-xs font-mono">{f.coin}</TableCell>
+                                    <TableCell className="text-xs">{f.dir}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs">{f.sz}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs">${Number(f.px).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className={`text-right font-mono text-xs ${f.closedPnl != null && Number(f.closedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                      {f.closedPnl != null ? `$${Number(f.closedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Trader</TableHead>
+                            <TableHead>Account</TableHead>
+                            <TableHead title="Last fill (open/add/reduce/close) in last 7 days">Last activity</TableHead>
+                            <TableHead>Symbol</TableHead>
+                            <TableHead>Side</TableHead>
+                            <TableHead className="text-right">Size</TableHead>
+                            <TableHead className="text-right">Entry</TableHead>
+                            <TableHead className="text-right">Margin</TableHead>
+                            <TableHead className="text-right">Notional</TableHead>
+                            <TableHead className="text-right">Leverage</TableHead>
+                            <TableHead className="text-right">Unrealized PnL</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {topTradersData.flatMap((t) => {
+                            const displayName = t.nickname ?? t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`;
+                            const lastTradeStr = t.lastTradeTimeMs
+                              ? new Date(t.lastTradeTimeMs).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })
+                              : "—";
+                            const traderCell = (
+                              <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                {t.apexLiquidUrl ? (
+                                  <a href={t.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono text-xs">{displayName}</a>
+                                ) : (
+                                  <span className="font-mono text-xs">{displayName}</span>
+                                )}
+                                <button type="button" onClick={() => openTraderHistory(t.address, t.nickname ?? null)} className="text-xs text-muted-foreground hover:text-cyan-600 dark:hover:text-cyan-400 underline">History</button>
+                              </span>
+                            );
+                            return t.positions.length === 0
+                              ? [<TableRow key={t.address}><TableCell className="font-mono text-xs">{traderCell}</TableCell><TableCell className="font-mono text-xs">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-xs text-muted-foreground" title="Last fill in last 7d">{lastTradeStr}</TableCell><TableCell colSpan={8} className="text-muted-foreground">No open positions</TableCell></TableRow>]
+                              : t.positions.map((pos, i) => (
+                                  <TableRow key={`${t.address}-${pos.coin}-${i}`}>
+                                    {i === 0 ? (
+                                      <>
+                                        <TableCell className="text-xs align-top" rowSpan={t.positions.length}>{traderCell}</TableCell>
+                                        <TableCell className="font-mono text-xs align-top" rowSpan={t.positions.length}>{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground align-top" rowSpan={t.positions.length} title="Last fill (open/add/reduce/close) in last 7d">{lastTradeStr}</TableCell>
+                                      </>
+                                    ) : null}
+                                    <TableCell>{pos.coin}</TableCell>
+                                    <TableCell>
+                                      <Badge variant={pos.side === "long" ? "default" : "secondary"} className={pos.side === "long" ? "bg-emerald-600" : "bg-rose-600"}>
+                                        {pos.side === "long" ? "Long" : "Short"}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono">{pos.szi}</TableCell>
+                                    <TableCell className="text-right font-mono">${Number(pos.entryPx).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right font-mono">{pos.marginUsed != null && pos.marginUsed !== "" ? `$${Number(pos.marginUsed).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
+                                    <TableCell className="text-right font-mono">${Number(pos.positionValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                    <TableCell className="text-right font-mono">{pos.leverage != null ? `${pos.leverage}x` : "—"}</TableCell>
+                                    <TableCell className={`text-right font-mono ${Number(pos.unrealizedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                      ${Number(pos.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </TableCell>
+                                  </TableRow>
+                                ));
+                          })}
+                          {topTradersData.length === 0 && !topTradersLoading && !topTradersError && (
+                            <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             ) : activeTab === "watchlist" ? (
               watchlist.length === 0 ? (

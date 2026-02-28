@@ -127,10 +127,19 @@ function getPosSize(h: Record<string, unknown>): string {
   return v != null ? String(v) : "0";
 }
 
-/** Position row: posSide is long/short for display; rawPositionSide is what Blofin returned (e.g. "net") for close-position API. */
-export type PositionRow = { instId: string; posSide: string; pos: string; avgPx: string; rawPositionSide?: string };
+/** Position row: posSide is long/short for display; rawPositionSide is what Blofin returned (e.g. "net") for close-position API. Optional liqPx/margin when API provides them. */
+export type PositionRow = {
+  instId: string;
+  posSide: string;
+  pos: string;
+  avgPx: string;
+  rawPositionSide?: string;
+  liqPx?: string | null;
+  margin?: string | null;
+  imr?: string | null;
+};
 
-/** Extract positions array from Blofin API response (various shapes). Blofin: data[] with positions, averagePrice, positionSide (net). */
+/** Extract positions array from Blofin API response (various shapes). Blofin: data[] with positions, averagePrice, positionSide (net). Picks liqPx, margin, imr when present. */
 function extractPositionsList(data: unknown): PositionRow[] {
   if (!data || typeof data !== "object") return [];
   const raw = data as Record<string, unknown>;
@@ -151,7 +160,19 @@ function extractPositionsList(data: unknown): PositionRow[] {
         ? (parseFloat(posStr) >= 0 ? "long" : "short")
         : String(obj.posSide ?? obj.pos_side ?? obj.side ?? "long");
     const avgPx = String(obj.averagePrice ?? obj.avgPx ?? obj.avg_px ?? obj.avgPrice ?? obj.entryPrice ?? "0");
-    result.push({ instId, posSide, pos: posStr, avgPx, rawPositionSide });
+    const liqPx = obj.liqPx ?? obj.liquidationPrice ?? obj.liq_price ?? null;
+    const margin = obj.margin ?? obj.marginBalance ?? obj.margin_balance ?? null;
+    const imr = obj.imr ?? obj.initialMargin ?? obj.initial_margin ?? null;
+    result.push({
+      instId,
+      posSide,
+      pos: posStr,
+      avgPx,
+      rawPositionSide,
+      liqPx: liqPx != null ? String(liqPx) : undefined,
+      margin: margin != null ? String(margin) : imr != null ? String(imr) : undefined,
+      imr: imr != null ? String(imr) : undefined,
+    });
   }
   return result;
 }
