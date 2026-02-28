@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, isOwnerSession } from "@/lib/auth";
-import { leverageDb } from "@/lib/leverage-db";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-/** Owner: all recent alerts. User: only their own (userId) alerts. */
+/** GET: recent first-buy alerts for current user's meme coin wallets (in-app). */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
     }
-    const isOwner = isOwnerSession(session);
-    const alerts = await leverageDb.leverageAlert.findMany({
-      where: isOwner ? undefined : { userId: session.user.id },
+    const alerts = await prisma.userMemeCoinAlert.findMany({
+      where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
@@ -24,8 +23,8 @@ export async function GET() {
       alerts: alerts.map((a) => ({
         id: a.id,
         walletAddress: a.walletAddress,
-        nickname: a.nickname,
-        positionsSummary: a.positionsSummary,
+        contractAddress: a.contractAddress,
+        symbol: a.symbol,
         createdAt: a.createdAt.toISOString(),
       })),
     });

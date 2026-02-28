@@ -41,13 +41,15 @@ export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   const isCron = !!cronSecret && auth === `Bearer ${cronSecret}`;
+  let userId: string | undefined;
   if (!isCron) {
     const session = await getServerSession(authOptions);
     if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: "Owner or cron only." }, { status: 403 });
     }
+    userId = session?.user?.id;
   }
-  const result = await runWithPreCheck();
+  const result = await runWithPreCheck(userId);
   return NextResponse.json({
     success: result.ok,
     message: result.message,
@@ -57,10 +59,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!isOwnerSession(session)) {
-    return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
   }
-  const result = await runWithPreCheck();
+  if (!isOwnerSession(session)) {
+    return NextResponse.json({ success: false, error: "Trading Bot run requires VIP + on demand access." }, { status: 403 });
+  }
+  const result = await runWithPreCheck(session.user.id);
   return NextResponse.json({
     success: result.ok,
     message: result.message,

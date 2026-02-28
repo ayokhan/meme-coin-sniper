@@ -76,6 +76,23 @@ model User {
   userTelegram  UserTelegram?
   aiAnalysisFeedbacks AiAnalysisFeedback[]
   passwordResets PasswordResetToken[]
+  userLeverageWallets  UserLeverageWallet[]
+  userMemeCoinWallets  UserMemeCoinWallet[]
+  userBlofinConfig     UserBlofinConfig?
+}
+
+// Per-user Blofin API keys (encrypted at rest). When set, trading bot uses these for that user.
+model UserBlofinConfig {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  encryptedApiKey      String   // AES-256-GCM encrypted
+  encryptedSecretKey   String
+  encryptedPassphrase  String
+  demoMode             Boolean  @default(true)
+  brokerId             String?
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
 }
 
 model PasswordResetToken {
@@ -164,6 +181,45 @@ model LeverageWallet {
   @@index([active])
 }
 
+// Per-user leverage wallets (no limit). In-app alerts only.
+model UserLeverageWallet {
+  id           String   @id @default(cuid())
+  userId       String
+  address      String   // 0x... EVM (Hyperliquid)
+  nickname     String?
+  alertEnabled Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, address])
+  @@index([userId])
+}
+
+// Per-user meme coin wallets (max 5). In-app first-buy alerts only.
+model UserMemeCoinWallet {
+  id        String   @id @default(cuid())
+  userId    String
+  address   String   // Solana or BSC wallet
+  label     String?
+  chain     String   @default("solana")  // "solana" | "bsc"
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, address])
+  @@index([userId])
+}
+
+// In-app first-buy alerts for user's meme coin wallets (one per user+wallet+token)
+model UserMemeCoinAlert {
+  id              String   @id @default(cuid())
+  userId          String
+  walletAddress   String
+  contractAddress String
+  symbol          String?
+  createdAt       DateTime @default(now())
+  @@unique([userId, walletAddress, contractAddress])
+  @@index([userId])
+  @@index([createdAt])
+}
+
 // Last known positions snapshot per leverage wallet (for new-trade alert diff)
 model LeverageWalletSnapshot {
   id           String   @id @default(cuid())
@@ -173,14 +229,16 @@ model LeverageWalletSnapshot {
   @@index([walletAddress])
 }
 
-// In-app recent leverage alerts (when position changes; keep last N)
+// In-app recent leverage alerts (when position changes; keep last N). userId set for user-owned wallets.
 model LeverageAlert {
   id              String   @id @default(cuid())
+  userId          String?  // when set, alert is for this user's wallet
   walletAddress   String
   nickname        String?
   positionsSummary String  // e.g. "SOL long $180 | ETH short $3200"
   createdAt       DateTime @default(now())
   @@index([createdAt])
+  @@index([userId])
 }
 
 // Owner-only: first time a tracked wallet buys a token (one alert per wallet+token ever)

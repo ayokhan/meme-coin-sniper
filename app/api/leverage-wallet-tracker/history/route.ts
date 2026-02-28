@@ -6,17 +6,25 @@ import { getUserFills } from "@/lib/api-clients/hyperliquid";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-/** Owner only. Returns recent fills (last 7 days) for a given wallet. */
+/** Returns recent fills (last 7 days). Owner: any address. User: only addresses in their UserLeverageWallet list. */
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!isOwnerSession(session)) {
-      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
     }
     const { searchParams } = new URL(request.url);
-    const address = searchParams.get("address")?.trim();
+    const address = searchParams.get("address")?.trim()?.toLowerCase();
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return NextResponse.json({ success: false, error: "Valid address required" }, { status: 400 });
+    }
+    if (!isOwnerSession(session)) {
+      const allowed = await prisma.userLeverageWallet.findUnique({
+        where: { userId_address: { userId: session.user.id, address } },
+      });
+      if (!allowed) {
+        return NextResponse.json({ success: false, error: "You can only view history for wallets you added." }, { status: 403 });
+      }
     }
     const fills = await getUserFills(address);
     return NextResponse.json({

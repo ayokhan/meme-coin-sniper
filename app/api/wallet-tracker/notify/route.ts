@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getWalletAlerts, getFirstBuyAlerts, MIN_VIRAL_SCORE_FOR_TELEGRAM } from '@/lib/get-wallet-alerts';
+import { getWalletAlerts, getFirstBuyAlerts, processUserMemeCoinFirstBuys, MIN_VIRAL_SCORE_FOR_TELEGRAM } from '@/lib/get-wallet-alerts';
 import { getAlertRules } from '@/lib/wallet-tracker-config';
 import { sendWalletAlerts, sendFirstBuyAlerts } from '@/lib/telegram';
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
@@ -82,6 +82,7 @@ export async function GET(request: Request) {
       success: true,
       sent,
       firstBuySent,
+      userMemeCoinFirstBuyCreated: userFirstBuyCreated,
     });
   } catch (e: any) {
     return NextResponse.json(

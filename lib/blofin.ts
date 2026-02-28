@@ -34,7 +34,7 @@ export type BlofinConfig = {
   brokerId?: string;
 };
 
-function getConfig(): BlofinConfig | null {
+export function getConfig(): BlofinConfig | null {
   const apiKey = process.env.BLOFIN_API_KEY;
   const secretKey = process.env.BLOFIN_SECRET_KEY;
   const passphrase = process.env.BLOFIN_PASSPHRASE;
@@ -44,14 +44,15 @@ function getConfig(): BlofinConfig | null {
   return { apiKey, secretKey, passphrase, demo, brokerId };
 }
 
-/** Signed request to Blofin private API. demoOverride: when set, use this for base URL (so bot demo/live matches). */
+/** Signed request to Blofin private API. demoOverride: when set, use this for base URL. configOverride: use this instead of env. */
 async function privateRequest<T>(
   method: "GET" | "POST",
   path: string,
   body?: Record<string, unknown>,
-  demoOverride?: boolean
+  demoOverride?: boolean,
+  configOverride?: BlofinConfig | null
 ): Promise<{ code: string; msg: string; data?: T }> {
-  const config = getConfig();
+  const config = configOverride ?? getConfig();
   if (!config) throw new Error("Blofin API keys not configured");
   const useDemo = demoOverride !== undefined ? demoOverride : config.demo;
   const base = getBaseUrl(useDemo);
@@ -77,9 +78,9 @@ async function privateRequest<T>(
   return { code: json.code ?? String(res.status), msg: json.msg ?? "", data: json.data };
 }
 
-/** Public request (no auth). demoOverride: use bot's mode when provided. */
-async function publicRequest<T>(path: string, demoOverride?: boolean): Promise<{ code: string; msg: string; data?: T }> {
-  const config = getConfig();
+/** Public request (no auth). demoOverride: use bot's mode when provided. configOverride: use this instead of env. */
+async function publicRequest<T>(path: string, demoOverride?: boolean, configOverride?: BlofinConfig | null): Promise<{ code: string; msg: string; data?: T }> {
+  const config = configOverride ?? getConfig();
   const demo = demoOverride !== undefined ? demoOverride : config?.demo ?? false;
   const base = config ? getBaseUrl(demo) : getBaseUrl(demo);
   const url = base + (path.startsWith("/") ? path : `/${path}`);
@@ -101,10 +102,10 @@ export function toBlofinBar(timeframe: string): string {
 /** Candlestick: [ts, open, high, low, close, vol, volCurrency, volCurrencyQuote, confirm] */
 export type Candle = [string, string, string, string, string, string, string, string, string];
 
-/** GET /api/v1/market/candles. demoOverride: use bot mode when provided. */
-export async function getCandles(instId: string, bar: string, limit = 100, demoOverride?: boolean): Promise<Candle[]> {
+/** GET /api/v1/market/candles. demoOverride: use bot mode when provided. options.config: per-user config. */
+export async function getCandles(instId: string, bar: string, limit = 100, demoOverride?: boolean, options?: { config?: BlofinConfig | null }): Promise<Candle[]> {
   const path = `/api/v1/market/candles?instId=${encodeURIComponent(instId)}&bar=${encodeURIComponent(bar)}&limit=${limit}`;
-  const out = await publicRequest<Candle[]>(path, demoOverride);
+  const out = await publicRequest<Candle[]>(path, demoOverride, options?.config);
   if (out.code !== "0" || !out.data) return [];
   return out.data;
 }
@@ -170,7 +171,7 @@ export async function getPositions(instId?: string, options?: { demo?: boolean }
   if (filtered.length > 0) return filtered;
   // Try with instId in query in case response differs when filtering
   const pathFiltered = `/api/v1/account/positions?instId=${encodeURIComponent(instId)}`;
-  const out2 = await privateRequest<unknown>("GET", pathFiltered, undefined, options?.demo);
+  const out2 = await privateRequest<unknown>("GET", pathFiltered, undefined, options?.demo, options?.config);
   if (out2.code === "0" && out2.data != null) {
     const byInst = extractPositionsList(out2.data);
     if (byInst.length > 0) return byInst;
@@ -178,11 +179,12 @@ export async function getPositions(instId?: string, options?: { demo?: boolean }
   return [];
 }
 
-/** GET /api/v1/market/tickers - last price. demoOverride: use bot mode when provided. */
-export async function getTicker(instId: string, demoOverride?: boolean): Promise<{ last: string } | null> {
+/** GET /api/v1/market/tickers - last price. demoOverride: use bot mode. options.config: per-user config. */
+export async function getTicker(instId: string, demoOverride?: boolean, options?: { config?: BlofinConfig | null }): Promise<{ last: string } | null> {
   const out = await publicRequest<{ last: string }[]>(
     `/api/v1/market/tickers?instId=${encodeURIComponent(instId)}`,
-    demoOverride
+    demoOverride,
+    options?.config
   );
   if (out.code !== "0" || !out.data?.length) return null;
   return Array.isArray(out.data) ? out.data[0] : null;
@@ -208,13 +210,13 @@ export async function closePositionViaApi(
   instId: string,
   marginMode: "isolated" | "cross",
   positionSide: "long" | "short" | "net",
-  options?: { demo?: boolean }
+  options?: { demo?: boolean; config?: BlofinConfig | null }
 ): Promise<{ ok: boolean; error?: string }> {
-  const config = getConfig();
+  const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Blofin API keys not configured" };
   const body: Record<string, unknown> = { instId, marginMode, positionSide };
   if (config.brokerId) body.brokerId = config.brokerId;
-  const out = await privateRequest<{ instId?: string; positionSide?: string }>("POST", "/api/v1/trade/close-position", body, options?.demo);
+  const out = await privateRequest<{ instId?: string; positionSide?: string }>("POST", "/api/v1/trade/close-position", body, options?.demo, options?.config);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true };
 }
@@ -234,16 +236,16 @@ export async function cancelOrder(
   return { ok: true };
 }
 
-/** Place limit order. size in contracts; price as string. options.demo: use bot mode. */
+/** Place limit order. options.config: per-user config. */
 export async function placeLimitOrder(
   instId: string,
   side: "buy" | "sell",
   size: string,
   price: string,
   marginMode: "isolated" | "cross" = "cross",
-  options?: { demo?: boolean }
+  options?: { demo?: boolean; config?: BlofinConfig | null }
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
-  const config = getConfig();
+  const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Blofin API keys not configured" };
   const body: Record<string, unknown> = {
     instId,
@@ -255,22 +257,23 @@ export async function placeLimitOrder(
     price: String(price),
   };
   if (config.brokerId) body.brokerId = config.brokerId;
-  const out = await privateRequest<{ orderId?: string }[] | { orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo);
+  const out = await privateRequest<{ orderId?: string }[] | { orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo, options?.config);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   const data = out.data;
   const orderId = Array.isArray(data) ? data[0]?.orderId : (data as { orderId?: string } | undefined)?.orderId;
   return { ok: true, orderId };
 }
 
-/** Place market order. size in contracts (e.g. 0.1 for BTC-USDT). reduceOnly: set true when closing. options.demo: use bot mode. */
+/** Place market order. options.config: per-user config. */
 export async function placeMarketOrder(
   instId: string,
   side: "buy" | "sell",
   size: string,
   marginMode: "isolated" | "cross" = "cross",
-  options?: { demo?: boolean; reduceOnly?: boolean }
+  options?: { demo?: boolean; reduceOnly?: boolean; config?: BlofinConfig | null }
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
-  const config = getConfig();
+  const config = options?.config ?? getConfig();
+  if (!config) return { ok: false, error: "Blofin API keys not configured" };
   const body: Record<string, unknown> = {
     instId,
     marginMode,
@@ -279,17 +282,16 @@ export async function placeMarketOrder(
     orderType: "market",
     size,
   };
-  if (config?.brokerId) body.brokerId = config.brokerId;
+  if (config.brokerId) body.brokerId = config.brokerId;
   if (options?.reduceOnly) body.reduceOnly = true;
-  const out = await privateRequest<{ orderId?: string }[] | { orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo);
+  const out = await privateRequest<{ orderId?: string }[] | { orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo, options?.config);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   const data = out.data;
   const orderId = Array.isArray(data) ? data[0]?.orderId : (data as { orderId?: string } | undefined)?.orderId;
   return { ok: true, orderId };
 }
 
-/** Place TP/SL order for an existing position. Trigger prices from entry ± tpPct/slPct. options.demo: use bot mode.
- * Blofin: POST /api/v1/trade/order-tpsl requires positionSide, tpOrderPrice/slOrderPrice (-1 = market). */
+/** Place TP/SL order. options.config: per-user config. */
 export async function placeTPSLOrder(
   instId: string,
   side: "buy" | "sell",
@@ -298,9 +300,9 @@ export async function placeTPSLOrder(
   entryPrice: number,
   tpPct: number,
   slPct: number,
-  options?: { demo?: boolean }
+  options?: { demo?: boolean; config?: BlofinConfig | null }
 ): Promise<{ ok: boolean; error?: string }> {
-  const config = getConfig();
+  const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Blofin API keys not configured" };
   const isLong = side === "buy";
   const tpPrice = isLong
@@ -323,7 +325,7 @@ export async function placeTPSLOrder(
   };
   if (config.brokerId) body.brokerId = config.brokerId;
   const path = "/api/v1/trade/order-tpsl";
-  const out = await privateRequest<{ tpslId?: string }>("POST", path, body, options?.demo);
+  const out = await privateRequest<{ tpslId?: string }>("POST", path, body, options?.demo, options?.config);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true };
 }
@@ -334,11 +336,12 @@ function roundPrice(p: number): number {
   return Math.round(p * Math.pow(10, scale)) / Math.pow(10, scale);
 }
 
-/** Get instrument info. options.demo: use bot mode. */
-export async function getInstrument(instId: string, options?: { demo?: boolean }): Promise<{ minSize: string; contractValue: string; settleCurrency: string } | null> {
+/** Get instrument info. options.config: per-user config. */
+export async function getInstrument(instId: string, options?: { demo?: boolean; config?: BlofinConfig | null }): Promise<{ minSize: string; contractValue: string; settleCurrency: string } | null> {
   const out = await publicRequest<{ instId: string; minSize: string; contractValue: string; settleCurrency: string }[]>(
     `/api/v1/market/instruments?instId=${encodeURIComponent(instId)}`,
-    options?.demo
+    options?.demo,
+    options?.config
   );
   if (out.code !== "0" || !out.data?.length) return null;
   const d = out.data[0];

@@ -133,6 +133,52 @@ export async function getWalletAlerts(): Promise<WalletAlert[]> {
   return alerts;
 }
 
+/** Process user meme coin wallets (Solana only): detect first buys and write to UserMemeCoinAlert (in-app). */
+export async function processUserMemeCoinFirstBuys(): Promise<number> {
+  const [userWallets, rules, moralisWalletTracker] = await Promise.all([
+    prisma.userMemeCoinWallet.findMany({ where: { chain: "solana" } }),
+    getFirstBuyRules(),
+    getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_WALLET_TRACKER),
+  ]);
+  const wallets = userWallets.map((w) => ({ userId: w.userId, address: w.address, label: w.label }));
+  if (wallets.length === 0) return 0;
+
+  const hasMoralis = moralisWalletTracker && Boolean(process.env.MORALIS_API_KEY);
+  const hasHelius = Boolean(process.env.HELIUS_API_KEY);
+  const hasBirdeye = Boolean(process.env.BIRDEYE_API_KEY);
+  if (!hasMoralis && !hasHelius && !hasBirdeye) return 0;
+
+  const lookbackMs = rules.lookbackMinutes * 60 * 1000;
+  const existing = await prisma.userMemeCoinAlert.findMany({
+    select: { userId: true, walletAddress: true, contractAddress: true },
+  });
+  const sentSet = new Set(existing.map((r) => `${r.userId}:${r.walletAddress}:${r.contractAddress}`));
+
+  let created = 0;
+  for (const w of wallets) {
+    const buys = await getBuysForWallet(w.address, LIMIT_PER_WALLET, lookbackMs, hasMoralis);
+    for (const b of buys) {
+      const key = `${w.userId}:${w.address}:${b.mint}`;
+      if (sentSet.has(key)) continue;
+      sentSet.add(key);
+      const dex = await getSolanaToken(b.mint);
+      const symbol = dex?.baseToken?.symbol ?? "—";
+      try {
+        await prisma.userMemeCoinAlert.create({
+          data: { userId: w.userId, walletAddress: w.address, contractAddress: b.mint, symbol },
+        });
+        created++;
+      } catch (err: unknown) {
+        const isDup = err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "P2002";
+        if (!isDup) throw err;
+      }
+      await new Promise((r) => setTimeout(r, 80));
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return created;
+}
+
 /** Owner-only: first time a tracked wallet bought a token (one alert per wallet+token ever). */
 export type FirstBuyAlert = {
   walletAddress: string;

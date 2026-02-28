@@ -74,6 +74,10 @@ export default function TradingBotPanel() {
   const [boardRefreshMins, setBoardRefreshMins] = useState<0 | 1 | 2 | 5>(0);
   const [lastBoardRefreshAt, setLastBoardRefreshAt] = useState<number | null>(null);
   const [cancelingAll, setCancelingAll] = useState(false);
+  const [userBlofinConfigured, setUserBlofinConfigured] = useState<boolean | null>(null);
+  const [blofinKeysForm, setBlofinKeysForm] = useState({ apiKey: "", secretKey: "", passphrase: "", demoMode: true, brokerId: "" });
+  const [savingBlofinKeys, setSavingBlofinKeys] = useState(false);
+  const [clearingBlofinKeys, setClearingBlofinKeys] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
 
@@ -104,10 +108,21 @@ export default function TradingBotPanel() {
     setSuccess(null);
   };
 
+  const loadUserBlofinConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/user/blofin-config");
+      const data = await res.json().catch(() => ({}));
+      setUserBlofinConfigured(data.success && data.configured === true);
+    } catch {
+      setUserBlofinConfigured(null);
+    }
+  }, []);
+
   const loadConfig = async () => {
     try {
       setLoading(true);
       clearFeedback();
+      loadUserBlofinConfig();
       const res = await fetch("/api/admin/trading-bot");
       const data = await res.json().catch(() => ({}));
       if (data.success && data.config) {
@@ -546,6 +561,46 @@ export default function TradingBotPanel() {
           )}
         </div>
       )}
+
+      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">Your Blofin API keys</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">Store your Blofin API keys here to run the bot with your account. Keys are encrypted and never sent to our servers except to place orders. Leave empty to use server env keys (owner).</p>
+          {userBlofinConfigured === true && (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">Keys are configured. Run uses your account.</p>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Key</label>
+              <input type="password" placeholder="••••••••" value={blofinKeysForm.apiKey} onChange={(e) => setBlofinKeysForm((f) => ({ ...f, apiKey: e.target.value }))} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Secret Key</label>
+              <input type="password" placeholder="••••••••" value={blofinKeysForm.secretKey} onChange={(e) => setBlofinKeysForm((f) => ({ ...f, secretKey: e.target.value }))} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Passphrase</label>
+              <input type="password" placeholder="••••••••" value={blofinKeysForm.passphrase} onChange={(e) => setBlofinKeysForm((f) => ({ ...f, passphrase: e.target.value }))} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm" />
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="blofin-demo" checked={blofinKeysForm.demoMode} onChange={(e) => setBlofinKeysForm((f) => ({ ...f, demoMode: e.target.checked }))} className="rounded" />
+              <label htmlFor="blofin-demo" className="text-sm">Demo mode</label>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Broker ID (optional)</label>
+              <input type="text" placeholder="Leave empty if not using broker key" value={blofinKeysForm.brokerId} onChange={(e) => setBlofinKeysForm((f) => ({ ...f, brokerId: e.target.value }))} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" disabled={savingBlofinKeys || (!blofinKeysForm.apiKey || !blofinKeysForm.secretKey || !blofinKeysForm.passphrase)} onClick={async () => { setSavingBlofinKeys(true); try { const res = await fetch("/api/user/blofin-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKey: blofinKeysForm.apiKey, secretKey: blofinKeysForm.secretKey, passphrase: blofinKeysForm.passphrase, demoMode: blofinKeysForm.demoMode, brokerId: blofinKeysForm.brokerId || undefined }) }); const data = await res.json(); if (data.success) { setUserBlofinConfigured(true); setBlofinKeysForm((f) => ({ ...f, apiKey: "", secretKey: "", passphrase: "" })); setSuccess("Blofin keys saved."); } else setError(data.error ?? "Save failed"); } finally { setSavingBlofinKeys(false); } }}>{savingBlofinKeys ? "Saving…" : "Save keys"}</Button>
+            {userBlofinConfigured && (
+              <Button size="sm" variant="outline" disabled={clearingBlofinKeys} onClick={async () => { setClearingBlofinKeys(true); try { const res = await fetch("/api/user/blofin-config", { method: "DELETE" }); const data = await res.json(); if (data.success) { setUserBlofinConfigured(false); setSuccess("Blofin keys cleared."); } } finally { setClearingBlofinKeys(false); loadUserBlofinConfig(); } }}>{clearingBlofinKeys ? "…" : "Clear keys"}</Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
         <CardHeader className="pb-3">

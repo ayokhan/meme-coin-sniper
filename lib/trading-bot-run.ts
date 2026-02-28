@@ -16,8 +16,11 @@ import {
   closePositionViaApi as closePositionViaApiBlofin,
   toBlofinBar,
   isBlofinConfigured,
+  getConfig as getBlofinEnvConfig,
   type Candle,
+  type BlofinConfig,
 } from "@/lib/blofin";
+import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
 import { indicatorsSignal, maCrossoverSignal, candlePatternSignal, findSupportResistance, ema, rsi } from "@/lib/trading-bot-ta";
 import { getAITradingSignal } from "@/lib/ai-trading-signal";
 
@@ -127,7 +130,7 @@ function roundSize(size: number, minSize: number, lotSize: number): string {
   return n.toFixed(1);
 }
 
-export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: string; error?: string }> {
+export async function runTradingBotCycle(userId?: string): Promise<{ ok: boolean; message?: string; error?: string }> {
   let bot: {
     id: string;
     provider: string;
@@ -159,9 +162,21 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
   if (provider !== "blofin") {
     return { ok: false, error: "Only Blofin is supported. Set provider to Blofin in config." };
   }
-  if (!isBlofinConfigured()) {
+  let blofinConfig: BlofinConfig | null = null;
+  if (userId) {
+    blofinConfig = await getBlofinConfigForUser(userId);
+  }
+  if (!blofinConfig) {
+    blofinConfig = getConfig();
+  }
+  if (!blofinConfig) {
+    if (userId) {
+      return { ok: false, error: "Your Blofin API keys are not set. Add your keys in Trading Bot settings." };
+    }
     return { ok: false, error: "Blofin API keys not set. Set BLOFIN_API_KEY, BLOFIN_SECRET_KEY, BLOFIN_PASSPHRASE in your server env (e.g. Vercel)." };
   }
+  const isDemo = bot.mode === "demo";
+  const blofinOpts = { demo: isDemo, config: blofinConfig };
 
   const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
   if (!rawSymbol) {
@@ -207,10 +222,10 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
   const isDemo = bot.mode === "demo";
   try {
     const [candlesRes, tickerRes, instRes, positionsRes] = await Promise.all([
-      getCandles(instId, bar, candleLimit, isDemo),
-      getTicker(instId, isDemo),
-      getInstrument(instId, { demo: isDemo }),
-      getPositions(instId, { demo: isDemo }),
+      getCandles(instId, bar, candleLimit, isDemo, blofinOpts),
+      getTicker(instId, isDemo, blofinOpts),
+      getInstrument(instId, blofinOpts),
+      getPositions(instId, blofinOpts),
     ]);
 
     const minCandles = needMoreCandles ? Math.max(2, (bot.emaPeriod ?? 200) + 5) : 2;
@@ -283,7 +298,7 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
     }
 
     const side = signal === "long" ? "buy" : "sell";
-    const order = await placeMarketOrder(instId, side, sizeStr, marginMode, { demo: isDemo });
+    const order = await placeMarketOrder(instId, side, sizeStr, marginMode, blofinOpts);
     if (!order.ok) {
       const err = order.error ?? "Order failed";
       await updateLastRun(err, "no_trade", err);
@@ -302,7 +317,7 @@ export async function runTradingBotCycle(): Promise<{ ok: boolean; message?: str
         lastPrice,
         bot.tpPct,
         bot.slPct,
-        { demo: isDemo }
+        blofinOpts
       );
       if (!tpsl.ok) console.warn("TP/SL order failed:", tpsl.error);
     }
