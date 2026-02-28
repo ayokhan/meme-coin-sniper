@@ -83,6 +83,7 @@ export default function Dashboard() {
   const [trackedWallets, setTrackedWallets] = useState<{ address: string; label?: string }[]>([]);
   const [walletAlerts, setWalletAlerts] = useState<WalletAlert[]>([]);
   const [alertMinBuyers, setAlertMinBuyers] = useState(3);
+  const [alertThresholdSaving, setAlertThresholdSaving] = useState(false);
   const [liveTradesEnabled, setLiveTradesEnabled] = useState(true);
   const [liveTradesToggling, setLiveTradesToggling] = useState(false);
   const [walletTrades, setWalletTrades] = useState<{ walletLabel: string; walletAddress: string; mint: string; symbol: string; name: string; timestamp: number; txUrl: string; dexUrl: string; side?: "buy" | "sell" | "unknown" }[]>([]);
@@ -1237,7 +1238,7 @@ export default function Dashboard() {
                   {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
                   {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
-                  {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders (3+ buy same token, first-buy alerts) and Top Leverage Traders (Hyperliquid positions). Add your own wallets; alerts in-app."}
+                  {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets; alerts in-app."}
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
                   {" "}
                   {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP to use this feature." : "Upgrade to Pro or VIP to use this feature."}
@@ -1386,105 +1387,6 @@ export default function Dashboard() {
                 ))}
                 <span className="text-xs text-muted-foreground ml-1">5m/15m/30m estimated from 1h. Up to 80 coins.</span>
               </div>
-            )}
-            {activeTab === "wallets" && (
-              <details className="mx-6 mt-4 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
-                <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  Wallets we track ({trackedWallets.length})
-                </summary>
-                <div className="px-4 pb-3 pt-1 flex flex-wrap gap-2">
-                  {trackedWallets.length === 0 ? (
-                    <span className="text-xs text-muted-foreground">
-                      When 3+ tracked wallets buy the same coin, it appears here. Configure tracked wallets in settings.
-                    </span>
-                  ) : (
-                    trackedWallets.map((w) => (
-                      <a
-                        key={w.address}
-                        href={`https://solscan.io/account/${w.address}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 text-zinc-700 dark:text-zinc-300 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
-                      >
-                        {w.label ? `${w.label}: ` : ""}
-                        {w.address.slice(0, 4)}…{w.address.slice(-4)}
-                      </a>
-                    ))
-                  )}
-                </div>
-              </details>
-            )}
-            {activeTab === "wallets" && walletTrackerView === "meme" && (
-              <details className="mx-6 mt-2 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50" open>
-                <summary className="cursor-pointer px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between gap-2">
-                  <span>
-                    Live trades from tracked wallets (meme)
-                    {walletTrades.length > 0 && <span className="ml-2 text-xs font-normal text-muted-foreground">({walletTrades.length} in last 24h)</span>}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); fetchWalletTrades(); }}
-                    disabled={walletTradesLoading}
-                    className="shrink-0 border-zinc-200 dark:border-zinc-700"
-                  >
-                    {walletTradesLoading ? "Loading…" : "Refresh"}
-                  </Button>
-                </summary>
-                <div className="px-4 pb-4 pt-1">
-                  {!liveTradesEnabled ? (
-                    <p className="text-sm text-muted-foreground py-4">
-                      Live trades are paused to save API usage. Alerts above still run when {alertMinBuyers}+ tracked wallets buy the same token.
-                      {isOwner && " Click “Resume live trades” to fetch again."}
-                    </p>
-                  ) : walletTradesError ? (
-                    <div className="text-sm py-4 space-y-1">
-                      <p className="font-medium text-amber-700 dark:text-amber-400">{walletTradesError}</p>
-                      <p className="text-xs text-muted-foreground">Live trades need: feature flag ON (Admin → Feature flags), VIP subscription, and at least one of Moralis/Helius/Birdeye API keys set on the server.</p>
-                    </div>
-                  ) : walletTradesLoading && walletTrades.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">Loading trades…</p>
-                  ) : walletTrades.length === 0 ? (
-                    <div className="text-sm text-muted-foreground py-4 space-y-1">
-                      <p>No recent swaps from tracked wallets. Try again later or refresh.</p>
-                      <p className="text-xs">Live trades use Moralis/Helius/Birdeye; ensure &quot;Live trades (Wallet Tracker)&quot; is ON in Admin → Feature flags. Requires VIP.</p>
-                    </div>
-                  ) : (
-                    <ul className="space-y-2 max-h-[380px] overflow-y-auto">
-                      {walletTrades.slice(0, 60).map((t, i) => (
-                        <li key={`${t.walletAddress}-${t.mint}-${t.timestamp}-${i}`} className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-900/80 px-3 py-2 flex items-center justify-between gap-2 text-sm">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-zinc-900 dark:text-zinc-100">{t.symbol}</span>
-                              {t.side && (
-                                <span
-                                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                                    t.side === "buy"
-                                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                      : "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400"
-                                  }`}
-                                >
-                                  {t.side === "buy" ? "Buy" : "Sell"}
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-muted-foreground truncate">{t.name}</span>
-                            <span className="text-xs text-muted-foreground mt-0.5 block">· {t.walletLabel}</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            {new Date(t.timestamp).toLocaleString("en-CA", { timeZone: "America/Toronto" })}
-                          </span>
-                          <div className="flex gap-1.5 shrink-0">
-                            <a href={t.dexUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Dex</a>
-                            <a href={t.txUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Tx</a>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </details>
             )}
             {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && tokensForDisplay.length === 0 ? (
               <div className="px-4 py-4">
@@ -2134,11 +2036,141 @@ export default function Dashboard() {
                     </TabsList>
                     <span className="text-xs text-muted-foreground">
                       {walletTrackerView === "meme" && "When 3+ tracked wallets buy same token → alert. First-buy alerts (owner)."}
-                      {walletTrackerView === "leverage" && "Hyperliquid long/short positions. Add your own or view admin list (owner)."}
                     </span>
                   </div>
                   <TabsContent value="meme" className="mt-0 space-y-4">
                 <>
+                <details className="mx-0 mt-0 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
+                  <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Wallets we track ({trackedWallets.length})
+                  </summary>
+                  <div className="px-4 pb-3 pt-1 flex flex-wrap gap-2">
+                    {trackedWallets.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">
+                        When {alertMinBuyers}+ tracked wallets buy the same coin, it appears here. Configure tracked wallets in settings.
+                      </span>
+                    ) : (
+                      trackedWallets.map((w) => (
+                        <a
+                          key={w.address}
+                          href={`https://solscan.io/account/${w.address}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 text-zinc-700 dark:text-zinc-300 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                        >
+                          {w.label ? `${w.label}: ` : ""}
+                          {w.address.slice(0, 4)}…{w.address.slice(-4)}
+                        </a>
+                      ))
+                    )}
+                  </div>
+                </details>
+                <details className="mx-0 mt-2 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50" open>
+                  <summary className="cursor-pointer px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between gap-2">
+                    <span>
+                      Live trades from tracked wallets (meme)
+                      {walletTrades.length > 0 && <span className="ml-2 text-xs font-normal text-muted-foreground">({walletTrades.length} in last 24h)</span>}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); fetchWalletTrades(); }}
+                      disabled={walletTradesLoading}
+                      className="shrink-0 border-zinc-200 dark:border-zinc-700"
+                    >
+                      {walletTradesLoading ? "Loading…" : "Refresh"}
+                    </Button>
+                  </summary>
+                  <div className="px-4 pb-4 pt-1">
+                    {!liveTradesEnabled ? (
+                      <p className="text-sm text-muted-foreground py-4">
+                        Live trades are paused to save API usage. Alerts above still run when {alertMinBuyers}+ tracked wallets buy the same token.
+                        {isOwner && " Click \"Resume live trades\" to fetch again."}
+                      </p>
+                    ) : walletTradesError ? (
+                      <div className="text-sm py-4 space-y-1">
+                        <p className="font-medium text-amber-700 dark:text-amber-400">{walletTradesError}</p>
+                        <p className="text-xs text-muted-foreground">Live trades need: feature flag ON (Admin → Feature flags), VIP subscription, and at least one of Moralis/Helius/Birdeye API keys set on the server.</p>
+                      </div>
+                    ) : walletTradesLoading && walletTrades.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4">Loading trades…</p>
+                    ) : walletTrades.length === 0 ? (
+                      <div className="text-sm text-muted-foreground py-4 space-y-1">
+                        <p>No recent swaps from tracked wallets. Try again later or refresh.</p>
+                        <p className="text-xs">Live trades use Moralis/Helius/Birdeye; ensure &quot;Live trades (Wallet Tracker)&quot; is ON in Admin → Feature flags. Requires VIP.</p>
+                      </div>
+                    ) : (
+                      <ul className="space-y-2 max-h-[380px] overflow-y-auto">
+                        {walletTrades.slice(0, 60).map((t, i) => (
+                          <li key={`${t.walletAddress}-${t.mint}-${t.timestamp}-${i}`} className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-900/80 px-3 py-2 flex items-center justify-between gap-2 text-sm">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-zinc-900 dark:text-zinc-100">{t.symbol}</span>
+                                {t.side && (
+                                  <span
+                                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                                      t.side === "buy"
+                                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                        : "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                    }`}
+                                  >
+                                    {t.side === "buy" ? "Buy" : "Sell"}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-muted-foreground truncate">{t.name}</span>
+                              <span className="text-xs text-muted-foreground mt-0.5 block">· {t.walletLabel}</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {new Date(t.timestamp).toLocaleString("en-CA", { timeZone: "America/Toronto" })}
+                            </span>
+                            <div className="flex gap-1.5 shrink-0">
+                              <a href={t.dexUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Dex</a>
+                              <a href={t.txUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Tx</a>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </details>
+                <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 block mb-2">Configure alerts</label>
+                  <p className="text-xs text-muted-foreground mb-2">Choose how many tracked wallets must buy the same token to trigger an alert (e.g. 2, 3, 4, or 5).</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400">Alert when</span>
+                    <select
+                      value={alertMinBuyers}
+                      onChange={async (e) => {
+                        const val = Number(e.target.value);
+                        if (![2, 3, 4, 5].includes(val)) return;
+                        setAlertThresholdSaving(true);
+                        try {
+                          const r = await fetch("/api/user/wallet-tracker-settings", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ minBuyers: val }),
+                          });
+                          const data = await r.json();
+                          if (data.success) {
+                            setAlertMinBuyers(val);
+                          }
+                        } finally {
+                          setAlertThresholdSaving(false);
+                        }
+                      }}
+                      disabled={alertThresholdSaving}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                    >
+                      {[2, 3, 4, 5].map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400">tracked wallets buy same token</span>
+                    {alertThresholdSaving && <span className="text-xs text-muted-foreground">Saving…</span>}
+                  </div>
+                </div>
                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                   <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">Your meme coin wallets (max 5)</h3>
                   <p className="text-xs text-muted-foreground mb-2">Add Solana or BSC wallet addresses. First-buy alerts for these wallets appear in-app only.</p>
@@ -2340,11 +2372,6 @@ export default function Dashboard() {
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
                       <strong>Global Top Traders (NovaStaris)</strong> — Curated list from NovaStaris. You can also add your own traders below.
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Open long/short positions from Top Leverage Traders (ApexLiquid) on Hyperliquid. Copy them via{" "}
-                      <a href="https://apexliquid.bot/trade/topTraders" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">ApexLiquid</a> or{" "}
-                      <a href="https://app.hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">Hyperliquid</a>.
                     </p>
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                       <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">My traders</h3>
