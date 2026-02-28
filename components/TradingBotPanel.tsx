@@ -83,7 +83,8 @@ export default function TradingBotPanel() {
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
   const [boardRefreshMins, setBoardRefreshMins] = useState<0 | 1 | 2 | 5>(0);
   const [lastBoardRefreshAt, setLastBoardRefreshAt] = useState<number | null>(null);
-  const [boardRunNowFeedback, setBoardRunNowFeedback] = useState<{ message: string; isError: boolean } | null>(null);
+  const [lastBoardRefreshResult, setLastBoardRefreshResult] = useState<string | null>(null);
+  const [lastBoardRefreshError, setLastBoardRefreshError] = useState<string | null>(null);
   const [cancelingAll, setCancelingAll] = useState(false);
   const [userBlofinConfigured, setUserBlofinConfigured] = useState<boolean | null>(null);
   const [blofinKeysForm, setBlofinKeysForm] = useState({ apiKey: "", secretKey: "", passphrase: "", demoMode: true, brokerId: "" });
@@ -97,7 +98,8 @@ export default function TradingBotPanel() {
       setPositionsLoading(true);
       if (fromMonitoringBoard) {
         clearFeedback();
-        setBoardRunNowFeedback(null);
+        setLastBoardRefreshResult(null);
+        setLastBoardRefreshError(null);
       }
       const res = await fetch("/api/admin/trading-bot/positions");
       const data = await res.json().catch(() => ({}));
@@ -109,25 +111,23 @@ export default function TradingBotPanel() {
         });
         if (fromMonitoringBoard) {
           const n = data.positions.length;
-          setBoardRunNowFeedback({
-            message: n > 0 ? `Refreshed: ${n} position${n === 1 ? "" : "s"} with PNL. Switched to Positions tab below.` : "Refreshed. No open positions (see Positions tab below).",
-            isError: false,
-          });
-          setActiveTab("positions");
-          setTimeout(() => setBoardRunNowFeedback(null), 6000);
+          setLastBoardRefreshResult(n > 0 ? `${n} position${n === 1 ? "" : "s"} — total PNL ${(data.totalUnrealizedPnl >= 0 ? "+" : "")}${Number(data.totalUnrealizedPnl).toFixed(2)} USDT` : "No open positions.");
+          setLastBoardRefreshError(null);
         }
       } else {
         setPositionsData(null);
         if (fromMonitoringBoard) {
-          const errMsg = data.error ?? (res.status === 403 ? "Owner only. This feature requires bot owner access." : "Failed to load positions.");
-          setBoardRunNowFeedback({ message: errMsg, isError: true });
+          const errMsg = data.error ?? (res.status === 403 ? "Owner only." : "Failed to load positions.");
+          setLastBoardRefreshResult(null);
+          setLastBoardRefreshError(errMsg);
           setError(errMsg);
         }
       }
     } catch {
       setPositionsData(null);
       if (fromMonitoringBoard) {
-        setBoardRunNowFeedback({ message: "Network or server error. Check you have access and try again.", isError: true });
+        setLastBoardRefreshResult(null);
+        setLastBoardRefreshError("Network or server error.");
         setError("Failed to refresh positions.");
       }
     } finally {
@@ -1027,22 +1027,28 @@ export default function TradingBotPanel() {
               <Button type="button" variant="outline" size="sm" onClick={() => fetchPositions(true)} disabled={positionsLoading} className="border-zinc-500 text-zinc-700 dark:text-zinc-300">
                 {positionsLoading ? "Refreshing…" : "Run now"}
               </Button>
-              {lastBoardRefreshAt != null && !positionsLoading && (
-                <span className="text-xs text-muted-foreground">
-                  Last refreshed: {(() => {
-                    const sec = Math.floor((Date.now() - lastBoardRefreshAt) / 1000);
-                    if (sec < 10) return "just now";
-                    if (sec < 60) return `${sec}s ago`;
-                    const min = Math.floor(sec / 60);
-                    return min === 1 ? "1 min ago" : `${min} min ago`;
-                  })()}
-                </span>
-              )}
               <span className="text-xs text-muted-foreground">Refreshes positions &amp; PNL only (no AI).</span>
             </div>
-            {boardRunNowFeedback && (
-              <div className={`rounded-md px-3 py-2 text-xs ${boardRunNowFeedback.isError ? "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800" : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"}`}>
-                {boardRunNowFeedback.message}
+            {(lastBoardRefreshResult != null || lastBoardRefreshError != null) && (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>
+                  Last refresh: {lastBoardRefreshError != null ? (
+                    <span className="text-rose-600 dark:text-rose-400">{lastBoardRefreshError}</span>
+                  ) : (
+                    lastBoardRefreshResult
+                  )}
+                </p>
+                {lastBoardRefreshError == null && positionsData && positionsData.positions.length > 0 && (
+                  <div className="mt-1.5 rounded border border-zinc-200 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-900/40 p-2 space-y-0.5">
+                    <p className="font-medium text-zinc-700 dark:text-zinc-300">Positions:</p>
+                    {positionsData.positions.map((p, i) => (
+                      <p key={i} className="pl-0 text-muted-foreground">
+                        {p.instId} {p.posSide.toUpperCase()} — {p.unrealizedPnl >= 0 ? "+" : ""}{p.unrealizedPnl.toFixed(2)} USDT
+                        {p.pnlPct != null && Number.isFinite(p.pnlPct) && ` (${p.pnlPct >= 0 ? "+" : ""}${p.pnlPct.toFixed(2)}%)`}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
