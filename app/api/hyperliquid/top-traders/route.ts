@@ -41,12 +41,20 @@ export async function GET() {
       }
       rows = adminRows.map((r) => ({ address: r.address, nickname: r.nickname }));
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const userRows = await (prisma as any).userLeverageWallet.findMany({
-        where: { userId: session.user.id },
-        orderBy: { createdAt: "asc" },
-      });
-      rows = userRows.map((r: { address: string; nickname: string | null }) => ({ address: r.address, nickname: r.nickname }));
+      // Non-owner: global admin wallets + user's own list (dedupe by address)
+      const [globalAdminRows, userRows] = await Promise.all([
+        leverageDb.leverageWallet.findMany({ where: { active: true, global: true }, orderBy: { createdAt: "asc" } }),
+        (prisma as any).userLeverageWallet.findMany({
+          where: { userId: session.user.id },
+          orderBy: { createdAt: "asc" },
+        }),
+      ]);
+      const byAddr = new Map<string, string | null>();
+      for (const r of globalAdminRows) byAddr.set(r.address, r.nickname);
+      for (const r of userRows as { address: string; nickname: string | null }[]) {
+        if (!byAddr.has(r.address)) byAddr.set(r.address, r.nickname);
+      }
+      rows = Array.from(byAddr.entries()).map(([address, nickname]) => ({ address, nickname }));
     }
     if (rows.length === 0) {
       return NextResponse.json({ success: true, traders: [] });

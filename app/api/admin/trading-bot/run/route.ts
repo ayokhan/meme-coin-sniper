@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, isOwnerSession } from "@/lib/auth";
+import { authOptions, canAccessTradingBot, isOwnerSession } from "@/lib/auth";
 import { runTradingBotCycle } from "@/lib/trading-bot-run";
 import { isBlofinConfigured } from "@/lib/blofin";
 import { prisma } from "@/lib/db";
@@ -63,8 +63,8 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
   }
-  if (!isOwnerSession(session)) {
-    return NextResponse.json({ success: false, error: "Trading Bot run requires VIP + on demand access." }, { status: 403 });
+  if (!canAccessTradingBot(session)) {
+    return NextResponse.json({ success: false, error: "Trading Bot run requires VIP + on demand access. Request access from the owner." }, { status: 403 });
   }
   const result = await runWithPreCheck(session.user.id);
   return NextResponse.json({

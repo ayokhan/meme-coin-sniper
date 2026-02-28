@@ -68,6 +68,7 @@ model User {
   phone         String?
   country       String?
   experienceTradingCrypto String?  // e.g. beginner | intermediate | expert
+  tradingBotOnDemand     Boolean  @default(false)  // owner can enable Trading Bot access for VIP users on request
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
@@ -146,6 +147,7 @@ model TrackedWallet {
   label           String?
   active          Boolean  @default(true)  // when false, wallet is temporarily excluded from tracking (not removed)
   firstBuyEnabled Boolean  @default(true) // when true, first-buy alerts fire when this wallet buys a token for the first time
+  global          Boolean  @default(true) // when true, wallet appears on global meme coin tracking for all users
   createdAt       DateTime @default(now())
   @@index([address])
 }
@@ -176,6 +178,7 @@ model LeverageWallet {
   nickname     String?
   active       Boolean  @default(true)
   alertEnabled Boolean  @default(false)  // when true, send Telegram alert on new trade
+  global       Boolean  @default(true)   // when true, appears on global Top Leverage Traders for all users
   createdAt    DateTime @default(now())
   @@index([address])
   @@index([active])

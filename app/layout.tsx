@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NovaStaris — Your Advanced AI Lightning Sniper",
-  description: "NovaStaris: Your Advanced AI Lightning Sniper. Discover, analyze, and snipe viral Solana tokens with AI.",
+  title: "NovaStaris — Your Advanced AI Lightning Sniper and Trading Intelligence",
+  description: "NovaStaris: Your Advanced AI Lightning Sniper and Trading Intelligence. Discover, analyze, and snipe viral Solana tokens with AI.",
 };
 
 export default function RootLayout({

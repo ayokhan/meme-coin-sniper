@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, isOwnerSession } from "@/lib/auth";
+import { authOptions, canAccessTradingBot } from "@/lib/auth";
 import { placeLimitOrderTradingBot } from "@/lib/trading-bot-run";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!isOwnerSession(session)) {
+    if (!canAccessTradingBot(session)) {
       return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
     }
     const body = await req.json().catch(() => ({}));

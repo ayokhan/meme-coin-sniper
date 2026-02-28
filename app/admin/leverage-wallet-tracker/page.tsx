@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Zap } from "lucide-react";
 
-type Wallet = { id: string; address: string; nickname?: string | null; active: boolean; alertEnabled: boolean; createdAt: string };
+type Wallet = { id: string; address: string; nickname?: string | null; active: boolean; alertEnabled: boolean; global: boolean; createdAt: string };
 
 export default function AdminLeverageWalletTrackerPage() {
   const { data: session, status } = useSession();
@@ -26,6 +26,7 @@ export default function AdminLeverageWalletTrackerPage() {
   const [bulkRemoving, setBulkRemoving] = useState(false);
   const [togglingActive, setTogglingActive] = useState<string | null>(null);
   const [togglingAlert, setTogglingAlert] = useState<string | null>(null);
+  const [togglingGlobal, setTogglingGlobal] = useState<string | null>(null);
   const [editingNickname, setEditingNickname] = useState<string | null>(null);
   const [nicknameDraft, setNicknameDraft] = useState("");
 
@@ -299,7 +300,7 @@ export default function AdminLeverageWalletTrackerPage() {
               <span className="text-base font-normal text-muted-foreground">({wallets.length} total{wallets.some((w) => !w.active) ? `, ${wallets.filter((w) => w.active).length} active` : ""})</span>
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              EVM addresses (0x…) for Hyperliquid/ApexLiquid. Shown in Trading Bot → Top Leverage Traders. Toggle <strong>Alert</strong> to get Telegram when they make a new trade.
+              EVM addresses (0x…) for Hyperliquid/ApexLiquid. Shown in Wallet Tracker → Top Leverage Traders. <strong>Global</strong>: show on global list for all users. <strong>Alert</strong>: Telegram when they make a new trade.
             </p>
           </CardHeader>
           <CardContent>
@@ -416,7 +417,7 @@ export default function AdminLeverageWalletTrackerPage() {
           </CardContent>
         </Card>
         <p className="mt-4 text-sm text-muted-foreground">
-          <Link href="/" className="underline">Back to app</Link> · View in app: Trading Bot → Top Leverage Traders
+          <Link href="/" className="underline">Back to app</Link> · View in app: Wallet Tracker → Top Leverage Traders
         </p>
       </div>
     </div>

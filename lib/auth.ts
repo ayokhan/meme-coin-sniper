@@ -8,7 +8,7 @@ import { getActiveSubscription, getSubscriptionTier, type Tier } from '@/lib/sub
 
 declare module 'next-auth' {
   interface Session {
-    user: { id: string; email?: string | null; name?: string | null; image?: string | null; walletAddress?: string | null; isPaid: boolean; isOwner?: boolean; tier?: Tier | null };
+    user: { id: string; email?: string | null; name?: string | null; image?: string | null; walletAddress?: string | null; isPaid: boolean; isOwner?: boolean; tier?: Tier | null; tradingBotOnDemand?: boolean };
   }
 }
 
@@ -31,6 +31,13 @@ export function isOwnerWallet(walletAddress: string | null | undefined): boolean
 /** True if session belongs to an owner (by OWNER_EMAIL or OWNER_WALLET_ADDRESSES). */
 export function isOwnerSession(session: { user?: { email?: string | null; walletAddress?: string | null } } | null): boolean {
   return !!session?.user && (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress));
+}
+
+/** True if session can use Trading Bot: owner or VIP with on-demand access. */
+export function canAccessTradingBot(session: { user?: { email?: string | null; walletAddress?: string | null; tier?: Tier | string | null; tradingBotOnDemand?: boolean } } | null): boolean {
+  if (!session?.user) return false;
+  if (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress)) return true;
+  return session.user.tier === 'vip' && !!(session.user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
 }
 
 function verifyWalletSignature(message: string, signature: string, walletAddress: string): boolean {
@@ -59,7 +66,8 @@ export const authOptions: NextAuthOptions = {
         if (!ok) return null;
         const isPaid = await getActiveSubscription(user.id);
         const tier = await getSubscriptionTier(user.id);
-        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier };
+        const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
+        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier, tradingBotOnDemand };
       },
     }),
     CredentialsProvider({
@@ -90,7 +98,8 @@ export const authOptions: NextAuthOptions = {
         }
         const isPaid = await getActiveSubscription(user.id);
         const tier = await getSubscriptionTier(user.id);
-        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier };
+        const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
+        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, tradingBotOnDemand };
       },
     }),
   ],
@@ -104,6 +113,7 @@ export const authOptions: NextAuthOptions = {
         token.walletAddress = (user as { walletAddress?: string | null }).walletAddress ?? null;
         token.isPaid = (user as { isPaid?: boolean }).isPaid ?? false;
         token.tier = (user as { tier?: Tier | null }).tier ?? null;
+        token.tradingBotOnDemand = (user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand ?? false;
       }
       return token;
     },
@@ -116,14 +126,17 @@ export const authOptions: NextAuthOptions = {
         session.user.walletAddress = token.walletAddress as string | null;
         let isPaid = (token.isPaid as boolean) ?? false;
         let tier = (token.tier as Tier | null) ?? null;
+        let tradingBotOnDemand = (token.tradingBotOnDemand as boolean) ?? false;
         const owner = isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress);
         if (owner) {
           isPaid = true;
           tier = 'vip';
+          tradingBotOnDemand = true;
         }
         session.user.isPaid = isPaid;
         session.user.isOwner = owner;
         session.user.tier = tier;
+        session.user.tradingBotOnDemand = tradingBotOnDemand;
       }
       return session;
     },

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, isOwnerSession } from '@/lib/auth';
+import { authOptions, canAccessTradingBot } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { isBlofinConfigured } from '@/lib/blofin';
 
@@ -54,7 +54,7 @@ function validateConfig(c: {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!isOwnerSession(session)) {
+    if (!canAccessTradingBot(session)) {
       return NextResponse.json({ success: false, error: 'Owner only.' }, { status: 403 });
     }
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
@@ -100,7 +100,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!isOwnerSession(session)) {
+    if (!canAccessTradingBot(session)) {
       return NextResponse.json({ success: false, error: 'Owner only.' }, { status: 403 });
     }
     const body = await request.json().catch(() => ({}));
@@ -201,7 +201,7 @@ export async function PATCH(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!isOwnerSession(session)) {
+    if (!canAccessTradingBot(session)) {
       return NextResponse.json({ success: false, error: 'Owner only.' }, { status: 403 });
     }
     const body = await request.json().catch(() => ({}));

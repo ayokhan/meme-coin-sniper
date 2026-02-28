@@ -13,6 +13,7 @@ type Customer = {
   phone: string | null;
   country: string | null;
   experienceTradingCrypto: string | null;
+  tradingBotOnDemand: boolean;
   createdAt: string;
   subscriptionTier: string | null;
   subscriptionPlan: string | null;
@@ -28,6 +29,7 @@ export default function AdminCustomersPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [togglingOnDemandId, setTogglingOnDemandId] = useState<string | null>(null);
 
   const loadCustomers = () => {
     fetch("/api/admin/customers")
@@ -63,6 +65,28 @@ export default function AdminCustomersPage() {
       setError("Delete failed");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleTradingBotOnDemand = async (id: string, value: boolean) => {
+    setTogglingOnDemandId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tradingBotOnDemand: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Trading Bot (on demand) enabled." : "Trading Bot (on demand) disabled.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setTogglingOnDemandId(null);
     }
   };
 
@@ -188,6 +212,16 @@ export default function AdminCustomersPage() {
                           ) : (
                             <span className="text-zinc-500">Expired / None</span>
                           )}
+                        </td>
+                        <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => handleTradingBotOnDemand(c.id, !c.tradingBotOnDemand)}
+                            disabled={togglingOnDemandId === c.id}
+                            className={`text-xs font-medium px-2 py-1 rounded ${c.tradingBotOnDemand ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                          >
+                            {togglingOnDemandId === c.id ? "…" : c.tradingBotOnDemand ? "On" : "Off"}
+                          </button>
                         </td>
                         <td className="py-2">
                           <div className="flex flex-col gap-1">

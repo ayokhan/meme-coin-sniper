@@ -35,6 +35,7 @@ export async function GET() {
         phone: u.phone,
         country: u.country,
         experienceTradingCrypto: u.experienceTradingCrypto,
+        tradingBotOnDemand: !!(u as { tradingBotOnDemand?: boolean }).tradingBotOnDemand,
         createdAt: u.createdAt,
         subscriptionTier: subTier,
         subscriptionPlan: subPlan,

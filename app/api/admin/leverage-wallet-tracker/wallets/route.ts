@@ -21,6 +21,7 @@ export async function GET() {
       nickname: r.nickname,
       active: r.active,
       alertEnabled: r.alertEnabled,
+      global: (r as { global?: boolean }).global !== false,
       createdAt: r.createdAt.toISOString(),
     }));
     return NextResponse.json({ success: true, wallets });
@@ -72,15 +73,17 @@ export async function PATCH(request: Request) {
     const nickname = typeof body.nickname === "string" ? body.nickname.trim() || null : undefined;
     const active = typeof body.active === "boolean" ? body.active : undefined;
     const alertEnabled = typeof body.alertEnabled === "boolean" ? body.alertEnabled : undefined;
+    const global = typeof body.global === "boolean" ? body.global : undefined;
     if (!address) {
       return NextResponse.json({ success: false, error: "Address is required." }, { status: 400 });
     }
-    const data: { nickname?: string | null; active?: boolean; alertEnabled?: boolean } = {};
+    const data: { nickname?: string | null; active?: boolean; alertEnabled?: boolean; global?: boolean } = {};
     if (nickname !== undefined) data.nickname = nickname;
     if (active !== undefined) data.active = active;
     if (alertEnabled !== undefined) data.alertEnabled = alertEnabled;
+    if (global !== undefined) data.global = global;
     if (Object.keys(data).length === 0) {
-      return NextResponse.json({ success: false, error: "Provide nickname, active, or alertEnabled." }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Provide nickname, active, alertEnabled, or global." }, { status: 400 });
     }
     await leverageDb.leverageWallet.updateMany({ where: { address }, data });
     return NextResponse.json({ success: true, message: "Updated.", ...data });

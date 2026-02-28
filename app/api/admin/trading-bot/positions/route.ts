@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, isOwnerSession } from "@/lib/auth";
+import { authOptions, canAccessTradingBot } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getPositions as getPositionsBlofin, getTicker, getInstrument, isBlofinConfigured } from "@/lib/blofin";
 
@@ -18,7 +18,7 @@ function parseNum(s: string): number {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!isOwnerSession(session)) {
+    if (!canAccessTradingBot(session)) {
       return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
     }
     if (!isBlofinConfigured()) {

@@ -5,10 +5,10 @@ import { prisma } from '@/lib/db';
 
 const db = prisma as unknown as {
   trackedWallet?: {
-    findMany: (args: { orderBy?: { createdAt: string }; where?: { active?: boolean } }) => Promise<Array<{ id: string; address: string; label: string | null; active: boolean; firstBuyEnabled: boolean }>>;
+    findMany: (args: { orderBy?: { createdAt: string }; where?: { active?: boolean } }) => Promise<Array<{ id: string; address: string; label: string | null; active: boolean; firstBuyEnabled: boolean; global?: boolean }>>;
     findUnique: (args: { where: { address: string } }) => Promise<{ id: string } | null>;
     create: (args: { data: { address: string; label?: string | null; firstBuyEnabled?: boolean; active?: boolean } }) => Promise<unknown>;
-    updateMany: (args: { where: { address: string }; data: { firstBuyEnabled?: boolean; active?: boolean } }) => Promise<unknown>;
+    updateMany: (args: { where: { address: string }; data: { firstBuyEnabled?: boolean; active?: boolean; global?: boolean } }) => Promise<unknown>;
     deleteMany: (args: { where: { address: string } }) => Promise<unknown>;
   };
 };
@@ -72,15 +72,17 @@ export async function PATCH(request: Request) {
     const address = (body.address ?? '').trim();
     const firstBuyEnabled = typeof body.firstBuyEnabled === 'boolean' ? body.firstBuyEnabled : undefined;
     const active = typeof body.active === 'boolean' ? body.active : undefined;
+    const global = typeof body.global === 'boolean' ? body.global : undefined;
     if (!address) {
       return NextResponse.json({ success: false, error: 'Address is required.' }, { status: 400 });
     }
-    if (firstBuyEnabled === undefined && active === undefined) {
-      return NextResponse.json({ success: false, error: 'Provide firstBuyEnabled and/or active (boolean).' }, { status: 400 });
+    if (firstBuyEnabled === undefined && active === undefined && global === undefined) {
+      return NextResponse.json({ success: false, error: 'Provide firstBuyEnabled, active, and/or global (boolean).' }, { status: 400 });
     }
-    const data: { firstBuyEnabled?: boolean; active?: boolean } = {};
+    const data: { firstBuyEnabled?: boolean; active?: boolean; global?: boolean } = {};
     if (firstBuyEnabled !== undefined) data.firstBuyEnabled = firstBuyEnabled;
     if (active !== undefined) data.active = active;
+    if (global !== undefined) data.global = global;
     if (db.trackedWallet && Object.keys(data).length > 0) await db.trackedWallet.updateMany({ where: { address }, data });
     return NextResponse.json({ success: true, message: 'Updated.', ...data });
   } catch (e) {

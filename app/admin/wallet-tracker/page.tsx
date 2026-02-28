@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Zap } from "lucide-react";
 
-type Wallet = { id: string; address: string; label?: string | null; active?: boolean; firstBuyEnabled?: boolean };
+type Wallet = { id: string; address: string; label?: string | null; active?: boolean; firstBuyEnabled?: boolean; global?: boolean };
 type Rules = { minBuyers: number; maxAgeHours: number; maxAlerts: number };
 type FirstBuyRules = { lookbackMinutes: number; maxAlerts: number };
 
@@ -39,6 +39,7 @@ export default function AdminWalletTrackerPage() {
   const [bulkAddInput, setBulkAddInput] = useState("");
   const [bulkAdding, setBulkAdding] = useState(false);
   const [togglingActiveWallet, setTogglingActiveWallet] = useState<string | null>(null);
+  const [togglingGlobalWallet, setTogglingGlobalWallet] = useState<string | null>(null);
 
   const loadWallets = () =>
     fetch("/api/admin/wallet-tracker/wallets")
@@ -363,6 +364,28 @@ export default function AdminWalletTrackerPage() {
     }
   };
 
+  const handleSetGlobal = async (address: string, global: boolean) => {
+    setTogglingGlobalWallet(address);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/wallet-tracker/wallets", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, global }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadWallets();
+        setSuccessMessage(global ? "Wallet shown globally." : "Wallet hidden from global list.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Update failed");
+    } catch {
+      setError("Update failed");
+    } finally {
+      setTogglingGlobalWallet(null);
+    }
+  };
+
   const isOwner = (session?.user as { isOwner?: boolean })?.isOwner ?? false;
   if (status === "loading" || !session) {
     return (
@@ -663,6 +686,10 @@ export default function AdminWalletTrackerPage() {
                           {togglingActiveWallet === w.address ? "…" : "Activate"}
                         </Button>
                       )}
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">Global</span>
+                      <Button variant="outline" size="sm" className={`h-7 text-xs ${w.global !== false ? "bg-amber-100 dark:bg-amber-900/30 border-amber-400 dark:border-amber-600" : ""}`} onClick={() => handleSetGlobal(w.address, !(w.global !== false))} disabled={togglingGlobalWallet === w.address} title={w.global !== false ? "Shown on global meme coin tracking" : "Hidden from global list"}>
+                        {togglingGlobalWallet === w.address ? "…" : w.global !== false ? "On" : "Off"}
+                      </Button>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">First alert</span>
                       <button
                         type="button"
