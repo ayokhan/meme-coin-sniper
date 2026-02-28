@@ -1257,7 +1257,7 @@ export default function TradingBotPanel() {
                         </span>
                       </p>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
-                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={fetchPositions} disabled={positionsLoading}>
+                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => fetchPositions()} disabled={positionsLoading}>
                           {positionsLoading ? "Refreshing…" : "Refresh PNL"}
                         </Button>
                         <Button
