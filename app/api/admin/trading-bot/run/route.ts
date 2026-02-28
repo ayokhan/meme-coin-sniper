@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
-async function runWithPreCheck() {
+async function runWithPreCheck(userId?: string) {
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) {
     return { ok: false, message: null, error: "No bot config. Save config first." };
@@ -19,7 +19,8 @@ async function runWithPreCheck() {
   if (provider !== "blofin") {
     return { ok: false, message: null, error: "Only Blofin is supported. Set provider to Blofin in config." };
   }
-  if (!isBlofinConfigured()) {
+  // Require global Blofin keys only when running without a user (e.g. cron); per-user run uses user's keys
+  if (!userId && !isBlofinConfigured()) {
     return {
       ok: false,
       message: null,
@@ -30,7 +31,7 @@ async function runWithPreCheck() {
   if (!symbol) {
     return { ok: false, message: null, error: "Symbol is required in config." };
   }
-  return runTradingBotCycle();
+  return runTradingBotCycle(userId);
 }
 
 /**
