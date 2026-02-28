@@ -6,6 +6,9 @@ import { runAIMonitorCycle } from "@/lib/trading-bot-run";
 
 export const dynamic = "force-dynamic";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = prisma as any;
+
 /** POST - Run AI monitor once. When Autopilot is on, closes positions automatically. When off, returns suggested closes only (no close). Owner only. */
 export async function POST() {
   try {
@@ -13,7 +16,7 @@ export async function POST() {
     if (!canAccessTradingBot(session)) {
       return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
     }
-    const bot = await prisma.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
+    const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
     const autopilot = (bot as { aiMonitorAutopilot?: boolean } | null)?.aiMonitorAutopilot ?? false;
     const result = await runAIMonitorCycle({ dryRun: !autopilot });
     if (!result.ok) {
