@@ -9,16 +9,23 @@ export const dynamic = "force-dynamic";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
-/** POST - Run AI monitor once. When Autopilot is on, closes positions automatically. When off, returns suggested closes only (no close). Owner only. */
-export async function POST() {
+/** POST - Run AI monitor once. When Autopilot is on, closes positions automatically. When off, returns suggested closes only (no close). Owner only. Body: { pinnedOnly?: boolean } — true = only pinned (monitoring board) symbols, false/omit = all open positions. */
+export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!canAccessTradingBot(session)) {
       return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
     }
+    let pinnedOnly: boolean | undefined;
+    try {
+      const body = await req.json().catch(() => ({}));
+      pinnedOnly = body.pinnedOnly === true ? true : body.pinnedOnly === false ? false : undefined;
+    } catch {
+      pinnedOnly = undefined;
+    }
     const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
     const autopilot = (bot as { aiMonitorAutopilot?: boolean } | null)?.aiMonitorAutopilot ?? false;
-    const result = await runAIMonitorCycle({ dryRun: !autopilot });
+    const result = await runAIMonitorCycle({ dryRun: !autopilot, pinnedOnly });
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error ?? "Monitor failed." }, { status: 400 });
     }

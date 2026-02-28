@@ -440,8 +440,8 @@ export async function placeLimitOrderTradingBot(options: {
 
 export type SuggestedClose = { instId: string; posSide: "long" | "short" | "net"; reason: string };
 
-/** Run AI monitor: evaluate open positions. When dryRun is true, returns suggested closes only (no auto-close). When dryRun is false, closes positions (used only after user confirmation). */
-export async function runAIMonitorCycle(options?: { dryRun?: boolean }): Promise<{
+/** Run AI monitor: evaluate open positions. When dryRun is true, returns suggested closes only (no auto-close). When dryRun is false, closes positions (used only after user confirmation). pinnedOnly: true = only pinned (monitoring board) symbols; false/omit = all open positions. */
+export async function runAIMonitorCycle(options?: { dryRun?: boolean; pinnedOnly?: boolean }): Promise<{
   ok: boolean;
   closed: number;
   message?: string;
@@ -457,15 +457,20 @@ export async function runAIMonitorCycle(options?: { dryRun?: boolean }): Promise
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
   const strategy = (bot as { strategy?: string }).strategy ?? "simple";
   const allPositions = await getPositionsBlofin(undefined, { demo: isDemo });
-  const monitorSymbolsRaw = (bot as { monitorSymbols?: string | null }).monitorSymbols;
-  const monitorSet = monitorSymbolsRaw
-    ? new Set(
-        monitorSymbolsRaw
-          .split(",")
-          .map((s) => s.trim().toUpperCase().replace("/", "-"))
-          .filter(Boolean)
-      )
-    : null;
+  // pinnedOnly === false → all open positions (AI Monitor). pinnedOnly === true → only pinned symbols (empty list = none). undefined → use saved monitorSymbols if set, else all.
+  const monitorSymbolsRaw =
+    options?.pinnedOnly === false ? null : (bot as { monitorSymbols?: string | null }).monitorSymbols;
+  const monitorSet =
+    monitorSymbolsRaw && monitorSymbolsRaw.trim()
+      ? new Set(
+          monitorSymbolsRaw
+            .split(",")
+            .map((s) => s.trim().toUpperCase().replace("/", "-"))
+            .filter(Boolean)
+        )
+      : options?.pinnedOnly === true
+        ? new Set<string>()
+        : null;
   let positions = allPositions;
   if (monitorSet && monitorSet.size > 0) {
     positions = positions.filter((p) => {

@@ -76,15 +76,16 @@ export default function TradingBotPanel() {
   const [lastMonitorResult, setLastMonitorResult] = useState<string | null>(null);
   const [lastMonitorReasons, setLastMonitorReasons] = useState<string[]>([]);
   const [suggestedCloses, setSuggestedCloses] = useState<SuggestedClose[]>([]);
+  const [boardMonitoring, setBoardMonitoring] = useState(false);
+  const [boardMonitorIntervalMins, setBoardMonitorIntervalMins] = useState<0 | 5 | 10 | 15 | 60>(0);
+  const [lastBoardMonitorResult, setLastBoardMonitorResult] = useState<string | null>(null);
+  const [lastBoardMonitorReasons, setLastBoardMonitorReasons] = useState<string[]>([]);
+  const [suggestedClosesBoard, setSuggestedClosesBoard] = useState<SuggestedClose[]>([]);
   const [downloadingPnlImage, setDownloadingPnlImage] = useState(false);
   const [downloadingClosedPnlImage, setDownloadingClosedPnlImage] = useState(false);
   const [monitorBoardSymbols, setMonitorBoardSymbols] = useState<string[]>([]);
   const [monitorBoardInput, setMonitorBoardInput] = useState("");
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
-  const [boardRefreshMins, setBoardRefreshMins] = useState<0 | 1 | 2 | 5>(0);
-  const [lastBoardRefreshAt, setLastBoardRefreshAt] = useState<number | null>(null);
-  const [lastBoardRefreshResult, setLastBoardRefreshResult] = useState<string | null>(null);
-  const [lastBoardRefreshError, setLastBoardRefreshError] = useState<string | null>(null);
   const [cancelingAll, setCancelingAll] = useState(false);
   const [userBlofinConfigured, setUserBlofinConfigured] = useState<boolean | null>(null);
   const [blofinKeysForm, setBlofinKeysForm] = useState({ apiKey: "", secretKey: "", passphrase: "", demoMode: true, brokerId: "" });
@@ -93,14 +94,9 @@ export default function TradingBotPanel() {
 
   const [form, setForm] = useState<Partial<Config>>({});
 
-  const fetchPositions = useCallback(async (fromMonitoringBoard?: boolean) => {
+  const fetchPositions = useCallback(async () => {
     try {
       setPositionsLoading(true);
-      if (fromMonitoringBoard) {
-        clearFeedback();
-        setLastBoardRefreshResult(null);
-        setLastBoardRefreshError(null);
-      }
       const res = await fetch("/api/admin/trading-bot/positions");
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.positions)) {
@@ -109,30 +105,13 @@ export default function TradingBotPanel() {
           totalUnrealizedPnl: data.totalUnrealizedPnl ?? 0,
           markPrice: data.markPrice ?? null,
         });
-        if (fromMonitoringBoard) {
-          const n = data.positions.length;
-          setLastBoardRefreshResult(n > 0 ? `${n} position${n === 1 ? "" : "s"} — total PNL ${(data.totalUnrealizedPnl >= 0 ? "+" : "")}${Number(data.totalUnrealizedPnl).toFixed(2)} USDT` : "No open positions.");
-          setLastBoardRefreshError(null);
-        }
       } else {
         setPositionsData(null);
-        if (fromMonitoringBoard) {
-          const errMsg = data.error ?? (res.status === 403 ? "Owner only." : "Failed to load positions.");
-          setLastBoardRefreshResult(null);
-          setLastBoardRefreshError(errMsg);
-          setError(errMsg);
-        }
       }
     } catch {
       setPositionsData(null);
-      if (fromMonitoringBoard) {
-        setLastBoardRefreshResult(null);
-        setLastBoardRefreshError("Network or server error.");
-        setError("Failed to refresh positions.");
-      }
     } finally {
       setPositionsLoading(false);
-      setLastBoardRefreshAt(Date.now());
     }
   }, []);
 
@@ -224,34 +203,21 @@ export default function TradingBotPanel() {
     if (config != null) fetchPositions();
   }, [config, fetchPositions]);
 
-  // Optional: refresh PNL every 30s only when user has enabled Board refresh (so "Off" means no background calls)
-  useEffect(() => {
-    if (boardRefreshMins <= 0) return undefined;
-    if (!positionsData?.positions?.length) return undefined;
-    const interval = setInterval(fetchPositions, 30_000);
-    return () => clearInterval(interval);
-  }, [boardRefreshMins, positionsData?.positions?.length, fetchPositions]);
-
   useEffect(() => {
     if (activeTab === "open_orders") fetchOpenOrders();
   }, [activeTab, fetchOpenOrders]);
 
-  // Monitoring board independent refresh (positions/PNL only)
-  useEffect(() => {
-    if (boardRefreshMins <= 0) return undefined;
-    const intervalMs = boardRefreshMins * 60 * 1000;
-    const t = setInterval(fetchPositions, intervalMs);
-    fetchPositions();
-    return () => clearInterval(t);
-  }, [boardRefreshMins, fetchPositions]);
-
-  // AI Monitor auto-refresh when interval is set
+  // AI Monitor auto-refresh — runs on all open positions
   useEffect(() => {
     if (monitorIntervalMins <= 0) return undefined;
     const runMonitor = async () => {
       try {
         setMonitoring(true);
-        const res = await fetch("/api/admin/trading-bot/monitor", { method: "POST" });
+        const res = await fetch("/api/admin/trading-bot/monitor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pinnedOnly: false }),
+        });
         const data = await res.json().catch(() => ({}));
         const msg = data.success ? (data.message ?? "Done.") : (data.error ?? "Failed.");
         setLastMonitorResult(msg);
@@ -270,6 +236,37 @@ export default function TradingBotPanel() {
     runMonitor();
     return () => clearInterval(t);
   }, [monitorIntervalMins, fetchPositions]);
+
+  // Monitoring board auto-refresh — runs only on pinned symbols
+  useEffect(() => {
+    if (boardMonitorIntervalMins <= 0) return undefined;
+    const runBoardMonitor = async () => {
+      try {
+        setBoardMonitoring(true);
+        const res = await fetch("/api/admin/trading-bot/monitor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pinnedOnly: true }),
+        });
+        const data = await res.json().catch(() => ({}));
+        const msg = data.success ? (data.message ?? "Done.") : (data.error ?? "Failed.");
+        setLastBoardMonitorResult(msg);
+        setLastBoardMonitorReasons(data.success && Array.isArray(data.reasons) ? data.reasons : []);
+        setSuggestedClosesBoard(data.success && Array.isArray(data.suggestedCloses) ? data.suggestedCloses : []);
+        if (data.success && (data.closed ?? 0) > 0) fetchPositions();
+      } catch {
+        setLastBoardMonitorResult("Failed.");
+        setLastBoardMonitorReasons([]);
+        setSuggestedClosesBoard([]);
+      } finally {
+        setBoardMonitoring(false);
+      }
+    };
+    const intervalMs = boardMonitorIntervalMins * 60 * 1000;
+    const t = setInterval(runBoardMonitor, intervalMs);
+    runBoardMonitor();
+    return () => clearInterval(t);
+  }, [boardMonitorIntervalMins, fetchPositions]);
 
   useEffect(() => {
     if (activeTab === "orders") fetchOrderHistory();
@@ -437,7 +434,11 @@ export default function TradingBotPanel() {
       setMonitoring(true);
       clearFeedback();
       setSuggestedCloses([]);
-      const res = await fetch("/api/admin/trading-bot/monitor", { method: "POST" });
+      const res = await fetch("/api/admin/trading-bot/monitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinnedOnly: false }),
+      });
       const data = await res.json().catch(() => ({}));
       if (data.success) {
         const msg = data.message ?? "Evaluation complete.";
@@ -462,6 +463,43 @@ export default function TradingBotPanel() {
       setSuggestedCloses([]);
     } finally {
       setMonitoring(false);
+    }
+  };
+
+  const runBoardMonitor = async () => {
+    try {
+      setBoardMonitoring(true);
+      clearFeedback();
+      setSuggestedClosesBoard([]);
+      const res = await fetch("/api/admin/trading-bot/monitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinnedOnly: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        const msg = data.message ?? "Evaluation complete.";
+        setSuccess(msg);
+        setError(null);
+        setLastBoardMonitorResult(msg);
+        setLastBoardMonitorReasons(Array.isArray(data.reasons) ? data.reasons : []);
+        setSuggestedClosesBoard(Array.isArray(data.suggestedCloses) ? data.suggestedCloses : []);
+        fetchPositions();
+      } else {
+        setError(data.error ?? "Monitor failed.");
+        setSuccess(null);
+        setLastBoardMonitorResult(null);
+        setLastBoardMonitorReasons([]);
+        setSuggestedClosesBoard([]);
+      }
+    } catch {
+      setError("Monitor failed.");
+      setSuccess(null);
+      setLastBoardMonitorResult(null);
+      setLastBoardMonitorReasons([]);
+      setSuggestedClosesBoard([]);
+    } finally {
+      setBoardMonitoring(false);
     }
   };
 
@@ -991,7 +1029,7 @@ export default function TradingBotPanel() {
             </div>
             {monitorBoardSymbols.length > 0 && (
               <>
-                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Click <strong>Save</strong> above so the AI monitor uses these symbols.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Click <strong>Save</strong> above. Run now / Auto-refresh here will evaluate only these pinned symbols (not all positions).</p>
                 <div className="flex flex-wrap gap-1.5">
                 {monitorBoardSymbols.map((s) => (
                   <span
@@ -1013,41 +1051,78 @@ export default function TradingBotPanel() {
               </>
             )}
             <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-zinc-200 dark:border-zinc-600">
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Board refresh:</span>
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Autopilot mode</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={config?.aiMonitorAutopilot ?? false}
+                onClick={async () => {
+                  const next = !(config?.aiMonitorAutopilot ?? false);
+                  try {
+                    const res = await fetch("/api/admin/trading-bot", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ aiMonitorAutopilot: next }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (data.success && data.config) {
+                      setConfig(data.config);
+                      setSuccess(next ? "Autopilot on: AI can close positions automatically." : "Autopilot off: monitor only suggests.");
+                    }
+                  } catch {
+                    setError("Failed to update Autopilot.");
+                  }
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 ${(config?.aiMonitorAutopilot ?? false) ? "bg-cyan-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${(config?.aiMonitorAutopilot ?? false) ? "translate-x-5" : "translate-x-1"}`} />
+              </button>
+              <span className="text-xs text-muted-foreground">{(config?.aiMonitorAutopilot ?? false) ? "On — AI closes automatically" : "Off — suggestions only"}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Auto-refresh:</span>
               <select
-                value={boardRefreshMins}
-                onChange={(e) => setBoardRefreshMins(Number(e.target.value) as 0 | 1 | 2 | 5)}
+                value={boardMonitorIntervalMins}
+                onChange={(e) => setBoardMonitorIntervalMins(Number(e.target.value) as 0 | 5 | 10 | 15 | 60)}
                 className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm"
               >
                 <option value={0}>Off</option>
-                <option value={1}>Every 1 min</option>
-                <option value={2}>Every 2 min</option>
                 <option value={5}>Every 5 min</option>
+                <option value={10}>Every 10 min</option>
+                <option value={15}>Every 15 min</option>
+                <option value={60}>Every 1 hour</option>
               </select>
-              <Button type="button" variant="outline" size="sm" onClick={() => fetchPositions(true)} disabled={positionsLoading} className="border-zinc-500 text-zinc-700 dark:text-zinc-300">
-                {positionsLoading ? "Refreshing…" : "Run now"}
+              <Button type="button" variant="outline" size="sm" onClick={runBoardMonitor} disabled={boardMonitoring} className="border-cyan-500 text-cyan-700 dark:text-cyan-300">
+                {boardMonitoring ? "Running…" : "Run now"}
               </Button>
-              <span className="text-xs text-muted-foreground">Refreshes positions &amp; PNL only (no AI).</span>
+              <span className="text-xs text-muted-foreground">Runs only on pinned symbols above.</span>
             </div>
-            {(lastBoardRefreshResult != null || lastBoardRefreshError != null) && (
+            {lastBoardMonitorResult != null && (
               <div className="text-xs text-muted-foreground space-y-1">
-                <p>
-                  Last refresh: {lastBoardRefreshError != null ? (
-                    <span className="text-rose-600 dark:text-rose-400">{lastBoardRefreshError}</span>
-                  ) : (
-                    lastBoardRefreshResult
-                  )}
-                </p>
-                {lastBoardRefreshError == null && positionsData && positionsData.positions.length > 0 && (
+                <p>Last monitor (pinned): {lastBoardMonitorResult}</p>
+                {suggestedClosesBoard.length > 0 && (
+                  <div className="mt-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 p-2 space-y-2">
+                    <p className="font-medium text-amber-800 dark:text-amber-200">AI suggests closing ({suggestedClosesBoard.length})</p>
+                    <ul className="space-y-1">
+                      {suggestedClosesBoard.map((s, i) => (
+                        <li key={i} className="text-amber-700 dark:text-amber-300">
+                          {s.instId} {s.posSide.toUpperCase()} — {s.reason}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-amber-700 dark:text-amber-300">Turn on Autopilot to let AI close these positions automatically.</p>
+                  </div>
+                )}
+                {lastBoardMonitorReasons.length > 0 && (
                   <div className="mt-1.5 rounded border border-zinc-200 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-900/40 p-2 space-y-0.5">
-                    <p className="font-medium text-zinc-700 dark:text-zinc-300">Positions:</p>
-                    {positionsData.positions.map((p, i) => (
-                      <p key={i} className="pl-0 text-muted-foreground">
-                        {p.instId} {p.posSide.toUpperCase()} — {p.unrealizedPnl >= 0 ? "+" : ""}{p.unrealizedPnl.toFixed(2)} USDT
-                        {p.pnlPct != null && Number.isFinite(p.pnlPct) && ` (${p.pnlPct >= 0 ? "+" : ""}${p.pnlPct.toFixed(2)}%)`}
-                      </p>
+                    <p className="font-medium text-zinc-700 dark:text-zinc-300">Reasons:</p>
+                    {lastBoardMonitorReasons.map((r, i) => (
+                      <p key={i} className="pl-0 text-muted-foreground">{r}</p>
                     ))}
                   </div>
+                )}
+                {suggestedClosesBoard.length === 0 && lastBoardMonitorReasons.length === 0 && (lastBoardMonitorResult.includes("No positions") || lastBoardMonitorResult.includes("evaluate") || lastBoardMonitorResult.includes("match")) && (
+                  <span className="block mt-0.5 text-muted-foreground/90">Pinned position(s) were evaluated; none met the exit criteria.</span>
                 )}
               </div>
             )}
@@ -1062,7 +1137,7 @@ export default function TradingBotPanel() {
               )}
             </p>
             <p className="text-xs text-muted-foreground">
-              Run NovaStaris AI to evaluate open positions{monitorBoardSymbols.length > 0 ? " on your saved monitoring board" : ""}. When the trend is opposite or the analysis is negative, it suggests or closes positions. With <strong>Autopilot on</strong>, AI closes positions automatically. With <strong>Autopilot off</strong>, it only suggests (no close). Enable auto-refresh to run periodically. Uses the same account (<strong>{config?.mode === "demo" ? "Demo" : "Live"}</strong>) as the bot—positions above must be in that account to be seen.
+              Run NovaStaris AI on <strong>all open positions</strong>. When the trend is opposite or the analysis is negative, it suggests or closes positions. With <strong>Autopilot on</strong>, AI closes positions automatically. With <strong>Autopilot off</strong>, it only suggests (no close). Uses the same account (<strong>{config?.mode === "demo" ? "Demo" : "Live"}</strong>) as the bot.
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-zinc-200 dark:border-zinc-600">
               <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Autopilot mode</span>
@@ -1109,10 +1184,11 @@ export default function TradingBotPanel() {
               <Button onClick={runAIMonitor} disabled={monitoring} variant="outline" size="sm" className="border-cyan-500 text-cyan-700 dark:text-cyan-300">
                 {monitoring ? "Running…" : "Run now"}
               </Button>
+              <span className="text-xs text-muted-foreground">Runs on all open positions.</span>
             </div>
             {lastMonitorResult != null && (
               <div className="text-xs text-muted-foreground space-y-1">
-                <p>Last monitor: {lastMonitorResult}</p>
+                <p>Last monitor (all): {lastMonitorResult}</p>
                 {suggestedCloses.length > 0 && (
                   <div className="mt-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 p-2 space-y-2">
                     <p className="font-medium text-amber-800 dark:text-amber-200">AI suggests closing ({suggestedCloses.length})</p>
