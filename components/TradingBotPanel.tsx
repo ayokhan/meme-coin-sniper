@@ -91,9 +91,10 @@ export default function TradingBotPanel() {
 
   const [form, setForm] = useState<Partial<Config>>({});
 
-  const fetchPositions = useCallback(async () => {
+  const fetchPositions = useCallback(async (fromMonitoringBoard?: boolean) => {
     try {
       setPositionsLoading(true);
+      if (fromMonitoringBoard) clearFeedback();
       const res = await fetch("/api/admin/trading-bot/positions");
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.positions)) {
@@ -102,11 +103,18 @@ export default function TradingBotPanel() {
           totalUnrealizedPnl: data.totalUnrealizedPnl ?? 0,
           markPrice: data.markPrice ?? null,
         });
+        if (fromMonitoringBoard) {
+          const n = data.positions.length;
+          setSuccess(n > 0 ? `Positions & PNL refreshed (${n} position${n === 1 ? "" : "s"}). See Positions tab below.` : "Positions refreshed. No open positions. See Positions tab below.");
+          setTimeout(clearFeedback, 4000);
+        }
       } else {
         setPositionsData(null);
+        if (fromMonitoringBoard) setError(data.error ?? "Failed to load positions.");
       }
     } catch {
       setPositionsData(null);
+      if (fromMonitoringBoard) setError("Failed to refresh positions.");
     } finally {
       setPositionsLoading(false);
       setLastBoardRefreshAt(Date.now());
@@ -1001,7 +1009,7 @@ export default function TradingBotPanel() {
                 <option value={2}>Every 2 min</option>
                 <option value={5}>Every 5 min</option>
               </select>
-              <Button type="button" variant="outline" size="sm" onClick={fetchPositions} disabled={positionsLoading} className="border-zinc-500 text-zinc-700 dark:text-zinc-300">
+              <Button type="button" variant="outline" size="sm" onClick={() => fetchPositions(true)} disabled={positionsLoading} className="border-zinc-500 text-zinc-700 dark:text-zinc-300">
                 {positionsLoading ? "Refreshing…" : "Run now"}
               </Button>
               {lastBoardRefreshAt != null && !positionsLoading && (
@@ -1257,52 +1265,20 @@ export default function TradingBotPanel() {
                           variant="outline"
                           size="sm"
                           className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
-                          onClick={() => {
-                            const date = new Date().toISOString().slice(0, 10);
-                            const lines = [
-                              "— NovaStaris AI —",
-                              "PNL Report",
-                              `Date: ${new Date().toLocaleString()}`,
-                              "",
-                              ...positionsData.positions.map((p) => {
-                                const pct = p.pnlPct != null ? ` (${p.pnlPct >= 0 ? "+" : ""}${p.pnlPct.toFixed(2)}%)` : "";
-                                return `${p.instId} ${p.posSide.toUpperCase()} | Entry: ${p.entryPrice.toFixed(2)} | Mark: ${(p.markPrice ?? 0).toFixed(2)} | PNL: ${p.unrealizedPnl >= 0 ? "+" : ""}${p.unrealizedPnl.toFixed(2)} USDT${pct}`;
-                              }),
-                              "",
-                              `Total unrealized: ${positionsData.totalUnrealizedPnl >= 0 ? "+" : ""}${positionsData.totalUnrealizedPnl.toFixed(2)} USDT`,
-                              "",
-                              "Your Advanced AI Lightning Sniper and Trading Intelligence",
-                              "novastaris.ai",
-                            ];
-                            const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `NovaStaris_PNL_Report_${date}.txt`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                          }}
-                        >
-                          Download PNL (.txt)
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
                           disabled={downloadingPnlImage}
                           onClick={async () => {
                             if (!positionsData?.positions?.length) return;
                             setDownloadingPnlImage(true);
                             try {
-                              const rows = positionsData.positions.map((p) => {
-                                const pct = p.pnlPct != null ? ` (${p.pnlPct >= 0 ? "+" : ""}${p.pnlPct.toFixed(2)}%)` : "";
-                                return `${p.instId} ${p.posSide.toUpperCase()} | Entry: ${p.entryPrice.toFixed(2)} | Mark: ${(p.markPrice ?? 0).toFixed(2)} | PNL: ${p.unrealizedPnl >= 0 ? "+" : ""}${p.unrealizedPnl.toFixed(2)} USDT${pct}`;
-                              });
+                              const items = positionsData.positions.map((p) => ({
+                                name: p.instId ?? "",
+                                side: p.posSide ?? "",
+                                pnlDisplay: p.pnlPct != null ? `${p.pnlPct >= 0 ? "+" : ""}${p.pnlPct.toFixed(2)}%` : "—",
+                              }));
                               const blob = await drawPnlToJpegBlob({
                                 title: "NovaStaris AI — PNL Report",
                                 subtitle: "Open positions",
-                                rows,
+                                items,
                                 totalLabel: "Total unrealized",
                                 totalValue: positionsData.totalUnrealizedPnl,
                               });
@@ -1427,15 +1403,15 @@ export default function TradingBotPanel() {
                           setDownloadingClosedPnlImage(true);
                           try {
                             const totalClosed = withPnl.reduce((sum, o) => sum + Number(o.pnl ?? 0), 0);
-                            const rows = withPnl.map((o) => {
+                            const items = withPnl.map((o) => {
                               const pnlNum = Number(o.pnl ?? 0);
                               const sign = pnlNum >= 0 ? "+" : "";
-                              return `${o.instId} ${o.side.toUpperCase()} | ${o.orderType} | size ${o.size}${o.fillPrice != null ? ` @ ${o.fillPrice}` : ""} | PNL: ${sign}${pnlNum.toFixed(2)} USDT`;
+                              return { name: o.instId ?? "", side: o.side ?? "", pnlDisplay: `$${sign}${pnlNum.toFixed(2)}` };
                             });
                             const blob = await drawPnlToJpegBlob({
                               title: "NovaStaris AI — Closed PNL",
                               subtitle: "Closed positions (order history)",
-                              rows,
+                              items,
                               totalLabel: "Total realized",
                               totalValue: totalClosed,
                             });

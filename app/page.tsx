@@ -2510,21 +2510,21 @@ export default function Dashboard() {
                         )}
                       </div>
                     )}
-                    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
-                      <Table>
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 w-full max-w-full overflow-x-auto">
+                      <Table className="table-fixed w-full min-w-0 text-xs" style={{ tableLayout: "fixed" }}>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Trader</TableHead>
-                            <TableHead>Account</TableHead>
-                            <TableHead title="Last fill (open/add/reduce/close) in last 7 days">Last activity</TableHead>
-                            <TableHead>Symbol</TableHead>
-                            <TableHead>Side</TableHead>
-                            <TableHead className="text-right">Size</TableHead>
-                            <TableHead className="text-right">Entry</TableHead>
-                            <TableHead className="text-right">Margin</TableHead>
-                            <TableHead className="text-right">Notional</TableHead>
-                            <TableHead className="text-right">Leverage</TableHead>
-                            <TableHead className="text-right">Unrealized PnL</TableHead>
+                            <TableHead className="w-[13%] py-1.5 px-1.5 text-xs">Trader</TableHead>
+                            <TableHead className="w-[8%] py-1.5 px-1.5 text-xs">Account</TableHead>
+                            <TableHead className="w-[11%] py-1.5 px-1.5 text-xs" title="Last fill (open/add/reduce/close) in last 7 days">Active</TableHead>
+                            <TableHead className="w-[6%] py-1.5 px-1.5 text-xs">Symbol</TableHead>
+                            <TableHead className="w-[6%] py-1.5 px-1.5 text-xs">Side</TableHead>
+                            <TableHead className="w-[7%] py-1.5 px-1.5 text-right text-xs">Size</TableHead>
+                            <TableHead className="w-[8%] py-1.5 px-1.5 text-right text-xs">Entry</TableHead>
+                            <TableHead className="w-[8%] py-1.5 px-1.5 text-right text-xs">Margin</TableHead>
+                            <TableHead className="w-[9%] py-1.5 px-1.5 text-right text-xs">Notional</TableHead>
+                            <TableHead className="w-[6%] py-1.5 px-1.5 text-right text-xs">Lev</TableHead>
+                            <TableHead className="w-[8%] py-1.5 px-1.5 text-right text-xs">PnL</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -2534,45 +2534,45 @@ export default function Dashboard() {
                               ? new Date(t.lastTradeTimeMs).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })
                               : "—";
                             const traderCell = (
-                              <span className="inline-flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-flex items-center gap-1 flex-wrap min-w-0">
                                 {t.apexLiquidUrl ? (
-                                  <a href={t.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono text-xs">{displayName}</a>
+                                  <a href={t.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono truncate max-w-full">{displayName}</a>
                                 ) : (
-                                  <span className="font-mono text-xs">{displayName}</span>
+                                  <span className="font-mono truncate max-w-full">{displayName}</span>
                                 )}
-                                <button type="button" onClick={() => openTraderHistory(t.address, t.nickname ?? null)} className="text-xs text-muted-foreground hover:text-cyan-600 dark:hover:text-cyan-400 underline">History</button>
+                                <button type="button" onClick={() => openTraderHistory(t.address, t.nickname ?? null)} className="text-muted-foreground hover:text-cyan-600 dark:hover:text-cyan-400 underline shrink-0">History</button>
                               </span>
                             );
                             return t.positions.length === 0
-                              ? [<TableRow key={t.address}><TableCell className="font-mono text-xs">{traderCell}</TableCell><TableCell className="font-mono text-xs">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-xs text-muted-foreground" title="Last fill in last 7d">{lastTradeStr}</TableCell><TableCell colSpan={8} className="text-muted-foreground">No open positions</TableCell></TableRow>]
+                              ? [<TableRow key={t.address}><TableCell className="font-mono py-1.5 px-1.5 truncate max-w-0">{traderCell}</TableCell><TableCell className="font-mono py-1.5 px-1.5">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-muted-foreground py-1.5 px-1.5 truncate" title="Last fill in last 7d">{lastTradeStr}</TableCell><TableCell colSpan={8} className="text-muted-foreground py-1.5 px-1.5">No open positions</TableCell></TableRow>]
                               : t.positions.map((pos, i) => (
                                   <TableRow key={`${t.address}-${pos.coin}-${i}`}>
                                     {i === 0 ? (
                                       <>
-                                        <TableCell className="text-xs align-top" rowSpan={t.positions.length}>{traderCell}</TableCell>
-                                        <TableCell className="font-mono text-xs align-top" rowSpan={t.positions.length}>{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
-                                        <TableCell className="text-xs text-muted-foreground align-top" rowSpan={t.positions.length} title="Last fill (open/add/reduce/close) in last 7d">{lastTradeStr}</TableCell>
+                                        <TableCell className="align-top py-1.5 px-1.5 truncate max-w-0" rowSpan={t.positions.length}>{traderCell}</TableCell>
+                                        <TableCell className="font-mono align-top py-1.5 px-1.5" rowSpan={t.positions.length}>{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
+                                        <TableCell className="text-muted-foreground align-top py-1.5 px-1.5 truncate" rowSpan={t.positions.length} title="Last fill (open/add/reduce/close) in last 7d">{lastTradeStr}</TableCell>
                                       </>
                                     ) : null}
-                                    <TableCell>{pos.coin}</TableCell>
-                                    <TableCell>
-                                      <Badge variant={pos.side === "long" ? "default" : "secondary"} className={pos.side === "long" ? "bg-emerald-600" : "bg-rose-600"}>
+                                    <TableCell className="py-1.5 px-1.5 font-mono">{pos.coin}</TableCell>
+                                    <TableCell className="py-1.5 px-1.5">
+                                      <Badge variant={pos.side === "long" ? "default" : "secondary"} className={pos.side === "long" ? "bg-emerald-600 text-[10px] px-1" : "bg-rose-600 text-[10px] px-1"}>
                                         {pos.side === "long" ? "Long" : "Short"}
                                       </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right font-mono">{pos.szi}</TableCell>
-                                    <TableCell className="text-right font-mono">${Number(pos.entryPx).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="text-right font-mono">{pos.marginUsed != null && pos.marginUsed !== "" ? `$${Number(pos.marginUsed).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
-                                    <TableCell className="text-right font-mono">${Number(pos.positionValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                                    <TableCell className="text-right font-mono">{pos.leverage != null ? `${pos.leverage}x` : "—"}</TableCell>
-                                    <TableCell className={`text-right font-mono ${Number(pos.unrealizedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                    <TableCell className="text-right font-mono py-1.5 px-1.5 truncate">{pos.szi}</TableCell>
+                                    <TableCell className="text-right font-mono py-1.5 px-1.5">${Number(pos.entryPx).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right font-mono py-1.5 px-1.5">{pos.marginUsed != null && pos.marginUsed !== "" ? `$${Number(pos.marginUsed).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
+                                    <TableCell className="text-right font-mono py-1.5 px-1.5">${Number(pos.positionValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                    <TableCell className="text-right font-mono py-1.5 px-1.5">{pos.leverage != null ? `${pos.leverage}x` : "—"}</TableCell>
+                                    <TableCell className={`text-right font-mono py-1.5 px-1.5 ${Number(pos.unrealizedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                                       ${Number(pos.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                     </TableCell>
                                   </TableRow>
                                 ));
                           })}
                           {topTradersData.length === 0 && !topTradersLoading && !topTradersError && (
-                            <TableRow><TableCell colSpan={12} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
                           )}
                         </TableBody>
                       </Table>

@@ -1,13 +1,19 @@
 /**
  * Draw PNL report to a canvas and return as JPEG blob.
- * NovaStaris branding (logo-style text + website), profit = green + "Keep winning", loss = red.
+ * Shows: trade name, type (long/short), PNL% in large font. NovaStaris branding + www.novastaris.ai.
  * For use in browser only (TradingBotPanel).
  */
+
+export type PnlImageItem = {
+  name: string;
+  side: string;
+  pnlDisplay: string;
+};
 
 export type PnlImageOptions = {
   title: string;
   subtitle?: string;
-  rows: string[];
+  items: PnlImageItem[];
   totalLabel: string;
   totalValue: number;
   dateLabel?: string;
@@ -18,7 +24,10 @@ const PAD = 32;
 const LINE_HEIGHT = 22;
 const TITLE_SIZE = 24;
 const SUBTITLE_SIZE = 14;
-const ROW_SIZE = 15;
+const ROW_HEIGHT = 52;
+const NAME_SIZE = 15;
+const SIDE_SIZE = 12;
+const PNL_SIZE = 28;
 const FOOTER_SIZE = 13;
 const BRAND_SIZE = 56;
 const WATERMARK_OPACITY = 0.08;
@@ -42,12 +51,12 @@ function drawWatermark(ctx: CanvasRenderingContext2D) {
 }
 
 export function drawPnlToJpegBlob(options: PnlImageOptions): Promise<Blob> {
-  const { title, subtitle, rows, totalLabel, totalValue, dateLabel } = options;
+  const { title, subtitle, items, totalLabel, totalValue, dateLabel } = options;
   const dateStr = dateLabel ?? new Date().toLocaleString();
-  const rowCount = Math.min(rows.length, 18);
+  const itemCount = Math.min(items.length, 12);
   const isProfit = totalValue >= 0;
-  const contentH = 60 + (subtitle ? LINE_HEIGHT : 0) + LINE_HEIGHT + rowCount * (ROW_SIZE + 4) + 50 + 36;
-  const H = Math.min(600, Math.max(440, contentH));
+  const contentH = 60 + (subtitle ? LINE_HEIGHT : 0) + LINE_HEIGHT + itemCount * ROW_HEIGHT + 50 + 36;
+  const H = Math.min(640, Math.max(440, contentH));
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -55,7 +64,6 @@ export function drawPnlToJpegBlob(options: PnlImageOptions): Promise<Blob> {
   const ctx = canvas.getContext("2d");
   if (!ctx) return Promise.reject(new Error("Canvas not supported"));
 
-  // Background gradient (dark premium card)
   const grad = ctx.createLinearGradient(0, 0, W, H);
   grad.addColorStop(0, "#1e293b");
   grad.addColorStop(0.4, "#0f172a");
@@ -64,14 +72,12 @@ export function drawPnlToJpegBlob(options: PnlImageOptions): Promise<Blob> {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // Subtle cyan inner glow at top
   const glow = ctx.createLinearGradient(0, 0, 0, 120);
   glow.addColorStop(0, "rgba(6, 182, 212, 0.06)");
   glow.addColorStop(1, "transparent");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, 120);
 
-  // Border — cyan when profit, subtle red tint when loss
   ctx.strokeStyle = isProfit ? "rgba(6, 182, 212, 0.4)" : "rgba(239, 68, 68, 0.25)";
   ctx.lineWidth = 2;
   ctx.strokeRect(1, 1, W - 2, H - 2);
@@ -84,7 +90,6 @@ export function drawPnlToJpegBlob(options: PnlImageOptions): Promise<Blob> {
 
   let y = PAD + 8;
 
-  // Title
   ctx.font = `600 ${TITLE_SIZE}px system-ui, sans-serif`;
   ctx.fillStyle = "#f8fafc";
   ctx.fillText(title, PAD, y);
@@ -102,24 +107,37 @@ export function drawPnlToJpegBlob(options: PnlImageOptions): Promise<Blob> {
   ctx.fillText(dateStr, PAD, y);
   y += LINE_HEIGHT + 14;
 
-  // Position rows
-  ctx.font = `400 ${ROW_SIZE}px system-ui, monospace`;
-  for (let i = 0; i < rowCount; i++) {
+  for (let i = 0; i < itemCount; i++) {
+    const item = items[i];
+    const sideUpper = (item.side ?? "").toUpperCase();
+    const isItemProfit = item.pnlDisplay.startsWith("+") || item.pnlDisplay.startsWith("$+") || (item.pnlDisplay.startsWith("$") && item.pnlDisplay.length > 1 && item.pnlDisplay[1] !== "-");
+    const pnlColor = isItemProfit ? GREEN_PROFIT : RED_LOSS;
+
+    ctx.font = `600 ${NAME_SIZE}px system-ui, sans-serif`;
     ctx.fillStyle = SLATE_LIGHT;
-    ctx.fillText(rows[i], PAD, y);
-    y += ROW_SIZE + 4;
+    ctx.fillText(item.name, PAD, y);
+
+    ctx.font = `500 ${SIDE_SIZE}px system-ui, sans-serif`;
+    ctx.fillStyle = sideUpper === "LONG" ? GREEN_PROFIT : RED_LOSS;
+    ctx.fillText(sideUpper, PAD, y + NAME_SIZE + 4);
+
+    ctx.font = `700 ${PNL_SIZE}px system-ui, sans-serif`;
+    ctx.fillStyle = pnlColor;
+    ctx.textAlign = "right";
+    ctx.fillText(item.pnlDisplay, W - PAD, y + 4);
+    ctx.textAlign = "left";
+
+    y += ROW_HEIGHT;
   }
 
   y += 10;
 
-  // Total line — green for profit, red for loss
   const totalStr = `${totalLabel}: ${totalValue >= 0 ? "+" : ""}${totalValue.toFixed(2)} USDT`;
-  ctx.font = `700 ${ROW_SIZE + 4}px system-ui, sans-serif`;
+  ctx.font = `700 ${NAME_SIZE + 2}px system-ui, sans-serif`;
   ctx.fillStyle = isProfit ? GREEN_PROFIT : RED_LOSS;
   ctx.fillText(totalStr, PAD, y);
   y += 28;
 
-  // Motivational line: profit → "Keep winning." / loss → short encouragement
   ctx.font = `500 ${FOOTER_SIZE - 1}px system-ui, sans-serif`;
   if (isProfit) {
     ctx.fillStyle = GREEN_PROFIT;
@@ -130,7 +148,6 @@ export function drawPnlToJpegBlob(options: PnlImageOptions): Promise<Blob> {
   }
   y += 22;
 
-  // Footer — brand + website
   ctx.font = `600 ${FOOTER_SIZE}px system-ui, sans-serif`;
   ctx.fillStyle = "#f8fafc";
   ctx.textAlign = "center";
