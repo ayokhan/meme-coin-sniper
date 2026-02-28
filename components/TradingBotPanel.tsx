@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { drawPnlToJpegBlob } from "@/lib/pnl-image";
 
 type PositionWithPnl = {
   instId: string;
@@ -75,6 +76,8 @@ export default function TradingBotPanel() {
   const [lastMonitorResult, setLastMonitorResult] = useState<string | null>(null);
   const [lastMonitorReasons, setLastMonitorReasons] = useState<string[]>([]);
   const [suggestedCloses, setSuggestedCloses] = useState<SuggestedClose[]>([]);
+  const [downloadingPnlImage, setDownloadingPnlImage] = useState(false);
+  const [downloadingClosedPnlImage, setDownloadingClosedPnlImage] = useState(false);
   const [monitorBoardSymbols, setMonitorBoardSymbols] = useState<string[]>([]);
   const [monitorBoardInput, setMonitorBoardInput] = useState("");
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
@@ -1280,7 +1283,41 @@ export default function TradingBotPanel() {
                             URL.revokeObjectURL(url);
                           }}
                         >
-                          Download PNL
+                          Download PNL (.txt)
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
+                          disabled={downloadingPnlImage}
+                          onClick={async () => {
+                            if (!positionsData?.positions?.length) return;
+                            setDownloadingPnlImage(true);
+                            try {
+                              const rows = positionsData.positions.map((p) => {
+                                const pct = p.pnlPct != null ? ` (${p.pnlPct >= 0 ? "+" : ""}${p.pnlPct.toFixed(2)}%)` : "";
+                                return `${p.instId} ${p.posSide.toUpperCase()} | Entry: ${p.entryPrice.toFixed(2)} | Mark: ${(p.markPrice ?? 0).toFixed(2)} | PNL: ${p.unrealizedPnl >= 0 ? "+" : ""}${p.unrealizedPnl.toFixed(2)} USDT${pct}`;
+                              });
+                              const blob = await drawPnlToJpegBlob({
+                                title: "NovaStaris AI — PNL Report",
+                                subtitle: "Open positions",
+                                rows,
+                                totalLabel: "Total unrealized",
+                                totalValue: positionsData.totalUnrealizedPnl,
+                              });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `NovaStaris_PNL_Open_${new Date().toISOString().slice(0, 10)}.jpg`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            } finally {
+                              setDownloadingPnlImage(false);
+                            }
+                          }}
+                        >
+                          {downloadingPnlImage ? "Creating…" : "Download PNL (JPEG)"}
                         </Button>
                         <span className="text-xs text-muted-foreground">Share:</span>
                         <Button
@@ -1373,9 +1410,50 @@ export default function TradingBotPanel() {
                       ))}
                     </div>
                   )}
-                  <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 text-xs" onClick={fetchOrderHistory} disabled={orderHistoryLoading}>
-                    {orderHistoryLoading ? "Refreshing…" : "Refresh"}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={fetchOrderHistory} disabled={orderHistoryLoading}>
+                      {orderHistoryLoading ? "Refreshing…" : "Refresh"}
+                    </Button>
+                    {orderHistory.some((o) => o.pnl != null && o.pnl !== "") && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
+                        disabled={downloadingClosedPnlImage}
+                        onClick={async () => {
+                          const withPnl = orderHistory.filter((o) => o.pnl != null && o.pnl !== "");
+                          if (withPnl.length === 0) return;
+                          setDownloadingClosedPnlImage(true);
+                          try {
+                            const totalClosed = withPnl.reduce((sum, o) => sum + Number(o.pnl ?? 0), 0);
+                            const rows = withPnl.map((o) => {
+                              const pnlNum = Number(o.pnl ?? 0);
+                              const sign = pnlNum >= 0 ? "+" : "";
+                              return `${o.instId} ${o.side.toUpperCase()} | ${o.orderType} | size ${o.size}${o.fillPrice != null ? ` @ ${o.fillPrice}` : ""} | PNL: ${sign}${pnlNum.toFixed(2)} USDT`;
+                            });
+                            const blob = await drawPnlToJpegBlob({
+                              title: "NovaStaris AI — Closed PNL",
+                              subtitle: "Closed positions (order history)",
+                              rows,
+                              totalLabel: "Total realized",
+                              totalValue: totalClosed,
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `NovaStaris_PNL_Closed_${new Date().toISOString().slice(0, 10)}.jpg`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } finally {
+                            setDownloadingClosedPnlImage(false);
+                          }
+                        }}
+                      >
+                        {downloadingClosedPnlImage ? "Creating…" : "Download closed PNL (JPEG)"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
