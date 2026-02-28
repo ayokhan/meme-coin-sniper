@@ -18,15 +18,16 @@ export async function GET() {
       getTrackedWallets(),
       getAlertRules(),
       getFeatureFlag(FEATURE_FLAG_KEYS.LIVE_TRADES_ENABLED),
-      userId ? import('@/lib/db').then(({ prisma }) => prisma.user.findUnique({ where: { id: userId }, select: { walletTrackerMinBuyers: true } })) : Promise.resolve(null),
+      userId ? import('@/lib/db').then(({ prisma }) => prisma.user.findUnique({ where: { id: userId } })) : Promise.resolve(null),
     ]);
-    const effectiveMinBuyers = user?.walletTrackerMinBuyers ?? rules.minBuyers;
+    const userMinBuyers = (user as { walletTrackerMinBuyers?: number | null } | null)?.walletTrackerMinBuyers ?? null;
+    const effectiveMinBuyers = userMinBuyers ?? rules.minBuyers;
     if (trackedWallets.length === 0) {
       return NextResponse.json({
         success: true,
         alerts: [],
         minBuyers: effectiveMinBuyers,
-        userMinBuyers: user?.walletTrackerMinBuyers ?? null,
+        userMinBuyers: userMinBuyers,
         liveTradesEnabled,
         message: 'Wallet tracker is not configured yet.',
       });
@@ -38,7 +39,7 @@ export async function GET() {
       success: true,
       alerts,
       minBuyers: effectiveMinBuyers,
-      userMinBuyers: user?.walletTrackerMinBuyers ?? null,
+      userMinBuyers: userMinBuyers,
       liveTradesEnabled,
       walletsTracked: trackedWallets.length,
     });
