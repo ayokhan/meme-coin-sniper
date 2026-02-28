@@ -158,11 +158,11 @@ function extractPositionsList(data: unknown): PositionRow[] {
 
 const normInstId = (s: string) => (s || "").replace(/-/g, "").toUpperCase();
 
-/** GET /api/v1/account/positions - open positions. options.demo: use bot mode so close/PNL match run. */
-export async function getPositions(instId?: string, options?: { demo?: boolean }): Promise<PositionRow[]> {
+/** GET /api/v1/account/positions - open positions. options.demo: use bot mode so close/PNL match run. options.config: per-user config. */
+export async function getPositions(instId?: string, options?: { demo?: boolean; config?: BlofinConfig | null }): Promise<PositionRow[]> {
   // For non-broker and some accounts, filtered-by-instId returns empty. Fetch all first, then filter.
   const path = "/api/v1/account/positions";
-  const out = await privateRequest<unknown>("GET", path, undefined, options?.demo);
+  const out = await privateRequest<unknown>("GET", path, undefined, options?.demo, options?.config);
   if (out.code !== "0" || out.data == null) return [];
   const all = extractPositionsList(out.data);
   if (!instId) return all;

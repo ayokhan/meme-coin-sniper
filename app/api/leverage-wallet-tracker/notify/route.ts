@@ -94,11 +94,12 @@ export async function GET(request: Request) {
     const adminList: WalletItem[] = adminWallets.map((r) => ({ address: r.address, nickname: r.nickname }));
     let sent = await processWallets(adminList, !!telegramEnabled);
 
-    const userWallets = await prisma.userLeverageWallet.findMany({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const userWallets = await (prisma as any).userLeverageWallet.findMany({
       where: { alertEnabled: true },
       orderBy: { createdAt: "asc" },
     });
-    const userList: WalletItem[] = userWallets.map((r) => ({
+    const userList: WalletItem[] = userWallets.map((r: { address: string; nickname: string | null; userId: string }) => ({
       address: r.address,
       nickname: r.nickname,
       userId: r.userId,

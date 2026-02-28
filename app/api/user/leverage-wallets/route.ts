@@ -13,13 +13,13 @@ export async function GET() {
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
     }
-    const list = await prisma.userLeverageWallet.findMany({
+    const list = await (prisma as any).userLeverageWallet.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "asc" },
     });
     return NextResponse.json({
       success: true,
-      wallets: list.map((w) => ({
+      wallets: list.map((w: { id: string; address: string; nickname: string | null; alertEnabled: boolean }) => ({
         id: w.id,
         address: w.address,
         nickname: w.nickname,
@@ -45,20 +45,20 @@ export async function POST(request: Request) {
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return NextResponse.json({ success: false, error: "Valid 0x address required" }, { status: 400 });
     }
-    await prisma.userLeverageWallet.upsert({
+    await (prisma as any).userLeverageWallet.upsert({
       where: {
         userId_address: { userId: session.user.id, address },
       },
       create: { userId: session.user.id, address, nickname, alertEnabled: true },
       update: { nickname },
     });
-    const list = await prisma.userLeverageWallet.findMany({
+    const list = await (prisma as any).userLeverageWallet.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "asc" },
     });
     return NextResponse.json({
       success: true,
-      wallets: list.map((w) => ({
+      wallets: list.map((w: { id: string; address: string; nickname: string | null; alertEnabled: boolean }) => ({
         id: w.id,
         address: w.address,
         nickname: w.nickname,
@@ -83,7 +83,7 @@ export async function DELETE(request: Request) {
     if (!address) {
       return NextResponse.json({ success: false, error: "Address required" }, { status: 400 });
     }
-    await prisma.userLeverageWallet.deleteMany({
+    await (prisma as any).userLeverageWallet.deleteMany({
       where: { userId: session.user.id, address },
     });
     return NextResponse.json({ success: true });

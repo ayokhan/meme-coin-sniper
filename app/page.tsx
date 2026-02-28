@@ -461,6 +461,16 @@ export default function Dashboard() {
       setUserMemeCoinWallets([]);
     }
   };
+  const fetchUserMemeCoinAlerts = async () => {
+    try {
+      const res = await fetch("/api/user/meme-coin-alerts", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success) setUserMemeCoinAlerts(data.alerts ?? []);
+      else setUserMemeCoinAlerts([]);
+    } catch {
+      setUserMemeCoinAlerts([]);
+    }
+  };
   const openTraderHistory = (address: string, nickname: string | null) => {
     setHistoryAddress(address);
     setHistoryNickname(nickname ?? null);

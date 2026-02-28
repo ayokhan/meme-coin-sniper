@@ -41,11 +41,12 @@ export async function GET() {
       }
       rows = adminRows.map((r) => ({ address: r.address, nickname: r.nickname }));
     } else {
-      const userRows = await prisma.userLeverageWallet.findMany({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const userRows = await (prisma as any).userLeverageWallet.findMany({
         where: { userId: session.user.id },
         orderBy: { createdAt: "asc" },
       });
-      rows = userRows.map((r) => ({ address: r.address, nickname: r.nickname }));
+      rows = userRows.map((r: { address: string; nickname: string | null }) => ({ address: r.address, nickname: r.nickname }));
     }
     if (rows.length === 0) {
       return NextResponse.json({ success: true, traders: [] });

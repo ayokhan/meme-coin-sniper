@@ -167,7 +167,7 @@ export async function runTradingBotCycle(userId?: string): Promise<{ ok: boolean
     blofinConfig = await getBlofinConfigForUser(userId);
   }
   if (!blofinConfig) {
-    blofinConfig = getConfig();
+    blofinConfig = getBlofinEnvConfig();
   }
   if (!blofinConfig) {
     if (userId) {

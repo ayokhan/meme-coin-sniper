@@ -24,6 +24,7 @@ export async function GET(request: Request) {
 
     let sent = 0;
     let firstBuySent = 0;
+    const userMemeCoinFirstBuyCreated = await processUserMemeCoinFirstBuys();
 
     if (telegramEnabled) {
       const [alerts, rules] = await Promise.all([getWalletAlerts(), getAlertRules()]);
@@ -82,7 +83,7 @@ export async function GET(request: Request) {
       success: true,
       sent,
       firstBuySent,
-      userMemeCoinFirstBuyCreated: userFirstBuyCreated,
+      userMemeCoinFirstBuyCreated,
     });
   } catch (e: any) {
     return NextResponse.json(

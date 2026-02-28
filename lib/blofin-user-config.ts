@@ -44,7 +44,7 @@ function decrypt(b64: string): string {
 /** Load Blofin config for a user (decrypt). Returns null if not set or invalid. */
 export async function getBlofinConfigForUser(userId: string): Promise<BlofinConfig | null> {
   try {
-    const row = await prisma.userBlofinConfig.findUnique({ where: { userId } });
+    const row = await (prisma as any).userBlofinConfig.findUnique({ where: { userId } });
     if (!row) return null;
     const apiKey = decrypt(row.encryptedApiKey);
     const secretKey = decrypt(row.encryptedSecretKey);
@@ -68,7 +68,7 @@ export async function saveBlofinConfigForUser(
   config: { apiKey: string; secretKey: string; passphrase: string; demo?: boolean; brokerId?: string }
 ): Promise<void> {
   getEncryptionKey(); // throws if not set
-  await prisma.userBlofinConfig.upsert({
+  await (prisma as any).userBlofinConfig.upsert({
     where: { userId },
     create: {
       userId,
@@ -90,11 +90,11 @@ export async function saveBlofinConfigForUser(
 
 /** Remove saved Blofin config for a user. */
 export async function deleteBlofinConfigForUser(userId: string): Promise<void> {
-  await prisma.userBlofinConfig.deleteMany({ where: { userId } });
+  await (prisma as any).userBlofinConfig.deleteMany({ where: { userId } });
 }
 
 /** Check if any user has Blofin config (for feature hint). */
 export async function hasAnyUserBlofinConfig(): Promise<boolean> {
-  const count = await prisma.userBlofinConfig.count();
+  const count = await (prisma as any).userBlofinConfig.count();
   return count > 0;
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isOwnerSession } from "@/lib/auth";
 import { getUserFills } from "@/lib/api-clients/hyperliquid";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,7 +20,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: "Valid address required" }, { status: 400 });
     }
     if (!isOwnerSession(session)) {
-      const allowed = await prisma.userLeverageWallet.findUnique({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allowed = await (prisma as any).userLeverageWallet.findUnique({
         where: { userId_address: { userId: session.user.id, address } },
       });
       if (!allowed) {

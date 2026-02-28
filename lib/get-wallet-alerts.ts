@@ -136,11 +136,11 @@ export async function getWalletAlerts(): Promise<WalletAlert[]> {
 /** Process user meme coin wallets (Solana only): detect first buys and write to UserMemeCoinAlert (in-app). */
 export async function processUserMemeCoinFirstBuys(): Promise<number> {
   const [userWallets, rules, moralisWalletTracker] = await Promise.all([
-    prisma.userMemeCoinWallet.findMany({ where: { chain: "solana" } }),
+    (prisma as any).userMemeCoinWallet.findMany({ where: { chain: "solana" } }),
     getFirstBuyRules(),
     getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_WALLET_TRACKER),
   ]);
-  const wallets = userWallets.map((w) => ({ userId: w.userId, address: w.address, label: w.label }));
+  const wallets = userWallets.map((w: { userId: string; address: string; label: string | null }) => ({ userId: w.userId, address: w.address, label: w.label }));
   if (wallets.length === 0) return 0;
 
   const hasMoralis = moralisWalletTracker && Boolean(process.env.MORALIS_API_KEY);
@@ -149,10 +149,10 @@ export async function processUserMemeCoinFirstBuys(): Promise<number> {
   if (!hasMoralis && !hasHelius && !hasBirdeye) return 0;
 
   const lookbackMs = rules.lookbackMinutes * 60 * 1000;
-  const existing = await prisma.userMemeCoinAlert.findMany({
+  const existing = await (prisma as any).userMemeCoinAlert.findMany({
     select: { userId: true, walletAddress: true, contractAddress: true },
   });
-  const sentSet = new Set(existing.map((r) => `${r.userId}:${r.walletAddress}:${r.contractAddress}`));
+  const sentSet = new Set(existing.map((r: { userId: string; walletAddress: string; contractAddress: string }) => `${r.userId}:${r.walletAddress}:${r.contractAddress}`));
 
   let created = 0;
   for (const w of wallets) {
@@ -164,7 +164,7 @@ export async function processUserMemeCoinFirstBuys(): Promise<number> {
       const dex = await getSolanaToken(b.mint);
       const symbol = dex?.baseToken?.symbol ?? "—";
       try {
-        await prisma.userMemeCoinAlert.create({
+        await (prisma as any).userMemeCoinAlert.create({
           data: { userId: w.userId, walletAddress: w.address, contractAddress: b.mint, symbol },
         });
         created++;

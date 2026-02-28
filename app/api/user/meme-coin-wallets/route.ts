@@ -15,13 +15,13 @@ export async function GET() {
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
     }
-    const list = await prisma.userMemeCoinWallet.findMany({
+    const list = await (prisma as any).userMemeCoinWallet.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "asc" },
     });
     return NextResponse.json({
       success: true,
-      wallets: list.map((w) => ({ id: w.id, address: w.address, label: w.label, chain: w.chain })),
+      wallets: list.map((w: { id: string; address: string; label: string | null; chain: string }) => ({ id: w.id, address: w.address, label: w.label, chain: w.chain })),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to list wallets";
@@ -43,27 +43,27 @@ export async function POST(request: Request) {
     if (!address) {
       return NextResponse.json({ success: false, error: "Address required" }, { status: 400 });
     }
-    const count = await prisma.userMemeCoinWallet.count({ where: { userId: session.user.id } });
+    const count = await (prisma as any).userMemeCoinWallet.count({ where: { userId: session.user.id } });
     if (count >= MAX_MEME_COIN_WALLETS) {
       return NextResponse.json(
         { success: false, error: `Maximum ${MAX_MEME_COIN_WALLETS} meme coin wallets allowed. Remove one to add another.` },
         { status: 400 }
       );
     }
-    await prisma.userMemeCoinWallet.upsert({
+    await (prisma as any).userMemeCoinWallet.upsert({
       where: {
         userId_address: { userId: session.user.id, address },
       },
       create: { userId: session.user.id, address, label, chain },
       update: { label, chain },
     });
-    const list = await prisma.userMemeCoinWallet.findMany({
+    const list = await (prisma as any).userMemeCoinWallet.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "asc" },
     });
     return NextResponse.json({
       success: true,
-      wallets: list.map((w) => ({ id: w.id, address: w.address, label: w.label, chain: w.chain })),
+      wallets: list.map((w: { id: string; address: string; label: string | null; chain: string }) => ({ id: w.id, address: w.address, label: w.label, chain: w.chain })),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to add wallet";
@@ -83,7 +83,7 @@ export async function DELETE(request: Request) {
     if (!address) {
       return NextResponse.json({ success: false, error: "Address required" }, { status: 400 });
     }
-    await prisma.userMemeCoinWallet.deleteMany({
+    await (prisma as any).userMemeCoinWallet.deleteMany({
       where: { userId: session.user.id, address },
     });
     return NextResponse.json({ success: true });

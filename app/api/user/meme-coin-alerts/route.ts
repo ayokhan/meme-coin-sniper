@@ -13,14 +13,14 @@ export async function GET() {
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
     }
-    const alerts = await prisma.userMemeCoinAlert.findMany({
+    const alerts = await (prisma as any).userMemeCoinAlert.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
     return NextResponse.json({
       success: true,
-      alerts: alerts.map((a) => ({
+      alerts: alerts.map((a: { id: string; walletAddress: string; contractAddress: string; symbol: string | null; createdAt: Date }) => ({
         id: a.id,
         walletAddress: a.walletAddress,
         contractAddress: a.contractAddress,
