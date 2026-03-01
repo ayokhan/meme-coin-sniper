@@ -2,19 +2,19 @@ import { prisma } from '@/lib/db';
 
 export type Tier = 'pro' | 'vip';
 
-/** Pro: everything except Twitter tracker and Profitable Traders Wallet Tracker. $100/mo, 6mo $500, 12mo $1000 */
+/** Pro: Surge, Transactions, NovaStaris AI Agent, Futures. $50/mo, 6mo $250 (1 free), 12mo $500 (2 free) */
 export const PRO_PLANS = [
-  { id: '1month', label: '1 month', months: 1, priceUsd: 100 },
-  { id: '6month', label: '6 months (1 month free)', months: 6, priceUsd: 500 },
-  { id: '12month', label: '12 months (2 months free)', months: 12, priceUsd: 1000 },
+  { id: '1month', label: '1 month', months: 1, priceUsd: 50 },
+  { id: '6month', label: '6 months (1 month free)', months: 6, priceUsd: 250 },
+  { id: '12month', label: '12 months (2 months free)', months: 12, priceUsd: 500 },
 ] as const;
 
-/** VIP: Twitter tracker + Copy wallet (everything). Current price structure. */
+/** VIP: full access + CT Scan, Wallet Tracker, Coach Calls. 1 day trial $10; $150/mo, 6mo $750 (1 free), 12mo $1500 (2 free) */
 export const VIP_PLANS = [
   { id: '1day', label: '1 day trial', months: 0, priceUsd: 10 },
-  { id: '1month', label: '1 month', months: 1, priceUsd: 250 },
-  { id: '3month', label: '3 months', months: 3, priceUsd: 700 },
-  { id: '6month', label: '6 months', months: 6, priceUsd: 1400 },
+  { id: '1month', label: '1 month', months: 1, priceUsd: 150 },
+  { id: '6month', label: '6 months (1 month free)', months: 6, priceUsd: 750 },
+  { id: '12month', label: '12 months (2 months free)', months: 12, priceUsd: 1500 },
 ] as const;
 
 export type ProPlanId = (typeof PRO_PLANS)[number]['id'];

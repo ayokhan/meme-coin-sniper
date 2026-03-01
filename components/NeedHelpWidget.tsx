@@ -15,7 +15,7 @@ const NJA_AFTER_OPTION = "I'd be glad to help. To get you to the right place, ma
 const NJA_CHOICE_LIVE = "A live support agent is available. Would you like to chat with them now, or have us get back to you within 48 hours?";
 const NJA_CHOICE_OFFLINE = "No live agent is available right now. I'll send your details to our team and we'll get back to you within 48 hours. Would you like me to do that?";
 const NJA_PRODUCT_OVERVIEW =
-  "NovaStaris is an AI-powered platform that helps you discover and evaluate new crypto tokens. Key features include: Surge (volume and momentum), NovaStaris AI Analysis, Crypto Futures tools, and—on VIP—CT Scan, Profitable Traders Wallet Tracker, and Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram). You can explore plans and pricing on our Subscribe page. Would you like details on subscriptions or something else?";
+  "NovaStaris is an AI-powered platform that helps you discover and evaluate new crypto tokens. Key features include: Surge (volume and momentum), NovaStaris AI Agent, Crypto Futures tools, and—on VIP—CT Scan, Profitable Traders Wallet Tracker, and Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram). You can explore plans and pricing on our Subscribe page. Would you like details on subscriptions or something else?";
 
 const NJA_OUT_OF_SCOPE_LIVE =
   "I'm not able to answer that—I'm set up to help with NovaStaris products, subscriptions, and support. A live support agent may be able to help with your question. Would you like me to connect you with them now?";
@@ -23,18 +23,18 @@ const NJA_OUT_OF_SCOPE_OFFLINE =
   "I'm not able to answer that—I'm set up to help with NovaStaris products, subscriptions, and support. If you'd like help from our team, I can create a support ticket with your details and we'll get back to you within 48 hours. Would you like me to do that?";
 
 const PRO_PLANS_DISPLAY = [
-  { label: "Pro 1 month", price: "$100" },
-  { label: "Pro 6 months (1 month free)", price: "$500" },
-  { label: "Pro 12 months (2 months free)", price: "$1,000" },
+  { label: "Pro 1 month", price: "$50" },
+  { label: "Pro 6 months (1 month free)", price: "$250" },
+  { label: "Pro 12 months (2 months free)", price: "$500" },
 ];
 const VIP_PLANS_DISPLAY = [
   { label: "VIP 1 day trial", price: "$10" },
-  { label: "VIP 1 month", price: "$250" },
-  { label: "VIP 3 months", price: "$700" },
-  { label: "VIP 6 months", price: "$1,400" },
+  { label: "VIP 1 month", price: "$150" },
+  { label: "VIP 6 months (1 month free)", price: "$750" },
+  { label: "VIP 12 months (2 months free)", price: "$1,500" },
 ];
 const NJA_SUBSCRIPTION_INTRO = "NovaStaris offers two subscription tiers: Pro and VIP.";
-const NJA_SUBSCRIPTION_OUTRO = "Pro includes full access to Surge, Transactions, NovaStaris AI Analysis, and Crypto Futures. VIP adds the Twitter tracker (CT Scan) and Profitable Traders Wallet Tracker. To subscribe, use the Subscribe page in the app menu. Anything else I can help with?";
+const NJA_SUBSCRIPTION_OUTRO = "Pro includes Surge, Transactions, NovaStaris AI Agent, and Crypto Futures. VIP adds CT Scan, Wallet Tracker, and Coach Calls + Telegram Signals. To subscribe, use the Subscribe page in the app menu. Anything else I can help with?";
 
 const SUBSCRIPTION_KEYWORDS = [
   "subscription", "subscribe", "price", "pricing", "plan", "plans", "cost", "how much",

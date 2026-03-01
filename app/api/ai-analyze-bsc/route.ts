@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   try {
     const { isPaid } = await getSessionAndSubscription();
     if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to use NovaStaris AI Analysis (BSC).', locked: true }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Subscribe to use NovaStaris AI Agent (BSC).', locked: true }, { status: 403 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       tokenInfo: result.tokenInfo,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'NovaStaris AI Analysis (BSC) failed';
+    const message = error instanceof Error ? error.message : 'NovaStaris AI Agent (BSC) failed';
     console.error('AI analyze BSC error:', error);
     const isOverloaded = /overloaded|529/i.test(message);
     const friendlyMessage = isOverloaded

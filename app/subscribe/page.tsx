@@ -145,7 +145,7 @@ export default function SubscribePage() {
       <main className="mx-auto max-w-4xl px-4 py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
         <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-          Pro: Surge, Transactions, NovaStaris AI Analysis, Futures. VIP: full access + CT Scan, Profitable Traders Wallet Tracker, and Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram).
+          Pro: Surge, Transactions, NovaStaris AI Agent, Crypto Futures. VIP: everything in Pro + CT Scan, Wallet Tracker, and Coach Calls + Telegram Signals.
         </p>
         <p className="text-sm text-muted-foreground mb-8">
           Usage this month: AI analyses — · Alerts — <span className="italic">(tracking coming soon)</span>
@@ -176,11 +176,33 @@ export default function SubscribePage() {
           </button>
         </div>
 
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-          {tier === "pro" ? "Pro: everything except CT Scan, Wallet Tracker and Coach Calls + Telegram Signals. $100/month." : "VIP: full access including CT Scan, Profitable Traders Wallet Tracker, and Coach Calls + Telegram Signals."}
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
+          {tier === "pro" ? "Pro: $50/month. Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures." : "VIP: $150/month. Everything in Pro + CT Scan (Twitter tracker), Wallet Tracker (Meme Coins + Top Leverage Traders), Coach Calls + Telegram Signals."}
         </p>
+        <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 space-y-1">
+          {tier === "pro" ? (
+            <>
+              <p className="font-medium text-zinc-600 dark:text-zinc-300">Pro includes:</p>
+              <ul className="list-disc list-inside pl-1 space-y-0.5">
+                <li>Surge (volume &amp; momentum)</li>
+                <li>Transactions</li>
+                <li>NovaStaris AI Agent (Solana &amp; BSC token analysis)</li>
+                <li>Crypto Futures (NovaStaris trading bot, AI monitor)</li>
+              </ul>
+            </>
+          ) : (
+            <>
+              <p className="font-medium text-zinc-600 dark:text-zinc-300">VIP includes everything in Pro, plus:</p>
+              <ul className="list-disc list-inside pl-1 space-y-0.5">
+                <li>CT Scan (Twitter / CT tracker)</li>
+                <li>Wallet Tracker (Meme Coins Traders + Top Leverage Traders)</li>
+                <li>Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram)</li>
+              </ul>
+            </>
+          )}
+        </div>
 
-        <div className="grid gap-4 sm:grid-cols-3 mb-8">
+        <div className={`grid gap-4 mb-8 ${tier === "vip" ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
           {plans.map((p) => (
             <button
               key={p.id}

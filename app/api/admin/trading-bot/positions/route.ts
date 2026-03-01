@@ -69,6 +69,9 @@ export async function GET() {
       const pnlPct = notional > 0 ? (unrealizedPnl / notional) * 100 : null;
       const liqPrice = pos.liqPx != null && pos.liqPx !== "" ? parseNum(pos.liqPx) : null;
       const marginNum = pos.margin != null && pos.margin !== "" ? parseNum(pos.margin) : null;
+      const marginRatioPct = notional > 0 && Number.isFinite(marginNum) && marginNum != null
+        ? (marginNum / notional) * 100
+        : null;
       return {
         instId: pos.instId,
         posSide: pos.posSide,
@@ -79,6 +82,7 @@ export async function GET() {
         pnlPct: pnlPct != null ? Math.round(pnlPct * 100) / 100 : null,
         liqPrice: Number.isFinite(liqPrice) ? liqPrice : null,
         margin: Number.isFinite(marginNum) ? marginNum : null,
+        marginRatioPct: marginRatioPct != null ? Math.round(marginRatioPct * 100) / 100 : null,
       };
     });
 

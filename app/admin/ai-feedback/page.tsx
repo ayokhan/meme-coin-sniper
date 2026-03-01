@@ -102,7 +102,7 @@ export default function AdminAiFeedbackPage() {
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5 text-cyan-500" />
-              <CardTitle>AI Analysis Feedback</CardTitle>
+              <CardTitle>AI Agent Feedback</CardTitle>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">Filter</span>

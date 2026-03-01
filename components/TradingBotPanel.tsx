@@ -15,6 +15,7 @@ type PositionWithPnl = {
   pnlPct?: number | null;
   liqPrice?: number | null;
   margin?: number | null;
+  marginRatioPct?: number | null;
 };
 
 type Strategy = "simple" | "indicators" | "ai" | "hybrid";
@@ -1230,7 +1231,7 @@ export default function TradingBotPanel() {
           {config?.lastRunAt && (
             <p className="text-xs text-muted-foreground">Last run: {new Date(config.lastRunAt).toLocaleString()}</p>
           )}
-          {config?.lastDecision && config.lastDecision !== "no_trade" && config?.lastDecisionMsg && (
+          {config?.lastDecision && config.lastDecision !== "no_trade" && config?.lastDecisionMsg && positionsData && positionsData.positions.length > 0 && (
             <div className="rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/30 p-3 text-sm">
               <p className="font-semibold text-emerald-800 dark:text-emerald-200">Position opened</p>
               <p className="mt-1 text-emerald-700 dark:text-emerald-300 break-words">{config.lastDecisionMsg}</p>
@@ -1326,6 +1327,7 @@ export default function TradingBotPanel() {
                             {(p.markPrice ?? positionsData.markPrice) != null && <span className="text-muted-foreground">Mark: {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {p.liqPrice != null && Number.isFinite(p.liqPrice) && <span className="text-muted-foreground">Liq: {p.liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {p.margin != null && Number.isFinite(p.margin) && <span className="text-muted-foreground">Margin: {p.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</span>}
+                            {p.marginRatioPct != null && Number.isFinite(p.marginRatioPct) && <span className="text-muted-foreground">Margin ratio: {p.marginRatioPct.toFixed(2)}%</span>}
                             <span className={p.unrealizedPnl >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
                               PNL: {p.unrealizedPnl >= 0 ? "+" : ""}{p.unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                               {p.pnlPct != null && Number.isFinite(p.pnlPct) && (
