@@ -94,5 +94,19 @@ declare module '@prisma/client' {
       create: (args: { data: { contractAddress: string; outcome: string; note?: string | null; score?: number | null; signal?: string | null; userId?: string | null } }) => Promise<unknown>;
       findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<unknown[]>;
     };
+    usageThisMonth: {
+      findUnique: (args: { where: { userId_monthKey: { userId: string; monthKey: string } }; select?: { aiAnalyses: true } }) => Promise<{ aiAnalyses: number } | null>;
+      upsert: (args: {
+        where: { userId_monthKey: { userId: string; monthKey: string } };
+        create: { userId: string; monthKey: string; aiAnalyses: number };
+        update: { aiAnalyses: { increment: number } };
+      }) => Promise<unknown>;
+    };
+    userMemeCoinAlert: {
+      count: (args: { where: { userId: string; createdAt: { gte: Date } } }) => Promise<number>;
+    };
+    leverageAlert: {
+      count: (args: { where: { userId: string; createdAt: { gte: Date } } }) => Promise<number>;
+    };
   }
 }
