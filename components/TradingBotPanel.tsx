@@ -15,7 +15,8 @@ type PositionWithPnl = {
   pnlPct?: number | null;
   liqPrice?: number | null;
   margin?: number | null;
-  marginRatioPct?: number | null;
+  marginRatioBlofin?: number | null;
+  initialMarginPct?: number | null;
 };
 
 type Strategy = "simple" | "indicators" | "ai" | "hybrid";
@@ -1336,7 +1337,8 @@ export default function TradingBotPanel() {
                             {(p.markPrice ?? positionsData.markPrice) != null && <span className="text-muted-foreground">Mark: {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {p.liqPrice != null && Number.isFinite(p.liqPrice) && <span className="text-muted-foreground">Liq: {p.liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {p.margin != null && Number.isFinite(p.margin) && <span className="text-muted-foreground">Margin: {p.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</span>}
-                            {p.marginRatioPct != null && Number.isFinite(p.marginRatioPct) && <span className="text-muted-foreground">Margin ratio: {p.marginRatioPct.toFixed(2)}%</span>}
+                            {p.marginRatioBlofin != null && Number.isFinite(p.marginRatioBlofin) && <span className="text-muted-foreground" title="Blofin margin ratio (risk metric)">Margin ratio: {p.marginRatioBlofin >= 100 ? p.marginRatioBlofin.toLocaleString(undefined, { maximumFractionDigits: 2 }) : p.marginRatioBlofin.toFixed(2)}%</span>}
+                            {p.marginRatioBlofin == null && p.initialMarginPct != null && Number.isFinite(p.initialMarginPct) && <span className="text-muted-foreground" title="Initial margin as % of notional (Blofin margin ratio shown on exchange)">Initial margin: {p.initialMarginPct.toFixed(2)}%</span>}
                             <span className={p.unrealizedPnl >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
                               PNL: {p.unrealizedPnl >= 0 ? "+" : ""}{p.unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                               {p.pnlPct != null && Number.isFinite(p.pnlPct) && (

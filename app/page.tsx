@@ -2438,10 +2438,9 @@ export default function Dashboard() {
                       {topTradersLoading ? "Loading…" : "Refresh"}
                     </Button>
                     {topTradersError && <p className="text-sm text-rose-600 dark:text-rose-400">{topTradersError}</p>}
-                    {isOwner && (
-                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                         <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Recent activity (in-app alerts)</h4>
-                        <p className="text-xs text-muted-foreground mb-2">When tracked traders change positions (open/add/reduce/close), alerts appear here and can be sent via Telegram if enabled.</p>
+                        <p className="text-xs text-muted-foreground mb-2">When tracked Top Leverage Traders (or your added wallets) change positions, alerts appear here. Run periodically via cron; no Telegram required.</p>
                         {leverageAlertsLoading ? (
                           <p className="text-xs text-muted-foreground">Loading…</p>
                         ) : leverageAlerts.length === 0 ? (
@@ -2463,7 +2462,6 @@ export default function Dashboard() {
                           </ul>
                         )}
                     </div>
-                    )}
                     {historyAddress && (
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                         <div className="flex items-center justify-between gap-2 mb-2">

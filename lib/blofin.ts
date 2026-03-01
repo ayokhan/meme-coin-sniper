@@ -127,7 +127,7 @@ function getPosSize(h: Record<string, unknown>): string {
   return v != null ? String(v) : "0";
 }
 
-/** Position row: posSide is long/short for display; rawPositionSide is what Blofin returned (e.g. "net") for close-position API. Optional liqPx/margin when API provides them. */
+/** Position row: posSide is long/short for display; rawPositionSide is what Blofin returned (e.g. "net") for close-position API. Optional liqPx/margin when API provides them. mgnRatio = Blofin's margin ratio (risk metric). */
 export type PositionRow = {
   instId: string;
   posSide: string;
@@ -137,6 +137,7 @@ export type PositionRow = {
   liqPx?: string | null;
   margin?: string | null;
   imr?: string | null;
+  mgnRatio?: string | null;
 };
 
 /** Extract positions array from Blofin API response (various shapes). Blofin: data[] with positions, averagePrice, positionSide (net). Picks liqPx, margin, imr when present. */
@@ -163,6 +164,7 @@ function extractPositionsList(data: unknown): PositionRow[] {
     const liqPx = obj.liqPx ?? obj.liquidationPrice ?? obj.liq_price ?? null;
     const margin = obj.margin ?? obj.marginBalance ?? obj.margin_balance ?? null;
     const imr = obj.imr ?? obj.initialMargin ?? obj.initial_margin ?? null;
+    const mgnRatio = obj.mgnRatio ?? obj.marginRatio ?? obj.margin_ratio ?? null;
     result.push({
       instId,
       posSide,
@@ -172,6 +174,7 @@ function extractPositionsList(data: unknown): PositionRow[] {
       liqPx: liqPx != null ? String(liqPx) : undefined,
       margin: margin != null ? String(margin) : imr != null ? String(imr) : undefined,
       imr: imr != null ? String(imr) : undefined,
+      mgnRatio: mgnRatio != null ? String(mgnRatio) : undefined,
     });
   }
   return result;
