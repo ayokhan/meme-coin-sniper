@@ -1231,7 +1231,16 @@ export default function TradingBotPanel() {
           {config?.lastRunAt && (
             <p className="text-xs text-muted-foreground">Last run: {new Date(config.lastRunAt).toLocaleString()}</p>
           )}
-          {config?.lastDecision && config.lastDecision !== "no_trade" && config?.lastDecisionMsg && positionsData && positionsData.positions.length > 0 && (
+          {config?.lastDecision && config.lastDecision !== "no_trade" && config?.lastDecisionMsg && positionsData && (() => {
+            const botSymbolNorm = (config.symbol ?? "").toUpperCase().replace("/", "-");
+            const decisionSide = (config.lastDecision ?? "").toLowerCase();
+            const hasMatchingOpenPosition = positionsData.positions.some((p) => {
+              const instNorm = (p.instId ?? "").toUpperCase().replace("/", "-");
+              const side = (p.posSide ?? "").toLowerCase();
+              return (instNorm === botSymbolNorm || instNorm.startsWith(botSymbolNorm + "-")) && side === decisionSide;
+            });
+            return hasMatchingOpenPosition;
+          })() && (
             <div className="rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/30 p-3 text-sm">
               <p className="font-semibold text-emerald-800 dark:text-emerald-200">Position opened</p>
               <p className="mt-1 text-emerald-700 dark:text-emerald-300 break-words">{config.lastDecisionMsg}</p>
