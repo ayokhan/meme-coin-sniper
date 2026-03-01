@@ -4,18 +4,22 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { PRO_PLANS, VIP_PLANS, getActiveSubscription, getSubscriptionExpiresAt, type Tier } from '@/lib/subscription';
 import { verifyUsdcPayment } from '@/lib/verify-solana-payment';
+import { getUsageThisMonth } from '@/lib/usage';
 
 const PAYMENT_WALLET = process.env.SOLANA_PAYMENT_WALLET ?? '';
 const USDC_MINT = process.env.SOLANA_USDC_MINT ?? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
-/** GET - current user's subscription status and plans (Pro + VIP). */
+/** GET - current user's subscription status, plans (Pro + VIP), and usage this month. */
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, subscribed: false, paid: false });
   }
-  const paid = await getActiveSubscription(session.user.id);
-  const expiresAt = await getSubscriptionExpiresAt(session.user.id);
+  const [paid, expiresAt, usage] = await Promise.all([
+    getActiveSubscription(session.user.id),
+    getSubscriptionExpiresAt(session.user.id),
+    getUsageThisMonth(session.user.id),
+  ]);
   return NextResponse.json({
     success: true,
     paid,
@@ -24,6 +28,7 @@ export async function GET() {
     vipPlans: VIP_PLANS,
     paymentWallet: paid ? undefined : PAYMENT_WALLET,
     usdcMint: USDC_MINT,
+    usageThisMonth: usage,
   });
 }
 

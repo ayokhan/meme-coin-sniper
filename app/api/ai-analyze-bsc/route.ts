@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { runAiAnalysisBsc } from '@/lib/ai-analyze-bsc';
+import { recordAiAnalysis } from '@/lib/usage';
 
 function isValidBscAddress(address: string): boolean {
   if (!address || typeof address !== 'string') return false;
@@ -10,7 +11,7 @@ function isValidBscAddress(address: string): boolean {
 
 export async function POST(request: Request) {
   try {
-    const { isPaid } = await getSessionAndSubscription();
+    const { isPaid, userId } = await getSessionAndSubscription();
     if (!isPaid) {
       return NextResponse.json({ success: false, error: 'Subscribe to use NovaStaris AI Agent (BSC).', locked: true }, { status: 403 });
     }
@@ -33,6 +34,8 @@ export async function POST(request: Request) {
     const amountUsd = typeof body.amountUsd === 'number' && Number.isFinite(body.amountUsd) && body.amountUsd > 0 ? body.amountUsd : undefined;
 
     const result = await runAiAnalysisBsc(contractAddress, amountUsd != null ? { amountUsd } : undefined);
+
+    if (userId) await recordAiAnalysis(userId).catch(() => {});
 
     return NextResponse.json({
       success: true,

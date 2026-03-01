@@ -82,6 +82,19 @@ model User {
   userBlofinConfig     UserBlofinConfig?
   /** Eligible (e.g. VIP) users can set 2–5; alert when this many tracked wallets buy same token. */
   walletTrackerMinBuyers Int?
+  usageThisMonth      UsageThisMonth[]
+}
+
+// Per-user usage counts for current month (AI analyses; alerts are counted from UserMemeCoinAlert + LeverageAlert)
+model UsageThisMonth {
+  id         String   @id @default(cuid())
+  userId     String
+  monthKey   String   // e.g. "2026-02"
+  aiAnalyses Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, monthKey])
+  @@index([userId])
 }
 
 // Per-user Blofin API keys (encrypted at rest). When set, trading bot uses these for that user.

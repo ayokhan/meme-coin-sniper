@@ -24,6 +24,7 @@ export default function SubscribePage() {
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyError, setVerifyError] = useState("");
   const [verifySuccess, setVerifySuccess] = useState(false);
+  const [usageThisMonth, setUsageThisMonth] = useState<{ aiAnalyses: number; alerts: number } | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -42,6 +43,11 @@ export default function SubscribePage() {
           setVipPlans(Array.isArray(data.vipPlans) ? data.vipPlans : []);
           setPaymentWallet(data.paymentWallet ?? "");
           setUsdcMint(data.usdcMint ?? "");
+          setUsageThisMonth(
+            data.usageThisMonth && typeof data.usageThisMonth.aiAnalyses === "number" && typeof data.usageThisMonth.alerts === "number"
+              ? { aiAnalyses: data.usageThisMonth.aiAnalyses, alerts: data.usageThisMonth.alerts }
+              : null
+          );
         }
       } finally {
         setLoading(false);
@@ -145,10 +151,10 @@ export default function SubscribePage() {
       <main className="mx-auto max-w-4xl px-4 py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
         <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-          Pro: Surge, Transactions, NovaStaris AI Agent, Crypto Futures. VIP: everything in Pro + CT Scan, Wallet Tracker, and Coach Calls + Telegram Signals.
+          Pro: Surge, Transactions, NovaStaris AI Agent, Crypto Futures. VIP: everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, and on-demand access to the NovaStaris AI Trading Bot (Crypto Futures).
         </p>
         <p className="text-sm text-muted-foreground mb-8">
-          Usage this month: AI analyses — · Alerts — <span className="italic">(tracking coming soon)</span>
+          Usage this month: AI analyses {usageThisMonth?.aiAnalyses ?? "—"} · Alerts {usageThisMonth?.alerts ?? "—"}
         </p>
 
         <div className="flex gap-2 mb-6">
@@ -177,7 +183,7 @@ export default function SubscribePage() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
-          {tier === "pro" ? "Pro: $50/month. Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures." : "VIP: $150/month. Everything in Pro + CT Scan (Twitter tracker), Wallet Tracker (Meme Coins + Top Leverage Traders), Coach Calls + Telegram Signals."}
+          {tier === "pro" ? "Pro: $50/month. Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures." : "VIP: $150/month. Everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, and on-demand access to the NovaStaris AI Trading Bot (Crypto Futures)."}
         </p>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 space-y-1">
           {tier === "pro" ? (
@@ -197,6 +203,7 @@ export default function SubscribePage() {
                 <li>CT Scan (Twitter / CT tracker)</li>
                 <li>Wallet Tracker (Meme Coins Traders + Top Leverage Traders)</li>
                 <li>Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram)</li>
+                <li>NovaStaris AI Trading Bot — on-demand access (Crypto Futures on Blofin)</li>
               </ul>
             </>
           )}

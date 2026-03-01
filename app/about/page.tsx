@@ -26,7 +26,7 @@ export default function AboutPage() {
             About NovaStaris
           </h1>
           <p className="mt-3 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-            Spot viral tokens before the crowd. Analyze with NovaStaris Advanced AI System in seconds. Move with smart money—Solana, BSC, Crypto Futures, and an automated <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Trading Bot</strong> (Crypto Futures) in one platform.
+            Spot viral tokens before the crowd. Analyze with NovaStaris Advanced AI Agent in seconds. Move with smart money—Solana, BSC, Crypto Futures, and an automated <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Trading Bot</strong> (Crypto Futures) in one platform.
           </p>
         </div>
 
