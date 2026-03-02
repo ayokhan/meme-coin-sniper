@@ -428,6 +428,20 @@ export default function Dashboard() {
     }
   };
 
+  const fetchLeverageAlerts = async () => {
+    setLeverageAlertsLoading(true);
+    try {
+      const res = await fetch("/api/leverage-wallet-tracker/alerts", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success) setLeverageAlerts(data.alerts ?? []);
+      else setLeverageAlerts([]);
+    } catch {
+      setLeverageAlerts([]);
+    } finally {
+      setLeverageAlertsLoading(false);
+    }
+  };
+
   const fetchUserLeverageWallets = async () => {
     try {
       const res = await fetch("/api/user/leverage-wallets", { cache: "no-store" });
