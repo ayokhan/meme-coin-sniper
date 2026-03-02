@@ -2441,7 +2441,7 @@ export default function Dashboard() {
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                       <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Recent activity (in-app alerts)</h4>
                       <p className="text-xs text-muted-foreground mb-2">
-                        <strong>Upcoming feature.</strong> When we run periodic checks (cron), new trades from tracked Top Leverage Traders or your added wallets will appear here. Telegram alerts use the same checks when the feature flag is on—cron is required for both in-app and Telegram.
+                        <strong>Upcoming feature.</strong> When we run periodic checks, new trades from tracked Top Leverage Traders or your added wallets will appear here. Telegram alerts use the same checks when the feature flag is on.
                       </p>
                       {leverageAlertsLoading ? (
                         <p className="text-xs text-muted-foreground">Loading…</p>
