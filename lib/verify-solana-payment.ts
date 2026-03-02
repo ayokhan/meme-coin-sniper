@@ -35,21 +35,29 @@ export async function verifyUsdcPayment(
   const connection = new Connection(rpcUrl);
   const minAmountRaw = BigInt(Math.floor(minAmountUsd * 10 ** USDC_DECIMALS));
 
-  let tx;
-  try {
-    tx = await connection.getParsedTransaction(txSignature, {
+  const fetchTx = () =>
+    connection.getParsedTransaction(txSignature, {
       commitment: 'confirmed',
       maxSupportedTransactionVersion: 0,
     });
+
+  let tx;
+  try {
+    tx = await fetchTx();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes('429') || msg.includes('Too Many Requests') || msg.includes('max usage')) {
-      return { ok: false, error: 'Verification service is busy. Please try again in a minute.' };
-    }
-    if (msg.includes('not found') || msg.includes('could not find') || msg.includes('unknown')) {
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        tx = await fetchTx();
+      } catch (retryErr) {
+        return { ok: false, error: 'Verification service is busy. Please try again in a minute.' };
+      }
+    } else if (msg.includes('not found') || msg.includes('could not find') || msg.includes('unknown')) {
       return { ok: false, error: 'Invalid or unknown transaction signature. Check the signature and try again.' };
+    } else {
+      return { ok: false, error: `Could not fetch transaction: ${msg}` };
     }
-    return { ok: false, error: `Could not fetch transaction: ${msg}` };
   }
 
   if (!tx?.meta) {

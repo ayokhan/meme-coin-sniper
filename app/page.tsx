@@ -2006,7 +2006,7 @@ export default function Dashboard() {
                       Contact us to upgrade and get access to configurable bots, risk settings, and live or demo trading. Wallet tracking (meme coins + Top Leverage Traders) is under the Wallet Tracker tab.
                     </p>
                     <a
-                      href="/support"
+                      href="mailto:support@novastaris.ai?subject=NovaStaris%20Trading%20Bot%20access%20request"
                       className="mt-6 inline-flex items-center justify-center rounded-lg bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white font-medium px-5 py-2.5 text-sm transition-colors"
                     >
                       Contact for access

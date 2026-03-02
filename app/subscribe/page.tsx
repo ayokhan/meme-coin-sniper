@@ -157,6 +157,20 @@ export default function SubscribePage() {
           Usage this month: AI analyses {usageThisMonth?.aiAnalyses ?? "—"} · Alerts {usageThisMonth?.alerts ?? "—"}
         </p>
 
+        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 mb-6">
+          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">What&apos;s in each plan?</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div>
+              <p className="font-semibold text-cyan-600 dark:text-cyan-400 mb-1">Pro ($50/mo)</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Surge, Transactions, AI Agent (Solana + BSC), Crypto Futures (chart analysis + Institutional Workflow).</p>
+            </div>
+            <div>
+              <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo)</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram, and on-demand NovaStaris AI Trading Bot (Blofin).</p>
+            </div>
+          </div>
+        </div>
+
         <div className="flex gap-2 mb-6">
           <button
             type="button"
@@ -239,6 +253,9 @@ export default function SubscribePage() {
             <CardTitle className="text-lg">Pay with USDC (Solana)</CardTitle>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
               Send <strong>{amountUsdc} USDC</strong> to the wallet below. Use the same Solana network (mainnet). After sending, paste the transaction signature to activate your {tier.toUpperCase()} subscription.
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
+              We only verify that USDC reached the wallet below; we never hold your keys.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
