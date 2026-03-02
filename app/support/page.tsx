@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Zap, CheckCircle } from "lucide-react";
 
 export default function SupportPage() {
+  const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [name, setName] = useState("");
@@ -14,6 +16,11 @@ export default function SupportPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [supportNumber, setSupportNumber] = useState<string | null>(null);
+
+  useEffect(() => {
+    const subject = searchParams.get("subject");
+    if (subject) setTitle(decodeURIComponent(subject));
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
