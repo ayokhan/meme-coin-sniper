@@ -96,6 +96,7 @@ declare module '@prisma/client' {
     };
     usageThisMonth: {
       findUnique: (args: { where: { userId_monthKey: { userId: string; monthKey: string } }; select?: { aiAnalyses: true } }) => Promise<{ aiAnalyses: number } | null>;
+      findMany: (args?: { where?: { monthKey?: string }; select?: { userId: true; aiAnalyses: true; user: { select: { email: true; name: true } } } }) => Promise<Array<{ userId: string; aiAnalyses: number; user: { email: string | null; name: string | null } }>>;
       upsert: (args: {
         where: { userId_monthKey: { userId: string; monthKey: string } };
         create: { userId: string; monthKey: string; aiAnalyses: number };
@@ -104,9 +105,11 @@ declare module '@prisma/client' {
     };
     userMemeCoinAlert: {
       count: (args: { where: { userId: string; createdAt: { gte: Date } } }) => Promise<number>;
+      groupBy: (args: { by: ["userId"]; where?: { createdAt: { gte: Date } }; _count: { id: true } }) => Promise<Array<{ userId: string; _count: { id: number } }>>;
     };
     leverageAlert: {
       count: (args: { where: { userId: string; createdAt: { gte: Date } } }) => Promise<number>;
+      groupBy: (args: { by: ["userId"]; where?: { createdAt: { gte: Date }; userId?: { not: null } }; _count: { id: true } }) => Promise<Array<{ userId: string | null; _count: { id: number } }>>;
     };
   }
 }
