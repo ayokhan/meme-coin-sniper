@@ -42,7 +42,13 @@ export async function verifyUsdcPayment(
       maxSupportedTransactionVersion: 0,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'RPC request failed';
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('429') || msg.includes('Too Many Requests') || msg.includes('max usage')) {
+      return { ok: false, error: 'Verification service is busy. Please try again in a minute.' };
+    }
+    if (msg.includes('not found') || msg.includes('could not find') || msg.includes('unknown')) {
+      return { ok: false, error: 'Invalid or unknown transaction signature. Check the signature and try again.' };
+    }
     return { ok: false, error: `Could not fetch transaction: ${msg}` };
   }
 

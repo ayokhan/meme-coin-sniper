@@ -193,7 +193,7 @@ export default function SubscribePage() {
                 <li>Surge (volume &amp; momentum)</li>
                 <li>Transactions</li>
                 <li>NovaStaris AI Agent (Solana &amp; BSC token analysis)</li>
-                <li>Crypto Futures (NovaStaris trading bot, AI monitor)</li>
+                <li>Crypto Futures (AI chart analysis, Institutional Workflow)</li>
               </ul>
             </>
           ) : (
