@@ -1337,8 +1337,14 @@ export default function TradingBotPanel() {
                             {(p.markPrice ?? positionsData.markPrice) != null && <span className="text-muted-foreground">Mark: {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {p.liqPrice != null && Number.isFinite(p.liqPrice) && <span className="text-muted-foreground">Liq: {p.liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {p.margin != null && Number.isFinite(p.margin) && <span className="text-muted-foreground">Margin: {p.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</span>}
-                            {p.marginRatioBlofin != null && Number.isFinite(p.marginRatioBlofin) && <span className="text-muted-foreground" title="Blofin margin ratio (risk metric)">Margin ratio: {p.marginRatioBlofin >= 100 ? p.marginRatioBlofin.toLocaleString(undefined, { maximumFractionDigits: 2 }) : p.marginRatioBlofin.toFixed(2)}%</span>}
-                            {p.marginRatioBlofin == null && p.initialMarginPct != null && Number.isFinite(p.initialMarginPct) && <span className="text-muted-foreground" title="Initial margin as % of notional (Blofin margin ratio shown on exchange)">Initial margin: {p.initialMarginPct.toFixed(2)}%</span>}
+                            {p.marginRatioBlofin != null && Number.isFinite(p.marginRatioBlofin) ? (
+                              <span className="text-muted-foreground" title="Blofin margin ratio (risk metric)">Margin ratio: {p.marginRatioBlofin >= 100 ? p.marginRatioBlofin.toLocaleString(undefined, { maximumFractionDigits: 2 }) : p.marginRatioBlofin.toFixed(2)}%</span>
+                            ) : p.initialMarginPct != null && Number.isFinite(p.initialMarginPct) ? (
+                              <span className="text-muted-foreground" title="Initial margin as % of notional (Blofin margin ratio shown on exchange)">Initial margin: {p.initialMarginPct.toFixed(2)}%</span>
+                            ) : (
+                              <span className="text-muted-foreground" title="Margin ratio from exchange when available">Margin ratio: —</span>
+                            )}
+                            <span className="text-muted-foreground" title="Quantity of the asset (contracts). Long = positive, Short = negative.">Size: {(p.posSide === "short" ? -p.size : p.size).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
                             <span className={p.unrealizedPnl >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
                               PNL: {p.unrealizedPnl >= 0 ? "+" : ""}{p.unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                               {p.pnlPct != null && Number.isFinite(p.pnlPct) && (
@@ -1408,65 +1414,7 @@ export default function TradingBotPanel() {
                             }
                           }}
                         >
-                          {downloadingPnlImage ? "Creating…" : "Download PNL (JPEG)"}
-                        </Button>
-                        <span className="text-xs text-muted-foreground">Share:</span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => {
-                            const sign = (n: number) => (n >= 0 ? "+" : "");
-                            const summary = [
-                              "NovaStaris AI — PNL summary",
-                              "Total unrealized: " + sign(positionsData.totalUnrealizedPnl) + positionsData.totalUnrealizedPnl.toFixed(2) + " USDT",
-                              ...positionsData.positions.map((p) => p.instId + " " + p.posSide + ": " + sign(p.unrealizedPnl) + p.unrealizedPnl.toFixed(2) + " USDT"),
-                              "novastaris.ai",
-                            ].join("\n");
-                            const u = encodeURIComponent(summary);
-                            window.open("https://t.me/share/url?url=" + encodeURIComponent("https://novastaris.ai") + "&text=" + u, "_blank", "noopener,noreferrer");
-                          }}
-                        >
-                          Telegram
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => {
-                            const sign = (n: number) => (n >= 0 ? "+" : "");
-                            const summary = [
-                              "NovaStaris AI — PNL summary",
-                              "Total unrealized: " + sign(positionsData.totalUnrealizedPnl) + positionsData.totalUnrealizedPnl.toFixed(2) + " USDT",
-                              ...positionsData.positions.map((p) => p.instId + " " + p.posSide + ": " + sign(p.unrealizedPnl) + p.unrealizedPnl.toFixed(2) + " USDT"),
-                              "https://novastaris.ai",
-                            ].join("\n");
-                            window.open("https://wa.me/?text=" + encodeURIComponent(summary), "_blank", "noopener,noreferrer");
-                          }}
-                        >
-                          WhatsApp
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => {
-                            const sign = (n: number) => (n >= 0 ? "+" : "");
-                            const lines = [
-                              "— NovaStaris AI — PNL Report",
-                              "Total: " + sign(positionsData.totalUnrealizedPnl) + positionsData.totalUnrealizedPnl.toFixed(2) + " USDT",
-                              ...positionsData.positions.map((p) => p.instId + " " + p.posSide + ": " + sign(p.unrealizedPnl) + p.unrealizedPnl.toFixed(2) + " USDT"),
-                              "novastaris.ai",
-                            ];
-                            void navigator.clipboard.writeText(lines.join("\n"));
-                            setSuccess("Copied to clipboard. Paste in Instagram or anywhere.");
-                            setTimeout(clearFeedback, 3000);
-                          }}
-                        >
-                          Copy (Instagram)
+                          {downloadingPnlImage ? "Creating…" : "Share PNL (JPEG)"}
                         </Button>
                       </div>
                     </div>

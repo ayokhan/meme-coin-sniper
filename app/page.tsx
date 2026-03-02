@@ -415,7 +415,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.success) {
         setTopTradersData(data.traders ?? []);
-        if (isOwner) fetchLeverageAlerts();
+        fetchLeverageAlerts();
       } else {
         setTopTradersData([]);
         setTopTradersError(data.error ?? "Failed to load Top Leverage Traders.");
@@ -425,20 +425,6 @@ export default function Dashboard() {
       setTopTradersError("Failed to load top traders.");
     } finally {
       setTopTradersLoading(false);
-    }
-  };
-
-  const fetchLeverageAlerts = async () => {
-    setLeverageAlertsLoading(true);
-    try {
-      const res = await fetch("/api/leverage-wallet-tracker/alerts", { cache: "no-store" });
-      const data = await res.json();
-      if (data.success) setLeverageAlerts(data.alerts ?? []);
-      else setLeverageAlerts([]);
-    } catch {
-      setLeverageAlerts([]);
-    } finally {
-      setLeverageAlertsLoading(false);
     }
   };
 
@@ -1238,7 +1224,7 @@ export default function Dashboard() {
                   {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
                   {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
-                  {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets; alerts in-app."}
+                  {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets."}
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
                   {" "}
                   {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP to use this feature." : "Upgrade to Pro or VIP to use this feature."}
@@ -2439,28 +2425,30 @@ export default function Dashboard() {
                     </Button>
                     {topTradersError && <p className="text-sm text-rose-600 dark:text-rose-400">{topTradersError}</p>}
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
-                        <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Recent activity (in-app alerts)</h4>
-                        <p className="text-xs text-muted-foreground mb-2">When tracked Top Leverage Traders (or your added wallets) change positions, alerts appear here. Run periodically via cron; no Telegram required.</p>
-                        {leverageAlertsLoading ? (
-                          <p className="text-xs text-muted-foreground">Loading…</p>
-                        ) : leverageAlerts.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">No recent activity.</p>
-                        ) : (
-                          <ul className="space-y-1.5 max-h-40 overflow-y-auto">
-                            {leverageAlerts.map((a) => {
-                              const at = new Date(a.createdAt).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" });
-                              const label = a.nickname ?? `${a.walletAddress.slice(0, 6)}…${a.walletAddress.slice(-4)}`;
-                              const apexUrl = `https://apexliquid.bot/trade/detail?address=${encodeURIComponent(a.walletAddress)}`;
-                              return (
-                                <li key={a.id} className="text-xs flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
-                                  <span className="text-muted-foreground shrink-0">{at}</span>
-                                  <a href={apexUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono">{label}</a>
-                                  <span className="text-zinc-600 dark:text-zinc-400">{a.positionsSummary}</span>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
+                      <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Recent activity (in-app alerts)</h4>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        <strong>Upcoming feature.</strong> When we run periodic checks (cron), new trades from tracked Top Leverage Traders or your added wallets will appear here. Telegram alerts use the same checks when the feature flag is on—cron is required for both in-app and Telegram.
+                      </p>
+                      {leverageAlertsLoading ? (
+                        <p className="text-xs text-muted-foreground">Loading…</p>
+                      ) : leverageAlerts.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No recent activity yet.</p>
+                      ) : (
+                        <ul className="space-y-1.5 max-h-40 overflow-y-auto">
+                          {leverageAlerts.map((a) => {
+                            const at = new Date(a.createdAt).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" });
+                            const label = a.nickname ?? `${a.walletAddress.slice(0, 6)}…${a.walletAddress.slice(-4)}`;
+                            const apexUrl = `https://apexliquid.bot/trade/detail?address=${encodeURIComponent(a.walletAddress)}`;
+                            return (
+                              <li key={a.id} className="text-xs flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
+                                <span className="text-muted-foreground shrink-0">{at}</span>
+                                <a href={apexUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono">{label}</a>
+                                <span className="text-zinc-600 dark:text-zinc-400">{a.positionsSummary}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
                     </div>
                     {historyAddress && (
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
@@ -2482,7 +2470,7 @@ export default function Dashboard() {
                                   <TableHead className="text-xs">Time</TableHead>
                                   <TableHead className="text-xs">Asset</TableHead>
                                   <TableHead className="text-xs">Direction</TableHead>
-                                  <TableHead className="text-right text-xs">Size</TableHead>
+                                  <TableHead className="text-right text-xs" title="Quantity of the asset (contracts). Negative = short, positive = long.">Size</TableHead>
                                   <TableHead className="text-right text-xs">Price</TableHead>
                                   <TableHead className="text-right text-xs">Closed PnL</TableHead>
                                 </TableRow>
@@ -2517,7 +2505,7 @@ export default function Dashboard() {
                             <TableHead className="w-[11%] py-1.5 px-1.5 text-xs" title="Last fill (open/add/reduce/close) in last 7 days">Active</TableHead>
                             <TableHead className="w-[6%] py-1.5 px-1.5 text-xs">Symbol</TableHead>
                             <TableHead className="w-[6%] py-1.5 px-1.5 text-xs">Side</TableHead>
-                            <TableHead className="w-[7%] py-1.5 px-1.5 text-right text-xs">Size</TableHead>
+                            <TableHead className="w-[7%] py-1.5 px-1.5 text-right text-xs" title="Quantity of the asset (contracts). Negative = short, positive = long.">Size</TableHead>
                             <TableHead className="w-[8%] py-1.5 px-1.5 text-right text-xs">Entry</TableHead>
                             <TableHead className="w-[8%] py-1.5 px-1.5 text-right text-xs">Margin</TableHead>
                             <TableHead className="w-[9%] py-1.5 px-1.5 text-right text-xs">Notional</TableHead>

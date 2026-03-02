@@ -321,7 +321,7 @@ export default function AdminLeverageWalletTrackerPage() {
               <span className="text-base font-normal text-muted-foreground">({wallets.length} total{wallets.some((w) => !w.active) ? `, ${wallets.filter((w) => w.active).length} active` : ""})</span>
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              EVM addresses (0x…) for Hyperliquid/ApexLiquid. Shown in Wallet Tracker → Top Leverage Traders. <strong>Global</strong>: show on global list for all users. <strong>Alert</strong>: in-app when they make a new trade (see Wallet Tracker → Top Leverage Traders → Recent activity). Telegram optional via feature flag.
+              EVM addresses (0x…) for Hyperliquid/ApexLiquid. Shown in Wallet Tracker → Top Leverage Traders. <strong>Global</strong>: show on global list for all users. <strong>Alert</strong>: optional Telegram when feature flag is on. In-app and Telegram both use the same periodic checks (cron required).
             </p>
           </CardHeader>
           <CardContent>
