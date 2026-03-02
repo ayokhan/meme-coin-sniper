@@ -2000,7 +2000,7 @@ export default function Dashboard() {
                       NovaStaris AI Trading Bot — On demand
                     </h2>
                     <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                      The <strong className="text-zinc-700 dark:text-zinc-300">Crypto Futures Trading Bot</strong> (Blofin) is available as an <strong className="text-zinc-700 dark:text-zinc-300">on demand</strong> service. Access requires <strong className="text-amber-700 dark:text-amber-400">VIP</strong> plus <strong className="text-amber-700 dark:text-amber-400">On demand</strong> (owner can enable for you).
+                      The <strong className="text-zinc-700 dark:text-zinc-300">Crypto Futures Trading Bot</strong> (Blofin) is available as an <strong className="text-zinc-700 dark:text-zinc-300">on demand</strong> service. Access requires <strong className="text-amber-700 dark:text-amber-400">VIP</strong> plus <strong className="text-amber-700 dark:text-amber-400">On demand</strong>.
                     </p>
                     <p className="mt-4 text-sm text-muted-foreground">
                       Contact us to upgrade and get access to configurable bots, risk settings, and live or demo trading. Wallet tracking (meme coins + Top Leverage Traders) is under the Wallet Tracker tab.
