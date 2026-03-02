@@ -77,6 +77,9 @@ export default function AdminInsightsPage() {
           NovaStaris
         </Link>
         <div className="flex flex-wrap gap-4 mb-4">
+          <Link href="/admin/metrics" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+            Metrics
+          </Link>
           <Link href="/admin/customers" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
             Customers
           </Link>
