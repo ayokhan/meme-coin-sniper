@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Zap, CheckCircle } from "lucide-react";
 
-export default function SupportPage() {
+function SupportForm() {
   const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -179,5 +179,13 @@ export default function SupportPage() {
         </p>
       </main>
     </div>
+  );
+}
+
+export default function SupportPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center"><p className="text-zinc-500">Loading…</p></div>}>
+      <SupportForm />
+    </Suspense>
   );
 }
