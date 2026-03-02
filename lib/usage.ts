@@ -106,31 +106,15 @@ export async function getUsageReportForAdmin(): Promise<UsageReport> {
     ...memeByUser.map((g) => g.userId),
     ...leverageByUser.filter((g) => g.userId).map((g) => g.userId!),
   ]);
-  const missingUserIds = [...userIdsWithAlerts].filter((id) => !userMap.has(id));
-  if (missingUserIds.length > 0) {
-    const users = await prisma.user.findMany({
-      where: { id: { in: missingUserIds } },
-      select: { id: true, email: true, name: true },
-    });
-    for (const u of users) {
-      userMap.set(u.id, {
-        userId: u.id,
-        email: u.email ?? null,
-        name: u.name ?? null,
+  for (const userId of userIdsWithAlerts) {
+    if (!userMap.has(userId)) {
+      userMap.set(userId, {
+        userId,
+        email: null,
+        name: null,
         aiAnalyses: 0,
-        alerts: alertCountByUser.get(u.id) ?? 0,
+        alerts: alertCountByUser.get(userId) ?? 0,
       });
-    }
-    for (const userId of missingUserIds) {
-      if (!userMap.has(userId)) {
-        userMap.set(userId, {
-          userId,
-          email: null,
-          name: null,
-          aiAnalyses: 0,
-          alerts: alertCountByUser.get(userId) ?? 0,
-        });
-      }
     }
   }
 
