@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap } from "lucide-react";
+import { Zap, BarChart3, Sparkles, Bell } from "lucide-react";
 
 type Profile = {
   name: string | null;
@@ -13,6 +13,7 @@ type Profile = {
   phone: string | null;
   country: string | null;
   experienceTradingCrypto: string | null;
+  usageThisMonth?: { aiAnalyses: number; alerts: number };
 };
 
 export default function AccountPage() {
@@ -169,6 +170,44 @@ export default function AccountPage() {
             <Link href="/">Back to app</Link>
           </Button>
         </div>
+
+        {profile?.usageThisMonth != null && (
+          <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-cyan-500" />
+                <CardTitle className="text-lg">Usage this month</CardTitle>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Your activity for the current billing period. Resets at the start of each month.
+              </p>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-950/40 dark:to-cyan-900/20 border border-cyan-200/60 dark:border-cyan-800/50 p-4">
+                  <div className="flex items-center gap-2 text-cyan-700 dark:text-cyan-300 mb-1">
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    <span className="text-xs font-medium uppercase tracking-wide">AI analyses</span>
+                  </div>
+                  <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                    {profile.usageThisMonth.aiAnalyses}
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Token analyses run this month</p>
+                </div>
+                <div className="rounded-xl bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-950/40 dark:to-violet-900/20 border border-violet-200/60 dark:border-violet-800/50 p-4">
+                  <div className="flex items-center gap-2 text-violet-700 dark:text-violet-300 mb-1">
+                    <Bell className="h-4 w-4 shrink-0" />
+                    <span className="text-xs font-medium uppercase tracking-wide">Alerts</span>
+                  </div>
+                  <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                    {profile.usageThisMonth.alerts}
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Meme coin &amp; leverage alerts</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <CardHeader>

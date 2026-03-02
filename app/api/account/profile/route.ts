@@ -2,15 +2,17 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getUsageThisMonth } from '@/lib/usage';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Sign in required.' }, { status: 401 });
   }
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
+  const [user, usageThisMonth] = await Promise.all([
+    prisma.user.findUnique({ where: { id: session.user.id } }),
+    getUsageThisMonth(session.user.id),
+  ]);
   if (!user) {
     return NextResponse.json({ error: 'User not found.' }, { status: 404 });
   }
@@ -20,6 +22,7 @@ export async function GET() {
     phone: user.phone,
     country: user.country,
     experienceTradingCrypto: user.experienceTradingCrypto,
+    usageThisMonth,
   });
 }
 

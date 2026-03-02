@@ -24,8 +24,6 @@ export default function SubscribePage() {
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyError, setVerifyError] = useState("");
   const [verifySuccess, setVerifySuccess] = useState(false);
-  const [usageThisMonth, setUsageThisMonth] = useState<{ aiAnalyses: number; alerts: number } | null>(null);
-
   useEffect(() => {
     if (status === "unauthenticated") {
       setLoading(false);
@@ -43,11 +41,6 @@ export default function SubscribePage() {
           setVipPlans(Array.isArray(data.vipPlans) ? data.vipPlans : []);
           setPaymentWallet(data.paymentWallet ?? "");
           setUsdcMint(data.usdcMint ?? "");
-          setUsageThisMonth(
-            data.usageThisMonth && typeof data.usageThisMonth.aiAnalyses === "number" && typeof data.usageThisMonth.alerts === "number"
-              ? { aiAnalyses: data.usageThisMonth.aiAnalyses, alerts: data.usageThisMonth.alerts }
-              : null
-          );
         }
       } finally {
         setLoading(false);
@@ -153,10 +146,6 @@ export default function SubscribePage() {
         <p className="text-zinc-600 dark:text-zinc-400 mb-4">
           Pro: Surge, Transactions, NovaStaris AI Agent, Crypto Futures. VIP: everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, and on-demand access to the NovaStaris AI Trading Bot (Crypto Futures).
         </p>
-        <p className="text-sm text-muted-foreground mb-8">
-          Usage this month: AI analyses {usageThisMonth?.aiAnalyses ?? "—"} · Alerts {usageThisMonth?.alerts ?? "—"}
-        </p>
-
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 mb-6">
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">What&apos;s in each plan?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
