@@ -21,6 +21,13 @@ function getRpcUrl(): string | null {
   return null;
 }
 
+// Solana tx signatures are base58, typically 87–88 chars. Reject obviously invalid input so we don't hit the RPC.
+const BASE58 = /^[1-9A-HJ-NP-Za-km-z]+$/;
+function isValidTxSignatureFormat(sig: string): boolean {
+  const t = sig.trim();
+  return t.length >= 80 && t.length <= 100 && BASE58.test(t);
+}
+
 /**
  * Verify that the transaction sent at least minAmountUsd USDC to recipientWallet.
  * Returns { ok: true } or { ok: false, error: string }.
@@ -31,6 +38,10 @@ export async function verifyUsdcPayment(
   usdcMint: string,
   minAmountUsd: number
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isValidTxSignatureFormat(txSignature)) {
+    return { ok: false, error: 'Invalid or unknown transaction signature. Check the signature and try again.' };
+  }
+
   const rpcUrl = getRpcUrl();
   if (!rpcUrl) {
     return { ok: false, error: 'Solana RPC not configured. Set SOLANA_RPC_URL or HELIUS_API_KEY.' };

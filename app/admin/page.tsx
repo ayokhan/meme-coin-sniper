@@ -68,7 +68,7 @@ export default function AdminHubPage() {
   }
 
   const links = [
-    { href: "/admin/insights", label: "Insights", icon: BarChart3 },
+    { href: "/admin/insights", label: "App insights", icon: BarChart3 },
     { href: "/admin/metrics", label: "Metrics", icon: BarChart3 },
     { href: "/admin/customers", label: "Customers", icon: Users },
     { href: "/admin/wallet-tracker", label: "Wallet Tracker", icon: Wallet },

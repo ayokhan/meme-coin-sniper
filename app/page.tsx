@@ -1041,7 +1041,7 @@ export default function Dashboard() {
                   </span>
                 )}
                 <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
-                  <Link href="/admin/customers">Customers</Link>
+                  <Link href="/admin">Admin</Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
                   <Link href="/admin/support">Support tickets</Link>
