@@ -12,6 +12,7 @@ type Plan = { id: string; label: string; months: number; priceUsd: number };
 
 export default function SubscribePage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [paid, setPaid] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
