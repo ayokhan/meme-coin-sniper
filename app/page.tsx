@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Copy, Send, Star, Flame } from "lucide-react";
+import { Zap, Copy, Send, Star, Flame, ChevronDown } from "lucide-react";
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
