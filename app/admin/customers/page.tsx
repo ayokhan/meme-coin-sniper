@@ -148,6 +148,9 @@ export default function AdminCustomersPage() {
           NovaStaris
         </Link>
         <div className="flex gap-4 mb-4">
+          <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+            Admin hub
+          </Link>
           <Link href="/admin/insights" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
             App Insights
           </Link>

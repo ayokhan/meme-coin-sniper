@@ -162,6 +162,9 @@ export default function AdminChatPage() {
           NovaStaris
         </Link>
         <div className="flex gap-4 mb-4 flex-wrap">
+          <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+            Admin hub
+          </Link>
           <Link href="/admin/customers" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
             Customers
           </Link>

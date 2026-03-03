@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
@@ -56,6 +57,12 @@ export default function SubscribePage() {
     const inTier = plans.some((p) => p.id === selectedPlan);
     if (!inTier && plans.length) setSelectedPlan(plans[0].id);
   }, [tier, plans, selectedPlan]);
+
+  useEffect(() => {
+    if (!verifySuccess) return;
+    const t = setTimeout(() => router.push("/"), 2500);
+    return () => clearTimeout(t);
+  }, [verifySuccess, router]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,8 +239,10 @@ export default function SubscribePage() {
         </div>
 
         {verifySuccess && (
-          <div className="mb-6 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-emerald-800 dark:text-emerald-200">
-            Subscription activated. You now have {tier === "vip" ? "VIP" : "Pro"} access. <Link href="/" className="underline font-medium">Go to dashboard</Link>
+          <div className="mb-6 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-5 py-4 text-emerald-800 dark:text-emerald-200">
+            <p className="font-bold text-lg">Subscription activated!</p>
+            <p className="mt-1 text-sm">You now have {tier === "vip" ? "VIP" : "Pro"} access. Redirecting to dashboard…</p>
+            <p className="mt-2 text-sm"><Link href="/" className="underline font-medium">Go to dashboard now</Link></p>
           </div>
         )}
 

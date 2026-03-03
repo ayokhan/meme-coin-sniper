@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
@@ -104,6 +104,8 @@ export default function Dashboard() {
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
 
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const adminMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setMounted(true);
     try {
@@ -140,6 +142,15 @@ export default function Dashboard() {
       localStorage.setItem("novastaris_onboarding_dismissed", "1");
     } catch {}
   };
+
+  useEffect(() => {
+    if (!adminMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (adminMenuRef.current && !adminMenuRef.current.contains(e.target as Node)) setAdminMenuOpen(false);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [adminMenuOpen]);
 
   // Mark live agent as online when owner has dashboard open (so Nja shows "live agent available")
   useEffect(() => {
@@ -1040,18 +1051,31 @@ export default function Dashboard() {
                     Live: not marked
                   </span>
                 )}
-                <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
-                  <Link href="/admin">Admin</Link>
-                </Button>
-                <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
-                  <Link href="/admin/support">Support tickets</Link>
-                </Button>
-                <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
-                  <Link href="/admin/chat">Live chat</Link>
-                </Button>
-                <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
-                  <Link href="/admin/feature-flags">Feature flags</Link>
-                </Button>
+                <div className="relative" ref={adminMenuRef}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); setAdminMenuOpen((v) => !v); }}
+                    className="border-zinc-200 dark:border-zinc-700 inline-flex items-center gap-1"
+                  >
+                    Admin
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${adminMenuOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                  {adminMenuOpen && (
+                    <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1">
+                      <Link href="/admin" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Admin hub</Link>
+                      <Link href="/admin/insights" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">App insights</Link>
+                      <Link href="/admin/metrics" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Metrics</Link>
+                      <Link href="/admin/customers" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Customers</Link>
+                      <Link href="/admin/wallet-tracker" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Wallet Tracker</Link>
+                      <Link href="/admin/leverage-wallet-tracker" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Leverage Wallet Tracker</Link>
+                      <Link href="/admin/feature-flags" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Feature flags</Link>
+                      <Link href="/admin/support" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Support tickets</Link>
+                      <Link href="/admin/chat" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Live chat</Link>
+                      <Link href="/admin/ai-feedback" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">AI Feedback</Link>
+                    </div>
+                  )}
+                </div>
               </>
             )}
             {status === "authenticated" && (

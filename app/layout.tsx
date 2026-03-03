@@ -30,6 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>{children}</Providers>
+        {/* Vercel Analytics: view traffic and drop-off in Vercel project → Analytics */}
         <Analytics />
       </body>
     </html>

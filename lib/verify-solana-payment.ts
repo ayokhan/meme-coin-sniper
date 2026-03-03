@@ -66,7 +66,7 @@ export async function verifyUsdcPayment(
       try {
         tx = await fetchTx();
       } catch (retryErr) {
-        return { ok: false, error: 'Verification service is busy. Please try again in a minute.' };
+        return { ok: false, error: 'High load on our verification service. Try again in a minute or use a different network time.' };
       }
     } else if (msg.includes('not found') || msg.includes('could not find') || msg.includes('unknown')) {
       return { ok: false, error: 'Invalid or unknown transaction signature. Check the signature and try again.' };
