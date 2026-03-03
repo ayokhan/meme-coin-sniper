@@ -244,7 +244,7 @@ export default function SubscribePage() {
               Send <strong>{amountUsdc} USDC</strong> to the wallet below. Use the same Solana network (mainnet). After sending, paste the transaction signature to activate your {tier.toUpperCase()} subscription.
             </p>
             <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
-              We only verify that USDC reached the wallet below; we never hold your keys.
+              <strong>How we verify payment:</strong> We only check that the correct amount of USDC reached the wallet above by reading the transaction on Solana. We never hold your keys or custody your funds.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">

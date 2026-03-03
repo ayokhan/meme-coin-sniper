@@ -123,6 +123,10 @@ export default function AdminFeatureFlagsPage() {
           NovaStaris
         </Link>
         <div className="flex gap-2 mb-4">
+          <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+            Admin hub
+          </Link>
+          <span className="text-muted-foreground">·</span>
           <Link href="/admin/customers" className="text-sm text-muted-foreground hover:underline">
             Admin — Customers
           </Link>

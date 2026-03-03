@@ -1,7 +1,11 @@
 /**
  * Verify a Solana transaction sent USDC to our payment wallet.
  * Uses RPC getParsedTransaction and derives our USDC ATA for comparison.
- * Set SOLANA_RPC_URL or HELIUS_API_KEY in env.
+ *
+ * Env: SOLANA_RPC_URL (preferred) or HELIUS_API_KEY.
+ * For reliable verification under load (avoid 429s), use a dedicated RPC:
+ * - Helius paid tier (dashboard.helius.dev) or
+ * - Another provider (QuickNode, Triton, etc.) and set SOLANA_RPC_URL.
  */
 
 import { Connection, PublicKey } from '@solana/web3.js';

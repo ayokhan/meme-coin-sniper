@@ -1416,6 +1416,20 @@ export default function TradingBotPanel() {
                         >
                           {downloadingPnlImage ? "Creating…" : "Share PNL (JPEG)"}
                         </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs border-zinc-500 text-zinc-700 dark:text-zinc-300"
+                          onClick={() => {
+                            const total = positionsData.totalUnrealizedPnl;
+                            const sign = total >= 0 ? "+" : "";
+                            const text = `My NovaStaris PNL this week ${sign}${total.toFixed(2)} USDT 🚀\n\nTrack & trade with AI → novastaris.ai`;
+                            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+                          }}
+                        >
+                          Share to X / CT
+                        </Button>
                       </div>
                     </div>
                   ) : positionsData && positionsData.positions.length === 0 ? (
