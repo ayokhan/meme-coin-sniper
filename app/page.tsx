@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
@@ -249,11 +249,22 @@ export default function Dashboard() {
   type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
   const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
   const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
-  type FillRow = { time: number; coin: string; dir: string; side: string; sz: string; px: string; closedPnl?: string; fee?: string };
+  type FillRow = { time: number; coin: string; dir: string; side: string; sz: string; px: string; closedPnl?: string; fee?: string; durationMs?: number };
   const [historyAddress, setHistoryAddress] = useState<string | null>(null);
   const [historyNickname, setHistoryNickname] = useState<string | null>(null);
   const [historyFills, setHistoryFills] = useState<FillRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const historyFillsWithDuration = useMemo(() => {
+    if (historyFills.length === 0) return [];
+    const asc = [...historyFills].sort((a, b) => a.time - b.time);
+    return historyFills.map((f) => {
+      const isClose = f.dir.startsWith("Close");
+      if (!isClose) return { ...f, durationMs: undefined };
+      const openFill = asc.filter((x) => x.time < f.time && x.coin === f.coin && (x.dir.startsWith("Open") || x.dir.startsWith("Add"))).pop();
+      const durationMs = openFill ? f.time - openFill.time : undefined;
+      return { ...f, durationMs };
+    });
+  }, [historyFills]);
   const [userLeverageWallets, setUserLeverageWallets] = useState<{ id: string; address: string; nickname: string | null; alertEnabled: boolean }[]>([]);
   const [userMemeCoinWallets, setUserMemeCoinWallets] = useState<{ id: string; address: string; label: string | null; chain: string }[]>([]);
   const [userMemeCoinAlerts, setUserMemeCoinAlerts] = useState<Array<{ id: string; walletAddress: string; contractAddress: string; symbol: string | null; createdAt: string }>>([]);
@@ -2510,24 +2521,38 @@ export default function Dashboard() {
                                   <TableHead className="text-xs">Direction</TableHead>
                                   <TableHead className="text-right text-xs" title="Quantity of the asset (contracts). Negative = short, positive = long.">Size</TableHead>
                                   <TableHead className="text-right text-xs">Price</TableHead>
-                                  <TableHead className="text-right text-xs">Closed PnL</TableHead>
+                                  <TableHead className="text-right text-xs" title="Time from open/add to this close fill.">Duration</TableHead>
+                                  <TableHead className="text-right text-xs" title="Realized PnL when closing or reducing (— for opens).">Closed PnL</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {historyFills.map((f, i) => (
-                                  <TableRow key={`${f.time}-${i}`}>
-                                    <TableCell className="text-xs text-muted-foreground">
-                                      {new Date(f.time).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })}
-                                    </TableCell>
-                                    <TableCell className="text-xs font-mono">{f.coin}</TableCell>
-                                    <TableCell className="text-xs">{f.dir}</TableCell>
-                                    <TableCell className="text-right font-mono text-xs">{f.sz}</TableCell>
-                                    <TableCell className="text-right font-mono text-xs">${Number(f.px).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className={`text-right font-mono text-xs ${f.closedPnl != null && Number(f.closedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                                      {f.closedPnl != null ? `$${Number(f.closedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
+                                {historyFillsWithDuration.map((f, i) => {
+                                  const isOpenOrAdd = f.dir.startsWith("Open") || f.dir.startsWith("Add");
+                                  const showClosedPnl = !isOpenOrAdd && f.closedPnl != null && f.closedPnl !== "";
+                                  const closedPnlNum = showClosedPnl ? Number(f.closedPnl) : 0;
+                                  const durationStr = f.durationMs != null
+                                    ? f.durationMs >= 3600000
+                                      ? `${(f.durationMs / 3600000).toFixed(1)}h`
+                                      : f.durationMs >= 60000
+                                        ? `${(f.durationMs / 60000).toFixed(0)}m`
+                                        : `${(f.durationMs / 1000).toFixed(0)}s`
+                                    : "—";
+                                  return (
+                                    <TableRow key={`${f.time}-${i}`}>
+                                      <TableCell className="text-xs text-muted-foreground">
+                                        {new Date(f.time).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })}
+                                      </TableCell>
+                                      <TableCell className="text-xs font-mono">{f.coin}</TableCell>
+                                      <TableCell className="text-xs">{f.dir}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs">{f.sz}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs">${Number(f.px).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs text-muted-foreground">{durationStr}</TableCell>
+                                      <TableCell className={`text-right font-mono text-xs ${showClosedPnl && closedPnlNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : showClosedPnl ? "text-rose-600 dark:text-rose-400" : ""}`}>
+                                        {showClosedPnl ? `$${closedPnlNum.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
                               </TableBody>
                             </Table>
                           </div>
