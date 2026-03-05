@@ -30,7 +30,7 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   },
   telegram_leverage_alerts: {
     label: "Telegram Top Leverage Traders alerts",
-    description: "Send Telegram when an alert-enabled leverage wallet changes positions (cron). Toggle per wallet in Admin → Leverage Wallet Tracker.",
+    description: "Send Telegram when an alert-enabled leverage wallet changes positions (cron). Toggle per wallet in Nova Admin → Leverage Wallet Tracker.",
   },
 };
 
@@ -124,11 +124,11 @@ export default function AdminFeatureFlagsPage() {
         </Link>
         <div className="flex gap-2 mb-4">
           <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Admin hub
+            Nova Admin hub
           </Link>
           <span className="text-muted-foreground">·</span>
           <Link href="/admin/customers" className="text-sm text-muted-foreground hover:underline">
-            Admin — Customers
+            Nova Admin — Customers
           </Link>
           <span className="text-muted-foreground">·</span>
           <Link href="/admin/wallet-tracker" className="text-sm text-muted-foreground hover:underline">
@@ -139,7 +139,7 @@ export default function AdminFeatureFlagsPage() {
             Leverage Wallet Tracker
           </Link>
           <span className="text-muted-foreground">·</span>
-          <span className="text-sm font-medium">Admin — Feature flags</span>
+          <span className="text-sm font-medium">Nova Admin — Feature flags</span>
         </div>
 
         <Card className="border-zinc-200 dark:border-zinc-800">

@@ -53,7 +53,7 @@ export default function AdminHubPage() {
       <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
         <Card className="w-full max-w-4xl">
           <CardContent className="py-8 text-center text-muted-foreground">
-            {status === "loading" ? "Loading…" : "Sign in to view Admin."}
+            {status === "loading" ? "Loading…" : "Sign in to view Nova Admin."}
             {!session && (
               <p className="mt-2">
                 <Link href="/signin" className="underline">
@@ -91,7 +91,7 @@ export default function AdminHubPage() {
         </Link>
         <Card className="border-zinc-200 dark:border-zinc-800 mb-6">
           <CardHeader>
-            <CardTitle className="text-xl">Admin hub</CardTitle>
+            <CardTitle className="text-xl">Nova Admin hub</CardTitle>
             <p className="text-sm text-muted-foreground">
               Central links for insights, metrics, customers, wallet tracking, feature flags, support, and chat.
             </p>

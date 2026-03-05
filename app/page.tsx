@@ -1074,7 +1074,7 @@ export default function Dashboard() {
                   </Button>
                   {adminMenuOpen && (
                     <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1">
-                      <Link href="/admin" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Admin hub</Link>
+                      <Link href="/admin" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Nova Admin hub</Link>
                       <Link href="/admin/insights" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">App insights</Link>
                       <Link href="/admin/metrics" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Metrics</Link>
                       <Link href="/admin/customers" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Customers</Link>
@@ -2133,7 +2133,7 @@ export default function Dashboard() {
                     ) : walletTrades.length === 0 ? (
                       <div className="text-sm text-muted-foreground py-4 space-y-1">
                         <p>No recent swaps from tracked wallets. Try again later or refresh.</p>
-                        <p className="text-xs">Live trades use Moralis/Helius/Birdeye; ensure &quot;Live trades (Wallet Tracker)&quot; is ON in Admin → Feature flags. Requires VIP.</p>
+                        <p className="text-xs">Live trades use Moralis/Helius/Birdeye; ensure &quot;Live trades (Wallet Tracker)&quot; is ON in Nova Admin → Feature flags. Requires VIP.</p>
                       </div>
                     ) : (
                       <ul className="space-y-2 max-h-[380px] overflow-y-auto">
@@ -2304,7 +2304,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground mb-3">
-                      Notify in-app and Telegram the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token. Rules: Admin → Wallet Tracker.
+                      Notify in-app and Telegram the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token. Rules: Nova Admin → Wallet Tracker.
                     </p>
                     {firstBuyEnabled && firstBuyAlerts.length > 0 && (
                       <div className="overflow-x-auto">
@@ -2600,9 +2600,9 @@ export default function Dashboard() {
                                       <>
                                         <TableCell className="align-top py-1.5 px-1.5 truncate max-w-0" rowSpan={t.positions.length}>{traderCell}</TableCell>
                                         <TableCell className="font-mono align-top py-1.5 px-1.5" rowSpan={t.positions.length}>{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
-                                        <TableCell className="text-muted-foreground align-top py-1.5 px-1.5 truncate" rowSpan={t.positions.length} title="Last fill (open/add/reduce/close) in last 7d">{lastTradeStr}</TableCell>
                                       </>
                                     ) : null}
+                                    <TableCell className="text-muted-foreground py-1.5 px-1.5 truncate" title="Last fill (open/add/reduce/close) in last 7d">{lastTradeStr}</TableCell>
                                     <TableCell className="py-1.5 px-1.5 font-mono">{pos.coin}</TableCell>
                                     <TableCell className="py-1.5 px-1.5">
                                       <Badge variant={pos.side === "long" ? "default" : "secondary"} className={pos.side === "long" ? "bg-emerald-600 text-[10px] px-1" : "bg-rose-600 text-[10px] px-1"}>

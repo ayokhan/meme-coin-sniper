@@ -78,7 +78,7 @@ export default function AdminInsightsPage() {
         </Link>
         <div className="flex flex-wrap gap-4 mb-4">
           <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Admin hub
+            Nova Admin hub
           </Link>
           <Link href="/admin/metrics" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
             Metrics

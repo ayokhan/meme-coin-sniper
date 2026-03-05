@@ -439,7 +439,7 @@ export default function AdminWalletTrackerPage() {
             Leverage Wallet Tracker
           </Link>
           <span className="text-muted-foreground">·</span>
-          <span className="text-sm font-medium">Admin — Wallet Tracker</span>
+          <span className="text-sm font-medium">Nova Admin — Wallet Tracker</span>
         </div>
 
         {successMessage && (

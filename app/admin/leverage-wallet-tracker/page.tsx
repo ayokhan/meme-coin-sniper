@@ -302,11 +302,11 @@ export default function AdminLeverageWalletTrackerPage() {
           NovaStaris
         </Link>
         <div className="flex gap-2 mb-4">
-          <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">Admin hub</Link>
+          <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">Nova Admin hub</Link>
           <span className="text-muted-foreground">·</span>
           <Link href="/admin/wallet-tracker" className="text-sm text-muted-foreground hover:underline">Wallet Tracker</Link>
           <span className="text-muted-foreground">·</span>
-          <span className="text-sm font-medium">Admin — Leverage Wallet Tracker</span>
+          <span className="text-sm font-medium">Nova Admin — Leverage Wallet Tracker</span>
         </div>
 
         {successMessage && (
