@@ -246,6 +246,9 @@ export default function Dashboard() {
   const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
   const [topTradersLoading, setTopTradersLoading] = useState(false);
   const [topTradersError, setTopTradersError] = useState<string | null>(null);
+  type TrendingPerpRow = { coin: string; markPx: string; prevDayPx: string; dayPct: number; dayNtlVlm: string; openInterest: string };
+  const [trendingPerps, setTrendingPerps] = useState<TrendingPerpRow[]>([]);
+  const [trendingPerpsLoading, setTrendingPerpsLoading] = useState(false);
   type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
   const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
   const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
@@ -532,15 +535,33 @@ export default function Dashboard() {
     if (activeTab === "surge") fetchTokens("surge");
   }, [surgeWindow]);
 
+  const fetchTrendingPerps = async () => {
+    setTrendingPerpsLoading(true);
+    try {
+      const res = await fetch("/api/hyperliquid/trending-perps?limit=40", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.perps)) setTrendingPerps(data.perps);
+      else setTrendingPerps([]);
+    } catch {
+      setTrendingPerps([]);
+    } finally {
+      setTrendingPerpsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "wallets" && walletTrackerView === "leverage") {
       fetchTopTraders();
       fetchLeverageAlerts();
       fetchUserLeverageWallets();
+      fetchTrendingPerps();
     }
     if (activeTab === "wallets" && walletTrackerView === "meme") {
       fetchUserMemeCoinWallets();
       fetchUserMemeCoinAlerts();
+    }
+    if (activeTab === "futures") {
+      fetchTrendingPerps();
     }
   }, [activeTab, walletTrackerView]);
 
@@ -1786,6 +1807,49 @@ export default function Dashboard() {
                     Institutional Workflow
                   </Button>
                 </div>
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 mb-6">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Trending perps (24h)</h3>
+                    <Button variant="outline" size="sm" onClick={fetchTrendingPerps} disabled={trendingPerpsLoading}>
+                      {trendingPerpsLoading ? "Loading…" : "Refresh"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">High-movers by 24h % on Hyperliquid. Pick one → use AI Chart Analysis or Institutional Workflow below.</p>
+                  {trendingPerpsLoading && trendingPerps.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  ) : trendingPerps.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No data. Try Refresh.</p>
+                  ) : (
+                    <div className="overflow-x-auto max-h-56 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Symbol</TableHead>
+                            <TableHead className="text-right text-xs">24h %</TableHead>
+                            <TableHead className="text-right text-xs">Price</TableHead>
+                            <TableHead className="text-right text-xs">24h Vol</TableHead>
+                            <TableHead className="text-right text-xs w-16">Trade</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {trendingPerps.slice(0, 25).map((p) => (
+                            <TableRow key={p.coin}>
+                              <TableCell className="font-mono text-xs">{p.coin}</TableCell>
+                              <TableCell className={`text-right font-mono text-xs font-medium ${p.dayPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                {p.dayPct >= 0 ? "+" : ""}{p.dayPct.toFixed(2)}%
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
+                              <TableCell className="text-right font-mono text-xs text-muted-foreground">{Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                              <TableCell className="text-right">
+                                <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
                 {futuresView === "workflow" ? (
                   <FuturesWorkflow />
                 ) : (
@@ -2405,6 +2469,51 @@ export default function Dashboard() {
                   </TabsContent>
                   <TabsContent value="leverage" className="mt-0 space-y-4">
                   <div className="space-y-4">
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Trending perps (24h)</h3>
+                        <Button variant="outline" size="sm" onClick={fetchTrendingPerps} disabled={trendingPerpsLoading}>
+                          {trendingPerpsLoading ? "Loading…" : "Refresh"}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">High-movers by 24h % change on Hyperliquid (Apex Liquid). Sorted by absolute move. Use Crypto Futures AI or your broker to analyze and trade.</p>
+                      {trendingPerpsLoading && trendingPerps.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Loading…</p>
+                      ) : trendingPerps.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No data. Try Refresh.</p>
+                      ) : (
+                        <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-xs">Symbol</TableHead>
+                                <TableHead className="text-right text-xs">24h %</TableHead>
+                                <TableHead className="text-right text-xs">Price</TableHead>
+                                <TableHead className="text-right text-xs">24h Vol (USD)</TableHead>
+                                <TableHead className="text-right text-xs">Open int.</TableHead>
+                                <TableHead className="text-right text-xs w-16">Trade</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {trendingPerps.slice(0, 40).map((p) => (
+                                <TableRow key={p.coin}>
+                                  <TableCell className="font-mono text-xs">{p.coin}</TableCell>
+                                  <TableCell className={`text-right font-mono text-xs font-medium ${p.dayPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                    {p.dayPct >= 0 ? "+" : ""}{p.dayPct.toFixed(2)}%
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs text-muted-foreground">{Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs text-muted-foreground">{Number(p.openInterest).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                  <TableCell className="text-right">
+                                    <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       <strong>Global Top Traders (NovaStaris)</strong> — Curated list from NovaStaris. You can also add your own traders below.
                     </p>

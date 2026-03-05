@@ -201,3 +201,60 @@ export async function getTopTradersPositions(
   const results = rawStates.map((state, i) => parseStateToTrader(state, addresses[i] ?? "", traders));
   return results;
 }
+
+/** Asset context from metaAndAssetCtxs (index aligns with universe). */
+type AssetCtx = {
+  markPx?: string;
+  midPx?: string;
+  prevDayPx?: string;
+  dayNtlVlm?: string;
+  openInterest?: string;
+  funding?: string;
+};
+
+export type TrendingPerp = {
+  coin: string;
+  markPx: string;
+  prevDayPx: string;
+  dayPct: number;
+  dayNtlVlm: string;
+  openInterest: string;
+};
+
+/**
+ * Fetch all perp markets with 24h price change and volume (Hyperliquid / Apex Liquid).
+ * Sorted by absolute 24h % change desc so high-movers are first.
+ */
+export async function getTrendingPerps(limit = 50): Promise<TrendingPerp[]> {
+  const res = await fetch(HYPERLIQUID_INFO, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "metaAndAssetCtxs" }),
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  const raw = (await res.json()) as [ { universe?: Array<{ name: string }> }, AssetCtx[] ];
+  const meta = raw[0];
+  const ctxs = Array.isArray(raw[1]) ? raw[1] : [];
+  const universe = meta?.universe ?? [];
+  const perps: TrendingPerp[] = universe
+    .map((u, i) => {
+      const ctx = ctxs[i];
+      if (!ctx?.markPx || ctx.prevDayPx == null || ctx.prevDayPx === "" || Number(ctx.prevDayPx) === 0)
+        return null;
+      const mark = Number(ctx.markPx);
+      const prev = Number(ctx.prevDayPx);
+      const dayPct = prev ? ((mark - prev) / prev) * 100 : 0;
+      return {
+        coin: u.name,
+        markPx: ctx.markPx,
+        prevDayPx: ctx.prevDayPx,
+        dayPct,
+        dayNtlVlm: ctx.dayNtlVlm ?? "0",
+        openInterest: ctx.openInterest ?? "0",
+      };
+    })
+    .filter((p): p is TrendingPerp => p != null);
+  perps.sort((a, b) => Math.abs(b.dayPct) - Math.abs(a.dayPct));
+  return perps.slice(0, limit);
+}
