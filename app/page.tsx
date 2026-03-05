@@ -1069,7 +1069,7 @@ export default function Dashboard() {
                     onClick={(e) => { e.stopPropagation(); setAdminMenuOpen((v) => !v); }}
                     className="border-zinc-200 dark:border-zinc-700 inline-flex items-center gap-1"
                   >
-                    Admin
+                    Nova Admin
                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${adminMenuOpen ? "rotate-180" : ""}`} />
                   </Button>
                   {adminMenuOpen && (
@@ -2126,7 +2126,7 @@ export default function Dashboard() {
                     ) : walletTradesError ? (
                       <div className="text-sm py-4 space-y-1">
                         <p className="font-medium text-amber-700 dark:text-amber-400">{walletTradesError}</p>
-                        <p className="text-xs text-muted-foreground">Live trades need: feature flag ON (Admin → Feature flags), VIP subscription, and at least one of Moralis/Helius/Birdeye API keys set on the server.</p>
+                        <p className="text-xs text-muted-foreground">Live trades need: feature flag ON (Nova Admin → Feature flags), VIP subscription, and at least one of Moralis/Helius/Birdeye API keys set on the server.</p>
                       </div>
                     ) : walletTradesLoading && walletTrades.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4">Loading trades…</p>
