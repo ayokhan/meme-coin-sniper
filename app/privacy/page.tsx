@@ -33,9 +33,6 @@ export default function PrivacyPage() {
             <p>
               We may update this policy; we will post changes on this page. Continued use after updates constitutes acceptance.
             </p>
-            <p className="text-muted-foreground">
-              This is a summary. Have a qualified lawyer draft a full Privacy Policy (including GDPR/CCPA if applicable) for your jurisdiction.
-            </p>
           </CardContent>
         </Card>
         <p className="mt-4 text-sm text-muted-foreground">

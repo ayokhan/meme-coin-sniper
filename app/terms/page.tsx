@@ -33,9 +33,6 @@ export default function TermsPage() {
             <p>
               By using NovaStaris you agree to these terms. We may update this page from time to time; continued use after changes constitutes acceptance.
             </p>
-            <p className="text-muted-foreground">
-              This is a summary. Have a qualified lawyer draft full Terms of Service tailored to your jurisdiction and business.
-            </p>
           </CardContent>
         </Card>
         <p className="mt-4 text-sm text-muted-foreground">

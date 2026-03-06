@@ -23,12 +23,16 @@ export async function PATCH(
     }
     const body = await request.json().catch(() => ({}));
     const tradingBotOnDemand = body.tradingBotOnDemand;
-    if (typeof tradingBotOnDemand !== 'boolean') {
-      return NextResponse.json({ success: false, error: 'tradingBotOnDemand (boolean) required.' }, { status: 400 });
+    const newsletterOptIn = body.newsletterOptIn;
+    const updates: { tradingBotOnDemand?: boolean; newsletterOptIn?: boolean } = {};
+    if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
+    if (typeof newsletterOptIn === 'boolean') updates.newsletterOptIn = newsletterOptIn;
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ success: false, error: 'Provide tradingBotOnDemand and/or newsletterOptIn (boolean).' }, { status: 400 });
     }
     await (prisma as any).user.update({
       where: { id: userId },
-      data: { tradingBotOnDemand },
+      data: updates,
     });
     return NextResponse.json({ success: true });
   } catch (e) {

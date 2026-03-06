@@ -14,6 +14,7 @@ type Customer = {
   country: string | null;
   experienceTradingCrypto: string | null;
   tradingBotOnDemand: boolean;
+  newsletterOptIn: boolean;
   createdAt: string;
   subscriptionTier: string | null;
   subscriptionPlan: string | null;
@@ -30,6 +31,7 @@ export default function AdminCustomersPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [togglingOnDemandId, setTogglingOnDemandId] = useState<string | null>(null);
+  const [togglingNewsletterId, setTogglingNewsletterId] = useState<string | null>(null);
 
   const loadCustomers = () => {
     fetch("/api/admin/customers")
@@ -192,6 +194,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Plan</th>
                       <th className="pb-2 pr-4 font-semibold">Expires</th>
                       <th className="pb-2 pr-4 font-semibold">Status</th>
+                      <th className="pb-2 pr-4 font-semibold">Email</th>
                       <th className="pb-2 font-semibold">Actions</th>
                     </tr>
                   </thead>
@@ -225,6 +228,21 @@ export default function AdminCustomersPage() {
                           >
                             {togglingOnDemandId === c.id ? "…" : c.tradingBotOnDemand ? "On" : "Off"}
                           </button>
+                        </td>
+                        <td className="py-2 pr-4">
+                          {c.email ? (
+                            <button
+                              type="button"
+                              onClick={() => handleNewsletterToggle(c.id, !c.newsletterOptIn)}
+                              disabled={togglingNewsletterId === c.id}
+                              className={`text-xs font-medium px-2 py-1 rounded ${c.newsletterOptIn ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                              title="Newsletter / digest email"
+                            >
+                              {togglingNewsletterId === c.id ? "…" : c.newsletterOptIn ? "On" : "Off"}
+                            </button>
+                          ) : (
+                            <span className="text-zinc-400 text-xs">—</span>
+                          )}
                         </td>
                         <td className="py-2">
                           <div className="flex flex-col gap-1">

@@ -36,6 +36,7 @@ export async function GET() {
         country: u.country,
         experienceTradingCrypto: u.experienceTradingCrypto,
         tradingBotOnDemand: !!(u as { tradingBotOnDemand?: boolean }).tradingBotOnDemand,
+        newsletterOptIn: !!(u as { newsletterOptIn?: boolean }).newsletterOptIn,
         createdAt: u.createdAt,
         subscriptionTier: subTier,
         subscriptionPlan: subPlan,
