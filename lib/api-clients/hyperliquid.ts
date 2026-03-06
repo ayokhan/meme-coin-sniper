@@ -228,6 +228,7 @@ export type TrendingPerp = {
   pct15m?: number;
   pct30m?: number;
   pct1h?: number;
+  pct4h?: number;
 };
 
 /**

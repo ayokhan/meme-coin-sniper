@@ -33,11 +33,12 @@ export async function GET(request: Request) {
       const slice = perps.slice(0, Math.min(25, limitParam));
       const enriched: TrendingPerp[] = await Promise.all(
         slice.map(async (p) => {
-          const [c5, c15, c30, c1h] = await Promise.all([
+          const [c5, c15, c30, c1h, c4h] = await Promise.all([
             getCandles(p.coin, "5m", 1),
             getCandles(p.coin, "15m", 1),
             getCandles(p.coin, "30m", 1),
             getCandles(p.coin, "1h", 1),
+            getCandles(p.coin, "4h", 1),
           ]);
           return {
             ...p,
@@ -45,6 +46,7 @@ export async function GET(request: Request) {
             pct15m: candlePct(c15, p.dayPct),
             pct30m: candlePct(c30, p.dayPct),
             pct1h: candlePct(c1h, p.dayPct),
+            pct4h: candlePct(c4h, p.dayPct),
           };
         })
       );
