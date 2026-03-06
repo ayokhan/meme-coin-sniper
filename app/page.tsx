@@ -246,6 +246,16 @@ export default function Dashboard() {
   const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
   const [topTradersLoading, setTopTradersLoading] = useState(false);
   const [topTradersError, setTopTradersError] = useState<string | null>(null);
+  const [leverageTradersDateFilter, setLeverageTradersDateFilter] = useState<"all" | "today">("all");
+  const leverageFilteredTraders = useMemo(() => {
+    if (leverageTradersDateFilter !== "today") return topTradersData;
+    const now = new Date();
+    return topTradersData.filter((t) => {
+      if (t.lastTradeTimeMs == null) return false;
+      const d = new Date(t.lastTradeTimeMs);
+      return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+  }, [leverageTradersDateFilter, topTradersData]);
   type TrendingPerpRow = { coin: string; markPx: string; prevDayPx: string; dayPct: number; dayNtlVlm: string; openInterest: string; funding?: string; timeframePct?: number; pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number };
   const [trendingPerps, setTrendingPerps] = useState<TrendingPerpRow[]>([]);
   const [trendingPerpsLoading, setTrendingPerpsLoading] = useState(false);
@@ -1816,7 +1826,7 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Biggest movers by % change across 5m, 15m, 30m, 1h, and 24h. <strong>Direction</strong> shows price bias (Long = up, Short = down). <strong>Funding</strong> shows positioning: positive = long-heavy (longs pay shorts), negative = short-heavy. Pick one and use Crypto Futures (AI or Institutional Workflow) to analyze and trade.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Biggest movers by % change across 5m, 15m, 30m, 1h, and 24h. <strong>Direction</strong> is based on <strong>24h</strong> price change only: Long = price went up over 24h, Short = price went down (past move, not a forecast). <strong>Funding</strong> shows positioning: positive = long-heavy (longs pay shorts), negative = short-heavy. Pick one and use Crypto Futures (AI or Institutional Workflow) to analyze and trade.</p>
                   {trendingPerpsLoading && trendingPerps.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                   ) : trendingPerps.length === 0 ? (
@@ -1832,7 +1842,7 @@ export default function Dashboard() {
                             <TableHead className="text-right text-xs">30m %</TableHead>
                             <TableHead className="text-right text-xs">1h %</TableHead>
                             <TableHead className="text-right text-xs">24h %</TableHead>
-                            <TableHead className="text-center text-xs">Direction</TableHead>
+                            <TableHead className="text-center text-xs" title="Based on 24h % change: Long = price up over 24h, Short = price down. Past move, not a forecast.">Direction <span className="text-muted-foreground/70" title="Based on 24h % change. Past move, not a forecast.">ⓘ</span></TableHead>
                             <TableHead className="text-right text-xs" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">Funding <span className="text-muted-foreground/70" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">ⓘ</span></TableHead>
                             <TableHead className="text-right text-xs">Price</TableHead>
                             <TableHead className="text-right text-xs" title="Total notional volume (buys + sells) over 24h">24h Vol <span className="text-muted-foreground/70" title="Total notional volume (buys + sells)">ⓘ</span></TableHead>
@@ -2672,6 +2682,23 @@ export default function Dashboard() {
                       </div>
                     )}
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 w-full max-w-full overflow-x-auto">
+                      <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
+                        <span className="text-xs text-muted-foreground">Active (date):</span>
+                        <button
+                          type="button"
+                          onClick={() => setLeverageTradersDateFilter("all")}
+                          className={`text-xs px-2 py-1 rounded ${leverageTradersDateFilter === "all" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"}`}
+                        >
+                          All dates
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLeverageTradersDateFilter("today")}
+                          className={`text-xs px-2 py-1 rounded ${leverageTradersDateFilter === "today" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"}`}
+                        >
+                          Today
+                        </button>
+                      </div>
                       <Table className="table-fixed w-full min-w-0 text-xs" style={{ tableLayout: "fixed" }}>
                         <TableHeader>
                           <TableRow>
@@ -2689,7 +2716,17 @@ export default function Dashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {topTradersData.flatMap((t) => {
+                          {(() => {
+                            const isTodayActive = (ms: number | null | undefined) => {
+                              if (ms == null) return false;
+                              const d = new Date(ms);
+                              const now = new Date();
+                              return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                            };
+                            const filteredTraders = leverageTradersDateFilter === "today"
+                              ? topTradersData.filter((t) => t.lastTradeTimeMs != null && isTodayActive(t.lastTradeTimeMs))
+                              : topTradersData;
+                            return filteredTraders.flatMap((t) => {
                             const displayName = t.nickname ?? t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`;
                             const lastTradeStr = t.lastTradeTimeMs
                               ? new Date(t.lastTradeTimeMs).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })
@@ -2734,6 +2771,9 @@ export default function Dashboard() {
                           })}
                           {topTradersData.length === 0 && !topTradersLoading && !topTradersError && (
                             <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
+                          )}
+                          {topTradersData.length > 0 && leverageTradersDateFilter === "today" && leverageFilteredTraders.length === 0 && (
+                            <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">No trades with activity today. Try &quot;All dates&quot; or refresh later.</TableCell></TableRow>
                           )}
                         </TableBody>
                       </Table>
