@@ -61,24 +61,24 @@ export async function GET() {
       });
     }
 
-    const count = await prisma.knownPerpSymbol.count();
+    const count = await (prisma as any).knownPerpSymbol.count();
     const now = new Date();
     const seedCutoff = new Date(now.getTime() - SEED_OFFSET_DAYS * 24 * 60 * 60 * 1000);
 
     if (count === 0) {
-      await prisma.knownPerpSymbol.createMany({
+      await (prisma as any).knownPerpSymbol.createMany({
         data: universe.map((symbol) => ({ symbol, firstSeenAt: seedCutoff })),
         skipDuplicates: true,
       });
     } else {
-      const existing = await prisma.knownPerpSymbol.findMany({
+      const existing = await (prisma as any).knownPerpSymbol.findMany({
         where: { symbol: { in: universe } },
         select: { symbol: true },
       });
       const existingSet = new Set(existing.map((r) => r.symbol));
       const toAdd = universe.filter((s) => !existingSet.has(s));
       if (toAdd.length > 0) {
-        await prisma.knownPerpSymbol.createMany({
+        await (prisma as any).knownPerpSymbol.createMany({
           data: toAdd.map((symbol) => ({ symbol })),
           skipDuplicates: true,
         });
@@ -86,7 +86,7 @@ export async function GET() {
     }
 
     const newCutoff = new Date(now.getTime() - NEW_DAYS * 24 * 60 * 60 * 1000);
-    const newRows = await prisma.knownPerpSymbol.findMany({
+    const newRows = await (prisma as any).knownPerpSymbol.findMany({
       where: { firstSeenAt: { gte: newCutoff } },
       select: { symbol: true },
       orderBy: { firstSeenAt: "desc" },
