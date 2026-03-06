@@ -245,6 +245,7 @@ export default function Dashboard() {
   const [topAltcoinsSortBy, setTopAltcoinsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
   const [hotPerps, setHotPerps] = useState<TrendingPerpRow[]>([]);
   const [hotPerpsLoading, setHotPerpsLoading] = useState(false);
+  const [hotPerpsNewOnly, setHotPerpsNewOnly] = useState(false);
   const [hotPerpsSortBy, setHotPerpsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("5m");
   const [futuresAnalysisCopied, setFuturesAnalysisCopied] = useState(false);
   // ApexLiquid / Hyperliquid top traders (under Trading Bot tab, owner only)
@@ -2072,7 +2073,12 @@ export default function Dashboard() {
                         </Button>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-3">Perps with strong short-term momentum—sorted by 5m by default so you can catch moves early. Same data as Trending perps (5m to 4h, 24h %, Direction, Funding). Use AI Chart Analysis or Institutional Workflow to analyze and trade.</p>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      {hotPerpsNewOnly
+                        ? "New listings in the last 7 days with strong short-term momentum—sorted by 5m by default."
+                        : "No new listings in the last 7 days. Showing top momentum perps so you can catch moves early."}
+                      {" "}Same data as Trending perps (5m to 4h, 24h %, Direction, Funding). Use AI Chart Analysis or Institutional Workflow to analyze and trade.
+                    </p>
                     {hotPerpsLoading && hotPerps.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Loading…</p>
                     ) : hotPerps.length === 0 ? (

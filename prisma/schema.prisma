@@ -56,6 +56,12 @@ model ScanLog {
   @@index([scanTime])
 }
 
+/** Tracks first-seen perp symbols for "Hot New Perps" (new listings in last 7 days). */
+model KnownPerpSymbol {
+  symbol      String   @id
+  firstSeenAt DateTime @default(now())
+}
+
 // Auth & subscriptions
 model User {
   id            String    @id @default(cuid())

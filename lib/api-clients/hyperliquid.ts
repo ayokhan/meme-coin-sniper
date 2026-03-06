@@ -318,4 +318,18 @@ export async function getPerpsByCoins(coins: string[]): Promise<TrendingPerp[]> 
   return perps;
 }
 
+/** Fetch current perp universe symbols from Hyperliquid (for new-listing detection). */
+export async function getUniverseSymbols(): Promise<string[]> {
+  const res = await fetch(HYPERLIQUID_INFO, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "metaAndAssetCtxs" }),
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  const raw = (await res.json()) as [{ universe?: Array<{ name: string }> }, unknown];
+  const universe = raw[0]?.universe ?? [];
+  return universe.map((u) => u.name).filter(Boolean);
+}
+
 export { TOP_ALTCOINS };
