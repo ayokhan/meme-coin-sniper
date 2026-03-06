@@ -32,6 +32,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Telegram Top Leverage Traders alerts",
     description: "Send Telegram when an alert-enabled leverage wallet changes positions (cron). Toggle per wallet in Nova Admin → Leverage Wallet Tracker.",
   },
+  digest_to_newsletter_subscribers: {
+    label: "Send digest to newsletter subscribers",
+    description: "When ON, the perp digest is also emailed to users who opted in at registration. When OFF, digest goes only to Telegram and DIGEST_EMAIL_TO.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {

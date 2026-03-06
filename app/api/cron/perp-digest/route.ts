@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getTrendingPerps, getPerpsByCoins } from "@/lib/api-clients/hyperliquid";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { sendEmail } from "@/lib/send-email";
+import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -10,8 +12,12 @@ const NEW_DAYS = 7;
 const TOP_MOMENTUM = 8;
 const TOP_NEW = 5;
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 /**
- * Cron-only: Send daily/2x daily perp digest to Telegram.
+ * Cron-only: Send daily perp digest to Telegram and optionally to email (DIGEST_EMAIL_TO).
  * Hot new (7d) + top momentum. Called from main cron.
  */
 export async function GET(request: Request) {
@@ -65,8 +71,43 @@ export async function GET(request: Request) {
       "🔗 <a href=\"https://app.hyperliquid.xyz\">Trade on Hyperliquid</a> · <a href=\"https://novastaris.ai\">NovaStaris</a>",
     ].join("\n");
 
-    const ok = await sendTelegramMessage(text);
-    return NextResponse.json({ success: ok });
+    let telegramOk = await sendTelegramMessage(text);
+
+    const html = [
+      "<h2>NovaStaris Perp Digest</h2>",
+      "<p><strong>Hot new (7d):</strong> " + escapeHtml(newLine) + "</p>",
+      "<p><strong>Top momentum (24h):</strong> " + escapeHtml(momentumLine) + "</p>",
+      "<p><a href=\"https://app.hyperliquid.xyz\">Trade on Hyperliquid</a> · <a href=\"https://novastaris.ai\">NovaStaris</a></p>",
+    ].join("");
+
+    // Optional: send same digest to email if DIGEST_EMAIL_TO is set (comma-separated addresses)
+    const digestEmailTo = process.env.DIGEST_EMAIL_TO?.trim();
+    let emailOk = false;
+    if (digestEmailTo) {
+      const toAddresses = digestEmailTo.split(",").map((e) => e.trim()).filter(Boolean);
+      for (const to of toAddresses) {
+        const sent = await sendEmail(to, "NovaStaris Perp Digest", html);
+        if (sent) emailOk = true;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
+
+    // If admin enabled "Send digest to newsletter subscribers", email all opted-in users
+    const sendToSubscribers = await getFeatureFlag(FEATURE_FLAG_KEYS.DIGEST_TO_NEWSLETTER_SUBSCRIBERS);
+    if (sendToSubscribers) {
+      const subscribers = await prisma.user.findMany({
+        where: { newsletterOptIn: true, email: { not: null } },
+        select: { email: true },
+      });
+      for (const u of subscribers) {
+        const to = u.email!;
+        const sent = await sendEmail(to, "NovaStaris Perp Digest", html);
+        if (sent) emailOk = true;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
+
+    return NextResponse.json({ success: telegramOk, emailSent: emailOk });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Perp digest failed";
     console.error("Cron perp-digest:", e);

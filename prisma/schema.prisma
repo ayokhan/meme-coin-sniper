@@ -90,6 +90,8 @@ model User {
   country       String?
   experienceTradingCrypto String?  // e.g. beginner | intermediate | expert
   tradingBotOnDemand     Boolean  @default(false)  // owner can enable Trading Bot access for VIP users on request
+  /** Opt-in at registration: receive NovaStaris newsletter / perp digest when admin enables "Send digest to newsletter subscribers". */
+  newsletterOptIn       Boolean  @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]

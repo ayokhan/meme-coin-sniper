@@ -18,6 +18,8 @@ export const FEATURE_FLAG_KEYS = {
   OWNER_FIRST_BUY_ALERTS: 'owner_first_buy_alerts',
   /** Send Top Leverage Traders new-trade alerts to Telegram when an alert-enabled wallet changes positions. */
   TELEGRAM_LEVERAGE_ALERTS: 'telegram_leverage_alerts',
+  /** Send perp digest to users who opted in to newsletter. When OFF, digest goes only to Telegram and DIGEST_EMAIL_TO. */
+  DIGEST_TO_NEWSLETTER_SUBSCRIBERS: 'digest_to_newsletter_subscribers',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -55,15 +57,15 @@ export async function getAllFeatureFlags(): Promise<Record<string, boolean>> {
   try {
     const db = prisma as unknown as PrismaWithFeatureFlag;
     if (!db.featureFlag) {
-      keys.forEach((k) => (out[k] = true));
+      keys.forEach((k) => (out[k] = !DEFAULT_DISABLED_KEYS.has(k)));
       return out;
     }
     const rows = await db.featureFlag.findMany();
     const byKey = new Map(rows.map((r) => [r.key, r.enabled]));
-    keys.forEach((k) => (out[k] = byKey.get(k) ?? true));
+    keys.forEach((k) => (out[k] = byKey.get(k) ?? !DEFAULT_DISABLED_KEYS.has(k)));
     return out;
   } catch {
-    keys.forEach((k) => (out[k] = true));
+    keys.forEach((k) => (out[k] = !DEFAULT_DISABLED_KEYS.has(k)));
     return out;
   }
 }

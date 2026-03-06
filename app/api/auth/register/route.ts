@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     const phone = (body.phone ?? '').toString().trim() || undefined;
     const country = (body.country ?? '').toString().trim() || undefined;
     const experienceTradingCrypto = (body.experienceTradingCrypto ?? '').toString().trim() || undefined;
+    const newsletterOptIn = Boolean(body.newsletterOptIn);
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ success: false, error: 'Valid email is required.' }, { status: 400 });
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await prisma.user.create({
-      data: { email, hashedPassword, name, phone, country, experienceTradingCrypto },
+      data: { email, hashedPassword, name, phone, country, experienceTradingCrypto, newsletterOptIn },
     });
 
     return NextResponse.json({ success: true, message: 'Account created. You can sign in.' });

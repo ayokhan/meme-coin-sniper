@@ -17,6 +17,7 @@ function RegisterForm() {
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("");
   const [experienceTradingCrypto, setExperienceTradingCrypto] = useState("");
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -37,6 +38,7 @@ function RegisterForm() {
           phone: phone.trim() || undefined,
           country: country.trim() || undefined,
           experienceTradingCrypto: experienceTradingCrypto || undefined,
+          newsletterOptIn,
         }),
       });
       const data = await res.json();
@@ -128,6 +130,15 @@ function RegisterForm() {
                 required
                 minLength={8}
               />
+              <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newsletterOptIn}
+                  onChange={(e) => setNewsletterOptIn(e.target.checked)}
+                  className="rounded border-zinc-300 dark:border-zinc-600"
+                />
+                Subscribe to NovaStaris newsletter (weekly digest, product updates)
+              </label>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating account…" : "Register"}
               </Button>
