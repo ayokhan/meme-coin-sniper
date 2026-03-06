@@ -75,7 +75,7 @@ export async function GET() {
         where: { symbol: { in: universe } },
         select: { symbol: true },
       });
-      const existingSet = new Set(existing.map((r) => r.symbol));
+      const existingSet = new Set(existing.map((r: { symbol: string }) => r.symbol));
       const toAdd = universe.filter((s) => !existingSet.has(s));
       if (toAdd.length > 0) {
         await (prisma as any).knownPerpSymbol.createMany({
@@ -91,7 +91,7 @@ export async function GET() {
       select: { symbol: true },
       orderBy: { firstSeenAt: "desc" },
     });
-    const newSymbols = newRows.map((r) => r.symbol);
+    const newSymbols = newRows.map((r: { symbol: string }) => r.symbol);
 
     let perps: TrendingPerp[];
     let newOnly: boolean;
