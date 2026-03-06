@@ -10,7 +10,7 @@ const SEED_OFFSET_DAYS = 8;
 
 /**
  * Cron-only: Check Hyperliquid universe for new perps; send Telegram for each new listing.
- * Run every 1–2 min (e.g. */2 * * * *) for instant alerts. Uses existing KnownPerpSymbol.
+ * Run every 1-2 min for instant alerts (or from main daily cron). Uses existing KnownPerpSymbol.
  */
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
