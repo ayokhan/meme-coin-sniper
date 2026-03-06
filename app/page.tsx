@@ -585,6 +585,20 @@ export default function Dashboard() {
     }
   };
 
+  const fetchHotPerps = async () => {
+    setHotPerpsLoading(true);
+    try {
+      const res = await fetch("/api/hyperliquid/trending-perps?limit=25&allTimeframes=1", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.perps)) setHotPerps(data.perps);
+      else setHotPerps([]);
+    } catch {
+      setHotPerps([]);
+    } finally {
+      setHotPerpsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "wallets" && walletTrackerView === "leverage") {
       fetchTopTraders();
