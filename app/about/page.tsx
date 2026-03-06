@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, BarChart3 } from "lucide-react";
+import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, BarChart3, Activity } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -39,7 +39,7 @@ export default function AboutPage() {
                 Our system surfaces new pairs, trending volume, and surge activity on Solana and BSC (BSC tab includes <strong className="text-zinc-900 dark:text-zinc-100">Go Hunting</strong>: New pairs, Final Stretch, Migrated, and Trending—all users can access the BSC tab). We layer on <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Agent</strong>: paste any Solana or BSC token contract address to get a 0–100 score, a clear buy/no-buy signal, and a concise explanation (BSC AI Agent is <strong className="text-zinc-900 dark:text-zinc-100">for Pro and VIP only</strong>). <strong className="text-zinc-900 dark:text-zinc-100">Pro</strong> subscribers get Surge, Transactions, NovaStaris AI Agent (Solana and BSC), and Crypto Futures. <strong className="text-zinc-900 dark:text-zinc-100">VIP</strong> adds the Twitter tracker (CT Scan), Wallet Tracker (Meme Coins Traders + Top Leverage Traders), Coach Calls + Telegram Signals, and the <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Trading Bot</strong> (Crypto Futures on Blofin—automate long/short with AI monitor and optional autopilot). Add your own meme coin wallets (max 5) or leverage wallets (unlimited). Coach Calls: exclusive CA in-app and via our Telegram Call channel; add your Telegram ID to get signals there.
               </p>
               <p className="text-base leading-relaxed">
-                <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong> gives Pro and VIP users two edges: <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong>—upload a chart (any timeframe), set margin and leverage, and get AI support/resistance, entry zone, take profit and stop loss tailored for futures; <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong>—a 4-phase checklist (macro bias, daily flow check, pre-trade setup, execution rules) using powerful tools (COT reports via CFTC and Tradingster, Coinglass, CryptoQuant, Arkham, Whale Alert) and six non-negotiable rules so you trade with institutional flow instead of against it.
+                <strong className="text-zinc-900 dark:text-zinc-100">Trending perps</strong>—one feed, all the heat. See what’s pumping or dumping across 5m, 15m, 30m, 1h, and 24h so you catch momentum before the crowd. <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong> gives Pro and VIP users two edges: <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong>—upload a chart (any timeframe), set margin and leverage, and get AI support/resistance, entry zone, take profit and stop loss tailored for futures; <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong>—a 4-phase checklist (macro bias, daily flow check, pre-trade setup, execution rules) using powerful tools (COT reports via CFTC and Tradingster, Coinglass, CryptoQuant, Arkham, Whale Alert) and six non-negotiable rules so you trade with institutional flow instead of against it.
               </p>
               <div className="grid gap-4 sm:grid-cols-2 pt-4">
                 <div className="flex gap-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4">
@@ -78,8 +78,17 @@ export default function AboutPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4 sm:col-span-2">
+                <div className="flex gap-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4">
                   <TrendingUp className="h-6 w-6 text-cyan-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Trending perps</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                      One feed for the biggest perp movers—5m to 24h. Spot momentum early, then use Crypto Futures (AI or Institutional Workflow) to trade with an edge.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4">
+                  <TrendingUp className="h-6 w-6 text-violet-500 shrink-0 mt-0.5" />
                   <div>
                     <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Crypto Futures</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">

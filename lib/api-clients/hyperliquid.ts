@@ -219,6 +219,13 @@ export type TrendingPerp = {
   dayPct: number;
   dayNtlVlm: string;
   openInterest: string;
+  /** When requesting a non-24h timeframe (5m, 15m, 30m, 1h). */
+  timeframePct?: number;
+  /** Short-timeframe % (from candles). Present when allTimeframes=1. */
+  pct5m?: number;
+  pct15m?: number;
+  pct30m?: number;
+  pct1h?: number;
 };
 
 /**

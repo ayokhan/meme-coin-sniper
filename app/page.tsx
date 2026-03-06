@@ -59,8 +59,8 @@ type WalletAlert = {
 
 const AUTO_REFRESH_SECONDS = 60;
 
-type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "narratives" | "trading-bot" | "coach-calls" | "bsc" | "watchlist";
-const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "narratives", "ct", "wallets", "coach-calls"];
+type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "trending-perps" | "narratives" | "trading-bot" | "coach-calls" | "bsc" | "watchlist";
+const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "narratives", "ct", "wallets", "coach-calls"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. BSC + Watchlist are free for all. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls"];
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
@@ -246,9 +246,11 @@ export default function Dashboard() {
   const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
   const [topTradersLoading, setTopTradersLoading] = useState(false);
   const [topTradersError, setTopTradersError] = useState<string | null>(null);
-  type TrendingPerpRow = { coin: string; markPx: string; prevDayPx: string; dayPct: number; dayNtlVlm: string; openInterest: string };
+  type TrendingPerpRow = { coin: string; markPx: string; prevDayPx: string; dayPct: number; dayNtlVlm: string; openInterest: string; timeframePct?: number; pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number };
   const [trendingPerps, setTrendingPerps] = useState<TrendingPerpRow[]>([]);
   const [trendingPerpsLoading, setTrendingPerpsLoading] = useState(false);
+  const [trendingPerpsTimeframe, setTrendingPerpsTimeframe] = useState<"24h" | "1h" | "30m" | "15m" | "5m">("24h");
+  const [trendingPerpsSortBy, setTrendingPerpsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "24h">("24h");
   type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
   const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
   const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
@@ -535,10 +537,14 @@ export default function Dashboard() {
     if (activeTab === "surge") fetchTokens("surge");
   }, [surgeWindow]);
 
-  const fetchTrendingPerps = async () => {
+  const fetchTrendingPerps = async (timeframeOverride?: "24h" | "1h" | "30m" | "15m" | "5m", allTimeframes?: boolean) => {
+    const tf = timeframeOverride ?? trendingPerpsTimeframe;
     setTrendingPerpsLoading(true);
     try {
-      const res = await fetch("/api/hyperliquid/trending-perps?limit=40", { cache: "no-store" });
+      const url = allTimeframes
+        ? "/api/hyperliquid/trending-perps?limit=25&allTimeframes=1"
+        : `/api/hyperliquid/trending-perps?limit=40&timeframe=${tf}`;
+      const res = await fetch(url, { cache: "no-store" });
       const data = await res.json();
       if (data.success && Array.isArray(data.perps)) setTrendingPerps(data.perps);
       else setTrendingPerps([]);
@@ -554,20 +560,19 @@ export default function Dashboard() {
       fetchTopTraders();
       fetchLeverageAlerts();
       fetchUserLeverageWallets();
-      fetchTrendingPerps();
+      fetchTrendingPerps("24h");
     }
     if (activeTab === "wallets" && walletTrackerView === "meme") {
       fetchUserMemeCoinWallets();
       fetchUserMemeCoinAlerts();
     }
-    if (activeTab === "futures") {
-      fetchTrendingPerps();
-    }
+    if (activeTab === "futures") fetchTrendingPerps();
+    if (activeTab === "trending-perps") fetchTrendingPerps(undefined, true);
   }, [activeTab, walletTrackerView]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "watchlist") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "watchlist") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         fetchTrackedWallets();
@@ -1271,6 +1276,7 @@ export default function Dashboard() {
                 <TabsTrigger value="transactions" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
                 <TabsTrigger value="ai-analysis" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaStaris AI Agent</TabsTrigger>
                 <TabsTrigger value="futures" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Crypto Futures</TabsTrigger>
+                <TabsTrigger value="trending-perps" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Trending perps</TabsTrigger>
                 <TabsTrigger value="narratives" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Narratives</TabsTrigger>
                 <TabsTrigger value="trading-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaStaris AI Trading Bot</TabsTrigger>
                 <TabsTrigger value="ct" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
@@ -1292,6 +1298,7 @@ export default function Dashboard() {
                   {activeTab === "transactions" && "Transactions shows buys vs sells (24h) and activity."}
                   {activeTab === "ai-analysis" && "NovaStaris AI Agent scores any token 0–100 and gives a buy/no-buy signal."}
                   {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
+                  {activeTab === "trending-perps" && "See the biggest perp movers in one place—5m, 15m, 30m, 1h, and 24h—so you can spot what’s moving fast."}
                   {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
                   {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets."}
@@ -1787,6 +1794,83 @@ export default function Dashboard() {
                     </div>
                 )}
               </div>
+            ) : activeTab === "trending-perps" ? (
+              <div className="mx-6 py-8">
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Trending perps</h2>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Sort by:</span>
+                      <select
+                        value={trendingPerpsSortBy}
+                        onChange={(e) => setTrendingPerpsSortBy(e.target.value as "5m" | "15m" | "30m" | "1h" | "24h")}
+                        className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                      >
+                        <option value="5m">5m %</option>
+                        <option value="15m">15m %</option>
+                        <option value="30m">30m %</option>
+                        <option value="1h">1h %</option>
+                        <option value="24h">24h %</option>
+                      </select>
+                      <Button variant="outline" size="sm" onClick={() => fetchTrendingPerps(undefined, true)} disabled={trendingPerpsLoading}>
+                        {trendingPerpsLoading ? "Loading…" : "Refresh"}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">Biggest movers by % change across 5m, 15m, 30m, 1h, and 24h. Pick one and use Crypto Futures (AI Chart Analysis or Institutional Workflow) to analyze and trade.</p>
+                  {trendingPerpsLoading && trendingPerps.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  ) : trendingPerps.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No data. Try Refresh.</p>
+                  ) : (
+                    <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Symbol</TableHead>
+                            <TableHead className="text-right text-xs">5m %</TableHead>
+                            <TableHead className="text-right text-xs">15m %</TableHead>
+                            <TableHead className="text-right text-xs">30m %</TableHead>
+                            <TableHead className="text-right text-xs">1h %</TableHead>
+                            <TableHead className="text-right text-xs">24h %</TableHead>
+                            <TableHead className="text-right text-xs">Price</TableHead>
+                            <TableHead className="text-right text-xs" title="Total notional volume (buys + sells) over 24h">24h Vol <span className="text-muted-foreground/70" title="Total notional volume (buys + sells)">ⓘ</span></TableHead>
+                            <TableHead className="text-right text-xs w-16">Trade</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {[...trendingPerps]
+                            .sort((a, b) => {
+                              const key = trendingPerpsSortBy;
+                              const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : (a.pct1h ?? 0);
+                              const vb = key === "24h" ? b.dayPct : key === "5m" ? (b.pct5m ?? 0) : key === "15m" ? (b.pct15m ?? 0) : key === "30m" ? (b.pct30m ?? 0) : (b.pct1h ?? 0);
+                              return Math.abs(vb) - Math.abs(va);
+                            })
+                            .map((p) => {
+                            const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
+                            const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
+                            return (
+                              <TableRow key={p.coin}>
+                                <TableCell className="font-mono text-xs">{p.coin}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct30m)}`}>{fmt(p.pct30m)}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct1h)}`}>{fmt(p.pct1h)}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.dayPct)}`}>{fmt(p.dayPct)}</TableCell>
+                                <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right font-mono text-xs text-muted-foreground" title="Total notional volume (buys + sells)">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                <TableCell className="text-right">
+                                  <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : activeTab === "futures" ? (
               <div className="mx-6 py-8">
                 <div className="flex flex-wrap gap-2 mb-6">
@@ -1806,49 +1890,6 @@ export default function Dashboard() {
                   >
                     Institutional Workflow
                   </Button>
-                </div>
-                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 mb-6">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Trending perps (24h)</h3>
-                    <Button variant="outline" size="sm" onClick={fetchTrendingPerps} disabled={trendingPerpsLoading}>
-                      {trendingPerpsLoading ? "Loading…" : "Refresh"}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3">High-movers by 24h % on Hyperliquid. Pick one → use AI Chart Analysis or Institutional Workflow below.</p>
-                  {trendingPerpsLoading && trendingPerps.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Loading…</p>
-                  ) : trendingPerps.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No data. Try Refresh.</p>
-                  ) : (
-                    <div className="overflow-x-auto max-h-56 overflow-y-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Symbol</TableHead>
-                            <TableHead className="text-right text-xs">24h %</TableHead>
-                            <TableHead className="text-right text-xs">Price</TableHead>
-                            <TableHead className="text-right text-xs">24h Vol</TableHead>
-                            <TableHead className="text-right text-xs w-16">Trade</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {trendingPerps.slice(0, 25).map((p) => (
-                            <TableRow key={p.coin}>
-                              <TableCell className="font-mono text-xs">{p.coin}</TableCell>
-                              <TableCell className={`text-right font-mono text-xs font-medium ${p.dayPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                                {p.dayPct >= 0 ? "+" : ""}{p.dayPct.toFixed(2)}%
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
-                              <TableCell className="text-right font-mono text-xs text-muted-foreground">{Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                              <TableCell className="text-right">
-                                <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
                 </div>
                 {futuresView === "workflow" ? (
                   <FuturesWorkflow />
@@ -2476,7 +2517,7 @@ export default function Dashboard() {
                           {trendingPerpsLoading ? "Loading…" : "Refresh"}
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground mb-3">High-movers by 24h % change on Hyperliquid (Apex Liquid). Sorted by absolute move. Use Crypto Futures AI or your broker to analyze and trade.</p>
+                      <p className="text-xs text-muted-foreground mb-3">High-movers by 24h % change. Sorted by absolute move. Use Crypto Futures AI or your broker to analyze and trade.</p>
                       {trendingPerpsLoading && trendingPerps.length === 0 ? (
                         <p className="text-xs text-muted-foreground">Loading…</p>
                       ) : trendingPerps.length === 0 ? (
@@ -2489,7 +2530,7 @@ export default function Dashboard() {
                                 <TableHead className="text-xs">Symbol</TableHead>
                                 <TableHead className="text-right text-xs">24h %</TableHead>
                                 <TableHead className="text-right text-xs">Price</TableHead>
-                                <TableHead className="text-right text-xs">24h Vol (USD)</TableHead>
+                                <TableHead className="text-right text-xs" title="Total notional volume (buys + sells) over 24h">24h Vol</TableHead>
                                 <TableHead className="text-right text-xs">Open int.</TableHead>
                                 <TableHead className="text-right text-xs w-16">Trade</TableHead>
                               </TableRow>
@@ -2502,7 +2543,7 @@ export default function Dashboard() {
                                     {p.dayPct >= 0 ? "+" : ""}{p.dayPct.toFixed(2)}%
                                   </TableCell>
                                   <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
-                                  <TableCell className="text-right font-mono text-xs text-muted-foreground">{Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs text-muted-foreground" title="Total notional volume (buys + sells)">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                                   <TableCell className="text-right font-mono text-xs text-muted-foreground">{Number(p.openInterest).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                                   <TableCell className="text-right">
                                     <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
