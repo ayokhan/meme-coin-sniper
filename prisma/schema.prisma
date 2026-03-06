@@ -62,6 +62,21 @@ model KnownPerpSymbol {
   firstSeenAt DateTime @default(now())
 }
 
+/** Perp alerts: notify when condition is met (new listing, 5m % above/below threshold). Subscribers only; limits by tier. */
+model PerpAlert {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol          String?   // null for new_listing (any new perp)
+  alertType       String    // new_listing | 5m_pct_above | 5m_pct_below
+  threshold       Float?    // for 5m_pct_above / 5m_pct_below
+  channel         String    @default("telegram")
+  lastTriggeredAt DateTime?
+  createdAt       DateTime  @default(now())
+  @@index([userId])
+  @@index([alertType])
+}
+
 // Auth & subscriptions
 model User {
   id            String    @id @default(cuid())
@@ -86,6 +101,7 @@ model User {
   userLeverageWallets  UserLeverageWallet[]
   userMemeCoinWallets  UserMemeCoinWallet[]
   userBlofinConfig     UserBlofinConfig?
+  perpAlerts           PerpAlert[]
   /** Eligible (e.g. VIP) users can set 2–5; alert when this many tracked wallets buy same token. */
   walletTrackerMinBuyers Int?
   usageThisMonth      UsageThisMonth[]

@@ -28,6 +28,9 @@ export async function GET(request: Request) {
     leverageNotify?: { ok: boolean; sent?: number; message?: string };
     pinnedReanalyze?: { ok: boolean; updated?: number; message?: string };
     tradingBot?: { ok: boolean; message?: string; error?: string };
+    perpNewListing?: { ok: boolean; newListings?: number; sent?: number; message?: string };
+    perpDigest?: { ok: boolean; message?: string };
+    perpAlerts?: { ok: boolean; triggered?: number; message?: string };
   } = {};
 
   try {
@@ -135,6 +138,51 @@ export async function GET(request: Request) {
     };
   } catch (e) {
     results.tradingBot = { ok: false, error: e instanceof Error ? e.message : 'Trading bot run failed' };
+  }
+
+  try {
+    const authPerp = request.headers.get('authorization');
+    const perpRes = await fetch(`${base}/api/cron/perp-new-listing`, {
+      cache: 'no-store',
+      headers: authPerp ? { Authorization: authPerp } : {},
+    });
+    const perpData = await perpRes.json().catch(() => ({}));
+    results.perpNewListing = {
+      ok: perpData.success === true,
+      newListings: perpData.newListings,
+      sent: perpData.sent,
+      message: perpData.error,
+    };
+  } catch (e) {
+    results.perpNewListing = { ok: false, message: e instanceof Error ? e.message : 'Perp new listing failed' };
+  }
+
+  try {
+    const authDigest = request.headers.get('authorization');
+    const digestRes = await fetch(`${base}/api/cron/perp-digest`, {
+      cache: 'no-store',
+      headers: authDigest ? { Authorization: authDigest } : {},
+    });
+    const digestData = await digestRes.json().catch(() => ({}));
+    results.perpDigest = { ok: digestData.success === true, message: digestData.error };
+  } catch (e) {
+    results.perpDigest = { ok: false, message: e instanceof Error ? e.message : 'Perp digest failed' };
+  }
+
+  try {
+    const authAlerts = request.headers.get('authorization');
+    const alertsRes = await fetch(`${base}/api/cron/perp-alerts`, {
+      cache: 'no-store',
+      headers: authAlerts ? { Authorization: authAlerts } : {},
+    });
+    const alertsData = await alertsRes.json().catch(() => ({}));
+    results.perpAlerts = {
+      ok: alertsData.success === true,
+      triggered: alertsData.triggered,
+      message: alertsData.error,
+    };
+  } catch (e) {
+    results.perpAlerts = { ok: false, message: e instanceof Error ? e.message : 'Perp alerts failed' };
   }
 
   return NextResponse.json({ success: true, cron: results });

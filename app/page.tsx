@@ -270,6 +270,25 @@ export default function Dashboard() {
   const [trendingPerpsLoading, setTrendingPerpsLoading] = useState(false);
   const [trendingPerpsTimeframe, setTrendingPerpsTimeframe] = useState<"24h" | "1h" | "30m" | "15m" | "5m">("24h");
   const [trendingPerpsSortBy, setTrendingPerpsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
+  type PerpPreset = "all" | "short_positive_funding" | "long_negative_funding" | "momentum_5m_3";
+  const [perpPreset, setPerpPreset] = useState<PerpPreset>("all");
+  function filterPerpsByPreset<T extends { dayPct: number; funding?: string; pct5m?: number }>(rows: T[]): T[] {
+    if (perpPreset === "all") return rows;
+    return rows.filter((p) => {
+      const fundingNum = p.funding != null && p.funding !== "" ? Number(p.funding) : null;
+      if (perpPreset === "short_positive_funding") return p.dayPct < 0 && fundingNum != null && fundingNum > 0;
+      if (perpPreset === "long_negative_funding") return p.dayPct > 0 && fundingNum != null && fundingNum < 0;
+      if (perpPreset === "momentum_5m_3") return Math.abs(p.pct5m ?? 0) >= 3;
+      return true;
+    });
+  }
+  type PerpAlertRow = { id: string; symbol: string | null; alertType: string; threshold: number | null; lastTriggeredAt: string | null; createdAt: string };
+  const [perpAlertsList, setPerpAlertsList] = useState<PerpAlertRow[]>([]);
+  const [perpAlertsLoading, setPerpAlertsLoading] = useState(false);
+  const [perpAlertAddType, setPerpAlertAddType] = useState<"new_listing" | "5m_pct_above" | "5m_pct_below">("new_listing");
+  const [perpAlertAddSymbol, setPerpAlertAddSymbol] = useState("");
+  const [perpAlertAddThreshold, setPerpAlertAddThreshold] = useState("");
+  const [perpAlertAddError, setPerpAlertAddError] = useState<string | null>(null);
   type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
   const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
   const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
@@ -644,6 +663,65 @@ export default function Dashboard() {
     }
   };
 
+  const fetchPerpAlerts = async () => {
+    setPerpAlertsLoading(true);
+    try {
+      const res = await fetch("/api/user/perp-alerts", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.alerts)) setPerpAlertsList(data.alerts);
+      else if (res.status !== 403) setPerpAlertsList([]);
+    } catch {
+      setPerpAlertsList([]);
+    } finally {
+      setPerpAlertsLoading(false);
+    }
+  };
+
+  const addPerpAlert = async () => {
+    setPerpAlertAddError(null);
+    const symbol = perpAlertAddType === "new_listing" ? null : perpAlertAddSymbol.trim().toUpperCase() || null;
+    const threshold = perpAlertAddType !== "new_listing" && perpAlertAddThreshold.trim() ? parseFloat(perpAlertAddThreshold) : null;
+    if (perpAlertAddType !== "new_listing" && !symbol) {
+      setPerpAlertAddError("Symbol required for this alert type.");
+      return;
+    }
+    if ((perpAlertAddType === "5m_pct_above" || perpAlertAddType === "5m_pct_below") && (threshold == null || !Number.isFinite(threshold))) {
+      setPerpAlertAddError("Enter a number for threshold.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/user/perp-alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alertType: perpAlertAddType, symbol, threshold }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPerpAlertAddSymbol("");
+        setPerpAlertAddThreshold("");
+        fetchPerpAlerts();
+      } else {
+        setPerpAlertAddError(data.error || "Failed to add alert.");
+      }
+    } catch {
+      setPerpAlertAddError("Request failed.");
+    }
+  };
+
+  const deletePerpAlert = async (id: string) => {
+    try {
+      const res = await fetch("/api/user/perp-alerts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data.success) fetchPerpAlerts();
+    } catch {
+      /* ignore */
+    }
+  };
+
   const renderPerpAiSignalCell = (symbol: string) => {
     const v = perpAiSignals[symbol];
     if (v === "loading") return <span className="text-xs text-muted-foreground">…</span>;
@@ -673,11 +751,14 @@ export default function Dashboard() {
       fetchUserMemeCoinWallets();
       fetchUserMemeCoinAlerts();
     }
-    if (activeTab === "futures") fetchTrendingPerps();
+    if (activeTab === "futures" && isPaid) fetchTrendingPerps();
     if (activeTab === "futures" && futuresView === "altcoins") fetchTopAltcoins();
     if (activeTab === "futures" && futuresView === "hot-perps") fetchHotPerps();
-    if (activeTab === "trending-perps") fetchTrendingPerps(undefined, true);
-  }, [activeTab, walletTrackerView, futuresView]);
+    if (activeTab === "trending-perps" && isPaid) {
+      fetchTrendingPerps(undefined, true);
+      fetchPerpAlerts();
+    }
+  }, [activeTab, walletTrackerView, futuresView, isPaid]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
@@ -1909,6 +1990,17 @@ export default function Dashboard() {
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                     <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Trending perps</h2>
                     <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Preset:</span>
+                      <select
+                        value={perpPreset}
+                        onChange={(e) => setPerpPreset(e.target.value as PerpPreset)}
+                        className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                      >
+                        <option value="all">All</option>
+                        <option value="short_positive_funding">Short + green funding</option>
+                        <option value="long_negative_funding">Long + negative funding</option>
+                        <option value="momentum_5m_3">5m % ≥ 3%</option>
+                      </select>
                       <span className="text-xs text-muted-foreground">Sort by:</span>
                       <select
                         value={trendingPerpsSortBy}
@@ -1927,6 +2019,44 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">Biggest movers by % change across 5m, 15m, 30m, 1h, 4h, and 24h. <strong>Direction</strong> is based on <strong>24h</strong> price change only: Long = price went up over 24h, Short = price went down (past move, not a forecast). <strong>Funding</strong> shows positioning: positive = long-heavy (longs pay shorts), negative = short-heavy. Pick one and use Crypto Futures (AI or Institutional Workflow) to analyze and trade.</p>
+                  {isPaid && (
+                    <div className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-800/30">
+                      <h3 className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-2">Perp alerts (Telegram)</h3>
+                      <p className="text-xs text-muted-foreground mb-2">Get notified when a new perp is listed, or when 5m % crosses your threshold. Alerts run on cron (Pro: 5 max, VIP: 20 max).</p>
+                      {perpAlertsLoading ? (
+                        <p className="text-xs text-muted-foreground">Loading…</p>
+                      ) : (
+                        <>
+                          <ul className="text-xs space-y-1 mb-3">
+                            {perpAlertsList.map((a) => (
+                              <li key={a.id} className="flex items-center justify-between gap-2">
+                                <span className="font-mono">
+                                  {a.alertType === "new_listing" ? "New listing" : `${a.symbol ?? ""} 5m ${a.alertType === "5m_pct_above" ? "≥" : "≤"} ${a.threshold ?? ""}%`}
+                                </span>
+                                <Button variant="ghost" size="sm" className="h-6 text-xs text-rose-600 hover:text-rose-700" onClick={() => deletePerpAlert(a.id)}>Remove</Button>
+                              </li>
+                            ))}
+                            {perpAlertsList.length === 0 && <li className="text-muted-foreground">No alerts yet.</li>}
+                          </ul>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select value={perpAlertAddType} onChange={(e) => setPerpAlertAddType(e.target.value as "new_listing" | "5m_pct_above" | "5m_pct_below")} className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
+                              <option value="new_listing">New listing</option>
+                              <option value="5m_pct_above">5m % ≥</option>
+                              <option value="5m_pct_below">5m % ≤</option>
+                            </select>
+                            {(perpAlertAddType === "5m_pct_above" || perpAlertAddType === "5m_pct_below") && (
+                              <>
+                                <input type="text" placeholder="Symbol (e.g. BTC)" value={perpAlertAddSymbol} onChange={(e) => setPerpAlertAddSymbol(e.target.value)} className="w-20 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200" />
+                                <input type="number" step="any" placeholder="%" value={perpAlertAddThreshold} onChange={(e) => setPerpAlertAddThreshold(e.target.value)} className="w-16 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200" />
+                              </>
+                            )}
+                            <Button size="sm" variant="outline" onClick={addPerpAlert}>Add alert</Button>
+                            {perpAlertAddError && <span className="text-xs text-rose-600">{perpAlertAddError}</span>}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                   {trendingPerpsLoading && trendingPerps.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                   ) : trendingPerps.length === 0 ? (
@@ -1952,7 +2082,7 @@ export default function Dashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {[...trendingPerps]
+                          {filterPerpsByPreset([...trendingPerps])
                             .sort((a, b) => {
                               const key = trendingPerpsSortBy;
                               const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : (a.pct4h ?? 0);
@@ -2035,6 +2165,17 @@ export default function Dashboard() {
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Top Altcoins</h2>
                       <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Preset:</span>
+                        <select
+                          value={perpPreset}
+                          onChange={(e) => setPerpPreset(e.target.value as PerpPreset)}
+                          className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                        >
+                          <option value="all">All</option>
+                          <option value="short_positive_funding">Short + green funding</option>
+                          <option value="long_negative_funding">Long + negative funding</option>
+                          <option value="momentum_5m_3">5m % ≥ 3%</option>
+                        </select>
                         <span className="text-xs text-muted-foreground">Sort by:</span>
                         <select
                           value={topAltcoinsSortBy}
@@ -2078,7 +2219,7 @@ export default function Dashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {[...topAltcoins]
+                            {filterPerpsByPreset([...topAltcoins])
                               .sort((a, b) => {
                                 const key = topAltcoinsSortBy;
                                 const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : (a.pct4h ?? 0);
@@ -2122,6 +2263,17 @@ export default function Dashboard() {
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Hot New Perps</h2>
                       <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Preset:</span>
+                        <select
+                          value={perpPreset}
+                          onChange={(e) => setPerpPreset(e.target.value as PerpPreset)}
+                          className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                        >
+                          <option value="all">All</option>
+                          <option value="short_positive_funding">Short + green funding</option>
+                          <option value="long_negative_funding">Long + negative funding</option>
+                          <option value="momentum_5m_3">5m % ≥ 3%</option>
+                        </select>
                         <span className="text-xs text-muted-foreground">Sort by:</span>
                         <select
                           value={hotPerpsSortBy}
@@ -2171,7 +2323,7 @@ export default function Dashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {[...hotPerps]
+                            {filterPerpsByPreset([...hotPerps])
                               .sort((a, b) => {
                                 const key = hotPerpsSortBy;
                                 const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : (a.pct4h ?? 0);

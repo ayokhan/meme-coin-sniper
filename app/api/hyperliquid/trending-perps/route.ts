@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getTrendingPerps, type TrendingPerp } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
 
@@ -20,9 +21,17 @@ function candlePct(candles: Array<[string, string, string, string, string, ...st
   return open && open > 0 ? ((close - open) / open) * 100 : fallback;
 }
 
-/** GET - Top perp markets by % move. Query: limit=50, timeframe=24h|1h|30m|15m|5m, allTimeframes=1 for 5m/15m/30m/1h/24h in one response */
+/** GET - Top perp markets by % move. Subscribers only. Query: limit=50, timeframe=24h|1h|30m|15m|5m, allTimeframes=1 for 5m/15m/30m/1h/24h in one response */
 export async function GET(request: Request) {
   try {
+    const { isPaid } = await getSessionAndSubscription();
+    if (!isPaid) {
+      return NextResponse.json(
+        { success: false, error: "Subscribe to access Trending perps.", locked: true },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const limitParam = Math.min(100, Math.max(10, parseInt(searchParams.get("limit") ?? "50", 10) || 50));
     const timeframe = isTimeframe(searchParams.get("timeframe")) ? searchParams.get("timeframe")! : "24h";
