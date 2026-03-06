@@ -25,6 +25,7 @@ export const FEATURE_FLAG_KEYS = {
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
 
 const DEFAULT_ENABLED = true;
+const DEFAULT_DISABLED_KEYS: Set<string> = new Set([FEATURE_FLAG_KEYS.DIGEST_TO_NEWSLETTER_SUBSCRIBERS]);
 
 type PrismaWithFeatureFlag = typeof prisma & {
   featureFlag?: {
@@ -38,15 +39,16 @@ type PrismaWithFeatureFlag = typeof prisma & {
   };
 };
 
-/** Get whether a feature flag is enabled. Defaults to true if key not in DB. */
+/** Get whether a feature flag is enabled. Defaults to true if key not in DB (except DIGEST_TO_NEWSLETTER_SUBSCRIBERS which defaults to false). */
 export async function getFeatureFlag(key: string): Promise<boolean> {
   try {
     const db = prisma as unknown as PrismaWithFeatureFlag;
-    if (!db.featureFlag) return DEFAULT_ENABLED;
+    if (!db.featureFlag) return DEFAULT_DISABLED_KEYS.has(key) ? false : DEFAULT_ENABLED;
     const row = await db.featureFlag.findUnique({ where: { key } });
-    return row?.enabled ?? DEFAULT_ENABLED;
+    const defaultVal = DEFAULT_DISABLED_KEYS.has(key) ? false : DEFAULT_ENABLED;
+    return row?.enabled ?? defaultVal;
   } catch {
-    return DEFAULT_ENABLED;
+    return DEFAULT_DISABLED_KEYS.has(key) ? false : DEFAULT_ENABLED;
   }
 }
 

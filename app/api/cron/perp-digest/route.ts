@@ -95,7 +95,7 @@ export async function GET(request: Request) {
     // If admin enabled "Send digest to newsletter subscribers", email all opted-in users
     const sendToSubscribers = await getFeatureFlag(FEATURE_FLAG_KEYS.DIGEST_TO_NEWSLETTER_SUBSCRIBERS);
     if (sendToSubscribers) {
-      const subscribers = await prisma.user.findMany({
+      const subscribers = await (prisma as any).user.findMany({
         where: { newsletterOptIn: true, email: { not: null } },
         select: { email: true },
       });
