@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions, isOwnerEmail } from "@/lib/auth";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 import { getSubscriptionTier } from "@/lib/subscription";
@@ -10,15 +12,24 @@ const MAX_ALERTS_VIP = 20;
 
 const ALERT_TYPES = ["new_listing", "5m_pct_above", "5m_pct_below"] as const;
 
-/** GET - List current user's perp alerts. Subscribers only. */
+function isTableMissingError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /does not exist|relation.*does not exist|table.*not exist/i.test(msg);
+}
+
+/** GET - List current user's perp alerts. Owner only for now. */
 export async function GET() {
   try {
-    const { userId, isPaid } = await getSessionAndSubscription();
-    if (!userId || !isPaid) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !isOwnerEmail(session.user.email)) {
       return NextResponse.json(
-        { success: false, error: "Subscribe to use perp alerts.", locked: true },
+        { success: false, error: "Perp alerts are owner-only for now." },
         { status: 403 }
       );
+    }
+    const { userId } = await getSessionAndSubscription();
+    if (!userId) {
+      return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
     }
 
     const db = prisma as unknown as {
@@ -36,20 +47,27 @@ export async function GET() {
     });
     return NextResponse.json({ success: true, alerts });
   } catch (e) {
+    if (isTableMissingError(e)) {
+      return NextResponse.json({ success: true, alerts: [] });
+    }
     const message = e instanceof Error ? e.message : "Failed to list perp alerts";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 
-/** POST - Create perp alert. Subscribers only; limit by tier (Pro 5, VIP 20). */
+/** POST - Create perp alert. Owner only for now; limit by tier (Pro 5, VIP 20). */
 export async function POST(request: Request) {
   try {
-    const { userId, isPaid } = await getSessionAndSubscription();
-    if (!userId || !isPaid) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !isOwnerEmail(session.user.email)) {
       return NextResponse.json(
-        { success: false, error: "Subscribe to use perp alerts.", locked: true },
+        { success: false, error: "Perp alerts are owner-only for now." },
         { status: 403 }
       );
+    }
+    const { userId } = await getSessionAndSubscription();
+    if (!userId) {
+      return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -102,20 +120,30 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ success: true, id: created.id });
   } catch (e) {
+    if (isTableMissingError(e)) {
+      return NextResponse.json(
+        { success: false, error: "Perp alerts not available yet. Deploy the database schema (run: npx prisma db push)." },
+        { status: 503 }
+      );
+    }
     const message = e instanceof Error ? e.message : "Failed to create perp alert";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 
-/** DELETE - Remove perp alert by id. Body: { id }. */
+/** DELETE - Remove perp alert by id. Body: { id }. Owner only for now. */
 export async function DELETE(request: Request) {
   try {
-    const { userId, isPaid } = await getSessionAndSubscription();
-    if (!userId || !isPaid) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !isOwnerEmail(session.user.email)) {
       return NextResponse.json(
-        { success: false, error: "Subscribe to use perp alerts.", locked: true },
+        { success: false, error: "Perp alerts are owner-only for now." },
         { status: 403 }
       );
+    }
+    const { userId } = await getSessionAndSubscription();
+    if (!userId) {
+      return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -139,6 +167,12 @@ export async function DELETE(request: Request) {
     }
     return NextResponse.json({ success: true });
   } catch (e) {
+    if (isTableMissingError(e)) {
+      return NextResponse.json(
+        { success: false, error: "Perp alerts not available yet. Deploy the database schema (run: npx prisma db push)." },
+        { status: 503 }
+      );
+    }
     const message = e instanceof Error ? e.message : "Failed to delete perp alert";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

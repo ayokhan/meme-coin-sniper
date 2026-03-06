@@ -756,9 +756,11 @@ export default function Dashboard() {
     if (activeTab === "futures" && futuresView === "hot-perps") fetchHotPerps();
     if (activeTab === "trending-perps" && isPaid) {
       fetchTrendingPerps(undefined, true);
+    }
+    if (activeTab === "trending-perps" && isOwner) {
       fetchPerpAlerts();
     }
-  }, [activeTab, walletTrackerView, futuresView, isPaid]);
+  }, [activeTab, walletTrackerView, futuresView, isPaid, isOwner]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
@@ -2019,10 +2021,10 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">Biggest movers by % change across 5m, 15m, 30m, 1h, 4h, and 24h. <strong>Direction</strong> is based on <strong>24h</strong> price change only: Long = price went up over 24h, Short = price went down (past move, not a forecast). <strong>Funding</strong> shows positioning: positive = long-heavy (longs pay shorts), negative = short-heavy. Pick one and use Crypto Futures (AI or Institutional Workflow) to analyze and trade.</p>
-                  {isPaid && (
+                  {isOwner && (
                     <div className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-800/30">
-                      <h3 className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-2">Perp alerts (Telegram)</h3>
-                      <p className="text-xs text-muted-foreground mb-2">Get notified when a new perp is listed, or when 5m % crosses your threshold. Alerts run on cron (Pro: 5 max, VIP: 20 max).</p>
+                      <h3 className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-2">Perp alerts (Telegram) — Owner only</h3>
+                      <p className="text-xs text-muted-foreground mb-2">Get notified when a new perp is listed, or when 5m % crosses your threshold. Alerts run on cron. Owner-only for now.</p>
                       {perpAlertsLoading ? (
                         <p className="text-xs text-muted-foreground">Loading…</p>
                       ) : (
