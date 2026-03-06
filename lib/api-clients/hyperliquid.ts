@@ -246,8 +246,8 @@ export async function getTrendingPerps(limit = 50): Promise<TrendingPerp[]> {
   const meta = raw[0];
   const ctxs = Array.isArray(raw[1]) ? raw[1] : [];
   const universe = meta?.universe ?? [];
-  const perps: TrendingPerp[] = universe
-    .map((u, i) => {
+  const perps = universe
+    .map((u, i): TrendingPerp | null => {
       const ctx = ctxs[i];
       if (!ctx?.markPx || ctx.prevDayPx == null || ctx.prevDayPx === "" || Number(ctx.prevDayPx) === 0)
         return null;
