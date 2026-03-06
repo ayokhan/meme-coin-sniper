@@ -139,6 +139,12 @@ function RegisterForm() {
                 />
                 Subscribe to NovaStaris newsletter (weekly digest, product updates)
               </label>
+              <p className="text-xs text-muted-foreground">
+                By creating an account you agree to our{" "}
+                <Link href="/terms" className="underline hover:no-underline">Terms of Service</Link>
+                {" "}and{" "}
+                <Link href="/privacy" className="underline hover:no-underline">Privacy Policy</Link>.
+              </p>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating account…" : "Register"}
               </Button>
