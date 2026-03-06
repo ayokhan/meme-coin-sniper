@@ -2716,17 +2716,7 @@ export default function Dashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {(() => {
-                            const isTodayActive = (ms: number | null | undefined) => {
-                              if (ms == null) return false;
-                              const d = new Date(ms);
-                              const now = new Date();
-                              return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-                            };
-                            const filteredTraders = leverageTradersDateFilter === "today"
-                              ? topTradersData.filter((t) => t.lastTradeTimeMs != null && isTodayActive(t.lastTradeTimeMs))
-                              : topTradersData;
-                            return filteredTraders.flatMap((t) => {
+                          {leverageFilteredTraders.flatMap((t) => {
                             const displayName = t.nickname ?? t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`;
                             const lastTradeStr = t.lastTradeTimeMs
                               ? new Date(t.lastTradeTimeMs).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })
@@ -2769,12 +2759,11 @@ export default function Dashboard() {
                                   </TableRow>
                                 ));
                           })}
-                          {topTradersData.length === 0 && !topTradersLoading && !topTradersError && (
+                          {topTradersData.length === 0 && !topTradersLoading && !topTradersError ? (
                             <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
-                          )}
-                          {topTradersData.length > 0 && leverageTradersDateFilter === "today" && leverageFilteredTraders.length === 0 && (
+                          ) : topTradersData.length > 0 && leverageTradersDateFilter === "today" && leverageFilteredTraders.length === 0 ? (
                             <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">No trades with activity today. Try &quot;All dates&quot; or refresh later.</TableCell></TableRow>
-                          )}
+                          ) : null}
                         </TableBody>
                       </Table>
                     </div>
