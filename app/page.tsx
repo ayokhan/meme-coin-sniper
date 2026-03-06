@@ -248,6 +248,8 @@ export default function Dashboard() {
   const [hotPerpsNewOnly, setHotPerpsNewOnly] = useState(false);
   const [hotPerpsSortBy, setHotPerpsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("5m");
   const [futuresAnalysisCopied, setFuturesAnalysisCopied] = useState(false);
+  type PerpAiSignal = { signal: "long" | "short" | "no_buy"; score: number; reason: string };
+  const [perpAiSignals, setPerpAiSignals] = useState<Record<string, PerpAiSignal | "loading">>({});
   // ApexLiquid / Hyperliquid top traders (under Trading Bot tab, owner only)
   type TopTraderRow = { address: string; label?: string; nickname?: string | null; accountValue?: string; lastTradeTimeMs?: number | null; apexLiquidUrl?: string; isGlobal?: boolean; positions: { coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string; marginUsed?: string; unrealizedPnl: string; leverage?: number }[] };
   const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
@@ -589,15 +591,76 @@ export default function Dashboard() {
   const fetchHotPerps = async () => {
     setHotPerpsLoading(true);
     try {
-      const res = await fetch("/api/hyperliquid/trending-perps?limit=25&allTimeframes=1", { cache: "no-store" });
+      const res = await fetch("/api/hyperliquid/hot-new-perps", { cache: "no-store" });
       const data = await res.json();
-      if (data.success && Array.isArray(data.perps)) setHotPerps(data.perps);
-      else setHotPerps([]);
+      if (data.success && Array.isArray(data.perps)) {
+        setHotPerps(data.perps);
+        setHotPerpsNewOnly(!!data.newOnly);
+      } else {
+        setHotPerps([]);
+        setHotPerpsNewOnly(false);
+      }
     } catch {
       setHotPerps([]);
+      setHotPerpsNewOnly(false);
     } finally {
       setHotPerpsLoading(false);
     }
+  };
+
+  const fetchPerpAiSignal = async (symbol: string) => {
+    setPerpAiSignals((prev) => ({ ...prev, [symbol]: "loading" }));
+    try {
+      const res = await fetch("/api/ai-perp-signal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol, timeframe: "15m" }),
+      });
+      const data = await res.json();
+      if (res.status === 403 && data.locked) {
+        alert("Subscribe to use NovaStaris AI Signal (perps).");
+        setPerpAiSignals((p) => {
+          const next = { ...p };
+          delete next[symbol];
+          return next;
+        });
+        return;
+      }
+      if (data.success && (data.signal === "long" || data.signal === "short" || data.signal === "no_buy")) {
+        setPerpAiSignals((p) => ({ ...p, [symbol]: { signal: data.signal, score: data.score ?? 0, reason: data.reason ?? "" } }));
+      } else {
+        setPerpAiSignals((p) => {
+          const next = { ...p };
+          delete next[symbol];
+          return next;
+        });
+      }
+    } catch {
+      setPerpAiSignals((p) => {
+        const next = { ...p };
+        delete next[symbol];
+        return next;
+      });
+    }
+  };
+
+  const renderPerpAiSignalCell = (symbol: string) => {
+    const v = perpAiSignals[symbol];
+    if (v === "loading") return <span className="text-xs text-muted-foreground">…</span>;
+    if (v && v !== "loading") {
+      const label = v.signal === "long" ? "Long" : v.signal === "short" ? "Short" : "No buy";
+      const color = v.signal === "long" ? "text-emerald-600 dark:text-emerald-400" : v.signal === "short" ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground";
+      return (
+        <span className="text-xs" title={v.reason}>
+          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${color}`}>{v.score}</Badge> <span className={color}>{label}</span>
+        </span>
+      );
+    }
+    return (
+      <Button variant="ghost" size="sm" className="h-7 text-xs text-cyan-600 dark:text-cyan-400 hover:underline" onClick={() => fetchPerpAiSignal(symbol)}>
+        AI Signal
+      </Button>
+    );
   };
 
   useEffect(() => {
@@ -1884,6 +1947,7 @@ export default function Dashboard() {
                             <TableHead className="text-right text-xs" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">Funding <span className="text-muted-foreground/70" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">ⓘ</span></TableHead>
                             <TableHead className="text-right text-xs">Price</TableHead>
                             <TableHead className="text-right text-xs" title="Total notional volume (buys + sells) over 24h">24h Vol <span className="text-muted-foreground/70" title="Total notional volume (buys + sells)">ⓘ</span></TableHead>
+                            <TableHead className="text-center text-xs w-20" title="On-demand NovaStaris AI signal (subscribers)">AI Signal</TableHead>
                             <TableHead className="text-right text-xs w-16">Trade</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1915,6 +1979,7 @@ export default function Dashboard() {
                                 <TableCell className={`text-right font-mono text-xs ${fundingNum != null ? (fundingNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400") : "text-muted-foreground"}`} title="Positive = long-heavy (longs pay shorts). Negative = short-heavy (shorts pay longs).">{fundingStr}</TableCell>
                                 <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-right font-mono text-xs text-muted-foreground" title="Total notional volume (buys + sells)">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                <TableCell className="text-center">{renderPerpAiSignalCell(p.coin)}</TableCell>
                                 <TableCell className="text-right">
                                   <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
                                 </TableCell>
@@ -2008,6 +2073,7 @@ export default function Dashboard() {
                               <TableHead className="text-right text-xs" title="Positive = long-heavy, negative = short-heavy.">Funding</TableHead>
                               <TableHead className="text-right text-xs">Price</TableHead>
                               <TableHead className="text-right text-xs" title="Total notional volume (buys + sells)">24h Vol</TableHead>
+                              <TableHead className="text-center text-xs w-20" title="On-demand NovaStaris AI signal (subscribers)">AI Signal</TableHead>
                               <TableHead className="text-right text-xs w-16">Trade</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -2039,6 +2105,7 @@ export default function Dashboard() {
                                     <TableCell className={`text-right font-mono text-xs ${fundingNum != null ? (fundingNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400") : "text-muted-foreground"}`}>{fundingStr}</TableCell>
                                     <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right font-mono text-xs text-muted-foreground">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                    <TableCell className="text-center">{renderPerpAiSignalCell(p.coin)}</TableCell>
                                     <TableCell className="text-right">
                                       <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
                                     </TableCell>
@@ -2075,9 +2142,9 @@ export default function Dashboard() {
                     </div>
                     <p className="text-xs text-muted-foreground mb-3">
                       {hotPerpsNewOnly
-                        ? "New listings in the last 7 days with strong short-term momentum—sorted by 5m by default."
-                        : "No new listings in the last 7 days. Showing top momentum perps so you can catch moves early."}
-                      {" "}Same data as Trending perps (5m to 4h, 24h %, Direction, Funding). Use AI Chart Analysis or Institutional Workflow to analyze and trade.
+                        ? "New listings in the last 7 days with strong short-term momentum—sorted by 5m by default. When new perps are listed we show them here first."
+                        : "No new listings in the last 7 days—showing top momentum perps instead. When new perps appear, we’ll show them here first."}
+                      {" "}Columns: 5m–4h, 24h %, Direction, Funding. Use AI Chart Analysis or Institutional Workflow to analyze and trade.
                     </p>
                     {hotPerpsLoading && hotPerps.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Loading…</p>
@@ -2099,6 +2166,7 @@ export default function Dashboard() {
                               <TableHead className="text-right text-xs" title="Positive = long-heavy, negative = short-heavy.">Funding</TableHead>
                               <TableHead className="text-right text-xs">Price</TableHead>
                               <TableHead className="text-right text-xs" title="Total notional volume (buys + sells)">24h Vol</TableHead>
+                              <TableHead className="text-center text-xs w-20" title="On-demand NovaStaris AI signal (subscribers)">AI Signal</TableHead>
                               <TableHead className="text-right text-xs w-16">Trade</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -2130,6 +2198,7 @@ export default function Dashboard() {
                                     <TableCell className={`text-right font-mono text-xs ${fundingNum != null ? (fundingNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400") : "text-muted-foreground"}`}>{fundingStr}</TableCell>
                                     <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right font-mono text-xs text-muted-foreground">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                    <TableCell className="text-center">{renderPerpAiSignalCell(p.coin)}</TableCell>
                                     <TableCell className="text-right">
                                       <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
                                     </TableCell>
