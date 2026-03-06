@@ -268,3 +268,53 @@ export async function getTrendingPerps(limit = 50): Promise<TrendingPerp[]> {
   perps.sort((a, b) => Math.abs(b.dayPct) - Math.abs(a.dayPct));
   return perps.slice(0, limit);
 }
+
+/** Coins we want (order preserved). Must match exchange symbols (e.g. BTC, ETH, SOL). */
+const TOP_ALTCOINS = ["BTC", "ETH", "BNB", "SOL", "XRP", "DOGE", "ADA", "AVAX", "DOT", "LINK", "UNI", "ATOM", "LTC", "BCH", "NEAR", "APT", "ARB", "OP", "INJ", "MATIC"];
+
+/**
+ * Fetch perp data for a specific list of coins (e.g. top altcoins). Same shape as getTrendingPerps.
+ * Order follows the requested coins; missing coins are omitted.
+ */
+export async function getPerpsByCoins(coins: string[]): Promise<TrendingPerp[]> {
+  const res = await fetch(HYPERLIQUID_INFO, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "metaAndAssetCtxs" }),
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  const raw = (await res.json()) as [ { universe?: Array<{ name: string }> }, AssetCtx[] ];
+  const meta = raw[0];
+  const ctxs = Array.isArray(raw[1]) ? raw[1] : [];
+  const universe = meta?.universe ?? [];
+  const wantSet = new Set(coins.map((c) => c.toUpperCase()));
+  const perps: TrendingPerp[] = [];
+  for (let i = 0; i < universe.length; i++) {
+    const u = universe[i];
+    if (!wantSet.has(u.name.toUpperCase())) continue;
+    const ctx = ctxs[i];
+    if (!ctx?.markPx || ctx.prevDayPx == null || ctx.prevDayPx === "" || Number(ctx.prevDayPx) === 0) continue;
+    const mark = Number(ctx.markPx);
+    const prev = Number(ctx.prevDayPx);
+    const dayPct = prev ? ((mark - prev) / prev) * 100 : 0;
+    perps.push({
+      coin: u.name,
+      markPx: ctx.markPx,
+      prevDayPx: ctx.prevDayPx,
+      dayPct,
+      dayNtlVlm: ctx.dayNtlVlm ?? "0",
+      openInterest: ctx.openInterest ?? "0",
+      funding: ctx.funding,
+    });
+  }
+  // Sort to match requested coin order
+  perps.sort((a, b) => {
+    const ai = coins.findIndex((c) => c.toUpperCase() === a.coin.toUpperCase());
+    const bi = coins.findIndex((c) => c.toUpperCase() === b.coin.toUpperCase());
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+  return perps;
+}
+
+export { TOP_ALTCOINS };

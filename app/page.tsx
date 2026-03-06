@@ -239,7 +239,10 @@ export default function Dashboard() {
   } | null>(null);
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
-  const [futuresView, setFuturesView] = useState<"ai" | "workflow">("ai");
+  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins">("ai");
+  const [topAltcoins, setTopAltcoins] = useState<TrendingPerpRow[]>([]);
+  const [topAltcoinsLoading, setTopAltcoinsLoading] = useState(false);
+  const [topAltcoinsSortBy, setTopAltcoinsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "24h">("24h");
   const [futuresAnalysisCopied, setFuturesAnalysisCopied] = useState(false);
   // ApexLiquid / Hyperliquid top traders (under Trading Bot tab, owner only)
   type TopTraderRow = { address: string; label?: string; nickname?: string | null; accountValue?: string; lastTradeTimeMs?: number | null; apexLiquidUrl?: string; isGlobal?: boolean; positions: { coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string; marginUsed?: string; unrealizedPnl: string; leverage?: number }[] };
@@ -565,6 +568,20 @@ export default function Dashboard() {
     }
   };
 
+  const fetchTopAltcoins = async () => {
+    setTopAltcoinsLoading(true);
+    try {
+      const res = await fetch("/api/hyperliquid/top-altcoins", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.perps)) setTopAltcoins(data.perps);
+      else setTopAltcoins([]);
+    } catch {
+      setTopAltcoins([]);
+    } finally {
+      setTopAltcoinsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "wallets" && walletTrackerView === "leverage") {
       fetchTopTraders();
@@ -576,8 +593,9 @@ export default function Dashboard() {
       fetchUserMemeCoinAlerts();
     }
     if (activeTab === "futures") fetchTrendingPerps();
+    if (activeTab === "futures" && futuresView === "altcoins") fetchTopAltcoins();
     if (activeTab === "trending-perps") fetchTrendingPerps(undefined, true);
-  }, [activeTab, walletTrackerView]);
+  }, [activeTab, walletTrackerView, futuresView]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
@@ -1907,9 +1925,100 @@ export default function Dashboard() {
                   >
                     Institutional Workflow
                   </Button>
+                  <Button
+                    variant={futuresView === "altcoins" ? "default" : "outline"}
+                    size="sm"
+                    className={futuresView === "altcoins" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
+                    onClick={() => setFuturesView("altcoins")}
+                  >
+                    Top Altcoins
+                  </Button>
                 </div>
                 {futuresView === "workflow" ? (
                   <FuturesWorkflow />
+                ) : futuresView === "altcoins" ? (
+                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 max-w-full">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                      <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Top Altcoins</h2>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Sort by:</span>
+                        <select
+                          value={topAltcoinsSortBy}
+                          onChange={(e) => setTopAltcoinsSortBy(e.target.value as "5m" | "15m" | "30m" | "1h" | "24h")}
+                          className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                        >
+                          <option value="5m">5m %</option>
+                          <option value="15m">15m %</option>
+                          <option value="30m">30m %</option>
+                          <option value="1h">1h %</option>
+                          <option value="24h">24h %</option>
+                        </select>
+                        <Button variant="outline" size="sm" onClick={fetchTopAltcoins} disabled={topAltcoinsLoading}>
+                          {topAltcoinsLoading ? "Loading…" : "Refresh"}
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">BTC, ETH, SOL, DOGE and other major perps—same data as Trending perps (5m to 24h %, Direction, Funding). Use AI Chart Analysis or Institutional Workflow to analyze and trade.</p>
+                    {topAltcoinsLoading && topAltcoins.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Loading…</p>
+                    ) : topAltcoins.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No data. Try Refresh.</p>
+                    ) : (
+                      <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Symbol</TableHead>
+                              <TableHead className="text-right text-xs">5m %</TableHead>
+                              <TableHead className="text-right text-xs">15m %</TableHead>
+                              <TableHead className="text-right text-xs">30m %</TableHead>
+                              <TableHead className="text-right text-xs">1h %</TableHead>
+                              <TableHead className="text-right text-xs">24h %</TableHead>
+                              <TableHead className="text-center text-xs" title="Based on 24h % change. Past move, not a forecast.">Direction</TableHead>
+                              <TableHead className="text-right text-xs" title="Positive = long-heavy, negative = short-heavy.">Funding</TableHead>
+                              <TableHead className="text-right text-xs">Price</TableHead>
+                              <TableHead className="text-right text-xs" title="Total notional volume (buys + sells)">24h Vol</TableHead>
+                              <TableHead className="text-right text-xs w-16">Trade</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {[...topAltcoins]
+                              .sort((a, b) => {
+                                const key = topAltcoinsSortBy;
+                                const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : (a.pct1h ?? 0);
+                                const vb = key === "24h" ? b.dayPct : key === "5m" ? (b.pct5m ?? 0) : key === "15m" ? (b.pct15m ?? 0) : key === "30m" ? (b.pct30m ?? 0) : (b.pct1h ?? 0);
+                                return Math.abs(vb) - Math.abs(va);
+                              })
+                              .map((p) => {
+                                const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
+                                const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
+                                const dirPct = p.dayPct;
+                                const direction = dirPct > 0 ? "Long" : dirPct < 0 ? "Short" : "—";
+                                const fundingNum = p.funding != null && p.funding !== "" ? Number(p.funding) * 100 : null;
+                                const fundingStr = fundingNum == null ? "—" : (fundingNum >= 0 ? "+" : "") + fundingNum.toFixed(4) + "%";
+                                return (
+                                  <TableRow key={p.coin}>
+                                    <TableCell className="font-mono text-xs">{p.coin}</TableCell>
+                                    <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
+                                    <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>
+                                    <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct30m)}`}>{fmt(p.pct30m)}</TableCell>
+                                    <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct1h)}`}>{fmt(p.pct1h)}</TableCell>
+                                    <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.dayPct)}`}>{fmt(p.dayPct)}</TableCell>
+                                    <TableCell className={`text-center text-xs font-medium ${dirPct > 0 ? "text-emerald-600 dark:text-emerald-400" : dirPct < 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}>{direction}</TableCell>
+                                    <TableCell className={`text-right font-mono text-xs ${fundingNum != null ? (fundingNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400") : "text-muted-foreground"}`}>{fundingStr}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs text-muted-foreground">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                                    <TableCell className="text-right">
+                                      <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                 <div className="max-w-2xl">
                 <h2 className="text-xl sm:text-2xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
