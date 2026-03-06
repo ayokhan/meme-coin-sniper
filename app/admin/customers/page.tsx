@@ -92,6 +92,28 @@ export default function AdminCustomersPage() {
     }
   };
 
+  const handleNewsletterToggle = async (id: string, value: boolean) => {
+    setTogglingNewsletterId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newsletterOptIn: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Email digest enabled for customer." : "Email digest disabled for customer.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setTogglingNewsletterId(null);
+    }
+  };
+
   const handleSetSubscription = async (id: string, action: "pro" | "vip" | "clear") => {
     setUpdatingId(id);
     setError("");
