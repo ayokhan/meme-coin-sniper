@@ -219,6 +219,8 @@ export type TrendingPerp = {
   dayPct: number;
   dayNtlVlm: string;
   openInterest: string;
+  /** Current funding rate (decimal, e.g. 0.0001 = 0.01%). Positive = longs pay shorts (long-heavy), negative = short-heavy. */
+  funding?: string;
   /** When requesting a non-24h timeframe (5m, 15m, 30m, 1h). */
   timeframePct?: number;
   /** Short-timeframe % (from candles). Present when allTimeframes=1. */
@@ -259,6 +261,7 @@ export async function getTrendingPerps(limit = 50): Promise<TrendingPerp[]> {
         dayPct,
         dayNtlVlm: ctx.dayNtlVlm ?? "0",
         openInterest: ctx.openInterest ?? "0",
+        funding: ctx.funding,
       };
     })
     .filter((p): p is TrendingPerp => p != null);

@@ -246,7 +246,7 @@ export default function Dashboard() {
   const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
   const [topTradersLoading, setTopTradersLoading] = useState(false);
   const [topTradersError, setTopTradersError] = useState<string | null>(null);
-  type TrendingPerpRow = { coin: string; markPx: string; prevDayPx: string; dayPct: number; dayNtlVlm: string; openInterest: string; timeframePct?: number; pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number };
+  type TrendingPerpRow = { coin: string; markPx: string; prevDayPx: string; dayPct: number; dayNtlVlm: string; openInterest: string; funding?: string; timeframePct?: number; pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number };
   const [trendingPerps, setTrendingPerps] = useState<TrendingPerpRow[]>([]);
   const [trendingPerpsLoading, setTrendingPerpsLoading] = useState(false);
   const [trendingPerpsTimeframe, setTrendingPerpsTimeframe] = useState<"24h" | "1h" | "30m" | "15m" | "5m">("24h");
@@ -1816,7 +1816,7 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Biggest movers by % change across 5m, 15m, 30m, 1h, and 24h. Pick one and use Crypto Futures (AI Chart Analysis or Institutional Workflow) to analyze and trade.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Biggest movers by % change across 5m, 15m, 30m, 1h, and 24h. <strong>Direction</strong> shows price bias (Long = up, Short = down). <strong>Funding</strong> shows positioning: positive = long-heavy (longs pay shorts), negative = short-heavy. Pick one and use Crypto Futures (AI or Institutional Workflow) to analyze and trade.</p>
                   {trendingPerpsLoading && trendingPerps.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                   ) : trendingPerps.length === 0 ? (
@@ -1832,6 +1832,8 @@ export default function Dashboard() {
                             <TableHead className="text-right text-xs">30m %</TableHead>
                             <TableHead className="text-right text-xs">1h %</TableHead>
                             <TableHead className="text-right text-xs">24h %</TableHead>
+                            <TableHead className="text-center text-xs">Direction</TableHead>
+                            <TableHead className="text-right text-xs" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">Funding <span className="text-muted-foreground/70" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">ⓘ</span></TableHead>
                             <TableHead className="text-right text-xs">Price</TableHead>
                             <TableHead className="text-right text-xs" title="Total notional volume (buys + sells) over 24h">24h Vol <span className="text-muted-foreground/70" title="Total notional volume (buys + sells)">ⓘ</span></TableHead>
                             <TableHead className="text-right text-xs w-16">Trade</TableHead>
@@ -1848,6 +1850,10 @@ export default function Dashboard() {
                             .map((p) => {
                             const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                             const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
+                            const dirPct = p.dayPct;
+                            const direction = dirPct > 0 ? "Long" : dirPct < 0 ? "Short" : "—";
+                            const fundingNum = p.funding != null && p.funding !== "" ? Number(p.funding) * 100 : null;
+                            const fundingStr = fundingNum == null ? "—" : (fundingNum >= 0 ? "+" : "") + fundingNum.toFixed(4) + "%";
                             return (
                               <TableRow key={p.coin}>
                                 <TableCell className="font-mono text-xs">{p.coin}</TableCell>
@@ -1856,6 +1862,8 @@ export default function Dashboard() {
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct30m)}`}>{fmt(p.pct30m)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct1h)}`}>{fmt(p.pct1h)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.dayPct)}`}>{fmt(p.dayPct)}</TableCell>
+                                <TableCell className={`text-center text-xs font-medium ${dirPct > 0 ? "text-emerald-600 dark:text-emerald-400" : dirPct < 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}>{direction}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs ${fundingNum != null ? (fundingNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400") : "text-muted-foreground"}`} title="Positive = long-heavy (longs pay shorts). Negative = short-heavy (shorts pay longs).">{fundingStr}</TableCell>
                                 <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-right font-mono text-xs text-muted-foreground" title="Total notional volume (buys + sells)">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                                 <TableCell className="text-right">
