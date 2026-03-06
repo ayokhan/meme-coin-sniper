@@ -2513,7 +2513,7 @@ export default function Dashboard() {
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Trending perps (24h)</h3>
-                        <Button variant="outline" size="sm" onClick={fetchTrendingPerps} disabled={trendingPerpsLoading}>
+                        <Button variant="outline" size="sm" onClick={() => fetchTrendingPerps("24h")} disabled={trendingPerpsLoading}>
                           {trendingPerpsLoading ? "Loading…" : "Refresh"}
                         </Button>
                       </div>
