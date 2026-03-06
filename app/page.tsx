@@ -647,7 +647,7 @@ export default function Dashboard() {
   const renderPerpAiSignalCell = (symbol: string) => {
     const v = perpAiSignals[symbol];
     if (v === "loading") return <span className="text-xs text-muted-foreground">…</span>;
-    if (v && v !== "loading") {
+    if (v) {
       const label = v.signal === "long" ? "Long" : v.signal === "short" ? "Short" : "No buy";
       const color = v.signal === "long" ? "text-emerald-600 dark:text-emerald-400" : v.signal === "short" ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground";
       return (
