@@ -77,11 +77,13 @@ export default function TradingBotPanel() {
   const [monitorIntervalMins, setMonitorIntervalMins] = useState<0 | 5 | 10 | 15 | 60>(0);
   const [lastMonitorResult, setLastMonitorResult] = useState<string | null>(null);
   const [lastMonitorReasons, setLastMonitorReasons] = useState<string[]>([]);
+  const [lastMonitorRunAt, setLastMonitorRunAt] = useState<string | null>(null);
   const [suggestedCloses, setSuggestedCloses] = useState<SuggestedClose[]>([]);
   const [boardMonitoring, setBoardMonitoring] = useState(false);
   const [boardMonitorIntervalMins, setBoardMonitorIntervalMins] = useState<0 | 5 | 10 | 15 | 60>(0);
   const [lastBoardMonitorResult, setLastBoardMonitorResult] = useState<string | null>(null);
   const [lastBoardMonitorReasons, setLastBoardMonitorReasons] = useState<string[]>([]);
+  const [lastBoardMonitorRunAt, setLastBoardMonitorRunAt] = useState<string | null>(null);
   const [suggestedClosesBoard, setSuggestedClosesBoard] = useState<SuggestedClose[]>([]);
   const [downloadingPnlImage, setDownloadingPnlImage] = useState(false);
   const [downloadingClosedPnlImage, setDownloadingClosedPnlImage] = useState(false);
@@ -95,6 +97,9 @@ export default function TradingBotPanel() {
   const [clearingBlofinKeys, setClearingBlofinKeys] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
+
+  const formatLocalTime = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : null;
 
   const fetchPositions = useCallback(async () => {
     try {
@@ -215,6 +220,7 @@ export default function TradingBotPanel() {
     const runMonitor = async () => {
       try {
         setMonitoring(true);
+        setLastMonitorRunAt(new Date().toISOString());
         const res = await fetch("/api/admin/trading-bot/monitor", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -245,6 +251,7 @@ export default function TradingBotPanel() {
     const runBoardMonitor = async () => {
       try {
         setBoardMonitoring(true);
+        setLastBoardMonitorRunAt(new Date().toISOString());
         const res = await fetch("/api/admin/trading-bot/monitor", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -436,6 +443,7 @@ export default function TradingBotPanel() {
       setMonitoring(true);
       clearFeedback();
       setSuggestedCloses([]);
+      setLastMonitorRunAt(new Date().toISOString());
       const res = await fetch("/api/admin/trading-bot/monitor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -473,6 +481,7 @@ export default function TradingBotPanel() {
       setBoardMonitoring(true);
       clearFeedback();
       setSuggestedClosesBoard([]);
+      setLastBoardMonitorRunAt(new Date().toISOString());
       const res = await fetch("/api/admin/trading-bot/monitor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1101,7 +1110,17 @@ export default function TradingBotPanel() {
             </div>
             {lastBoardMonitorResult != null && (
               <div className="text-xs text-muted-foreground space-y-1">
-                <p>Last monitor (pinned): {lastBoardMonitorResult}</p>
+                <p>
+                  Last monitor (pinned): {lastBoardMonitorResult}
+                  {lastBoardMonitorRunAt && (
+                    <>
+                      {" · "}
+                      <span title={new Date(lastBoardMonitorRunAt).toLocaleString()}>
+                        {formatLocalTime(lastBoardMonitorRunAt)}
+                      </span>
+                    </>
+                  )}
+                </p>
                 {suggestedClosesBoard.length > 0 && (
                   <div className="mt-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 p-2 space-y-2">
                     <p className="font-medium text-amber-800 dark:text-amber-200">AI suggests closing ({suggestedClosesBoard.length})</p>
@@ -1190,7 +1209,17 @@ export default function TradingBotPanel() {
             </div>
             {lastMonitorResult != null && (
               <div className="text-xs text-muted-foreground space-y-1">
-                <p>Last monitor (all): {lastMonitorResult}</p>
+                <p>
+                  Last monitor (all): {lastMonitorResult}
+                  {lastMonitorRunAt && (
+                    <>
+                      {" · "}
+                      <span title={new Date(lastMonitorRunAt).toLocaleString()}>
+                        {formatLocalTime(lastMonitorRunAt)}
+                      </span>
+                    </>
+                  )}
+                </p>
                 {suggestedCloses.length > 0 && (
                   <div className="mt-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 p-2 space-y-2">
                     <p className="font-medium text-amber-800 dark:text-amber-200">AI suggests closing ({suggestedCloses.length})</p>
