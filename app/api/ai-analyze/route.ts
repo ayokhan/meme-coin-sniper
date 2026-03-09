@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       score: result.score,
       signal: result.signal,
       reasons: result.reasons,
+      narrativeAssessment: result.narrativeAssessment,
       amountRiskNote: result.amountRiskNote,
       recommendations: result.recommendations,
       tokenInfo: result.tokenInfo,

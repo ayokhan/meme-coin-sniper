@@ -10,6 +10,7 @@ export type AnalysisResult = {
   score: number;
   signal: 'buy' | 'no_buy';
   reasons: string[];
+  narrativeAssessment?: string;
   amountRiskNote?: string;
   recommendations?: {
     supportResistance?: string;
@@ -91,15 +92,20 @@ export async function runAiAnalysisBsc(contractAddress: string, options?: { amou
     ? `\nThe user is considering investing $${amountUsd.toLocaleString()}. Add a field "amountRiskNote": one short line saying whether this amount is too risky given liquidity/mcap (e.g. "Investing $500 in a $20k liquidity pool is very risky — consider a smaller size" or "Amount is reasonable relative to liquidity").\n`
     : '';
 
-  const prompt = `You are an expert meme-coin analyst. Analyze this BSC (Binance Smart Chain) token and provide a score, signal, reasons, AND trading levels.
+  const prompt = `You are an expert meme-coin analyst. Analyze this BSC (Binance Smart Chain) token and provide a score, signal, reasons, narrative assessment, AND trading levels.
 
 Token data (JSON):
 ${JSON.stringify(tokenSummary, null, 2)}
 ${amountBlock}
 
-Score (0-100): 0-25 = avoid, 26-50 = risky/speculative, 51-75 = moderate potential, 76-100 = stronger metrics.
+NARRATIVE MATTERS: Meme coins are driven by narratives. A strong, viral narrative (viral tweet, community buzz, KOL endorsement, cultural moment, clear theme) often leads to massive volume and market cap. When scoring, treat narrative strength as a core factor: infer from token name/symbol, socials presence (Twitter, Telegram, website), and volume/activity as proxies for buzz. Weak or absent narrative = cap upside; strong narrative = higher potential.
+
+Score (0-100): 0-25 = avoid, 26-50 = risky/speculative, 51-75 = moderate potential, 76-100 = stronger metrics. Factor in liquidity, volume, security (honeypot, mintable, top holder %), socials, price action, AND narrative strength (viral potential, community/KOL buzz).
 Signal: "buy" only if score >= 51 and no critical security issues; otherwise "no_buy".
-BSC meme coins are highly volatile; a good score now can change in minutes. Consider liquidity, volume, security (honeypot, mintable, top holder %), socials, and price action.
+BSC meme coins are highly volatile; a good score now can change in minutes.
+
+You MUST include:
+- narrativeAssessment: one short line assessing the meme's narrative (e.g. "Strong: fits [trend], has Twitter/Telegram and volume suggests buzz" or "Weak: no clear story or community links" or "Moderate: theme present but need to confirm CT/KOL pickup"). This drives how much narrative should influence the score.
 
 Also provide trading levels (infer from current price/mcap and volatility when no chart data):
 - supportResistance: brief note on likely support and resistance (e.g. "Support near $X mcap; resistance at $Y" or "No clear levels; treat as speculative").
@@ -114,6 +120,7 @@ Respond ONLY with valid JSON (no markdown, no code block):
   "score": <number 0-100>,
   "signal": "buy" or "no_buy",
   "reasons": [ "<short reason 1>", ... ],
+  "narrativeAssessment": "<one line on narrative strength / viral potential>",
   "recommendations": {
     "supportResistance": "<one line>",
     "marketStructure": "<one line>",
@@ -122,7 +129,7 @@ Respond ONLY with valid JSON (no markdown, no code block):
     "stopLossPct": "<one line>"
   }${amountUsd != null ? ',\n  "amountRiskNote": "<one line>"' : ''}
 }
-Keep reasons short. Include positives and negatives.`;
+Keep reasons short. Include at least one reason that references narrative/viral potential when relevant. Include positives and negatives.`;
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
@@ -136,6 +143,7 @@ Keep reasons short. Include positives and negatives.`;
     score?: number;
     signal?: string;
     reasons?: string[];
+    narrativeAssessment?: string;
     amountRiskNote?: string;
     recommendations?: {
       supportResistance?: string;
@@ -149,6 +157,7 @@ Keep reasons short. Include positives and negatives.`;
   const score = typeof parsed.score === 'number' ? Math.min(100, Math.max(0, Math.round(parsed.score))) : 50;
   const signal = (parsed.signal ?? '').toLowerCase() === 'buy' ? 'buy' : 'no_buy';
   const reasons = Array.isArray(parsed.reasons) ? parsed.reasons.filter((r) => typeof r === 'string') : ['No reasons provided.'];
+  const narrativeAssessment = typeof parsed.narrativeAssessment === 'string' ? parsed.narrativeAssessment.trim().slice(0, 400) : undefined;
   const amountRiskNote = typeof parsed.amountRiskNote === 'string' ? parsed.amountRiskNote.trim().slice(0, 500) : undefined;
   const recommendations = parsed.recommendations && typeof parsed.recommendations === 'object' ? parsed.recommendations : undefined;
 
@@ -156,6 +165,7 @@ Keep reasons short. Include positives and negatives.`;
     score,
     signal,
     reasons,
+    narrativeAssessment: narrativeAssessment || undefined,
     amountRiskNote: amountRiskNote || undefined,
     recommendations,
     tokenInfo: {

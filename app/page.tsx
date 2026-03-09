@@ -190,6 +190,7 @@ export default function Dashboard() {
     score: number;
     signal: "buy" | "no_buy";
     reasons: string[];
+    narrativeAssessment?: string;
     amountRiskNote?: string;
     recommendations?: {
       supportResistance?: string;
@@ -810,6 +811,7 @@ export default function Dashboard() {
           score: data.score,
           signal: data.signal === "buy" ? "buy" : "no_buy",
           reasons: data.reasons ?? [],
+          narrativeAssessment: data.narrativeAssessment,
           amountRiskNote: data.amountRiskNote,
           recommendations: data.recommendations,
           tokenInfo: { ...data.tokenInfo, contractAddress: ca },
@@ -902,6 +904,8 @@ export default function Dashboard() {
           score: data.result.score,
           signal: data.result.signal === "buy" ? "buy" : "no_buy",
           reasons: data.result.reasons ?? [],
+          narrativeAssessment: data.result.narrativeAssessment,
+          amountRiskNote: data.result.amountRiskNote,
           recommendations: data.result.recommendations,
           tokenInfo: { ...data.result.tokenInfo, contractAddress },
         });
@@ -988,6 +992,8 @@ export default function Dashboard() {
       score: r.score ?? 0,
       signal: r.signal === "buy" ? "buy" : "no_buy",
       reasons: r.reasons ?? [],
+      narrativeAssessment: (r as { narrativeAssessment?: string }).narrativeAssessment,
+      amountRiskNote: (r as { amountRiskNote?: string }).amountRiskNote,
       recommendations: r.recommendations,
       tokenInfo: { ...r.tokenInfo, contractAddress: p.contractAddress },
     });
@@ -1121,6 +1127,9 @@ export default function Dashboard() {
     if (r.tokenInfo?.contractAddress) {
       lines.push(`📌 CA: ${r.tokenInfo.contractAddress}`);
       lines.push(`🔗 DexScreener: https://dexscreener.com/solana/${r.tokenInfo.contractAddress}`);
+    }
+    if ((r as { narrativeAssessment?: string }).narrativeAssessment) {
+      lines.push(`📖 Narrative: ${(r as { narrativeAssessment?: string }).narrativeAssessment}`);
     }
     lines.push("");
     const rec = r.recommendations;
@@ -1802,9 +1811,15 @@ export default function Dashboard() {
                     <details className="mt-3 text-sm text-muted-foreground">
                       <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">Why 0–100?</summary>
                       <p className="mt-2 pl-2 border-l-2 border-cyan-300 dark:border-cyan-700">
-                        NovaStaris AI weighs liquidity, volume, security checks, and socials. 76+ = high confidence; 51–75 = watch; 26–50 = risky; 0–25 = very risky or new. The score is a snapshot — always do your own research and manage risk.
+                        NovaStaris AI weighs liquidity, volume, security checks, socials, and <strong>narrative strength</strong> (viral potential, community/KOL buzz). Strong narratives often drive volume and mcap. 76+ = high confidence; 51–75 = watch; 26–50 = risky; 0–25 = very risky or new. The score is a snapshot — always do your own research and manage risk.
                       </p>
                     </details>
+                    {aiAnalysisResult.narrativeAssessment && (
+                      <div className="mt-3 rounded-lg border border-violet-200/80 dark:border-violet-800/80 bg-violet-50/50 dark:bg-violet-950/30 p-3 text-sm">
+                        <p className="font-medium text-violet-800 dark:text-violet-200">Narrative</p>
+                        <p className="text-violet-700 dark:text-violet-300">{aiAnalysisResult.narrativeAssessment}</p>
+                      </div>
+                    )}
                     {aiAnalysisResult.tokenInfo && (aiAnalysisResult.tokenInfo.liquidityUsd != null || aiAnalysisResult.tokenInfo.volume24h != null) && (
                       <p className="mt-2 text-xs text-muted-foreground">
                         Liquidity ${(aiAnalysisResult.tokenInfo.liquidityUsd ?? 0).toLocaleString()} · Vol 24h ${(aiAnalysisResult.tokenInfo.volume24h ?? 0).toLocaleString()}
