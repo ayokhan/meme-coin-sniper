@@ -149,6 +149,7 @@ async function fetchOneClearinghouseState(user: string): Promise<RawClearinghous
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "clearinghouseState", user }),
   });
+  if (res.status === 429) throw new Error("Rate limited—please try again in a minute.");
   if (!res.ok) throw new Error(`Hyperliquid API error: ${res.status}`);
   const data = await res.json();
   return data as RawClearinghouseState;
@@ -172,6 +173,7 @@ export async function getTopTradersPositions(
       body: JSON.stringify({ type: "batchClearinghouseStates", users: addresses }),
       next: { revalidate: 30 },
     });
+    if (res.status === 429) throw new Error("Rate limited—please try again in a minute.");
     if (!res.ok) throw new Error(`Hyperliquid API error: ${res.status}`);
     const raw = await res.json();
     return Array.isArray(raw) ? raw : [];
@@ -181,8 +183,16 @@ export async function getTopTradersPositions(
   try {
     rawStates = await doBatch();
   } catch (e) {
+    const is429 = e instanceof Error && (e.message.includes("429") || e.message.includes("Rate limited"));
     const is5xx = e instanceof Error && /Hyperliquid API error: 5\d\d/.test(e.message);
-    if (is5xx) {
+    if (is429) {
+      await new Promise((r) => setTimeout(r, 5000));
+      try {
+        rawStates = await doBatch();
+      } catch {
+        throw e;
+      }
+    } else if (is5xx) {
       await new Promise((r) => setTimeout(r, 2000));
       try {
         rawStates = await doBatch();

@@ -517,7 +517,8 @@ export default function Dashboard() {
         fetchLeverageAlerts();
       } else {
         setTopTradersData([]);
-        setTopTradersError(data.error ?? "Failed to load Top Leverage Traders.");
+        const err = data.error ?? "Failed to load Top Leverage Traders.";
+        setTopTradersError(typeof err === "string" && (err.includes("429") || err.includes("Rate limited")) ? "Rate limited—please try again in a minute." : err);
       }
     } catch {
       setTopTradersData([]);
@@ -1556,7 +1557,7 @@ export default function Dashboard() {
                   {activeTab === "ai-analysis" && "NovaStaris AI Agent scores any token 0–100 and gives a buy/no-buy signal."}
                   {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
                   {activeTab === "trending-perps" && "See the biggest perp movers in one place—5m, 15m, 30m, 1h, and 24h—so you can spot what’s moving fast."}
-                                    {activeTab === "perp-radar" && "Extreme movers across exchanges (e.g. Binance USDT perps). 24h % and volume filters so you catch big moves like 100%+."}
+                  {activeTab === "perp-radar" && "Spot the biggest perp movers across exchanges—before they peak."}
                   {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
                   {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets."}
@@ -2067,12 +2068,12 @@ export default function Dashboard() {
                       {perpRadarLoading ? "Loading…" : "Refresh"}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Extreme 24h movers across exchanges (Binance USDT-margined perps). Default: ≥50% move and ≥$1M 24h quote volume. Catch 100%+ and 500%+ movers that may not appear on Hyperliquid.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Spot the biggest perp movers across exchanges—before they peak.</p>
                   {perpRadarError && <p className="text-sm text-rose-600 dark:text-rose-400 mb-2">{perpRadarError}</p>}
                   {perpRadarLoading && perpRadarItems.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                   ) : perpRadarItems.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No extreme movers match the filters. Try lowering the threshold (API: minChangePct, minQuoteVolume) or Refresh.</p>
+                    <p className="text-xs text-muted-foreground">No big movers right now. Hit Refresh to try again.</p>
                   ) : (
                     <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                       <Table>
