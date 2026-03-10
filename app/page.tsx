@@ -632,7 +632,7 @@ export default function Dashboard() {
     setPerpRadarLoading(true);
     setPerpRadarError(null);
     try {
-      const res = await fetch("/api/perp-radar?minChangePct=50&minQuoteVolume=1000000&limit=100", { cache: "no-store" });
+      const res = await fetch("/api/perp-radar?minChangePct=3&minQuoteVolume=100000&limit=80", { cache: "no-store" });
       const data = await res.json();
       if (data.success && Array.isArray(data.items)) setPerpRadarItems(data.items);
       else {
@@ -2068,7 +2068,7 @@ export default function Dashboard() {
                       {perpRadarLoading ? "Loading…" : "Refresh"}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Spot the biggest perp movers across exchanges—before they peak.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Biggest 24h movers (≥3%, $100k+ vol). Sorted by move size—refresh for latest.</p>
                   {perpRadarError && <p className="text-sm text-rose-600 dark:text-rose-400 mb-2">{perpRadarError}</p>}
                   {perpRadarLoading && perpRadarItems.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>

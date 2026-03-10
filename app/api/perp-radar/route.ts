@@ -17,13 +17,13 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const minChangePct = Number(searchParams.get("minChangePct") ?? "100");
-    const minQuoteVolume = Number(searchParams.get("minQuoteVolume") ?? "5000000");
-    const limit = Number(searchParams.get("limit") ?? "100");
+    const minChangePct = Number(searchParams.get("minChangePct") ?? "3");
+    const minQuoteVolume = Number(searchParams.get("minQuoteVolume") ?? "100000");
+    const limit = Number(searchParams.get("limit") ?? "80");
 
     const binance = await getBinancePerpRadar({
-      minChangePct: Number.isFinite(minChangePct) ? minChangePct : 100,
-      minQuoteVolume: Number.isFinite(minQuoteVolume) ? minQuoteVolume : 5_000_000,
+      minChangePct: Number.isFinite(minChangePct) ? minChangePct : 3,
+      minQuoteVolume: Number.isFinite(minQuoteVolume) ? minQuoteVolume : 100_000,
       limit: Number.isFinite(limit) ? limit : 100,
     });
 
