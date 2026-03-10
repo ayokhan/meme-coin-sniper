@@ -59,8 +59,23 @@ type WalletAlert = {
 
 const AUTO_REFRESH_SECONDS = 60;
 
-type TabId = "new" | "trending" | "surge" | "ct" | "wallets" | "transactions" | "ai-analysis" | "futures" | "trending-perps" | "narratives" | "trading-bot" | "coach-calls" | "bsc" | "watchlist";
-const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "narratives", "ct", "wallets", "coach-calls"];
+type TabId =
+  | "new"
+  | "trending"
+  | "surge"
+  | "ct"
+  | "wallets"
+  | "transactions"
+  | "ai-analysis"
+  | "futures"
+  | "trending-perps"
+  | "perp-radar"
+  | "narratives"
+  | "trading-bot"
+  | "coach-calls"
+  | "bsc"
+  | "watchlist";
+const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. BSC + Watchlist are free for all. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls"];
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
@@ -215,6 +230,39 @@ export default function Dashboard() {
   const [aiAnalysisFeedbackNote, setAiAnalysisFeedbackNote] = useState("");
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  type PerpRadarRow = { exchange: string; symbol: string; base: string; quote: string; change24hPct: number; lastPrice: number; quoteVolume24h: number };
+  const [perpRadarRows, setPerpRadarRows] = useState<PerpRadarRow[]>([]);
+  const [perpRadarLoading, setPerpRadarLoading] = useState(false);
+  const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
+
+  const fetchPerpRadar = async () => {
+    if (!isPaid) return;
+    setPerpRadarLoading(true);
+    setPerpRadarError(null);
+    try {
+      const res = await fetch("/api/perp-radar?minChangePct=150&minQuoteVolume=3000000&limit=100");
+      const data = await res.json().catch(() => ({}));
+      if (data.success && Array.isArray(data.items)) {
+        setPerpRadarRows(
+          data.items.map((i: any) => ({
+            exchange: i.exchange ?? "binance",
+            symbol: i.symbol,
+            base: i.base,
+            quote: i.quote,
+            change24hPct: i.change24hPct,
+            lastPrice: i.lastPrice,
+            quoteVolume24h: i.quoteVolume24h,
+          }))
+        );
+      } else {
+        setPerpRadarError(data.error ?? "Failed to load Perp Radar.");
+      }
+    } catch (e) {
+      setPerpRadarError(e instanceof Error ? e.message : "Failed to load Perp Radar.");
+    } finally {
+      setPerpRadarLoading(false);
+    }
+  };
   // Crypto Futures tab
   const [futuresChartFile, setFuturesChartFile] = useState<File | null>(null);
   const [futuresChartPreview, setFuturesChartPreview] = useState<string | null>(null);
@@ -271,21 +319,39 @@ export default function Dashboard() {
   const [trendingPerpsLoading, setTrendingPerpsLoading] = useState(false);
   const [trendingPerpsTimeframe, setTrendingPerpsTimeframe] = useState<"24h" | "1h" | "30m" | "15m" | "5m">("24h");
   const [trendingPerpsSortBy, setTrendingPerpsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
-  type PerpPreset = "all" | "short_positive_funding" | "long_negative_funding" | "momentum_5m_3";
+  type PerpPreset =
+    | "all"
+    | "short_positive_funding"
+    | "long_negative_funding"
+    | "momentum_5m_3"
+    | "exploders_1h_50"
+    | "microcap_exploders";
   const [perpPreset, setPerpPreset] = useState<PerpPreset>("all");
-  function filterPerpsByPreset<T extends { dayPct: number; funding?: string; pct5m?: number }>(rows: T[]): T[] {
+  function filterPerpsByPreset<T extends { dayPct: number; funding?: string; pct5m?: number; pct1h?: number; dayNtlVlm?: string }>(
+    rows: T[]
+  ): T[] {
     if (perpPreset === "all") return rows;
     return rows.filter((p) => {
       const fundingNum = p.funding != null && p.funding !== "" ? Number(p.funding) : null;
       if (perpPreset === "short_positive_funding") return p.dayPct < 0 && fundingNum != null && fundingNum > 0;
       if (perpPreset === "long_negative_funding") return p.dayPct > 0 && fundingNum != null && fundingNum < 0;
       if (perpPreset === "momentum_5m_3") return Math.abs(p.pct5m ?? 0) >= 3;
+      if (perpPreset === "exploders_1h_50") return Math.abs(p.pct1h ?? 0) >= 50;
+      if (perpPreset === "microcap_exploders") {
+        const vol = p.dayNtlVlm != null ? Number(p.dayNtlVlm) : NaN;
+        const isLowVol = Number.isFinite(vol) && vol > 0 && vol < 5_000_000; // under $5m 24h notional
+        return isLowVol && Math.abs(p.pct1h ?? 0) >= 30;
+      }
       return true;
     });
   }
   type PerpAlertRow = { id: string; symbol: string | null; alertType: string; threshold: number | null; lastTriggeredAt: string | null; createdAt: string };
   const [perpAlertsList, setPerpAlertsList] = useState<PerpAlertRow[]>([]);
   const [perpAlertsLoading, setPerpAlertsLoading] = useState(false);
+  type PerpRadarItem = { exchange: string; symbol: string; base: string; quote: string; change24hPct: number; lastPrice: number; volume24h: number; quoteVolume24h: number };
+  const [perpRadarItems, setPerpRadarItems] = useState<PerpRadarItem[]>([]);
+  const [perpRadarLoading, setPerpRadarLoading] = useState(false);
+  const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
   const [perpAlertAddType, setPerpAlertAddType] = useState<"new_listing" | "5m_pct_above" | "5m_pct_below">("new_listing");
   const [perpAlertAddSymbol, setPerpAlertAddSymbol] = useState("");
   const [perpAlertAddThreshold, setPerpAlertAddThreshold] = useState("");
@@ -594,6 +660,25 @@ export default function Dashboard() {
     }
   };
 
+  const fetchPerpRadar = async () => {
+    setPerpRadarLoading(true);
+    setPerpRadarError(null);
+    try {
+      const res = await fetch("/api/perp-radar?minChangePct=50&minQuoteVolume=1000000&limit=100", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.items)) setPerpRadarItems(data.items);
+      else {
+        setPerpRadarItems([]);
+        if (!data.success) setPerpRadarError(data.error ?? "Failed to load");
+      }
+    } catch (e) {
+      setPerpRadarItems([]);
+      setPerpRadarError(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setPerpRadarLoading(false);
+    }
+  };
+
   const fetchTopAltcoins = async () => {
     setTopAltcoinsLoading(true);
     try {
@@ -761,11 +846,14 @@ export default function Dashboard() {
     if (activeTab === "trending-perps" && isOwner) {
       fetchPerpAlerts();
     }
+    if (activeTab === "perp-radar" && isPaid) {
+      fetchPerpRadar();
+    }
   }, [activeTab, walletTrackerView, futuresView, isPaid, isOwner]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "watchlist") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "watchlist") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         fetchTrackedWallets();
@@ -1478,6 +1566,7 @@ export default function Dashboard() {
                 <TabsTrigger value="ai-analysis" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaStaris AI Agent</TabsTrigger>
                 <TabsTrigger value="futures" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Crypto Futures</TabsTrigger>
                 <TabsTrigger value="trending-perps" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Trending perps</TabsTrigger>
+                <TabsTrigger value="perp-radar" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Perp Radar</TabsTrigger>
                 <TabsTrigger value="narratives" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Narratives</TabsTrigger>
                 <TabsTrigger value="trading-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaStaris AI Trading Bot</TabsTrigger>
                 <TabsTrigger value="ct" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
@@ -1500,6 +1589,7 @@ export default function Dashboard() {
                   {activeTab === "ai-analysis" && "NovaStaris AI Agent scores any token 0–100 and gives a buy/no-buy signal."}
                   {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
                   {activeTab === "trending-perps" && "See the biggest perp movers in one place—5m, 15m, 30m, 1h, and 24h—so you can spot what’s moving fast."}
+                                    {activeTab === "perp-radar" && "Extreme movers across exchanges (e.g. Binance USDT perps). 24h % and volume filters so you catch big moves like 100%+."}
                   {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
                   {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets."}
@@ -2001,6 +2091,55 @@ export default function Dashboard() {
                     </div>
                 )}
               </div>
+            ) : activeTab === "perp-radar" ? (
+              <div className="mx-6 py-8">
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Perp Radar</h2>
+                    <Button variant="outline" size="sm" onClick={fetchPerpRadar} disabled={perpRadarLoading}>
+                      {perpRadarLoading ? "Loading…" : "Refresh"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">Extreme 24h movers across exchanges (Binance USDT-margined perps). Default: ≥50% move and ≥$1M 24h quote volume. Catch 100%+ and 500%+ movers that may not appear on Hyperliquid.</p>
+                  {perpRadarError && <p className="text-sm text-rose-600 dark:text-rose-400 mb-2">{perpRadarError}</p>}
+                  {perpRadarLoading && perpRadarItems.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  ) : perpRadarItems.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No extreme movers match the filters. Try lowering the threshold (API: minChangePct, minQuoteVolume) or Refresh.</p>
+                  ) : (
+                    <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Exchange</TableHead>
+                            <TableHead className="text-xs">Symbol</TableHead>
+                            <TableHead className="text-right text-xs">24h %</TableHead>
+                            <TableHead className="text-right text-xs">Price</TableHead>
+                            <TableHead className="text-right text-xs">24h Vol (USDT)</TableHead>
+                            <TableHead className="text-right text-xs w-16">Trade</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {perpRadarItems.map((p, i) => (
+                            <TableRow key={`${p.exchange}-${p.symbol}-${i}`}>
+                              <TableCell className="text-xs font-medium">{p.exchange}</TableCell>
+                              <TableCell className="text-xs font-mono">{p.symbol}</TableCell>
+                              <TableCell className={`text-right text-xs font-medium ${p.change24hPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                {p.change24hPct >= 0 ? "+" : ""}{p.change24hPct.toFixed(2)}%
+                              </TableCell>
+                              <TableCell className="text-right text-xs">{Number(p.lastPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</TableCell>
+                              <TableCell className="text-right text-xs">${(p.quoteVolume24h / 1_000_000).toFixed(2)}M</TableCell>
+                              <TableCell className="text-right">
+                                <a href={`https://www.binance.com/en/futures/${p.symbol}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Binance</a>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : activeTab === "trending-perps" ? (
               <div className="mx-6 py-8">
                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
@@ -2017,6 +2156,8 @@ export default function Dashboard() {
                         <option value="short_positive_funding">Short + green funding</option>
                         <option value="long_negative_funding">Long + negative funding</option>
                         <option value="momentum_5m_3">5m % ≥ 3%</option>
+                        <option value="exploders_1h_50">Exploders: 1h % ≥ 50%</option>
+                        <option value="microcap_exploders">Micro caps: &lt;$5m vol, 1h % ≥ 30%</option>
                       </select>
                       <span className="text-xs text-muted-foreground">Sort by:</span>
                       <select
