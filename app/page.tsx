@@ -230,39 +230,6 @@ export default function Dashboard() {
   const [aiAnalysisFeedbackNote, setAiAnalysisFeedbackNote] = useState("");
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
-  type PerpRadarRow = { exchange: string; symbol: string; base: string; quote: string; change24hPct: number; lastPrice: number; quoteVolume24h: number };
-  const [perpRadarRows, setPerpRadarRows] = useState<PerpRadarRow[]>([]);
-  const [perpRadarLoading, setPerpRadarLoading] = useState(false);
-  const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
-
-  const fetchPerpRadar = async () => {
-    if (!isPaid) return;
-    setPerpRadarLoading(true);
-    setPerpRadarError(null);
-    try {
-      const res = await fetch("/api/perp-radar?minChangePct=150&minQuoteVolume=3000000&limit=100");
-      const data = await res.json().catch(() => ({}));
-      if (data.success && Array.isArray(data.items)) {
-        setPerpRadarRows(
-          data.items.map((i: any) => ({
-            exchange: i.exchange ?? "binance",
-            symbol: i.symbol,
-            base: i.base,
-            quote: i.quote,
-            change24hPct: i.change24hPct,
-            lastPrice: i.lastPrice,
-            quoteVolume24h: i.quoteVolume24h,
-          }))
-        );
-      } else {
-        setPerpRadarError(data.error ?? "Failed to load Perp Radar.");
-      }
-    } catch (e) {
-      setPerpRadarError(e instanceof Error ? e.message : "Failed to load Perp Radar.");
-    } finally {
-      setPerpRadarLoading(false);
-    }
-  };
   // Crypto Futures tab
   const [futuresChartFile, setFuturesChartFile] = useState<File | null>(null);
   const [futuresChartPreview, setFuturesChartPreview] = useState<string | null>(null);
