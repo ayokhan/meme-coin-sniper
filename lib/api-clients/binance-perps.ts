@@ -39,12 +39,10 @@ export async function getBinancePerpRadar(options?: {
     const msg = "msg" in data && typeof (data as { msg?: string }).msg === "string" ? (data as { msg: string }).msg : `Binance error`;
     throw new Error(msg);
   }
-  const arr = Array.isArray(data) ? data : [data];
-
+  const arr: BinancePerpTicker[] = Array.isArray(data) ? data : [data as BinancePerpTicker];
   const out: PerpRadarItem[] = [];
   for (const t of arr) {
-    // Only USDT perps
-    if (!t.symbol.endsWith("USDT")) continue;
+    if (!t?.symbol?.endsWith("USDT")) continue;
     const change = Number(t.priceChangePercent ?? "0");
     const quoteVol = Number(t.quoteVolume ?? "0");
     if (!Number.isFinite(change) || !Number.isFinite(quoteVol)) continue;
