@@ -2161,7 +2161,7 @@ export default function Dashboard() {
                         </TableBody>
                       </Table>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             ) : activeTab === "trending-perps" ? (
