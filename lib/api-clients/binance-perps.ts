@@ -29,9 +29,16 @@ export async function getBinancePerpRadar(options?: {
   const minQuoteVolume = options?.minQuoteVolume ?? 100_000; // $100k+ notional
   const limit = options?.limit ?? 80;
 
-  const res = await fetch(BINANCE_FUTURES_24H, { cache: "no-store" });
-  if (!res.ok) return [];
-  const data = (await res.json()) as BinancePerpTicker[] | BinancePerpTicker;
+  const res = await fetch(BINANCE_FUTURES_24H, {
+    cache: "no-store",
+    headers: { "User-Agent": "NovaStaris/1.0 (https://novastaris.ai)" },
+  });
+  if (!res.ok) throw new Error(`Binance API error: ${res.status}`);
+  const data = (await res.json()) as BinancePerpTicker[] | BinancePerpTicker | { code?: number; msg?: string };
+  if (data && typeof data === "object" && !Array.isArray(data) && ("code" in data || "msg" in data)) {
+    const msg = "msg" in data && typeof (data as { msg?: string }).msg === "string" ? (data as { msg: string }).msg : `Binance error`;
+    throw new Error(msg);
+  }
   const arr = Array.isArray(data) ? data : [data];
 
   const out: PerpRadarItem[] = [];

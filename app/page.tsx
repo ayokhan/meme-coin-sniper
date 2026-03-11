@@ -632,12 +632,13 @@ export default function Dashboard() {
     setPerpRadarLoading(true);
     setPerpRadarError(null);
     try {
-      const res = await fetch("/api/perp-radar?minChangePct=3&minQuoteVolume=100000&limit=80", { cache: "no-store" });
+      const res = await fetch("/api/perp-radar?minChangePct=3&minQuoteVolume=100000&limit=80", { cache: "no-store", credentials: "include" });
       const data = await res.json();
-      if (data.success && Array.isArray(data.items)) setPerpRadarItems(data.items);
-      else {
+      if (res.ok && data.success && Array.isArray(data.items)) {
+        setPerpRadarItems(data.items);
+      } else {
         setPerpRadarItems([]);
-        if (!data.success) setPerpRadarError(data.error ?? "Failed to load");
+        setPerpRadarError(data?.error ?? (res.ok ? "No data" : `Error ${res.status}`));
       }
     } catch (e) {
       setPerpRadarItems([]);
