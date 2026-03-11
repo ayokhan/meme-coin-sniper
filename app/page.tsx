@@ -315,10 +315,12 @@ export default function Dashboard() {
   type PerpAlertRow = { id: string; symbol: string | null; alertType: string; threshold: number | null; lastTriggeredAt: string | null; createdAt: string };
   const [perpAlertsList, setPerpAlertsList] = useState<PerpAlertRow[]>([]);
   const [perpAlertsLoading, setPerpAlertsLoading] = useState(false);
-  type PerpRadarItem = { exchange: string; symbol: string; base: string; quote: string; change24hPct: number; lastPrice: number; volume24h: number; quoteVolume24h: number };
+  type PerpRadarItem = { exchange: string; symbol: string; base: string; quote: string; change24hPct: number; lastPrice: number; volume24h: number; quoteVolume24h: number; pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number; pct4h?: number };
   const [perpRadarItems, setPerpRadarItems] = useState<PerpRadarItem[]>([]);
   const [perpRadarLoading, setPerpRadarLoading] = useState(false);
   const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
+  const [perpRadarPreset, setPerpRadarPreset] = useState<"all" | "24h_up" | "24h_down">("all");
+  const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
   const [perpAlertAddType, setPerpAlertAddType] = useState<"new_listing" | "5m_pct_above" | "5m_pct_below">("new_listing");
   const [perpAlertAddSymbol, setPerpAlertAddSymbol] = useState("");
   const [perpAlertAddThreshold, setPerpAlertAddThreshold] = useState("");
@@ -2108,17 +2110,42 @@ export default function Dashboard() {
                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                     <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Perp Radar</h2>
-                    <Button variant="outline" size="sm" onClick={fetchPerpRadar} disabled={perpRadarLoading}>
-                      {perpRadarLoading ? "Loading…" : "Refresh"}
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Preset:</span>
+                      <select
+                        value={perpRadarPreset}
+                        onChange={(e) => setPerpRadarPreset(e.target.value as "all" | "24h_up" | "24h_down")}
+                        className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                      >
+                        <option value="all">All</option>
+                        <option value="24h_up">24h up</option>
+                        <option value="24h_down">24h down</option>
+                      </select>
+                      <span className="text-xs text-muted-foreground">Sort by:</span>
+                      <select
+                        value={perpRadarSortBy}
+                        onChange={(e) => setPerpRadarSortBy(e.target.value as "5m" | "15m" | "30m" | "1h" | "4h" | "24h")}
+                        className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                      >
+                        <option value="5m">5m %</option>
+                        <option value="15m">15m %</option>
+                        <option value="30m">30m %</option>
+                        <option value="1h">1h %</option>
+                        <option value="4h">4h %</option>
+                        <option value="24h">24h %</option>
+                      </select>
+                      <Button variant="outline" size="sm" onClick={fetchPerpRadar} disabled={perpRadarLoading}>
+                        {perpRadarLoading ? "Loading…" : "Refresh"}
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Biggest 24h movers (≥3%, $100k+ vol). Sorted by move size—refresh for latest.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Biggest 24h movers (≥3%, $100k+ vol). 5m–4h from Binance klines when available. Use AI Signal or Crypto Futures to analyze.</p>
                   {perpRadarError && (
                     <div className="mb-3">
                       <p className="text-sm text-rose-600 dark:text-rose-400">{perpRadarError.includes("451") || perpRadarError.includes("restricts") ? "Binance blocks API access from our server's region." : perpRadarError}</p>
                       {(perpRadarError.includes("451") || perpRadarError.includes("restricts")) && (
                         <>
-                          <p className="text-xs text-muted-foreground mt-1">In restricted regions (e.g. Ontario, US) Binance blocks access—use <strong>Trending perps</strong> (Hyperliquid) for similar movers, or VPN + «Load from my browser».</p>
+                          <p className="text-xs text-muted-foreground mt-1">In some regions Binance blocks access. Use <strong>Trending perps</strong> (Hyperliquid) for similar movers, or try «Load from my browser».</p>
                           <Button variant="outline" size="sm" className="mt-2" onClick={fetchPerpRadarFromBrowser} disabled={perpRadarLoading}>
                             {perpRadarLoading ? "Loading…" : "Load from my browser"}
                           </Button>
@@ -2135,29 +2162,45 @@ export default function Dashboard() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="text-xs">Exchange</TableHead>
                             <TableHead className="text-xs">Symbol</TableHead>
+                            <TableHead className="text-right text-xs">5m %</TableHead>
+                            <TableHead className="text-right text-xs">15m %</TableHead>
+                            <TableHead className="text-right text-xs">30m %</TableHead>
+                            <TableHead className="text-right text-xs">1h %</TableHead>
+                            <TableHead className="text-right text-xs">4h %</TableHead>
                             <TableHead className="text-right text-xs">24h %</TableHead>
                             <TableHead className="text-right text-xs">Price</TableHead>
-                            <TableHead className="text-right text-xs">24h Vol (USDT)</TableHead>
+                            <TableHead className="text-right text-xs" title="24h quote volume">24h Vol</TableHead>
+                            <TableHead className="text-center text-xs w-20" title="On-demand NovaStaris AI signal (subscribers)">AI Signal</TableHead>
                             <TableHead className="text-right text-xs w-16">Trade</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {perpRadarItems.map((p, i) => (
-                            <TableRow key={`${p.exchange}-${p.symbol}-${i}`}>
-                              <TableCell className="text-xs font-medium">{p.exchange}</TableCell>
-                              <TableCell className="text-xs font-mono">{p.symbol}</TableCell>
-                              <TableCell className={`text-right text-xs font-medium ${p.change24hPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                                {p.change24hPct >= 0 ? "+" : ""}{p.change24hPct.toFixed(2)}%
-                              </TableCell>
-                              <TableCell className="text-right text-xs">{Number(p.lastPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</TableCell>
-                              <TableCell className="text-right text-xs">${(p.quoteVolume24h / 1_000_000).toFixed(2)}M</TableCell>
-                              <TableCell className="text-right">
-                                <a href={`https://www.binance.com/en/futures/${p.symbol}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Binance</a>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                          {(() => {
+                            const filtered = perpRadarPreset === "all" ? [...perpRadarItems] : perpRadarPreset === "24h_up" ? perpRadarItems.filter((p) => p.change24hPct > 0) : perpRadarItems.filter((p) => p.change24hPct < 0);
+                            const key = perpRadarSortBy;
+                            const getVal = (p: PerpRadarItem) => key === "24h" ? p.change24hPct : key === "5m" ? (p.pct5m ?? 0) : key === "15m" ? (p.pct15m ?? 0) : key === "30m" ? (p.pct30m ?? 0) : key === "1h" ? (p.pct1h ?? 0) : (p.pct4h ?? 0);
+                            const sorted = [...filtered].sort((a, b) => Math.abs(getVal(b)) - Math.abs(getVal(a)));
+                            const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
+                            const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
+                            return sorted.map((p, i) => (
+                              <TableRow key={`${p.exchange}-${p.symbol}-${i}`}>
+                                <TableCell className="font-mono text-xs">{p.symbol}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct30m)}`}>{fmt(p.pct30m)}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct1h)}`}>{fmt(p.pct1h)}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct4h)}`}>{fmt(p.pct4h)}</TableCell>
+                                <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.change24hPct)}`}>{fmt(p.change24hPct)}</TableCell>
+                                <TableCell className="text-right font-mono text-xs">${Number(p.lastPrice).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right font-mono text-xs text-muted-foreground">${(p.quoteVolume24h / 1_000_000).toFixed(2)}M</TableCell>
+                                <TableCell className="text-center">{renderPerpAiSignalCell(p.base)}</TableCell>
+                                <TableCell className="text-right">
+                                  <a href={`https://www.binance.com/en/futures/${p.symbol}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
+                                </TableCell>
+                              </TableRow>
+                            ));
+                          })()}
                         </TableBody>
                       </Table>
                     </div>

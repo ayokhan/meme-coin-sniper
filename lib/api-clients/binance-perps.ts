@@ -1,4 +1,5 @@
 const BINANCE_FUTURES_24H = "https://fapi.binance.com/fapi/v1/ticker/24hr";
+const BINANCE_FUTURES_KLINES = "https://fapi.binance.com/fapi/v1/klines";
 
 export type BinancePerpTicker = {
   symbol: string;
@@ -17,7 +18,52 @@ export type PerpRadarItem = {
   lastPrice: number;
   volume24h: number;
   quoteVolume24h: number;
+  pct5m?: number;
+  pct15m?: number;
+  pct30m?: number;
+  pct1h?: number;
+  pct4h?: number;
 };
+
+/** Fetch one kline and return % change (open to close). Returns null on error or 451. */
+async function fetchBinanceKlinePct(symbol: string, interval: string): Promise<number | null> {
+  try {
+    const url = `${BINANCE_FUTURES_KLINES}?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=2`;
+    const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "NovaStaris/1.0 (https://novastaris.ai)" } });
+    if (!res.ok) return null;
+    const arr = (await res.json()) as Array<[number, string, string, string, string, ...string[]]>;
+    if (!Array.isArray(arr) || arr.length < 1) return null;
+    const c = arr[0];
+    const open = Number(c?.[1]);
+    const close = Number(c?.[4]);
+    if (!Number.isFinite(open) || !Number.isFinite(close) || open === 0) return null;
+    return ((close - open) / open) * 100;
+  } catch {
+    return null;
+  }
+}
+
+/** Enrich up to `maxItems` with 5m, 15m, 30m, 1h, 4h from Binance klines. Skips on 451. */
+export async function enrichPerpRadarWithKlines(items: PerpRadarItem[], maxItems: number): Promise<PerpRadarItem[]> {
+  const toEnrich = items.slice(0, maxItems);
+  const intervals = ["5m", "15m", "30m", "1h", "4h"] as const;
+  const enriched = await Promise.all(
+    toEnrich.map(async (item) => {
+      const [pct5m, pct15m, pct30m, pct1h, pct4h] = await Promise.all(
+        intervals.map((int) => fetchBinanceKlinePct(item.symbol, int))
+      );
+      return {
+        ...item,
+        pct5m: pct5m ?? undefined,
+        pct15m: pct15m ?? undefined,
+        pct30m: pct30m ?? undefined,
+        pct1h: pct1h ?? undefined,
+        pct4h: pct4h ?? undefined,
+      };
+    })
+  );
+  return [...enriched, ...items.slice(maxItems)];
+}
 
 /** Fetch high-level perp stats from Binance USDT-margined futures for radar. */
 export async function getBinancePerpRadar(options?: {
@@ -33,7 +79,7 @@ export async function getBinancePerpRadar(options?: {
     cache: "no-store",
     headers: { "User-Agent": "NovaStaris/1.0 (https://novastaris.ai)" },
   });
-  if (res.status === 451) throw new Error("BINANCE_451: Binance restricts API access from this server's region. Use «Load from my browser» below if you're in an allowed region, or try Trending perps (Hyperliquid) for now.");
+  if (res.status === 451) throw new Error("BINANCE_451: Binance restricts API access from this server's region. Use «Load from my browser» if you're in an allowed region, or try Trending perps (Hyperliquid) for similar movers.");
   if (!res.ok) throw new Error(`Binance API error: ${res.status}`);
   const data = (await res.json()) as BinancePerpTicker[] | BinancePerpTicker | { code?: number; msg?: string };
   if (data && typeof data === "object" && !Array.isArray(data) && ("code" in data || "msg" in data)) {

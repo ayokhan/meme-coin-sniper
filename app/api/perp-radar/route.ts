@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
-import { getBinancePerpRadar } from "@/lib/api-clients/binance-perps";
+import { getBinancePerpRadar, enrichPerpRadarWithKlines } from "@/lib/api-clients/binance-perps";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -21,11 +21,16 @@ export async function GET(request: Request) {
     const minQuoteVolume = Number(searchParams.get("minQuoteVolume") ?? "100000");
     const limit = Number(searchParams.get("limit") ?? "80");
 
-    const binance = await getBinancePerpRadar({
+    let binance = await getBinancePerpRadar({
       minChangePct: Number.isFinite(minChangePct) ? minChangePct : 3,
       minQuoteVolume: Number.isFinite(minQuoteVolume) ? minQuoteVolume : 100_000,
       limit: Number.isFinite(limit) ? limit : 100,
     });
+    try {
+      binance = await enrichPerpRadarWithKlines(binance, 20);
+    } catch {
+      /* keep items without 5m–4h on enrichment failure */
+    }
 
     return NextResponse.json({
       success: true,
