@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const basesParam = searchParams.get("bases");
-    const bases = basesParam ? basesParam.split(",").map((b) => b.trim()).filter(Boolean).slice(0, 30) : [];
+    const bases = basesParam ? basesParam.split(",").map((b) => b.trim()).filter(Boolean).slice(0, 40) : [];
 
     if (bases.length === 0) {
       return NextResponse.json({ success: true, data: {} });

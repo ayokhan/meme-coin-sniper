@@ -634,7 +634,7 @@ export default function Dashboard() {
     setPerpRadarLoading(true);
     setPerpRadarError(null);
     try {
-      const res = await fetch("/api/perp-radar?minChangePct=3&minQuoteVolume=100000&limit=80", { cache: "no-store", credentials: "include" });
+      const res = await fetch("/api/perp-radar?minChangePct=3&minQuoteVolume=100000&limit=150", { cache: "no-store", credentials: "include" });
       const data = await res.json();
       if (res.ok && data.success && Array.isArray(data.items)) {
         setPerpRadarItems(data.items);
@@ -656,7 +656,7 @@ export default function Dashboard() {
     setPerpRadarError(null);
     const minChangePct = 3;
     const minQuoteVolume = 100_000;
-    const limit = 80;
+    const limit = 150;
     try {
       const res = await fetch("https://fapi.binance.com/fapi/v1/ticker/24hr", { cache: "no-store" });
       if (!res.ok) throw new Error(`Binance returned ${res.status}. Your region may be restricted.`);
@@ -686,7 +686,7 @@ export default function Dashboard() {
       out.sort((a, b) => Math.abs(b.change24hPct) - Math.abs(a.change24hPct));
       const list = out.slice(0, limit);
       setPerpRadarItems(list);
-      const bases = list.slice(0, 25).map((i) => i.base);
+      const bases = list.slice(0, 35).map((i) => i.base);
       if (bases.length > 0) {
         try {
           const resEnrich = await fetch(`/api/perp-radar/enrich?bases=${encodeURIComponent(bases.join(","))}`, { cache: "no-store", credentials: "include" });
@@ -2165,7 +2165,7 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Biggest 24h movers (≥3%, $100k+ vol). 5m–4h from Binance when allowed, otherwise from Hyperliquid where the symbol exists; if not on Hyperliquid, 5m–4h show —. Use AI Signal or Crypto Futures to analyze.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Biggest 24h movers (≥3%, $100k+ vol). List changes on each Refresh—up to 150 symbols. 5m–4h from Binance when allowed, otherwise Hyperliquid where listed; else —. Use AI Signal or Crypto Futures to analyze.</p>
                   {perpRadarError && (
                     <div className="mb-3">
                       <p className="text-sm text-rose-600 dark:text-rose-400">{perpRadarError.includes("451") || perpRadarError.includes("restricts") ? "Binance blocks API access from our server's region." : perpRadarError}</p>

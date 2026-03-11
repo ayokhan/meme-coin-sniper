@@ -53,21 +53,21 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const minChangePct = Number(searchParams.get("minChangePct") ?? "3");
     const minQuoteVolume = Number(searchParams.get("minQuoteVolume") ?? "100000");
-    const limit = Number(searchParams.get("limit") ?? "80");
+    const limit = Math.min(Number(searchParams.get("limit") ?? "150"), 200);
 
     let binance = await getBinancePerpRadar({
       minChangePct: Number.isFinite(minChangePct) ? minChangePct : 3,
       minQuoteVolume: Number.isFinite(minQuoteVolume) ? minQuoteVolume : 100_000,
-      limit: Number.isFinite(limit) ? limit : 100,
+      limit: Number.isFinite(limit) ? limit : 150,
     });
     try {
-      binance = await enrichPerpRadarWithKlines(binance, 20);
+      binance = await enrichPerpRadarWithKlines(binance, 30);
     } catch {
       /* keep items without 5m–4h on Binance kline failure */
     }
     if (binance.length > 0 && binance[0].pct5m == null) {
       try {
-        binance = await enrichPerpRadarWithHyperliquid(binance, 20);
+        binance = await enrichPerpRadarWithHyperliquid(binance, 30);
       } catch {
         /* keep as-is if HL fallback fails */
       }

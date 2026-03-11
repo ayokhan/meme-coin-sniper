@@ -73,7 +73,7 @@ export async function getBinancePerpRadar(options?: {
 }): Promise<PerpRadarItem[]> {
   const minChangePct = options?.minChangePct ?? 3; // 3%+ movers so list is usually non-empty
   const minQuoteVolume = options?.minQuoteVolume ?? 100_000; // $100k+ notional
-  const limit = options?.limit ?? 80;
+  const limit = Math.min(options?.limit ?? 150, 200);
 
   const res = await fetch(BINANCE_FUTURES_24H, {
     cache: "no-store",
