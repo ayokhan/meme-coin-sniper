@@ -684,7 +684,33 @@ export default function Dashboard() {
         });
       }
       out.sort((a, b) => Math.abs(b.change24hPct) - Math.abs(a.change24hPct));
-      setPerpRadarItems(out.slice(0, limit));
+      const list = out.slice(0, limit);
+      setPerpRadarItems(list);
+      const bases = list.slice(0, 25).map((i) => i.base);
+      if (bases.length > 0) {
+        try {
+          const resEnrich = await fetch(`/api/perp-radar/enrich?bases=${encodeURIComponent(bases.join(","))}`, { cache: "no-store", credentials: "include" });
+          const jsonEnrich = await resEnrich.json();
+          if (jsonEnrich.success && jsonEnrich.data && typeof jsonEnrich.data === "object") {
+            const data = jsonEnrich.data as Record<string, { pct5m?: number | null; pct15m?: number | null; pct30m?: number | null; pct1h?: number | null; pct4h?: number | null }>;
+            const merged = list.map((item) => {
+              const d = data[item.base];
+              if (!d) return item;
+              return {
+                ...item,
+                pct5m: d.pct5m ?? undefined,
+                pct15m: d.pct15m ?? undefined,
+                pct30m: d.pct30m ?? undefined,
+                pct1h: d.pct1h ?? undefined,
+                pct4h: d.pct4h ?? undefined,
+              };
+            });
+            setPerpRadarItems(merged);
+          }
+        } catch {
+          /* keep list without 5m–4h if enrich fails */
+        }
+      }
     } catch (e) {
       setPerpRadarItems([]);
       setPerpRadarError(e instanceof Error ? e.message : "Failed to load from browser");
@@ -2139,7 +2165,7 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Biggest 24h movers (≥3%, $100k+ vol). 5m–4h from Binance klines when available. Use AI Signal or Crypto Futures to analyze.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Biggest 24h movers (≥3%, $100k+ vol). 5m–4h from Binance when allowed, otherwise from Hyperliquid where the symbol exists; if not on Hyperliquid, 5m–4h show —. Use AI Signal or Crypto Futures to analyze.</p>
                   {perpRadarError && (
                     <div className="mb-3">
                       <p className="text-sm text-rose-600 dark:text-rose-400">{perpRadarError.includes("451") || perpRadarError.includes("restricts") ? "Binance blocks API access from our server's region." : perpRadarError}</p>
