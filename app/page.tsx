@@ -74,7 +74,8 @@ type TabId =
   | "trading-bot"
   | "coach-calls"
   | "bsc"
-  | "watchlist";
+  | "watchlist"
+  | "chris-clayton";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. BSC + Watchlist are free for all. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls"];
@@ -349,6 +350,27 @@ export default function Dashboard() {
   const [userMemeCoinAlerts, setUserMemeCoinAlerts] = useState<Array<{ id: string; walletAddress: string; contractAddress: string; symbol: string | null; createdAt: string }>>([]);
   const [futuresAnalysisShareLoading, setFuturesAnalysisShareLoading] = useState(false);
   const [futuresAnalysisShareSuccess, setFuturesAnalysisShareSuccess] = useState(false);
+  // Chris Clayton Strategy (owner-only)
+  const [chrisClaytonChartFile, setChrisClaytonChartFile] = useState<File | null>(null);
+  const [chrisClaytonChartPreview, setChrisClaytonChartPreview] = useState<string | null>(null);
+  const [chrisClaytonSymbol, setChrisClaytonSymbol] = useState("");
+  const [chrisClaytonAssetType, setChrisClaytonAssetType] = useState<"crypto" | "gold">("crypto");
+  const [chrisClaytonResult, setChrisClaytonResult] = useState<{
+    signal: "SHORT" | "NO_SETUP";
+    confluenceScore: number;
+    entry: string;
+    tp1: string;
+    tp2: string;
+    sl: string;
+    componentScores?: Record<string, number>;
+    summary: string;
+    reasons: string[];
+  } | null>(null);
+  const [chrisClaytonLoading, setChrisClaytonLoading] = useState(false);
+  const [chrisClaytonError, setChrisClaytonError] = useState<string | null>(null);
+  const [chrisClaytonCopied, setChrisClaytonCopied] = useState(false);
+  const [chrisClaytonShareLoading, setChrisClaytonShareLoading] = useState(false);
+  const [chrisClaytonShareSuccess, setChrisClaytonShareSuccess] = useState(false);
 
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (tab === "ai-analysis") {
@@ -1299,6 +1321,71 @@ export default function Dashboard() {
     return { title, content: lines.join("\n") };
   };
 
+  const onChrisClaytonChartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setChrisClaytonChartFile(file);
+      const url = URL.createObjectURL(file);
+      setChrisClaytonChartPreview(url);
+    } else {
+      setChrisClaytonChartFile(null);
+      setChrisClaytonChartPreview(null);
+    }
+    setChrisClaytonError(null);
+  };
+
+  const runChrisClaytonAnalysis = async () => {
+    if (!chrisClaytonChartFile) {
+      setChrisClaytonError("Upload a chart image.");
+      return;
+    }
+    setChrisClaytonError(null);
+    setChrisClaytonResult(null);
+    setChrisClaytonLoading(true);
+    try {
+      const form = new FormData();
+      form.append("chart", chrisClaytonChartFile);
+      if (chrisClaytonSymbol.trim()) form.append("symbol", chrisClaytonSymbol.trim());
+      form.append("assetType", chrisClaytonAssetType);
+      const res = await fetch("/api/admin/chris-clayton-strategy", { method: "POST", body: form });
+      const data = await res.json();
+      if (data.success) {
+        setChrisClaytonResult({
+          signal: data.signal === "SHORT" ? "SHORT" : "NO_SETUP",
+          confluenceScore: data.confluenceScore ?? 0,
+          entry: data.entry ?? "—",
+          tp1: data.tp1 ?? "—",
+          tp2: data.tp2 ?? "—",
+          sl: data.sl ?? "—",
+          componentScores: data.componentScores,
+          summary: data.summary ?? "",
+          reasons: Array.isArray(data.reasons) ? data.reasons : [],
+        });
+      } else {
+        setChrisClaytonError(data.error ?? "Analysis failed.");
+      }
+    } catch (e) {
+      setChrisClaytonError(e instanceof Error ? e.message : "Request failed.");
+    } finally {
+      setChrisClaytonLoading(false);
+    }
+  };
+
+  const formatChrisClaytonForShare = (r: NonNullable<typeof chrisClaytonResult>) => {
+    const sym = chrisClaytonSymbol.trim() || "—";
+    const title = `Online Boss Strategy: ${sym} · ${r.signal} · Confluence ${(r.confluenceScore * 100).toFixed(0)}%`;
+    const lines: string[] = [];
+    lines.push(`📊 ${r.signal} · Confluence ${(r.confluenceScore * 100).toFixed(0)}%`);
+    lines.push(`📌 Symbol: ${sym}`);
+    lines.push(`🎯 Entry: ${r.entry}`);
+    lines.push(`✅ TP1: ${r.tp1}`);
+    lines.push(`✅ TP2: ${r.tp2}`);
+    lines.push(`🛑 SL: ${r.sl}`);
+    if (r.summary) lines.push("", r.summary);
+    r.reasons.forEach((reason) => lines.push(`• ${reason}`));
+    return { title, content: lines.join("\n") };
+  };
+
   const dexUrl = (t: Token) =>
     t.pairAddress
       ? `https://dexscreener.com/solana/${t.pairAddress}`
@@ -1614,6 +1701,9 @@ export default function Dashboard() {
                 <TabsTrigger value="coach-calls" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Coach Calls + Telegram Signals</TabsTrigger>
                 <TabsTrigger value="bsc" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
                 <TabsTrigger value="watchlist" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Watchlist {watchlist.length > 0 ? `(${watchlist.length})` : ""}</TabsTrigger>
+                {isOwner && (
+                  <TabsTrigger value="chris-clayton" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">Online Boss Strategy</TabsTrigger>
+                )}
               </TabsList>
             </Tabs>
           </CardHeader>
@@ -2840,6 +2930,171 @@ export default function Dashboard() {
                 </div>
                 )}
               </div>
+            ) : activeTab === "chris-clayton" ? (
+              !isOwner ? (
+                <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                  <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Owner only</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Online Boss Strategy is available only to the owner.</p>
+                </div>
+              ) : (
+              <div className="mx-6 py-8 max-w-2xl">
+                <h2 className="text-xl sm:text-2xl font-bold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent dark:from-amber-300 dark:via-orange-300 dark:to-amber-400">
+                  Online Boss Strategy
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Upload a chart (crypto futures or gold). AI analyzes descending channel, key level, V-shape bounce, and outputs SHORT / No setup with entry, TP1, TP2, SL. For coach calls only — no Telegram alert.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="chris-clayton-chart" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Chart image (required)</label>
+                    <input
+                      id="chris-clayton-chart"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      onChange={onChrisClaytonChartChange}
+                      className="block w-full text-sm text-zinc-600 dark:text-zinc-400 file:mr-3 file:rounded-md file:border-0 file:bg-amber-50 file:px-3 file:py-2 file:text-amber-700 dark:file:bg-amber-950/50 dark:file:text-amber-300"
+                    />
+                    {chrisClaytonChartPreview && (
+                      <div className="mt-2 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden max-h-48">
+                        <img src={chrisClaytonChartPreview} alt="Chart preview" className="w-full h-auto object-contain max-h-48" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="chris-clayton-symbol" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Symbol (optional)</label>
+                      <input
+                        id="chris-clayton-symbol"
+                        type="text"
+                        placeholder="e.g. BTCUSDT, XAUUSD"
+                        value={chrisClaytonSymbol}
+                        onChange={(e) => { setChrisClaytonSymbol(e.target.value); setChrisClaytonError(null); }}
+                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="chris-clayton-asset" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Asset type</label>
+                      <select
+                        id="chris-clayton-asset"
+                        value={chrisClaytonAssetType}
+                        onChange={(e) => setChrisClaytonAssetType(e.target.value as "crypto" | "gold")}
+                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      >
+                        <option value="crypto">Crypto futures</option>
+                        <option value="gold">Gold</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2 items-center">
+                  <Button
+                    onClick={runChrisClaytonAnalysis}
+                    disabled={chrisClaytonLoading}
+                    className="bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700"
+                  >
+                    {chrisClaytonLoading ? "Analyzing…" : "Analyze"}
+                  </Button>
+                </div>
+                {chrisClaytonError && (
+                  <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{chrisClaytonError}</p>
+                )}
+                {chrisClaytonResult && (
+                  <div className="mt-6 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 p-5">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{chrisClaytonSymbol || "—"}</span>
+                      <Badge
+                        className={`text-sm font-bold px-3 py-1 ${
+                          chrisClaytonResult.signal === "SHORT"
+                            ? "bg-rose-500 text-white dark:bg-rose-600 border-0 hover:bg-rose-600 dark:hover:bg-rose-700"
+                            : "bg-zinc-500 text-white dark:bg-zinc-600 border-0"
+                        }`}
+                      >
+                        {chrisClaytonResult.signal}
+                      </Badge>
+                      <span className="text-lg font-medium text-muted-foreground">
+                        Confluence {(chrisClaytonResult.confluenceScore * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <p><span className="text-muted-foreground">Entry:</span> <span className="font-medium">{chrisClaytonResult.entry}</span></p>
+                      <p><span className="text-muted-foreground">TP1:</span> <span className="text-emerald-600 dark:text-emerald-400 font-medium">{chrisClaytonResult.tp1}</span></p>
+                      <p><span className="text-muted-foreground">TP2:</span> <span className="text-emerald-600 dark:text-emerald-400 font-medium">{chrisClaytonResult.tp2}</span></p>
+                      <p><span className="text-muted-foreground">SL:</span> <span className="text-rose-600 dark:text-rose-400 font-medium">{chrisClaytonResult.sl}</span></p>
+                    </div>
+                    {chrisClaytonResult.componentScores && Object.keys(chrisClaytonResult.componentScores).length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-600">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Component scores</p>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(chrisClaytonResult.componentScores).map(([k, v]) => (
+                            <span key={k} className="text-xs px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300">
+                              {k.replace(/([A-Z])/g, " $1").trim()}: {(typeof v === "number" ? v * 100 : 0).toFixed(0)}%
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {chrisClaytonResult.summary && (
+                      <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-300">{chrisClaytonResult.summary}</p>
+                    )}
+                    <ul className="mt-3 list-disc list-inside space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+                      {chrisClaytonResult.reasons.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                    <div className="mt-4 flex flex-wrap gap-2 items-center pt-3 border-t border-zinc-200 dark:border-zinc-600">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const { title: t, content: c } = formatChrisClaytonForShare(chrisClaytonResult);
+                          const full = [t, c].filter(Boolean).join("\n\n");
+                          navigator.clipboard.writeText(full).then(() => {
+                            setChrisClaytonCopied(true);
+                            setTimeout(() => setChrisClaytonCopied(false), 2000);
+                          });
+                        }}
+                        className="border-zinc-300 dark:border-zinc-600"
+                      >
+                        {chrisClaytonCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy</>}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={chrisClaytonShareLoading}
+                        onClick={async () => {
+                          setChrisClaytonShareLoading(true);
+                          setChrisClaytonShareSuccess(false);
+                          try {
+                            const { title: t, content: c } = formatChrisClaytonForShare(chrisClaytonResult);
+                            const res = await fetch("/api/coach-calls", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ title: t, content: c }),
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              setChrisClaytonShareSuccess(true);
+                              setTimeout(() => setChrisClaytonShareSuccess(false), 3000);
+                            } else {
+                              alert(data.error ?? "Failed to share");
+                            }
+                          } catch {
+                            alert("Failed to share");
+                          } finally {
+                            setChrisClaytonShareLoading(false);
+                          }
+                        }}
+                        className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50"
+                      >
+                        {chrisClaytonShareLoading ? "Sharing…" : chrisClaytonShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              )
             ) : activeTab === "narratives" ? (
               <div className="mx-6 py-8">
                 <NarrativesPanel />
