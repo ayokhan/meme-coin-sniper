@@ -648,6 +648,49 @@ export default function Dashboard() {
     }
   };
 
+  /** Fallback when server gets 451: fetch Binance from user's browser (works in allowed regions). */
+  const fetchPerpRadarFromBrowser = async () => {
+    setPerpRadarLoading(true);
+    setPerpRadarError(null);
+    const minChangePct = 3;
+    const minQuoteVolume = 100_000;
+    const limit = 80;
+    try {
+      const res = await fetch("https://fapi.binance.com/fapi/v1/ticker/24hr", { cache: "no-store" });
+      if (!res.ok) throw new Error(`Binance returned ${res.status}. Your region may be restricted.`);
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : [data];
+      const out: PerpRadarItem[] = [];
+      for (const t of arr) {
+        if (!t?.symbol?.endsWith?.("USDT")) continue;
+        const change = Number(t.priceChangePercent ?? "0");
+        const quoteVol = Number(t.quoteVolume ?? "0");
+        if (!Number.isFinite(change) || !Number.isFinite(quoteVol)) continue;
+        if (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume) continue;
+        const last = Number(t.lastPrice ?? "0");
+        const vol = Number(t.volume ?? "0");
+        if (!Number.isFinite(last) || !Number.isFinite(vol)) continue;
+        out.push({
+          exchange: "binance",
+          symbol: t.symbol,
+          base: t.symbol.replace("USDT", ""),
+          quote: "USDT",
+          change24hPct: change,
+          lastPrice: last,
+          volume24h: vol,
+          quoteVolume24h: quoteVol,
+        });
+      }
+      out.sort((a, b) => Math.abs(b.change24hPct) - Math.abs(a.change24hPct));
+      setPerpRadarItems(out.slice(0, limit));
+    } catch (e) {
+      setPerpRadarItems([]);
+      setPerpRadarError(e instanceof Error ? e.message : "Failed to load from browser");
+    } finally {
+      setPerpRadarLoading(false);
+    }
+  };
+
   const fetchTopAltcoins = async () => {
     setTopAltcoinsLoading(true);
     try {
@@ -2070,12 +2113,24 @@ export default function Dashboard() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">Biggest 24h movers (≥3%, $100k+ vol). Sorted by move size—refresh for latest.</p>
-                  {perpRadarError && <p className="text-sm text-rose-600 dark:text-rose-400 mb-2">{perpRadarError}</p>}
-                  {perpRadarLoading && perpRadarItems.length === 0 ? (
+                  {perpRadarError && (
+                    <div className="mb-3">
+                      <p className="text-sm text-rose-600 dark:text-rose-400">{perpRadarError.includes("451") || perpRadarError.includes("restricts") ? "Binance blocks API access from our server's region." : perpRadarError}</p>
+                      {(perpRadarError.includes("451") || perpRadarError.includes("restricts")) && (
+                        <>
+                          <p className="text-xs text-muted-foreground mt-1">In restricted regions (e.g. Ontario, US) Binance blocks access—use <strong>Trending perps</strong> (Hyperliquid) for similar movers, or VPN + «Load from my browser».</p>
+                          <Button variant="outline" size="sm" className="mt-2" onClick={fetchPerpRadarFromBrowser} disabled={perpRadarLoading}>
+                            {perpRadarLoading ? "Loading…" : "Load from my browser"}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {perpRadarLoading && perpRadarItems.length === 0 && !perpRadarError ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>
-                  ) : perpRadarItems.length === 0 ? (
+                  ) : perpRadarItems.length === 0 && !perpRadarError ? (
                     <p className="text-xs text-muted-foreground">No big movers right now. Hit Refresh to try again.</p>
-                  ) : (
+                  ) : perpRadarItems.length > 0 ? (
                     <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                       <Table>
                         <TableHeader>

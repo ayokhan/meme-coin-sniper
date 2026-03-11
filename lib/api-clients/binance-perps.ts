@@ -33,6 +33,7 @@ export async function getBinancePerpRadar(options?: {
     cache: "no-store",
     headers: { "User-Agent": "NovaStaris/1.0 (https://novastaris.ai)" },
   });
+  if (res.status === 451) throw new Error("BINANCE_451: Binance restricts API access from this server's region. Use «Load from my browser» below if you're in an allowed region, or try Trending perps (Hyperliquid) for now.");
   if (!res.ok) throw new Error(`Binance API error: ${res.status}`);
   const data = (await res.json()) as BinancePerpTicker[] | BinancePerpTicker | { code?: number; msg?: string };
   if (data && typeof data === "object" && !Array.isArray(data) && ("code" in data || "msg" in data)) {
