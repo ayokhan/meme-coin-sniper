@@ -37,6 +37,7 @@ export async function GET() {
         experienceTradingCrypto: u.experienceTradingCrypto,
         tradingBotOnDemand: !!(u as { tradingBotOnDemand?: boolean }).tradingBotOnDemand,
         newsletterOptIn: !!(u as { newsletterOptIn?: boolean }).newsletterOptIn,
+        novaConnectEnabled: !!(u as { novaConnectEnabled?: boolean }).novaConnectEnabled,
         createdAt: u.createdAt,
         subscriptionTier: subTier,
         subscriptionPlan: subPlan,

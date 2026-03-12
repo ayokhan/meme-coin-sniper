@@ -92,6 +92,13 @@ model User {
   tradingBotOnDemand     Boolean  @default(false)  // owner can enable Trading Bot access for VIP users on request
   /** Opt-in at registration: receive NovaStaris newsletter / perp digest when admin enables "Send digest to newsletter subscribers". */
   newsletterOptIn       Boolean  @default(false)
+  /** NovaConnect social portal: opt-in and profile fields. */
+  novaConnectOptIn      Boolean  @default(true)
+  novaConnectEnabled    Boolean  @default(true)
+  novaConnectDisplayName String?
+  novaConnectAvatarUrl   String?
+  /** Presence preference: online | away | busy | offline (used with last-seen). */
+  novaConnectStatus      String   @default("online")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
@@ -297,7 +304,7 @@ model WalletFirstBuyAlertSent {
 // Owner-only feature toggles (e.g. disable Moralis / Telegram during testing)
 model FeatureFlag {
   id        String   @id @default(cuid())
-  key       String   @unique  // moralis_go_hunting | moralis_wallet_tracker | telegram_wallet_alerts
+  key       String   @unique  // moralis_go_hunting | moralis_wallet_tracker | telegram_wallet_alerts | nova_connect | ...
   enabled   Boolean  @default(true)
   updatedAt DateTime @updatedAt
   @@index([key])
@@ -364,6 +371,34 @@ model ChatMessage {
   createdAt DateTime @default(now())
   session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   @@index([sessionId])
+}
+
+// NovaConnect: social + trader community chat
+model NovaConnectPresence {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  status     String   @default("online") // online | away | busy | offline
+  lastSeenAt DateTime @default(now()) @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([lastSeenAt])
+}
+
+model NovaConnectMessage {
+  id          String   @id @default(cuid())
+  roomType    String   @default("community") // community | dm
+  roomId      String?  // reserved for future rooms
+  fromUserId  String
+  toUserId    String?
+  content     String
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+  deletedById String?
+  fromUser    User     @relation("NovaConnectFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser      User?    @relation("NovaConnectToUser", fields: [toUserId], references: [id])
+  @@index([roomType, createdAt])
+  @@index([fromUserId])
+  @@index([toUserId])
 }
 
 // Coach Calls: owner-only posts, VIP members can view (CA / call alerts)

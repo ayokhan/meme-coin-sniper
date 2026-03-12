@@ -25,9 +25,9 @@ export default function AboutPage() {
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-cyan-400 via-violet-400 to-blue-500 bg-clip-text text-transparent">
             About NovaStaris
           </h1>
-          <p className="mt-3 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-            Spot viral tokens before the crowd. Analyze with NovaStaris Advanced AI Agent in seconds. Move with smart money—Solana, BSC, Crypto Futures, and an automated <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Trading Bot</strong> (Crypto Futures) in one platform.
-          </p>
+            <p className="mt-3 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
+              Spot viral tokens before the crowd. Analyze with NovaStaris Advanced AI Agent in seconds. Move with smart money—Solana, BSC, Crypto Futures, an automated <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Trading Bot</strong> (Crypto Futures), and <strong className="text-cyan-600 dark:text-cyan-400">NovaConnect</strong>, the first NovaStaris social portal for crypto traders—together in one platform.
+            </p>
         </div>
 
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg overflow-hidden mb-8">

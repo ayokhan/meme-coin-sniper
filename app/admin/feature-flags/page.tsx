@@ -36,6 +36,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Send digest to newsletter subscribers",
     description: "When ON, the perp digest is also emailed to users who opted in at registration. When OFF, digest goes only to Telegram and DIGEST_EMAIL_TO.",
   },
+  nova_connect: {
+    label: "NovaConnect (social portal)",
+    description: "Enable the Nova Connect tab (social feed + community rules). When OFF, the Nova Connect tab is hidden for all users.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {

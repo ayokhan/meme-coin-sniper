@@ -18,6 +18,7 @@ function RegisterForm() {
   const [country, setCountry] = useState("");
   const [experienceTradingCrypto, setExperienceTradingCrypto] = useState("");
   const [newsletterOptIn, setNewsletterOptIn] = useState(false);
+  const [novaConnectOptIn, setNovaConnectOptIn] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -39,6 +40,7 @@ function RegisterForm() {
           country: country.trim() || undefined,
           experienceTradingCrypto: experienceTradingCrypto || undefined,
           newsletterOptIn,
+          novaConnectOptIn,
         }),
       });
       const data = await res.json();
@@ -138,6 +140,15 @@ function RegisterForm() {
                   className="rounded border-zinc-300 dark:border-zinc-600"
                 />
                 Subscribe to NovaStaris newsletter (weekly digest, product updates)
+              </label>
+              <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={novaConnectOptIn}
+                  onChange={(e) => setNovaConnectOptIn(e.target.checked)}
+                  className="rounded border-zinc-300 dark:border-zinc-600"
+                />
+                Join <span className="font-semibold">NovaConnect</span> (social portal — show my profile as online to other traders)
               </label>
               <p className="text-xs text-muted-foreground">
                 By creating an account you agree to our{" "}

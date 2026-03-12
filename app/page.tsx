@@ -75,8 +75,9 @@ type TabId =
   | "coach-calls"
   | "bsc"
   | "watchlist"
+  | "nova-connect"
   | "chris-clayton";
-const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls"];
+const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-connect"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. BSC + Watchlist are free for all. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls"];
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
@@ -377,6 +378,7 @@ export default function Dashboard() {
   const [onlineBossFeedbackLoading, setOnlineBossFeedbackLoading] = useState(false);
   const [onlineBossFeedbackSent, setOnlineBossFeedbackSent] = useState<"good" | "bad" | null>(null);
   const [onlineBossFeedbackNote, setOnlineBossFeedbackNote] = useState("");
+  const [novaConnectEnabled, setNovaConnectEnabled] = useState(true);
 
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (tab === "ai-analysis") {
@@ -1707,6 +1709,9 @@ export default function Dashboard() {
                 <TabsTrigger value="coach-calls" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Coach Calls + Telegram Signals</TabsTrigger>
                 <TabsTrigger value="bsc" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
                 <TabsTrigger value="watchlist" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Watchlist {watchlist.length > 0 ? `(${watchlist.length})` : ""}</TabsTrigger>
+                {novaConnectEnabled && (
+                  <TabsTrigger value="nova-connect" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600">Nova Connect</TabsTrigger>
+                )}
                 {isOwner && (
                   <TabsTrigger value="chris-clayton" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">Online Boss Strategy</TabsTrigger>
                 )}
@@ -1730,6 +1735,7 @@ export default function Dashboard() {
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
                   {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets."}
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
+                  {activeTab === "nova-connect" && "Nova Connect: the first NovaStaris social portal for crypto traders. See community rules, your NovaConnect status, and (coming soon) community feed and chat."}
                   {" "}
                   {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP to use this feature." : "Upgrade to Pro or VIP to use this feature."}
                 </p>
@@ -3021,6 +3027,56 @@ export default function Dashboard() {
                 )}
                 </div>
                 )}
+              </div>
+            ) : activeTab === "nova-connect" ? (
+              <div className="mx-6 py-8 max-w-3xl space-y-6">
+                <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                  Nova Connect — trader social portal
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  NovaConnect is the first NovaStaris social layer for crypto traders. This early version focuses on community rules, presence, and how NovaConnect will work as we roll it out.
+                </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-4 space-y-2">
+                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Community rules</h3>
+                    <ul className="text-xs text-zinc-700 dark:text-zinc-300 list-disc list-inside space-y-1">
+                      <li>No insults, racism, hate speech, or harassment.</li>
+                      <li>No spam, scams, or fake PnL screenshots.</li>
+                      <li>No sharing private information without consent.</li>
+                      <li>Respect other traders — disagree with ideas, not people.</li>
+                      <li>Admins can mute, remove messages, or remove users from NovaConnect if rules are broken.</li>
+                    </ul>
+                  </div>
+                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-4 space-y-3">
+                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Presence & privacy</h3>
+                    <p className="text-xs text-zinc-700 dark:text-zinc-300">
+                      When NovaConnect launches fully, every registered user can opt in to be visible in the community. You&apos;ll be able to choose a display name or nickname, set a profile picture, and control your status (online, away, busy, offline). You can leave NovaConnect at any time without closing your NovaStaris account.
+                    </p>
+                    <p className="text-xs text-zinc-700 dark:text-zinc-300">
+                      Messaging will be <strong>free to access</strong> but only <strong>paid members</strong> (Pro/VIP) will be able to send private or group messages. Free users will be able to see community posts and announcements.
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-emerald-200/80 dark:border-emerald-700/80 bg-emerald-50/80 dark:bg-emerald-950/40 p-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">What&apos;s coming next</h3>
+                  <ul className="text-xs text-emerald-900 dark:text-emerald-200 list-disc list-inside space-y-1">
+                    <li>NovaConnect feed — post charts, screenshots, and notes (like a focused trader Instagram).</li>
+                    <li>Nova Connect Community group chat — real-time group chat for NovaStaris members.</li>
+                    <li>Private 1:1 chat between traders (with admin tools to remove users and moderate messages).</li>
+                    <li>Owner-only feature flag (NovaConnect) so you can turn the social layer on/off anytime.</li>
+                  </ul>
+                  <p className="text-xs text-emerald-900 dark:text-emerald-200">
+                    For now, use the{" "}
+                    <button
+                      type="button"
+                      onClick={() => window.open("/chat", "_blank")}
+                      className="underline underline-offset-2 hover:no-underline font-medium"
+                    >
+                      Support &amp; Questions chat
+                    </button>{" "}
+                    for live help from the NovaStaris team. NovaConnect will live as a dedicated social tab separated from support.
+                  </p>
+                </div>
               </div>
             ) : activeTab === "chris-clayton" ? (
               !isOwner ? (

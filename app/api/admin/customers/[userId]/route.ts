@@ -24,11 +24,13 @@ export async function PATCH(
     const body = await request.json().catch(() => ({}));
     const tradingBotOnDemand = body.tradingBotOnDemand;
     const newsletterOptIn = body.newsletterOptIn;
-    const updates: { tradingBotOnDemand?: boolean; newsletterOptIn?: boolean } = {};
+    const novaConnectEnabled = body.novaConnectEnabled;
+    const updates: { tradingBotOnDemand?: boolean; newsletterOptIn?: boolean; novaConnectEnabled?: boolean } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
     if (typeof newsletterOptIn === 'boolean') updates.newsletterOptIn = newsletterOptIn;
+    if (typeof novaConnectEnabled === 'boolean') updates.novaConnectEnabled = novaConnectEnabled;
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ success: false, error: 'Provide tradingBotOnDemand and/or newsletterOptIn (boolean).' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Provide tradingBotOnDemand, newsletterOptIn and/or novaConnectEnabled (boolean).' }, { status: 400 });
     }
     await (prisma as any).user.update({
       where: { id: userId },

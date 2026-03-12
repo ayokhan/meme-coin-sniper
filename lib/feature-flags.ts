@@ -20,6 +20,8 @@ export const FEATURE_FLAG_KEYS = {
   TELEGRAM_LEVERAGE_ALERTS: 'telegram_leverage_alerts',
   /** Send perp digest to users who opted in to newsletter. When OFF, digest goes only to Telegram and DIGEST_EMAIL_TO. */
   DIGEST_TO_NEWSLETTER_SUBSCRIBERS: 'digest_to_newsletter_subscribers',
+  /** NovaConnect social portal (Nova Connect tab, community rules, and links). When OFF, Nova Connect tab is hidden. */
+  NOVA_CONNECT: 'nova_connect',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
