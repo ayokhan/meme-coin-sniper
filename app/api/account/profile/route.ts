@@ -16,12 +16,15 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: 'User not found.' }, { status: 404 });
   }
+  const u = user as { name: string | null; email: string | null; phone: string | null; country: string | null; experienceTradingCrypto: string | null; novaConnectDisplayName?: string | null; novaConnectAvatarUrl?: string | null };
   return NextResponse.json({
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    country: user.country,
-    experienceTradingCrypto: user.experienceTradingCrypto,
+    name: u.name,
+    email: u.email,
+    phone: u.phone,
+    country: u.country,
+    experienceTradingCrypto: u.experienceTradingCrypto,
+    preferredName: u.novaConnectDisplayName ?? null,
+    avatarUrl: u.novaConnectAvatarUrl ?? null,
     usageThisMonth,
   });
 }
@@ -37,10 +40,20 @@ export async function PATCH(request: Request) {
     const phone = (body.phone ?? '').toString().trim() || undefined;
     const country = (body.country ?? '').toString().trim() || undefined;
     const experienceTradingCrypto = (body.experienceTradingCrypto ?? '').toString().trim() || undefined;
+    const preferredName = (body.preferredName ?? '').toString().trim() || null;
+    const avatarUrl = (body.avatarUrl ?? '').toString().trim() || null;
+
+    const data: Record<string, unknown> = {};
+    if (body.name !== undefined) data.name = name;
+    if (body.phone !== undefined) data.phone = phone;
+    if (body.country !== undefined) data.country = country;
+    if (body.experienceTradingCrypto !== undefined) data.experienceTradingCrypto = experienceTradingCrypto;
+    if (body.preferredName !== undefined) data.novaConnectDisplayName = preferredName;
+    if (body.avatarUrl !== undefined) data.novaConnectAvatarUrl = avatarUrl;
 
     await prisma.user.update({
       where: { id: session.user.id },
-      data: { name, phone, country, experienceTradingCrypto },
+      data: data as any,
     });
     return NextResponse.json({ success: true });
   } catch (e) {

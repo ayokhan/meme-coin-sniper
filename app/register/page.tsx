@@ -14,6 +14,8 @@ function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [preferredName, setPreferredName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("");
   const [experienceTradingCrypto, setExperienceTradingCrypto] = useState("");
@@ -36,6 +38,8 @@ function RegisterForm() {
           email: email.trim().toLowerCase(),
           password,
           name: name.trim() || undefined,
+          preferredName: preferredName.trim() || undefined,
+          avatarUrl: avatarUrl.trim() || undefined,
           phone: phone.trim() || undefined,
           country: country.trim() || undefined,
           experienceTradingCrypto: experienceTradingCrypto || undefined,
@@ -89,6 +93,20 @@ function RegisterForm() {
                 placeholder="Name (optional)"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Preferred name (optional — how you appear on NovaConnect)"
+                value={preferredName}
+                onChange={(e) => setPreferredName(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+              />
+              <input
+                type="url"
+                placeholder="Profile picture URL (optional)"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
               />
               <input
@@ -153,8 +171,12 @@ function RegisterForm() {
               <p className="text-xs text-muted-foreground">
                 By creating an account you agree to our{" "}
                 <Link href="/terms" className="underline hover:no-underline">Terms of Service</Link>
+                ,{" "}
+                <Link href="/privacy" className="underline hover:no-underline">Privacy Policy</Link>
+                , and NovaConnect{" "}
+                <Link href="/#nova-connect-rules" className="underline hover:no-underline">Community rules (summary)</Link>
                 {" "}and{" "}
-                <Link href="/privacy" className="underline hover:no-underline">Privacy Policy</Link>.
+                <Link href="/#nova-connect-privacy" className="underline hover:no-underline">Presence &amp; privacy</Link>.
               </p>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating account…" : "Register"}

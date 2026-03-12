@@ -13,6 +13,8 @@ type Profile = {
   phone: string | null;
   country: string | null;
   experienceTradingCrypto: string | null;
+  preferredName: string | null;
+  avatarUrl: string | null;
   usageThisMonth?: { aiAnalyses: number; alerts: number };
 };
 
@@ -24,9 +26,12 @@ export default function AccountPage() {
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [name, setName] = useState("");
+  const [preferredName, setPreferredName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("");
   const [experienceTradingCrypto, setExperienceTradingCrypto] = useState("");
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -68,6 +73,8 @@ export default function AccountPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim() || undefined,
+          preferredName: preferredName.trim() || undefined,
+          avatarUrl: avatarUrl.trim() || undefined,
           phone: phone.trim() || undefined,
           country: country.trim() || undefined,
           experienceTradingCrypto: experienceTradingCrypto.trim() || undefined,
@@ -237,6 +244,58 @@ export default function AccountPage() {
                 onChange={(e) => setName(e.target.value)}
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
               />
+              <div>
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Preferred name</label>
+                <p className="text-[11px] text-muted-foreground mb-1">How you appear on NovaConnect and in the app.</p>
+                <input
+                  type="text"
+                  placeholder="Preferred name (optional)"
+                  value={preferredName}
+                  onChange={(e) => setPreferredName(e.target.value)}
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm mt-0.5"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Profile picture (avatar URL)</label>
+                <p className="text-[11px] text-muted-foreground mb-1">Image URL for your profile. You can upload an image below.</p>
+                <input
+                  type="url"
+                  placeholder="https://…"
+                  value={avatarUrl}
+                  onChange={(e) => setAvatarUrl(e.target.value)}
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm mt-0.5"
+                />
+                <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="text-sm"
+                    disabled={avatarUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setAvatarUploading(true);
+                      try {
+                        const form = new FormData();
+                        form.append("file", file);
+                        const res = await fetch("/api/upload/avatar", { method: "POST", body: form });
+                        const data = await res.json();
+                        if (data.url) {
+                          setAvatarUrl(data.url);
+                        } else {
+                          alert(data.error ?? "Upload failed.");
+                        }
+                      } catch {
+                        alert("Upload failed.");
+                      } finally {
+                        setAvatarUploading(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                  {avatarUploading ? "Uploading…" : "Upload image"}
+                </label>
+              </div>
               <input
                 type="tel"
                 placeholder="Phone (optional)"

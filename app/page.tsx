@@ -252,6 +252,26 @@ export default function Dashboard() {
     }
   };
 
+  const novaConnectDmLastIdsRef = useRef<Set<string>>(new Set());
+  const playDmBeep = useRef(() => {
+    try {
+      const ctx = typeof window !== "undefined" && window.AudioContext ? new window.AudioContext() : null;
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 800;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    } catch {
+      // ignore
+    }
+  }).current;
+
   // Load first-buy alert flag on mount for owner so toggle shows correct state when navigating back
   useEffect(() => {
     if (status !== "authenticated" || !isOwner) return;
@@ -478,6 +498,44 @@ export default function Dashboard() {
   const [novaConnectNicknamePromptDismissed, setNovaConnectNicknamePromptDismissed] = useState(() =>
     typeof window !== "undefined" ? window.localStorage.getItem("novaConnectNicknamePromptDismissed") === "1" : false
   );
+
+  // First-time visit (already registered): direct to NovaConnect for privacy & community rules
+  useEffect(() => {
+    if (status !== "authenticated" || !novaConnectEnabled) return;
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem("firstVisitDashboard") === "1") return;
+    window.localStorage.setItem("firstVisitDashboard", "1");
+    setActiveTab("nova-connect");
+  }, [status, novaConnectEnabled]);
+
+  // Poll DM and play beep when the other user sends a new message
+  useEffect(() => {
+    if (!novaConnectDmUserId || status !== "authenticated") return;
+    const meId = (session?.user as { id?: string })?.id;
+    if (!meId) return;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/nova-connect/messages?scope=dm&userId=${encodeURIComponent(novaConnectDmUserId)}`);
+        const data = await res.json();
+        if (!data.success || !Array.isArray(data.messages)) return;
+        const messages = data.messages as { id: string; fromUserId: string; toUserId: string | null; fromDisplayName: string; content: string; createdAt: string }[];
+        let hasNewFromOther = false;
+        for (const m of messages) {
+          if (m.fromUserId !== meId && !novaConnectDmLastIdsRef.current.has(m.id)) {
+            hasNewFromOther = true;
+          }
+          novaConnectDmLastIdsRef.current.add(m.id);
+        }
+        if (hasNewFromOther) playDmBeep();
+        setNovaConnectDmMessages(messages);
+      } catch {
+        // ignore
+      }
+    };
+    novaConnectDmLastIdsRef.current = new Set();
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, [novaConnectDmUserId, status, session?.user]);
 
   useEffect(() => {
     if (activeTab !== "nova-connect") return;
@@ -3163,7 +3221,7 @@ export default function Dashboard() {
                       NovaConnect is a community space for serious traders. To protect everyone, you must agree to basic rules before you appear online or start using NovaConnect features.
                     </p>
                     <p className="text-xs text-emerald-800 dark:text-emerald-200 font-medium">
-                      Privacy: Your online name or nickname will be displayed to everyone on NovaConnect. We are not liable for any issues arising from your use of the service.
+                      Privacy: Your preferred name (or the name you set) will be displayed to everyone on NovaConnect. We are not liable for any issues arising from your use of the service.
                     </p>
                     <ul className="text-xs text-emerald-900 dark:text-emerald-200 list-disc list-inside space-y-1 max-h-40 overflow-y-auto border border-emerald-200/60 dark:border-emerald-800/60 rounded-md p-2 bg-emerald-50/60 dark:bg-emerald-950/30">
                       <li>No insults, racism, hate speech, harassment, or bullying.</li>
@@ -3226,7 +3284,7 @@ export default function Dashboard() {
                       First time here?
                     </p>
                     <p className="text-xs text-amber-900 dark:text-amber-200">
-                      If you don&apos;t want your real name visible to others, set a nickname on the Account page.
+                      If you don&apos;t want your real name visible to others, set a preferred name on the Account page.
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                       <Button asChild size="sm" variant="outline" className="text-xs border-amber-400 text-amber-800 dark:text-amber-200">
@@ -3352,10 +3410,10 @@ export default function Dashboard() {
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
                         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Members &amp; private chat</h3>
                         <p className="text-xs text-muted-foreground">
-                          Click a trader to open a private chat. Use the Account page to change your NovaConnect display name or profile picture.
+                          Click a trader to open a private chat. Use the Account page to change your preferred name or profile picture.
                         </p>
                         <Button asChild size="sm" variant="outline" className="text-xs">
-                          <Link href="/account">Go to Account (profile &amp; nickname)</Link>
+                          <Link href="/account">Go to Account (profile &amp; preferred name)</Link>
                         </Button>
                       </div>
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-2">
@@ -3390,17 +3448,31 @@ export default function Dashboard() {
                                   }}
                                   className="flex-1 flex items-center gap-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded px-1 py-0.5"
                                 >
-                                  <span
-                                    className={`inline-block h-2 w-2 rounded-full ${
-                                      u.status === "online"
-                                        ? "bg-emerald-500"
-                                        : u.status === "away"
-                                        ? "bg-amber-500"
-                                        : u.status === "busy"
-                                        ? "bg-rose-500"
-                                        : "bg-zinc-500"
-                                    }`}
-                                  />
+                                  <span className="relative shrink-0">
+                                    {u.avatarUrl ? (
+                                      <img
+                                        src={u.avatarUrl}
+                                        alt=""
+                                        className={`h-6 w-6 rounded-full object-cover ring-2 ${
+                                          u.status === "online" ? "ring-emerald-500" : u.status === "away" ? "ring-amber-500" : u.status === "busy" ? "ring-rose-500" : "ring-zinc-500"
+                                        }`}
+                                      />
+                                    ) : (
+                                      <span
+                                        className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-medium ring-2 ${
+                                          u.status === "online"
+                                            ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 ring-emerald-500"
+                                            : u.status === "away"
+                                            ? "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 ring-amber-500"
+                                            : u.status === "busy"
+                                            ? "bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 ring-rose-500"
+                                            : "bg-zinc-300 dark:bg-zinc-600 text-zinc-600 dark:text-zinc-300 ring-zinc-500"
+                                        }`}
+                                      >
+                                        {(u.displayName || "?").charAt(0).toUpperCase()}
+                                      </span>
+                                    )}
+                                  </span>
                                   <span className="truncate">{u.displayName}{u.me ? " (you)" : ""}</span>
                                 </button>
                                 {!u.me && (
@@ -3533,7 +3605,7 @@ export default function Dashboard() {
                           </div>
                         </div>
                       )}
-                      <div ref={novaConnectRulesRef} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
+                      <div id="nova-connect-rules" ref={novaConnectRulesRef} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
                         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Community rules (summary)</h3>
                         <ul className="text-xs text-zinc-700 dark:text-zinc-300 list-disc list-inside space-y-1">
                           <li>No insults, racism, hate speech, or harassment.</li>
@@ -3543,13 +3615,13 @@ export default function Dashboard() {
                           <li>Admins can mute, remove messages, or remove users from NovaConnect if rules are broken.</li>
                         </ul>
                       </div>
-                      <div ref={novaConnectPrivacyRef} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
+                      <div id="nova-connect-privacy" ref={novaConnectPrivacyRef} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
                         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Presence &amp; privacy</h3>
                         <p className="text-xs text-zinc-700 dark:text-zinc-300">
-                          Your online name or nickname is displayed to everyone on NovaConnect. We are not liable for any issues arising from your use of the service.
+                          Your preferred name is displayed to everyone on NovaConnect. We are not liable for any issues arising from your use of the service.
                         </p>
                         <p className="text-xs text-zinc-700 dark:text-zinc-300">
-                          Use the Account page to choose a display name or nickname, set a profile picture, and control your status (online, away, busy, offline).
+                          Use the Account page to set your preferred name, profile picture, and status (online, away, busy, offline).
                           You can leave NovaConnect at any time without closing your NovaStaris account.
                         </p>
                         <p className="text-xs text-zinc-700 dark:text-zinc-300">

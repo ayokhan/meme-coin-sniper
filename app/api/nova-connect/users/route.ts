@@ -16,9 +16,14 @@ export async function GET() {
     }
     const meId = (session.user as { id: string }).id;
     const db = prisma as any;
+    // Only show users who have accepted NovaConnect rules (privacy: don't display names until they've joined)
     const [users, presences] = await Promise.all([
       db.user.findMany({
-        where: { novaConnectEnabled: true, novaConnectOptIn: true },
+        where: {
+          novaConnectEnabled: true,
+          novaConnectOptIn: true,
+          novaConnectRulesAcceptedAt: { not: null },
+        },
         select: {
           id: true,
           name: true,
@@ -35,23 +40,25 @@ export async function GET() {
     ]);
     const presenceByUser = new Map((presences as any[]).map((p) => [p.userId, p]));
     const now = Date.now();
-    const result = (users as any[]).map((u) => {
-      const baseName = u.novaConnectDisplayName || u.name || u.email?.split('@')[0] || 'Trader';
-      const p = presenceByUser.get(u.id);
-      let status = u.novaConnectStatus || 'online';
-      if (p) {
-        const ageMs = now - p.lastSeenAt.getTime();
-        if (ageMs > 10 * 60 * 1000) status = 'offline';
-        else status = p.status;
-      }
-      return {
-        id: u.id,
-        displayName: baseName,
-        avatarUrl: u.novaConnectAvatarUrl,
-        status,
-        me: u.id === meId,
-      };
-    });
+    const result = (users as any[])
+      .map((u) => {
+        const baseName = u.novaConnectDisplayName || u.name || u.email?.split('@')[0] || 'Trader';
+        const p = presenceByUser.get(u.id);
+        let status = u.novaConnectStatus || 'online';
+        if (p) {
+          const ageMs = now - p.lastSeenAt.getTime();
+          if (ageMs > 10 * 60 * 1000) status = 'offline';
+          else status = p.status;
+        }
+        return {
+          id: u.id,
+          displayName: baseName,
+          avatarUrl: u.novaConnectAvatarUrl,
+          status,
+          me: u.id === meId,
+        };
+      })
+      .filter((u) => u.status !== 'offline'); // Only show online/away/busy; don't show offline users
     return NextResponse.json({ success: true, users: result });
   } catch (e) {
     console.error('NovaConnect users GET error:', e);

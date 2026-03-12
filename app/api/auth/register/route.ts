@@ -8,6 +8,8 @@ export async function POST(request: Request) {
     const email = (body.email ?? '').toString().trim().toLowerCase();
     const password = (body.password ?? '').toString();
     const name = (body.name ?? '').toString().trim() || email.split('@')[0];
+    const preferredName = (body.preferredName ?? '').toString().trim() || undefined;
+    const avatarUrl = (body.avatarUrl ?? '').toString().trim() || undefined;
     const phone = (body.phone ?? '').toString().trim() || undefined;
     const country = (body.country ?? '').toString().trim() || undefined;
     const experienceTradingCrypto = (body.experienceTradingCrypto ?? '').toString().trim() || undefined;
@@ -37,6 +39,8 @@ export async function POST(request: Request) {
         experienceTradingCrypto,
         newsletterOptIn,
         novaConnectOptIn,
+        novaConnectDisplayName: preferredName,
+        novaConnectAvatarUrl: avatarUrl,
       } as any,
     });
 
