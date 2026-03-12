@@ -474,13 +474,29 @@ export default function Dashboard() {
   >([]);
   const [novaConnectDmInput, setNovaConnectDmInput] = useState("");
   const [novaConnectDmSending, setNovaConnectDmSending] = useState(false);
+  const [novaConnectHasCustomDisplayName, setNovaConnectHasCustomDisplayName] = useState<boolean | null>(null);
+  const [novaConnectNicknamePromptDismissed, setNovaConnectNicknamePromptDismissed] = useState(() =>
+    typeof window !== "undefined" ? window.localStorage.getItem("novaConnectNicknamePromptDismissed") === "1" : false
+  );
 
   useEffect(() => {
     if (activeTab !== "nova-connect") return;
     if (!novaConnectRulesAccepted) return;
-    loadNovaConnectUsers();
     loadNovaConnectCommunity();
-  }, [activeTab, novaConnectRulesAccepted]);
+    if (isPaid) loadNovaConnectUsers();
+    fetch("/api/nova-connect/profile")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.profile) setNovaConnectHasCustomDisplayName(!!d.profile.hasCustomDisplayName);
+      })
+      .catch(() => {});
+  }, [activeTab, novaConnectRulesAccepted, isPaid]);
+
+  const showNicknamePrompt = novaConnectRulesAccepted && novaConnectHasCustomDisplayName === false && !novaConnectNicknamePromptDismissed;
+  const dismissNicknamePrompt = () => {
+    setNovaConnectNicknamePromptDismissed(true);
+    if (typeof window !== "undefined") window.localStorage.setItem("novaConnectNicknamePromptDismissed", "1");
+  };
 
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (tab === "ai-analysis") {
@@ -3133,10 +3149,10 @@ export default function Dashboard() {
             ) : activeTab === "nova-connect" ? (
               <div className="mx-6 py-8 max-w-5xl space-y-6">
                 <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                  Nova Connect — trader social portal
+                  Nova Connect — connecting great minds.
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  NovaConnect is the first NovaStaris social layer for crypto traders. Nova Connect — connecting great minds. Before you get started, please read and accept the community rules and presence/privacy notes.
+                  NovaConnect, the first social portal for crypto traders. Before you get started, please read and accept the community rules and presence/privacy notes.
                 </p>
                 {!novaConnectRulesAccepted && (
                   <div className="rounded-xl border border-emerald-300/80 dark:border-emerald-700/80 bg-emerald-50/80 dark:bg-emerald-950/40 p-4 space-y-3">
@@ -3145,6 +3161,9 @@ export default function Dashboard() {
                     </p>
                     <p className="text-xs text-emerald-900 dark:text-emerald-200">
                       NovaConnect is a community space for serious traders. To protect everyone, you must agree to basic rules before you appear online or start using NovaConnect features.
+                    </p>
+                    <p className="text-xs text-emerald-800 dark:text-emerald-200 font-medium">
+                      Privacy: Your online name or nickname will be displayed to everyone on NovaConnect. We are not liable for any issues arising from your use of the service.
                     </p>
                     <ul className="text-xs text-emerald-900 dark:text-emerald-200 list-disc list-inside space-y-1 max-h-40 overflow-y-auto border border-emerald-200/60 dark:border-emerald-800/60 rounded-md p-2 bg-emerald-50/60 dark:bg-emerald-950/30">
                       <li>No insults, racism, hate speech, harassment, or bullying.</li>
@@ -3201,6 +3220,28 @@ export default function Dashboard() {
                     View presence &amp; privacy
                   </button>
                 </div>
+                {showNicknamePrompt && (
+                  <div className="rounded-xl border border-amber-300/80 dark:border-amber-700/80 bg-amber-50/80 dark:bg-amber-950/40 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                      First time here?
+                    </p>
+                    <p className="text-xs text-amber-900 dark:text-amber-200">
+                      If you don&apos;t want your real name visible to others, set a nickname on the Account page.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button asChild size="sm" variant="outline" className="text-xs border-amber-400 text-amber-800 dark:text-amber-200">
+                        <Link href="/account">Go to Account</Link>
+                      </Button>
+                      <button
+                        type="button"
+                        className="text-xs text-amber-700 dark:text-amber-300 underline"
+                        onClick={dismissNicknamePrompt}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {novaConnectRulesAccepted && (
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)]">
                     {/* Community feed + composer */}
@@ -3208,7 +3249,7 @@ export default function Dashboard() {
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
                         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Community feed</h3>
                         <p className="text-xs text-muted-foreground">
-                          Share charts, screenshots, and notes. Messaging is free to view for all users; only paid members (Pro/VIP) can post or send messages.
+                          Share charts, screenshots, and notes. Everyone can post here. Only Pro/VIP members can see online traders and send private messages.
                         </p>
                       </div>
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-3 min-h-[220px]">
@@ -3216,10 +3257,9 @@ export default function Dashboard() {
                           <textarea
                             value={novaConnectCommunityInput}
                             onChange={(e) => setNovaConnectCommunityInput(e.target.value)}
-                            placeholder={isPaid ? "Share a chart idea, setup, or note…" : "Upgrade to Pro or VIP to post in NovaConnect."}
+                            placeholder="Share a chart idea, setup, or note…"
                             rows={3}
                             className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                            disabled={!isPaid}
                           />
                           <div className="flex flex-wrap items-center gap-2">
                             <input
@@ -3228,13 +3268,12 @@ export default function Dashboard() {
                               onChange={(e) => setNovaConnectCommunityImageUrl(e.target.value)}
                               placeholder="Optional image URL (chart screenshot)"
                               className="flex-1 min-w-[180px] rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                              disabled={!isPaid}
                             />
                             <Button
                               type="button"
                               size="sm"
                               onClick={async () => {
-                                if (!isPaid || !novaConnectRulesAccepted) return;
+                                if (!novaConnectRulesAccepted) return;
                                 const text = novaConnectCommunityInput.trim();
                                 const img = novaConnectCommunityImageUrl.trim();
                                 if (!text && !img) return;
@@ -3259,7 +3298,7 @@ export default function Dashboard() {
                                   setNovaConnectSending(false);
                                 }
                               }}
-                              disabled={!isPaid || novaConnectSending}
+                              disabled={novaConnectSending}
                               className="bg-emerald-500 hover:bg-emerald-600 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700"
                             >
                               {novaConnectSending ? "Posting…" : "Post"}
@@ -3267,7 +3306,7 @@ export default function Dashboard() {
                           </div>
                           {!isPaid && (
                             <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                              Free users can read community posts. Upgrade to Pro or VIP to post and send messages.
+                              Upgrade to Pro or VIP to see online traders and chat with them.
                             </p>
                           )}
                         </div>
@@ -3321,7 +3360,23 @@ export default function Dashboard() {
                       </div>
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-2">
                         <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Online traders</h4>
-                        {novaConnectUsers.length === 0 ? (
+                        {!isPaid ? (
+                          <div
+                            className="relative flex flex-col items-center justify-center min-h-[140px] rounded-md bg-zinc-200/80 dark:bg-zinc-800/80 overflow-hidden"
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => alert("Upgrade to Pro or VIP to see online traders and chat with users.")}
+                            onKeyDown={(e) => e.key === "Enter" && alert("Upgrade to Pro or VIP to see online traders and chat with users.")}
+                          >
+                            <div className="absolute inset-0 backdrop-blur-[6px] bg-zinc-300/50 dark:bg-zinc-700/50" aria-hidden />
+                            <p className="relative z-10 text-xs text-zinc-600 dark:text-zinc-400 text-center px-3">
+                              Upgrade to Pro or VIP to see online traders and chat with them.
+                            </p>
+                            <button type="button" className="relative z-10 mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 underline">
+                              Unlock
+                            </button>
+                          </div>
+                        ) : novaConnectUsers.length === 0 ? (
                           <p className="text-[11px] text-muted-foreground">No NovaConnect members yet.</p>
                         ) : (
                           <ul className="space-y-1 max-h-[180px] overflow-y-auto">
@@ -3353,7 +3408,8 @@ export default function Dashboard() {
                                     <button
                                       type="button"
                                       className="text-[10px] text-zinc-600 dark:text-zinc-300 underline"
-                                      onClick={async () => {
+                                      onClick={async (ev) => {
+                                        ev.stopPropagation();
                                         const reason = window.prompt("Reason for report (required):")?.trim();
                                         if (!reason) return;
                                         try {
@@ -3374,7 +3430,8 @@ export default function Dashboard() {
                                     <button
                                       type="button"
                                       className="text-[10px] text-zinc-600 dark:text-zinc-300 underline"
-                                      onClick={async () => {
+                                      onClick={async (ev) => {
+                                        ev.stopPropagation();
                                         const confirmBlock = window.confirm(`Block ${u.displayName}? You will not receive messages from this user.`);
                                         if (!confirmBlock) return;
                                         try {
@@ -3489,11 +3546,14 @@ export default function Dashboard() {
                       <div ref={novaConnectPrivacyRef} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
                         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Presence &amp; privacy</h3>
                         <p className="text-xs text-zinc-700 dark:text-zinc-300">
+                          Your online name or nickname is displayed to everyone on NovaConnect. We are not liable for any issues arising from your use of the service.
+                        </p>
+                        <p className="text-xs text-zinc-700 dark:text-zinc-300">
                           Use the Account page to choose a display name or nickname, set a profile picture, and control your status (online, away, busy, offline).
                           You can leave NovaConnect at any time without closing your NovaStaris account.
                         </p>
                         <p className="text-xs text-zinc-700 dark:text-zinc-300">
-                          Messaging is free to access, but only paid members (Pro/VIP) can send private or group messages. Free users can see community posts and announcements.
+                          Everyone can post in the community forum. Only Pro/VIP members can see online traders and send private messages.
                         </p>
                       </div>
                     </div>

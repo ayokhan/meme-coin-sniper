@@ -119,10 +119,10 @@ export async function POST(request: Request) {
     if (!content && !imageUrl) {
       return NextResponse.json({ success: false, error: 'Message or image URL is required.' }, { status: 400 });
     }
-    // Free users: can read but not send messages
-    if (!isPaid) {
+    // Free users: can post in community only; DMs require Pro/VIP
+    if (scope === 'dm' && !isPaid) {
       return NextResponse.json(
-        { success: false, error: 'Upgrade to Pro or VIP to post or message. Free users can read only.' },
+        { success: false, error: 'Upgrade to Pro or VIP to chat with users.' },
         { status: 403 },
       );
     }

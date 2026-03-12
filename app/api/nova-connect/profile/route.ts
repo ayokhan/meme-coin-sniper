@@ -35,6 +35,7 @@ export async function GET() {
       profile: {
         id: user.id,
         displayName: user.novaConnectDisplayName || user.name || user.email?.split('@')[0] || 'Trader',
+        hasCustomDisplayName: !!user.novaConnectDisplayName,
         avatarUrl: user.novaConnectAvatarUrl ?? null,
         status: user.novaConnectStatus,
         optIn: user.novaConnectOptIn,
