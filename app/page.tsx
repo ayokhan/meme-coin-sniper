@@ -350,6 +350,9 @@ export default function Dashboard() {
   const [userMemeCoinAlerts, setUserMemeCoinAlerts] = useState<Array<{ id: string; walletAddress: string; contractAddress: string; symbol: string | null; createdAt: string }>>([]);
   const [futuresAnalysisShareLoading, setFuturesAnalysisShareLoading] = useState(false);
   const [futuresAnalysisShareSuccess, setFuturesAnalysisShareSuccess] = useState(false);
+  const [futuresFeedbackLoading, setFuturesFeedbackLoading] = useState(false);
+  const [futuresFeedbackSent, setFuturesFeedbackSent] = useState<"good" | "bad" | null>(null);
+  const [futuresFeedbackNote, setFuturesFeedbackNote] = useState("");
   // Chris Clayton Strategy (owner-only)
   const [chrisClaytonChartFile, setChrisClaytonChartFile] = useState<File | null>(null);
   const [chrisClaytonChartPreview, setChrisClaytonChartPreview] = useState<string | null>(null);
@@ -371,6 +374,9 @@ export default function Dashboard() {
   const [chrisClaytonCopied, setChrisClaytonCopied] = useState(false);
   const [chrisClaytonShareLoading, setChrisClaytonShareLoading] = useState(false);
   const [chrisClaytonShareSuccess, setChrisClaytonShareSuccess] = useState(false);
+  const [onlineBossFeedbackLoading, setOnlineBossFeedbackLoading] = useState(false);
+  const [onlineBossFeedbackSent, setOnlineBossFeedbackSent] = useState<"good" | "bad" | null>(null);
+  const [onlineBossFeedbackNote, setOnlineBossFeedbackNote] = useState("");
 
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (tab === "ai-analysis") {
@@ -2874,55 +2880,141 @@ export default function Dashboard() {
                       ))}
                     </ul>
                     {isOwner && (
-                      <div className="mt-4 flex flex-wrap gap-2 items-center pt-3 border-t border-zinc-200 dark:border-zinc-600">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const { title: t, content: c } = formatFuturesAnalysisForShare(futuresAnalysisResult);
-                            const full = [t, c].filter(Boolean).join("\n\n");
-                            navigator.clipboard.writeText(full).then(() => {
-                              setFuturesAnalysisCopied(true);
-                              setTimeout(() => setFuturesAnalysisCopied(false), 2000);
-                            });
-                          }}
-                          className="border-zinc-300 dark:border-zinc-600"
-                        >
-                          {futuresAnalysisCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy analysis</>}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={futuresAnalysisShareLoading}
-                          onClick={async () => {
-                            setFuturesAnalysisShareLoading(true);
-                            setFuturesAnalysisShareSuccess(false);
-                            try {
+                      <div className="mt-4 space-y-3 pt-3 border-t border-zinc-200 dark:border-zinc-600">
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
                               const { title: t, content: c } = formatFuturesAnalysisForShare(futuresAnalysisResult);
-                              const res = await fetch("/api/coach-calls", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ title: t, content: c }),
+                              const full = [t, c].filter(Boolean).join("\n\n");
+                              navigator.clipboard.writeText(full).then(() => {
+                                setFuturesAnalysisCopied(true);
+                                setTimeout(() => setFuturesAnalysisCopied(false), 2000);
                               });
-                              const data = await res.json();
-                              if (data.success) {
-                                setFuturesAnalysisShareSuccess(true);
-                                setTimeout(() => setFuturesAnalysisShareSuccess(false), 3000);
-                              } else {
-                                alert(data.error ?? "Failed to share");
+                            }}
+                            className="border-zinc-300 dark:border-zinc-600"
+                          >
+                            {futuresAnalysisCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy analysis</>}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={futuresAnalysisShareLoading}
+                            onClick={async () => {
+                              setFuturesAnalysisShareLoading(true);
+                              setFuturesAnalysisShareSuccess(false);
+                              try {
+                                const { title: t, content: c } = formatFuturesAnalysisForShare(futuresAnalysisResult);
+                                const res = await fetch("/api/coach-calls", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ title: t, content: c }),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  setFuturesAnalysisShareSuccess(true);
+                                  setTimeout(() => setFuturesAnalysisShareSuccess(false), 3000);
+                                } else {
+                                  alert(data.error ?? "Failed to share");
+                                }
+                              } catch {
+                                alert("Failed to share");
+                              } finally {
+                                setFuturesAnalysisShareLoading(false);
                               }
-                            } catch {
-                              alert("Failed to share");
-                            } finally {
-                              setFuturesAnalysisShareLoading(false);
-                            }
-                          }}
-                          className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
-                        >
-                          {futuresAnalysisShareLoading ? "Sharing…" : futuresAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
-                        </Button>
+                            }}
+                            className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
+                          >
+                            {futuresAnalysisShareLoading ? "Sharing…" : futuresAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
+                          </Button>
+                        </div>
+                        <div className="pt-2 border-t border-dashed border-zinc-200 dark:border-zinc-700 space-y-2">
+                          <span className="text-xs text-muted-foreground block">Was this Crypto Futures analysis accurate?</span>
+                          {futuresFeedbackSent ? (
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400 block">Thanks — feedback recorded.</span>
+                          ) : (
+                            <>
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={futuresFeedbackLoading}
+                                  onClick={async () => {
+                                    if (!futuresSymbol.trim()) return;
+                                    setFuturesFeedbackLoading(true);
+                                    try {
+                                      const res = await fetch("/api/admin/ai-feedback", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                          contractAddress: `futures:${futuresSymbol.trim()}`,
+                                          outcome: "good",
+                                          score: futuresAnalysisResult.score,
+                                          signal: futuresAnalysisResult.signal,
+                                          note: futuresFeedbackNote.trim() || undefined,
+                                        }),
+                                      });
+                                      const data = await res.json();
+                                      if (data.success) { setFuturesFeedbackSent("good"); setFuturesFeedbackNote(""); }
+                                      else alert(data.error ?? "Failed to send feedback");
+                                    } catch {
+                                      alert("Failed to send feedback");
+                                    } finally {
+                                      setFuturesFeedbackLoading(false);
+                                    }
+                                  }}
+                                  className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                                >
+                                  Yes, worked well
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={futuresFeedbackLoading}
+                                  onClick={async () => {
+                                    if (!futuresSymbol.trim()) return;
+                                    setFuturesFeedbackLoading(true);
+                                    try {
+                                      const res = await fetch("/api/admin/ai-feedback", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                          contractAddress: `futures:${futuresSymbol.trim()}`,
+                                          outcome: "bad",
+                                          score: futuresAnalysisResult.score,
+                                          signal: futuresAnalysisResult.signal,
+                                          note: futuresFeedbackNote.trim() || undefined,
+                                        }),
+                                      });
+                                      const data = await res.json();
+                                      if (data.success) { setFuturesFeedbackSent("bad"); setFuturesFeedbackNote(""); }
+                                      else alert(data.error ?? "Failed to send feedback");
+                                    } catch {
+                                      alert("Failed to send feedback");
+                                    } finally {
+                                      setFuturesFeedbackLoading(false);
+                                    }
+                                  }}
+                                  className="text-xs border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                                >
+                                  No, needs work
+                                </Button>
+                              </div>
+                              <textarea
+                                value={futuresFeedbackNote}
+                                onChange={(e) => setFuturesFeedbackNote(e.target.value)}
+                                placeholder="Optional note for training (what worked or what missed)…"
+                                rows={2}
+                                className="w-full text-xs rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                              />
+                            </>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2942,7 +3034,7 @@ export default function Dashboard() {
                   Online Boss Strategy
                 </h2>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Upload a chart (crypto futures or gold). AI analyzes descending channel, key level, V-shape bounce, and outputs SHORT / No setup with entry, TP1, TP2, SL. For coach calls only — no Telegram alert.
+                  Upload a chart (crypto futures or gold). NovaStaris AI Agent analyzes the descending channel, key level, V-shape bounce, and outputs SHORT / No setup with entry, TP1, TP2, SL. For coach calls only — no Telegram alert.
                 </p>
                 <div className="space-y-4">
                   <div>
@@ -3041,55 +3133,137 @@ export default function Dashboard() {
                         <li key={i}>{r}</li>
                       ))}
                     </ul>
-                    <div className="mt-4 flex flex-wrap gap-2 items-center pt-3 border-t border-zinc-200 dark:border-zinc-600">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const { title: t, content: c } = formatChrisClaytonForShare(chrisClaytonResult);
-                          const full = [t, c].filter(Boolean).join("\n\n");
-                          navigator.clipboard.writeText(full).then(() => {
-                            setChrisClaytonCopied(true);
-                            setTimeout(() => setChrisClaytonCopied(false), 2000);
-                          });
-                        }}
-                        className="border-zinc-300 dark:border-zinc-600"
-                      >
-                        {chrisClaytonCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy</>}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={chrisClaytonShareLoading}
-                        onClick={async () => {
-                          setChrisClaytonShareLoading(true);
-                          setChrisClaytonShareSuccess(false);
-                          try {
+                    <div className="mt-4 space-y-3 pt-3 border-t border-zinc-200 dark:border-zinc-600">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
                             const { title: t, content: c } = formatChrisClaytonForShare(chrisClaytonResult);
-                            const res = await fetch("/api/coach-calls", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ title: t, content: c }),
+                            const full = [t, c].filter(Boolean).join("\n\n");
+                            navigator.clipboard.writeText(full).then(() => {
+                              setChrisClaytonCopied(true);
+                              setTimeout(() => setChrisClaytonCopied(false), 2000);
                             });
-                            const data = await res.json();
-                            if (data.success) {
-                              setChrisClaytonShareSuccess(true);
-                              setTimeout(() => setChrisClaytonShareSuccess(false), 3000);
-                            } else {
-                              alert(data.error ?? "Failed to share");
+                          }}
+                          className="border-zinc-300 dark:border-zinc-600"
+                        >
+                          {chrisClaytonCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy</>}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={chrisClaytonShareLoading}
+                          onClick={async () => {
+                            setChrisClaytonShareLoading(true);
+                            setChrisClaytonShareSuccess(false);
+                            try {
+                              const { title: t, content: c } = formatChrisClaytonForShare(chrisClaytonResult);
+                              const res = await fetch("/api/coach-calls", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ title: t, content: c }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                setChrisClaytonShareSuccess(true);
+                                setTimeout(() => setChrisClaytonShareSuccess(false), 3000);
+                              } else {
+                                alert(data.error ?? "Failed to share");
+                              }
+                            } catch {
+                              alert("Failed to share");
+                            } finally {
+                              setChrisClaytonShareLoading(false);
                             }
-                          } catch {
-                            alert("Failed to share");
-                          } finally {
-                            setChrisClaytonShareLoading(false);
-                          }
-                        }}
-                        className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50"
-                      >
-                        {chrisClaytonShareLoading ? "Sharing…" : chrisClaytonShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
-                      </Button>
+                          }}
+                          className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50"
+                        >
+                          {chrisClaytonShareLoading ? "Sharing…" : chrisClaytonShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
+                        </Button>
+                      </div>
+                      <div className="pt-2 border-t border-dashed border-zinc-200 dark:border-zinc-700 space-y-2">
+                        <span className="text-xs text-muted-foreground block">Was this Online Boss Strategy signal accurate?</span>
+                        {onlineBossFeedbackSent ? (
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 block">Thanks — feedback recorded.</span>
+                        ) : (
+                          <>
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={onlineBossFeedbackLoading}
+                                onClick={async () => {
+                                  const key = chrisClaytonSymbol.trim() || "chart";
+                                  setOnlineBossFeedbackLoading(true);
+                                  try {
+                                    const res = await fetch("/api/admin/ai-feedback", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        contractAddress: `online-boss:${key}`,
+                                        outcome: "good",
+                                        note: onlineBossFeedbackNote.trim() || undefined,
+                                      }),
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) { setOnlineBossFeedbackSent("good"); setOnlineBossFeedbackNote(""); }
+                                    else alert(data.error ?? "Failed to send feedback");
+                                  } catch {
+                                    alert("Failed to send feedback");
+                                  } finally {
+                                    setOnlineBossFeedbackLoading(false);
+                                  }
+                                }}
+                                className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                              >
+                                Yes, worked well
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={onlineBossFeedbackLoading}
+                                onClick={async () => {
+                                  const key = chrisClaytonSymbol.trim() || "chart";
+                                  setOnlineBossFeedbackLoading(true);
+                                  try {
+                                    const res = await fetch("/api/admin/ai-feedback", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        contractAddress: `online-boss:${key}`,
+                                        outcome: "bad",
+                                        note: onlineBossFeedbackNote.trim() || undefined,
+                                      }),
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) { setOnlineBossFeedbackSent("bad"); setOnlineBossFeedbackNote(""); }
+                                    else alert(data.error ?? "Failed to send feedback");
+                                  } catch {
+                                    alert("Failed to send feedback");
+                                  } finally {
+                                    setOnlineBossFeedbackLoading(false);
+                                  }
+                                }}
+                                className="text-xs border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                              >
+                                No, needs work
+                              </Button>
+                            </div>
+                            <textarea
+                              value={onlineBossFeedbackNote}
+                              onChange={(e) => setOnlineBossFeedbackNote(e.target.value)}
+                              placeholder="Optional note for training (what worked or what missed)…"
+                              rows={2}
+                              className="w-full text-xs rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            />
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
