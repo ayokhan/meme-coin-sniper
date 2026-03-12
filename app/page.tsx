@@ -379,6 +379,9 @@ export default function Dashboard() {
   const [onlineBossFeedbackSent, setOnlineBossFeedbackSent] = useState<"good" | "bad" | null>(null);
   const [onlineBossFeedbackNote, setOnlineBossFeedbackNote] = useState("");
   const [novaConnectEnabled, setNovaConnectEnabled] = useState(true);
+  const [novaConnectRulesAccepted, setNovaConnectRulesAccepted] = useState(false);
+  const novaConnectRulesRef = useRef<HTMLDivElement | null>(null);
+  const novaConnectPrivacyRef = useRef<HTMLDivElement | null>(null);
 
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (tab === "ai-analysis") {
@@ -3034,9 +3037,64 @@ export default function Dashboard() {
                   Nova Connect — trader social portal
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  NovaConnect is the first NovaStaris social layer for crypto traders. This early version focuses on community rules, presence, and how NovaConnect will work as we roll it out.
+                  NovaConnect is the first NovaStaris social layer for crypto traders. Before you get started, please read and accept the community rules and presence/privacy notes.
                 </p>
-                <div className="grid gap-4 md:grid-cols-2">
+                {!novaConnectRulesAccepted && (
+                  <div className="rounded-xl border border-emerald-300/80 dark:border-emerald-700/80 bg-emerald-50/80 dark:bg-emerald-950/40 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                      Read and accept NovaConnect rules
+                    </p>
+                    <p className="text-xs text-emerald-900 dark:text-emerald-200">
+                      NovaConnect is a community space for serious traders. To protect everyone, you must agree to basic rules before you appear online or start using NovaConnect features.
+                    </p>
+                    <ul className="text-xs text-emerald-900 dark:text-emerald-200 list-disc list-inside space-y-1 max-h-40 overflow-y-auto border border-emerald-200/60 dark:border-emerald-800/60 rounded-md p-2 bg-emerald-50/60 dark:bg-emerald-950/30">
+                      <li>No insults, racism, hate speech, harassment, or bullying.</li>
+                      <li>No spam, scams, or fake PnL screenshots.</li>
+                      <li>No sharing private information (yours or others&apos;) without consent.</li>
+                      <li>Respect other traders — disagree with ideas, not people.</li>
+                      <li>Admins can mute, remove messages, or remove users from NovaConnect if rules are broken.</li>
+                      <li>NovaConnect is not financial advice. Always do your own research.</li>
+                    </ul>
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="rounded border-emerald-400"
+                          checked={novaConnectRulesAccepted}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNovaConnectRulesAccepted(true);
+                              if (typeof window !== "undefined") {
+                                window.localStorage.setItem("novaConnectRulesAccepted", "1");
+                              }
+                            }
+                          }}
+                        />
+                        <span className="text-emerald-900 dark:text-emerald-200">
+                          I have read and agree to follow these rules.
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <button
+                    type="button"
+                    className="underline underline-offset-2 hover:no-underline"
+                    onClick={() => novaConnectRulesRef.current?.scrollIntoView({ behavior: "smooth" })}
+                  >
+                    View community rules
+                  </button>
+                  <span>·</span>
+                  <button
+                    type="button"
+                    className="underline underline-offset-2 hover:no-underline"
+                    onClick={() => novaConnectPrivacyRef.current?.scrollIntoView({ behavior: "smooth" })}
+                  >
+                    View presence &amp; privacy
+                  </button>
+                </div>
+                <div ref={novaConnectRulesRef} className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-4 space-y-2">
                     <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Community rules</h3>
                     <ul className="text-xs text-zinc-700 dark:text-zinc-300 list-disc list-inside space-y-1">
@@ -3047,8 +3105,8 @@ export default function Dashboard() {
                       <li>Admins can mute, remove messages, or remove users from NovaConnect if rules are broken.</li>
                     </ul>
                   </div>
-                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-4 space-y-3">
-                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Presence & privacy</h3>
+                  <div ref={novaConnectPrivacyRef} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-4 space-y-3">
+                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Presence &amp; privacy</h3>
                     <p className="text-xs text-zinc-700 dark:text-zinc-300">
                       When NovaConnect launches fully, every registered user can opt in to be visible in the community. You&apos;ll be able to choose a display name or nickname, set a profile picture, and control your status (online, away, busy, offline). You can leave NovaConnect at any time without closing your NovaStaris account.
                     </p>
