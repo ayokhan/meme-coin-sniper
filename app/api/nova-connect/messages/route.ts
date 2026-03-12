@@ -22,7 +22,8 @@ export async function GET(request: Request) {
       if (!otherUserId) {
         return NextResponse.json({ success: false, error: 'userId required for dm scope.' }, { status: 400 });
       }
-      const messages = await prisma.novaConnectMessage.findMany({
+      const db = prisma as any;
+      const messages: any[] = await db.novaConnectMessage.findMany({
         where: {
           roomType: 'dm',
           deletedAt: null,
@@ -53,7 +54,8 @@ export async function GET(request: Request) {
     }
 
     // community feed
-    const messages = await prisma.novaConnectMessage.findMany({
+    const db = prisma as any;
+    const messages: any[] = await db.novaConnectMessage.findMany({
       where: {
         roomType: 'community',
         deletedAt: null,
@@ -103,7 +105,8 @@ export async function POST(request: Request) {
     const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
     const toUserId = typeof body.toUserId === 'string' ? body.toUserId.trim() || null : null;
 
-    const me = await prisma.user.findUnique({
+    const db = prisma as any;
+    const me = await db.user.findUnique({
       where: { id: userId },
       select: { novaConnectOptIn: true, novaConnectEnabled: true },
     });
@@ -128,14 +131,29 @@ export async function POST(request: Request) {
       if (!toUserId) {
         return NextResponse.json({ success: false, error: 'toUserId required for private messages.' }, { status: 400 });
       }
-      const other = await prisma.user.findUnique({
+      const other = await db.user.findUnique({
         where: { id: toUserId },
         select: { id: true, novaConnectEnabled: true, novaConnectOptIn: true },
       });
       if (!other || !other.novaConnectEnabled || !other.novaConnectOptIn) {
         return NextResponse.json({ success: false, error: 'User is not available on NovaConnect.' }, { status: 400 });
       }
-      const msg = await prisma.novaConnectMessage.create({
+      // Respect block lists: if either side has blocked the other, do not allow DM
+      const block = await db.novaConnectBlock.findFirst({
+        where: {
+          OR: [
+            { blockerUserId: userId, blockedUserId: toUserId },
+            { blockerUserId: toUserId, blockedUserId: userId },
+          ],
+        },
+      });
+      if (block) {
+        return NextResponse.json(
+          { success: false, error: 'Direct messages are blocked between these users.' },
+          { status: 403 },
+        );
+      }
+      const msg = await db.novaConnectMessage.create({
         data: {
           roomType: 'dm',
           fromUserId: userId,
@@ -147,7 +165,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, id: msg.id });
     }
 
-    const msg = await prisma.novaConnectMessage.create({
+    const msg = await db.novaConnectMessage.create({
       data: {
         roomType: 'community',
         fromUserId: userId,
@@ -176,7 +194,8 @@ export async function DELETE(request: Request) {
     }
     // Only owner (session.isOwner) or author can delete
     const isOwner = !!(session.user as { isOwner?: boolean }).isOwner;
-    const msg = await prisma.novaConnectMessage.findUnique({
+    const db = prisma as any;
+    const msg = await db.novaConnectMessage.findUnique({
       where: { id: messageId },
       select: { id: true, fromUserId: true },
     });
@@ -186,7 +205,7 @@ export async function DELETE(request: Request) {
     if (!isOwner && msg.fromUserId !== userId) {
       return NextResponse.json({ success: false, error: 'Not authorized to delete this message.' }, { status: 403 });
     }
-    await prisma.novaConnectMessage.update({
+    await db.novaConnectMessage.update({
       where: { id: messageId },
       data: { deletedAt: new Date(), deletedById: userId },
     });

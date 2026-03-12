@@ -15,8 +15,9 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'NovaConnect is disabled.' }, { status: 403 });
     }
     const meId = (session.user as { id: string }).id;
+    const db = prisma as any;
     const [users, presences] = await Promise.all([
-      prisma.user.findMany({
+      db.user.findMany({
         where: { novaConnectEnabled: true, novaConnectOptIn: true },
         select: {
           id: true,
@@ -28,13 +29,13 @@ export async function GET() {
         },
         orderBy: { createdAt: 'asc' },
       }),
-      prisma.novaConnectPresence.findMany({
+      db.novaConnectPresence.findMany({
         select: { userId: true, status: true, lastSeenAt: true },
       }),
     ]);
-    const presenceByUser = new Map(presences.map((p) => [p.userId, p]));
+    const presenceByUser = new Map((presences as any[]).map((p) => [p.userId, p]));
     const now = Date.now();
-    const result = users.map((u) => {
+    const result = (users as any[]).map((u) => {
       const baseName = u.novaConnectDisplayName || u.name || u.email?.split('@')[0] || 'Trader';
       const p = presenceByUser.get(u.id);
       let status = u.novaConnectStatus || 'online';

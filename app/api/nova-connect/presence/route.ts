@@ -19,7 +19,8 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const rawStatus = typeof body.status === 'string' ? body.status.trim().toLowerCase() : '';
     const status = ['online', 'away', 'busy', 'offline'].includes(rawStatus) ? rawStatus : 'online';
-    await prisma.novaConnectPresence.upsert({
+    const db = prisma as any;
+    await db.novaConnectPresence.upsert({
       where: { userId },
       create: { userId, status },
       update: { status },

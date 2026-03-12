@@ -11,7 +11,8 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
     const novaConnectOn = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_CONNECT);
-    const user = await prisma.user.findUnique({
+    const db = prisma as any;
+    const user = await db.user.findUnique({
       where: { id: (session.user as { id: string }).id },
       select: {
         id: true,
@@ -83,7 +84,8 @@ export async function PATCH(request: Request) {
     if (!Object.keys(updates).length) {
       return NextResponse.json({ success: false, error: 'No valid fields provided.' }, { status: 400 });
     }
-    const updated = await prisma.user.update({
+    const db = prisma as any;
+    const updated = await db.user.update({
       where: { id: userId },
       data: updates,
       select: {

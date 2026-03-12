@@ -114,6 +114,13 @@ model User {
   /** Eligible (e.g. VIP) users can set 2–5; alert when this many tracked wallets buy same token. */
   walletTrackerMinBuyers Int?
   usageThisMonth      UsageThisMonth[]
+  novaConnectPresence NovaConnectPresence?
+  novaConnectMessagesSent NovaConnectMessage[] @relation("NovaConnectFromUser")
+  novaConnectMessagesReceived NovaConnectMessage[] @relation("NovaConnectToUser")
+  novaConnectBlocksInitiated NovaConnectBlock[] @relation("NovaConnectBlocksInitiated")
+  novaConnectBlocksReceived  NovaConnectBlock[] @relation("NovaConnectBlocksReceived")
+  novaConnectReportsFiled    NovaConnectReport[] @relation("NovaConnectReportsFiled")
+  novaConnectReportsAgainst  NovaConnectReport[] @relation("NovaConnectReportsAgainst")
 }
 
 // Per-user usage counts for current month (AI analyses; alerts are counted from UserMemeCoinAlert + LeverageAlert)
@@ -399,6 +406,32 @@ model NovaConnectMessage {
   @@index([roomType, createdAt])
   @@index([fromUserId])
   @@index([toUserId])
+}
+
+model NovaConnectBlock {
+  id            String   @id @default(cuid())
+  blockerUserId String
+  blockedUserId String
+  createdAt     DateTime @default(now())
+  blocker       User     @relation("NovaConnectBlocksInitiated", fields: [blockerUserId], references: [id], onDelete: Cascade)
+  blocked       User     @relation("NovaConnectBlocksReceived", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  @@unique([blockerUserId, blockedUserId])
+  @@index([blockerUserId])
+  @@index([blockedUserId])
+}
+
+model NovaConnectReport {
+  id             String   @id @default(cuid())
+  reporterUserId String
+  reportedUserId String
+  reason         String
+  screenshotUrl  String?
+  createdAt      DateTime @default(now())
+  reporter       User     @relation("NovaConnectReportsFiled", fields: [reporterUserId], references: [id], onDelete: Cascade)
+  reported       User     @relation("NovaConnectReportsAgainst", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  @@index([reporterUserId])
+  @@index([reportedUserId])
+  @@index([createdAt])
 }
 
 // Coach Calls: owner-only posts, VIP members can view (CA / call alerts)
