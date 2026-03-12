@@ -192,17 +192,19 @@ export async function DELETE(request: Request) {
     if (!messageId) {
       return NextResponse.json({ success: false, error: 'Message id required.' }, { status: 400 });
     }
-    // Only owner (session.isOwner) or author can delete
     const isOwner = !!(session.user as { isOwner?: boolean }).isOwner;
+    const isCommunityRep = !!(session.user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
     const db = prisma as any;
     const msg = await db.novaConnectMessage.findUnique({
       where: { id: messageId },
-      select: { id: true, fromUserId: true },
+      select: { id: true, fromUserId: true, roomType: true },
     });
     if (!msg) {
       return NextResponse.json({ success: false, error: 'Message not found.' }, { status: 404 });
     }
-    if (!isOwner && msg.fromUserId !== userId) {
+    const isAuthor = msg.fromUserId === userId;
+    const canDelete = isOwner || isAuthor || (isCommunityRep && msg.roomType === 'community');
+    if (!canDelete) {
       return NextResponse.json({ success: false, error: 'Not authorized to delete this message.' }, { status: 403 });
     }
     await db.novaConnectMessage.update({
@@ -216,3 +218,41 @@ export async function DELETE(request: Request) {
   }
 }
 
+/** PATCH - Edit a message (author only for content; owner/rep can delete but not edit others). */
+export async function PATCH(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
+    }
+    const userId = (session.user as { id: string }).id;
+    const body = await request.json().catch(() => ({}));
+    const messageId = typeof body.id === 'string' ? body.id.trim() : null;
+    const content = typeof body.content === 'string' ? body.content.trim() : '';
+    if (!messageId) {
+      return NextResponse.json({ success: false, error: 'Message id required.' }, { status: 400 });
+    }
+    const db = prisma as any;
+    const msg = await db.novaConnectMessage.findUnique({
+      where: { id: messageId },
+      select: { id: true, fromUserId: true, roomType: true, deletedAt: true },
+    });
+    if (!msg || msg.deletedAt) {
+      return NextResponse.json({ success: false, error: 'Message not found.' }, { status: 404 });
+    }
+    if (msg.fromUserId !== userId) {
+      return NextResponse.json({ success: false, error: 'Only the author can edit this message.' }, { status: 403 });
+    }
+    if (content.length === 0) {
+      return NextResponse.json({ success: false, error: 'Content is required.' }, { status: 400 });
+    }
+    await db.novaConnectMessage.update({
+      where: { id: messageId },
+      data: { content },
+    });
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    console.error('NovaConnect messages PATCH error:', e);
+    return NextResponse.json({ success: false, error: 'Failed to update message.' }, { status: 500 });
+  }
+}

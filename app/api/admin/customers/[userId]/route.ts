@@ -25,12 +25,14 @@ export async function PATCH(
     const tradingBotOnDemand = body.tradingBotOnDemand;
     const newsletterOptIn = body.newsletterOptIn;
     const novaConnectEnabled = body.novaConnectEnabled;
-    const updates: { tradingBotOnDemand?: boolean; newsletterOptIn?: boolean; novaConnectEnabled?: boolean } = {};
+    const novaConnectCommunityRep = body.novaConnectCommunityRep;
+    const updates: { tradingBotOnDemand?: boolean; newsletterOptIn?: boolean; novaConnectEnabled?: boolean; novaConnectCommunityRep?: boolean } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
     if (typeof newsletterOptIn === 'boolean') updates.newsletterOptIn = newsletterOptIn;
     if (typeof novaConnectEnabled === 'boolean') updates.novaConnectEnabled = novaConnectEnabled;
+    if (typeof novaConnectCommunityRep === 'boolean') updates.novaConnectCommunityRep = novaConnectCommunityRep;
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ success: false, error: 'Provide tradingBotOnDemand, newsletterOptIn and/or novaConnectEnabled (boolean).' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Provide at least one of: tradingBotOnDemand, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep (boolean).' }, { status: 400 });
     }
     await (prisma as any).user.update({
       where: { id: userId },

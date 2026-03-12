@@ -16,6 +16,7 @@ type Customer = {
   tradingBotOnDemand: boolean;
   newsletterOptIn: boolean;
   novaConnectEnabled: boolean;
+  novaConnectCommunityRep: boolean;
   novaConnectRulesAcceptedAt: string | null;
   createdAt: string;
   subscriptionTier: string | null;
@@ -35,6 +36,7 @@ export default function AdminCustomersPage() {
   const [togglingOnDemandId, setTogglingOnDemandId] = useState<string | null>(null);
   const [togglingNewsletterId, setTogglingNewsletterId] = useState<string | null>(null);
   const [togglingNovaConnectId, setTogglingNovaConnectId] = useState<string | null>(null);
+  const [togglingCommunityRepId, setTogglingCommunityRepId] = useState<string | null>(null);
 
   const loadCustomers = () => {
     fetch("/api/admin/customers")
@@ -136,6 +138,28 @@ export default function AdminCustomersPage() {
       setError("Failed to update NovaConnect");
     } finally {
       setTogglingNovaConnectId(null);
+    }
+  };
+
+  const handleCommunityRepToggle = async (id: string, value: boolean) => {
+    setTogglingCommunityRepId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ novaConnectCommunityRep: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Community rep enabled." : "Community rep disabled.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setTogglingCommunityRepId(null);
     }
   };
 
@@ -244,6 +268,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Trading Bot (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Email digest</th>
                       <th className="pb-2 pr-4 font-semibold">NovaConnect</th>
+                      <th className="pb-2 pr-4 font-semibold">Community rep</th>
                       <th className="pb-2 font-semibold">Actions</th>
                     </tr>
                   </thead>
@@ -311,6 +336,17 @@ export default function AdminCustomersPage() {
                                 : "Disabled"}
                             </span>
                           </div>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => handleCommunityRepToggle(c.id, !c.novaConnectCommunityRep)}
+                            disabled={togglingCommunityRepId === c.id}
+                            className={`text-xs font-medium px-2 py-1 rounded ${c.novaConnectCommunityRep ? "bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                            title="Can delete community posts"
+                          >
+                            {togglingCommunityRepId === c.id ? "…" : c.novaConnectCommunityRep ? "On" : "Off"}
+                          </button>
                         </td>
                         <td className="py-2">
                           <div className="flex flex-col gap-1">

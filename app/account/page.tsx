@@ -53,6 +53,8 @@ export default function AccountPage() {
           const data = await res.json();
           setProfile(data);
           setName(data.name ?? "");
+          setPreferredName(data.preferredName ?? "");
+          setAvatarUrl(data.avatarUrl ?? "");
           setPhone(data.phone ?? "");
           setCountry(data.country ?? "");
           setExperienceTradingCrypto(data.experienceTradingCrypto ?? "");

@@ -39,6 +39,7 @@ export async function GET() {
         newsletterOptIn: !!(u as { newsletterOptIn?: boolean }).newsletterOptIn,
         novaConnectEnabled: !!(u as { novaConnectEnabled?: boolean }).novaConnectEnabled,
         novaConnectRulesAcceptedAt: (u as { novaConnectRulesAcceptedAt?: Date | null }).novaConnectRulesAcceptedAt ?? null,
+        novaConnectCommunityRep: !!(u as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep,
         createdAt: u.createdAt,
         subscriptionTier: subTier,
         subscriptionPlan: subPlan,

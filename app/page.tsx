@@ -494,6 +494,10 @@ export default function Dashboard() {
   >([]);
   const [novaConnectDmInput, setNovaConnectDmInput] = useState("");
   const [novaConnectDmSending, setNovaConnectDmSending] = useState(false);
+  const [novaConnectEditingId, setNovaConnectEditingId] = useState<string | null>(null);
+  const [novaConnectEditingContent, setNovaConnectEditingContent] = useState("");
+  const [novaConnectEditSaving, setNovaConnectEditSaving] = useState(false);
+  const [novaConnectDeleteLoading, setNovaConnectDeleteLoading] = useState<string | null>(null);
   const [novaConnectHasCustomDisplayName, setNovaConnectHasCustomDisplayName] = useState<boolean | null>(null);
   const [novaConnectNicknamePromptDismissed, setNovaConnectNicknamePromptDismissed] = useState(() =>
     typeof window !== "undefined" ? window.localStorage.getItem("novaConnectNicknamePromptDismissed") === "1" : false
@@ -541,14 +545,14 @@ export default function Dashboard() {
     if (activeTab !== "nova-connect") return;
     if (!novaConnectRulesAccepted) return;
     loadNovaConnectCommunity();
-    if (isPaid) loadNovaConnectUsers();
+    if (isPaid || isOwner) loadNovaConnectUsers();
     fetch("/api/nova-connect/profile")
       .then((r) => r.json())
       .then((d) => {
         if (d.success && d.profile) setNovaConnectHasCustomDisplayName(!!d.profile.hasCustomDisplayName);
       })
       .catch(() => {});
-  }, [activeTab, novaConnectRulesAccepted, isPaid]);
+  }, [activeTab, novaConnectRulesAccepted, isPaid, isOwner]);
 
   const showNicknamePrompt = novaConnectRulesAccepted && novaConnectHasCustomDisplayName === false && !novaConnectNicknamePromptDismissed;
   const dismissNicknamePrompt = () => {
@@ -1886,7 +1890,7 @@ export default function Dashboard() {
                 <TabsTrigger value="bsc" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
                 <TabsTrigger value="watchlist" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Watchlist {watchlist.length > 0 ? `(${watchlist.length})` : ""}</TabsTrigger>
                 {novaConnectEnabled && (
-                  <TabsTrigger value="nova-connect" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600">Nova Connect</TabsTrigger>
+                  <TabsTrigger value="nova-connect" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600">NovaConnect</TabsTrigger>
                 )}
                 {isOwner && (
                   <TabsTrigger value="chris-clayton" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">Online Boss Strategy</TabsTrigger>
@@ -1911,7 +1915,7 @@ export default function Dashboard() {
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
                   {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets."}
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
-                  {activeTab === "nova-connect" && "Nova Connect: the first NovaStaris social portal for crypto traders. See community rules, your NovaConnect status, and (coming soon) community feed and chat."}
+                  {activeTab === "nova-connect" && "NovaConnect: the first NovaStaris social portal for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}
                   {" "}
                   {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP to use this feature." : "Upgrade to Pro or VIP to use this feature."}
                 </p>
@@ -3379,27 +3383,125 @@ export default function Dashboard() {
                             novaConnectMessages
                               .slice()
                               .reverse()
-                              .map((m) => (
-                                <div key={m.id} className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-900/70 p-2.5 space-y-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">{m.fromDisplayName}</span>
-                                    <span className="text-[10px] text-muted-foreground">
-                                      {new Date(m.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
-                                    </span>
+                              .map((m) => {
+                                const myId = (session?.user as { id?: string })?.id;
+                                const isAuthor = m.fromUserId === myId;
+                                const isOwner = !!(session?.user as { isOwner?: boolean })?.isOwner;
+                                const isCommunityRep = !!(session?.user as { novaConnectCommunityRep?: boolean })?.novaConnectCommunityRep;
+                                const canDelete = isOwner || isCommunityRep || isAuthor;
+                                const isEditing = novaConnectEditingId === m.id;
+                                return (
+                                  <div key={m.id} className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-900/70 p-2.5 space-y-1">
+                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                                      <span className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">{m.fromDisplayName}</span>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] text-muted-foreground">
+                                          {new Date(m.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+                                        </span>
+                                        {canDelete && (
+                                          <button
+                                            type="button"
+                                            disabled={novaConnectDeleteLoading === m.id}
+                                            onClick={async () => {
+                                              if (!confirm("Delete this post?")) return;
+                                              setNovaConnectDeleteLoading(m.id);
+                                              try {
+                                                const res = await fetch(`/api/nova-connect/messages?id=${encodeURIComponent(m.id)}`, { method: "DELETE" });
+                                                const data = await res.json();
+                                                if (data.success) await loadNovaConnectCommunity();
+                                                else alert(data.error ?? "Failed to delete.");
+                                              } catch {
+                                                alert("Failed to delete.");
+                                              } finally {
+                                                setNovaConnectDeleteLoading(null);
+                                              }
+                                            }}
+                                            className="text-[10px] text-rose-600 dark:text-rose-400 hover:underline disabled:opacity-50"
+                                          >
+                                            {novaConnectDeleteLoading === m.id ? "…" : "Delete"}
+                                          </button>
+                                        )}
+                                        {isAuthor && !isEditing && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setNovaConnectEditingId(m.id);
+                                              setNovaConnectEditingContent(m.content);
+                                            }}
+                                            className="text-[10px] text-cyan-600 dark:text-cyan-400 hover:underline"
+                                          >
+                                            Edit
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {isEditing ? (
+                                      <div className="space-y-1">
+                                        <textarea
+                                          value={novaConnectEditingContent}
+                                          onChange={(e) => setNovaConnectEditingContent(e.target.value)}
+                                          rows={3}
+                                          className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs"
+                                        />
+                                        <div className="flex gap-2">
+                                          <button
+                                            type="button"
+                                            disabled={novaConnectEditSaving}
+                                            onClick={async () => {
+                                              if (!novaConnectEditingContent.trim()) return;
+                                              setNovaConnectEditSaving(true);
+                                              try {
+                                                const res = await fetch("/api/nova-connect/messages", {
+                                                  method: "PATCH",
+                                                  headers: { "Content-Type": "application/json" },
+                                                  body: JSON.stringify({ id: m.id, content: novaConnectEditingContent.trim() }),
+                                                });
+                                                const data = await res.json();
+                                                if (data.success) {
+                                                  setNovaConnectEditingId(null);
+                                                  setNovaConnectEditingContent("");
+                                                  await loadNovaConnectCommunity();
+                                                } else alert(data.error ?? "Failed to save.");
+                                              } catch {
+                                                alert("Failed to save.");
+                                              } finally {
+                                                setNovaConnectEditSaving(false);
+                                              }
+                                            }}
+                                            className="text-xs px-2 py-1 rounded bg-emerald-500 text-white disabled:opacity-50"
+                                          >
+                                            {novaConnectEditSaving ? "Saving…" : "Save"}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setNovaConnectEditingId(null);
+                                              setNovaConnectEditingContent("");
+                                            }}
+                                            className="text-xs px-2 py-1 rounded border border-zinc-400 text-zinc-700 dark:text-zinc-300"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        {m.content && <p className="text-xs text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">{m.content}</p>}
+                                        {m.imageUrl && (
+                                          <a
+                                            href={m.imageUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block mt-1 text-[11px] text-emerald-700 dark:text-emerald-300 underline underline-offset-2"
+                                          >
+                                            View screenshot
+                                          </a>
+                                        )}
+                                      </>
+                                    )}
                                   </div>
-                                  {m.content && <p className="text-xs text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">{m.content}</p>}
-                                  {m.imageUrl && (
-                                    <a
-                                      href={m.imageUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="block mt-1 text-[11px] text-emerald-700 dark:text-emerald-300 underline underline-offset-2"
-                                    >
-                                      View screenshot
-                                    </a>
-                                  )}
-                                </div>
-                              ))
+                                );
+                              })
                           )}
                         </div>
                       </div>
@@ -3410,7 +3512,10 @@ export default function Dashboard() {
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
                         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Members &amp; private chat</h3>
                         <p className="text-xs text-muted-foreground">
-                          Click a trader to open a private chat. Use the Account page to change your preferred name or profile picture.
+                          Click a trader to open a private chat.
+                          {novaConnectHasCustomDisplayName
+                            ? " Use the Account page to change your profile picture."
+                            : " Use the Account page to change your preferred name or profile picture."}
                         </p>
                         <Button asChild size="sm" variant="outline" className="text-xs">
                           <Link href="/account">Go to Account (profile &amp; preferred name)</Link>
@@ -3418,7 +3523,7 @@ export default function Dashboard() {
                       </div>
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-2">
                         <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Online traders</h4>
-                        {!isPaid ? (
+                        {!isPaid && !isOwner ? (
                           <div
                             className="relative flex flex-col items-center justify-center min-h-[140px] rounded-md bg-zinc-200/80 dark:bg-zinc-800/80 overflow-hidden"
                             role="button"

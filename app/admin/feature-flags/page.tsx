@@ -38,7 +38,7 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   },
   nova_connect: {
     label: "NovaConnect (social portal)",
-    description: "Enable the Nova Connect tab (social feed + community rules). When OFF, the Nova Connect tab is hidden for all users.",
+    description: "Enable the NovaConnect tab (social feed + community rules). When OFF, the NovaConnect tab is hidden for all users.",
   },
 };
 

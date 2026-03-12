@@ -8,7 +8,7 @@ import { getActiveSubscription, getSubscriptionTier, type Tier } from '@/lib/sub
 
 declare module 'next-auth' {
   interface Session {
-    user: { id: string; email?: string | null; name?: string | null; image?: string | null; walletAddress?: string | null; isPaid: boolean; isOwner?: boolean; tier?: Tier | null; tradingBotOnDemand?: boolean };
+    user: { id: string; email?: string | null; name?: string | null; image?: string | null; walletAddress?: string | null; isPaid: boolean; isOwner?: boolean; tier?: Tier | null; tradingBotOnDemand?: boolean; novaConnectCommunityRep?: boolean };
   }
 }
 
@@ -67,7 +67,8 @@ export const authOptions: NextAuthOptions = {
         const isPaid = await getActiveSubscription(user.id);
         const tier = await getSubscriptionTier(user.id);
         const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
-        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier, tradingBotOnDemand };
+        const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
+        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier, tradingBotOnDemand, novaConnectCommunityRep };
       },
     }),
     CredentialsProvider({
@@ -99,7 +100,8 @@ export const authOptions: NextAuthOptions = {
         const isPaid = await getActiveSubscription(user.id);
         const tier = await getSubscriptionTier(user.id);
         const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
-        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, tradingBotOnDemand };
+        const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
+        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, tradingBotOnDemand, novaConnectCommunityRep };
       },
     }),
   ],
@@ -137,6 +139,7 @@ export const authOptions: NextAuthOptions = {
         session.user.isOwner = owner;
         session.user.tier = tier;
         session.user.tradingBotOnDemand = tradingBotOnDemand;
+        session.user.novaConnectCommunityRep = (token.novaConnectCommunityRep as boolean) ?? false;
       }
       return session;
     },
