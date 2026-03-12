@@ -99,6 +99,8 @@ model User {
   novaConnectAvatarUrl   String?
   /** Presence preference: online | away | busy | offline (used with last-seen). */
   novaConnectStatus      String   @default("online")
+  /** When user first accepted NovaConnect rules (for admin visibility). */
+  novaConnectRulesAcceptedAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]

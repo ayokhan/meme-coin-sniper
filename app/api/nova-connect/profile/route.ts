@@ -23,6 +23,7 @@ export async function GET() {
         novaConnectDisplayName: true,
         novaConnectAvatarUrl: true,
         novaConnectStatus: true,
+        novaConnectRulesAcceptedAt: true,
       },
     });
     if (!user) {
@@ -38,6 +39,8 @@ export async function GET() {
         status: user.novaConnectStatus,
         optIn: user.novaConnectOptIn,
         enabled: user.novaConnectEnabled,
+        rulesAccepted: !!user.novaConnectRulesAcceptedAt,
+        rulesAcceptedAt: user.novaConnectRulesAcceptedAt ?? null,
       },
     });
   } catch (e) {
@@ -63,6 +66,7 @@ export async function PATCH(request: Request) {
       novaConnectAvatarUrl?: string | null;
       novaConnectStatus?: string;
       novaConnectOptIn?: boolean;
+      novaConnectRulesAcceptedAt?: Date | null;
     } = {};
     if (typeof body.displayName === 'string') {
       const trimmed = body.displayName.trim();
@@ -81,6 +85,9 @@ export async function PATCH(request: Request) {
     if (typeof body.optIn === 'boolean') {
       updates.novaConnectOptIn = body.optIn;
     }
+    if (body.rulesAccepted === true) {
+      updates.novaConnectRulesAcceptedAt = new Date();
+    }
     if (!Object.keys(updates).length) {
       return NextResponse.json({ success: false, error: 'No valid fields provided.' }, { status: 400 });
     }
@@ -97,6 +104,7 @@ export async function PATCH(request: Request) {
         novaConnectDisplayName: true,
         novaConnectAvatarUrl: true,
         novaConnectStatus: true,
+        novaConnectRulesAcceptedAt: true,
       },
     });
     return NextResponse.json({
@@ -108,6 +116,8 @@ export async function PATCH(request: Request) {
         status: updated.novaConnectStatus,
         optIn: updated.novaConnectOptIn,
         enabled: updated.novaConnectEnabled,
+        rulesAccepted: !!updated.novaConnectRulesAcceptedAt,
+        rulesAcceptedAt: updated.novaConnectRulesAcceptedAt ?? null,
       },
     });
   } catch (e) {

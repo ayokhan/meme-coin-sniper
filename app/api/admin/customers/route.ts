@@ -38,6 +38,7 @@ export async function GET() {
         tradingBotOnDemand: !!(u as { tradingBotOnDemand?: boolean }).tradingBotOnDemand,
         newsletterOptIn: !!(u as { newsletterOptIn?: boolean }).newsletterOptIn,
         novaConnectEnabled: !!(u as { novaConnectEnabled?: boolean }).novaConnectEnabled,
+        novaConnectRulesAcceptedAt: (u as { novaConnectRulesAcceptedAt?: Date | null }).novaConnectRulesAcceptedAt ?? null,
         createdAt: u.createdAt,
         subscriptionTier: subTier,
         subscriptionPlan: subPlan,

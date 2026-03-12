@@ -16,6 +16,7 @@ type Customer = {
   tradingBotOnDemand: boolean;
   newsletterOptIn: boolean;
   novaConnectEnabled: boolean;
+  novaConnectRulesAcceptedAt: string | null;
   createdAt: string;
   subscriptionTier: string | null;
   subscriptionPlan: string | null;
@@ -293,14 +294,23 @@ export default function AdminCustomersPage() {
                           )}
                         </td>
                         <td className="py-2 pr-4">
-                          <button
-                            type="button"
-                            onClick={() => handleNovaConnectToggle(c.id, !c.novaConnectEnabled)}
-                            disabled={togglingNovaConnectId === c.id}
-                            className={`text-xs font-medium px-2 py-1 rounded ${c.novaConnectEnabled ? "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
-                          >
-                            {togglingNovaConnectId === c.id ? "…" : c.novaConnectEnabled ? "On" : "Off"}
-                          </button>
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleNovaConnectToggle(c.id, !c.novaConnectEnabled)}
+                              disabled={togglingNovaConnectId === c.id}
+                              className={`text-xs font-medium px-2 py-1 rounded ${c.novaConnectEnabled ? "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                            >
+                              {togglingNovaConnectId === c.id ? "…" : c.novaConnectEnabled ? "On" : "Off"}
+                            </button>
+                            <span className="text-[10px] text-muted-foreground">
+                              {c.novaConnectEnabled
+                                ? c.novaConnectRulesAcceptedAt
+                                  ? `Rules accepted ${new Date(c.novaConnectRulesAcceptedAt).toLocaleDateString()}`
+                                  : "Rules not accepted yet"
+                                : "Disabled"}
+                            </span>
+                          </div>
                         </td>
                         <td className="py-2">
                           <div className="flex flex-col gap-1">

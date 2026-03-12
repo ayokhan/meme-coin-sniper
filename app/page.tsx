@@ -178,6 +178,33 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [status, isOwner]);
 
+  // Load NovaConnect rules acceptance from localStorage and profile when needed
+  useEffect(() => {
+    // Local preference (per device)
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem("novaConnectRulesAccepted");
+      if (stored === "1") setNovaConnectRulesAccepted(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "nova-connect") return;
+    if (status !== "authenticated") return;
+    // Fetch profile to know if rules were accepted on this account
+    fetch("/api/nova-connect/profile")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.success || !d.profile) return;
+        if (d.profile.rulesAccepted) {
+          setNovaConnectRulesAccepted(true);
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem("novaConnectRulesAccepted", "1");
+          }
+        }
+      })
+      .catch(() => {});
+  }, [activeTab, status]);
+
   // Load first-buy alert flag on mount for owner so toggle shows correct state when navigating back
   useEffect(() => {
     if (status !== "authenticated" || !isOwner) return;
@@ -3061,12 +3088,20 @@ export default function Dashboard() {
                           type="checkbox"
                           className="rounded border-emerald-400"
                           checked={novaConnectRulesAccepted}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNovaConnectRulesAccepted(true);
-                              if (typeof window !== "undefined") {
-                                window.localStorage.setItem("novaConnectRulesAccepted", "1");
-                              }
+                          onChange={async (e) => {
+                            if (!e.target.checked) return;
+                            setNovaConnectRulesAccepted(true);
+                            if (typeof window !== "undefined") {
+                              window.localStorage.setItem("novaConnectRulesAccepted", "1");
+                            }
+                            try {
+                              await fetch("/api/nova-connect/profile", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ rulesAccepted: true }),
+                              });
+                            } catch {
+                              // ignore; UI is still optimistic
                             }
                           }}
                         />
