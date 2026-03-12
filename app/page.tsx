@@ -205,6 +205,53 @@ export default function Dashboard() {
       .catch(() => {});
   }, [activeTab, status]);
 
+  // NovaConnect helpers
+  const loadNovaConnectUsers = async () => {
+    try {
+      const res = await fetch("/api/nova-connect/users");
+      const data = await res.json();
+      if (data.success) {
+        setNovaConnectUsers(data.users ?? []);
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  const loadNovaConnectCommunity = async () => {
+    setNovaConnectLoading(true);
+    setNovaConnectError(null);
+    try {
+      const res = await fetch("/api/nova-connect/messages?scope=community");
+      const data = await res.json();
+      if (data.success) {
+        setNovaConnectMessages(data.messages ?? []);
+      } else {
+        setNovaConnectError(data.error ?? "Failed to load NovaConnect feed.");
+      }
+    } catch {
+      setNovaConnectError("Failed to load NovaConnect feed.");
+    } finally {
+      setNovaConnectLoading(false);
+    }
+  };
+
+  const loadNovaConnectDm = async (userId: string) => {
+    setNovaConnectDmMessages([]);
+    setNovaConnectDmInput("");
+    try {
+      const res = await fetch(`/api/nova-connect/messages?scope=dm&userId=${encodeURIComponent(userId)}`);
+      const data = await res.json();
+      if (data.success) {
+        setNovaConnectDmMessages(data.messages ?? []);
+      } else {
+        setNovaConnectError(data.error ?? "Failed to load private chat.");
+      }
+    } catch {
+      setNovaConnectError("Failed to load private chat.");
+    }
+  };
+
   // Load first-buy alert flag on mount for owner so toggle shows correct state when navigating back
   useEffect(() => {
     if (status !== "authenticated" || !isOwner) return;
@@ -409,6 +456,31 @@ export default function Dashboard() {
   const [novaConnectRulesAccepted, setNovaConnectRulesAccepted] = useState(false);
   const novaConnectRulesRef = useRef<HTMLDivElement | null>(null);
   const novaConnectPrivacyRef = useRef<HTMLDivElement | null>(null);
+  // NovaConnect UI state
+  const [novaConnectMessages, setNovaConnectMessages] = useState<
+    { id: string; fromUserId: string; fromDisplayName: string; content: string; imageUrl?: string | null; createdAt: string }[]
+  >([]);
+  const [novaConnectUsers, setNovaConnectUsers] = useState<
+    { id: string; displayName: string; avatarUrl?: string | null; status: string; me: boolean }[]
+  >([]);
+  const [novaConnectCommunityInput, setNovaConnectCommunityInput] = useState("");
+  const [novaConnectCommunityImageUrl, setNovaConnectCommunityImageUrl] = useState("");
+  const [novaConnectLoading, setNovaConnectLoading] = useState(false);
+  const [novaConnectError, setNovaConnectError] = useState<string | null>(null);
+  const [novaConnectSending, setNovaConnectSending] = useState(false);
+  const [novaConnectDmUserId, setNovaConnectDmUserId] = useState<string | null>(null);
+  const [novaConnectDmMessages, setNovaConnectDmMessages] = useState<
+    { id: string; fromUserId: string; toUserId: string | null; fromDisplayName: string; content: string; createdAt: string }[]
+  >([]);
+  const [novaConnectDmInput, setNovaConnectDmInput] = useState("");
+  const [novaConnectDmSending, setNovaConnectDmSending] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== "nova-connect") return;
+    if (!novaConnectRulesAccepted) return;
+    loadNovaConnectUsers();
+    loadNovaConnectCommunity();
+  }, [activeTab, novaConnectRulesAccepted]);
 
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (tab === "ai-analysis") {
@@ -3059,12 +3131,12 @@ export default function Dashboard() {
                 )}
               </div>
             ) : activeTab === "nova-connect" ? (
-              <div className="mx-6 py-8 max-w-3xl space-y-6">
+              <div className="mx-6 py-8 max-w-5xl space-y-6">
                 <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
                   Nova Connect — trader social portal
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  NovaConnect is the first NovaStaris social layer for crypto traders. Before you get started, please read and accept the community rules and presence/privacy notes.
+                  NovaConnect is the first NovaStaris social layer for crypto traders. Nova Connect — connecting great minds. Before you get started, please read and accept the community rules and presence/privacy notes.
                 </p>
                 {!novaConnectRulesAccepted && (
                   <div className="rounded-xl border border-emerald-300/80 dark:border-emerald-700/80 bg-emerald-50/80 dark:bg-emerald-950/40 p-4 space-y-3">
@@ -3129,47 +3201,304 @@ export default function Dashboard() {
                     View presence &amp; privacy
                   </button>
                 </div>
-                <div ref={novaConnectRulesRef} className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-4 space-y-2">
-                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Community rules</h3>
-                    <ul className="text-xs text-zinc-700 dark:text-zinc-300 list-disc list-inside space-y-1">
-                      <li>No insults, racism, hate speech, or harassment.</li>
-                      <li>No spam, scams, or fake PnL screenshots.</li>
-                      <li>No sharing private information without consent.</li>
-                      <li>Respect other traders — disagree with ideas, not people.</li>
-                      <li>Admins can mute, remove messages, or remove users from NovaConnect if rules are broken.</li>
-                    </ul>
+                {novaConnectRulesAccepted && (
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)]">
+                    {/* Community feed + composer */}
+                    <div className="space-y-3">
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
+                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Community feed</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Share charts, screenshots, and notes. Messaging is free to view for all users; only paid members (Pro/VIP) can post or send messages.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-3 min-h-[220px]">
+                        <div className="space-y-2">
+                          <textarea
+                            value={novaConnectCommunityInput}
+                            onChange={(e) => setNovaConnectCommunityInput(e.target.value)}
+                            placeholder={isPaid ? "Share a chart idea, setup, or note…" : "Upgrade to Pro or VIP to post in NovaConnect."}
+                            rows={3}
+                            className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            disabled={!isPaid}
+                          />
+                          <div className="flex flex-wrap items-center gap-2">
+                            <input
+                              type="text"
+                              value={novaConnectCommunityImageUrl}
+                              onChange={(e) => setNovaConnectCommunityImageUrl(e.target.value)}
+                              placeholder="Optional image URL (chart screenshot)"
+                              className="flex-1 min-w-[180px] rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              disabled={!isPaid}
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={async () => {
+                                if (!isPaid || !novaConnectRulesAccepted) return;
+                                const text = novaConnectCommunityInput.trim();
+                                const img = novaConnectCommunityImageUrl.trim();
+                                if (!text && !img) return;
+                                setNovaConnectSending(true);
+                                try {
+                                  const res = await fetch("/api/nova-connect/messages", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ scope: "community", content: text, imageUrl: img || undefined }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    setNovaConnectCommunityInput("");
+                                    setNovaConnectCommunityImageUrl("");
+                                    await loadNovaConnectCommunity();
+                                  } else {
+                                    alert(data.error ?? "Failed to post.");
+                                  }
+                                } catch {
+                                  alert("Failed to post.");
+                                } finally {
+                                  setNovaConnectSending(false);
+                                }
+                              }}
+                              disabled={!isPaid || novaConnectSending}
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700"
+                            >
+                              {novaConnectSending ? "Posting…" : "Post"}
+                            </Button>
+                          </div>
+                          {!isPaid && (
+                            <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                              Free users can read community posts. Upgrade to Pro or VIP to post and send messages.
+                            </p>
+                          )}
+                        </div>
+                        <div className="border-t border-zinc-200 dark:border-zinc-700 pt-3 space-y-2 max-h-[320px] overflow-y-auto">
+                          {novaConnectLoading ? (
+                            <p className="text-xs text-muted-foreground">Loading feed…</p>
+                          ) : novaConnectError ? (
+                            <p className="text-xs text-rose-600 dark:text-rose-400">{novaConnectError}</p>
+                          ) : novaConnectMessages.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No posts yet. Be the first to share a setup.</p>
+                          ) : (
+                            novaConnectMessages
+                              .slice()
+                              .reverse()
+                              .map((m) => (
+                                <div key={m.id} className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-900/70 p-2.5 space-y-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">{m.fromDisplayName}</span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {new Date(m.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+                                    </span>
+                                  </div>
+                                  {m.content && <p className="text-xs text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">{m.content}</p>}
+                                  {m.imageUrl && (
+                                    <a
+                                      href={m.imageUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block mt-1 text-[11px] text-emerald-700 dark:text-emerald-300 underline underline-offset-2"
+                                    >
+                                      View screenshot
+                                    </a>
+                                  )}
+                                </div>
+                              ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Members / DMs / profile link */}
+                    <div className="space-y-3">
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
+                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Members &amp; private chat</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Click a trader to open a private chat. Use the Account page to change your NovaConnect display name or profile picture.
+                        </p>
+                        <Button asChild size="sm" variant="outline" className="text-xs">
+                          <Link href="/account">Go to Account (profile &amp; nickname)</Link>
+                        </Button>
+                      </div>
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-2">
+                        <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Online traders</h4>
+                        {novaConnectUsers.length === 0 ? (
+                          <p className="text-[11px] text-muted-foreground">No NovaConnect members yet.</p>
+                        ) : (
+                          <ul className="space-y-1 max-h-[180px] overflow-y-auto">
+                            {novaConnectUsers.map((u) => (
+                              <li key={u.id} className="flex items-center justify-between gap-2 text-xs">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setNovaConnectDmUserId(u.id);
+                                    loadNovaConnectDm(u.id);
+                                  }}
+                                  className="flex-1 flex items-center gap-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded px-1 py-0.5"
+                                >
+                                  <span
+                                    className={`inline-block h-2 w-2 rounded-full ${
+                                      u.status === "online"
+                                        ? "bg-emerald-500"
+                                        : u.status === "away"
+                                        ? "bg-amber-500"
+                                        : u.status === "busy"
+                                        ? "bg-rose-500"
+                                        : "bg-zinc-500"
+                                    }`}
+                                  />
+                                  <span className="truncate">{u.displayName}{u.me ? " (you)" : ""}</span>
+                                </button>
+                                {!u.me && (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      className="text-[10px] text-zinc-600 dark:text-zinc-300 underline"
+                                      onClick={async () => {
+                                        const reason = window.prompt("Reason for report (required):")?.trim();
+                                        if (!reason) return;
+                                        try {
+                                          const res = await fetch("/api/nova-connect/report", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ reportedUserId: u.id, reason }),
+                                          });
+                                          const data = await res.json();
+                                          if (!data.success) alert(data.error ?? "Failed to report user.");
+                                        } catch {
+                                          alert("Failed to report user.");
+                                        }
+                                      }}
+                                    >
+                                      Report
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="text-[10px] text-zinc-600 dark:text-zinc-300 underline"
+                                      onClick={async () => {
+                                        const confirmBlock = window.confirm(`Block ${u.displayName}? You will not receive messages from this user.`);
+                                        if (!confirmBlock) return;
+                                        try {
+                                          const res = await fetch("/api/nova-connect/block", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ blockedUserId: u.id }),
+                                          });
+                                          const data = await res.json();
+                                          if (!data.success) alert(data.error ?? "Failed to block user.");
+                                        } catch {
+                                          alert("Failed to block user.");
+                                        }
+                                      }}
+                                    >
+                                      Block
+                                    </button>
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      {novaConnectDmUserId && (
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                              Private chat
+                            </h4>
+                            <button
+                              type="button"
+                              className="text-[10px] text-muted-foreground underline"
+                              onClick={() => {
+                                setNovaConnectDmUserId(null);
+                                setNovaConnectDmMessages([]);
+                                setNovaConnectDmInput("");
+                              }}
+                            >
+                              Close
+                            </button>
+                          </div>
+                          <div className="border border-zinc-200 dark:border-zinc-700 rounded-md p-2 max-h-44 overflow-y-auto space-y-1.5">
+                            {novaConnectDmMessages.length === 0 ? (
+                              <p className="text-[11px] text-muted-foreground">No messages yet.</p>
+                            ) : (
+                              novaConnectDmMessages.map((m) => (
+                                <div key={m.id} className="text-[11px]">
+                                  <span className="font-semibold">
+                                    {m.fromUserId === (session?.user as { id?: string })?.id ? "You" : m.fromDisplayName}
+                                  </span>
+                                  {": "}
+                                  <span>{m.content}</span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <input
+                              type="text"
+                              value={novaConnectDmInput}
+                              onChange={(e) => setNovaConnectDmInput(e.target.value)}
+                              placeholder={isPaid ? "Type a private message…" : "Upgrade to Pro or VIP to send messages."}
+                              className="flex-1 min-w-[140px] rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              disabled={!isPaid}
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={!isPaid || novaConnectDmSending}
+                              onClick={async () => {
+                                if (!novaConnectDmUserId || !isPaid || !novaConnectRulesAccepted) return;
+                                const text = novaConnectDmInput.trim();
+                                if (!text) return;
+                                setNovaConnectDmSending(true);
+                                try {
+                                  const res = await fetch("/api/nova-connect/messages", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ scope: "dm", toUserId: novaConnectDmUserId, content: text }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    setNovaConnectDmInput("");
+                                    await loadNovaConnectDm(novaConnectDmUserId);
+                                  } else {
+                                    alert(data.error ?? "Failed to send message.");
+                                  }
+                                } catch {
+                                  alert("Failed to send message.");
+                                } finally {
+                                  setNovaConnectDmSending(false);
+                                }
+                              }}
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700"
+                            >
+                              {novaConnectDmSending ? "Sending…" : "Send"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={novaConnectRulesRef} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
+                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Community rules (summary)</h3>
+                        <ul className="text-xs text-zinc-700 dark:text-zinc-300 list-disc list-inside space-y-1">
+                          <li>No insults, racism, hate speech, or harassment.</li>
+                          <li>No spam, scams, or fake PnL screenshots.</li>
+                          <li>No sharing private information without consent.</li>
+                          <li>Respect other traders — disagree with ideas, not people.</li>
+                          <li>Admins can mute, remove messages, or remove users from NovaConnect if rules are broken.</li>
+                        </ul>
+                      </div>
+                      <div ref={novaConnectPrivacyRef} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
+                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Presence &amp; privacy</h3>
+                        <p className="text-xs text-zinc-700 dark:text-zinc-300">
+                          Use the Account page to choose a display name or nickname, set a profile picture, and control your status (online, away, busy, offline).
+                          You can leave NovaConnect at any time without closing your NovaStaris account.
+                        </p>
+                        <p className="text-xs text-zinc-700 dark:text-zinc-300">
+                          Messaging is free to access, but only paid members (Pro/VIP) can send private or group messages. Free users can see community posts and announcements.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div ref={novaConnectPrivacyRef} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-4 space-y-3">
-                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Presence &amp; privacy</h3>
-                    <p className="text-xs text-zinc-700 dark:text-zinc-300">
-                      When NovaConnect launches fully, every registered user can opt in to be visible in the community. You&apos;ll be able to choose a display name or nickname, set a profile picture, and control your status (online, away, busy, offline). You can leave NovaConnect at any time without closing your NovaStaris account.
-                    </p>
-                    <p className="text-xs text-zinc-700 dark:text-zinc-300">
-                      Messaging will be <strong>free to access</strong> but only <strong>paid members</strong> (Pro/VIP) will be able to send private or group messages. Free users will be able to see community posts and announcements.
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-emerald-200/80 dark:border-emerald-700/80 bg-emerald-50/80 dark:bg-emerald-950/40 p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">What&apos;s coming next</h3>
-                  <ul className="text-xs text-emerald-900 dark:text-emerald-200 list-disc list-inside space-y-1">
-                    <li>NovaConnect feed — post charts, screenshots, and notes (like a focused trader Instagram).</li>
-                    <li>Nova Connect Community group chat — real-time group chat for NovaStaris members.</li>
-                    <li>Private 1:1 chat between traders (with admin tools to remove users and moderate messages).</li>
-                    <li>Owner-only feature flag (NovaConnect) so you can turn the social layer on/off anytime.</li>
-                  </ul>
-                  <p className="text-xs text-emerald-900 dark:text-emerald-200">
-                    For now, use the{" "}
-                    <button
-                      type="button"
-                      onClick={() => window.open("/chat", "_blank")}
-                      className="underline underline-offset-2 hover:no-underline font-medium"
-                    >
-                      Support &amp; Questions chat
-                    </button>{" "}
-                    for live help from the NovaStaris team. NovaConnect will live as a dedicated social tab separated from support.
-                  </p>
-                </div>
+                )}
               </div>
             ) : activeTab === "chris-clayton" ? (
               !isOwner ? (
