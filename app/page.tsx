@@ -3207,10 +3207,10 @@ export default function Dashboard() {
             ) : activeTab === "nova-connect" ? (
               <div className="mx-6 py-8 max-w-5xl space-y-6">
                 <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                  Nova Connect — connecting great minds.
+                  NovaConnect ... connecting great minds.
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  NovaConnect, the first social portal for crypto traders. Before you get started, please read and accept the community rules and presence/privacy notes.
+                  NovaConnect, the first social portal for crypto traders—together in one platform. Before you get started, please read and accept the community rules and presence/privacy notes.
                 </p>
                 {!novaConnectRulesAccepted && (
                   <div className="rounded-xl border border-emerald-300/80 dark:border-emerald-700/80 bg-emerald-50/80 dark:bg-emerald-950/40 p-4 space-y-3">

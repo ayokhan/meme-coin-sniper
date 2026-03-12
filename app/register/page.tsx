@@ -21,6 +21,8 @@ function RegisterForm() {
   const [experienceTradingCrypto, setExperienceTradingCrypto] = useState("");
   const [newsletterOptIn, setNewsletterOptIn] = useState(false);
   const [novaConnectOptIn, setNovaConnectOptIn] = useState(true);
+  const [acceptCommunityRules, setAcceptCommunityRules] = useState(false);
+  const [acceptPresencePrivacy, setAcceptPresencePrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -173,12 +175,39 @@ function RegisterForm() {
                 <Link href="/terms" className="underline hover:no-underline">Terms of Service</Link>
                 ,{" "}
                 <Link href="/privacy" className="underline hover:no-underline">Privacy Policy</Link>
-                , and NovaConnect{" "}
-                <Link href="/#nova-connect-rules" className="underline hover:no-underline">Community rules (summary)</Link>
-                {" "}and{" "}
-                <Link href="/#nova-connect-privacy" className="underline hover:no-underline">Presence &amp; privacy</Link>.
+                , and the following. You must read and accept before registering:
               </p>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <div className="space-y-2 pl-1">
+                <label className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={acceptCommunityRules}
+                    onChange={(e) => setAcceptCommunityRules(e.target.checked)}
+                    className="rounded border-zinc-300 dark:border-zinc-600 mt-0.5"
+                  />
+                  <span>
+                    I have read and accept the{" "}
+                    <Link href="/nova-connect-terms#rules" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
+                      Community rules (summary)
+                    </Link>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={acceptPresencePrivacy}
+                    onChange={(e) => setAcceptPresencePrivacy(e.target.checked)}
+                    className="rounded border-zinc-300 dark:border-zinc-600 mt-0.5"
+                  />
+                  <span>
+                    I have read and accept the{" "}
+                    <Link href="/nova-connect-terms#privacy" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
+                      Presence &amp; privacy
+                    </Link>
+                  </span>
+                </label>
+              </div>
+              <Button type="submit" className="w-full" disabled={loading || !acceptCommunityRules || !acceptPresencePrivacy}>
                 {loading ? "Creating account…" : "Register"}
               </Button>
             </form>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { put } from '@vercel/blob';
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
@@ -12,23 +12,25 @@ export async function POST(request: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Sign in required.' }, { status: 401 });
     }
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-    if (!file || !file.size) {
-      return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
-    }
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type. Use PNG, JPEG, WebP, or GIF.' }, { status: 400 });
-    }
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'File too large. Max 5 MB.' }, { status: 400 });
-    }
-    const blob = await put(`avatars/${session.user.id}-${Date.now()}-${file.name}`, file, {
-      access: 'public',
+    const body = (await request.json()) as HandleUploadBody;
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async (pathname) => {
+        return {
+          allowedContentTypes: ALLOWED_TYPES,
+          maximumSizeInBytes: MAX_SIZE,
+          addRandomSuffix: true,
+        };
+      },
+      onUploadCompleted: async () => {
+        // Optional: e.g. persist blob.url to user profile
+      },
     });
-    return NextResponse.json({ url: blob.url });
+    return NextResponse.json(jsonResponse);
   } catch (e) {
+    const message = e instanceof Error ? e.message : 'Upload failed.';
     console.error('Avatar upload error:', e);
-    return NextResponse.json({ error: 'Upload failed.' }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { upload } from "@vercel/blob/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, BarChart3, Sparkles, Bell } from "lucide-react";
@@ -276,17 +277,18 @@ export default function AccountPage() {
                       if (!file) return;
                       setAvatarUploading(true);
                       try {
-                        const form = new FormData();
-                        form.append("file", file);
-                        const res = await fetch("/api/upload/avatar", { method: "POST", body: form });
-                        const data = await res.json();
-                        if (data.url) {
-                          setAvatarUrl(data.url);
+                        const blob = await upload(file.name, file, {
+                          access: "public",
+                          handleUploadUrl: "/api/upload/avatar",
+                        });
+                        if (blob?.url) {
+                          setAvatarUrl(blob.url);
                         } else {
-                          alert(data.error ?? "Upload failed.");
+                          alert("Upload failed.");
                         }
-                      } catch {
-                        alert("Upload failed.");
+                      } catch (err) {
+                        const msg = err instanceof Error ? err.message : "Upload failed.";
+                        alert(msg);
                       } finally {
                         setAvatarUploading(false);
                         e.target.value = "";
