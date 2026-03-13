@@ -101,6 +101,37 @@ export default function Dashboard() {
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     if (params?.get("tab") === "nova-connect") setActiveTab("nova-connect");
   }, []);
+
+  // Helper to load / store which DM message IDs we've already shown as seen (per user)
+  const getDmSeenKey = () => {
+    const meId = (session?.user as { id?: string })?.id;
+    return meId ? `novaConnectDmSeen:${meId}` : null;
+  };
+
+  const markDmAsSeenForUser = (otherUserId: string) => {
+    const key = getDmSeenKey();
+    if (!key || typeof window === "undefined") return;
+    const preview = novaConnectDmPreviews.find((p) => p.otherUserId === otherUserId);
+    if (!preview) return;
+    let seen: Record<string, string> = {};
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) seen = JSON.parse(raw);
+    } catch {
+      // ignore
+    }
+    seen[otherUserId] = preview.lastMessageId;
+    try {
+      window.localStorage.setItem(key, JSON.stringify(seen));
+    } catch {
+      // ignore
+    }
+    setNovaConnectDmUnreadUserIds((prev) => prev.filter((id) => id !== otherUserId));
+    setNovaConnectHasUnreadDm((prev) => {
+      const remaining = novaConnectDmUnreadUserIds.filter((id) => id !== otherUserId);
+      return remaining.length > 0;
+    });
+  };
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
   const [ctTweets, setCtTweets] = useState<{ id: string; text: string; author: { username: string; followers: number }; created_at: string; metrics: { likes: number; retweets: number }; url: string }[]>([]);
   const [ctTweetsLoading, setCtTweetsLoading] = useState(false);
@@ -252,6 +283,8 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.success) {
         setNovaConnectDmMessages(data.messages ?? []);
+        // Mark DM as seen so alerts clear for this user
+        markDmAsSeenForUser(userId);
       } else {
         setNovaConnectError(data.error ?? "Failed to load private chat.");
       }
@@ -509,6 +542,11 @@ export default function Dashboard() {
   >([]);
   const [novaConnectDmInput, setNovaConnectDmInput] = useState("");
   const [novaConnectDmSending, setNovaConnectDmSending] = useState(false);
+  const [novaConnectDmPreviews, setNovaConnectDmPreviews] = useState<
+    { otherUserId: string; otherDisplayName: string; lastMessageId: string; lastFromUserId: string; lastContent: string; lastCreatedAt: string }[]
+  >([]);
+  const [novaConnectDmUnreadUserIds, setNovaConnectDmUnreadUserIds] = useState<string[]>([]);
+  const [novaConnectHasUnreadDm, setNovaConnectHasUnreadDm] = useState(false);
   const [novaConnectEditingId, setNovaConnectEditingId] = useState<string | null>(null);
   const [novaConnectEditingContent, setNovaConnectEditingContent] = useState("");
   const [novaConnectEditSaving, setNovaConnectEditSaving] = useState(false);
@@ -516,6 +554,7 @@ export default function Dashboard() {
   const [novaConnectReplyingToId, setNovaConnectReplyingToId] = useState<string | null>(null);
   const [novaConnectReplyContent, setNovaConnectReplyContent] = useState("");
   const [novaConnectReplySending, setNovaConnectReplySending] = useState(false);
+  const [novaConnectDmAlerts, setNovaConnectDmAlerts] = useState<Record<string, boolean>>({});
   const [novaConnectHasCustomDisplayName, setNovaConnectHasCustomDisplayName] = useState<boolean | null>(null);
   const [novaConnectNicknamePromptDismissed, setNovaConnectNicknamePromptDismissed] = useState(() =>
     typeof window !== "undefined" ? window.localStorage.getItem("novaConnectNicknamePromptDismissed") === "1" : false
@@ -558,6 +597,83 @@ export default function Dashboard() {
     const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
   }, [novaConnectDmUserId, status, session?.user]);
+
+  // Poll DM previews so users see alerts when someone has messaged them, even if they haven't opened that DM yet
+  useEffect(() => {
+    if (activeTab !== "nova-connect" || status !== "authenticated" || !canUseNovaConnectPaidFeatures) return;
+    const meId = (session?.user as { id?: string })?.id;
+    if (!meId) return;
+    if (typeof window === "undefined") return;
+    const key = getDmSeenKey();
+    const loadSeen = (): Record<string, string> => {
+      if (!key) return {};
+      try {
+        const raw = window.localStorage.getItem(key);
+        if (!raw) return {};
+        return JSON.parse(raw) as Record<string, string>;
+      } catch {
+        return {};
+      }
+    };
+    const applyPreviews = (previews: { otherUserId: string; lastMessageId: string; lastFromUserId: string; lastCreatedAt: string }[]) => {
+      const seen = loadSeen();
+      const unreadUserIds: string[] = [];
+      for (const p of previews) {
+        const seenId = seen[p.otherUserId];
+        if (p.lastFromUserId !== meId && (!seenId || seenId !== p.lastMessageId)) {
+          unreadUserIds.push(p.otherUserId);
+        }
+      }
+      setNovaConnectDmUnreadUserIds(unreadUserIds);
+      setNovaConnectHasUnreadDm(unreadUserIds.length > 0);
+    };
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/nova-connect/messages?scope=dm-preview");
+        const data = await res.json();
+        if (!data.success || !Array.isArray(data.previews)) return;
+        const previews = (data.previews as any[]).map((p) => ({
+          otherUserId: p.otherUserId as string,
+          otherDisplayName: p.otherDisplayName as string,
+          lastMessageId: p.lastMessageId as string,
+          lastFromUserId: p.lastFromUserId as string,
+          lastContent: p.lastContent as string,
+          lastCreatedAt: (p.lastCreatedAt as string) ?? new Date().toISOString(),
+        }));
+        setNovaConnectDmPreviews(previews);
+        applyPreviews(previews);
+      } catch {
+        // ignore
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 8000);
+    return () => clearInterval(interval);
+  }, [activeTab, status, canUseNovaConnectPaidFeatures, session?.user]);
+
+  // Poll DM previews so we can show a subtle "new message" badge next to traders in the list
+  useEffect(() => {
+    if (activeTab !== "nova-connect" || !novaConnectRulesAccepted || !canUseNovaConnectPaidFeatures || status !== "authenticated") return;
+    const meId = (session?.user as { id?: string })?.id;
+    if (!meId) return;
+    const pollPreviews = async () => {
+      try {
+        const res = await fetch("/api/nova-connect/messages?scope=dm-preview");
+        const data = await res.json();
+        if (!data.success || !Array.isArray(data.previews)) return;
+        const alerts: Record<string, boolean> = {};
+        for (const p of data.previews as { otherUserId: string; lastFromUserId: string }[]) {
+          alerts[p.otherUserId] = p.lastFromUserId !== meId;
+        }
+        setNovaConnectDmAlerts(alerts);
+      } catch {
+        // ignore
+      }
+    };
+    pollPreviews();
+    const interval = setInterval(pollPreviews, 15000);
+    return () => clearInterval(interval);
+  }, [activeTab, novaConnectRulesAccepted, canUseNovaConnectPaidFeatures, status, session?.user]);
 
   useEffect(() => {
     if (activeTab !== "nova-connect") return;
@@ -1929,7 +2045,15 @@ export default function Dashboard() {
                 <TabsTrigger value="bsc" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
                 <TabsTrigger value="watchlist" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Watchlist {watchlist.length > 0 ? `(${watchlist.length})` : ""}</TabsTrigger>
                 {novaConnectEnabled && (
-                  <TabsTrigger value="nova-connect" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600">NovaConnect</TabsTrigger>
+                  <TabsTrigger
+                    value="nova-connect"
+                    className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600 flex items-center gap-1"
+                  >
+                    <span>NovaConnect</span>
+                    {novaConnectHasUnreadDm && (
+                      <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 dark:bg-emerald-300" aria-hidden />
+                    )}
+                  </TabsTrigger>
                 )}
                 {isOwner && (
                   <TabsTrigger value="chris-clayton" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">Online Boss Strategy</TabsTrigger>
@@ -3664,6 +3788,12 @@ export default function Dashboard() {
                                   type="button"
                                   onClick={() => {
                                     setNovaConnectDmUserId(u.id);
+                                    markDmAsSeenForUser(u.id);
+                                    setNovaConnectDmAlerts((prev) => {
+                                      const copy = { ...prev };
+                                      delete copy[u.id];
+                                      return copy;
+                                    });
                                     loadNovaConnectDm(u.id);
                                   }}
                                   className="flex-1 flex items-center gap-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded px-1 py-0.5"
@@ -3693,7 +3823,15 @@ export default function Dashboard() {
                                       </span>
                                     )}
                                   </span>
-                                  <span className="truncate">{u.displayName}{u.me ? " (you)" : ""}</span>
+                                  <span className="truncate flex items-center gap-1">
+                                    {u.displayName}
+                                    {u.me ? " (you)" : ""}
+                                    {novaConnectDmAlerts[u.id] && !u.me && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-[9px] font-semibold text-emerald-700 dark:text-emerald-200">
+                                        New
+                                      </span>
+                                    )}
+                                  </span>
                                 </button>
                                 {!u.me && (
                                   <div className="flex items-center gap-1">

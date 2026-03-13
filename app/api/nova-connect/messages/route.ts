@@ -18,6 +18,58 @@ export async function GET(request: Request) {
     const take = Math.min(PAGE_LIMIT, Math.max(1, parseInt(searchParams.get('limit') ?? '50', 10) || 50));
 
     const userId = (session.user as { id: string }).id;
+
+    // Preview: latest DM per conversation partner so we can show alerts when someone has a new message
+    if (scope === 'dm-preview') {
+      const db = prisma as any;
+      const messages: any[] = await db.novaConnectMessage.findMany({
+        where: {
+          roomType: 'dm',
+          deletedAt: null,
+          OR: [
+            { fromUserId: userId },
+            { toUserId: userId },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        take,
+        include: {
+          fromUser: { select: { id: true, name: true, email: true, novaConnectDisplayName: true } },
+          toUser: { select: { id: true, name: true, email: true, novaConnectDisplayName: true } },
+        },
+      });
+      const previewsByOther = new Map<string, any>();
+      for (const m of messages) {
+        const other =
+          m.fromUserId === userId
+            ? m.toUser
+            : m.fromUser;
+        if (!other?.id) continue;
+        if (previewsByOther.has(other.id)) continue; // already have latest for this user
+        previewsByOther.set(other.id, m);
+      }
+      const previews = Array.from(previewsByOther.values()).map((m) => {
+        const other =
+          m.fromUserId === userId
+            ? m.toUser
+            : m.fromUser;
+        const otherDisplayName =
+          other?.novaConnectDisplayName ||
+          other?.name ||
+          (other?.email ? other.email.split('@')[0] : null) ||
+          'Trader';
+        return {
+          otherUserId: other.id as string,
+          otherDisplayName,
+          lastMessageId: m.id as string,
+          lastFromUserId: m.fromUserId as string,
+          lastContent: m.content as string,
+          lastCreatedAt: m.createdAt as Date,
+        };
+      });
+      return NextResponse.json({ success: true, previews });
+    }
+
     if (scope === 'dm') {
       if (!otherUserId) {
         return NextResponse.json({ success: false, error: 'userId required for dm scope.' }, { status: 400 });
