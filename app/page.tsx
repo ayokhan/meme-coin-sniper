@@ -1938,7 +1938,7 @@ export default function Dashboard() {
             </Tabs>
           </CardHeader>
           <CardContent className="p-0">
-            {((VIP_ONLY_TABS.includes(activeTab) && !isVip) || (PAID_TABS.includes(activeTab) && !isPaid)) ? (
+            {((VIP_ONLY_TABS.includes(activeTab) && !isVip) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid))) ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
                   {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "VIP required" : "Subscribe for access"}
@@ -1956,7 +1956,7 @@ export default function Dashboard() {
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
                   {activeTab === "nova-connect" && "NovaConnect: the first social platform for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}
                   {" "}
-                  {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP to use this feature." : "Upgrade to Pro or VIP to use this feature."}
+                  {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP to use this feature." : activeTab === "nova-connect" ? "Upgrade to Pro or VIP, or ask an admin to allow NovaConnect for you." : "Upgrade to Pro or VIP to use this feature."}
                 </p>
                 <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
                   <Link href="/subscribe">{VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP" : "Subscribe to Pro"}</Link>
