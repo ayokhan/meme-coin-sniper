@@ -37,6 +37,7 @@ export default function AdminCustomersPage() {
   const [togglingNewsletterId, setTogglingNewsletterId] = useState<string | null>(null);
   const [togglingNovaConnectId, setTogglingNovaConnectId] = useState<string | null>(null);
   const [togglingCommunityRepId, setTogglingCommunityRepId] = useState<string | null>(null);
+  const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
 
   const loadCustomers = () => {
     fetch("/api/admin/customers")
@@ -163,6 +164,28 @@ export default function AdminCustomersPage() {
     }
   };
 
+  const handleAcceptRules = async (id: string, value: boolean) => {
+    setAcceptingRulesId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rulesAccepted: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Rules accepted for customer (NovaConnect ready)." : "Rules acceptance cleared.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setAcceptingRulesId(null);
+    }
+  };
+
   const handleSetSubscription = async (id: string, action: "pro" | "vip" | "clear") => {
     setUpdatingId(id);
     setError("");
@@ -268,6 +291,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Trading Bot (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Email digest</th>
                       <th className="pb-2 pr-4 font-semibold">NovaConnect</th>
+                      <th className="pb-2 pr-4 font-semibold">Rules accepted</th>
                       <th className="pb-2 pr-4 font-semibold">Community rep</th>
                       <th className="pb-2 font-semibold">Actions</th>
                     </tr>
@@ -319,22 +343,36 @@ export default function AdminCustomersPage() {
                           )}
                         </td>
                         <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => handleNovaConnectToggle(c.id, !c.novaConnectEnabled)}
+                            disabled={togglingNovaConnectId === c.id}
+                            className={`text-xs font-medium px-2 py-1 rounded ${c.novaConnectEnabled ? "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                            title="Enable or disable NovaConnect for this user"
+                          >
+                            {togglingNovaConnectId === c.id ? "…" : c.novaConnectEnabled ? "On" : "Off"}
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4">
                           <div className="flex flex-col gap-0.5">
-                            <button
-                              type="button"
-                              onClick={() => handleNovaConnectToggle(c.id, !c.novaConnectEnabled)}
-                              disabled={togglingNovaConnectId === c.id}
-                              className={`text-xs font-medium px-2 py-1 rounded ${c.novaConnectEnabled ? "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
-                            >
-                              {togglingNovaConnectId === c.id ? "…" : c.novaConnectEnabled ? "On" : "Off"}
-                            </button>
-                            <span className="text-[10px] text-muted-foreground">
-                              {c.novaConnectEnabled
-                                ? c.novaConnectRulesAcceptedAt
-                                  ? `Rules accepted ${new Date(c.novaConnectRulesAcceptedAt).toLocaleDateString()}`
-                                  : "Rules not accepted yet"
-                                : "Disabled"}
-                            </span>
+                            {c.novaConnectRulesAcceptedAt ? (
+                              <span className="text-xs text-emerald-700 dark:text-emerald-300">
+                                Yes · {new Date(c.novaConnectRulesAcceptedAt).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-zinc-500">No</span>
+                            )}
+                            {!c.novaConnectRulesAcceptedAt && (
+                              <button
+                                type="button"
+                                onClick={() => handleAcceptRules(c.id, true)}
+                                disabled={acceptingRulesId === c.id}
+                                className="text-[10px] text-cyan-600 dark:text-cyan-400 hover:underline disabled:opacity-50 text-left"
+                                title="Mark as accepted so user can use NovaConnect without accepting in app"
+                              >
+                                {acceptingRulesId === c.id ? "…" : "Accept for user"}
+                              </button>
+                            )}
                           </div>
                         </td>
                         <td className="py-2 pr-4">

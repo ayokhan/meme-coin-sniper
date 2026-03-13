@@ -59,6 +59,23 @@ export async function GET() {
         };
       })
       .filter((u) => u.status !== 'offline'); // Only show online/away/busy; don't show offline users
+
+    // So the list is never empty for a qualified viewer: always include current user with at least 'online'
+    const meInResult = result.some((u) => u.me);
+    if (!meInResult) {
+      const me = (users as any[]).find((u) => u.id === meId);
+      if (me) {
+        const baseName = me.novaConnectDisplayName || me.name || me.email?.split('@')[0] || 'Trader';
+        result.unshift({
+          id: me.id,
+          displayName: baseName,
+          avatarUrl: me.novaConnectAvatarUrl,
+          status: 'online',
+          me: true,
+        });
+      }
+    }
+
     return NextResponse.json({ success: true, users: result });
   } catch (e) {
     console.error('NovaConnect users GET error:', e);

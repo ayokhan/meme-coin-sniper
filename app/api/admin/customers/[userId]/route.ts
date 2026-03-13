@@ -26,13 +26,26 @@ export async function PATCH(
     const newsletterOptIn = body.newsletterOptIn;
     const novaConnectEnabled = body.novaConnectEnabled;
     const novaConnectCommunityRep = body.novaConnectCommunityRep;
-    const updates: { tradingBotOnDemand?: boolean; newsletterOptIn?: boolean; novaConnectEnabled?: boolean; novaConnectCommunityRep?: boolean } = {};
+    const rulesAccepted = body.rulesAccepted;
+    const updates: {
+      tradingBotOnDemand?: boolean;
+      newsletterOptIn?: boolean;
+      novaConnectEnabled?: boolean;
+      novaConnectCommunityRep?: boolean;
+      novaConnectRulesAcceptedAt?: Date | null;
+    } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
     if (typeof newsletterOptIn === 'boolean') updates.newsletterOptIn = newsletterOptIn;
     if (typeof novaConnectEnabled === 'boolean') updates.novaConnectEnabled = novaConnectEnabled;
     if (typeof novaConnectCommunityRep === 'boolean') updates.novaConnectCommunityRep = novaConnectCommunityRep;
+    if (typeof rulesAccepted === 'boolean') {
+      updates.novaConnectRulesAcceptedAt = rulesAccepted ? new Date() : null;
+    }
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ success: false, error: 'Provide at least one of: tradingBotOnDemand, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep (boolean).' }, { status: 400 });
+      return NextResponse.json({
+        success: false,
+        error: 'Provide at least one of: tradingBotOnDemand, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, rulesAccepted (boolean).',
+      }, { status: 400 });
     }
     await (prisma as any).user.update({
       where: { id: userId },
