@@ -1936,7 +1936,7 @@ export default function Dashboard() {
                   {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
                   {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets."}
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
-                  {activeTab === "nova-connect" && "NovaConnect: the first NovaStaris social portal for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}
+                  {activeTab === "nova-connect" && "NovaConnect: the first social platform for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}
                   {" "}
                   {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP to use this feature." : "Upgrade to Pro or VIP to use this feature."}
                 </p>
@@ -3235,7 +3235,7 @@ export default function Dashboard() {
                   NovaConnect ... connecting great minds.
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  NovaConnect, the first social portal for crypto traders—together in one platform. Before you get started, please read and accept the community rules and presence/privacy notes.
+                  NovaConnect: the first social platform for crypto traders. Before you get started, please read and accept the community rules and presence/privacy notes.
                 </p>
                 {!novaConnectRulesAccepted && (
                   <div className="rounded-xl border border-emerald-300/80 dark:border-emerald-700/80 bg-emerald-50/80 dark:bg-emerald-950/40 p-4 space-y-3">
