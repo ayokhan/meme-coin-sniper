@@ -554,7 +554,6 @@ export default function Dashboard() {
   const [novaConnectReplyingToId, setNovaConnectReplyingToId] = useState<string | null>(null);
   const [novaConnectReplyContent, setNovaConnectReplyContent] = useState("");
   const [novaConnectReplySending, setNovaConnectReplySending] = useState(false);
-  const [novaConnectDmAlerts, setNovaConnectDmAlerts] = useState<Record<string, boolean>>({});
   const [novaConnectHasCustomDisplayName, setNovaConnectHasCustomDisplayName] = useState<boolean | null>(null);
   const [novaConnectNicknamePromptDismissed, setNovaConnectNicknamePromptDismissed] = useState(() =>
     typeof window !== "undefined" ? window.localStorage.getItem("novaConnectNicknamePromptDismissed") === "1" : false
@@ -650,30 +649,6 @@ export default function Dashboard() {
     const interval = setInterval(poll, 8000);
     return () => clearInterval(interval);
   }, [activeTab, status, canUseNovaConnectPaidFeatures, session?.user]);
-
-  // Poll DM previews so we can show a subtle "new message" badge next to traders in the list
-  useEffect(() => {
-    if (activeTab !== "nova-connect" || !novaConnectRulesAccepted || !canUseNovaConnectPaidFeatures || status !== "authenticated") return;
-    const meId = (session?.user as { id?: string })?.id;
-    if (!meId) return;
-    const pollPreviews = async () => {
-      try {
-        const res = await fetch("/api/nova-connect/messages?scope=dm-preview");
-        const data = await res.json();
-        if (!data.success || !Array.isArray(data.previews)) return;
-        const alerts: Record<string, boolean> = {};
-        for (const p of data.previews as { otherUserId: string; lastFromUserId: string }[]) {
-          alerts[p.otherUserId] = p.lastFromUserId !== meId;
-        }
-        setNovaConnectDmAlerts(alerts);
-      } catch {
-        // ignore
-      }
-    };
-    pollPreviews();
-    const interval = setInterval(pollPreviews, 15000);
-    return () => clearInterval(interval);
-  }, [activeTab, novaConnectRulesAccepted, canUseNovaConnectPaidFeatures, status, session?.user]);
 
   useEffect(() => {
     if (activeTab !== "nova-connect") return;
@@ -3782,18 +3757,15 @@ export default function Dashboard() {
                           <p className="text-[11px] text-muted-foreground">No NovaConnect members yet.</p>
                         ) : (
                           <ul className="space-y-1 max-h-[180px] overflow-y-auto">
-                            {novaConnectUsers.map((u) => (
+                            {novaConnectUsers.map((u) => {
+                              const isUnread = novaConnectDmUnreadUserIds.includes(u.id);
+                              return (
                               <li key={u.id} className="flex items-center justify-between gap-2 text-xs">
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setNovaConnectDmUserId(u.id);
                                     markDmAsSeenForUser(u.id);
-                                    setNovaConnectDmAlerts((prev) => {
-                                      const copy = { ...prev };
-                                      delete copy[u.id];
-                                      return copy;
-                                    });
                                     loadNovaConnectDm(u.id);
                                   }}
                                   className="flex-1 flex items-center gap-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded px-1 py-0.5"
@@ -3823,13 +3795,11 @@ export default function Dashboard() {
                                       </span>
                                     )}
                                   </span>
-                                  <span className="truncate flex items-center gap-1">
+                                  <span className={`truncate flex items-center gap-1 ${isUnread ? "font-semibold text-emerald-700 dark:text-emerald-300" : ""}`}>
                                     {u.displayName}
                                     {u.me ? " (you)" : ""}
-                                    {novaConnectDmAlerts[u.id] && !u.me && (
-                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-[9px] font-semibold text-emerald-700 dark:text-emerald-200">
-                                        New
-                                      </span>
+                                    {isUnread && !u.me && (
+                                      <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400 dark:bg-emerald-300" aria-hidden />
                                     )}
                                   </span>
                                 </button>
@@ -3882,7 +3852,8 @@ export default function Dashboard() {
                                   </div>
                                 )}
                               </li>
-                            ))}
+                              );
+                            })}
                           </ul>
                         )}
                       </div>
