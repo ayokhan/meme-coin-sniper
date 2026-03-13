@@ -554,6 +554,27 @@ export default function Dashboard() {
       .catch(() => {});
   }, [activeTab, novaConnectRulesAccepted, isPaid, isOwner]);
 
+  // NovaConnect presence heartbeat: mark self as online so others see you in the list
+  useEffect(() => {
+    if (activeTab !== "nova-connect" || !novaConnectRulesAccepted || status !== "authenticated") return;
+    const heartbeat = () =>
+      fetch("/api/nova-connect/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "online" }),
+      }).catch(() => {});
+    heartbeat();
+    const interval = setInterval(heartbeat, 45000);
+    return () => clearInterval(interval);
+  }, [activeTab, novaConnectRulesAccepted, status]);
+
+  // Poll online users list so new people appearing online show up
+  useEffect(() => {
+    if (activeTab !== "nova-connect" || !novaConnectRulesAccepted || !(isPaid || isOwner)) return;
+    const interval = setInterval(() => loadNovaConnectUsers(), 15000);
+    return () => clearInterval(interval);
+  }, [activeTab, novaConnectRulesAccepted, isPaid, isOwner]);
+
   const showNicknamePrompt = novaConnectRulesAccepted && novaConnectHasCustomDisplayName === false && !novaConnectNicknamePromptDismissed;
   const dismissNicknamePrompt = () => {
     setNovaConnectNicknamePromptDismissed(true);

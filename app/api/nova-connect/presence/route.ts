@@ -20,10 +20,11 @@ export async function POST(request: Request) {
     const rawStatus = typeof body.status === 'string' ? body.status.trim().toLowerCase() : '';
     const status = ['online', 'away', 'busy', 'offline'].includes(rawStatus) ? rawStatus : 'online';
     const db = prisma as any;
+    const now = new Date();
     await db.novaConnectPresence.upsert({
       where: { userId },
-      create: { userId, status },
-      update: { status },
+      create: { userId, status, lastSeenAt: now },
+      update: { status, lastSeenAt: now },
     });
     return NextResponse.json({ success: true });
   } catch (e) {
