@@ -15,6 +15,19 @@ The app uses Prisma with PostgreSQL. Ensure:
 
 If you see *"The table \`public.User\` does not exist"*, the database schema is missing. Create the database, set `DATABASE_URL`, then run `prisma migrate deploy` (or `prisma db push` for a quick sync).
 
+**If you see *"The column \`User.novaConnectCommunityRep\` does not exist"*** (sign-in or profile update fails): the production database is missing a column. Apply it with **one** of these (use your production `DATABASE_URL`):
+
+1. **Quick fix (recommended):**
+   ```bash
+   set DATABASE_URL=your_production_database_url
+   npx prisma db push
+   ```
+2. **Or use migrations:**
+   ```bash
+   set DATABASE_URL=your_production_database_url
+   npx prisma migrate deploy
+   ```
+
 ---
 
 ## 2. Google sign-in ("OAuth client was not found" / 401 invalid_client)
