@@ -53,34 +53,55 @@ export async function GET(request: Request) {
       });
     }
 
-    // community feed
+    // community feed: top-level posts + replies
     const db = prisma as any;
-    const messages: any[] = await db.novaConnectMessage.findMany({
+    const topLevel: any[] = await db.novaConnectMessage.findMany({
       where: {
         roomType: 'community',
         deletedAt: null,
+        parentMessageId: null,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
       take,
       include: {
         fromUser: { select: { id: true, name: true, email: true, novaConnectDisplayName: true } },
       },
     });
-    return NextResponse.json({
-      success: true,
-      messages: messages
-        .slice()
-        .reverse()
-        .map((m) => ({
-          id: m.id,
-          roomType: m.roomType,
-          fromUserId: m.fromUserId,
-          content: m.content,
-          imageUrl: m.imageUrl,
-          createdAt: m.createdAt,
-          fromDisplayName: m.fromUser.novaConnectDisplayName || m.fromUser.name || m.fromUser.email?.split('@')[0] || 'Trader',
-        })),
+    const parentIds = topLevel.map((m) => m.id);
+    const replies: any[] = parentIds.length
+      ? await db.novaConnectMessage.findMany({
+          where: {
+            roomType: 'community',
+            deletedAt: null,
+            parentMessageId: { in: parentIds },
+          },
+          orderBy: { createdAt: 'asc' },
+          include: {
+            fromUser: { select: { id: true, name: true, email: true, novaConnectDisplayName: true } },
+          },
+        })
+      : [];
+    const repliesByParent = new Map<string, any[]>();
+    for (const r of replies) {
+      const pid = r.parentMessageId;
+      if (!repliesByParent.has(pid)) repliesByParent.set(pid, []);
+      repliesByParent.get(pid)!.push(r);
+    }
+    const mapMsg = (m: any) => ({
+      id: m.id,
+      parentMessageId: m.parentMessageId ?? undefined,
+      roomType: m.roomType,
+      fromUserId: m.fromUserId,
+      content: m.content,
+      imageUrl: m.imageUrl,
+      createdAt: m.createdAt,
+      fromDisplayName: m.fromUser.novaConnectDisplayName || m.fromUser.name || m.fromUser.email?.split('@')[0] || 'Trader',
     });
+    const messages = topLevel.slice().reverse().map((m) => ({
+      ...mapMsg(m),
+      replies: (repliesByParent.get(m.id) ?? []).map(mapMsg),
+    }));
+    return NextResponse.json({ success: true, messages });
   } catch (e) {
     console.error('NovaConnect messages GET error:', e);
     return NextResponse.json({ success: false, error: 'Failed to load messages.' }, { status: 500 });
@@ -99,11 +120,15 @@ export async function POST(request: Request) {
     }
     const userId = (session.user as { id: string }).id;
     const isPaid = !!(session.user as { isPaid?: boolean }).isPaid;
+    const isOwner = !!(session.user as { isOwner?: boolean }).isOwner;
+    const novaConnectAllowedByAdmin = !!(session.user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin;
+    const canUseDm = isPaid || isOwner || novaConnectAllowedByAdmin;
     const body = await request.json().catch(() => ({}));
     const scope = typeof body.scope === 'string' ? body.scope : 'community';
     const content = typeof body.content === 'string' ? body.content.trim() : '';
     const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
     const toUserId = typeof body.toUserId === 'string' ? body.toUserId.trim() || null : null;
+    const parentMessageId = typeof body.parentMessageId === 'string' ? body.parentMessageId.trim() || null : null;
 
     const db = prisma as any;
     const me = await db.user.findUnique({
@@ -119,10 +144,10 @@ export async function POST(request: Request) {
     if (!content && !imageUrl) {
       return NextResponse.json({ success: false, error: 'Message or image URL is required.' }, { status: 400 });
     }
-    // Free users: can post in community only; DMs require Pro/VIP
-    if (scope === 'dm' && !isPaid) {
+    // DMs require Pro/VIP or owner or admin-allowed NovaConnect
+    if (scope === 'dm' && !canUseDm) {
       return NextResponse.json(
-        { success: false, error: 'Upgrade to Pro or VIP to chat with users.' },
+        { success: false, error: 'Upgrade to Pro or VIP to chat with users, or ask an admin to allow NovaConnect for you.' },
         { status: 403 },
       );
     }
@@ -171,6 +196,7 @@ export async function POST(request: Request) {
         fromUserId: userId,
         content,
         imageUrl: imageUrl || null,
+        parentMessageId: scope === 'community' ? parentMessageId : null,
       },
     });
     return NextResponse.json({ success: true, id: msg.id });

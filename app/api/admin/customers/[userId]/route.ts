@@ -26,25 +26,28 @@ export async function PATCH(
     const newsletterOptIn = body.newsletterOptIn;
     const novaConnectEnabled = body.novaConnectEnabled;
     const novaConnectCommunityRep = body.novaConnectCommunityRep;
+    const novaConnectAllowedByAdmin = body.novaConnectAllowedByAdmin;
     const rulesAccepted = body.rulesAccepted;
     const updates: {
       tradingBotOnDemand?: boolean;
       newsletterOptIn?: boolean;
       novaConnectEnabled?: boolean;
       novaConnectCommunityRep?: boolean;
+      novaConnectAllowedByAdmin?: boolean;
       novaConnectRulesAcceptedAt?: Date | null;
     } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
     if (typeof newsletterOptIn === 'boolean') updates.newsletterOptIn = newsletterOptIn;
     if (typeof novaConnectEnabled === 'boolean') updates.novaConnectEnabled = novaConnectEnabled;
     if (typeof novaConnectCommunityRep === 'boolean') updates.novaConnectCommunityRep = novaConnectCommunityRep;
+    if (typeof novaConnectAllowedByAdmin === 'boolean') updates.novaConnectAllowedByAdmin = novaConnectAllowedByAdmin;
     if (typeof rulesAccepted === 'boolean') {
       updates.novaConnectRulesAcceptedAt = rulesAccepted ? new Date() : null;
     }
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'Provide at least one of: tradingBotOnDemand, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, rulesAccepted (boolean).',
+        error: 'Provide at least one of: tradingBotOnDemand, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, rulesAccepted (boolean).',
       }, { status: 400 });
     }
     await (prisma as any).user.update({

@@ -17,6 +17,7 @@ type Customer = {
   newsletterOptIn: boolean;
   novaConnectEnabled: boolean;
   novaConnectCommunityRep: boolean;
+  novaConnectAllowedByAdmin: boolean;
   novaConnectRulesAcceptedAt: string | null;
   createdAt: string;
   subscriptionTier: string | null;
@@ -37,6 +38,7 @@ export default function AdminCustomersPage() {
   const [togglingNewsletterId, setTogglingNewsletterId] = useState<string | null>(null);
   const [togglingNovaConnectId, setTogglingNovaConnectId] = useState<string | null>(null);
   const [togglingCommunityRepId, setTogglingCommunityRepId] = useState<string | null>(null);
+  const [togglingAllowedByAdminId, setTogglingAllowedByAdminId] = useState<string | null>(null);
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
 
   const loadCustomers = () => {
@@ -161,6 +163,28 @@ export default function AdminCustomersPage() {
       setError("Failed to update");
     } finally {
       setTogglingCommunityRepId(null);
+    }
+  };
+
+  const handleAllowNovaConnectToggle = async (id: string, value: boolean) => {
+    setTogglingAllowedByAdminId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ novaConnectAllowedByAdmin: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "User can use NovaConnect (online list & DMs)." : "NovaConnect access removed.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setTogglingAllowedByAdminId(null);
     }
   };
 
@@ -291,6 +315,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Trading Bot (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Email digest</th>
                       <th className="pb-2 pr-4 font-semibold">NovaConnect</th>
+                      <th className="pb-2 pr-4 font-semibold">Allow NovaConnect</th>
                       <th className="pb-2 pr-4 font-semibold">Rules accepted</th>
                       <th className="pb-2 pr-4 font-semibold">Community rep</th>
                       <th className="pb-2 font-semibold">Actions</th>
@@ -351,6 +376,17 @@ export default function AdminCustomersPage() {
                             title="Enable or disable NovaConnect for this user"
                           >
                             {togglingNovaConnectId === c.id ? "…" : c.novaConnectEnabled ? "On" : "Off"}
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => handleAllowNovaConnectToggle(c.id, !c.novaConnectAllowedByAdmin)}
+                            disabled={togglingAllowedByAdminId === c.id}
+                            className={`text-xs font-medium px-2 py-1 rounded ${c.novaConnectAllowedByAdmin ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                            title="Allow online list & DMs even if not Pro/VIP"
+                          >
+                            {togglingAllowedByAdminId === c.id ? "…" : c.novaConnectAllowedByAdmin ? "On" : "Off"}
                           </button>
                         </td>
                         <td className="py-2 pr-4">

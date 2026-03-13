@@ -40,6 +40,7 @@ export async function GET() {
         novaConnectEnabled: !!(u as { novaConnectEnabled?: boolean }).novaConnectEnabled,
         novaConnectRulesAcceptedAt: (u as { novaConnectRulesAcceptedAt?: Date | null }).novaConnectRulesAcceptedAt ?? null,
         novaConnectCommunityRep: !!(u as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep,
+        novaConnectAllowedByAdmin: !!(u as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin,
         createdAt: u.createdAt,
         subscriptionTier: subTier,
         subscriptionPlan: subPlan,

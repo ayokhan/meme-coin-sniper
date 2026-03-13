@@ -8,7 +8,7 @@ import { getActiveSubscription, getSubscriptionTier, type Tier } from '@/lib/sub
 
 declare module 'next-auth' {
   interface Session {
-    user: { id: string; email?: string | null; name?: string | null; image?: string | null; walletAddress?: string | null; isPaid: boolean; isOwner?: boolean; tier?: Tier | null; tradingBotOnDemand?: boolean; novaConnectCommunityRep?: boolean };
+    user: { id: string; email?: string | null; name?: string | null; image?: string | null; walletAddress?: string | null; isPaid: boolean; isOwner?: boolean; tier?: Tier | null; tradingBotOnDemand?: boolean; novaConnectCommunityRep?: boolean; novaConnectAllowedByAdmin?: boolean };
   }
 }
 
@@ -68,7 +68,8 @@ export const authOptions: NextAuthOptions = {
         const tier = await getSubscriptionTier(user.id);
         const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
         const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
-        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier, tradingBotOnDemand, novaConnectCommunityRep };
+        const novaConnectAllowedByAdmin = !!(user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin;
+        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier, tradingBotOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
       },
     }),
     CredentialsProvider({
@@ -101,7 +102,8 @@ export const authOptions: NextAuthOptions = {
         const tier = await getSubscriptionTier(user.id);
         const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
         const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
-        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, tradingBotOnDemand, novaConnectCommunityRep };
+        const novaConnectAllowedByAdmin = !!(user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin;
+        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, tradingBotOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
       },
     }),
   ],
@@ -116,6 +118,8 @@ export const authOptions: NextAuthOptions = {
         token.isPaid = (user as { isPaid?: boolean }).isPaid ?? false;
         token.tier = (user as { tier?: Tier | null }).tier ?? null;
         token.tradingBotOnDemand = (user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand ?? false;
+        token.novaConnectCommunityRep = (user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep ?? false;
+        token.novaConnectAllowedByAdmin = (user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin ?? false;
       }
       return token;
     },
@@ -140,6 +144,7 @@ export const authOptions: NextAuthOptions = {
         session.user.tier = tier;
         session.user.tradingBotOnDemand = tradingBotOnDemand;
         session.user.novaConnectCommunityRep = (token.novaConnectCommunityRep as boolean) ?? false;
+        session.user.novaConnectAllowedByAdmin = (token.novaConnectAllowedByAdmin as boolean) ?? false;
       }
       return session;
     },

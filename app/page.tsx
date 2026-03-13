@@ -90,9 +90,17 @@ export default function Dashboard() {
   const tier = (session?.user as { tier?: "pro" | "vip" | null } | undefined)?.tier ?? null;
   const isVip = tier === "vip";
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
+  const novaConnectAllowedByAdmin = (session?.user as { novaConnectAllowedByAdmin?: boolean } | undefined)?.novaConnectAllowedByAdmin ?? false;
+  const canUseNovaConnectPaidFeatures = isPaid || isOwner || novaConnectAllowedByAdmin;
   const [mounted, setMounted] = useState(false);
   const [presencePingOk, setPresencePingOk] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("new");
+
+  // Open NovaConnect tab when visiting /?tab=nova-connect or /nova-connect (redirects here with ?tab=nova-connect)
+  useEffect(() => {
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    if (params?.get("tab") === "nova-connect") setActiveTab("nova-connect");
+  }, []);
   const [ctAccounts, setCtAccounts] = useState<{ username: string; tier: string; weight: number; url: string }[]>([]);
   const [ctTweets, setCtTweets] = useState<{ id: string; text: string; author: { username: string; followers: number }; created_at: string; metrics: { likes: number; retweets: number }; url: string }[]>([]);
   const [ctTweetsLoading, setCtTweetsLoading] = useState(false);
@@ -476,10 +484,17 @@ export default function Dashboard() {
   const [novaConnectRulesAccepted, setNovaConnectRulesAccepted] = useState(false);
   const novaConnectRulesRef = useRef<HTMLDivElement | null>(null);
   const novaConnectPrivacyRef = useRef<HTMLDivElement | null>(null);
-  // NovaConnect UI state
-  const [novaConnectMessages, setNovaConnectMessages] = useState<
-    { id: string; fromUserId: string; fromDisplayName: string; content: string; imageUrl?: string | null; createdAt: string }[]
-  >([]);
+  // NovaConnect UI state (community posts may have replies)
+  type NovaConnectCommunityMessage = {
+    id: string;
+    fromUserId: string;
+    fromDisplayName: string;
+    content: string;
+    imageUrl?: string | null;
+    createdAt: string;
+    replies?: NovaConnectCommunityMessage[];
+  };
+  const [novaConnectMessages, setNovaConnectMessages] = useState<NovaConnectCommunityMessage[]>([]);
   const [novaConnectUsers, setNovaConnectUsers] = useState<
     { id: string; displayName: string; avatarUrl?: string | null; status: string; me: boolean }[]
   >([]);
@@ -498,6 +513,9 @@ export default function Dashboard() {
   const [novaConnectEditingContent, setNovaConnectEditingContent] = useState("");
   const [novaConnectEditSaving, setNovaConnectEditSaving] = useState(false);
   const [novaConnectDeleteLoading, setNovaConnectDeleteLoading] = useState<string | null>(null);
+  const [novaConnectReplyingToId, setNovaConnectReplyingToId] = useState<string | null>(null);
+  const [novaConnectReplyContent, setNovaConnectReplyContent] = useState("");
+  const [novaConnectReplySending, setNovaConnectReplySending] = useState(false);
   const [novaConnectHasCustomDisplayName, setNovaConnectHasCustomDisplayName] = useState<boolean | null>(null);
   const [novaConnectNicknamePromptDismissed, setNovaConnectNicknamePromptDismissed] = useState(() =>
     typeof window !== "undefined" ? window.localStorage.getItem("novaConnectNicknamePromptDismissed") === "1" : false
@@ -545,14 +563,14 @@ export default function Dashboard() {
     if (activeTab !== "nova-connect") return;
     if (!novaConnectRulesAccepted) return;
     loadNovaConnectCommunity();
-    if (isPaid || isOwner) loadNovaConnectUsers();
+    if (canUseNovaConnectPaidFeatures) loadNovaConnectUsers();
     fetch("/api/nova-connect/profile")
       .then((r) => r.json())
       .then((d) => {
         if (d.success && d.profile) setNovaConnectHasCustomDisplayName(!!d.profile.hasCustomDisplayName);
       })
       .catch(() => {});
-  }, [activeTab, novaConnectRulesAccepted, isPaid, isOwner]);
+  }, [activeTab, novaConnectRulesAccepted, canUseNovaConnectPaidFeatures]);
 
   // NovaConnect presence heartbeat: mark self as online so others see you in the list
   useEffect(() => {
@@ -570,10 +588,10 @@ export default function Dashboard() {
 
   // Poll online users list so new people appearing online show up
   useEffect(() => {
-    if (activeTab !== "nova-connect" || !novaConnectRulesAccepted || !(isPaid || isOwner)) return;
+    if (activeTab !== "nova-connect" || !novaConnectRulesAccepted || !canUseNovaConnectPaidFeatures) return;
     const interval = setInterval(() => loadNovaConnectUsers(), 15000);
     return () => clearInterval(interval);
-  }, [activeTab, novaConnectRulesAccepted, isPaid, isOwner]);
+  }, [activeTab, novaConnectRulesAccepted, canUseNovaConnectPaidFeatures]);
 
   const showNicknamePrompt = novaConnectRulesAccepted && novaConnectHasCustomDisplayName === false && !novaConnectNicknamePromptDismissed;
   const dismissNicknamePrompt = () => {
@@ -3332,7 +3350,7 @@ export default function Dashboard() {
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
                         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Community feed</h3>
                         <p className="text-xs text-muted-foreground">
-                          Share charts, screenshots, and notes. Everyone can post here. Only Pro/VIP members can see online traders and send private messages.
+                          Share charts, screenshots, and notes. Everyone can post here. Pro/VIP members (or users allowed by admin) can see online traders and send private messages.
                         </p>
                       </div>
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-3 min-h-[220px]">
@@ -3387,9 +3405,9 @@ export default function Dashboard() {
                               {novaConnectSending ? "Posting…" : "Post"}
                             </Button>
                           </div>
-                          {!isPaid && (
+                          {!canUseNovaConnectPaidFeatures && (
                             <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                              Upgrade to Pro or VIP to see online traders and chat with them.
+                              Upgrade to Pro or VIP (or ask an admin to allow NovaConnect) to see online traders and chat with them.
                             </p>
                           )}
                         </div>
@@ -3454,8 +3472,71 @@ export default function Dashboard() {
                                             Edit
                                           </button>
                                         )}
+                                        {!isEditing && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setNovaConnectReplyingToId(m.id);
+                                              setNovaConnectReplyContent("");
+                                            }}
+                                            className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline"
+                                          >
+                                            Reply
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
+                                    {novaConnectReplyingToId === m.id && (
+                                      <div className="mt-2 pl-2 border-l-2 border-emerald-300 dark:border-emerald-700 space-y-1">
+                                        <textarea
+                                          value={novaConnectReplyContent}
+                                          onChange={(e) => setNovaConnectReplyContent(e.target.value)}
+                                          placeholder="Write a reply…"
+                                          rows={2}
+                                          className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs"
+                                        />
+                                        <div className="flex gap-2">
+                                          <button
+                                            type="button"
+                                            disabled={novaConnectReplySending}
+                                            onClick={async () => {
+                                              if (!novaConnectReplyContent.trim()) return;
+                                              setNovaConnectReplySending(true);
+                                              try {
+                                                const res = await fetch("/api/nova-connect/messages", {
+                                                  method: "POST",
+                                                  headers: { "Content-Type": "application/json" },
+                                                  body: JSON.stringify({ scope: "community", content: novaConnectReplyContent.trim(), parentMessageId: m.id }),
+                                                });
+                                                const data = await res.json();
+                                                if (data.success) {
+                                                  setNovaConnectReplyingToId(null);
+                                                  setNovaConnectReplyContent("");
+                                                  await loadNovaConnectCommunity();
+                                                } else alert(data.error ?? "Failed to post reply.");
+                                              } catch {
+                                                alert("Failed to post reply.");
+                                              } finally {
+                                                setNovaConnectReplySending(false);
+                                              }
+                                            }}
+                                            className="text-xs px-2 py-1 rounded bg-emerald-500 text-white disabled:opacity-50"
+                                          >
+                                            {novaConnectReplySending ? "Sending…" : "Send reply"}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setNovaConnectReplyingToId(null);
+                                              setNovaConnectReplyContent("");
+                                            }}
+                                            className="text-xs px-2 py-1 rounded border border-zinc-400 text-zinc-700 dark:text-zinc-300"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                                     {isEditing ? (
                                       <div className="space-y-1">
                                         <textarea
@@ -3520,6 +3601,19 @@ export default function Dashboard() {
                                         )}
                                       </>
                                     )}
+                                    {(m.replies?.length ?? 0) > 0 && (
+                                      <div className="mt-2 space-y-1.5 pl-2 border-l-2 border-zinc-200 dark:border-zinc-600">
+                                        {m.replies!.map((r) => (
+                                          <div key={r.id} className="text-[11px]">
+                                            <span className="font-semibold text-zinc-800 dark:text-zinc-200">{r.fromDisplayName}</span>
+                                            <span className="text-[10px] text-muted-foreground ml-1">
+                                              {new Date(r.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+                                            </span>
+                                            {r.content && <p className="mt-0.5 text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{r.content}</p>}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })
@@ -3544,12 +3638,12 @@ export default function Dashboard() {
                       </div>
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-2">
                         <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Online traders</h4>
-                        {!isPaid && !isOwner ? (
+                        {!canUseNovaConnectPaidFeatures ? (
                           <div
                             className="relative flex flex-col items-center justify-center min-h-[140px] rounded-md bg-zinc-200/80 dark:bg-zinc-800/80 overflow-hidden"
                             role="button"
                             tabIndex={0}
-                            onClick={() => alert("Upgrade to Pro or VIP to see online traders and chat with users.")}
+                            onClick={() => alert("Upgrade to Pro or VIP to see online traders and chat with users, or ask an admin to allow NovaConnect for you.")}
                             onKeyDown={(e) => e.key === "Enter" && alert("Upgrade to Pro or VIP to see online traders and chat with users.")}
                           >
                             <div className="absolute inset-0 backdrop-blur-[6px] bg-zinc-300/50 dark:bg-zinc-700/50" aria-hidden />
@@ -3699,9 +3793,9 @@ export default function Dashboard() {
                             <Button
                               type="button"
                               size="sm"
-                              disabled={!isPaid || novaConnectDmSending}
+                              disabled={!canUseNovaConnectPaidFeatures || novaConnectDmSending}
                               onClick={async () => {
-                                if (!novaConnectDmUserId || !isPaid || !novaConnectRulesAccepted) return;
+                                if (!novaConnectDmUserId || !canUseNovaConnectPaidFeatures || !novaConnectRulesAccepted) return;
                                 const text = novaConnectDmInput.trim();
                                 if (!text) return;
                                 setNovaConnectDmSending(true);
@@ -3751,7 +3845,7 @@ export default function Dashboard() {
                           You can leave NovaConnect at any time without closing your NovaStaris account.
                         </p>
                         <p className="text-xs text-zinc-700 dark:text-zinc-300">
-                          Everyone can post in the community forum. Only Pro/VIP members can see online traders and send private messages.
+                          Everyone can post in the community forum. Pro/VIP members (or users allowed by admin) can see online traders and send private messages.
                         </p>
                       </div>
                     </div>

@@ -103,6 +103,8 @@ model User {
   novaConnectRulesAcceptedAt DateTime?
   /** Set by admin: can delete community posts (moderation). */
   novaConnectCommunityRep    Boolean  @default(false)
+  /** Set by admin: allow NovaConnect (online list, DMs) even if not Pro/VIP. */
+  novaConnectAllowedByAdmin  Boolean  @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
@@ -395,21 +397,25 @@ model NovaConnectPresence {
 }
 
 model NovaConnectMessage {
-  id          String   @id @default(cuid())
-  roomType    String   @default("community") // community | dm
-  roomId      String?  // reserved for future rooms
-  fromUserId  String
-  toUserId    String?
-  content     String
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  deletedAt   DateTime?
-  deletedById String?
-  fromUser    User     @relation("NovaConnectFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser      User?    @relation("NovaConnectToUser", fields: [toUserId], references: [id])
+  id               String   @id @default(cuid())
+  roomType         String   @default("community") // community | dm
+  roomId           String?  // reserved for future rooms
+  parentMessageId  String?  // for community replies
+  fromUserId       String
+  toUserId         String?
+  content          String
+  imageUrl         String?
+  createdAt        DateTime @default(now())
+  deletedAt        DateTime?
+  deletedById      String?
+  fromUser         User     @relation("NovaConnectFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser           User?    @relation("NovaConnectToUser", fields: [toUserId], references: [id])
+  parentMessage    NovaConnectMessage?  @relation("Replies", fields: [parentMessageId], references: [id], onDelete: Cascade)
+  replies          NovaConnectMessage[] @relation("Replies")
   @@index([roomType, createdAt])
   @@index([fromUserId])
   @@index([toUserId])
+  @@index([parentMessageId])
 }
 
 model NovaConnectBlock {
