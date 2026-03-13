@@ -40,6 +40,7 @@ export default function AdminCustomersPage() {
   const [togglingCommunityRepId, setTogglingCommunityRepId] = useState<string | null>(null);
   const [togglingAllowedByAdminId, setTogglingAllowedByAdminId] = useState<string | null>(null);
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
+  const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
 
   const loadCustomers = () => {
     fetch("/api/admin/customers")
@@ -207,6 +208,37 @@ export default function AdminCustomersPage() {
       setError("Failed to update");
     } finally {
       setAcceptingRulesId(null);
+    }
+  };
+
+  const handleResetPassword = async (id: string, email: string | null) => {
+    if (!email) {
+      setError("Password reset is only for accounts with email (wallet-only accounts cannot use email sign-in).");
+      return;
+    }
+    const newPassword = window.prompt(`Set new password for ${email} (min 8 characters):`);
+    if (newPassword == null) return;
+    if (newPassword.trim().length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    setResettingPasswordId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: newPassword.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMessage("Password updated. Customer can sign in with the new password.");
+        setTimeout(() => setSuccessMessage(""), 5000);
+      } else setError(data.error ?? "Failed to reset password.");
+    } catch {
+      setError("Failed to reset password.");
+    } finally {
+      setResettingPasswordId(null);
     }
   };
 
@@ -450,6 +482,15 @@ export default function AdminCustomersPage() {
                                 {updatingId === c.id ? "Updating…" : "Clear subscription"}
                               </button>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => handleResetPassword(c.id, c.email)}
+                              disabled={resettingPasswordId === c.id}
+                              className="text-xs text-zinc-700 dark:text-zinc-300 hover:underline disabled:opacity-50 text-left"
+                              title={c.email ? "Set a new password for this customer" : "Only for email accounts"}
+                            >
+                              {resettingPasswordId === c.id ? "Resetting…" : "Reset password"}
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleDelete(c.id)}
