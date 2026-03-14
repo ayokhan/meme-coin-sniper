@@ -26,7 +26,7 @@ export default function AboutPage() {
             About NovaStaris
           </h1>
             <p className="mt-3 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-              Spot viral tokens before the crowd. Analyze with NovaStaris Advanced AI Agent in seconds. Move with smart money—Solana, BSC, Crypto Futures, an automated <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Trading Bot</strong> (Crypto Futures), <strong className="text-cyan-600 dark:text-cyan-400">NovaConnect</strong> (the first social platform for crypto traders), and <strong className="text-violet-500 dark:text-violet-400">NovaForecast Agent</strong>—so you know where to look for your next short or long. All in one platform.
+              Spot viral tokens before the crowd. Analyze with NovaStaris AI Agent in seconds. Move with smart money—Solana, BSC, Crypto Futures, <strong className="text-violet-500 dark:text-violet-400">NovaForecast Agent</strong> (where to look for your next short or long futures entry), <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Trading Bot</strong>, and <strong className="text-cyan-600 dark:text-cyan-400">NovaConnect</strong>. All in one platform.
             </p>
         </div>
 
@@ -110,7 +110,7 @@ export default function AboutPage() {
                   <div>
                     <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">NovaStaris AI Trading Bot — Crypto Futures (Blofin)</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                      Automate long/short with simple strategy, indicators, AI, or <strong className="text-zinc-900 dark:text-zinc-100">hybrid</strong> (TA + AI must agree). Configure symbol, leverage, TP/SL; run demo or live on Blofin. Place limit orders at AI-suggested entry; optional AI monitor evaluates positions and can close on negative trend. Start, stop, or close with one click. <strong className="text-amber-700 dark:text-amber-400">VIP + On demand.</strong> Wallet tracking (meme coins and Top Leverage Traders) lives under the Wallet Tracker tab. We are working toward per-user Blofin API configuration so you can connect your own account and run the bot with your keys; access is currently granted on demand.
+                      Automate long/short with simple strategy, indicators, AI, or <strong className="text-zinc-900 dark:text-zinc-100">hybrid</strong> (TA + AI must agree). Configure symbol, leverage, TP/SL; run demo or live on Blofin. Place limit orders at AI-suggested entry; optional AI monitor evaluates positions and can close on negative trend. Start, stop, or close with one click. <strong className="text-amber-700 dark:text-amber-400">VIP + On demand.</strong> Wallet tracking lives under the Wallet Tracker tab.
                     </p>
                   </div>
                 </div>
