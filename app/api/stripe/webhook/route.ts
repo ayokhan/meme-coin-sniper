@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   let plans = tier === "vip" ? VIP_PLANS : PRO_PLANS;
   let plan = plans.find((p) => p.id === planId);
   if (!plan && amountUsd > 0) {
-    plan = plans.find((p) => p.priceUsd === amountUsd) ?? null;
+    plan = plans.find((p) => p.priceUsd === amountUsd);
     if (plan) planId = plan.id;
   }
   if (!plan && amountUsd > 0) {
