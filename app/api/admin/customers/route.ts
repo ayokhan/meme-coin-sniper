@@ -22,12 +22,29 @@ export async function GET() {
 
     const now = new Date();
     const customers = users.map((u) => {
-      const rawSubs = (u as { subscriptions?: Array<{ tier?: string; plan: string; amountUsd: number; expiresAt: Date }> }).subscriptions ?? [];
-      const subs = [...rawSubs].sort((a, b) => new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime());
+      const rawSubs = (u as {
+        subscriptions?: Array<{
+          tier?: string;
+          plan: string;
+          amountUsd: number;
+          expiresAt: Date;
+          createdAt: Date;
+          stripeSessionId?: string | null;
+          txSignature?: string | null;
+        }>;
+      }).subscriptions ?? [];
+      const subs = [...rawSubs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const activeSub = subs.find((s) => new Date(s.expiresAt) > now);
       const latestSub = subs[0];
       const subTier = activeSub?.tier ?? latestSub?.tier ?? null;
       const subPlan = activeSub ? activeSub.plan : latestSub?.plan ?? null;
+      const payments = subs.map((s) => ({
+        date: s.createdAt,
+        amountUsd: s.amountUsd,
+        tier: s.tier ?? null,
+        plan: s.plan,
+        method: s.stripeSessionId ? "card" as const : s.txSignature ? "usdc" as const : "other" as const,
+      }));
       return {
         id: u.id,
         name: u.name,
@@ -47,6 +64,7 @@ export async function GET() {
         subscriptionPlan: subPlan,
         subscriptionExpiresAt: activeSub ? activeSub.expiresAt : latestSub?.expiresAt ?? null,
         isActive: !!activeSub,
+        payments,
       };
     });
 

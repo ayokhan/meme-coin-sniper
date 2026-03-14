@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
+
+type Payment = {
+  date: string;
+  amountUsd: number;
+  tier: string | null;
+  plan: string;
+  method: "card" | "usdc" | "other";
+};
 
 type Customer = {
   id: string;
@@ -25,6 +33,7 @@ type Customer = {
   subscriptionPlan: string | null;
   subscriptionExpiresAt: string | null;
   isActive: boolean;
+  payments: Payment[];
 };
 
 export default function AdminCustomersPage() {
@@ -42,6 +51,7 @@ export default function AdminCustomersPage() {
   const [togglingAllowedByAdminId, setTogglingAllowedByAdminId] = useState<string | null>(null);
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
+  const [paymentsExpandedId, setPaymentsExpandedId] = useState<string | null>(null);
 
   const loadCustomers = () => {
     fetch("/api/admin/customers")
@@ -351,13 +361,15 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Allow NovaConnect</th>
                       <th className="pb-2 pr-4 font-semibold">Rules accepted</th>
                       <th className="pb-2 pr-4 font-semibold">Payment terms</th>
+                      <th className="pb-2 pr-4 font-semibold">Payments</th>
                       <th className="pb-2 pr-4 font-semibold">Community rep</th>
                       <th className="pb-2 font-semibold">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {customers.map((c) => (
-                      <tr key={c.id} className="border-b border-zinc-100 dark:border-zinc-800/60">
+                      <Fragment key={c.id}>
+                      <tr className="border-b border-zinc-100 dark:border-zinc-800/60">
                         <td className="py-2 pr-4">{c.name ?? "—"}</td>
                         <td className="py-2 pr-4">{c.email ?? "—"}</td>
                         <td className="py-2 pr-4">{c.phone ?? "—"}</td>
@@ -455,6 +467,26 @@ export default function AdminCustomersPage() {
                           )}
                         </td>
                         <td className="py-2 pr-4">
+                          <div className="flex flex-col gap-0.5">
+                            {Array.isArray(c.payments) && c.payments.length > 0 ? (
+                              <>
+                                <span className="text-xs text-zinc-700 dark:text-zinc-300">
+                                  {c.payments.length} payment{c.payments.length !== 1 ? "s" : ""} · ${c.payments.reduce((s, p) => s + p.amountUsd, 0)} total
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setPaymentsExpandedId(paymentsExpandedId === c.id ? null : c.id)}
+                                  className="text-[10px] text-cyan-600 dark:text-cyan-400 hover:underline text-left"
+                                >
+                                  {paymentsExpandedId === c.id ? "Hide" : "View"}
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-zinc-500">—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2 pr-4">
                           <button
                             type="button"
                             onClick={() => handleCommunityRepToggle(c.id, !c.novaConnectCommunityRep)}
@@ -513,6 +545,36 @@ export default function AdminCustomersPage() {
                           </div>
                         </td>
                       </tr>
+                      {paymentsExpandedId === c.id && Array.isArray(c.payments) && c.payments.length > 0 && (
+                        <tr key={`${c.id}-payments`} className="bg-zinc-50 dark:bg-zinc-900/50">
+                          <td colSpan={17} className="py-3 px-4">
+                            <div className="text-xs">
+                              <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-2">Payment history</p>
+                              <table className="w-full max-w-2xl border border-zinc-200 dark:border-zinc-700 rounded overflow-hidden">
+                                <thead>
+                                  <tr className="bg-zinc-100 dark:bg-zinc-800">
+                                    <th className="text-left py-1.5 px-2">Date</th>
+                                    <th className="text-left py-1.5 px-2">Amount</th>
+                                    <th className="text-left py-1.5 px-2">Method</th>
+                                    <th className="text-left py-1.5 px-2">Tier · Plan</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {c.payments.map((p, i) => (
+                                    <tr key={i} className="border-t border-zinc-200 dark:border-zinc-700">
+                                      <td className="py-1.5 px-2">{new Date(p.date).toLocaleString()}</td>
+                                      <td className="py-1.5 px-2">${p.amountUsd} USD</td>
+                                      <td className="py-1.5 px-2">{p.method === "card" ? "Card" : p.method === "usdc" ? "USDC" : "Other"}</td>
+                                      <td className="py-1.5 px-2">{(p.tier ?? "—").toUpperCase()} · {p.plan}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
