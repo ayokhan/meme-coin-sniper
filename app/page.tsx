@@ -73,13 +73,14 @@ type TabId =
   | "narratives"
   | "trading-bot"
   | "coach-calls"
+  | "nova-forecast"
   | "bsc"
   | "watchlist"
   | "nova-connect"
   | "chris-clayton";
-const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-connect"];
-/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls. BSC + Watchlist are free for all. */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls"];
+const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-connect"];
+/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast"];
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
 type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc"; symbol?: string; name?: string };
 
@@ -463,6 +464,11 @@ export default function Dashboard() {
   const [perpAlertAddSymbol, setPerpAlertAddSymbol] = useState("");
   const [perpAlertAddThreshold, setPerpAlertAddThreshold] = useState("");
   const [perpAlertAddError, setPerpAlertAddError] = useState<string | null>(null);
+  type NovaForecastItem = { symbol: string; high2w: number; low2w: number; shortEntry: number; longEntry: number; currentPrice: number | null; insight: string };
+  const [novaForecastItems, setNovaForecastItems] = useState<NovaForecastItem[]>([]);
+  const [novaForecastLoading, setNovaForecastLoading] = useState(false);
+  const [novaForecastError, setNovaForecastError] = useState<string | null>(null);
+  const [novaForecastCustomSymbols, setNovaForecastCustomSymbols] = useState("");
   type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
   const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
   const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
@@ -1075,6 +1081,27 @@ export default function Dashboard() {
     }
   };
 
+  const fetchNovaForecast = async (symbolsOverride?: string[]) => {
+    setNovaForecastLoading(true);
+    setNovaForecastError(null);
+    try {
+      const params = symbolsOverride?.length ? `?symbols=${encodeURIComponent(symbolsOverride.join(","))}` : "";
+      const res = await fetch(`/api/nova-forecast${params}`, { cache: "no-store", credentials: "include" });
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.forecasts)) {
+        setNovaForecastItems(data.forecasts);
+      } else {
+        setNovaForecastItems([]);
+        setNovaForecastError(data?.error ?? (res.ok ? "No data" : `Error ${res.status}`));
+      }
+    } catch (e) {
+      setNovaForecastItems([]);
+      setNovaForecastError(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setNovaForecastLoading(false);
+    }
+  };
+
   const fetchTopAltcoins = async () => {
     setTopAltcoinsLoading(true);
     try {
@@ -1245,11 +1272,14 @@ export default function Dashboard() {
     if (activeTab === "perp-radar" && isPaid) {
       fetchPerpRadar();
     }
-  }, [activeTab, walletTrackerView, futuresView, isPaid, isOwner]);
+    if (activeTab === "nova-forecast" && isVip) {
+      fetchNovaForecast();
+    }
+  }, [activeTab, walletTrackerView, futuresView, isPaid, isVip, isOwner]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "watchlist") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "nova-forecast" || activeTab === "watchlist") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         fetchTrackedWallets();
@@ -2033,6 +2063,7 @@ export default function Dashboard() {
                 <TabsTrigger value="ct" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
                 <TabsTrigger value="wallets" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Wallet Tracker</TabsTrigger>
                 <TabsTrigger value="coach-calls" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Coach Calls + Telegram Signals</TabsTrigger>
+                <TabsTrigger value="nova-forecast" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaForecast Agent</TabsTrigger>
                 <TabsTrigger value="bsc" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
                 <TabsTrigger value="watchlist" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Watchlist {watchlist.length > 0 ? `(${watchlist.length})` : ""}</TabsTrigger>
                 {novaConnectEnabled && (
@@ -4281,6 +4312,64 @@ export default function Dashboard() {
                 </div>
                 );
               })()
+            ) : activeTab === "nova-forecast" ? (
+              <div className="mx-6 py-8">
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">NovaForecast Agent</h2>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Custom symbols (e.g. INJ, SUI, TIA)"
+                        value={novaForecastCustomSymbols}
+                        onChange={(e) => setNovaForecastCustomSymbols(e.target.value)}
+                        className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-48 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                      />
+                      <Button variant="outline" size="sm" onClick={() => fetchNovaForecast(novaForecastCustomSymbols.trim() ? novaForecastCustomSymbols.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean) : undefined)} disabled={novaForecastLoading}>
+                        {novaForecastCustomSymbols.trim() ? "Forecast custom" : "Refresh"}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">Last 2 weeks: high = short entry zone, low = long entry zone. Top alts by default; add symbols above for others (e.g. INJ, SUI).</p>
+                  {novaForecastError && (
+                    <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{novaForecastError}</p>
+                  )}
+                  {novaForecastLoading && novaForecastItems.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  ) : novaForecastItems.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No forecasts yet. Hit Refresh or enter symbols above.</p>
+                  ) : (
+                    <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Symbol</TableHead>
+                            <TableHead className="text-right text-xs">2w high</TableHead>
+                            <TableHead className="text-right text-xs">2w low</TableHead>
+                            <TableHead className="text-right text-xs">Short entry</TableHead>
+                            <TableHead className="text-right text-xs">Long entry</TableHead>
+                            <TableHead className="text-right text-xs">Price</TableHead>
+                            <TableHead className="text-left text-xs">Insight</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {novaForecastItems.map((f, i) => (
+                            <TableRow key={`${f.symbol}-${i}`}>
+                              <TableCell className="font-mono text-xs font-medium">{f.symbol}</TableCell>
+                              <TableCell className="text-right font-mono text-xs">${f.high2w > 0 ? f.high2w.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                              <TableCell className="text-right font-mono text-xs">${f.low2w > 0 ? f.low2w.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                              <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">${f.shortEntry > 0 ? f.shortEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                              <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">${f.longEntry > 0 ? f.longEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                              <TableCell className="text-right font-mono text-xs">{f.currentPrice != null ? "$" + f.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                              <TableCell className="text-left text-xs text-muted-foreground max-w-xs">{f.insight}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : activeTab === "coach-calls" ? (
               <CoachCallsPanel isOwner={isOwner} isVip={isVip} />
             ) : activeTab === "wallets" ? (
