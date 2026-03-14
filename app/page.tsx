@@ -2611,7 +2611,7 @@ export default function Dashboard() {
                         <option value="4h">4h %</option>
                         <option value="24h">24h %</option>
                       </select>
-                      <Button variant="outline" size="sm" onClick={fetchPerpRadar} disabled={perpRadarLoading}>
+                      <Button variant="outline" size="sm" onClick={() => fetchPerpRadar()} disabled={perpRadarLoading}>
                         {perpRadarLoading ? "Loading…" : "Refresh"}
                       </Button>
                     </div>
