@@ -217,7 +217,7 @@ function SubscribeContent() {
           <p className="font-semibold text-emerald-800 dark:text-emerald-200">You have an active subscription</p>
           <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">{tierLabel} access · Valid until {new Date(expiresAt).toLocaleDateString()}</p>
           <Button asChild className="mt-4">
-            <Link href="/">Back to Dashboard</Link>
+            <Link href="/?from=subscribe">Back to Dashboard</Link>
           </Button>
         </div>
       </div>
@@ -355,7 +355,7 @@ function SubscribeContent() {
           <div className="mb-6 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-5 py-4 text-emerald-800 dark:text-emerald-200">
             <p className="font-bold text-lg">Subscription activated!</p>
             <p className="mt-1 text-sm">You now have {tier === "vip" ? "VIP" : "Pro"} access. Redirecting to dashboard…</p>
-            <p className="mt-2 text-sm"><Link href="/" className="underline font-medium">Go to dashboard now</Link></p>
+            <p className="mt-2 text-sm"><Link href="/?from=subscribe" className="underline font-medium">Go to dashboard now</Link></p>
           </div>
         )}
 

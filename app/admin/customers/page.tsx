@@ -253,7 +253,7 @@ export default function AdminCustomersPage() {
     }
   };
 
-  const handleSetSubscription = async (id: string, action: "pro" | "vip" | "clear") => {
+  const handleSetSubscription = async (id: string, action: "pro" | "vip" | "clear", oneDay?: boolean) => {
     setUpdatingId(id);
     setError("");
     try {
@@ -263,13 +263,19 @@ export default function AdminCustomersPage() {
         body:
           action === "clear"
             ? JSON.stringify({ action: "clear" })
-            : JSON.stringify({ action: "set", tier: action }),
+            : JSON.stringify(
+                oneDay
+                  ? { action: "set", tier: action, planId: action === "vip" ? "1day" : "1month", months: 0 }
+                  : { action: "set", tier: action }
+              ),
       });
       const data = await res.json();
       if (data.success) {
         loadCustomers();
         if (action === "clear") {
           setSuccessMessage("Subscription cleared.");
+        } else if (oneDay) {
+          setSuccessMessage(`Granted 1 day ${action === "vip" ? "VIP" : "Pro"}.`);
         } else if (action === "vip") {
           setSuccessMessage("Set to VIP.");
         } else {
@@ -514,6 +520,24 @@ export default function AdminCustomersPage() {
                               className="text-xs text-amber-700 dark:text-amber-300 hover:underline disabled:opacity-50 text-left"
                             >
                               {updatingId === c.id ? "Updating…" : "Set VIP"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSetSubscription(c.id, "pro", true)}
+                              disabled={updatingId === c.id}
+                              className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline disabled:opacity-50 text-left"
+                              title="Grant 1 day Pro access"
+                            >
+                              {updatingId === c.id ? "…" : "Grant 1 day Pro"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSetSubscription(c.id, "vip", true)}
+                              disabled={updatingId === c.id}
+                              className="text-xs text-amber-600 dark:text-amber-400 hover:underline disabled:opacity-50 text-left"
+                              title="Grant 1 day VIP access"
+                            >
+                              {updatingId === c.id ? "…" : "Grant 1 day VIP"}
                             </button>
                             {c.isActive && (
                               <button

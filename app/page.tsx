@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,9 +87,14 @@ type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc"; symbol
 
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
   const { data: session, status } = useSession();
-  const isPaid = (session?.user as { isPaid?: boolean } | undefined)?.isPaid ?? false;
-  const tier = (session?.user as { tier?: "pro" | "vip" | null } | undefined)?.tier ?? null;
+  const sessionPaid = (session?.user as { isPaid?: boolean } | undefined)?.isPaid ?? false;
+  const sessionTier = (session?.user as { tier?: "pro" | "vip" | null } | undefined)?.tier ?? null;
+  const [subscriptionPaid, setSubscriptionPaid] = useState<boolean | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<"pro" | "vip" | null>(null);
+  const isPaid = subscriptionPaid !== null ? subscriptionPaid : sessionPaid;
+  const tier = subscriptionTier !== null ? subscriptionTier : sessionTier;
   const isVip = tier === "vip";
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
   const novaConnectAllowedByAdmin = (session?.user as { novaConnectAllowedByAdmin?: boolean } | undefined)?.novaConnectAllowedByAdmin ?? false;
@@ -96,6 +102,49 @@ export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
   const [presencePingOk, setPresencePingOk] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("new");
+
+  const fetchSubscription = useCallback(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/subscription")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          setSubscriptionPaid(!!data.paid);
+          setSubscriptionTier(data.subscriptionTier ?? null);
+        }
+      })
+      .catch(() => {});
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetchSubscription();
+  }, [status, fetchSubscription]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const onFocus = () => fetchSubscription();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [status, fetchSubscription]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const onVisibility = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") fetchSubscription();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [status, fetchSubscription]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("from") === "subscribe") {
+      fetchSubscription();
+      router.replace("/", { scroll: false });
+    }
+  }, [status, router, fetchSubscription]);
 
   // Open NovaConnect tab when visiting /?tab=nova-connect or /nova-connect (redirects here with ?tab=nova-connect)
   useEffect(() => {
