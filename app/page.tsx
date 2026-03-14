@@ -1795,7 +1795,7 @@ export default function Dashboard() {
               </span>
               <span className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold mt-0.5 tracking-wide bg-gradient-to-r from-amber-400 via-yellow-300 to-cyan-400 bg-clip-text text-transparent dark:from-amber-300 dark:via-yellow-200 dark:to-cyan-300">
                 <Zap className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0 animate-[nova-zap-pulse_2s_ease-in-out_infinite]" aria-hidden />
-                Your Advanced AI Lightning Sniper and Trading Intelligence
+                Your Advanced AI Lightning Crypto Sniper and Futures Intelligence
               </span>
             </h1>
           </div>
