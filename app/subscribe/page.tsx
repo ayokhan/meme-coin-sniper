@@ -221,18 +221,18 @@ function SubscribeContent() {
       <main className="mx-auto max-w-4xl px-4 py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
         <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-          Pro: Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures. VIP: everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, and on-demand NovaStaris AI Trading Bot (Crypto Futures). Pay by card or USDC (Solana).
+          Pro: Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect. VIP: everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast, and on-demand NovaStaris AI Trading Bot (Crypto Futures). Pay by card or USDC (Solana).
         </p>
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 mb-6">
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">What&apos;s in each plan?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <p className="font-semibold text-cyan-600 dark:text-cyan-400 mb-1">Pro ($50/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures (AI chart analysis, Institutional Workflow). BSC AI Analysis. Pay by card or USDC.</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures (AI chart analysis, Institutional Workflow), BSC AI Analysis, NovaConnect (community &amp; DMs). Pay by card or USDC.</p>
             </div>
             <div>
               <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (Twitter/CT), Wallet Tracker (Meme Coins + Leverage Traders), Coach Calls + Telegram Signals, on-demand NovaStaris AI Trading Bot (Blofin). Pay by card or USDC.</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (Twitter/CT), Wallet Tracker (Meme Coins + Leverage Traders), Coach Calls + Telegram Signals, NovaForecast, on-demand NovaStaris AI Trading Bot (Blofin). Pay by card or USDC.</p>
             </div>
           </div>
         </div>
@@ -263,7 +263,7 @@ function SubscribeContent() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
-          {tier === "pro" ? "Pro: $50/month. Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures." : "VIP: $150/month. Everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, and on-demand access to the NovaStaris AI Trading Bot (Crypto Futures)."}
+          {tier === "pro" ? "Pro: $50/month. Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast, and on-demand NovaStaris AI Trading Bot (Crypto Futures)."}
         </p>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 space-y-1">
           {tier === "pro" ? (
@@ -275,6 +275,7 @@ function SubscribeContent() {
                 <li>NovaStaris AI Agent (Solana &amp; BSC token analysis)</li>
                 <li>Crypto Futures (AI chart analysis, Institutional Workflow)</li>
                 <li>BSC AI Analysis</li>
+                <li>NovaConnect (community feed &amp; DMs)</li>
                 <li>Pay by credit card or USDC (Solana)</li>
               </ul>
             </>
@@ -285,6 +286,7 @@ function SubscribeContent() {
                 <li>CT Scan (Twitter / CT tracker)</li>
                 <li>Wallet Tracker (Meme Coins Traders + Top Leverage Traders)</li>
                 <li>Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram)</li>
+                <li>NovaForecast</li>
                 <li>NovaStaris AI Trading Bot — on-demand (Crypto Futures on Blofin)</li>
                 <li>Pay by credit card or USDC (Solana)</li>
               </ul>
