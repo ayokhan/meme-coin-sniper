@@ -65,15 +65,20 @@ export async function enrichPerpRadarWithKlines(items: PerpRadarItem[], maxItems
   return [...enriched, ...items.slice(maxItems)];
 }
 
+/** Oil-related perp bases (Binance: CRUDE, XBR, etc.). */
+const OIL_BASES = /^(CRUDE|XBR|OIL|WTI|BRENT|CL|NG|NATURALGAS|GAS)$/i;
+
 /** Fetch high-level perp stats from Binance USDT-margined futures for radar. */
 export async function getBinancePerpRadar(options?: {
   minChangePct?: number;
   minQuoteVolume?: number;
   limit?: number;
+  category?: "oil";
 }): Promise<PerpRadarItem[]> {
   const minChangePct = options?.minChangePct ?? 3; // 3%+ movers so list is usually non-empty
   const minQuoteVolume = options?.minQuoteVolume ?? 100_000; // $100k+ notional
   const limit = Math.min(options?.limit ?? 150, 200);
+  const oilOnly = options?.category === "oil";
 
   const res = await fetch(BINANCE_FUTURES_24H, {
     cache: "no-store",
@@ -90,16 +95,19 @@ export async function getBinancePerpRadar(options?: {
   const out: PerpRadarItem[] = [];
   for (const t of arr) {
     if (!t?.symbol?.endsWith("USDT")) continue;
+    const base = t.symbol.replace("USDT", "");
+    if (oilOnly && !OIL_BASES.test(base)) continue;
+
     const change = Number(t.priceChangePercent ?? "0");
     const quoteVol = Number(t.quoteVolume ?? "0");
     if (!Number.isFinite(change) || !Number.isFinite(quoteVol)) continue;
-    if (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume) continue;
+    if (!oilOnly && (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume)) continue;
+    if (oilOnly && quoteVol < (options?.minQuoteVolume ?? 0)) continue;
 
     const last = Number(t.lastPrice ?? "0");
     const vol = Number(t.volume ?? "0");
     if (!Number.isFinite(last) || !Number.isFinite(vol)) continue;
 
-    const base = t.symbol.replace("USDT", "");
     out.push({
       exchange: "binance",
       symbol: t.symbol,

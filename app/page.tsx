@@ -456,6 +456,7 @@ export default function Dashboard() {
   const [perpRadarItems, setPerpRadarItems] = useState<PerpRadarItem[]>([]);
   const [perpRadarLoading, setPerpRadarLoading] = useState(false);
   const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
+  const [perpRadarView, setPerpRadarView] = useState<"all" | "oil">("all");
   const [perpRadarPreset, setPerpRadarPreset] = useState<"all" | "24h_up" | "24h_down">("all");
   const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
   const [perpAlertAddType, setPerpAlertAddType] = useState<"new_listing" | "5m_pct_above" | "5m_pct_below">("new_listing");
@@ -970,11 +971,21 @@ export default function Dashboard() {
     }
   };
 
-  const fetchPerpRadar = async () => {
+  const fetchPerpRadar = async (view?: "all" | "oil") => {
+    const v = view ?? perpRadarView;
     setPerpRadarLoading(true);
     setPerpRadarError(null);
     try {
-      const res = await fetch("/api/perp-radar?minChangePct=3&minQuoteVolume=100000&limit=150", { cache: "no-store", credentials: "include" });
+      const params = new URLSearchParams();
+      if (v === "oil") {
+        params.set("category", "oil");
+        params.set("limit", "50");
+      } else {
+        params.set("minChangePct", "3");
+        params.set("minQuoteVolume", "100000");
+        params.set("limit", "150");
+      }
+      const res = await fetch(`/api/perp-radar?${params.toString()}`, { cache: "no-store", credentials: "include" });
       const data = await res.json();
       if (res.ok && data.success && Array.isArray(data.items)) {
         setPerpRadarItems(data.items);
@@ -990,13 +1001,15 @@ export default function Dashboard() {
     }
   };
 
+  const OIL_BASES_REGEX = /^(CRUDE|XBR|OIL|WTI|BRENT|CL|NG|NATURALGAS|GAS)$/i;
   /** Fallback when server gets 451: fetch Binance from user's browser (works in allowed regions). */
   const fetchPerpRadarFromBrowser = async () => {
     setPerpRadarLoading(true);
     setPerpRadarError(null);
+    const oilOnly = perpRadarView === "oil";
     const minChangePct = 3;
-    const minQuoteVolume = 100_000;
-    const limit = 150;
+    const minQuoteVolume = oilOnly ? 0 : 100_000;
+    const limit = oilOnly ? 50 : 150;
     try {
       const res = await fetch("https://fapi.binance.com/fapi/v1/ticker/24hr", { cache: "no-store" });
       if (!res.ok) throw new Error(`Binance returned ${res.status}. Your region may be restricted.`);
@@ -1005,17 +1018,20 @@ export default function Dashboard() {
       const out: PerpRadarItem[] = [];
       for (const t of arr) {
         if (!t?.symbol?.endsWith?.("USDT")) continue;
+        const base = t.symbol.replace("USDT", "");
+        if (oilOnly && !OIL_BASES_REGEX.test(base)) continue;
         const change = Number(t.priceChangePercent ?? "0");
         const quoteVol = Number(t.quoteVolume ?? "0");
         if (!Number.isFinite(change) || !Number.isFinite(quoteVol)) continue;
-        if (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume) continue;
+        if (!oilOnly && (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume)) continue;
+        if (oilOnly && quoteVol < 0) continue;
         const last = Number(t.lastPrice ?? "0");
         const vol = Number(t.volume ?? "0");
         if (!Number.isFinite(last) || !Number.isFinite(vol)) continue;
         out.push({
           exchange: "binance",
           symbol: t.symbol,
-          base: t.symbol.replace("USDT", ""),
+          base,
           quote: "USDT",
           change24hPct: change,
           lastPrice: last,
@@ -2557,7 +2573,22 @@ export default function Dashboard() {
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                     <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Perp Radar</h2>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Preset:</span>
+                      <span className="text-xs text-muted-foreground">View:</span>
+                      <button
+                        type="button"
+                        onClick={() => { setPerpRadarView("all"); fetchPerpRadar("all"); }}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarView === "all" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                      >
+                        All movers
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setPerpRadarView("oil"); fetchPerpRadar("oil"); }}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarView === "oil" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                      >
+                        Oil perps
+                      </button>
+                      <span className="text-xs text-muted-foreground ml-1">Preset:</span>
                       <select
                         value={perpRadarPreset}
                         onChange={(e) => setPerpRadarPreset(e.target.value as "all" | "24h_up" | "24h_down")}
@@ -2602,7 +2633,7 @@ export default function Dashboard() {
                   {perpRadarLoading && perpRadarItems.length === 0 && !perpRadarError ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                   ) : perpRadarItems.length === 0 && !perpRadarError ? (
-                    <p className="text-xs text-muted-foreground">No big movers right now. Hit Refresh to try again.</p>
+                    <p className="text-xs text-muted-foreground">{perpRadarView === "oil" ? "No oil perps found. Binance may not list them in your region, or try Refresh." : "No big movers right now. Hit Refresh to try again."}</p>
                   ) : perpRadarItems.length > 0 ? (
                     <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                       <Table>

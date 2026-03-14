@@ -54,11 +54,13 @@ export async function GET(request: Request) {
     const minChangePct = Number(searchParams.get("minChangePct") ?? "3");
     const minQuoteVolume = Number(searchParams.get("minQuoteVolume") ?? "100000");
     const limit = Math.min(Number(searchParams.get("limit") ?? "150"), 200);
+    const category = searchParams.get("category") === "oil" ? "oil" : undefined;
 
     let binance = await getBinancePerpRadar({
       minChangePct: Number.isFinite(minChangePct) ? minChangePct : 3,
-      minQuoteVolume: Number.isFinite(minQuoteVolume) ? minQuoteVolume : 100_000,
+      minQuoteVolume: category === "oil" ? 0 : (Number.isFinite(minQuoteVolume) ? minQuoteVolume : 100_000),
       limit: Number.isFinite(limit) ? limit : 150,
+      ...(category === "oil" ? { category: "oil" as const } : {}),
     });
     try {
       binance = await enrichPerpRadarWithKlines(binance, 30);
