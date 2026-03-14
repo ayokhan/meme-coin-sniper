@@ -19,8 +19,9 @@ export async function GET() {
     getActiveSubscription(session.user.id),
     getSubscriptionExpiresAt(session.user.id),
     getUsageThisMonth(session.user.id),
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { paymentTermsAcceptedAt: true } }),
+    prisma.user.findUnique({ where: { id: session.user.id } }),
   ]);
+  const paymentTermsAcceptedAt = (user as { paymentTermsAcceptedAt?: Date | null } | null)?.paymentTermsAcceptedAt;
   return NextResponse.json({
     success: true,
     paid,
@@ -30,7 +31,7 @@ export async function GET() {
     paymentWallet: paid ? undefined : PAYMENT_WALLET,
     usdcMint: USDC_MINT,
     usageThisMonth: usage,
-    paymentTermsAcceptedAt: user?.paymentTermsAcceptedAt?.toISOString() ?? null,
+    paymentTermsAcceptedAt: paymentTermsAcceptedAt?.toISOString() ?? null,
   });
 }
 
@@ -43,9 +44,8 @@ export async function POST(request: Request) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { paymentTermsAcceptedAt: true },
   });
-  if (!user?.paymentTermsAcceptedAt) {
+  if (!(user as { paymentTermsAcceptedAt?: Date | null } | null)?.paymentTermsAcceptedAt) {
     return NextResponse.json(
       { success: false, error: 'You must accept the Payment Terms and Conditions before paying. Check the box on the subscribe page and try again.' },
       { status: 403 }

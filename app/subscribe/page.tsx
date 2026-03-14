@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,7 +10,7 @@ import { Zap, CreditCard } from "lucide-react";
 
 type Plan = { id: string; label: string; months: number; priceUsd: number };
 
-export default function SubscribePage() {
+function SubscribeContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -331,8 +331,15 @@ export default function SubscribePage() {
             )}
           </CardContent>
         </Card>
-        </div>
       </main>
     </div>
+  );
+}
+
+export default function SubscribePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-zinc-500">Loading…</div>}>
+      <SubscribeContent />
+    </Suspense>
   );
 }

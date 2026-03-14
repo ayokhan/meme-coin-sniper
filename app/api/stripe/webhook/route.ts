@@ -52,8 +52,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const existing = await prisma.subscription.findUnique({
-      where: { stripeSessionId: session.id },
+    const existing = await prisma.subscription.findFirst({
+      where: { stripeSessionId: session.id } as Record<string, unknown>,
     });
     if (existing) {
       return NextResponse.json({ received: true, message: "Already processed." });
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         amountUsd: amountUsd || plan.priceUsd,
         expiresAt,
         stripeSessionId: session.id,
-      },
+      } as Record<string, unknown>,
     });
 
     return NextResponse.json({ received: true });

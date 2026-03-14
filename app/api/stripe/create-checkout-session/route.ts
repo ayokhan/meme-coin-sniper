@@ -21,9 +21,8 @@ export async function POST(request: Request) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { paymentTermsAcceptedAt: true },
   });
-  if (!user?.paymentTermsAcceptedAt) {
+  if (!(user as { paymentTermsAcceptedAt?: Date | null } | null)?.paymentTermsAcceptedAt) {
     return NextResponse.json(
       { success: false, error: "You must accept the Payment Terms and Conditions before paying." },
       { status: 403 }
