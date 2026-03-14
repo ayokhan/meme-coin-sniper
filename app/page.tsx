@@ -4331,6 +4331,9 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">Last 2 weeks: high = short entry zone, low = long entry zone. Top alts by default; add symbols above for others (e.g. INJ, SUI).</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    <strong className="text-zinc-700 dark:text-zinc-300">Insight meanings:</strong> <span className="text-rose-600 dark:text-rose-400">Bias: short on retest of high</span> = price is above the 2w range mid—look to short when price rallies back up to the 2w high. <span className="text-emerald-600 dark:text-emerald-400">Bias: long on retest of low</span> = price is below the 2w range mid—look to long when price pulls back to the 2w low.
+                  </p>
                   {novaForecastError && (
                     <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{novaForecastError}</p>
                   )}
