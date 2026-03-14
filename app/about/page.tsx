@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, BarChart3, Activity } from "lucide-react";
+import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, BarChart3, Activity, MessageCircle } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -102,6 +102,15 @@ export default function AboutPage() {
                     <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Crypto Futures</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
                       <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong> — upload a chart, set margin and leverage; get AI support/resistance, entry zone, take profit and stop loss. <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong> — 4-phase system (macro bias, daily flow, pre-trade, execution) with powerful tools and six rules so you trade with institutional flow.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 rounded-xl border-2 border-emerald-200/80 dark:border-emerald-700/80 bg-emerald-50/50 dark:bg-emerald-950/30 p-4">
+                  <MessageCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">NovaConnect</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                      The first social platform built for crypto traders. Post in the community feed, see who’s online, and DM other traders—share ideas, charts, and alpha without leaving NovaStaris. Pro/VIP or admin-approved access.
                     </p>
                   </div>
                 </div>
