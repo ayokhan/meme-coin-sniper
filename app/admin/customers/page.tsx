@@ -19,6 +19,7 @@ type Customer = {
   novaConnectCommunityRep: boolean;
   novaConnectAllowedByAdmin: boolean;
   novaConnectRulesAcceptedAt: string | null;
+  paymentTermsAcceptedAt: string | null;
   createdAt: string;
   subscriptionTier: string | null;
   subscriptionPlan: string | null;
@@ -349,6 +350,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">NovaConnect</th>
                       <th className="pb-2 pr-4 font-semibold">Allow NovaConnect</th>
                       <th className="pb-2 pr-4 font-semibold">Rules accepted</th>
+                      <th className="pb-2 pr-4 font-semibold">Payment terms</th>
                       <th className="pb-2 pr-4 font-semibold">Community rep</th>
                       <th className="pb-2 font-semibold">Actions</th>
                     </tr>
@@ -442,6 +444,15 @@ export default function AdminCustomersPage() {
                               </button>
                             )}
                           </div>
+                        </td>
+                        <td className="py-2 pr-4">
+                          {c.paymentTermsAcceptedAt ? (
+                            <span className="text-xs text-emerald-700 dark:text-emerald-300">
+                              Yes · {new Date(c.paymentTermsAcceptedAt).toLocaleDateString()}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-zinc-500">No</span>
+                          )}
                         </td>
                         <td className="py-2 pr-4">
                           <button

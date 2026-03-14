@@ -3,16 +3,17 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap } from "lucide-react";
+import { Zap, CreditCard } from "lucide-react";
 
 type Plan = { id: string; label: string; months: number; priceUsd: number };
 
 export default function SubscribePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [paid, setPaid] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
@@ -20,12 +21,19 @@ export default function SubscribePage() {
   const [vipPlans, setVipPlans] = useState<Plan[]>([]);
   const [paymentWallet, setPaymentWallet] = useState("");
   const [usdcMint, setUsdcMint] = useState("");
+  const [paymentTermsAcceptedAt, setPaymentTermsAcceptedAt] = useState<string | null>(null);
+  const [termsCheckbox, setTermsCheckbox] = useState(false);
+  const [termsAccepting, setTermsAccepting] = useState(false);
   const [tier, setTier] = useState<"pro" | "vip">("pro");
   const [selectedPlan, setSelectedPlan] = useState<string>("1month");
   const [txSignature, setTxSignature] = useState("");
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyError, setVerifyError] = useState("");
   const [verifySuccess, setVerifySuccess] = useState(false);
+  const [cardLoading, setCardLoading] = useState(false);
+  const [cardError, setCardError] = useState("");
+  const termsAccepted = !!paymentTermsAcceptedAt || termsCheckbox;
+
   useEffect(() => {
     if (status === "unauthenticated") {
       setLoading(false);
@@ -43,12 +51,45 @@ export default function SubscribePage() {
           setVipPlans(Array.isArray(data.vipPlans) ? data.vipPlans : []);
           setPaymentWallet(data.paymentWallet ?? "");
           setUsdcMint(data.usdcMint ?? "");
+          setPaymentTermsAcceptedAt(data.paymentTermsAcceptedAt ?? null);
+          if (data.paymentTermsAcceptedAt) setTermsCheckbox(true);
         }
       } finally {
         setLoading(false);
       }
     })();
   }, [status]);
+
+  useEffect(() => {
+    const success = searchParams.get("success");
+    if (success === "1" && status === "authenticated" && !loading) {
+      fetch("/api/subscription")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success && data.paid) {
+            setPaid(true);
+            setExpiresAt(data.expiresAt ?? null);
+            router.replace("/subscribe", { scroll: false });
+          }
+        });
+    }
+  }, [searchParams, status, loading, router]);
+
+  const handleTermsCheckboxChange = async (checked: boolean) => {
+    setTermsCheckbox(checked);
+    if (!checked) return;
+    if (paymentTermsAcceptedAt) return;
+    setTermsAccepting(true);
+    try {
+      const res = await fetch("/api/accept-payment-terms", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (data.success) {
+        setPaymentTermsAcceptedAt(new Date().toISOString());
+      }
+    } finally {
+      setTermsAccepting(false);
+    }
+  };
 
   const plans = tier === "pro" ? proPlans : vipPlans;
   const plan = plans.find((p) => p.id === selectedPlan) ?? plans[0];
@@ -280,8 +321,8 @@ export default function SubscribePage() {
                     />
                   </div>
                   {verifyError && <p className="text-sm text-rose-600 dark:text-rose-400">{verifyError}</p>}
-                  <Button type="submit" disabled={verifyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white">
-                    {verifyLoading ? "Verifying…" : "Verify payment & activate"}
+                  <Button type="submit" disabled={verifyLoading || !termsAccepted} className="bg-cyan-500 hover:bg-cyan-600 text-white">
+                    {verifyLoading ? "Verifying…" : termsAccepted ? "Verify payment & activate" : "Accept terms to verify"}
                   </Button>
                 </form>
               </>
@@ -290,6 +331,7 @@ export default function SubscribePage() {
             )}
           </CardContent>
         </Card>
+        </div>
       </main>
     </div>
   );

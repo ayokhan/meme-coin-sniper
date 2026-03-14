@@ -105,6 +105,8 @@ model User {
   novaConnectCommunityRep    Boolean  @default(false)
   /** Set by admin: allow NovaConnect (online list, DMs) even if not Pro/VIP. */
   novaConnectAllowedByAdmin  Boolean  @default(false)
+  /** When user accepted Payment Terms and Conditions (required before any subscription payment). */
+  paymentTermsAcceptedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
@@ -186,15 +188,17 @@ model Account {
 }
 
 model Subscription {
-  id           String   @id @default(cuid())
-  userId       String
-  tier         String   @default("vip")  // "pro" | "vip"
-  plan         String   // e.g. "1month", "6month", "12month" (pro) or "1day", "1month", "6month", "12month" (vip)
-  amountUsd    Int
-  expiresAt    DateTime
-  txSignature  String?  // Solana tx signature for verification
-  createdAt    DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String   @id @default(cuid())
+  userId            String
+  tier              String   @default("vip")  // "pro" | "vip"
+  plan              String   // e.g. "1month", "6month", "12month" (pro) or "1day", "1month", "6month", "12month" (vip)
+  amountUsd         Int
+  expiresAt         DateTime
+  txSignature       String?  // Solana tx signature for USDC verification
+  stripeSessionId   String?  // Stripe Checkout session id (card payments); idempotent webhook
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([stripeSessionId])
   @@index([userId])
   @@index([expiresAt])
 }
