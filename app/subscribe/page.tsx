@@ -106,6 +106,34 @@ function SubscribeContent() {
     return () => clearTimeout(t);
   }, [verifySuccess, router]);
 
+  const handlePayWithCard = async () => {
+    if (!termsAccepted) return;
+    setCardError("");
+    setCardLoading(true);
+    try {
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tier,
+          planId: selectedPlan,
+          successUrl: typeof window !== "undefined" ? `${window.location.origin}/subscribe?success=1` : undefined,
+          cancelUrl: typeof window !== "undefined" ? `${window.location.origin}/subscribe` : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setCardError(data.error || "Could not start checkout. Try again.");
+    } catch {
+      setCardError("Request failed. Try again.");
+    } finally {
+      setCardLoading(false);
+    }
+  };
+
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setVerifyError("");
@@ -288,7 +316,52 @@ function SubscribeContent() {
           </div>
         )}
 
-        <Card className="border-zinc-200 dark:border-zinc-800">
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 p-4 mb-6">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(e) => handleTermsCheckboxChange(e.target.checked)}
+              disabled={termsAccepting}
+              className="mt-1 h-4 w-4 rounded border-zinc-300 text-cyan-600 focus:ring-cyan-500"
+            />
+            <span className="text-sm text-zinc-800 dark:text-zinc-200">
+              I agree to the{" "}
+              <Link href="/payment-terms" className="font-medium text-cyan-600 dark:text-cyan-400 hover:underline" target="_blank" rel="noopener noreferrer">
+                Payment Terms and Conditions
+              </Link>{" "}
+              (no refund after 24 hours of use). You must accept before paying.
+            </span>
+          </label>
+          {termsAccepting && <p className="text-xs text-zinc-500 mt-1">Saving…</p>}
+        </div>
+
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Payment method</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+          <Card className="border-zinc-200 dark:border-zinc-800">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-cyan-500" />
+                Pay with card
+              </CardTitle>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Pay by credit or debit card. You will be redirected to our secure payment page.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {cardError && <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{cardError}</p>}
+              <Button
+                type="button"
+                onClick={handlePayWithCard}
+                disabled={!termsAccepted || cardLoading}
+                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white"
+              >
+                {cardLoading ? "Redirecting…" : termsAccepted ? `Pay $${plan?.priceUsd ?? 0} with card` : "Accept terms above to pay with card"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-zinc-200 dark:border-zinc-800">
           <CardHeader>
             <CardTitle className="text-lg">Pay with USDC (Solana)</CardTitle>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -297,6 +370,9 @@ function SubscribeContent() {
             <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
               <strong>How we verify payment:</strong> We only check that the correct amount of USDC reached the wallet above by reading the transaction on Solana. We never hold your keys or custody your funds.
             </p>
+            {!termsAccepted && (
+              <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">Accept the Payment Terms above to verify USDC payment.</p>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             {paymentWallet ? (
@@ -331,6 +407,7 @@ function SubscribeContent() {
             )}
           </CardContent>
         </Card>
+        </div>
       </main>
     </div>
   );
