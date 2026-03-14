@@ -16,7 +16,9 @@ function SubscribeContent() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [paid, setPaid] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<"pro" | "vip" | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [cardSuccessPending, setCardSuccessPending] = useState(false);
   const [proPlans, setProPlans] = useState<Plan[]>([]);
   const [vipPlans, setVipPlans] = useState<Plan[]>([]);
   const [paymentWallet, setPaymentWallet] = useState("");
@@ -47,6 +49,7 @@ function SubscribeContent() {
         const data = await res.json();
         if (data.success) {
           setPaid(!!data.paid);
+          setSubscriptionTier(data.subscriptionTier ?? null);
           setExpiresAt(data.expiresAt ?? null);
           setProPlans(Array.isArray(data.proPlans) ? data.proPlans : []);
           setVipPlans(Array.isArray(data.vipPlans) ? data.vipPlans : []);
@@ -63,17 +66,37 @@ function SubscribeContent() {
 
   useEffect(() => {
     const success = searchParams.get("success");
-    if (success === "1" && status === "authenticated" && !loading) {
+    if (success !== "1" || status !== "authenticated" || loading) return;
+
+    setCardSuccessPending(true);
+    let attempts = 0;
+    const maxAttempts = 15;
+    const pollMs = 2000;
+
+    const poll = () => {
       fetch("/api/subscription")
         .then((r) => r.json())
         .then((data) => {
           if (data.success && data.paid) {
             setPaid(true);
+            setSubscriptionTier(data.subscriptionTier ?? null);
             setExpiresAt(data.expiresAt ?? null);
+            setCardSuccessPending(false);
             router.replace("/subscribe", { scroll: false });
+            return;
           }
+          attempts += 1;
+          if (attempts < maxAttempts) setTimeout(poll, pollMs);
+          else setCardSuccessPending(false);
+        })
+        .catch(() => {
+          attempts += 1;
+          if (attempts < maxAttempts) setTimeout(poll, pollMs);
+          else setCardSuccessPending(false);
         });
-    }
+    };
+
+    poll();
   }, [searchParams, status, loading, router]);
 
   const handleTermsCheckboxChange = async (checked: boolean) => {
@@ -187,11 +210,12 @@ function SubscribeContent() {
   }
 
   if (paid && expiresAt) {
+    const tierLabel = subscriptionTier === "vip" ? "VIP" : subscriptionTier === "pro" ? "Pro" : "active";
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
         <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-6 py-4 text-center max-w-md">
           <p className="font-semibold text-emerald-800 dark:text-emerald-200">You have an active subscription</p>
-          <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">Valid until {new Date(expiresAt).toLocaleDateString()}</p>
+          <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">{tierLabel} access · Valid until {new Date(expiresAt).toLocaleDateString()}</p>
           <Button asChild className="mt-4">
             <Link href="/">Back to Dashboard</Link>
           </Button>
@@ -314,6 +338,19 @@ function SubscribeContent() {
           ))}
         </div>
 
+        {cardSuccessPending && (
+          <div className="mb-6 rounded-xl border-2 border-cyan-300 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-950/40 px-5 py-4 text-cyan-800 dark:text-cyan-200">
+            <p className="font-bold text-lg">Payment received</p>
+            <p className="mt-1 text-sm">Activating your subscription… Please wait a moment.</p>
+            <p className="mt-1 text-xs text-cyan-700 dark:text-cyan-300">If this message stays for more than 30 seconds, refresh the page or contact support.</p>
+          </div>
+        )}
+        {searchParams.get("success") === "1" && !paid && !cardSuccessPending && (
+          <div className="mb-6 rounded-xl border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-5 py-4 text-amber-800 dark:text-amber-200">
+            <p className="font-bold text-lg">Payment received</p>
+            <p className="mt-1 text-sm">If your subscription does not appear above, refresh the page in a moment or contact support with your payment details.</p>
+          </div>
+        )}
         {verifySuccess && (
           <div className="mb-6 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-5 py-4 text-emerald-800 dark:text-emerald-200">
             <p className="font-bold text-lg">Subscription activated!</p>

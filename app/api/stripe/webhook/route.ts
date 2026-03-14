@@ -35,8 +35,8 @@ export async function POST(request: Request) {
 
   const session = event.data.object as Stripe.Checkout.Session;
   const userId = session.client_reference_id ?? null;
-  const tier = (session.metadata?.tier ?? "pro") as Tier;
-  const planId = session.metadata?.planId ?? session.metadata?.plan ?? "";
+  let tier = (session.metadata?.tier ?? "pro") as Tier;
+  let planId = (session.metadata?.planId ?? session.metadata?.plan ?? "").toString();
   const amountUsd = parseInt(session.metadata?.amountUsd ?? "0", 10) || 0;
 
   if (!userId || !session.id) {
@@ -44,10 +44,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing user or session id." }, { status: 400 });
   }
 
-  const plans = tier === "vip" ? VIP_PLANS : PRO_PLANS;
-  const plan = plans.find((p) => p.id === planId);
+  let plans = tier === "vip" ? VIP_PLANS : PRO_PLANS;
+  let plan = plans.find((p) => p.id === planId);
+  if (!plan && amountUsd > 0) {
+    plan = plans.find((p) => p.priceUsd === amountUsd) ?? null;
+    if (plan) planId = plan.id;
+  }
+  if (!plan && amountUsd > 0) {
+    const vipPlan = VIP_PLANS.find((p) => p.priceUsd === amountUsd);
+    const proPlan = PRO_PLANS.find((p) => p.priceUsd === amountUsd);
+    if (vipPlan) {
+      tier = "vip";
+      plan = vipPlan;
+      planId = plan.id;
+    } else if (proPlan) {
+      tier = "pro";
+      plan = proPlan;
+      planId = plan.id;
+    }
+  }
   if (!plan) {
-    console.error("Stripe webhook: invalid plan", { tier, planId });
+    console.error("Stripe webhook: invalid plan", { tier, planId, amountUsd });
     return NextResponse.json({ error: "Invalid plan." }, { status: 400 });
   }
 
@@ -77,6 +94,7 @@ export async function POST(request: Request) {
       } as Record<string, unknown>,
     });
 
+    console.info("Stripe webhook: subscription created", { userId, tier, planId: plan.id, sessionId: session.id });
     return NextResponse.json({ received: true });
   } catch (e) {
     console.error("Stripe webhook create subscription error:", e);
