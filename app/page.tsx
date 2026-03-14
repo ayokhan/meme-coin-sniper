@@ -93,10 +93,10 @@ export default function Dashboard() {
   const sessionTier = (session?.user as { tier?: "pro" | "vip" | null } | undefined)?.tier ?? null;
   const [subscriptionPaid, setSubscriptionPaid] = useState<boolean | null>(null);
   const [subscriptionTier, setSubscriptionTier] = useState<"pro" | "vip" | null>(null);
-  const isPaid = subscriptionPaid !== null ? subscriptionPaid : sessionPaid;
-  const tier = subscriptionTier !== null ? subscriptionTier : sessionTier;
-  const isVip = tier === "vip";
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
+  const isPaid = isOwner || (subscriptionPaid !== null ? subscriptionPaid : sessionPaid);
+  const tier = isOwner ? "vip" : (subscriptionTier !== null ? subscriptionTier : sessionTier);
+  const isVip = tier === "vip";
   const novaConnectAllowedByAdmin = (session?.user as { novaConnectAllowedByAdmin?: boolean } | undefined)?.novaConnectAllowedByAdmin ?? false;
   const canUseNovaConnectPaidFeatures = isPaid || isOwner || novaConnectAllowedByAdmin;
   const [mounted, setMounted] = useState(false);
