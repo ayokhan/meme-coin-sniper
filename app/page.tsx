@@ -2616,7 +2616,9 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Biggest 24h movers (≥3%, $100k+ vol). List changes on each Refresh—up to 150 symbols. 5m–4h from Binance when allowed, otherwise Hyperliquid where listed; else —. Use AI Signal or Crypto Futures to analyze.</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {perpRadarView === "oil" ? "Oil & energy perps from Binance USDT-M (we match CRUDE, XBR, OIL, WTI, BRENT, CL, NG, GAS, etc.). Only symbols listed on this exchange appear—often just one or a few. For more oil perps (e.g. CRUDE, XBR), check Binance Wallet or other products." : "Biggest 24h movers (≥3%, $100k+ vol). List changes on each Refresh—up to 150 symbols. 5m–4h from Binance when allowed, otherwise Hyperliquid where listed; else —. Use AI Signal or Crypto Futures to analyze."}
+                  </p>
                   {perpRadarError && (
                     <div className="mb-3">
                       <p className="text-sm text-rose-600 dark:text-rose-400">{perpRadarError.includes("451") || perpRadarError.includes("restricts") ? "Binance blocks API access from our server's region." : perpRadarError}</p>
