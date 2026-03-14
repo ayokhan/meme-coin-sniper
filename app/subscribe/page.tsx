@@ -32,7 +32,8 @@ function SubscribeContent() {
   const [verifySuccess, setVerifySuccess] = useState(false);
   const [cardLoading, setCardLoading] = useState(false);
   const [cardError, setCardError] = useState("");
-  const termsAccepted = !!paymentTermsAcceptedAt || termsCheckbox;
+  /** Checkbox is always toggleable; payment requires the box to be checked in this session. */
+  const termsAcceptedForPayment = termsCheckbox;
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -107,7 +108,7 @@ function SubscribeContent() {
   }, [verifySuccess, router]);
 
   const handlePayWithCard = async () => {
-    if (!termsAccepted) return;
+    if (!termsAcceptedForPayment) return;
     setCardError("");
     setCardLoading(true);
     try {
@@ -326,9 +327,9 @@ function SubscribeContent() {
             <input
               id="payment-terms-checkbox"
               type="checkbox"
-              checked={termsAccepted}
+              checked={termsCheckbox}
               onChange={(e) => handleTermsCheckboxChange(e.target.checked)}
-              disabled={termsAccepting || !!paymentTermsAcceptedAt}
+              disabled={termsAccepting}
               className="mt-1 h-4 w-4 rounded border-zinc-300 text-cyan-600 focus:ring-cyan-500 disabled:opacity-70 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-zinc-800 dark:text-zinc-200">
@@ -343,7 +344,7 @@ function SubscribeContent() {
                 Payment Terms and Conditions
               </Link>{" "}
               (no refund after 24 hours of use). You must accept before paying.
-              {paymentTermsAcceptedAt && <span className="block mt-1 text-xs text-zinc-500">You have already accepted. Terms cannot be changed.</span>}
+              {paymentTermsAcceptedAt && <span className="block mt-1 text-xs text-zinc-500">You previously accepted the payment terms. You can check or uncheck above; the box must be checked to pay.</span>}
             </span>
           </label>
           {termsAccepting && <p className="text-xs text-zinc-500 mt-1">Saving…</p>}
@@ -366,10 +367,10 @@ function SubscribeContent() {
               <Button
                 type="button"
                 onClick={handlePayWithCard}
-                disabled={!termsAccepted || cardLoading}
+                disabled={!termsAcceptedForPayment || cardLoading}
                 className="w-full bg-cyan-500 hover:bg-cyan-600 text-white"
               >
-                {cardLoading ? "Redirecting…" : termsAccepted ? `Pay $${plan?.priceUsd ?? 0} with card` : "Accept terms above to pay with card"}
+                {cardLoading ? "Redirecting…" : termsAcceptedForPayment ? `Pay $${plan?.priceUsd ?? 0} with card` : "Accept terms above to pay with card"}
               </Button>
             </CardContent>
           </Card>
@@ -383,7 +384,7 @@ function SubscribeContent() {
             <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
               <strong>How we verify payment:</strong> We only check that the correct amount of USDC reached the wallet above by reading the transaction on Solana. We never hold your keys or custody your funds.
             </p>
-            {!termsAccepted && (
+            {!termsAcceptedForPayment && (
               <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">Accept the Payment Terms above to verify USDC payment.</p>
             )}
           </CardHeader>
@@ -410,8 +411,8 @@ function SubscribeContent() {
                     />
                   </div>
                   {verifyError && <p className="text-sm text-rose-600 dark:text-rose-400">{verifyError}</p>}
-                  <Button type="submit" disabled={verifyLoading || !termsAccepted} className="bg-cyan-500 hover:bg-cyan-600 text-white">
-                    {verifyLoading ? "Verifying…" : termsAccepted ? "Verify payment & activate" : "Accept terms to verify"}
+                  <Button type="submit" disabled={verifyLoading || !termsAcceptedForPayment} className="bg-cyan-500 hover:bg-cyan-600 text-white">
+                    {verifyLoading ? "Verifying…" : termsAcceptedForPayment ? "Verify payment & activate" : "Accept terms to verify"}
                   </Button>
                 </form>
               </>
