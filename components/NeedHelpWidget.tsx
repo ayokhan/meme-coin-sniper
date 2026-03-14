@@ -34,7 +34,7 @@ const VIP_PLANS_DISPLAY = [
   { label: "VIP 12 months (2 months free)", price: "$1,500" },
 ];
 const NJA_SUBSCRIPTION_INTRO = "NovaStaris offers two subscription tiers: Pro and VIP.";
-const NJA_SUBSCRIPTION_OUTRO = "Pro includes Surge, Transactions, NovaStaris AI Agent, and Crypto Futures. VIP adds CT Scan, Wallet Tracker, and Coach Calls + Telegram Signals. To subscribe, use the Subscribe page in the app menu. Anything else I can help with?";
+const NJA_SUBSCRIPTION_OUTRO = "Pro includes Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, and BSC AI Analysis. VIP adds CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, and on-demand NovaStaris AI Trading Bot. Pay by credit card or USDC (Solana). To subscribe, use the Subscribe page in the app menu. Anything else I can help with?";
 
 const SUBSCRIPTION_KEYWORDS = [
   "subscription", "subscribe", "price", "pricing", "plan", "plans", "cost", "how much",

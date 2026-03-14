@@ -221,18 +221,18 @@ function SubscribeContent() {
       <main className="mx-auto max-w-4xl px-4 py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
         <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-          Pro: Surge, Transactions, NovaStaris AI Agent, Crypto Futures. VIP: everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, and on-demand access to the NovaStaris AI Trading Bot (Crypto Futures).
+          Pro: Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures. VIP: everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, and on-demand NovaStaris AI Trading Bot (Crypto Futures). Pay by card or USDC (Solana).
         </p>
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 mb-6">
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">What&apos;s in each plan?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <p className="font-semibold text-cyan-600 dark:text-cyan-400 mb-1">Pro ($50/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Surge, Transactions, AI Agent (Solana + BSC), Crypto Futures (chart analysis + Institutional Workflow).</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures (AI chart analysis, Institutional Workflow). BSC AI Analysis. Pay by card or USDC.</p>
             </div>
             <div>
               <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram, and on-demand NovaStaris AI Trading Bot (Blofin).</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (Twitter/CT), Wallet Tracker (Meme Coins + Leverage Traders), Coach Calls + Telegram Signals, on-demand NovaStaris AI Trading Bot (Blofin). Pay by card or USDC.</p>
             </div>
           </div>
         </div>
@@ -271,9 +271,11 @@ function SubscribeContent() {
               <p className="font-medium text-zinc-600 dark:text-zinc-300">Pro includes:</p>
               <ul className="list-disc list-inside pl-1 space-y-0.5">
                 <li>Surge (volume &amp; momentum)</li>
-                <li>Transactions</li>
+                <li>Transactions (live trades feed)</li>
                 <li>NovaStaris AI Agent (Solana &amp; BSC token analysis)</li>
                 <li>Crypto Futures (AI chart analysis, Institutional Workflow)</li>
+                <li>BSC AI Analysis</li>
+                <li>Pay by credit card or USDC (Solana)</li>
               </ul>
             </>
           ) : (
@@ -283,7 +285,8 @@ function SubscribeContent() {
                 <li>CT Scan (Twitter / CT tracker)</li>
                 <li>Wallet Tracker (Meme Coins Traders + Top Leverage Traders)</li>
                 <li>Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram)</li>
-                <li>NovaStaris AI Trading Bot — on-demand access (Crypto Futures on Blofin)</li>
+                <li>NovaStaris AI Trading Bot — on-demand (Crypto Futures on Blofin)</li>
+                <li>Pay by credit card or USDC (Solana)</li>
               </ul>
             </>
           )}
@@ -303,7 +306,7 @@ function SubscribeContent() {
             >
               <div className="font-semibold text-zinc-900 dark:text-zinc-100">{p.label}</div>
               <div className="mt-1 text-lg font-bold text-cyan-600 dark:text-cyan-400">${p.priceUsd} USD</div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">Pay in USDC (Solana)</div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400">Pay by card or USDC (Solana)</div>
             </button>
           ))}
         </div>
@@ -317,20 +320,28 @@ function SubscribeContent() {
         )}
 
         <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 p-4 mb-6">
-          <label className="flex items-start gap-3 cursor-pointer">
+          <label htmlFor="payment-terms-checkbox" className="flex items-start gap-3 cursor-pointer">
             <input
+              id="payment-terms-checkbox"
               type="checkbox"
               checked={termsAccepted}
               onChange={(e) => handleTermsCheckboxChange(e.target.checked)}
-              disabled={termsAccepting}
-              className="mt-1 h-4 w-4 rounded border-zinc-300 text-cyan-600 focus:ring-cyan-500"
+              disabled={termsAccepting || !!paymentTermsAcceptedAt}
+              className="mt-1 h-4 w-4 rounded border-zinc-300 text-cyan-600 focus:ring-cyan-500 disabled:opacity-70 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-zinc-800 dark:text-zinc-200">
               I agree to the{" "}
-              <Link href="/payment-terms" className="font-medium text-cyan-600 dark:text-cyan-400 hover:underline" target="_blank" rel="noopener noreferrer">
+              <Link
+                href="/payment-terms"
+                className="font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
                 Payment Terms and Conditions
               </Link>{" "}
               (no refund after 24 hours of use). You must accept before paying.
+              {paymentTermsAcceptedAt && <span className="block mt-1 text-xs text-zinc-500">You have already accepted. Terms cannot be changed.</span>}
             </span>
           </label>
           {termsAccepting && <p className="text-xs text-zinc-500 mt-1">Saving…</p>}
