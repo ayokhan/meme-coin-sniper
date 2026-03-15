@@ -7,10 +7,14 @@ export const maxDuration = 45;
 
 /** Timeframe config for NovaSmart: id, label, interval, bar count. */
 const NOVA_SMART_TIMEFRAMES = [
+  { id: "5m", label: "5 mins", interval: "1m", limit: 5 },
   { id: "15m", label: "15 mins", interval: "1m", limit: 15 },
+  { id: "30m", label: "30 mins", interval: "1m", limit: 30 },
   { id: "1h", label: "1 hour", interval: "1m", limit: 60 },
   { id: "4h", label: "4 hours", interval: "5m", limit: 48 },
   { id: "24h", label: "24 hours", interval: "1h", limit: 24 },
+  { id: "48h", label: "48 hours", interval: "1h", limit: 48 },
+  { id: "72h", label: "72 hours", interval: "1h", limit: 72 },
   { id: "1w", label: "1 week", interval: "1d", limit: 7 },
   { id: "2w", label: "2 weeks", interval: "1d", limit: 14 },
 ] as const;
@@ -64,6 +68,47 @@ function deriveStrategy(
   }
 
   return { strategy, note };
+}
+
+/** Recommend best direction (long/short/neutral) from price vs range. Used for "Best entry" callout. */
+function getRecommendedDirection(
+  smartHigh: number,
+  smartLow: number,
+  currentPrice: number | null
+): { direction: "long" | "short" | "neutral"; recommendationNote: string } {
+  if (currentPrice == null || smartHigh <= smartLow) {
+    return { direction: "neutral", recommendationNote: "No price data—enter when price reaches a smart level." };
+  }
+  const mid = (smartHigh + smartLow) / 2;
+  const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  if (currentPrice >= smartHigh * 0.995) {
+    return {
+      direction: "short",
+      recommendationNote: `Best entry: Short. Price at resistance (near $${fmt(smartHigh)}). Consider short on confirmation or small pullback.`,
+    };
+  }
+  if (currentPrice <= smartLow * 1.005) {
+    return {
+      direction: "long",
+      recommendationNote: `Best entry: Long. Price at support (near $${fmt(smartLow)}). Consider long on confirmation or bounce.`,
+    };
+  }
+  if (currentPrice > mid * 1.005) {
+    return {
+      direction: "short",
+      recommendationNote: `Best entry: Short (bias). Price above range mid—prefer short on rally to $${fmt(smartHigh)} or scalp short. Long only on dip to $${fmt(smartLow)}.`,
+    };
+  }
+  if (currentPrice < mid * 0.995) {
+    return {
+      direction: "long",
+      recommendationNote: `Best entry: Long (bias). Price below range mid—prefer long on pullback to $${fmt(smartLow)} or scalp long. Short only on rally to $${fmt(smartHigh)}.`,
+    };
+  }
+  return {
+    direction: "neutral",
+    recommendationNote: `Neutral—price near range mid. Wait for test of $${fmt(smartLow)} (long) or $${fmt(smartHigh)} (short) for clearer entry.`,
+  };
 }
 
 /** Suggest entry/exit levels from strategy and smart levels. */
@@ -127,6 +172,8 @@ export type NovaSmartResult = {
   suggestedShortEntry: number;
   suggestedShortExit: number;
   entryExitNote: string;
+  recommendedDirection: "long" | "short" | "neutral";
+  recommendationNote: string;
 };
 
 /** POST - NovaSmart Analysis: multi-timeframe high/low, smart entry, scalp vs swing. VIP only. */
@@ -144,11 +191,17 @@ export async function POST(request: Request) {
     const symbolsParam = body.symbols ?? body.symbol ?? "";
     const timeframesParam = body.timeframes ?? body.tf ?? "15m,1h,1w";
 
-    const symbols: string[] = typeof symbolsParam === "string"
-      ? symbolsParam.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean)
+    const rawSymbols: string[] = typeof symbolsParam === "string"
+      ? symbolsParam.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean)
       : Array.isArray(symbolsParam)
-        ? symbolsParam.map((s) => String(s).trim().toUpperCase()).filter(Boolean)
+        ? symbolsParam.map((s) => String(s).trim()).filter(Boolean)
         : [];
+    // Normalize so BTC/USDT, BTC-USDT, BTC.USDT all become BTC (Hyperliquid uses base symbol)
+    const symbols = rawSymbols.map((s) => {
+      const upper = s.toUpperCase();
+      const base = upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim();
+      return (base || upper).toUpperCase();
+    }).filter(Boolean);
 
     if (symbols.length === 0) {
       return NextResponse.json(
@@ -193,6 +246,8 @@ export async function POST(request: Request) {
             suggestedShortEntry: 0,
             suggestedShortExit: 0,
             entryExitNote: "",
+            recommendedDirection: "neutral",
+            recommendationNote: "No candle data—run again with different timeframes or symbol.",
           });
           continue;
         }
@@ -201,6 +256,7 @@ export async function POST(request: Request) {
         const smartLongEntry = Math.min(...tfData.map((t) => t.low));
         const { strategy, note } = deriveStrategy(tfData, currentPrice);
         const entryExit = suggestEntryExit(smartShortEntry, smartLongEntry, currentPrice, strategy);
+        const { direction: recommendedDirection, recommendationNote } = getRecommendedDirection(smartShortEntry, smartLongEntry, currentPrice);
 
         results.push({
           symbol,
@@ -211,6 +267,8 @@ export async function POST(request: Request) {
           strategy,
           strategyNote: note,
           ...entryExit,
+          recommendedDirection,
+          recommendationNote,
         });
       } catch {
         results.push({
@@ -226,6 +284,8 @@ export async function POST(request: Request) {
           suggestedShortEntry: 0,
           suggestedShortExit: 0,
           entryExitNote: "",
+          recommendedDirection: "neutral",
+          recommendationNote: "Could not load data for this symbol.",
         });
       }
     }

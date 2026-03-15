@@ -522,7 +522,7 @@ export default function Dashboard() {
   const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
   const [novaForecastSubTab, setNovaForecastSubTab] = useState<"agent" | "nova-smart">("agent");
   type NovaSmartTfResult = { id: string; label: string; high: number; low: number };
-  type NovaSmartResult = { symbol: string; timeframes: NovaSmartTfResult[]; smartShortEntry: number; smartLongEntry: number; currentPrice: number | null; strategy: "scalp" | "swing" | "mixed"; strategyNote: string; suggestedLongEntry: number; suggestedLongExit: number; suggestedShortEntry: number; suggestedShortExit: number; entryExitNote: string };
+  type NovaSmartResult = { symbol: string; timeframes: NovaSmartTfResult[]; smartShortEntry: number; smartLongEntry: number; currentPrice: number | null; strategy: "scalp" | "swing" | "mixed"; strategyNote: string; suggestedLongEntry: number; suggestedLongExit: number; suggestedShortEntry: number; suggestedShortExit: number; entryExitNote: string; recommendedDirection: "long" | "short" | "neutral"; recommendationNote: string };
   const [novaSmartTimeframes, setNovaSmartTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
   const [novaSmartCustomSymbol, setNovaSmartCustomSymbol] = useState("");
   const [novaSmartResults, setNovaSmartResults] = useState<NovaSmartResult[]>([]);
@@ -4522,16 +4522,22 @@ export default function Dashboard() {
                   <TabsContent value="nova-smart" className="mt-0">
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaSmart Analysis</h2>
-                      <p className="text-xs text-muted-foreground mb-4">Compare timeframes to see high/low per period, smart short/long entries, and whether to scalp (quick profit) or swing (hold for bigger move). Enter any symbol(s) to analyze (e.g. BTC, ETH, INJ).</p>
+                      <p className="text-xs text-muted-foreground mb-4">Compare timeframes to see high/low per period, smart short/long entries, and whether to scalp (quick profit) or swing (hold for bigger move). Enter any symbol(s)—BTC, BTC/USDT, or ETH all work (pairs are normalized to the base symbol).</p>
                       <div className="flex flex-wrap items-center gap-4 mb-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
-                          {["15m", "1h", "4h", "24h", "1w", "2w"].map((tf) => (
+                          {["5m", "15m", "30m", "1h", "4h", "24h", "48h", "72h", "1w", "2w"].map((tf) => (
                             <label key={tf} className="flex items-center gap-1.5 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={novaSmartTimeframes.includes(tf)}
-                                onChange={() => setNovaSmartTimeframes((prev) => prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf].sort())}
+                                onChange={() => {
+                          const order = ["5m", "15m", "30m", "1h", "4h", "24h", "48h", "72h", "1w", "2w"];
+                          setNovaSmartTimeframes((prev) => {
+                            const next = prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf];
+                            return next.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+                          });
+                        }}
                                 className="rounded border-zinc-400 dark:border-zinc-500"
                               />
                               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{tf}</span>
@@ -4602,6 +4608,14 @@ export default function Dashboard() {
                                       <div><span className="text-muted-foreground">Long:</span> entry ${r.suggestedLongEntry > 0 ? r.suggestedLongEntry.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"} → exit ${r.suggestedLongExit > 0 ? r.suggestedLongExit.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"}</div>
                                       <div><span className="text-muted-foreground">Short:</span> entry ${r.suggestedShortEntry > 0 ? r.suggestedShortEntry.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"} → exit ${r.suggestedShortExit > 0 ? r.suggestedShortExit.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"}</div>
                                     </div>
+                                  </div>
+                                )}
+                                {r.recommendationNote && (
+                                  <div className={`rounded-md border p-2 text-xs ${r.recommendedDirection === "long" ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800" : r.recommendedDirection === "short" ? "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800" : "bg-zinc-100 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700"}`}>
+                                    <span className={`font-medium block mb-1 ${r.recommendedDirection === "long" ? "text-emerald-800 dark:text-emerald-200" : r.recommendedDirection === "short" ? "text-rose-800 dark:text-rose-200" : "text-zinc-700 dark:text-zinc-300"}`}>
+                                      Best entry: {r.recommendedDirection === "long" ? "Long" : r.recommendedDirection === "short" ? "Short" : "Neutral"}
+                                    </span>
+                                    <p className={r.recommendedDirection === "long" ? "text-emerald-700 dark:text-emerald-300" : r.recommendedDirection === "short" ? "text-rose-700 dark:text-rose-300" : "text-muted-foreground"}>{r.recommendationNote}</p>
                                   </div>
                                 )}
                                 <p className="text-xs text-muted-foreground">{r.strategyNote}</p>
