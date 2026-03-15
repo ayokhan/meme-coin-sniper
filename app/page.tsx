@@ -513,11 +513,13 @@ export default function Dashboard() {
   const [perpAlertAddSymbol, setPerpAlertAddSymbol] = useState("");
   const [perpAlertAddThreshold, setPerpAlertAddThreshold] = useState("");
   const [perpAlertAddError, setPerpAlertAddError] = useState<string | null>(null);
-  type NovaForecastItem = { symbol: string; high2w: number; low2w: number; shortEntry: number; longEntry: number; currentPrice: number | null; insight: string };
+  type NovaForecastItem = { symbol: string; high: number; low: number; shortEntry: number; longEntry: number; currentPrice: number | null; insight: string };
   const [novaForecastItems, setNovaForecastItems] = useState<NovaForecastItem[]>([]);
   const [novaForecastLoading, setNovaForecastLoading] = useState(false);
   const [novaForecastError, setNovaForecastError] = useState<string | null>(null);
   const [novaForecastCustomSymbols, setNovaForecastCustomSymbols] = useState("");
+  const [novaForecastRange, setNovaForecastRange] = useState<string>("2w");
+  const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
   type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
   const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
   const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
@@ -1130,15 +1132,21 @@ export default function Dashboard() {
     }
   };
 
-  const fetchNovaForecast = async (symbolsOverride?: string[]) => {
+  const fetchNovaForecast = async (symbolsOverride?: string[], rangeOverride?: string) => {
     setNovaForecastLoading(true);
     setNovaForecastError(null);
+    const range = rangeOverride ?? novaForecastRange;
     try {
-      const params = symbolsOverride?.length ? `?symbols=${encodeURIComponent(symbolsOverride.join(","))}` : "";
-      const res = await fetch(`/api/nova-forecast${params}`, { cache: "no-store", credentials: "include" });
+      const params = new URLSearchParams();
+      if (range) params.set("range", range);
+      if (symbolsOverride?.length) params.set("symbols", symbolsOverride.join(","));
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/nova-forecast${qs}`, { cache: "no-store", credentials: "include" });
       const data = await res.json();
       if (res.ok && data.success && Array.isArray(data.forecasts)) {
         setNovaForecastItems(data.forecasts);
+        if (data.rangeId) setNovaForecastRange(data.rangeId);
+        if (data.rangeLabel) setNovaForecastRangeLabel(data.rangeLabel);
       } else {
         setNovaForecastItems([]);
         setNovaForecastError(data?.error ?? (res.ok ? "No data" : `Error ${res.status}`));
@@ -4367,6 +4375,29 @@ export default function Dashboard() {
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                     <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">NovaForecast Agent</h2>
                     <div className="flex flex-wrap items-center gap-2">
+                      <label className="text-xs text-muted-foreground whitespace-nowrap">Time range:</label>
+                      <select
+                        value={novaForecastRange}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setNovaForecastRange(v);
+                          fetchNovaForecast(
+                            novaForecastCustomSymbols.trim() ? novaForecastCustomSymbols.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean) : undefined,
+                            v
+                          );
+                        }}
+                        className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                      >
+                        <option value="15m">Last 15 mins</option>
+                        <option value="1h">1 hour</option>
+                        <option value="4h">4 hours</option>
+                        <option value="24h">24 hours</option>
+                        <option value="48h">48 hours</option>
+                        <option value="1w">1 week</option>
+                        <option value="2w">2 weeks</option>
+                        <option value="3w">3 weeks</option>
+                        <option value="4w">4 weeks</option>
+                      </select>
                       <input
                         type="text"
                         placeholder="Custom symbols (e.g. INJ, SUI, TIA)"
@@ -4379,9 +4410,9 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Last 2 weeks: high = short entry zone, low = long entry zone. Top alts by default; add symbols above for others (e.g. INJ, SUI).</p>
+                  <p className="text-xs text-muted-foreground mb-3">High = short entry zone, low = long entry zone for the selected range. Default: 2 weeks. Top alts by default; add symbols for others (e.g. INJ, SUI).</p>
                   <p className="text-xs text-muted-foreground mb-3">
-                    <strong className="text-zinc-700 dark:text-zinc-300">Insight meanings:</strong> <span className="text-rose-600 dark:text-rose-400">Bias: short on retest of high</span> = price is above the 2w range mid—look to short when price rallies back up to the 2w high. <span className="text-emerald-600 dark:text-emerald-400">Bias: long on retest of low</span> = price is below the 2w range mid—look to long when price pulls back to the 2w low.
+                    <strong className="text-zinc-700 dark:text-zinc-300">Insight meanings:</strong> <span className="text-rose-600 dark:text-rose-400">Bias: short on retest of high</span> = price is above range mid—look to short when price rallies to the high. <span className="text-emerald-600 dark:text-emerald-400">Bias: long on retest of low</span> = price is below range mid—look to long when price pulls back to the low.
                   </p>
                   {novaForecastError && (
                     <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{novaForecastError}</p>
@@ -4389,15 +4420,15 @@ export default function Dashboard() {
                   {novaForecastLoading && novaForecastItems.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                   ) : novaForecastItems.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No forecasts yet. Hit Refresh or enter symbols above.</p>
+                    <p className="text-xs text-muted-foreground">No forecasts yet. Choose a range, hit Refresh, or enter symbols above.</p>
                   ) : (
                     <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead className="text-xs">Symbol</TableHead>
-                            <TableHead className="text-right text-xs">2w high</TableHead>
-                            <TableHead className="text-right text-xs">2w low</TableHead>
+                            <TableHead className="text-right text-xs">High ({novaForecastRangeLabel})</TableHead>
+                            <TableHead className="text-right text-xs">Low ({novaForecastRangeLabel})</TableHead>
                             <TableHead className="text-right text-xs">Short entry</TableHead>
                             <TableHead className="text-right text-xs">Long entry</TableHead>
                             <TableHead className="text-right text-xs">Price</TableHead>
@@ -4408,8 +4439,8 @@ export default function Dashboard() {
                           {novaForecastItems.map((f, i) => (
                             <TableRow key={`${f.symbol}-${i}`}>
                               <TableCell className="font-mono text-xs font-medium">{f.symbol}</TableCell>
-                              <TableCell className="text-right font-mono text-xs">${f.high2w > 0 ? f.high2w.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
-                              <TableCell className="text-right font-mono text-xs">${f.low2w > 0 ? f.low2w.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                              <TableCell className="text-right font-mono text-xs">${f.high > 0 ? f.high.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                              <TableCell className="text-right font-mono text-xs">${f.low > 0 ? f.low.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
                               <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">${f.shortEntry > 0 ? f.shortEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
                               <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">${f.longEntry > 0 ? f.longEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
                               <TableCell className="text-right font-mono text-xs">{f.currentPrice != null ? "$" + f.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>

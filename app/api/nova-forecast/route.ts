@@ -9,10 +9,25 @@ export const maxDuration = 30;
 /** Default top alt symbols for NovaForecast (VIP). */
 const DEFAULT_SYMBOLS = ["BTC", "ETH", "SOL", "ZEC", "NEO", "DOGE", "AVAX", "LINK", "MATIC", "DOT", "ATOM", "UNI", "XRP", "ADA", "LTC", "BCH", "ETC", "APT", "ARB", "OP"];
 
+/** Time range options: interval for candles + number of bars. Default 2w. */
+export const FORECAST_RANGES = [
+  { id: "15m", label: "Last 15 mins", interval: "1m", limit: 15 },
+  { id: "1h", label: "1 hour", interval: "1m", limit: 60 },
+  { id: "4h", label: "4 hours", interval: "5m", limit: 48 },
+  { id: "24h", label: "24 hours", interval: "1h", limit: 24 },
+  { id: "48h", label: "48 hours", interval: "1h", limit: 48 },
+  { id: "1w", label: "1 week", interval: "1d", limit: 7 },
+  { id: "2w", label: "2 weeks", interval: "1d", limit: 14 },
+  { id: "3w", label: "3 weeks", interval: "1d", limit: 21 },
+  { id: "4w", label: "4 weeks", interval: "1d", limit: 28 },
+] as const;
+
+export type ForecastRangeId = (typeof FORECAST_RANGES)[number]["id"];
+
 export type NovaForecastItem = {
   symbol: string;
-  high2w: number;
-  low2w: number;
+  high: number;
+  low: number;
   shortEntry: number;
   longEntry: number;
   currentPrice: number | null;
@@ -28,7 +43,7 @@ function highLowFromCandles(candles: Array<[string, string, string, string, stri
   return { high: Math.max(...highs), low: Math.min(...lows) };
 }
 
-/** GET - NovaForecast Agent: 2-week high/low and short/long entry levels for top alts. VIP only. */
+/** GET - NovaForecast Agent: high/low and short/long entry for selected time range. VIP only. */
 export async function GET(request: Request) {
   try {
     const { tier } = await getSessionAndSubscription();
@@ -45,6 +60,10 @@ export async function GET(request: Request) {
       ? symbolsParam.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean)
       : DEFAULT_SYMBOLS;
 
+    const rangeId = (searchParams.get("range") ?? "2w").toLowerCase();
+    const rangeConfig = FORECAST_RANGES.find((r) => r.id === rangeId) ?? FORECAST_RANGES.find((r) => r.id === "2w")!;
+    const { interval, limit: candleLimit } = rangeConfig;
+
     const limit = Math.min(symbols.length, 30);
     const toFetch = symbols.slice(0, limit);
 
@@ -53,7 +72,7 @@ export async function GET(request: Request) {
     for (const symbol of toFetch) {
       try {
         const [candles, ticker] = await Promise.all([
-          getCandles(symbol, "1d", 14),
+          getCandles(symbol, interval, candleLimit),
           getTicker(symbol),
         ]);
         const hl = highLowFromCandles(candles);
@@ -61,31 +80,32 @@ export async function GET(request: Request) {
         if (!hl) {
           forecasts.push({
             symbol,
-            high2w: 0,
-            low2w: 0,
+            high: 0,
+            low: 0,
             shortEntry: 0,
             longEntry: 0,
             currentPrice,
-            insight: "No 2-week data for this symbol.",
+            insight: `No data for this range (${rangeConfig.label}).`,
           });
           continue;
         }
         const { high, low } = hl;
         const shortEntry = high;
         const longEntry = low;
+        const rangeLabel = rangeConfig.label.toLowerCase();
         let insight = "";
         if (currentPrice != null) {
-          if (currentPrice >= high * 0.99) insight = "Price near 2w high—consider short entry zone.";
-          else if (currentPrice <= low * 1.01) insight = "Price near 2w low—consider long entry zone.";
-          else if (currentPrice > (high + low) / 2) insight = "Above 2w range mid—bias: short on retest of high.";
-          else insight = "Below 2w range mid—bias: long on retest of low.";
+          if (currentPrice >= high * 0.99) insight = `Price near ${rangeLabel} high—consider short entry zone.`;
+          else if (currentPrice <= low * 1.01) insight = `Price near ${rangeLabel} low—consider long entry zone.`;
+          else if (currentPrice > (high + low) / 2) insight = `Above range mid—bias: short on retest of high.`;
+          else insight = `Below range mid—bias: long on retest of low.`;
         } else {
-          insight = "Short entry at 2w high; long entry at 2w low.";
+          insight = `Short entry at ${rangeLabel} high; long entry at ${rangeLabel} low.`;
         }
         forecasts.push({
           symbol,
-          high2w: high,
-          low2w: low,
+          high,
+          low,
           shortEntry,
           longEntry,
           currentPrice,
@@ -94,8 +114,8 @@ export async function GET(request: Request) {
       } catch {
         forecasts.push({
           symbol,
-          high2w: 0,
-          low2w: 0,
+          high: 0,
+          low: 0,
           shortEntry: 0,
           longEntry: 0,
           currentPrice: null,
@@ -106,6 +126,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
+      rangeId: rangeConfig.id,
+      rangeLabel: rangeConfig.label,
       forecasts,
     });
   } catch (e) {
