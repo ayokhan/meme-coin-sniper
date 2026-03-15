@@ -66,6 +66,47 @@ function deriveStrategy(
   return { strategy, note };
 }
 
+/** Suggest entry/exit levels from strategy and smart levels. */
+function suggestEntryExit(
+  smartShort: number,
+  smartLong: number,
+  _currentPrice: number | null,
+  strategy: "scalp" | "swing" | "mixed"
+): {
+  suggestedLongEntry: number;
+  suggestedLongExit: number;
+  suggestedShortEntry: number;
+  suggestedShortExit: number;
+  entryExitNote: string;
+} {
+  const scalpPct = 0.005; // 0.5% for scalp targets
+  const longEntry = smartLong;
+  const shortEntry = smartShort;
+  let longExit: number;
+  let shortExit: number;
+
+  if (strategy === "scalp") {
+    longExit = longEntry * (1 + scalpPct);
+    shortExit = shortEntry * (1 - scalpPct);
+  } else if (strategy === "swing") {
+    longExit = smartShort;
+    shortExit = smartLong;
+  } else {
+    longExit = Math.min(smartShort, longEntry * (1 + 0.015));
+    shortExit = Math.max(smartLong, shortEntry * (1 - 0.015));
+  }
+
+  const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 });
+  const entryExitNote = `Long: enter near $${fmt(longEntry)}, exit near $${fmt(longExit)}. Short: enter near $${fmt(shortEntry)}, exit near $${fmt(shortExit)}.`;
+  return {
+    suggestedLongEntry: longEntry,
+    suggestedLongExit: longExit,
+    suggestedShortEntry: shortEntry,
+    suggestedShortExit: shortExit,
+    entryExitNote,
+  };
+}
+
 export type NovaSmartTfResult = {
   id: string;
   label: string;
@@ -81,6 +122,11 @@ export type NovaSmartResult = {
   currentPrice: number | null;
   strategy: "scalp" | "swing" | "mixed";
   strategyNote: string;
+  suggestedLongEntry: number;
+  suggestedLongExit: number;
+  suggestedShortEntry: number;
+  suggestedShortExit: number;
+  entryExitNote: string;
 };
 
 /** POST - NovaSmart Analysis: multi-timeframe high/low, smart entry, scalp vs swing. VIP only. */
@@ -142,6 +188,11 @@ export async function POST(request: Request) {
             currentPrice,
             strategy: "swing",
             strategyNote: "No candle data for selected timeframes.",
+            suggestedLongEntry: 0,
+            suggestedLongExit: 0,
+            suggestedShortEntry: 0,
+            suggestedShortExit: 0,
+            entryExitNote: "",
           });
           continue;
         }
@@ -149,6 +200,7 @@ export async function POST(request: Request) {
         const smartShortEntry = Math.max(...tfData.map((t) => t.high));
         const smartLongEntry = Math.min(...tfData.map((t) => t.low));
         const { strategy, note } = deriveStrategy(tfData, currentPrice);
+        const entryExit = suggestEntryExit(smartShortEntry, smartLongEntry, currentPrice, strategy);
 
         results.push({
           symbol,
@@ -158,6 +210,7 @@ export async function POST(request: Request) {
           currentPrice,
           strategy,
           strategyNote: note,
+          ...entryExit,
         });
       } catch {
         results.push({
@@ -168,6 +221,11 @@ export async function POST(request: Request) {
           currentPrice: null,
           strategy: "swing",
           strategyNote: "Could not load data for this symbol.",
+          suggestedLongEntry: 0,
+          suggestedLongExit: 0,
+          suggestedShortEntry: 0,
+          suggestedShortExit: 0,
+          entryExitNote: "",
         });
       }
     }

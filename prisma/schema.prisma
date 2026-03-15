@@ -114,6 +114,7 @@ model User {
   pinnedTokens  PinnedToken[]
   userTelegram  UserTelegram?
   aiAnalysisFeedbacks AiAnalysisFeedback[]
+  novaSmartFeedbacks  NovaSmartFeedback[]
   passwordResets PasswordResetToken[]
   userLeverageWallets  UserLeverageWallet[]
   userMemeCoinWallets  UserMemeCoinWallet[]
@@ -529,5 +530,20 @@ model AiAnalysisFeedback {
   user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   @@index([contractAddress])
   @@index([outcome])
+  @@index([createdAt])
+}
+
+// Owner-only feedback on NovaSmart Analysis (did the suggestion work?)
+model NovaSmartFeedback {
+  id        String   @id @default(cuid())
+  symbol    String
+  strategy  String   // "scalp" | "swing" | "mixed"
+  worked    Boolean  // true = worked, false = did not work
+  note      String?
+  userId    String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([symbol])
+  @@index([worked])
   @@index([createdAt])
 }

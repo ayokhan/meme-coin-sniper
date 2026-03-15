@@ -522,12 +522,13 @@ export default function Dashboard() {
   const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
   const [novaForecastSubTab, setNovaForecastSubTab] = useState<"agent" | "nova-smart">("agent");
   type NovaSmartTfResult = { id: string; label: string; high: number; low: number };
-  type NovaSmartResult = { symbol: string; timeframes: NovaSmartTfResult[]; smartShortEntry: number; smartLongEntry: number; currentPrice: number | null; strategy: "scalp" | "swing" | "mixed"; strategyNote: string };
+  type NovaSmartResult = { symbol: string; timeframes: NovaSmartTfResult[]; smartShortEntry: number; smartLongEntry: number; currentPrice: number | null; strategy: "scalp" | "swing" | "mixed"; strategyNote: string; suggestedLongEntry: number; suggestedLongExit: number; suggestedShortEntry: number; suggestedShortExit: number; entryExitNote: string };
   const [novaSmartTimeframes, setNovaSmartTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
   const [novaSmartCustomSymbol, setNovaSmartCustomSymbol] = useState("");
   const [novaSmartResults, setNovaSmartResults] = useState<NovaSmartResult[]>([]);
   const [novaSmartLoading, setNovaSmartLoading] = useState(false);
   const [novaSmartError, setNovaSmartError] = useState<string | null>(null);
+  const [novaSmartFeedbackSent, setNovaSmartFeedbackSent] = useState<Set<string>>(new Set());
   type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
   const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
   const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
@@ -1167,7 +1168,21 @@ export default function Dashboard() {
     }
   };
 
+  const submitNovaSmartFeedback = async (symbol: string, strategy: string, worked: boolean) => {
+    try {
+      await fetch("/api/admin/nova-smart-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol, strategy, worked }),
+        credentials: "include",
+      });
+    } catch {
+      // ignore
+    }
+  };
+
   const fetchNovaSmart = async () => {
+    setNovaSmartFeedbackSent(new Set());
     setNovaSmartLoading(true);
     setNovaSmartError(null);
     const symbols = novaSmartCustomSymbol.trim()
@@ -4507,7 +4522,7 @@ export default function Dashboard() {
                   <TabsContent value="nova-smart" className="mt-0">
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaSmart Analysis</h2>
-                      <p className="text-xs text-muted-foreground mb-4">Compare timeframes to see high/low per period, smart short/long entries, and whether to scalp (quick profit) or swing (hold for bigger move). Enter a symbol not in our list to analyze any contract.</p>
+                      <p className="text-xs text-muted-foreground mb-4">Compare timeframes to see high/low per period, smart short/long entries, and whether to scalp (quick profit) or swing (hold for bigger move). Enter any symbol(s) to analyze (e.g. BTC, ETH, INJ).</p>
                       <div className="flex flex-wrap items-center gap-4 mb-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
@@ -4579,7 +4594,25 @@ export default function Dashboard() {
                                     </div>
                                   </div>
                                 )}
+                                {(r.suggestedLongEntry > 0 || r.suggestedShortEntry > 0) && (
+                                  <div className="rounded-md bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 p-2">
+                                    <span className="text-xs font-medium text-violet-800 dark:text-violet-200 block mb-1">Suggested entry & exit (for {r.strategy})</span>
+                                    <p className="text-xs text-violet-700 dark:text-violet-300">{r.entryExitNote}</p>
+                                    <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                                      <div><span className="text-muted-foreground">Long:</span> entry ${r.suggestedLongEntry > 0 ? r.suggestedLongEntry.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"} → exit ${r.suggestedLongExit > 0 ? r.suggestedLongExit.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"}</div>
+                                      <div><span className="text-muted-foreground">Short:</span> entry ${r.suggestedShortEntry > 0 ? r.suggestedShortEntry.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"} → exit ${r.suggestedShortExit > 0 ? r.suggestedShortExit.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"}</div>
+                                    </div>
+                                  </div>
+                                )}
                                 <p className="text-xs text-muted-foreground">{r.strategyNote}</p>
+                                {isOwner && (
+                                  <div className="flex items-center gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                                    <span className="text-xs text-muted-foreground">Did it work?</span>
+                                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={async () => { await submitNovaSmartFeedback(r.symbol, r.strategy, true); setNovaSmartFeedbackSent((prev) => new Set(prev).add(`${r.symbol}-${r.strategy}`)); }} disabled={novaSmartFeedbackSent.has(`${r.symbol}-${r.strategy}`)}>Yes</Button>
+                                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={async () => { await submitNovaSmartFeedback(r.symbol, r.strategy, false); setNovaSmartFeedbackSent((prev) => new Set(prev).add(`${r.symbol}-${r.strategy}`)); }} disabled={novaSmartFeedbackSent.has(`${r.symbol}-${r.strategy}`)}>No</Button>
+                                    {novaSmartFeedbackSent.has(`${r.symbol}-${r.strategy}`) && <span className="text-xs text-emerald-600 dark:text-emerald-400">Thanks</span>}
+                                  </div>
+                                )}
                               </CardContent>
                             </Card>
                           ))}
