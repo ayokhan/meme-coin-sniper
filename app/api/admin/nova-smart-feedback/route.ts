@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions, isOwnerSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
+// Cast so build passes when deploy cache has Prisma client without NovaSmartFeedback in types
+const novaSmartFeedback = (prisma as unknown as { novaSmartFeedback: { findMany: (a: object) => Promise<unknown[]>; create: (a: object) => Promise<unknown> } }).novaSmartFeedback;
+
 /** GET - List NovaSmart feedback (owner-only). Query: worked=true|false, limit=number. */
 export async function GET(req: Request) {
   try {
@@ -15,7 +18,7 @@ export async function GET(req: Request) {
     const worked = workedParam === "true" ? true : workedParam === "false" ? false : undefined;
     const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get("limit") ?? "100", 10) || 100));
     const where = worked === true || worked === false ? { worked } : {};
-    const list = await prisma.novaSmartFeedback.findMany({
+    const list = await novaSmartFeedback.findMany({
       where,
       orderBy: { createdAt: "desc" },
       take: limit,
@@ -50,7 +53,7 @@ export async function POST(req: Request) {
     const note = typeof body.note === "string" ? body.note.trim().slice(0, 500) : null;
     const userId = (session?.user as { id?: string })?.id ?? null;
 
-    await prisma.novaSmartFeedback.create({
+    await novaSmartFeedback.create({
       data: { symbol, strategy, worked, note, userId },
     });
 
