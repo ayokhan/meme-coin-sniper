@@ -520,6 +520,14 @@ export default function Dashboard() {
   const [novaForecastCustomSymbols, setNovaForecastCustomSymbols] = useState("");
   const [novaForecastRange, setNovaForecastRange] = useState<string>("2w");
   const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
+  const [novaForecastSubTab, setNovaForecastSubTab] = useState<"agent" | "nova-smart">("agent");
+  type NovaSmartTfResult = { id: string; label: string; high: number; low: number };
+  type NovaSmartResult = { symbol: string; timeframes: NovaSmartTfResult[]; smartShortEntry: number; smartLongEntry: number; currentPrice: number | null; strategy: "scalp" | "swing" | "mixed"; strategyNote: string };
+  const [novaSmartTimeframes, setNovaSmartTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
+  const [novaSmartCustomSymbol, setNovaSmartCustomSymbol] = useState("");
+  const [novaSmartResults, setNovaSmartResults] = useState<NovaSmartResult[]>([]);
+  const [novaSmartLoading, setNovaSmartLoading] = useState(false);
+  const [novaSmartError, setNovaSmartError] = useState<string | null>(null);
   type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
   const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
   const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
@@ -1156,6 +1164,39 @@ export default function Dashboard() {
       setNovaForecastError(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setNovaForecastLoading(false);
+    }
+  };
+
+  const fetchNovaSmart = async () => {
+    setNovaSmartLoading(true);
+    setNovaSmartError(null);
+    const symbols = novaSmartCustomSymbol.trim()
+      ? novaSmartCustomSymbol.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean)
+      : ["BTC", "ETH", "SOL"];
+    if (symbols.length === 0) {
+      setNovaSmartError("Enter at least one symbol or use defaults.");
+      setNovaSmartLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch("/api/nova-smart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbols, timeframes: novaSmartTimeframes }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.results)) {
+        setNovaSmartResults(data.results);
+      } else {
+        setNovaSmartResults([]);
+        setNovaSmartError(data?.locked ? "NovaSmart Analysis is for VIP subscribers." : (data?.error ?? (res.ok ? "No data" : `Error ${res.status}`)));
+      }
+    } catch (e) {
+      setNovaSmartResults([]);
+      setNovaSmartError(e instanceof Error ? e.message : "NovaSmart failed");
+    } finally {
+      setNovaSmartLoading(false);
     }
   };
 
@@ -4370,88 +4411,183 @@ export default function Dashboard() {
                 );
               })()
             ) : activeTab === "nova-forecast" ? (
-              <div className="mx-6 py-8">
-                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                    <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">NovaForecast Agent</h2>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <label className="text-xs text-muted-foreground whitespace-nowrap">Time range:</label>
-                      <select
-                        value={novaForecastRange}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setNovaForecastRange(v);
-                          fetchNovaForecast(
-                            novaForecastCustomSymbols.trim() ? novaForecastCustomSymbols.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean) : undefined,
-                            v
-                          );
-                        }}
-                        className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
-                      >
-                        <option value="15m">Last 15 mins</option>
-                        <option value="1h">1 hour</option>
-                        <option value="4h">4 hours</option>
-                        <option value="24h">24 hours</option>
-                        <option value="48h">48 hours</option>
-                        <option value="1w">1 week</option>
-                        <option value="2w">2 weeks</option>
-                        <option value="3w">3 weeks</option>
-                        <option value="4w">4 weeks</option>
-                      </select>
-                      <input
-                        type="text"
-                        placeholder="Custom symbols (e.g. INJ, SUI, TIA)"
-                        value={novaForecastCustomSymbols}
-                        onChange={(e) => setNovaForecastCustomSymbols(e.target.value)}
-                        className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-48 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
-                      />
-                      <Button variant="outline" size="sm" onClick={() => fetchNovaForecast(novaForecastCustomSymbols.trim() ? novaForecastCustomSymbols.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean) : undefined)} disabled={novaForecastLoading}>
-                        {novaForecastCustomSymbols.trim() ? "Forecast custom" : "Refresh"}
-                      </Button>
+              <div className="mx-6 py-6">
+                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart")} className="space-y-4">
+                  <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg">
+                    <TabsTrigger value="agent" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                      NovaForecast Agent
+                    </TabsTrigger>
+                    <TabsTrigger value="nova-smart" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                      NovaSmart Analysis
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="agent" className="mt-0">
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                        <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">NovaForecast Agent</h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">High / low for:</span>
+                          <select
+                            value={novaForecastRange}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setNovaForecastRange(v);
+                              fetchNovaForecast(
+                                novaForecastCustomSymbols.trim() ? novaForecastCustomSymbols.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean) : undefined,
+                                v
+                              );
+                            }}
+                            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                          >
+                            <option value="15m">Last 15 mins</option>
+                            <option value="1h">1 hour</option>
+                            <option value="4h">4 hours</option>
+                            <option value="24h">24 hours</option>
+                            <option value="48h">48 hours</option>
+                            <option value="1w">1 week</option>
+                            <option value="2w">2 weeks</option>
+                            <option value="3w">3 weeks</option>
+                            <option value="4w">4 weeks</option>
+                          </select>
+                          <input
+                            type="text"
+                            placeholder="Custom symbols (e.g. INJ, SUI, TIA)"
+                            value={novaForecastCustomSymbols}
+                            onChange={(e) => setNovaForecastCustomSymbols(e.target.value)}
+                            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-48 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                          />
+                          <Button variant="outline" size="sm" onClick={() => fetchNovaForecast(novaForecastCustomSymbols.trim() ? novaForecastCustomSymbols.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean) : undefined)} disabled={novaForecastLoading}>
+                            {novaForecastCustomSymbols.trim() ? "Forecast custom" : "Refresh"}
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">High = short entry zone, low = long entry zone for the selected range. Default: 2 weeks. Top alts by default; add symbols for others (e.g. INJ, SUI).</p>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        <strong className="text-zinc-700 dark:text-zinc-300">Insight meanings:</strong> <span className="text-rose-600 dark:text-rose-400">Bias: short on retest of high</span> = price is above range mid—look to short when price rallies to the high. <span className="text-emerald-600 dark:text-emerald-400">Bias: long on retest of low</span> = price is below range mid—look to long when price pulls back to the low.
+                      </p>
+                      {novaForecastError && (
+                        <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{novaForecastError}</p>
+                      )}
+                      {novaForecastLoading && novaForecastItems.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Loading…</p>
+                      ) : novaForecastItems.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No forecasts yet. Choose a range, hit Refresh, or enter symbols above.</p>
+                      ) : (
+                        <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-xs">Symbol</TableHead>
+                                <TableHead className="text-right text-xs">High ({novaForecastRangeLabel})</TableHead>
+                                <TableHead className="text-right text-xs">Low ({novaForecastRangeLabel})</TableHead>
+                                <TableHead className="text-right text-xs">Short entry</TableHead>
+                                <TableHead className="text-right text-xs">Long entry</TableHead>
+                                <TableHead className="text-right text-xs">Price</TableHead>
+                                <TableHead className="text-left text-xs">Insight</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {novaForecastItems.map((f, i) => (
+                                <TableRow key={`${f.symbol}-${i}`}>
+                                  <TableCell className="font-mono text-xs font-medium">{f.symbol}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs">${f.high > 0 ? f.high.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs">${f.low > 0 ? f.low.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">${f.shortEntry > 0 ? f.shortEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">${f.longEntry > 0 ? f.longEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs">{f.currentPrice != null ? "$" + f.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
+                                  <TableCell className="text-left text-xs text-muted-foreground max-w-xs">{f.insight}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3">High = short entry zone, low = long entry zone for the selected range. Default: 2 weeks. Top alts by default; add symbols for others (e.g. INJ, SUI).</p>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    <strong className="text-zinc-700 dark:text-zinc-300">Insight meanings:</strong> <span className="text-rose-600 dark:text-rose-400">Bias: short on retest of high</span> = price is above range mid—look to short when price rallies to the high. <span className="text-emerald-600 dark:text-emerald-400">Bias: long on retest of low</span> = price is below range mid—look to long when price pulls back to the low.
-                  </p>
-                  {novaForecastError && (
-                    <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{novaForecastError}</p>
-                  )}
-                  {novaForecastLoading && novaForecastItems.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Loading…</p>
-                  ) : novaForecastItems.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No forecasts yet. Choose a range, hit Refresh, or enter symbols above.</p>
-                  ) : (
-                    <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Symbol</TableHead>
-                            <TableHead className="text-right text-xs">High ({novaForecastRangeLabel})</TableHead>
-                            <TableHead className="text-right text-xs">Low ({novaForecastRangeLabel})</TableHead>
-                            <TableHead className="text-right text-xs">Short entry</TableHead>
-                            <TableHead className="text-right text-xs">Long entry</TableHead>
-                            <TableHead className="text-right text-xs">Price</TableHead>
-                            <TableHead className="text-left text-xs">Insight</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {novaForecastItems.map((f, i) => (
-                            <TableRow key={`${f.symbol}-${i}`}>
-                              <TableCell className="font-mono text-xs font-medium">{f.symbol}</TableCell>
-                              <TableCell className="text-right font-mono text-xs">${f.high > 0 ? f.high.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
-                              <TableCell className="text-right font-mono text-xs">${f.low > 0 ? f.low.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
-                              <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">${f.shortEntry > 0 ? f.shortEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
-                              <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">${f.longEntry > 0 ? f.longEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
-                              <TableCell className="text-right font-mono text-xs">{f.currentPrice != null ? "$" + f.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</TableCell>
-                              <TableCell className="text-left text-xs text-muted-foreground max-w-xs">{f.insight}</TableCell>
-                            </TableRow>
+                  </TabsContent>
+                  <TabsContent value="nova-smart" className="mt-0">
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                      <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaSmart Analysis</h2>
+                      <p className="text-xs text-muted-foreground mb-4">Compare timeframes to see high/low per period, smart short/long entries, and whether to scalp (quick profit) or swing (hold for bigger move). Enter a symbol not in our list to analyze any contract.</p>
+                      <div className="flex flex-wrap items-center gap-4 mb-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
+                          {["15m", "1h", "4h", "24h", "1w", "2w"].map((tf) => (
+                            <label key={tf} className="flex items-center gap-1.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={novaSmartTimeframes.includes(tf)}
+                                onChange={() => setNovaSmartTimeframes((prev) => prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf].sort())}
+                                className="rounded border-zinc-400 dark:border-zinc-500"
+                              />
+                              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{tf}</span>
+                            </label>
                           ))}
-                        </TableBody>
-                      </Table>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Symbol(s) e.g. BTC, ETH or INJ, SUI (optional; default: BTC, ETH, SOL)"
+                          value={novaSmartCustomSymbol}
+                          onChange={(e) => setNovaSmartCustomSymbol(e.target.value)}
+                          className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-64 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                        />
+                        <Button onClick={fetchNovaSmart} disabled={novaSmartLoading || novaSmartTimeframes.length === 0}>
+                          {novaSmartLoading ? "Running…" : "Run NovaSmart"}
+                        </Button>
+                      </div>
+                      {novaSmartTimeframes.length === 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">Select at least one timeframe.</p>
+                      )}
+                      {novaSmartError && (
+                        <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{novaSmartError}</p>
+                      )}
+                      {novaSmartResults.length === 0 && !novaSmartLoading && !novaSmartError && (
+                        <p className="text-xs text-muted-foreground">Select timeframes, optionally enter symbol(s), then click Run NovaSmart.</p>
+                      )}
+                      {novaSmartResults.length > 0 && (
+                        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+                          {novaSmartResults.map((r, idx) => (
+                            <Card key={`${r.symbol}-${idx}`} className="border-zinc-200 dark:border-zinc-700">
+                              <CardHeader className="py-3">
+                                <CardTitle className="text-base font-mono">{r.symbol}</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3 text-sm">
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                  <div>
+                                    <span className="text-muted-foreground">Smart short entry</span>
+                                    <p className="font-mono text-rose-600 dark:text-rose-400">${r.smartShortEntry > 0 ? r.smartShortEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Smart long entry</span>
+                                    <p className="font-mono text-emerald-600 dark:text-emerald-400">${r.smartLongEntry > 0 ? r.smartLongEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Current price</span>
+                                    <p className="font-mono">{r.currentPrice != null ? "$" + r.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }) : "—"}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Strategy</span>
+                                    <p><Badge variant={r.strategy === "scalp" ? "default" : r.strategy === "swing" ? "secondary" : "outline"} className="capitalize">{r.strategy}</Badge></p>
+                                  </div>
+                                </div>
+                                {r.timeframes.length > 0 && (
+                                  <div>
+                                    <span className="text-muted-foreground block mb-1">High / low per timeframe</span>
+                                    <div className="flex flex-wrap gap-2">
+                                      {r.timeframes.map((t) => (
+                                        <span key={t.id} className="text-xs font-mono px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800"> {t.label}: H ${t.high.toLocaleString(undefined, { maximumFractionDigits: 4 })} / L ${t.low.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                <p className="text-xs text-muted-foreground">{r.strategyNote}</p>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             ) : activeTab === "coach-calls" ? (
               <CoachCallsPanel isOwner={isOwner} isVip={isVip} />
