@@ -52,7 +52,7 @@ function SupportForm() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <header className="sticky top-0 z-10 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl">
-        <div className="mx-auto max-w-4xl px-4 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-4xl px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
           <Link href="/" className="flex items-center gap-2 text-zinc-900 dark:text-zinc-100 font-semibold">
             <Zap className="h-5 w-5 text-cyan-500" />
             NovaStaris
@@ -68,7 +68,7 @@ function SupportForm() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-12">
+      <main className="mx-auto max-w-2xl px-3 sm:px-4 py-8 sm:py-12">
         <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
           Support
         </h1>

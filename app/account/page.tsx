@@ -169,7 +169,7 @@ export default function AccountPage() {
   const hasEmailPassword = !!profile?.email;
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-4 py-8">
+    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6 sm:py-8">
       <div className="max-w-lg mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-zinc-100">

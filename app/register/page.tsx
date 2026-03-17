@@ -63,7 +63,7 @@ function RegisterForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6">
       <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <CardHeader className="text-center">
           <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-zinc-100">
@@ -235,7 +235,7 @@ function RegisterForm() {
 
 function RegisterFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6">
       <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <CardHeader className="text-center">
           <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-zinc-100">

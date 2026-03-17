@@ -169,6 +169,16 @@
   color: rgb(253 186 116); /* orange-300, bright in dark mode */
 }
 
+/* Mobile-friendly: touch scrolling and safe area */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

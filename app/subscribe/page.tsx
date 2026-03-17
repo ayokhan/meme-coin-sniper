@@ -200,7 +200,7 @@ function SubscribeContent() {
 
   if (status === "unauthenticated") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6">
         <p className="text-zinc-700 dark:text-zinc-300 mb-4">Sign in to subscribe.</p>
         <Button asChild>
           <Link href="/signin">Sign in</Link>
@@ -212,7 +212,7 @@ function SubscribeContent() {
   if (paid && expiresAt) {
     const tierLabel = subscriptionTier === "vip" ? "VIP" : subscriptionTier === "pro" ? "Pro" : "active";
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6">
         <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-6 py-4 text-center max-w-md">
           <p className="font-semibold text-emerald-800 dark:text-emerald-200">You have an active subscription</p>
           <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">{tierLabel} access · Valid until {new Date(expiresAt).toLocaleDateString()}</p>
@@ -243,7 +243,7 @@ function SubscribeContent() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-10">
+      <main className="mx-auto max-w-4xl px-3 sm:px-4 py-6 sm:py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
         <p className="text-zinc-600 dark:text-zinc-400 mb-4">
           Pro: Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect. VIP: everything in Pro + CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast, and on-demand NovaStaris AI Trading Bot (Crypto Futures). Pay by card or USDC (Solana).

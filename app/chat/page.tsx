@@ -284,7 +284,7 @@ export default function ChatPage() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col">
       <header className="sticky top-0 z-10 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl">
-        <div className="mx-auto max-w-2xl px-4 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-2xl px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
           <Link href="/" className="flex items-center gap-2 text-zinc-900 dark:text-zinc-100 font-semibold">
             <Zap className="h-5 w-5 text-cyan-500" />
             NovaStaris
@@ -300,7 +300,7 @@ export default function ChatPage() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col max-w-2xl w-full mx-auto px-4 py-6">
+      <main className="flex-1 flex flex-col max-w-2xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="flex items-center gap-2 mb-4">
           <Bot className="h-5 w-5 text-violet-500" />
           <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Chat with Nja</h1>

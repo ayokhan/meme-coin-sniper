@@ -377,7 +377,7 @@ export default function NeedHelpWidget() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-violet-500 px-4 py-3 text-white shadow-lg hover:from-cyan-600 hover:to-violet-600 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-violet-500 px-3 py-2.5 sm:px-4 sm:py-3 text-white shadow-lg hover:from-cyan-600 hover:to-violet-600 focus:outline-none focus:ring-2 focus:ring-cyan-400 min-h-[44px] sm:min-h-0"
           aria-label="Need help?"
         >
           <MessageCircle className="h-5 w-5" />
@@ -388,8 +388,8 @@ export default function NeedHelpWidget() {
       {/* Chat panel */}
       {open && (
         <div
-          className={`fixed right-6 z-50 flex flex-col rounded-t-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl ${
-            minimized ? "bottom-6 h-14 w-80" : "bottom-24 h-[28rem] w-[22rem] sm:w-[24rem]"
+          className={`fixed left-3 right-3 sm:left-auto sm:right-6 z-50 flex flex-col rounded-t-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl ${
+            minimized ? "bottom-4 sm:bottom-6 h-14 w-[calc(100vw-2rem)] max-w-80 sm:max-w-none" : "bottom-20 sm:bottom-24 h-[min(28rem,80vh)] w-[calc(100vw-1.5rem)] max-w-[22rem] sm:w-[24rem] sm:max-w-none"
           }`}
         >
           {/* Header - Nja */}
