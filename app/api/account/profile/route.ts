@@ -4,6 +4,12 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getUsageThisMonth } from '@/lib/usage';
 
+function avatarUrlForClient(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.includes('blob.vercel-storage.com')) return `/api/avatar?url=${encodeURIComponent(url)}`;
+  return url;
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

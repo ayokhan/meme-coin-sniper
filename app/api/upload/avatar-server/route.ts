@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     }
     const pathname = `avatars/${session.user.id}/${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const blob = await put(pathname, file, {
-      access: 'public',
+      access: 'private',
       addRandomSuffix: true,
     });
     await prisma.user.update({

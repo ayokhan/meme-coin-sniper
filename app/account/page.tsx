@@ -264,7 +264,7 @@ export default function AccountPage() {
                 {avatarUrl ? (
                   <div className="mt-1 mb-2 flex items-center gap-3">
                     <img
-                      src={avatarUrl}
+                      src={avatarUrl.includes("blob.vercel-storage.com") ? `/api/avatar?url=${encodeURIComponent(avatarUrl)}` : avatarUrl}
                       alt="Profile"
                       className="h-16 w-16 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-600"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}

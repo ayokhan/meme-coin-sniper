@@ -53,7 +53,7 @@ export async function GET() {
         return {
           id: u.id,
           displayName: baseName,
-          avatarUrl: u.novaConnectAvatarUrl,
+          avatarUrl: avatarUrlForClient(u.novaConnectAvatarUrl),
           status,
           me: u.id === meId,
         };

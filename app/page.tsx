@@ -4030,7 +4030,7 @@ export default function Dashboard() {
                                   <span className="relative shrink-0">
                                     {u.avatarUrl && !novaConnectAvatarFailedIds.has(u.id) ? (
                                       <img
-                                        src={u.avatarUrl}
+                                        src={u.avatarUrl.includes("blob.vercel-storage.com") ? `/api/avatar?url=${encodeURIComponent(u.avatarUrl)}` : u.avatarUrl}
                                         alt=""
                                         className={`h-6 w-6 rounded-full object-cover ring-2 ${
                                           u.status === "online" ? "ring-emerald-500" : u.status === "away" ? "ring-amber-500" : u.status === "busy" ? "ring-rose-500" : "ring-zinc-500"
