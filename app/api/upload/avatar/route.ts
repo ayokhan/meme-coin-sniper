@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/db';
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -16,15 +17,27 @@ export async function POST(request: Request) {
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async (pathname) => {
+      onBeforeGenerateToken: async () => {
         return {
           allowedContentTypes: ALLOWED_TYPES,
           maximumSizeInBytes: MAX_SIZE,
           addRandomSuffix: true,
+          tokenPayload: JSON.stringify({ userId: session.user.id }),
         };
       },
-      onUploadCompleted: async () => {
-        // Optional: e.g. persist blob.url to user profile
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        try {
+          const payload = tokenPayload ? JSON.parse(tokenPayload as string) : {};
+          const userId = payload.userId;
+          if (userId && blob?.url) {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { novaConnectAvatarUrl: blob.url },
+            });
+          }
+        } catch (err) {
+          console.error('Avatar onUploadCompleted error:', err);
+        }
       },
     });
     return NextResponse.json(jsonResponse);

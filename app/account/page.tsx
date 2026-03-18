@@ -33,6 +33,7 @@ export default function AccountPage() {
   const [country, setCountry] = useState("");
   const [experienceTradingCrypto, setExperienceTradingCrypto] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -290,12 +291,20 @@ export default function AccountPage() {
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
+                      setAvatarError("");
                       setAvatarUploading(true);
+                      const UPLOAD_TIMEOUT_MS = 45_000;
+                      const timeoutPromise = new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error("Upload timed out.")), UPLOAD_TIMEOUT_MS)
+                      );
                       try {
-                        const blob = await upload(file.name, file, {
-                          access: "public",
-                          handleUploadUrl: "/api/upload/avatar",
-                        });
+                        const blob = await Promise.race([
+                          upload(file.name, file, {
+                            access: "public",
+                            handleUploadUrl: "/api/upload/avatar",
+                          }),
+                          timeoutPromise,
+                        ]);
                         if (blob?.url) {
                           setAvatarUrl(blob.url);
                           const saveRes = await fetch("/api/account/profile", {
@@ -307,14 +316,14 @@ export default function AccountPage() {
                             setProfileSuccess(true);
                             setTimeout(() => setProfileSuccess(false), 5000);
                           } else {
-                            alert("Picture uploaded but save failed. Click Save profile to try again.");
+                            setAvatarError("Picture uploaded but save failed. Refresh the page—your picture may already be saved.");
                           }
                         } else {
-                          alert("Upload failed.");
+                          setAvatarError("Upload failed. Try again or paste an image URL.");
                         }
                       } catch (err) {
                         const msg = err instanceof Error ? err.message : "Upload failed.";
-                        alert(msg);
+                        setAvatarError(msg === "Upload timed out." ? "Upload took too long. Refresh the page—your picture may already be saved." : msg);
                       } finally {
                         setAvatarUploading(false);
                         e.target.value = "";
@@ -323,6 +332,9 @@ export default function AccountPage() {
                   />
                   {avatarUploading ? "Uploading & saving…" : "Upload image (saves automatically)"}
                 </label>
+                {avatarError && (
+                  <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{avatarError}</p>
+                )}
               </div>
               <input
                 type="tel"
