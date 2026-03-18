@@ -21,6 +21,7 @@ import { Zap, Copy, Send, Star, Flame, ChevronDown, Menu, X } from "lucide-react
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
+import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
 import TradingBotPanel from "@/components/TradingBotPanel";
 
 type Token = {
@@ -629,6 +630,8 @@ export default function Dashboard() {
   const [onlineBossFeedbackLoading, setOnlineBossFeedbackLoading] = useState(false);
   const [onlineBossFeedbackSent, setOnlineBossFeedbackSent] = useState<"good" | "bad" | null>(null);
   const [onlineBossFeedbackNote, setOnlineBossFeedbackNote] = useState("");
+  /** Owner-only Online Boss sub-tab */
+  const [onlineBossSubTab, setOnlineBossSubTab] = useState<"chart" | "demandFib">("chart");
   const [novaConnectEnabled, setNovaConnectEnabled] = useState(true);
   const [novaConnectRulesAccepted, setNovaConnectRulesAccepted] = useState(false);
   const novaConnectRulesRef = useRef<HTMLDivElement | null>(null);
@@ -4329,10 +4332,39 @@ export default function Dashboard() {
                   <p className="mt-2 text-sm text-muted-foreground">Online Boss Strategy is available only to the owner.</p>
                 </div>
               ) : (
-              <div className="mx-3 sm:mx-6 py-6 sm:py-8 max-w-2xl">
+              <div className="mx-3 sm:mx-6 py-6 sm:py-8 max-w-3xl">
                 <h2 className="text-xl sm:text-2xl font-bold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent dark:from-amber-300 dark:via-orange-300 dark:to-amber-400">
                   Online Boss Strategy
                 </h2>
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <button
+                    type="button"
+                    onClick={() => setOnlineBossSubTab("chart")}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      onlineBossSubTab === "chart"
+                        ? "bg-amber-500 text-white dark:bg-amber-600"
+                        : "bg-zinc-200/80 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    }`}
+                  >
+                    Chart analysis (SHORT)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOnlineBossSubTab("demandFib")}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      onlineBossSubTab === "demandFib"
+                        ? "bg-amber-500 text-white dark:bg-amber-600"
+                        : "bg-zinc-200/80 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    }`}
+                  >
+                    Demand + Fib playbook (LONG)
+                  </button>
+                </div>
+
+                {onlineBossSubTab === "demandFib" ? (
+                  <OnlineBossDemandFibPlaybook />
+                ) : (
+                <>
                 <p className="text-sm text-muted-foreground mb-4">
                   Upload a chart (crypto futures or gold). NovaStaris AI Agent analyzes the descending channel, key level, V-shape bounce, and outputs SHORT / No setup with entry, TP1, TP2, SL. For coach calls only — no Telegram alert.
                 </p>
@@ -4566,6 +4598,8 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
+                )}
+                </>
                 )}
               </div>
               )
