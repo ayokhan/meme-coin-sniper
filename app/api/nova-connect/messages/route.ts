@@ -116,7 +116,9 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'asc' },
       take,
       include: {
-        fromUser: { select: { id: true, name: true, email: true, novaConnectDisplayName: true } },
+        fromUser: {
+          select: { id: true, name: true, email: true, novaConnectDisplayName: true, novaConnectAvatarUrl: true },
+        },
       },
     });
     const parentIds = topLevel.map((m) => m.id);
@@ -129,7 +131,9 @@ export async function GET(request: Request) {
           },
           orderBy: { createdAt: 'asc' },
           include: {
-            fromUser: { select: { id: true, name: true, email: true, novaConnectDisplayName: true } },
+            fromUser: {
+              select: { id: true, name: true, email: true, novaConnectDisplayName: true, novaConnectAvatarUrl: true },
+            },
           },
         })
       : [];
@@ -148,6 +152,7 @@ export async function GET(request: Request) {
       imageUrl: m.imageUrl,
       createdAt: m.createdAt,
       fromDisplayName: m.fromUser.novaConnectDisplayName || m.fromUser.name || m.fromUser.email?.split('@')[0] || 'Trader',
+      fromAvatarUrl: m.fromUser.novaConnectAvatarUrl ?? null,
     });
     const messages = topLevel.slice().reverse().map((m) => ({
       ...mapMsg(m),

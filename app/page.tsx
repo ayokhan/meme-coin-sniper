@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef, useMemo } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo, type Dispatch, type SetStateAction } from "react";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -84,6 +84,52 @@ const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast"];
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
 type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc"; symbol?: string; name?: string };
+
+function NovaConnectFeedAuthorAvatar({
+  messageId,
+  displayName,
+  avatarUrl,
+  failedIds,
+  setFailedIds,
+  setLightbox,
+}: {
+  messageId: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  failedIds: Set<string>;
+  setFailedIds: Dispatch<SetStateAction<Set<string>>>;
+  setLightbox: (v: { src: string; name: string } | null) => void;
+}) {
+  const ring = "ring-2 ring-zinc-300 dark:ring-zinc-600";
+  if (avatarUrl && !failedIds.has(messageId)) {
+    const src = avatarUrl.includes("blob.vercel-storage.com")
+      ? `/api/avatar?url=${encodeURIComponent(avatarUrl)}`
+      : avatarUrl;
+    return (
+      <button
+        type="button"
+        title="View full size"
+        aria-label={`View ${displayName}'s profile picture`}
+        className="shrink-0 rounded-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 hover:opacity-95 transition-opacity"
+        onClick={() => setLightbox({ src, name: displayName })}
+      >
+        <img
+          src={src}
+          alt=""
+          className={`h-9 w-9 rounded-full object-cover ${ring}`}
+          onError={() => setFailedIds((prev) => new Set(prev).add(messageId))}
+        />
+      </button>
+    );
+  }
+  return (
+    <span
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 ${ring}`}
+    >
+      {(displayName || "?").charAt(0).toUpperCase()}
+    </span>
+  );
+}
 
 export default function Dashboard() {
   const { theme, setTheme } = useTheme();
@@ -317,6 +363,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.success) {
         setNovaConnectMessages(data.messages ?? []);
+        setNovaConnectFeedAvatarFailedIds(new Set());
       } else {
         setNovaConnectError(data.error ?? "Failed to load NovaConnect feed.");
       }
@@ -591,6 +638,7 @@ export default function Dashboard() {
     id: string;
     fromUserId: string;
     fromDisplayName: string;
+    fromAvatarUrl?: string | null;
     content: string;
     imageUrl?: string | null;
     createdAt: string;
@@ -625,9 +673,23 @@ export default function Dashboard() {
   const [novaConnectReplySending, setNovaConnectReplySending] = useState(false);
   const [novaConnectHasCustomDisplayName, setNovaConnectHasCustomDisplayName] = useState<boolean | null>(null);
   const [novaConnectAvatarFailedIds, setNovaConnectAvatarFailedIds] = useState<Set<string>>(new Set());
+  const [novaConnectAvatarLightbox, setNovaConnectAvatarLightbox] = useState<{
+    src: string;
+    name: string;
+  } | null>(null);
+  const [novaConnectFeedAvatarFailedIds, setNovaConnectFeedAvatarFailedIds] = useState<Set<string>>(new Set());
   const [novaConnectNicknamePromptDismissed, setNovaConnectNicknamePromptDismissed] = useState(() =>
     typeof window !== "undefined" ? window.localStorage.getItem("novaConnectNicknamePromptDismissed") === "1" : false
   );
+
+  useEffect(() => {
+    if (!novaConnectAvatarLightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setNovaConnectAvatarLightbox(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [novaConnectAvatarLightbox]);
 
   // First-time visit (already registered): direct to NovaConnect for privacy & community rules
   useEffect(() => {
@@ -3706,7 +3768,7 @@ export default function Dashboard() {
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
                         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Community feed</h3>
                         <p className="text-xs text-muted-foreground">
-                          Share charts, screenshots, and notes. Everyone can post here. Pro/VIP members (or users allowed by admin) can see online traders and send private messages.
+                          Share charts, screenshots, and notes. Everyone can post here. Pro/VIP members (or users allowed by admin) can see online traders and send private messages. Profile photos from Account appear next to posts—tap a photo to view full size.
                         </p>
                       </div>
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-3 min-h-[220px]">
@@ -3787,9 +3849,18 @@ export default function Dashboard() {
                                 const isEditing = novaConnectEditingId === m.id;
                                 return (
                                   <div key={m.id} className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-900/70 p-2.5 space-y-1">
-                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <div className="flex items-start gap-2.5">
+                                      <NovaConnectFeedAuthorAvatar
+                                        messageId={m.id}
+                                        displayName={m.fromDisplayName}
+                                        avatarUrl={m.fromAvatarUrl}
+                                        failedIds={novaConnectFeedAvatarFailedIds}
+                                        setFailedIds={setNovaConnectFeedAvatarFailedIds}
+                                        setLightbox={setNovaConnectAvatarLightbox}
+                                      />
+                                      <div className="flex-1 min-w-0 flex items-center justify-between gap-2 flex-wrap">
                                       <span className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">{m.fromDisplayName}</span>
-                                      <div className="flex items-center gap-1">
+                                      <div className="flex items-center gap-1 shrink-0">
                                         <span className="text-[10px] text-muted-foreground">
                                           {new Date(m.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
                                         </span>
@@ -3840,6 +3911,7 @@ export default function Dashboard() {
                                             Reply
                                           </button>
                                         )}
+                                      </div>
                                       </div>
                                     </div>
                                     {novaConnectReplyingToId === m.id && (
@@ -3960,12 +4032,22 @@ export default function Dashboard() {
                                     {(m.replies?.length ?? 0) > 0 && (
                                       <div className="mt-2 space-y-1.5 pl-2 border-l-2 border-zinc-200 dark:border-zinc-600">
                                         {m.replies!.map((r) => (
-                                          <div key={r.id} className="text-[11px]">
-                                            <span className="font-semibold text-zinc-800 dark:text-zinc-200">{r.fromDisplayName}</span>
-                                            <span className="text-[10px] text-muted-foreground ml-1">
-                                              {new Date(r.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
-                                            </span>
-                                            {r.content && <p className="mt-0.5 text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{r.content}</p>}
+                                          <div key={r.id} className="text-[11px] flex gap-2">
+                                            <NovaConnectFeedAuthorAvatar
+                                              messageId={r.id}
+                                              displayName={r.fromDisplayName}
+                                              avatarUrl={r.fromAvatarUrl}
+                                              failedIds={novaConnectFeedAvatarFailedIds}
+                                              setFailedIds={setNovaConnectFeedAvatarFailedIds}
+                                              setLightbox={setNovaConnectAvatarLightbox}
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                              <span className="font-semibold text-zinc-800 dark:text-zinc-200">{r.fromDisplayName}</span>
+                                              <span className="text-[10px] text-muted-foreground ml-1">
+                                                {new Date(r.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+                                              </span>
+                                              {r.content && <p className="mt-0.5 text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{r.content}</p>}
+                                            </div>
                                           </div>
                                         ))}
                                       </div>
@@ -3994,6 +4076,7 @@ export default function Dashboard() {
                       </div>
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-2">
                         <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Online traders</h4>
+                        <p className="text-[10px] text-muted-foreground -mt-1 mb-0.5">Tap a member&apos;s photo to view it full size (like Instagram).</p>
                         {!canUseNovaConnectPaidFeatures ? (
                           <div
                             className="relative flex flex-col items-center justify-center min-h-[140px] rounded-md bg-zinc-200/80 dark:bg-zinc-800/80 overflow-hidden"
@@ -4013,54 +4096,74 @@ export default function Dashboard() {
                         ) : novaConnectUsers.length === 0 ? (
                           <p className="text-[11px] text-muted-foreground">No NovaConnect members yet.</p>
                         ) : (
-                          <ul className="space-y-1 max-h-[180px] overflow-y-auto">
+                          <ul className="space-y-2 max-h-[280px] overflow-y-auto">
                             {novaConnectUsers.map((u) => {
                               const isUnread = novaConnectDmUnreadUserIds.includes(u.id);
+                              const ringClass =
+                                u.status === "online"
+                                  ? "ring-emerald-500"
+                                  : u.status === "away"
+                                    ? "ring-amber-500"
+                                    : u.status === "busy"
+                                      ? "ring-rose-500"
+                                      : "ring-zinc-500";
+                              const avatarSrc =
+                                u.avatarUrl && u.avatarUrl.includes("blob.vercel-storage.com")
+                                  ? `/api/avatar?url=${encodeURIComponent(u.avatarUrl)}`
+                                  : u.avatarUrl || "";
                               return (
                               <li key={u.id} className="flex items-center justify-between gap-2 text-xs">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setNovaConnectDmUserId(u.id);
-                                    markDmAsSeenForUser(u.id);
-                                    loadNovaConnectDm(u.id);
-                                  }}
-                                  className="flex-1 flex items-center gap-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded px-1 py-0.5"
-                                >
-                                  <span className="relative shrink-0">
-                                    {u.avatarUrl && !novaConnectAvatarFailedIds.has(u.id) ? (
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  {u.avatarUrl && !novaConnectAvatarFailedIds.has(u.id) ? (
+                                    <button
+                                      type="button"
+                                      title="Tap to view full size"
+                                      aria-label={`View ${u.displayName}'s profile picture full size`}
+                                      className="relative shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-zinc-100 dark:focus-visible:ring-offset-zinc-900 cursor-zoom-in hover:opacity-95 active:scale-[0.98] transition-transform"
+                                      onClick={() =>
+                                        setNovaConnectAvatarLightbox({ src: avatarSrc, name: u.displayName })
+                                      }
+                                    >
                                       <img
-                                        src={u.avatarUrl.includes("blob.vercel-storage.com") ? `/api/avatar?url=${encodeURIComponent(u.avatarUrl)}` : u.avatarUrl}
+                                        src={avatarSrc}
                                         alt=""
-                                        className={`h-6 w-6 rounded-full object-cover ring-2 ${
-                                          u.status === "online" ? "ring-emerald-500" : u.status === "away" ? "ring-amber-500" : u.status === "busy" ? "ring-rose-500" : "ring-zinc-500"
-                                        }`}
+                                        className={`h-12 w-12 sm:h-14 sm:w-14 rounded-full object-cover ring-2 ${ringClass}`}
                                         onError={() => setNovaConnectAvatarFailedIds((prev) => new Set(prev).add(u.id))}
                                       />
-                                    ) : (
-                                      <span
-                                        className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-medium ring-2 ${
-                                          u.status === "online"
-                                            ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 ring-emerald-500"
-                                            : u.status === "away"
-                                            ? "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 ring-amber-500"
+                                    </button>
+                                  ) : (
+                                    <span
+                                      className={`inline-flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full text-base font-semibold ring-2 ${ringClass} ${
+                                        u.status === "online"
+                                          ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
+                                          : u.status === "away"
+                                            ? "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300"
                                             : u.status === "busy"
-                                            ? "bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 ring-rose-500"
-                                            : "bg-zinc-300 dark:bg-zinc-600 text-zinc-600 dark:text-zinc-300 ring-zinc-500"
-                                        }`}
-                                      >
-                                        {(u.displayName || "?").charAt(0).toUpperCase()}
-                                      </span>
-                                    )}
-                                  </span>
-                                  <span className={`truncate flex items-center gap-1 ${isUnread ? "font-semibold text-emerald-700 dark:text-emerald-300" : ""}`}>
-                                    {u.displayName}
-                                    {u.me ? " (you)" : ""}
-                                    {isUnread && !u.me && (
-                                      <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400 dark:bg-emerald-300" aria-hidden />
-                                    )}
-                                  </span>
-                                </button>
+                                              ? "bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300"
+                                              : "bg-zinc-300 dark:bg-zinc-600 text-zinc-600 dark:text-zinc-300"
+                                      }`}
+                                    >
+                                      {(u.displayName || "?").charAt(0).toUpperCase()}
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setNovaConnectDmUserId(u.id);
+                                      markDmAsSeenForUser(u.id);
+                                      loadNovaConnectDm(u.id);
+                                    }}
+                                    className="flex-1 min-w-0 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg px-2 py-1.5 -my-0.5"
+                                  >
+                                    <span className={`block truncate flex items-center gap-1 ${isUnread ? "font-semibold text-emerald-700 dark:text-emerald-300" : "text-zinc-900 dark:text-zinc-100"}`}>
+                                      {u.displayName}
+                                      {u.me ? " (you)" : ""}
+                                      {isUnread && !u.me && (
+                                        <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400 dark:bg-emerald-300 shrink-0" aria-hidden />
+                                      )}
+                                    </span>
+                                  </button>
+                                </div>
                                 {!u.me && (
                                   <div className="flex items-center gap-1">
                                     <button
@@ -5587,6 +5690,43 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </main>
+
+      {novaConnectAvatarLightbox && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Profile picture"
+          className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/90 p-4 sm:p-8"
+          onClick={() => setNovaConnectAvatarLightbox(null)}
+        >
+          <button
+            type="button"
+            aria-label="Close"
+            className="absolute top-3 right-3 sm:top-6 sm:right-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setNovaConnectAvatarLightbox(null);
+            }}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <div
+            className="flex flex-col items-center gap-4 max-w-full max-h-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={novaConnectAvatarLightbox.src}
+              alt=""
+              className="max-h-[min(72vh,640px)] max-w-[min(92vw,640px)] w-auto h-auto object-contain rounded-full shadow-2xl ring-4 ring-white/15 select-none"
+              draggable={false}
+            />
+            <p className="text-base sm:text-lg font-semibold text-white text-center px-4">
+              {novaConnectAvatarLightbox.name}
+            </p>
+            <p className="text-xs text-white/60">Tap outside or press Esc to close</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

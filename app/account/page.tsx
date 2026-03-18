@@ -77,7 +77,8 @@ export default function AccountPage() {
         body: JSON.stringify({
           name: name.trim() || undefined,
           preferredName: preferredName.trim() || undefined,
-          avatarUrl: avatarUrl.trim() || undefined,
+          // Avatar is managed by upload / Remove only (not exposed as URL in UI)
+          ...(avatarUrl.trim() ? { avatarUrl: avatarUrl.trim() } : {}),
           phone: phone.trim() || undefined,
           country: country.trim() || undefined,
           experienceTradingCrypto: experienceTradingCrypto.trim() || undefined,
@@ -259,28 +260,52 @@ export default function AccountPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Profile picture (avatar URL)</label>
-                <p className="text-[11px] text-muted-foreground mb-1">Image URL for your profile. You can upload an image below—it saves automatically and appears in NovaConnect.</p>
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Profile picture</label>
+                <p className="text-[11px] text-muted-foreground mb-1">
+                  Upload a photo—it saves automatically and appears on NovaConnect and in the community feed.
+                </p>
                 {avatarUrl ? (
-                  <div className="mt-1 mb-2 flex items-center gap-3">
+                  <div className="mt-1 mb-2 flex flex-wrap items-center gap-3">
                     <img
                       src={avatarUrl.includes("blob.vercel-storage.com") ? `/api/avatar?url=${encodeURIComponent(avatarUrl)}` : avatarUrl}
                       alt="Profile"
                       className="h-16 w-16 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-600"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                     />
-                    <span className="text-xs text-muted-foreground">Current picture (also shown in NovaConnect)</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-muted-foreground">Current picture (NovaConnect &amp; feed)</span>
+                      <button
+                        type="button"
+                        className="text-xs text-rose-600 dark:text-rose-400 hover:underline text-left w-fit"
+                        disabled={avatarUploading}
+                        onClick={async () => {
+                          setAvatarError("");
+                          try {
+                            const res = await fetch("/api/account/profile", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ avatarUrl: "" }),
+                            });
+                            const data = await res.json();
+                            if (!res.ok) {
+                              setAvatarError(data.error ?? "Could not remove photo.");
+                              return;
+                            }
+                            setAvatarUrl("");
+                            setProfileSuccess(true);
+                            setTimeout(() => setProfileSuccess(false), 4000);
+                          } catch {
+                            setAvatarError("Could not remove photo.");
+                          }
+                        }}
+                      >
+                        Remove profile photo
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-muted-foreground mb-1">No picture set. Upload one below or paste a URL, then Save profile.</p>
+                  <p className="text-[11px] text-muted-foreground mb-1">No picture yet. Upload one below.</p>
                 )}
-                <input
-                  type="url"
-                  placeholder="https://…"
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
-                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm mt-0.5"
-                />
                 <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                   <input
                     type="file"
@@ -305,7 +330,7 @@ export default function AccountPage() {
                           setProfileSuccess(true);
                           setTimeout(() => setProfileSuccess(false), 5000);
                         } else {
-                          setAvatarError(data?.error ?? "Upload failed. Try again or paste an image URL.");
+                          setAvatarError(data?.error ?? "Upload failed. Try again.");
                         }
                       } catch (err) {
                         setAvatarError(err instanceof Error ? err.message : "Upload failed.");
