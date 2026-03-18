@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { upload } from "@vercel/blob/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, BarChart3, Sparkles, Bell } from "lucide-react";
@@ -293,37 +292,23 @@ export default function AccountPage() {
                       if (!file) return;
                       setAvatarError("");
                       setAvatarUploading(true);
-                      const UPLOAD_TIMEOUT_MS = 45_000;
-                      const timeoutPromise = new Promise<never>((_, reject) =>
-                        setTimeout(() => reject(new Error("Upload timed out.")), UPLOAD_TIMEOUT_MS)
-                      );
                       try {
-                        const blob = await Promise.race([
-                          upload(file.name, file, {
-                            access: "public",
-                            handleUploadUrl: "/api/upload/avatar",
-                          }),
-                          timeoutPromise,
-                        ]);
-                        if (blob?.url) {
-                          setAvatarUrl(blob.url);
-                          const saveRes = await fetch("/api/account/profile", {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ avatarUrl: blob.url }),
-                          });
-                          if (saveRes.ok) {
-                            setProfileSuccess(true);
-                            setTimeout(() => setProfileSuccess(false), 5000);
-                          } else {
-                            setAvatarError("Picture uploaded but save failed. Refresh the page—your picture may already be saved.");
-                          }
+                        const formData = new FormData();
+                        formData.set("file", file);
+                        const res = await fetch("/api/upload/avatar-server", {
+                          method: "POST",
+                          body: formData,
+                        });
+                        const data = await res.json();
+                        if (res.ok && data?.url) {
+                          setAvatarUrl(data.url);
+                          setProfileSuccess(true);
+                          setTimeout(() => setProfileSuccess(false), 5000);
                         } else {
-                          setAvatarError("Upload failed. Try again or paste an image URL.");
+                          setAvatarError(data?.error ?? "Upload failed. Try again or paste an image URL.");
                         }
                       } catch (err) {
-                        const msg = err instanceof Error ? err.message : "Upload failed.";
-                        setAvatarError(msg === "Upload timed out." ? "Upload took too long. Refresh the page—your picture may already be saved." : msg);
+                        setAvatarError(err instanceof Error ? err.message : "Upload failed.");
                       } finally {
                         setAvatarUploading(false);
                         e.target.value = "";

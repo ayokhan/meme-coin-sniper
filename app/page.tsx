@@ -302,6 +302,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.success) {
         setNovaConnectUsers(data.users ?? []);
+        setNovaConnectAvatarFailedIds(new Set());
       }
     } catch {
       // silent
@@ -623,6 +624,7 @@ export default function Dashboard() {
   const [novaConnectReplyContent, setNovaConnectReplyContent] = useState("");
   const [novaConnectReplySending, setNovaConnectReplySending] = useState(false);
   const [novaConnectHasCustomDisplayName, setNovaConnectHasCustomDisplayName] = useState<boolean | null>(null);
+  const [novaConnectAvatarFailedIds, setNovaConnectAvatarFailedIds] = useState<Set<string>>(new Set());
   const [novaConnectNicknamePromptDismissed, setNovaConnectNicknamePromptDismissed] = useState(() =>
     typeof window !== "undefined" ? window.localStorage.getItem("novaConnectNicknamePromptDismissed") === "1" : false
   );
@@ -4026,13 +4028,14 @@ export default function Dashboard() {
                                   className="flex-1 flex items-center gap-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded px-1 py-0.5"
                                 >
                                   <span className="relative shrink-0">
-                                    {u.avatarUrl ? (
+                                    {u.avatarUrl && !novaConnectAvatarFailedIds.has(u.id) ? (
                                       <img
                                         src={u.avatarUrl}
                                         alt=""
                                         className={`h-6 w-6 rounded-full object-cover ring-2 ${
                                           u.status === "online" ? "ring-emerald-500" : u.status === "away" ? "ring-amber-500" : u.status === "busy" ? "ring-rose-500" : "ring-zinc-500"
                                         }`}
+                                        onError={() => setNovaConnectAvatarFailedIds((prev) => new Set(prev).add(u.id))}
                                       />
                                     ) : (
                                       <span
