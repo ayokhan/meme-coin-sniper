@@ -260,7 +260,20 @@ export default function AccountPage() {
               </div>
               <div>
                 <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Profile picture (avatar URL)</label>
-                <p className="text-[11px] text-muted-foreground mb-1">Image URL for your profile. You can upload an image below.</p>
+                <p className="text-[11px] text-muted-foreground mb-1">Image URL for your profile. You can upload an image below—it saves automatically and appears in NovaConnect.</p>
+                {avatarUrl ? (
+                  <div className="mt-1 mb-2 flex items-center gap-3">
+                    <img
+                      src={avatarUrl}
+                      alt="Profile"
+                      className="h-16 w-16 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-600"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                    <span className="text-xs text-muted-foreground">Current picture (also shown in NovaConnect)</span>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mb-1">No picture set. Upload one below or paste a URL, then Save profile.</p>
+                )}
                 <input
                   type="url"
                   placeholder="https://…"
@@ -285,6 +298,17 @@ export default function AccountPage() {
                         });
                         if (blob?.url) {
                           setAvatarUrl(blob.url);
+                          const saveRes = await fetch("/api/account/profile", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ avatarUrl: blob.url }),
+                          });
+                          if (saveRes.ok) {
+                            setProfileSuccess(true);
+                            setTimeout(() => setProfileSuccess(false), 5000);
+                          } else {
+                            alert("Picture uploaded but save failed. Click Save profile to try again.");
+                          }
                         } else {
                           alert("Upload failed.");
                         }
@@ -297,7 +321,7 @@ export default function AccountPage() {
                       }
                     }}
                   />
-                  {avatarUploading ? "Uploading…" : "Upload image"}
+                  {avatarUploading ? "Uploading & saving…" : "Upload image (saves automatically)"}
                 </label>
               </div>
               <input
