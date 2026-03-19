@@ -680,7 +680,7 @@ export default function Dashboard() {
   const [perpRadarItems, setPerpRadarItems] = useState<PerpRadarItem[]>([]);
   const [perpRadarLoading, setPerpRadarLoading] = useState(false);
   const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
-  const [perpRadarView, setPerpRadarView] = useState<"all" | "macro">("all");
+  const [perpRadarView, setPerpRadarView] = useState<"all" | "macro" | "metals">("all");
   const [perpRadarPreset, setPerpRadarPreset] = useState<"all" | "24h_up" | "24h_down">("all");
   const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
   const [perpAlertAddType, setPerpAlertAddType] = useState<"new_listing" | "5m_pct_above" | "5m_pct_below">("new_listing");
@@ -1260,14 +1260,14 @@ export default function Dashboard() {
     }
   };
 
-  const fetchPerpRadar = async (view?: "all" | "macro") => {
+  const fetchPerpRadar = async (view?: "all" | "macro" | "metals") => {
     const v = view ?? perpRadarView;
     setPerpRadarLoading(true);
     setPerpRadarError(null);
     try {
       const params = new URLSearchParams();
-      if (v === "macro") {
-        params.set("category", "macro");
+      if (v === "macro" || v === "metals") {
+        params.set("category", v);
         params.set("limit", "50");
       } else {
         params.set("minChangePct", "3");
@@ -1292,14 +1292,17 @@ export default function Dashboard() {
 
   const MACRO_BASES_REGEX = /^(CRUDE|XBR|OIL|WTI|BRENT|CL|NG|NATURALGAS|GAS|XAU|GOLD|XAG|SILVER|SPX|SPX500|SP500|NDX|NAS100|DJI|US30)$/i;
   const MACRO_PINNED_REGEX = /^(XAU|XAG|SPX)$/i;
+  const METALS_BASES_REGEX = /^(XAU|GOLD|XAG|SILVER)$/i;
+  const METALS_PINNED_REGEX = /^(XAU|XAG)$/i;
   /** Fallback when server gets 451: fetch Binance from user's browser (works in allowed regions). */
   const fetchPerpRadarFromBrowser = async () => {
     setPerpRadarLoading(true);
     setPerpRadarError(null);
     const macroOnly = perpRadarView === "macro";
+    const metalsOnly = perpRadarView === "metals";
     const minChangePct = 3;
-    const minQuoteVolume = macroOnly ? 0 : 100_000;
-    const limit = macroOnly ? 50 : 150;
+    const minQuoteVolume = macroOnly || metalsOnly ? 0 : 100_000;
+    const limit = macroOnly || metalsOnly ? 50 : 150;
     try {
       const res = await fetch("https://fapi.binance.com/fapi/v1/ticker/24hr", { cache: "no-store" });
       if (!res.ok) throw new Error(`Binance returned ${res.status}. Your region may be restricted.`);
@@ -1310,12 +1313,15 @@ export default function Dashboard() {
         if (!t?.symbol?.endsWith?.("USDT")) continue;
         const base = t.symbol.replace("USDT", "");
         if (macroOnly && !MACRO_BASES_REGEX.test(base)) continue;
+        if (metalsOnly && !METALS_BASES_REGEX.test(base)) continue;
         const change = Number(t.priceChangePercent ?? "0");
         const quoteVol = Number(t.quoteVolume ?? "0");
         if (!Number.isFinite(change) || !Number.isFinite(quoteVol)) continue;
         const pinnedMacro = macroOnly && MACRO_PINNED_REGEX.test(base);
-        if (!macroOnly && (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume)) continue;
+        const pinnedMetals = metalsOnly && METALS_PINNED_REGEX.test(base);
+        if (!macroOnly && !metalsOnly && (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume)) continue;
         if (macroOnly && !pinnedMacro && quoteVol < 0) continue;
+        if (metalsOnly && !pinnedMetals && quoteVol < 0) continue;
         const last = Number(t.lastPrice ?? "0");
         const vol = Number(t.volume ?? "0");
         if (!Number.isFinite(last) || !Number.isFinite(vol)) continue;
@@ -3101,6 +3107,13 @@ export default function Dashboard() {
                       >
                         Macro perps
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => { setPerpRadarView("metals"); fetchPerpRadar("metals"); }}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarView === "metals" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                      >
+                        Metals only
+                      </button>
                       <span className="text-xs text-muted-foreground ml-1">Preset:</span>
                       <select
                         value={perpRadarPreset}
@@ -3130,7 +3143,11 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">
-                    {perpRadarView === "macro" ? "Macro perps from Binance USDT-M: energy, metals, and indices (e.g. XAU, XAG, SPX, BRENT). We pin XAU/XAG/SPX so they show even when they are not top 24h movers." : "Biggest 24h movers (≥3%, $100k+ vol). List changes on each Refresh—up to 150 symbols. 5m–4h from Binance when allowed, otherwise Hyperliquid where listed; else —. Use AI Signal or Crypto Futures to analyze."}
+                    {perpRadarView === "macro"
+                      ? "Macro perps from Binance USDT-M: energy, metals, and indices (e.g. XAU, XAG, SPX, BRENT). We pin XAU/XAG/SPX so they show even when they are not top 24h movers."
+                      : perpRadarView === "metals"
+                      ? "Metals-only view (XAU/XAG aliases). We pin XAU/XAG so they always show when listed."
+                      : "Biggest 24h movers (≥3%, $100k+ vol). List changes on each Refresh—up to 150 symbols. 5m–4h from Binance when allowed, otherwise Hyperliquid where listed; else —. Use AI Signal or Crypto Futures to analyze."}
                   </p>
                   {perpRadarError && (
                     <div className="mb-3">
@@ -3148,7 +3165,7 @@ export default function Dashboard() {
                   {perpRadarLoading && perpRadarItems.length === 0 && !perpRadarError ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                   ) : perpRadarItems.length === 0 && !perpRadarError ? (
-                    <p className="text-xs text-muted-foreground">{perpRadarView === "macro" ? "No macro perps found. Binance may not list them in your region, or try Refresh." : "No big movers right now. Hit Refresh to try again."}</p>
+                    <p className="text-xs text-muted-foreground">{perpRadarView === "macro" ? "No macro perps found. Binance may not list them in your region, or try Refresh." : perpRadarView === "metals" ? "No metals perps found. Try Refresh, or check if XAU/XAG are listed in your region." : "No big movers right now. Hit Refresh to try again."}</p>
                   ) : perpRadarItems.length > 0 ? (
                     <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                       <Table>
