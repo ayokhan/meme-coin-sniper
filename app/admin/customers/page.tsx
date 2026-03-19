@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +46,8 @@ export default function AdminCustomersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [search, setSearch] = useState("");
+  const [activeOnly, setActiveOnly] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [togglingOnDemandId, setTogglingOnDemandId] = useState<string | null>(null);
@@ -60,6 +62,7 @@ export default function AdminCustomersPage() {
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const [paymentsExpandedId, setPaymentsExpandedId] = useState<string | null>(null);
+  const TABLE_COL_COUNT = 20;
 
   const formatExpiryLabel = (expiresAt: string | null, subscriptionExpiresAt: string | null) => {
     if (!expiresAt) return "No custom expiry set";
@@ -96,6 +99,64 @@ export default function AdminCustomersPage() {
     setError("");
     loadCustomers();
   }, [status]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName.toLowerCase();
+      const isTypingElement =
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        target.isContentEditable;
+      if (isTypingElement) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        window.scrollBy({ top: 80, behavior: "smooth" });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        window.scrollBy({ top: -80, behavior: "smooth" });
+      } else if (e.key === "PageDown") {
+        e.preventDefault();
+        window.scrollBy({ top: Math.round(window.innerHeight * 0.9), behavior: "smooth" });
+      } else if (e.key === "PageUp") {
+        e.preventDefault();
+        window.scrollBy({ top: -Math.round(window.innerHeight * 0.9), behavior: "smooth" });
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else if (e.key === "End") {
+        e.preventDefault();
+        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const metrics = useMemo(() => {
+    const total = customers.length;
+    const active = customers.filter((c) => c.isActive).length;
+    const vipActive = customers.filter((c) => c.isActive && c.subscriptionTier === "vip").length;
+    const proActive = customers.filter((c) => c.isActive && c.subscriptionTier === "pro").length;
+    return { total, active, vipActive, proActive };
+  }, [customers]);
+
+  const filteredCustomers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return customers.filter((c) => {
+      if (activeOnly && !c.isActive) return false;
+      if (!q) return true;
+      return (
+        (c.name ?? "").toLowerCase().includes(q) ||
+        (c.email ?? "").toLowerCase().includes(q) ||
+        (c.phone ?? "").toLowerCase().includes(q) ||
+        (c.country ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [customers, search, activeOnly]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this customer? This cannot be undone.")) return;
@@ -397,12 +458,12 @@ export default function AdminCustomersPage() {
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-4 py-8">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-[1400px] mx-auto">
         <Link href="/" className="inline-flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-6">
           <Zap className="h-5 w-5 text-amber-500" />
           NovaStaris
         </Link>
-        <div className="flex gap-4 mb-4">
+        <div className="flex flex-wrap gap-4 mb-4">
           <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
             Nova Admin hub
           </Link>
@@ -416,12 +477,61 @@ export default function AdminCustomersPage() {
             AI Feedback
           </Link>
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <Card className="border-zinc-200 dark:border-zinc-800">
+            <CardContent className="py-3">
+              <p className="text-xs text-muted-foreground">Total customers</p>
+              <p className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{metrics.total}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-zinc-200 dark:border-zinc-800">
+            <CardContent className="py-3">
+              <p className="text-xs text-muted-foreground">Active subscriptions</p>
+              <p className="text-2xl font-semibold text-emerald-600 dark:text-emerald-400">{metrics.active}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-zinc-200 dark:border-zinc-800">
+            <CardContent className="py-3">
+              <p className="text-xs text-muted-foreground">Active VIP</p>
+              <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400">{metrics.vipActive}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-zinc-200 dark:border-zinc-800">
+            <CardContent className="py-3">
+              <p className="text-xs text-muted-foreground">Active Pro</p>
+              <p className="text-2xl font-semibold text-cyan-600 dark:text-cyan-400">{metrics.proActive}</p>
+            </CardContent>
+          </Card>
+        </div>
         <Card className="border-zinc-200 dark:border-zinc-800">
           <CardHeader>
             <CardTitle>Nova Admin — Customers</CardTitle>
             <p className="text-sm text-muted-foreground">Registered users and subscription status. Only visible to owners (OWNER_EMAIL).</p>
           </CardHeader>
           <CardContent>
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name, email, phone, country"
+                className="w-full sm:w-80 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => setActiveOnly((v) => !v)}
+                className={`text-xs font-medium px-3 py-2 rounded border ${
+                  activeOnly
+                    ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700"
+                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
+                }`}
+              >
+                {activeOnly ? "Showing active only" : "Show active only"}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                Showing {filteredCustomers.length} of {customers.length}
+              </span>
+            </div>
             {successMessage && (
               <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 text-sm px-3 py-2 mb-4">
                 {successMessage}
@@ -435,9 +545,9 @@ export default function AdminCustomersPage() {
             {loading ? (
               <p className="text-muted-foreground">Loading…</p>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[72vh] rounded-md border border-zinc-200 dark:border-zinc-800">
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-zinc-100/95 dark:bg-zinc-900/95 backdrop-blur">
                     <tr className="border-b border-zinc-200 dark:border-zinc-700 text-left">
                       <th className="pb-2 pr-4 font-semibold">Name</th>
                       <th className="pb-2 pr-4 font-semibold">Email</th>
@@ -461,7 +571,7 @@ export default function AdminCustomersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {customers.map((c) => (
+                    {filteredCustomers.map((c) => (
                       <Fragment key={c.id}>
                       <tr className="border-b border-zinc-100 dark:border-zinc-800/60">
                         <td className="py-2 pr-4">{c.name ?? "—"}</td>
@@ -717,7 +827,7 @@ export default function AdminCustomersPage() {
                       </tr>
                       {paymentsExpandedId === c.id && Array.isArray(c.payments) && c.payments.length > 0 && (
                         <tr key={`${c.id}-payments`} className="bg-zinc-50 dark:bg-zinc-900/50">
-                          <td colSpan={17} className="py-3 px-4">
+                          <td colSpan={TABLE_COL_COUNT} className="py-3 px-4">
                             <div className="text-xs">
                               <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-2">Payment history</p>
                               <table className="w-full max-w-2xl border border-zinc-200 dark:border-zinc-700 rounded overflow-hidden">
@@ -748,7 +858,7 @@ export default function AdminCustomersPage() {
                     ))}
                   </tbody>
                 </table>
-                {customers.length === 0 && !error && <p className="py-6 text-muted-foreground">No customers yet.</p>}
+                {filteredCustomers.length === 0 && !error && <p className="py-6 px-4 text-muted-foreground">No matching customers.</p>}
               </div>
             )}
           </CardContent>
