@@ -16,6 +16,27 @@ export const FEATURE_FLAG_KEYS = {
   TELEGRAM_WALLET_ALERTS_VIRAL_GT_70: 'telegram_wallet_alerts_viral_gt_70',
   /** CT Scan / scan token alerts: send Telegram when scans find new tokens. */
   TELEGRAM_TOKEN_SCAN_ALERTS: 'telegram_token_scan_alerts',
+
+  /** Top-level GUI tab visibility controls (owner-managed; user tier/access rules remain unchanged). */
+  PAGE_TAB_NEW: 'page_tab_new',
+  PAGE_TAB_TRENDING: 'page_tab_trending',
+  PAGE_TAB_SURGE: 'page_tab_surge',
+  PAGE_TAB_TRANSACTIONS: 'page_tab_transactions',
+  PAGE_TAB_AI_ANALYSIS: 'page_tab_ai_analysis',
+  PAGE_TAB_FUTURES: 'page_tab_futures',
+  PAGE_TAB_TRENDING_PERPS: 'page_tab_trending_perps',
+  PAGE_TAB_PERP_RADAR: 'page_tab_perp_radar',
+  PAGE_TAB_NARRATIVES: 'page_tab_narratives',
+  PAGE_TAB_TRADING_BOT: 'page_tab_trading_bot',
+  PAGE_TAB_CT: 'page_tab_ct',
+  PAGE_TAB_WALLETS: 'page_tab_wallets',
+  PAGE_TAB_COACH_CALLS: 'page_tab_coach_calls',
+  PAGE_TAB_NOVA_FORECAST: 'page_tab_nova_forecast',
+  PAGE_TAB_BSC: 'page_tab_bsc',
+  PAGE_TAB_WATCHLIST: 'page_tab_watchlist',
+  PAGE_TAB_NOVA_CONNECT: 'page_tab_nova_connect',
+  PAGE_TAB_CHRIS_CLAYTON: 'page_tab_chris_clayton',
+
   /** Show/fetch live trades from tracked wallets. When OFF, no calls to /api/wallet-tracker/trades (saves Moralis). Alerts still work. */
   LIVE_TRADES_ENABLED: 'live_trades_enabled',
   /** Owner-only: notify (in-app + Telegram) the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token. */

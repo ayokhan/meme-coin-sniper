@@ -32,6 +32,79 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "CT Scan / scan token alerts (Telegram)",
     description: "When OFF, CT Scan / scan endpoints do not send token alerts to Telegram.",
   },
+
+  page_tab_new: {
+    label: "Tab: Go Hunting",
+    description: "Show/hide the Go Hunting tab in the main GUI.",
+  },
+  page_tab_trending: {
+    label: "Tab: Trending",
+    description: "Show/hide the Trending tab in the main GUI.",
+  },
+  page_tab_surge: {
+    label: "Tab: Surge",
+    description: "Show/hide the Surge tab in the main GUI.",
+  },
+  page_tab_transactions: {
+    label: "Tab: Transactions",
+    description: "Show/hide the Transactions tab in the main GUI.",
+  },
+  page_tab_ai_analysis: {
+    label: "Tab: NovaStaris AI Agent",
+    description: "Show/hide the NovaStaris AI Agent tab in the main GUI.",
+  },
+  page_tab_futures: {
+    label: "Tab: Crypto Futures",
+    description: "Show/hide the Crypto Futures tab in the main GUI.",
+  },
+  page_tab_trending_perps: {
+    label: "Tab: Trending perps",
+    description: "Show/hide the Trending perps tab in the main GUI.",
+  },
+  page_tab_perp_radar: {
+    label: "Tab: Perp Radar",
+    description: "Show/hide the Perp Radar tab in the main GUI.",
+  },
+  page_tab_narratives: {
+    label: "Tab: Narratives",
+    description: "Show/hide the Narratives tab in the main GUI.",
+  },
+  page_tab_trading_bot: {
+    label: "Tab: NovaStaris AI Trading Bot",
+    description: "Show/hide the AI Trading Bot tab in the main GUI.",
+  },
+  page_tab_ct: {
+    label: "Tab: CT Scan",
+    description: "Show/hide the CT Scan tab in the main GUI.",
+  },
+  page_tab_wallets: {
+    label: "Tab: Wallet Tracker",
+    description: "Show/hide the Wallet Tracker tab in the main GUI.",
+  },
+  page_tab_coach_calls: {
+    label: "Tab: Coach Calls + Telegram Signals",
+    description: "Show/hide the Coach Calls + Telegram Signals tab in the main GUI.",
+  },
+  page_tab_nova_forecast: {
+    label: "Tab: NovaForecast Agent",
+    description: "Show/hide the NovaForecast Agent tab in the main GUI.",
+  },
+  page_tab_bsc: {
+    label: "Tab: BSC",
+    description: "Show/hide the BSC tab in the main GUI.",
+  },
+  page_tab_watchlist: {
+    label: "Tab: Watchlist",
+    description: "Show/hide the Watchlist tab in the main GUI.",
+  },
+  page_tab_nova_connect: {
+    label: "Tab: NovaConnect",
+    description: "Show/hide the NovaConnect tab in the main GUI.",
+  },
+  page_tab_chris_clayton: {
+    label: "Tab: Online Boss Strategy",
+    description: "Show/hide the Online Boss Strategy tab (owner-only) in the main GUI.",
+  },
   owner_first_buy_alerts: {
     label: "First buy alerts (owner only)",
     description: "Notify in-app and Telegram the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token.",
