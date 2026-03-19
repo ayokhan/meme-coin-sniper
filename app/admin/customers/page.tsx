@@ -61,6 +61,24 @@ export default function AdminCustomersPage() {
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const [paymentsExpandedId, setPaymentsExpandedId] = useState<string | null>(null);
 
+  const formatExpiryLabel = (expiresAt: string | null, subscriptionExpiresAt: string | null) => {
+    if (!expiresAt) return "No custom expiry set";
+    const expiry = new Date(expiresAt);
+    if (Number.isNaN(expiry.getTime())) return "Invalid expiry";
+    const expiryText = expiry.toLocaleString();
+
+    if (subscriptionExpiresAt) {
+      const sub = new Date(subscriptionExpiresAt);
+      if (!Number.isNaN(sub.getTime())) {
+        // Treat near-identical timestamps as "subscription end"
+        if (Math.abs(expiry.getTime() - sub.getTime()) < 60 * 1000) {
+          return `Expires: ${expiryText} (subscription end)`;
+        }
+      }
+    }
+    return `Expires: ${expiryText}`;
+  };
+
   const loadCustomers = () => {
     fetch("/api/admin/customers")
       .then((r) => r.json())
@@ -496,6 +514,11 @@ export default function AdminCustomersPage() {
                             >
                               {togglingCtScanOnDemandId === c.id ? "…" : c.ctScanOnDemand ? "On" : "Off"}
                             </button>
+                            {c.ctScanOnDemand && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {formatExpiryLabel(c.ctScanOnDemandExpiresAt, c.subscriptionExpiresAt)}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="py-2 pr-4">
@@ -520,6 +543,11 @@ export default function AdminCustomersPage() {
                             >
                               {togglingMemeCoinsTraderOnDemandId === c.id ? "…" : c.memeCoinsTraderOnDemand ? "On" : "Off"}
                             </button>
+                            {c.memeCoinsTraderOnDemand && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {formatExpiryLabel(c.memeCoinsTraderOnDemandExpiresAt, c.subscriptionExpiresAt)}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="py-2 pr-4">
