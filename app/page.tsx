@@ -931,6 +931,11 @@ export default function Dashboard() {
       setTokens([]);
       return;
     }
+    if (tab === "wallets" && walletTrackerView !== "meme") {
+      // Wallet-tracker API is meme-only; leverage view has its own data sources.
+      if (showLoading) setLoading(false);
+      return;
+    }
     if (tab === "wallets" && walletTrackerView === "meme" && !canAccessMemeCoinsTrader) {
       if (showLoading) setLoading(false);
       setError(null);
@@ -5051,7 +5056,21 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <TabsContent value="meme" className="mt-0 space-y-4">
-                <>
+                {!canAccessMemeCoinsTrader ? (
+                  <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                    <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">On-demand access required</p>
+                    <p className="mt-2 text-sm text-muted-foreground max-w-md">
+                      Mem Coins Traders (Wallet Tracker → Meme) is VIP on-demand. Request access and an admin will enable it for your account.
+                    </p>
+                    <Button
+                      asChild
+                      className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700"
+                    >
+                      <Link href="/support?subject=Mem%20Coins%20Trader%20access%20request">Contact for access</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <>
                 <details className="mx-0 mt-0 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
                   <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     Wallets we track ({trackedWallets.length})
@@ -5378,7 +5397,8 @@ export default function Dashboard() {
                 </Table>
                 </div>
                 )}
-                </>
+                  </>
+                )}
                   </TabsContent>
                   <TabsContent value="leverage" className="mt-0 space-y-4">
                   <div className="space-y-4">
