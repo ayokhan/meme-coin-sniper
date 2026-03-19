@@ -23,6 +23,8 @@ export async function PATCH(
     }
     const body = await request.json().catch(() => ({}));
     const tradingBotOnDemand = body.tradingBotOnDemand;
+    const ctScanOnDemand = body.ctScanOnDemand;
+    const memeCoinsTraderOnDemand = body.memeCoinsTraderOnDemand;
     const newsletterOptIn = body.newsletterOptIn;
     const novaConnectEnabled = body.novaConnectEnabled;
     const novaConnectCommunityRep = body.novaConnectCommunityRep;
@@ -30,6 +32,8 @@ export async function PATCH(
     const rulesAccepted = body.rulesAccepted;
     const updates: {
       tradingBotOnDemand?: boolean;
+      ctScanOnDemand?: boolean;
+      memeCoinsTraderOnDemand?: boolean;
       newsletterOptIn?: boolean;
       novaConnectEnabled?: boolean;
       novaConnectCommunityRep?: boolean;
@@ -37,6 +41,8 @@ export async function PATCH(
       novaConnectRulesAcceptedAt?: Date | null;
     } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
+    if (typeof ctScanOnDemand === 'boolean') updates.ctScanOnDemand = ctScanOnDemand;
+    if (typeof memeCoinsTraderOnDemand === 'boolean') updates.memeCoinsTraderOnDemand = memeCoinsTraderOnDemand;
     if (typeof newsletterOptIn === 'boolean') updates.newsletterOptIn = newsletterOptIn;
     if (typeof novaConnectEnabled === 'boolean') updates.novaConnectEnabled = novaConnectEnabled;
     if (typeof novaConnectCommunityRep === 'boolean') updates.novaConnectCommunityRep = novaConnectCommunityRep;
@@ -47,7 +53,7 @@ export async function PATCH(
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'Provide at least one of: tradingBotOnDemand, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, rulesAccepted (boolean).',
+        error: 'Provide at least one of: tradingBotOnDemand, ctScanOnDemand, memeCoinsTraderOnDemand, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, rulesAccepted (boolean).',
       }, { status: 400 });
     }
     await (prisma as any).user.update({

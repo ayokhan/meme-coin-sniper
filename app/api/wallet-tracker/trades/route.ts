@@ -3,6 +3,7 @@ import { getTrackedWallets, getAlertRules } from '@/lib/wallet-tracker-config';
 
 export const dynamic = 'force-dynamic';
 import { getSessionAndSubscription } from '@/lib/auth-server';
+import { canAccessMemeCoinsTrader } from '@/lib/auth';
 import { getRecentTokenBuysForWallet } from '@/lib/api-clients/helius';
 import { getWalletTokenBuysFromBirdeye } from '@/lib/api-clients/birdeye';
 import { getWalletSwapsFromMoralis, type MoralisWalletSwap } from '@/lib/api-clients/moralis';
@@ -49,9 +50,9 @@ export async function GET(request: Request) {
     const debugAddress = url.searchParams.get('address')?.trim() || null;
     const skipMoralis = url.searchParams.get('skipMoralis') === '1';
 
-    const { tier } = await getSessionAndSubscription();
-    if (tier !== 'vip') {
-      return NextResponse.json({ success: false, error: 'VIP subscription required for wallet trades.', locked: true }, { status: 403 });
+    const { tier, session } = await getSessionAndSubscription();
+    if (tier !== 'vip' || !canAccessMemeCoinsTrader(session)) {
+      return NextResponse.json({ success: false, error: 'VIP + on-demand access required for Meme Coins Traders.', locked: true }, { status: 403 });
     }
     const trackedWallets = debugAddress
       ? [{ address: debugAddress, label: debugAddress }]

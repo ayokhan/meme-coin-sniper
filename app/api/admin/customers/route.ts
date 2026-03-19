@@ -53,6 +53,8 @@ export async function GET() {
         country: u.country,
         experienceTradingCrypto: u.experienceTradingCrypto,
         tradingBotOnDemand: !!(u as { tradingBotOnDemand?: boolean }).tradingBotOnDemand,
+        ctScanOnDemand: !!(u as { ctScanOnDemand?: boolean }).ctScanOnDemand,
+        memeCoinsTraderOnDemand: !!(u as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand,
         newsletterOptIn: !!(u as { newsletterOptIn?: boolean }).newsletterOptIn,
         novaConnectEnabled: !!(u as { novaConnectEnabled?: boolean }).novaConnectEnabled,
         novaConnectRulesAcceptedAt: (u as { novaConnectRulesAcceptedAt?: Date | null }).novaConnectRulesAcceptedAt ?? null,

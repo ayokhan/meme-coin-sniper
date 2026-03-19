@@ -5,6 +5,17 @@ import { ALL_CT_INFLUENCERS, getAccountWeight, MONITORED_CT_LIMIT } from '@/lib/
 const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
+function parsePositiveInt(value: string | undefined, fallback: number) {
+  const n = value ? Number(value) : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+// Free-plan friendly limits:
+// - MAX_HANDLES reduces how many KOL accounts Apify processes per run.
+// - MAX_ITEMS reduces results returned/charged (depends on actor pricing model).
+const CT_SCRAPER_MAX_HANDLES = parsePositiveInt(process.env.CT_SCRAPER_MAX_HANDLES, MONITORED_CT_LIMIT);
+const CT_SCRAPER_MAX_ITEMS = parsePositiveInt(process.env.CT_SCRAPER_MAX_ITEMS, 50);
+
 const anthropic = new Anthropic({
   apiKey: ANTHROPIC_API_KEY,
 });
@@ -49,13 +60,16 @@ export async function monitorCTAccounts(
   }
 
   try {
-    console.log(`🐦 Monitoring ${accounts.length} CT accounts (Apify)...`);
+    const twitterHandles = accounts.slice(0, CT_SCRAPER_MAX_HANDLES);
+    console.log(
+      `🐦 Monitoring ${twitterHandles.length}/${accounts.length} CT accounts (Apify) · maxItems=${CT_SCRAPER_MAX_ITEMS}...`
+    );
 
     const response = await axios.post(
       `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/run-sync-get-dataset-items`,
       {
-        twitterHandles: accounts.slice(0, MONITORED_CT_LIMIT),
-        maxItems: 50,
+        twitterHandles,
+        maxItems: CT_SCRAPER_MAX_ITEMS,
       },
       {
         headers: {

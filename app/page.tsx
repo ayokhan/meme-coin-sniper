@@ -186,6 +186,8 @@ export default function Dashboard() {
   const isVip = tier === "vip";
   const novaConnectAllowedByAdmin = (session?.user as { novaConnectAllowedByAdmin?: boolean } | undefined)?.novaConnectAllowedByAdmin ?? false;
   const canUseNovaConnectPaidFeatures = isPaid || isOwner || novaConnectAllowedByAdmin;
+  const canAccessCtScan = isOwner || (((session?.user as { ctScanOnDemand?: boolean } | undefined)?.ctScanOnDemand) ?? false);
+  const canAccessMemeCoinsTrader = isOwner || (((session?.user as { memeCoinsTraderOnDemand?: boolean } | undefined)?.memeCoinsTraderOnDemand) ?? false);
   const [mounted, setMounted] = useState(false);
   const [presencePingOk, setPresencePingOk] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("new");
@@ -339,6 +341,8 @@ export default function Dashboard() {
   const [tradingBotView, setTradingBotView] = useState<TradingBotView>("futures");
   type WalletTrackerView = "meme" | "leverage";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
+  const onDemandLocked =
+    activeTab === "ct" && !canAccessCtScan;
 
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
@@ -921,6 +925,18 @@ export default function Dashboard() {
       if (showLoading) setLoading(false);
       return;
     }
+    if (tab === "ct" && !canAccessCtScan) {
+      if (showLoading) setLoading(false);
+      setError(null);
+      setTokens([]);
+      return;
+    }
+    if (tab === "wallets" && walletTrackerView === "meme" && !canAccessMemeCoinsTrader) {
+      if (showLoading) setLoading(false);
+      setError(null);
+      setWalletAlerts([]);
+      return;
+    }
     if (showLoading) setLoading(true);
     setError(null);
     try {
@@ -1159,15 +1175,27 @@ export default function Dashboard() {
       setError(null);
       return;
     }
+    if (activeTab === "ct" && !canAccessCtScan) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    if (activeTab === "wallets" && walletTrackerView === "meme" && !canAccessMemeCoinsTrader) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     fetchTokens(activeTab);
     if (activeTab === "ct") {
-      fetchCtAccounts();
-      fetchCtTweets();
+      if (canAccessCtScan) {
+        fetchCtAccounts();
+        fetchCtTweets();
+      }
     }
     if (activeTab === "wallets") {
-      fetchTrackedWallets();
+      if (walletTrackerView === "meme") fetchTrackedWallets();
     }
-  }, [activeTab, isPaid, isVip, goHuntingView, bscGoHuntingView]);
+  }, [activeTab, isPaid, isVip, goHuntingView, bscGoHuntingView, walletTrackerView, canAccessCtScan, canAccessMemeCoinsTrader]);
 
   useEffect(() => {
     if (activeTab === "surge") fetchTokens("surge");
@@ -1524,8 +1552,13 @@ export default function Dashboard() {
       fetchUserLeverageWallets();
     }
     if (activeTab === "wallets" && walletTrackerView === "meme") {
-      fetchUserMemeCoinWallets();
-      fetchUserMemeCoinAlerts();
+      if (canAccessMemeCoinsTrader) {
+        fetchUserMemeCoinWallets();
+        fetchUserMemeCoinAlerts();
+      } else {
+        setUserMemeCoinWallets([]);
+        setUserMemeCoinAlerts([]);
+      }
     }
     if (activeTab === "futures" && isPaid) fetchTrendingPerps();
     if (activeTab === "futures" && futuresView === "altcoins") fetchTopAltcoins();
@@ -1542,21 +1575,23 @@ export default function Dashboard() {
     if (activeTab === "nova-forecast" && isVip) {
       fetchNovaForecast();
     }
-  }, [activeTab, walletTrackerView, futuresView, isPaid, isVip, isOwner]);
+  }, [activeTab, walletTrackerView, futuresView, isPaid, isVip, isOwner, canAccessMemeCoinsTrader]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
     if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "nova-forecast" || activeTab === "watchlist") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
-        fetchTrackedWallets();
-        if (liveTradesEnabled) fetchWalletTrades();
+        if (walletTrackerView === "meme") {
+          fetchTrackedWallets();
+          if (liveTradesEnabled && canAccessMemeCoinsTrader) fetchWalletTrades();
+        }
       }, 2 * 60 * 1000);
       return () => clearInterval(interval);
     }
     const interval = setInterval(() => fetchTokens(activeTab, false), AUTO_REFRESH_SECONDS * 1000);
     return () => clearInterval(interval);
-  }, [activeTab, liveTradesEnabled]);
+  }, [activeTab, liveTradesEnabled, walletTrackerView, canAccessMemeCoinsTrader]);
 
   const runAiAnalysis = async () => {
     const ca = aiAnalysisCa.trim();
@@ -1850,6 +1885,11 @@ export default function Dashboard() {
   };
 
   const runScan = async (type: "scan" | "twitter") => {
+    if (type === "twitter" && !canAccessCtScan) {
+      setError("CT Scan is VIP on-demand. Contact support to request access.");
+      setScanning("idle");
+      return;
+    }
     setScanning(type);
     setError(null);
     try {
@@ -2206,7 +2246,7 @@ export default function Dashboard() {
               variant="secondary"
               size="sm"
               onClick={() => runScan("twitter")}
-              disabled={scanning !== "idle"}
+              disabled={scanning !== "idle" || !canAccessCtScan}
               className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700"
             >
               {scanning === "twitter" ? "Scanning CT…" : "Scan Twitter"}
@@ -2278,7 +2318,7 @@ export default function Dashboard() {
               <Button size="sm" className="justify-start h-12 bg-gradient-to-r from-cyan-500 via-violet-500 to-blue-600 text-white" onClick={() => { setMobileMenuOpen(false); runScan("scan"); }} disabled={scanning !== "idle"}>
                 {scanning === "scan" ? "Scanning…" : "Scan new pairs"}
               </Button>
-              <Button variant="secondary" size="sm" className="justify-start h-12 bg-zinc-100 dark:bg-zinc-800" onClick={() => { setMobileMenuOpen(false); runScan("twitter"); }} disabled={scanning !== "idle"}>
+              <Button variant="secondary" size="sm" className="justify-start h-12 bg-zinc-100 dark:bg-zinc-800" onClick={() => { setMobileMenuOpen(false); runScan("twitter"); }} disabled={scanning !== "idle" || !canAccessCtScan}>
                 {scanning === "twitter" ? "Scanning CT…" : "Scan Twitter"}
               </Button>
             </div>
@@ -2461,10 +2501,10 @@ export default function Dashboard() {
             </Tabs>
           </CardHeader>
           <CardContent className="p-0">
-            {((VIP_ONLY_TABS.includes(activeTab) && !isVip) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid))) ? (
+            {(onDemandLocked || ((VIP_ONLY_TABS.includes(activeTab) && !isVip) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid)))) ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                  {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "VIP required" : "Subscribe for access"}
+                  {onDemandLocked ? "On-demand access required" : VIP_ONLY_TABS.includes(activeTab) && !isVip ? "VIP required" : "Subscribe for access"}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground max-w-md">
                   {activeTab === "surge" && "Surge shows tokens with high volume in 5m–24h windows."}
@@ -2474,15 +2514,34 @@ export default function Dashboard() {
                   {activeTab === "trending-perps" && "See the biggest perp movers in one place—5m, 15m, 30m, 1h, and 24h—so you can spot what’s moving fast."}
                   {activeTab === "perp-radar" && "Spot the biggest perp movers across exchanges—before they peak."}
                   {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
-                  {activeTab === "ct" && "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."}
-                  {activeTab === "wallets" && "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets."}
+                  {activeTab === "ct" && (canAccessCtScan ? "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them." : "CT Scan is VIP on-demand. Request access and an admin will enable it for your account.")}
+                  {activeTab === "wallets" &&
+                    (walletTrackerView === "meme" && !canAccessMemeCoinsTrader
+                      ? "Mem Coins Traders (Wallet Tracker → Meme) is VIP on-demand. Request access and an admin will enable it for your account."
+                      : "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets.")}
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
                   {activeTab === "nova-connect" && "NovaConnect: the first social platform for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}
                   {" "}
-                  {VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP to use this feature." : activeTab === "nova-connect" ? "Upgrade to Pro or VIP, or ask an admin to allow NovaConnect for you." : "Upgrade to Pro or VIP to use this feature."}
+                  {onDemandLocked
+                    ? "Contact support to request access (enabled manually by admin)."
+                    : VIP_ONLY_TABS.includes(activeTab) && !isVip
+                      ? "Upgrade to VIP to use this feature."
+                      : activeTab === "nova-connect"
+                        ? "Upgrade to Pro or VIP, or ask an admin to allow NovaConnect for you."
+                        : "Upgrade to Pro or VIP to use this feature."}
                 </p>
                 <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
-                  <Link href="/subscribe">{VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP" : "Subscribe to Pro"}</Link>
+                  <Link
+                    href={
+                      onDemandLocked
+                        ? activeTab === "ct"
+                          ? "/support?subject=CT%20Scan%20access%20request"
+                          : "/support?subject=Mem%20Coins%20Trader%20access%20request"
+                        : "/subscribe"
+                    }
+                  >
+                    {onDemandLocked ? "Contact for access" : VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP" : "Subscribe to Pro"}
+                  </Link>
                 </Button>
               </div>
             ) : (
@@ -4198,7 +4257,7 @@ export default function Dashboard() {
                       </div>
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-2">
                         <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Online traders</h4>
-                        <p className="text-[10px] text-muted-foreground -mt-1 mb-0.5">Tap a member&apos;s photo to view it full size (like Instagram).</p>
+                        <p className="text-[10px] text-muted-foreground -mt-1 mb-0.5">Tap a member&apos;s photo to view it full size.</p>
                         {!canUseNovaConnectPaidFeatures ? (
                           <div
                             className="relative flex flex-col items-center justify-center min-h-[140px] rounded-md bg-zinc-200/80 dark:bg-zinc-800/80 overflow-hidden"
@@ -5644,7 +5703,12 @@ export default function Dashboard() {
                     {loading ? "Loading…" : "Refresh"}
                   </Button>
                   {activeTab === "ct" && (
-                    <Button onClick={() => runScan("twitter")} disabled={scanning !== "idle"} size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700">
+                    <Button
+                      onClick={() => runScan("twitter")}
+                      disabled={scanning !== "idle" || !canAccessCtScan}
+                      size="sm"
+                      className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700"
+                    >
                       {scanning === "twitter" ? "Scanning…" : "Scan Twitter"}
                     </Button>
                   )}

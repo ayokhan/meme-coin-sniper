@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSessionAndSubscription } from '@/lib/auth-server';
+import { canAccessCtScan } from '@/lib/auth';
 
 const FREE_LIMIT = 5;
 
 export async function GET(request: Request) {
   try {
-    const { isPaid, tier } = await getSessionAndSubscription();
+    const { isPaid, tier, session } = await getSessionAndSubscription();
     const { searchParams } = new URL(request.url);
     const source = searchParams.get('source');
     // CT Scan (Twitter) is VIP-only
-    if (source === 'twitter' && tier !== 'vip') {
-      return NextResponse.json({ success: false, error: 'VIP subscription required for CT Scan.', locked: true }, { status: 403 });
+    if (source === 'twitter' && (tier !== 'vip' || !canAccessCtScan(session))) {
+      return NextResponse.json({ success: false, error: 'VIP + on-demand access required for CT Scan.', locked: true }, { status: 403 });
     }
     const where: { chain: string; source?: string } = { chain: 'solana' };
     if (source) where.source = source;

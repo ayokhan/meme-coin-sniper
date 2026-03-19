@@ -3,6 +3,7 @@ import { getTrackedWallets, getAlertRules } from '@/lib/wallet-tracker-config';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { getWalletAlerts, type WalletAlert } from '@/lib/get-wallet-alerts';
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
+import { canAccessMemeCoinsTrader } from '@/lib/auth';
 
 export type { WalletAlert };
 
@@ -10,9 +11,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const { tier, userId } = await getSessionAndSubscription();
-    if (tier !== 'vip') {
-      return NextResponse.json({ success: false, error: 'VIP subscription required for Profitable Traders Wallet Tracker.', locked: true }, { status: 403 });
+    const { tier, userId, session } = await getSessionAndSubscription();
+    if (tier !== 'vip' || !canAccessMemeCoinsTrader(session)) {
+      return NextResponse.json({ success: false, error: 'VIP + on-demand access required for Meme Coins Traders.', locked: true }, { status: 403 });
     }
     const [trackedWallets, rules, liveTradesEnabled, user] = await Promise.all([
       getTrackedWallets(),

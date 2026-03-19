@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canAccessMemeCoinsTrader } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -14,6 +15,9 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
+    }
+    if (!canAccessMemeCoinsTrader(session)) {
+      return NextResponse.json({ success: false, error: "VIP + on-demand access required for Meme Coins Traders.", locked: true }, { status: 403 });
     }
     const list = await (prisma as any).userMemeCoinWallet.findMany({
       where: { userId: session.user.id },
@@ -35,6 +39,9 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
+    }
+    if (!canAccessMemeCoinsTrader(session)) {
+      return NextResponse.json({ success: false, error: "VIP + on-demand access required for Meme Coins Traders.", locked: true }, { status: 403 });
     }
     const body = await request.json().catch(() => ({}));
     const address = String(body.address ?? "").trim();
@@ -77,6 +84,9 @@ export async function DELETE(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
+    }
+    if (!canAccessMemeCoinsTrader(session)) {
+      return NextResponse.json({ success: false, error: "VIP + on-demand access required for Meme Coins Traders.", locked: true }, { status: 403 });
     }
     const { searchParams } = new URL(request.url);
     const address = searchParams.get("address")?.trim();

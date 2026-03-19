@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getSessionAndSubscription } from '@/lib/auth-server';
+import { canAccessCtScan } from '@/lib/auth';
 import {
   TIER_1_INFLUENCERS,
   TIER_2_INFLUENCERS,
@@ -11,6 +13,10 @@ import {
 } from '@/lib/config/ct-influencers';
 
 export async function GET() {
+  const { tier, session } = await getSessionAndSubscription();
+  if (tier !== 'vip' || !canAccessCtScan(session)) {
+    return NextResponse.json({ success: false, error: 'VIP + on-demand access required for CT Scan.', locked: true }, { status: 403 });
+  }
   const tiers = [
     { name: 'Elite Alpha', accounts: TIER_1_INFLUENCERS, weight: 3 },
     { name: 'Momentum', accounts: TIER_2_INFLUENCERS, weight: 2 },

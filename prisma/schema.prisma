@@ -90,6 +90,10 @@ model User {
   country       String?
   experienceTradingCrypto String?  // e.g. beginner | intermediate | expert
   tradingBotOnDemand     Boolean  @default(false)  // owner can enable Trading Bot access for VIP users on request
+  /** Owner-only toggle: allow VIP users to access CT Scan (Twitter tracker) on demand. */
+  ctScanOnDemand         Boolean  @default(false)
+  /** Owner-only toggle: allow VIP users to access Meme Coins Traders (Wallet Tracker → Meme) on demand. */
+  memeCoinsTraderOnDemand Boolean  @default(false)
   /** Opt-in at registration: receive NovaStaris newsletter / perp digest when admin enables "Send digest to newsletter subscribers". */
   newsletterOptIn       Boolean  @default(false)
   /** NovaConnect social portal: opt-in and profile fields. */
@@ -99,6 +103,7 @@ model User {
   novaConnectAvatarUrl   String?
   /** Presence preference: online | away | busy | offline (used with last-seen). */
   novaConnectStatus      String   @default("online")
+
   /** When user first accepted NovaConnect rules (for admin visibility). */
   novaConnectRulesAcceptedAt DateTime?
   /** Set by admin: can delete community posts (moderation). */

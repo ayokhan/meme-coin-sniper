@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { monitorCTAccounts } from '@/lib/api-clients/twitter';
+import { canAccessCtScan } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 /** GET - Recent tweets from tracked CT accounts (Pro). Requires APIFY_API_TOKEN in Vercel. */
 export async function GET() {
   try {
-    const { tier } = await getSessionAndSubscription();
-    if (tier !== 'vip') {
-      return NextResponse.json({ success: false, error: 'VIP subscription required for Twitter tracker.', locked: true }, { status: 403 });
+    const { tier, session } = await getSessionAndSubscription();
+    if (tier !== 'vip' || !canAccessCtScan(session)) {
+      return NextResponse.json({ success: false, error: 'VIP + on-demand access required for CT Scan.', locked: true }, { status: 403 });
     }
     if (!process.env.APIFY_API_TOKEN) {
       return NextResponse.json({

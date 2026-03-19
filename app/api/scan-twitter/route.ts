@@ -8,6 +8,7 @@ import { checkSolanaTokenSecurity, calculateSecurityScore, getTopHolderPercentag
 import { calculateViralScore } from '@/lib/utils/viral-score';
 import { sendTokenAlerts } from '@/lib/telegram';
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
+import { canAccessCtScan } from '@/lib/auth';
 
 type ScannedToken = {
   symbol: string;
@@ -26,9 +27,9 @@ const MIN_VIRAL_SCORE_FOR_SCAN_TELEGRAM = 70;
 
 export async function GET() {
   try {
-    const { tier } = await getSessionAndSubscription();
-    if (tier !== 'vip') {
-      return NextResponse.json({ success: false, error: 'VIP subscription required for Twitter scan.', locked: true }, { status: 403 });
+    const { tier, session } = await getSessionAndSubscription();
+    if (tier !== 'vip' || !canAccessCtScan(session)) {
+      return NextResponse.json({ success: false, error: 'VIP + on-demand access required for Twitter scan.', locked: true }, { status: 403 });
     }
     if (!process.env.APIFY_API_TOKEN) {
       return NextResponse.json({

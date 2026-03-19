@@ -8,7 +8,21 @@ import { getActiveSubscription, getSubscriptionTier, type Tier } from '@/lib/sub
 
 declare module 'next-auth' {
   interface Session {
-    user: { id: string; email?: string | null; name?: string | null; image?: string | null; walletAddress?: string | null; isPaid: boolean; isOwner?: boolean; tier?: Tier | null; tradingBotOnDemand?: boolean; novaConnectCommunityRep?: boolean; novaConnectAllowedByAdmin?: boolean };
+    user: {
+      id: string;
+      email?: string | null;
+      name?: string | null;
+      image?: string | null;
+      walletAddress?: string | null;
+      isPaid: boolean;
+      isOwner?: boolean;
+      tier?: Tier | null;
+      tradingBotOnDemand?: boolean;
+      ctScanOnDemand?: boolean;
+      memeCoinsTraderOnDemand?: boolean;
+      novaConnectCommunityRep?: boolean;
+      novaConnectAllowedByAdmin?: boolean;
+    };
   }
 }
 
@@ -40,6 +54,20 @@ export function canAccessTradingBot(session: { user?: { email?: string | null; w
   return session.user.tier === 'vip' && !!(session.user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
 }
 
+/** True if session can access CT Scan (Twitter tracker): owner OR VIP with on-demand enabled. */
+export function canAccessCtScan(session: { user?: { email?: string | null; walletAddress?: string | null; tier?: Tier | string | null; ctScanOnDemand?: boolean } } | null): boolean {
+  if (!session?.user) return false;
+  if (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress)) return true;
+  return session.user.tier === 'vip' && !!(session.user as { ctScanOnDemand?: boolean }).ctScanOnDemand;
+}
+
+/** True if session can access Meme Coins Traders (Wallet Tracker → Meme): owner OR VIP with on-demand enabled. */
+export function canAccessMemeCoinsTrader(session: { user?: { email?: string | null; walletAddress?: string | null; tier?: Tier | string | null; memeCoinsTraderOnDemand?: boolean } } | null): boolean {
+  if (!session?.user) return false;
+  if (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress)) return true;
+  return session.user.tier === 'vip' && !!(session.user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand;
+}
+
 function verifyWalletSignature(message: string, signature: string, walletAddress: string): boolean {
   try {
     const pubkey = new PublicKey(walletAddress);
@@ -67,9 +95,11 @@ export const authOptions: NextAuthOptions = {
         const isPaid = await getActiveSubscription(user.id);
         const tier = await getSubscriptionTier(user.id);
         const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
+        const ctScanOnDemand = !!(user as { ctScanOnDemand?: boolean }).ctScanOnDemand;
+        const memeCoinsTraderOnDemand = !!(user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand;
         const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
         const novaConnectAllowedByAdmin = !!(user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin;
-        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier, tradingBotOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
+        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier, tradingBotOnDemand, ctScanOnDemand, memeCoinsTraderOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
       },
     }),
     CredentialsProvider({
@@ -101,9 +131,11 @@ export const authOptions: NextAuthOptions = {
         const isPaid = await getActiveSubscription(user.id);
         const tier = await getSubscriptionTier(user.id);
         const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
+        const ctScanOnDemand = !!(user as { ctScanOnDemand?: boolean }).ctScanOnDemand;
+        const memeCoinsTraderOnDemand = !!(user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand;
         const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
         const novaConnectAllowedByAdmin = !!(user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin;
-        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, tradingBotOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
+        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, tradingBotOnDemand, ctScanOnDemand, memeCoinsTraderOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
       },
     }),
   ],
@@ -118,6 +150,8 @@ export const authOptions: NextAuthOptions = {
         token.isPaid = (user as { isPaid?: boolean }).isPaid ?? false;
         token.tier = (user as { tier?: Tier | null }).tier ?? null;
         token.tradingBotOnDemand = (user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand ?? false;
+        token.ctScanOnDemand = (user as { ctScanOnDemand?: boolean }).ctScanOnDemand ?? false;
+        token.memeCoinsTraderOnDemand = (user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand ?? false;
         token.novaConnectCommunityRep = (user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep ?? false;
         token.novaConnectAllowedByAdmin = (user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin ?? false;
       }
@@ -133,16 +167,22 @@ export const authOptions: NextAuthOptions = {
         let isPaid = (token.isPaid as boolean) ?? false;
         let tier = (token.tier as Tier | null) ?? null;
         let tradingBotOnDemand = (token.tradingBotOnDemand as boolean) ?? false;
+        let ctScanOnDemand = (token.ctScanOnDemand as boolean) ?? false;
+        let memeCoinsTraderOnDemand = (token.memeCoinsTraderOnDemand as boolean) ?? false;
         const owner = isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress);
         if (owner) {
           isPaid = true;
           tier = 'vip';
           tradingBotOnDemand = true;
+          ctScanOnDemand = true;
+          memeCoinsTraderOnDemand = true;
         }
         session.user.isPaid = isPaid;
         session.user.isOwner = owner;
         session.user.tier = tier;
         session.user.tradingBotOnDemand = tradingBotOnDemand;
+        session.user.ctScanOnDemand = ctScanOnDemand;
+        session.user.memeCoinsTraderOnDemand = memeCoinsTraderOnDemand;
         session.user.novaConnectCommunityRep = (token.novaConnectCommunityRep as boolean) ?? false;
         session.user.novaConnectAllowedByAdmin = (token.novaConnectAllowedByAdmin as boolean) ?? false;
       }

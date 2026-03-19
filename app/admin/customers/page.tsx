@@ -22,6 +22,8 @@ type Customer = {
   country: string | null;
   experienceTradingCrypto: string | null;
   tradingBotOnDemand: boolean;
+  ctScanOnDemand: boolean;
+  memeCoinsTraderOnDemand: boolean;
   newsletterOptIn: boolean;
   novaConnectEnabled: boolean;
   novaConnectCommunityRep: boolean;
@@ -45,6 +47,8 @@ export default function AdminCustomersPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [togglingOnDemandId, setTogglingOnDemandId] = useState<string | null>(null);
+  const [togglingCtScanOnDemandId, setTogglingCtScanOnDemandId] = useState<string | null>(null);
+  const [togglingMemeCoinsTraderOnDemandId, setTogglingMemeCoinsTraderOnDemandId] = useState<string | null>(null);
   const [togglingNewsletterId, setTogglingNewsletterId] = useState<string | null>(null);
   const [togglingNovaConnectId, setTogglingNovaConnectId] = useState<string | null>(null);
   const [togglingCommunityRepId, setTogglingCommunityRepId] = useState<string | null>(null);
@@ -109,6 +113,50 @@ export default function AdminCustomersPage() {
       setError("Failed to update");
     } finally {
       setTogglingOnDemandId(null);
+    }
+  };
+
+  const handleCtScanOnDemand = async (id: string, value: boolean) => {
+    setTogglingCtScanOnDemandId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ctScanOnDemand: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "CT Scan (on demand) enabled." : "CT Scan (on demand) disabled.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setTogglingCtScanOnDemandId(null);
+    }
+  };
+
+  const handleMemeCoinsTraderOnDemand = async (id: string, value: boolean) => {
+    setTogglingMemeCoinsTraderOnDemandId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memeCoinsTraderOnDemand: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Meme Coins Traders (on demand) enabled." : "Meme Coins Traders (on demand) disabled.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setTogglingMemeCoinsTraderOnDemandId(null);
     }
   };
 
@@ -362,6 +410,8 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Expires</th>
                       <th className="pb-2 pr-4 font-semibold">Status</th>
                       <th className="pb-2 pr-4 font-semibold">Trading Bot (On demand)</th>
+                      <th className="pb-2 pr-4 font-semibold">CT Scan (On demand)</th>
+                      <th className="pb-2 pr-4 font-semibold">Meme Coins Trader (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Email digest</th>
                       <th className="pb-2 pr-4 font-semibold">NovaConnect</th>
                       <th className="pb-2 pr-4 font-semibold">Allow NovaConnect</th>
@@ -402,6 +452,28 @@ export default function AdminCustomersPage() {
                             className={`text-xs font-medium px-2 py-1 rounded ${c.tradingBotOnDemand ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
                           >
                             {togglingOnDemandId === c.id ? "…" : c.tradingBotOnDemand ? "On" : "Off"}
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => handleCtScanOnDemand(c.id, !c.ctScanOnDemand)}
+                            disabled={togglingCtScanOnDemandId === c.id}
+                            className={`text-xs font-medium px-2 py-1 rounded ${c.ctScanOnDemand ? "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                            title="Allow VIP access to CT Scan on request"
+                          >
+                            {togglingCtScanOnDemandId === c.id ? "…" : c.ctScanOnDemand ? "On" : "Off"}
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => handleMemeCoinsTraderOnDemand(c.id, !c.memeCoinsTraderOnDemand)}
+                            disabled={togglingMemeCoinsTraderOnDemandId === c.id}
+                            className={`text-xs font-medium px-2 py-1 rounded ${c.memeCoinsTraderOnDemand ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                            title="Allow VIP access to Meme Coins Traders on request"
+                          >
+                            {togglingMemeCoinsTraderOnDemandId === c.id ? "…" : c.memeCoinsTraderOnDemand ? "On" : "Off"}
                           </button>
                         </td>
                         <td className="py-2 pr-4">
