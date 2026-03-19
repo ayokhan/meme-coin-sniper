@@ -19,7 +19,9 @@ declare module 'next-auth' {
       tier?: Tier | null;
       tradingBotOnDemand?: boolean;
       ctScanOnDemand?: boolean;
+      ctScanOnDemandExpiresAt?: Date | string | null;
       memeCoinsTraderOnDemand?: boolean;
+      memeCoinsTraderOnDemandExpiresAt?: Date | string | null;
       novaConnectCommunityRep?: boolean;
       novaConnectAllowedByAdmin?: boolean;
     };
@@ -55,17 +57,28 @@ export function canAccessTradingBot(session: { user?: { email?: string | null; w
 }
 
 /** True if session can access CT Scan (Twitter tracker): owner OR VIP with on-demand enabled. */
-export function canAccessCtScan(session: { user?: { email?: string | null; walletAddress?: string | null; tier?: Tier | string | null; ctScanOnDemand?: boolean } } | null): boolean {
+export function canAccessCtScan(
+  session: { user?: { email?: string | null; walletAddress?: string | null; tier?: Tier | string | null; ctScanOnDemand?: boolean; ctScanOnDemandExpiresAt?: Date | string | null } } | null
+): boolean {
   if (!session?.user) return false;
   if (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress)) return true;
-  return session.user.tier === 'vip' && !!(session.user as { ctScanOnDemand?: boolean }).ctScanOnDemand;
+  const expiresAtRaw = (session.user as { ctScanOnDemandExpiresAt?: Date | string | null }).ctScanOnDemandExpiresAt;
+  const expiresAt = expiresAtRaw ? new Date(expiresAtRaw) : null;
+  const onDemandActive = !!(session.user as { ctScanOnDemand?: boolean }).ctScanOnDemand && (!expiresAt || expiresAt.getTime() > Date.now());
+  return session.user.tier === 'vip' && onDemandActive;
 }
 
 /** True if session can access Meme Coins Traders (Wallet Tracker → Meme): owner OR VIP with on-demand enabled. */
-export function canAccessMemeCoinsTrader(session: { user?: { email?: string | null; walletAddress?: string | null; tier?: Tier | string | null; memeCoinsTraderOnDemand?: boolean } } | null): boolean {
+export function canAccessMemeCoinsTrader(
+  session: { user?: { email?: string | null; walletAddress?: string | null; tier?: Tier | string | null; memeCoinsTraderOnDemand?: boolean; memeCoinsTraderOnDemandExpiresAt?: Date | string | null } } | null
+): boolean {
   if (!session?.user) return false;
   if (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress)) return true;
-  return session.user.tier === 'vip' && !!(session.user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand;
+  const expiresAtRaw = (session.user as { memeCoinsTraderOnDemandExpiresAt?: Date | string | null }).memeCoinsTraderOnDemandExpiresAt;
+  const expiresAt = expiresAtRaw ? new Date(expiresAtRaw) : null;
+  const onDemandActive =
+    !!(session.user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand && (!expiresAt || expiresAt.getTime() > Date.now());
+  return session.user.tier === 'vip' && onDemandActive;
 }
 
 function verifyWalletSignature(message: string, signature: string, walletAddress: string): boolean {

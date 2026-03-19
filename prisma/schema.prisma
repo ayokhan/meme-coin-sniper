@@ -92,8 +92,12 @@ model User {
   tradingBotOnDemand     Boolean  @default(false)  // owner can enable Trading Bot access for VIP users on request
   /** Owner-only toggle: allow VIP users to access CT Scan (Twitter tracker) on demand. */
   ctScanOnDemand         Boolean  @default(false)
+  /** When set, CT Scan on-demand access expires at this time (null = no extra expiry beyond subscription). */
+  ctScanOnDemandExpiresAt DateTime?
   /** Owner-only toggle: allow VIP users to access Meme Coins Traders (Wallet Tracker → Meme) on demand. */
   memeCoinsTraderOnDemand Boolean  @default(false)
+  /** When set, Meme Coins Traders on-demand access expires at this time (null = no extra expiry beyond subscription). */
+  memeCoinsTraderOnDemandExpiresAt DateTime?
   /** Opt-in at registration: receive NovaStaris newsletter / perp digest when admin enables "Send digest to newsletter subscribers". */
   newsletterOptIn       Boolean  @default(false)
   /** NovaConnect social portal: opt-in and profile fields. */

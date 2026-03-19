@@ -186,8 +186,18 @@ export default function Dashboard() {
   const isVip = tier === "vip";
   const novaConnectAllowedByAdmin = (session?.user as { novaConnectAllowedByAdmin?: boolean } | undefined)?.novaConnectAllowedByAdmin ?? false;
   const canUseNovaConnectPaidFeatures = isPaid || isOwner || novaConnectAllowedByAdmin;
-  const canAccessCtScan = isOwner || (((session?.user as { ctScanOnDemand?: boolean } | undefined)?.ctScanOnDemand) ?? false);
-  const canAccessMemeCoinsTrader = isOwner || (((session?.user as { memeCoinsTraderOnDemand?: boolean } | undefined)?.memeCoinsTraderOnDemand) ?? false);
+  const ctExpiresAtRaw = (session?.user as { ctScanOnDemandExpiresAt?: Date | string | null } | undefined)?.ctScanOnDemandExpiresAt ?? null;
+  const memeExpiresAtRaw =
+    (session?.user as { memeCoinsTraderOnDemandExpiresAt?: Date | string | null } | undefined)?.memeCoinsTraderOnDemandExpiresAt ?? null;
+  const ctExpiresAt = ctExpiresAtRaw ? new Date(ctExpiresAtRaw).getTime() : null;
+  const memeExpiresAt = memeExpiresAtRaw ? new Date(memeExpiresAtRaw).getTime() : null;
+
+  const canAccessCtScan = isOwner || (isVip && (((session?.user as { ctScanOnDemand?: boolean } | undefined)?.ctScanOnDemand) ?? false) && (!ctExpiresAt || ctExpiresAt > Date.now()));
+  const canAccessMemeCoinsTrader = isOwner || (isVip && (((session?.user as { memeCoinsTraderOnDemand?: boolean } | undefined)?.memeCoinsTraderOnDemand) ?? false) && (!memeExpiresAt || memeExpiresAt > Date.now()));
+  const [ctAccessState, setCtAccessState] = useState<boolean | null>(null);
+  const [memeCoinsTraderAccessState, setMemeCoinsTraderAccessState] = useState<boolean | null>(null);
+  const canAccessCtScanEffective = ctAccessState ?? canAccessCtScan;
+  const canAccessMemeCoinsTraderEffective = memeCoinsTraderAccessState ?? canAccessMemeCoinsTrader;
   const [mounted, setMounted] = useState(false);
   const [presencePingOk, setPresencePingOk] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("new");
@@ -258,6 +268,33 @@ export default function Dashboard() {
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [status, fetchSubscription]);
+
+  // Poll on-demand access so admin enable/disable changes reflect instantly (no logout required).
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const r = await fetch("/api/user/on-demand-access", { cache: "no-store", credentials: "include" });
+        const d = await r.json();
+        if (cancelled) return;
+        if (d?.success) {
+          setCtAccessState(!!d.ctScanAllowed);
+          setMemeCoinsTraderAccessState(!!d.memeCoinsTraderAllowed);
+        }
+      } catch {
+        // Keep session-derived access if the endpoint fails.
+      }
+    };
+
+    load();
+    const interval = setInterval(load, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [status]);
 
   useEffect(() => {
     if (status !== "authenticated" || typeof window === "undefined") return;
@@ -341,8 +378,7 @@ export default function Dashboard() {
   const [tradingBotView, setTradingBotView] = useState<TradingBotView>("futures");
   type WalletTrackerView = "meme" | "leverage";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
-  const onDemandLocked =
-    activeTab === "ct" && !canAccessCtScan;
+  const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
 
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
@@ -925,7 +961,7 @@ export default function Dashboard() {
       if (showLoading) setLoading(false);
       return;
     }
-    if (tab === "ct" && !canAccessCtScan) {
+    if (tab === "ct" && !canAccessCtScanEffective) {
       if (showLoading) setLoading(false);
       setError(null);
       setTokens([]);
@@ -936,7 +972,7 @@ export default function Dashboard() {
       if (showLoading) setLoading(false);
       return;
     }
-    if (tab === "wallets" && walletTrackerView === "meme" && !canAccessMemeCoinsTrader) {
+    if (tab === "wallets" && walletTrackerView === "meme" && !canAccessMemeCoinsTraderEffective) {
       if (showLoading) setLoading(false);
       setError(null);
       setWalletAlerts([]);
@@ -1180,19 +1216,19 @@ export default function Dashboard() {
       setError(null);
       return;
     }
-    if (activeTab === "ct" && !canAccessCtScan) {
+    if (activeTab === "ct" && !canAccessCtScanEffective) {
       setLoading(false);
       setError(null);
       return;
     }
-    if (activeTab === "wallets" && walletTrackerView === "meme" && !canAccessMemeCoinsTrader) {
+    if (activeTab === "wallets" && walletTrackerView === "meme" && !canAccessMemeCoinsTraderEffective) {
       setLoading(false);
       setError(null);
       return;
     }
     fetchTokens(activeTab);
     if (activeTab === "ct") {
-      if (canAccessCtScan) {
+      if (canAccessCtScanEffective) {
         fetchCtAccounts();
         fetchCtTweets();
       }
@@ -1200,7 +1236,7 @@ export default function Dashboard() {
     if (activeTab === "wallets") {
       if (walletTrackerView === "meme") fetchTrackedWallets();
     }
-  }, [activeTab, isPaid, isVip, goHuntingView, bscGoHuntingView, walletTrackerView, canAccessCtScan, canAccessMemeCoinsTrader]);
+  }, [activeTab, isPaid, isVip, goHuntingView, bscGoHuntingView, walletTrackerView, canAccessCtScanEffective, canAccessMemeCoinsTraderEffective]);
 
   useEffect(() => {
     if (activeTab === "surge") fetchTokens("surge");
@@ -1557,7 +1593,7 @@ export default function Dashboard() {
       fetchUserLeverageWallets();
     }
     if (activeTab === "wallets" && walletTrackerView === "meme") {
-      if (canAccessMemeCoinsTrader) {
+      if (canAccessMemeCoinsTraderEffective) {
         fetchUserMemeCoinWallets();
         fetchUserMemeCoinAlerts();
       } else {
@@ -1580,7 +1616,7 @@ export default function Dashboard() {
     if (activeTab === "nova-forecast" && isVip) {
       fetchNovaForecast();
     }
-  }, [activeTab, walletTrackerView, futuresView, isPaid, isVip, isOwner, canAccessMemeCoinsTrader]);
+  }, [activeTab, walletTrackerView, futuresView, isPaid, isVip, isOwner, canAccessMemeCoinsTraderEffective]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
@@ -1589,14 +1625,14 @@ export default function Dashboard() {
       const interval = setInterval(() => {
         if (walletTrackerView === "meme") {
           fetchTrackedWallets();
-          if (liveTradesEnabled && canAccessMemeCoinsTrader) fetchWalletTrades();
+          if (liveTradesEnabled && canAccessMemeCoinsTraderEffective) fetchWalletTrades();
         }
       }, 2 * 60 * 1000);
       return () => clearInterval(interval);
     }
     const interval = setInterval(() => fetchTokens(activeTab, false), AUTO_REFRESH_SECONDS * 1000);
     return () => clearInterval(interval);
-  }, [activeTab, liveTradesEnabled, walletTrackerView, canAccessMemeCoinsTrader]);
+  }, [activeTab, liveTradesEnabled, walletTrackerView, canAccessMemeCoinsTraderEffective]);
 
   const runAiAnalysis = async () => {
     const ca = aiAnalysisCa.trim();
@@ -1890,7 +1926,7 @@ export default function Dashboard() {
   };
 
   const runScan = async (type: "scan" | "twitter") => {
-    if (type === "twitter" && !canAccessCtScan) {
+    if (type === "twitter" && !canAccessCtScanEffective) {
       setError("CT Scan is VIP on-demand. Contact support to request access.");
       setScanning("idle");
       return;
@@ -2251,7 +2287,7 @@ export default function Dashboard() {
               variant="secondary"
               size="sm"
               onClick={() => runScan("twitter")}
-              disabled={scanning !== "idle" || !canAccessCtScan}
+              disabled={scanning !== "idle" || !canAccessCtScanEffective}
               className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700"
             >
               {scanning === "twitter" ? "Scanning CT…" : "Scan Twitter"}
@@ -2323,7 +2359,7 @@ export default function Dashboard() {
               <Button size="sm" className="justify-start h-12 bg-gradient-to-r from-cyan-500 via-violet-500 to-blue-600 text-white" onClick={() => { setMobileMenuOpen(false); runScan("scan"); }} disabled={scanning !== "idle"}>
                 {scanning === "scan" ? "Scanning…" : "Scan new pairs"}
               </Button>
-              <Button variant="secondary" size="sm" className="justify-start h-12 bg-zinc-100 dark:bg-zinc-800" onClick={() => { setMobileMenuOpen(false); runScan("twitter"); }} disabled={scanning !== "idle" || !canAccessCtScan}>
+              <Button variant="secondary" size="sm" className="justify-start h-12 bg-zinc-100 dark:bg-zinc-800" onClick={() => { setMobileMenuOpen(false); runScan("twitter"); }} disabled={scanning !== "idle" || !canAccessCtScanEffective}>
                 {scanning === "twitter" ? "Scanning CT…" : "Scan Twitter"}
               </Button>
             </div>
@@ -2519,9 +2555,12 @@ export default function Dashboard() {
                   {activeTab === "trending-perps" && "See the biggest perp movers in one place—5m, 15m, 30m, 1h, and 24h—so you can spot what’s moving fast."}
                   {activeTab === "perp-radar" && "Spot the biggest perp movers across exchanges—before they peak."}
                   {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
-                  {activeTab === "ct" && (canAccessCtScan ? "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them." : "CT Scan is VIP on-demand. Request access and an admin will enable it for your account.")}
+                  {activeTab === "ct" &&
+                    (canAccessCtScanEffective
+                      ? "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."
+                      : "CT Scan is VIP on-demand. Request access and an admin will enable it for your account.")}
                   {activeTab === "wallets" &&
-                    (walletTrackerView === "meme" && !canAccessMemeCoinsTrader
+                    (walletTrackerView === "meme" && !canAccessMemeCoinsTraderEffective
                       ? "Mem Coins Traders (Wallet Tracker → Meme) is VIP on-demand. Request access and an admin will enable it for your account."
                       : "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets.")}
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
@@ -5056,7 +5095,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <TabsContent value="meme" className="mt-0 space-y-4">
-                {!canAccessMemeCoinsTrader ? (
+                {!canAccessMemeCoinsTraderEffective ? (
                   <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                     <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">On-demand access required</p>
                     <p className="mt-2 text-sm text-muted-foreground max-w-md">
@@ -5725,7 +5764,7 @@ export default function Dashboard() {
                   {activeTab === "ct" && (
                     <Button
                       onClick={() => runScan("twitter")}
-                      disabled={scanning !== "idle" || !canAccessCtScan}
+                      disabled={scanning !== "idle" || !canAccessCtScanEffective}
                       size="sm"
                       className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700"
                     >

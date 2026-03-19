@@ -23,7 +23,9 @@ type Customer = {
   experienceTradingCrypto: string | null;
   tradingBotOnDemand: boolean;
   ctScanOnDemand: boolean;
+  ctScanOnDemandExpiresAt: string | null;
   memeCoinsTraderOnDemand: boolean;
+  memeCoinsTraderOnDemandExpiresAt: string | null;
   newsletterOptIn: boolean;
   novaConnectEnabled: boolean;
   novaConnectCommunityRep: boolean;
@@ -49,6 +51,8 @@ export default function AdminCustomersPage() {
   const [togglingOnDemandId, setTogglingOnDemandId] = useState<string | null>(null);
   const [togglingCtScanOnDemandId, setTogglingCtScanOnDemandId] = useState<string | null>(null);
   const [togglingMemeCoinsTraderOnDemandId, setTogglingMemeCoinsTraderOnDemandId] = useState<string | null>(null);
+  const [ctOnDemandDurationById, setCtOnDemandDurationById] = useState<Record<string, string>>({});
+  const [memeOnDemandDurationById, setMemeOnDemandDurationById] = useState<Record<string, string>>({});
   const [togglingNewsletterId, setTogglingNewsletterId] = useState<string | null>(null);
   const [togglingNovaConnectId, setTogglingNovaConnectId] = useState<string | null>(null);
   const [togglingCommunityRepId, setTogglingCommunityRepId] = useState<string | null>(null);
@@ -116,14 +120,22 @@ export default function AdminCustomersPage() {
     }
   };
 
-  const handleCtScanOnDemand = async (id: string, value: boolean) => {
+  const handleCtScanOnDemand = async (id: string, value: boolean, subscriptionExpiresAt: string | null) => {
     setTogglingCtScanOnDemandId(id);
     setError("");
     try {
+      const now = new Date();
+      let ctScanOnDemandExpiresAt: Date | null = null;
+      if (value) {
+        const duration = ctOnDemandDurationById[id] ?? "subscription";
+        if (duration === "1day") ctScanOnDemandExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        else if (duration === "5days") ctScanOnDemandExpiresAt = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+        else if (duration === "subscription") ctScanOnDemandExpiresAt = subscriptionExpiresAt ? new Date(subscriptionExpiresAt) : null;
+      }
       const res = await fetch(`/api/admin/customers/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ctScanOnDemand: value }),
+        body: JSON.stringify({ ctScanOnDemand: value, ctScanOnDemandExpiresAt: value ? ctScanOnDemandExpiresAt : null }),
       });
       const data = await res.json();
       if (data.success) {
@@ -138,14 +150,22 @@ export default function AdminCustomersPage() {
     }
   };
 
-  const handleMemeCoinsTraderOnDemand = async (id: string, value: boolean) => {
+  const handleMemeCoinsTraderOnDemand = async (id: string, value: boolean, subscriptionExpiresAt: string | null) => {
     setTogglingMemeCoinsTraderOnDemandId(id);
     setError("");
     try {
+      const now = new Date();
+      let memeCoinsTraderOnDemandExpiresAt: Date | null = null;
+      if (value) {
+        const duration = memeOnDemandDurationById[id] ?? "subscription";
+        if (duration === "1day") memeCoinsTraderOnDemandExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        else if (duration === "5days") memeCoinsTraderOnDemandExpiresAt = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+        else if (duration === "subscription") memeCoinsTraderOnDemandExpiresAt = subscriptionExpiresAt ? new Date(subscriptionExpiresAt) : null;
+      }
       const res = await fetch(`/api/admin/customers/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memeCoinsTraderOnDemand: value }),
+        body: JSON.stringify({ memeCoinsTraderOnDemand: value, memeCoinsTraderOnDemandExpiresAt: value ? memeCoinsTraderOnDemandExpiresAt : null }),
       });
       const data = await res.json();
       if (data.success) {
@@ -455,26 +475,52 @@ export default function AdminCustomersPage() {
                           </button>
                         </td>
                         <td className="py-2 pr-4">
-                          <button
-                            type="button"
-                            onClick={() => handleCtScanOnDemand(c.id, !c.ctScanOnDemand)}
-                            disabled={togglingCtScanOnDemandId === c.id}
-                            className={`text-xs font-medium px-2 py-1 rounded ${c.ctScanOnDemand ? "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
-                            title="Allow VIP access to CT Scan on request"
-                          >
-                            {togglingCtScanOnDemandId === c.id ? "…" : c.ctScanOnDemand ? "On" : "Off"}
-                          </button>
+                          <div className="flex flex-col gap-1">
+                            <select
+                              value={ctOnDemandDurationById[c.id] ?? "subscription"}
+                              onChange={(e) => setCtOnDemandDurationById((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                              disabled={togglingCtScanOnDemandId === c.id}
+                              className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                              title="Default expiry when enabling CT Scan on-demand"
+                            >
+                              <option value="subscription">End of subscription</option>
+                              <option value="1day">1 day</option>
+                              <option value="5days">5 days</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleCtScanOnDemand(c.id, !c.ctScanOnDemand, c.subscriptionExpiresAt)}
+                              disabled={togglingCtScanOnDemandId === c.id}
+                              className={`text-xs font-medium px-2 py-1 rounded ${c.ctScanOnDemand ? "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                              title="Allow VIP access to CT Scan on request"
+                            >
+                              {togglingCtScanOnDemandId === c.id ? "…" : c.ctScanOnDemand ? "On" : "Off"}
+                            </button>
+                          </div>
                         </td>
                         <td className="py-2 pr-4">
-                          <button
-                            type="button"
-                            onClick={() => handleMemeCoinsTraderOnDemand(c.id, !c.memeCoinsTraderOnDemand)}
-                            disabled={togglingMemeCoinsTraderOnDemandId === c.id}
-                            className={`text-xs font-medium px-2 py-1 rounded ${c.memeCoinsTraderOnDemand ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
-                            title="Allow VIP access to Meme Coins Traders on request"
-                          >
-                            {togglingMemeCoinsTraderOnDemandId === c.id ? "…" : c.memeCoinsTraderOnDemand ? "On" : "Off"}
-                          </button>
+                          <div className="flex flex-col gap-1">
+                            <select
+                              value={memeOnDemandDurationById[c.id] ?? "subscription"}
+                              onChange={(e) => setMemeOnDemandDurationById((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                              disabled={togglingMemeCoinsTraderOnDemandId === c.id}
+                              className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                              title="Default expiry when enabling Meme Coins Traders on-demand"
+                            >
+                              <option value="subscription">End of subscription</option>
+                              <option value="1day">1 day</option>
+                              <option value="5days">5 days</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleMemeCoinsTraderOnDemand(c.id, !c.memeCoinsTraderOnDemand, c.subscriptionExpiresAt)}
+                              disabled={togglingMemeCoinsTraderOnDemandId === c.id}
+                              className={`text-xs font-medium px-2 py-1 rounded ${c.memeCoinsTraderOnDemand ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                              title="Allow VIP access to Meme Coins Traders on request"
+                            >
+                              {togglingMemeCoinsTraderOnDemandId === c.id ? "…" : c.memeCoinsTraderOnDemand ? "On" : "Off"}
+                            </button>
+                          </div>
                         </td>
                         <td className="py-2 pr-4">
                           {c.email ? (
