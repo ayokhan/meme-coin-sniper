@@ -9,6 +9,8 @@ import { calculateViralScore } from '@/lib/utils/viral-score';
 import { sendTokenAlerts } from '@/lib/telegram';
 import type { DexPair } from '@/lib/api-clients/dexscreener';
 
+const MIN_VIRAL_SCORE_FOR_SCAN_TELEGRAM = 70;
+
 type ScannedToken = {
   symbol: string;
   name: string;
@@ -154,20 +156,26 @@ export async function GET(request: Request) {
     }
 
     if (scanned.length > 0) {
-      sendTokenAlerts(
-        (scanned as ScannedToken[]).map((t: ScannedToken) => ({
-          symbol: t.symbol,
-          name: t.name,
-          contractAddress: t.contractAddress,
-          viralScore: t.viralScore,
-          liquidity: t.liquidity,
-          priceUSD: t.priceUSD,
-          pairAddress: t.pairAddress,
-          twitter: t.twitter,
-          telegram: t.telegram,
-          website: t.website,
-        }))
-      ).catch((e) => console.error('Telegram alerts error:', e));
+      const telegramTokenScanEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.TELEGRAM_TOKEN_SCAN_ALERTS);
+      if (telegramTokenScanEnabled) {
+        const tokensForTelegram = (scanned as ScannedToken[]).filter((t) => (t.viralScore ?? 0) > MIN_VIRAL_SCORE_FOR_SCAN_TELEGRAM);
+        if (tokensForTelegram.length > 0) {
+          await sendTokenAlerts(
+            tokensForTelegram.map((t: ScannedToken) => ({
+              symbol: t.symbol,
+              name: t.name,
+              contractAddress: t.contractAddress,
+              viralScore: t.viralScore,
+              liquidity: t.liquidity,
+              priceUSD: t.priceUSD,
+              pairAddress: t.pairAddress,
+              twitter: t.twitter,
+              telegram: t.telegram,
+              website: t.website,
+            }))
+          ).catch((e) => console.error('Telegram alerts error:', e));
+        }
+      }
     }
     
     console.log(`📈 Scanned: ${scanned.length}, Skipped: ${skipped.length}`);

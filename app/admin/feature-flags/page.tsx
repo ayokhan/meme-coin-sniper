@@ -28,6 +28,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Wallet alerts: viralScore > 70",
     description: "When ON, Wallet Tracker Telegram alerts only send when viralScore is greater than 70 (otherwise > 60).",
   },
+  telegram_token_scan_alerts: {
+    label: "CT Scan / scan token alerts (Telegram)",
+    description: "When OFF, CT Scan / scan endpoints do not send token alerts to Telegram.",
+  },
   owner_first_buy_alerts: {
     label: "First buy alerts (owner only)",
     description: "Notify in-app and Telegram the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token.",

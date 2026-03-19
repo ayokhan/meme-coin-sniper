@@ -7,6 +7,7 @@ import { searchTokenBySymbol } from '@/lib/api-clients/birdeye';
 import { checkSolanaTokenSecurity, calculateSecurityScore, getTopHolderPercentage } from '@/lib/api-clients/goplus';
 import { calculateViralScore } from '@/lib/utils/viral-score';
 import { sendTokenAlerts } from '@/lib/telegram';
+import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
 
 type ScannedToken = {
   symbol: string;
@@ -20,6 +21,8 @@ type ScannedToken = {
   telegram: string | null;
   website: string | null;
 };
+
+const MIN_VIRAL_SCORE_FOR_SCAN_TELEGRAM = 70;
 
 export async function GET() {
   try {
@@ -105,20 +108,26 @@ export async function GET() {
     }
 
     if (scanned.length > 0) {
-      sendTokenAlerts(
-        (scanned as ScannedToken[]).map((t) => ({
-          symbol: t.symbol,
-          name: t.name,
-          contractAddress: t.contractAddress,
-          viralScore: t.viralScore,
-          liquidity: t.liquidity,
-          priceUSD: t.priceUSD,
-          pairAddress: t.pairAddress,
-          twitter: t.twitter,
-          telegram: t.telegram,
-          website: t.website,
-        }))
-      ).catch((e) => console.error('Telegram alerts error:', e));
+      const telegramTokenScanEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.TELEGRAM_TOKEN_SCAN_ALERTS);
+      if (telegramTokenScanEnabled) {
+        const tokensForTelegram = (scanned as ScannedToken[]).filter((t) => (t.viralScore ?? 0) > MIN_VIRAL_SCORE_FOR_SCAN_TELEGRAM);
+        if (tokensForTelegram.length > 0) {
+          await sendTokenAlerts(
+            tokensForTelegram.map((t) => ({
+              symbol: t.symbol,
+              name: t.name,
+              contractAddress: t.contractAddress,
+              viralScore: t.viralScore,
+              liquidity: t.liquidity,
+              priceUSD: t.priceUSD,
+              pairAddress: t.pairAddress,
+              twitter: t.twitter,
+              telegram: t.telegram,
+              website: t.website,
+            }))
+          ).catch((e) => console.error('Telegram alerts error:', e));
+        }
+      }
     }
     
     return NextResponse.json({ success: true, tokens: scanned });
