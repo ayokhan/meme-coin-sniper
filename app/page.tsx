@@ -5631,6 +5631,9 @@ export default function Dashboard() {
                         >
                           Today
                         </button>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          Note: Some Apex symbols (like <span className="font-mono">xyz:*</span>) are synthetic markets. Their live PnL may show as unavailable.
+                        </span>
                       </div>
                       <Table className="table-fixed w-full min-w-0 text-xs" style={{ tableLayout: "fixed" }}>
                         <TableHeader>
@@ -5668,6 +5671,12 @@ export default function Dashboard() {
                               ? [<TableRow key={t.address}><TableCell className="font-mono py-1.5 px-1.5 truncate max-w-0">{traderCell}</TableCell><TableCell className="font-mono py-1.5 px-1.5">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-muted-foreground py-1.5 px-1.5 truncate" title="Last fill in last 7d">{lastTradeStr}</TableCell><TableCell colSpan={8} className="text-muted-foreground py-1.5 px-1.5">No open positions</TableCell></TableRow>]
                               : t.positions.map((pos, i) => (
                                   <TableRow key={`${t.address}-${pos.coin}-${i}`}>
+                                    {(() => {
+                                      const isXyzSynthetic = pos.coin.toLowerCase().startsWith("xyz:");
+                                      const pnlNum = Number(pos.unrealizedPnl);
+                                      const showPnlUnavailable = isXyzSynthetic && (!Number.isFinite(pnlNum) || pnlNum === 0);
+                                      return (
+                                        <>
                                     {i === 0 ? (
                                       <>
                                         <TableCell className="align-top py-1.5 px-1.5 truncate max-w-0" rowSpan={t.positions.length}>{traderCell}</TableCell>
@@ -5686,9 +5695,23 @@ export default function Dashboard() {
                                     <TableCell className="text-right font-mono py-1.5 px-1.5">{pos.marginUsed != null && pos.marginUsed !== "" ? `$${Number(pos.marginUsed).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
                                     <TableCell className="text-right font-mono py-1.5 px-1.5">${Number(pos.positionValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                                     <TableCell className="text-right font-mono py-1.5 px-1.5">{pos.leverage != null ? `${pos.leverage}x` : "—"}</TableCell>
-                                    <TableCell className={`text-right font-mono py-1.5 px-1.5 ${Number(pos.unrealizedPnl) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                                      ${Number(pos.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    <TableCell
+                                      className={`text-right font-mono py-1.5 px-1.5 ${
+                                        showPnlUnavailable
+                                          ? "text-muted-foreground"
+                                          : Number(pos.unrealizedPnl) >= 0
+                                          ? "text-emerald-600 dark:text-emerald-400"
+                                          : "text-rose-600 dark:text-rose-400"
+                                      }`}
+                                      title={showPnlUnavailable ? "Live PnL is not available for this symbol yet." : undefined}
+                                    >
+                                      {showPnlUnavailable
+                                        ? "Not available yet"
+                                        : `$${Number(pos.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
                                     </TableCell>
+                                        </>
+                                      );
+                                    })()}
                                   </TableRow>
                                 ));
                           })}
