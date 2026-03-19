@@ -24,6 +24,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Telegram wallet alerts",
     description: "Send wallet alerts to Telegram when cron runs. When OFF, cron still runs but does not send messages.",
   },
+  telegram_wallet_alerts_viral_gt_70: {
+    label: "Wallet alerts: viralScore > 70",
+    description: "When ON, Wallet Tracker Telegram alerts only send when viralScore is greater than 70 (otherwise > 60).",
+  },
   owner_first_buy_alerts: {
     label: "First buy alerts (owner only)",
     description: "Notify in-app and Telegram the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token.",

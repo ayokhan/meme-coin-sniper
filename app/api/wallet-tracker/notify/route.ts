@@ -27,6 +27,9 @@ export async function GET(request: Request) {
     const userMemeCoinFirstBuyCreated = await processUserMemeCoinFirstBuys();
 
     if (telegramEnabled) {
+      const viralGt70Enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.TELEGRAM_WALLET_ALERTS_VIRAL_GT_70);
+      const minViralForTelegram = viralGt70Enabled ? 70 : MIN_VIRAL_SCORE_FOR_TELEGRAM;
+
       const [alerts, rules] = await Promise.all([getWalletAlerts(), getAlertRules()]);
       const db = prisma as unknown as {
         walletAlertSent?: {
@@ -46,8 +49,8 @@ export async function GET(request: Request) {
         const sentSet = new Set(recent.map((r) => r.contractAddress));
         toSend = alerts.filter((a) => !sentSet.has(a.contractAddress));
       }
-      // Only send wallet-tracker alerts to Telegram for tokens with viral score > 60
-      toSend = toSend.filter((a) => (a.viralScore ?? 0) > MIN_VIRAL_SCORE_FOR_TELEGRAM);
+      // Only send wallet-tracker alerts to Telegram for tokens with viral score over threshold.
+      toSend = toSend.filter((a) => (a.viralScore ?? 0) > minViralForTelegram);
       if (toSend.length > 0) {
         await sendWalletAlerts(toSend, rules.minBuyers);
         if (db.walletAlertSent) {

@@ -12,6 +12,8 @@ export const FEATURE_FLAG_KEYS = {
   MORALIS_WALLET_TRACKER: 'moralis_wallet_tracker',
   /** Send wallet alerts to Telegram (cron notify). When OFF, cron does not send to Telegram. */
   TELEGRAM_WALLET_ALERTS: 'telegram_wallet_alerts',
+  /** For wallet-tracker Telegram alerts: require viralScore > 70 (when ON). Default is > 60. */
+  TELEGRAM_WALLET_ALERTS_VIRAL_GT_70: 'telegram_wallet_alerts_viral_gt_70',
   /** Show/fetch live trades from tracked wallets. When OFF, no calls to /api/wallet-tracker/trades (saves Moralis). Alerts still work. */
   LIVE_TRADES_ENABLED: 'live_trades_enabled',
   /** Owner-only: notify (in-app + Telegram) the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token. */
