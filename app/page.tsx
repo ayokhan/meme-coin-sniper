@@ -680,7 +680,7 @@ export default function Dashboard() {
   const [perpRadarItems, setPerpRadarItems] = useState<PerpRadarItem[]>([]);
   const [perpRadarLoading, setPerpRadarLoading] = useState(false);
   const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
-  const [perpRadarView, setPerpRadarView] = useState<"all" | "oil">("all");
+  const [perpRadarView, setPerpRadarView] = useState<"all" | "macro">("all");
   const [perpRadarPreset, setPerpRadarPreset] = useState<"all" | "24h_up" | "24h_down">("all");
   const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
   const [perpAlertAddType, setPerpAlertAddType] = useState<"new_listing" | "5m_pct_above" | "5m_pct_below">("new_listing");
@@ -1260,14 +1260,14 @@ export default function Dashboard() {
     }
   };
 
-  const fetchPerpRadar = async (view?: "all" | "oil") => {
+  const fetchPerpRadar = async (view?: "all" | "macro") => {
     const v = view ?? perpRadarView;
     setPerpRadarLoading(true);
     setPerpRadarError(null);
     try {
       const params = new URLSearchParams();
-      if (v === "oil") {
-        params.set("category", "oil");
+      if (v === "macro") {
+        params.set("category", "macro");
         params.set("limit", "50");
       } else {
         params.set("minChangePct", "3");
@@ -1290,15 +1290,16 @@ export default function Dashboard() {
     }
   };
 
-  const OIL_BASES_REGEX = /^(CRUDE|XBR|OIL|WTI|BRENT|CL|NG|NATURALGAS|GAS)$/i;
+  const MACRO_BASES_REGEX = /^(CRUDE|XBR|OIL|WTI|BRENT|CL|NG|NATURALGAS|GAS|XAU|GOLD|XAG|SILVER|SPX|SPX500|SP500|NDX|NAS100|DJI|US30)$/i;
+  const MACRO_PINNED_REGEX = /^(XAU|XAG|SPX)$/i;
   /** Fallback when server gets 451: fetch Binance from user's browser (works in allowed regions). */
   const fetchPerpRadarFromBrowser = async () => {
     setPerpRadarLoading(true);
     setPerpRadarError(null);
-    const oilOnly = perpRadarView === "oil";
+    const macroOnly = perpRadarView === "macro";
     const minChangePct = 3;
-    const minQuoteVolume = oilOnly ? 0 : 100_000;
-    const limit = oilOnly ? 50 : 150;
+    const minQuoteVolume = macroOnly ? 0 : 100_000;
+    const limit = macroOnly ? 50 : 150;
     try {
       const res = await fetch("https://fapi.binance.com/fapi/v1/ticker/24hr", { cache: "no-store" });
       if (!res.ok) throw new Error(`Binance returned ${res.status}. Your region may be restricted.`);
@@ -1308,12 +1309,13 @@ export default function Dashboard() {
       for (const t of arr) {
         if (!t?.symbol?.endsWith?.("USDT")) continue;
         const base = t.symbol.replace("USDT", "");
-        if (oilOnly && !OIL_BASES_REGEX.test(base)) continue;
+        if (macroOnly && !MACRO_BASES_REGEX.test(base)) continue;
         const change = Number(t.priceChangePercent ?? "0");
         const quoteVol = Number(t.quoteVolume ?? "0");
         if (!Number.isFinite(change) || !Number.isFinite(quoteVol)) continue;
-        if (!oilOnly && (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume)) continue;
-        if (oilOnly && quoteVol < 0) continue;
+        const pinnedMacro = macroOnly && MACRO_PINNED_REGEX.test(base);
+        if (!macroOnly && (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume)) continue;
+        if (macroOnly && !pinnedMacro && quoteVol < 0) continue;
         const last = Number(t.lastPrice ?? "0");
         const vol = Number(t.volume ?? "0");
         if (!Number.isFinite(last) || !Number.isFinite(vol)) continue;
@@ -3094,10 +3096,10 @@ export default function Dashboard() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => { setPerpRadarView("oil"); fetchPerpRadar("oil"); }}
-                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarView === "oil" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                        onClick={() => { setPerpRadarView("macro"); fetchPerpRadar("macro"); }}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarView === "macro" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
                       >
-                        Oil perps
+                        Macro perps
                       </button>
                       <span className="text-xs text-muted-foreground ml-1">Preset:</span>
                       <select
@@ -3128,7 +3130,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">
-                    {perpRadarView === "oil" ? "Oil & energy perps from Binance USDT-M (we match CRUDE, XBR, OIL, WTI, BRENT, CL, NG, GAS, etc.). Only symbols listed on this exchange appear—often just one or a few. For more oil perps (e.g. CRUDE, XBR), check Binance Wallet or other products." : "Biggest 24h movers (≥3%, $100k+ vol). List changes on each Refresh—up to 150 symbols. 5m–4h from Binance when allowed, otherwise Hyperliquid where listed; else —. Use AI Signal or Crypto Futures to analyze."}
+                    {perpRadarView === "macro" ? "Macro perps from Binance USDT-M: energy, metals, and indices (e.g. XAU, XAG, SPX, BRENT). We pin XAU/XAG/SPX so they show even when they are not top 24h movers." : "Biggest 24h movers (≥3%, $100k+ vol). List changes on each Refresh—up to 150 symbols. 5m–4h from Binance when allowed, otherwise Hyperliquid where listed; else —. Use AI Signal or Crypto Futures to analyze."}
                   </p>
                   {perpRadarError && (
                     <div className="mb-3">
@@ -3146,7 +3148,7 @@ export default function Dashboard() {
                   {perpRadarLoading && perpRadarItems.length === 0 && !perpRadarError ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                   ) : perpRadarItems.length === 0 && !perpRadarError ? (
-                    <p className="text-xs text-muted-foreground">{perpRadarView === "oil" ? "No oil perps found. Binance may not list them in your region, or try Refresh." : "No big movers right now. Hit Refresh to try again."}</p>
+                    <p className="text-xs text-muted-foreground">{perpRadarView === "macro" ? "No macro perps found. Binance may not list them in your region, or try Refresh." : "No big movers right now. Hit Refresh to try again."}</p>
                   ) : perpRadarItems.length > 0 ? (
                     <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                       <Table>

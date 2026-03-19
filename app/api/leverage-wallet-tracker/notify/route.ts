@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { leverageDb } from "@/lib/leverage-db";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
-import { getTopTradersPositions } from "@/lib/api-clients/hyperliquid";
+import { getLastFillTimeMs, getTopTradersPositions } from "@/lib/api-clients/hyperliquid";
 import { sendLeverageTradeAlert } from "@/lib/telegram";
 import { prisma } from "@/lib/db";
 
@@ -9,6 +9,41 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type WalletItem = { address: string; nickname: string | null; userId?: string };
+type SnapshotPayload = {
+  positions: Array<{ coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string }>;
+  lastFillTimeMs: number | null;
+};
+
+function toSnapshotPayload(positions: SnapshotPayload["positions"], lastFillTimeMs: number | null): SnapshotPayload {
+  return { positions, lastFillTimeMs };
+}
+
+function parseSnapshot(raw: string | null | undefined): SnapshotPayload {
+  if (!raw) return toSnapshotPayload([], null);
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      // Backward compatibility with old snapshots that stored only position arrays.
+      const positions = parsed
+        .filter((p): p is { coin: string; side: "long" | "short"; szi: string; entryPx?: string; positionValue?: string } => !!p && typeof p === "object")
+        .map((p) => ({
+          coin: p.coin,
+          side: p.side,
+          szi: p.szi,
+          entryPx: p.entryPx ?? "0",
+          positionValue: p.positionValue ?? "0",
+        }));
+      return toSnapshotPayload(positions, null);
+    }
+    if (parsed && typeof parsed === "object" && "positions" in parsed) {
+      const obj = parsed as { positions?: SnapshotPayload["positions"]; lastFillTimeMs?: number | null };
+      return toSnapshotPayload(Array.isArray(obj.positions) ? obj.positions : [], typeof obj.lastFillTimeMs === "number" ? obj.lastFillTimeMs : null);
+    }
+  } catch {
+    // Ignore malformed historical snapshots.
+  }
+  return toSnapshotPayload([], null);
+}
 
 async function processWallets(
   wallets: WalletItem[],
@@ -23,12 +58,28 @@ async function processWallets(
   const traders = await getTopTradersPositions(tradersInput);
   let sent = 0;
   for (const t of traders) {
-    const positionsJson = JSON.stringify(
-      (t.positions ?? []).map((p) => ({ coin: p.coin, side: p.side, szi: p.szi, entryPx: p.entryPx })).sort((a, b) => a.coin.localeCompare(b.coin))
-    );
+    const positions = (t.positions ?? []).map((p) => ({ coin: p.coin, side: p.side, szi: p.szi, entryPx: p.entryPx, positionValue: p.positionValue })).sort((a, b) => a.coin.localeCompare(b.coin));
+    const lastFillTimeMs = (await getLastFillTimeMs(t.address)) ?? null;
+    const currentSnapshot = toSnapshotPayload(positions, lastFillTimeMs);
+    const positionsJson = JSON.stringify(currentSnapshot);
     const snapshot = await leverageDb.leverageWalletSnapshot.findUnique({ where: { walletAddress: t.address } });
-    const prevJson = snapshot?.positionsJson ?? null;
-    if (prevJson === positionsJson) {
+    const previousSnapshot = parseSnapshot(snapshot?.positionsJson ?? null);
+    const prevJson = JSON.stringify(previousSnapshot);
+    const currentJson = JSON.stringify(currentSnapshot);
+    if (prevJson === currentJson) {
+      await leverageDb.leverageWalletSnapshot.upsert({
+        where: { walletAddress: t.address },
+        create: { walletAddress: t.address, positionsJson },
+        update: { positionsJson },
+      });
+      continue;
+    }
+    const hadNewTradeActivity =
+      typeof currentSnapshot.lastFillTimeMs === "number" &&
+      (!previousSnapshot.lastFillTimeMs || currentSnapshot.lastFillTimeMs > previousSnapshot.lastFillTimeMs);
+    const hadPositionDelta = JSON.stringify(previousSnapshot.positions) !== JSON.stringify(currentSnapshot.positions);
+    const shouldAlert = hadPositionDelta || hadNewTradeActivity;
+    if (!shouldAlert) {
       await leverageDb.leverageWalletSnapshot.upsert({
         where: { walletAddress: t.address },
         create: { walletAddress: t.address, positionsJson },
@@ -44,7 +95,7 @@ async function processWallets(
         : (t.positions ?? [])
             .map((p) => `${p.coin} ${p.side} $${Number(p.entryPx).toLocaleString(undefined, { maximumFractionDigits: 0 })}`)
             .join(" | ");
-    if (prevJson !== null && sendTelegram) {
+    if (snapshot?.positionsJson != null && sendTelegram) {
       await sendLeverageTradeAlert({ nickname, address: t.address, positionsSummary });
       sent++;
     }

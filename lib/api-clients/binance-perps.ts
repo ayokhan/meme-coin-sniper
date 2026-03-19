@@ -65,20 +65,22 @@ export async function enrichPerpRadarWithKlines(items: PerpRadarItem[], maxItems
   return [...enriched, ...items.slice(maxItems)];
 }
 
-/** Oil-related perp bases (Binance: CRUDE, XBR, etc.). */
-const OIL_BASES = /^(CRUDE|XBR|OIL|WTI|BRENT|CL|NG|NATURALGAS|GAS)$/i;
+/** Macro-related perp bases (energy, metals, indices). */
+const MACRO_BASES = /^(CRUDE|XBR|OIL|WTI|BRENT|CL|NG|NATURALGAS|GAS|XAU|GOLD|XAG|SILVER|SPX|SPX500|SP500|NDX|NAS100|DJI|US30)$/i;
+/** Pinned macro symbols should always be visible in macro view (even if change/volume filters would hide them). */
+const PINNED_MACRO_BASES = /^(XAU|XAG|SPX)$/i;
 
 /** Fetch high-level perp stats from Binance USDT-margined futures for radar. */
 export async function getBinancePerpRadar(options?: {
   minChangePct?: number;
   minQuoteVolume?: number;
   limit?: number;
-  category?: "oil";
+  category?: "macro";
 }): Promise<PerpRadarItem[]> {
   const minChangePct = options?.minChangePct ?? 3; // 3%+ movers so list is usually non-empty
   const minQuoteVolume = options?.minQuoteVolume ?? 100_000; // $100k+ notional
   const limit = Math.min(options?.limit ?? 150, 200);
-  const oilOnly = options?.category === "oil";
+  const macroOnly = options?.category === "macro";
 
   const res = await fetch(BINANCE_FUTURES_24H, {
     cache: "no-store",
@@ -96,13 +98,14 @@ export async function getBinancePerpRadar(options?: {
   for (const t of arr) {
     if (!t?.symbol?.endsWith("USDT")) continue;
     const base = t.symbol.replace("USDT", "");
-    if (oilOnly && !OIL_BASES.test(base)) continue;
+    if (macroOnly && !MACRO_BASES.test(base)) continue;
 
     const change = Number(t.priceChangePercent ?? "0");
     const quoteVol = Number(t.quoteVolume ?? "0");
     if (!Number.isFinite(change) || !Number.isFinite(quoteVol)) continue;
-    if (!oilOnly && (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume)) continue;
-    if (oilOnly && quoteVol < (options?.minQuoteVolume ?? 0)) continue;
+    const forceIncludePinned = macroOnly && PINNED_MACRO_BASES.test(base);
+    if (!macroOnly && (Math.abs(change) < minChangePct || quoteVol < minQuoteVolume)) continue;
+    if (macroOnly && !forceIncludePinned && quoteVol < (options?.minQuoteVolume ?? 0)) continue;
 
     const last = Number(t.lastPrice ?? "0");
     const vol = Number(t.volume ?? "0");
