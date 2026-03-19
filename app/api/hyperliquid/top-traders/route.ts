@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isOwnerSession } from "@/lib/auth";
-import { getTopTradersPositions, getLastFillTimeMs } from "@/lib/api-clients/hyperliquid";
+import { getTopTradersPositions, getLastFillTimeMs, getUserFills } from "@/lib/api-clients/hyperliquid";
 import { leverageDb } from "@/lib/leverage-db";
 import { prisma } from "@/lib/db";
 
@@ -9,6 +9,62 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const APEXLIQUID_DETAIL_URL = "https://apexliquid.bot/trade/detail";
+
+type InferredPosition = {
+  coin: string;
+  side: "long" | "short";
+  szi: string;
+  entryPx: string;
+  positionValue: string;
+  unrealizedPnl: string;
+};
+
+/**
+ * Some instruments (notably xyz:* synthetic markets shown by ApexLiquid) can appear
+ * in fills while not consistently appearing in clearinghouse open positions.
+ * We infer open xyz positions from recent fills so UI stays aligned with Apex screens.
+ */
+function inferOpenXyzPositionsFromFills(
+  fills: Array<{ coin: string; dir: string; sz: string; px: string }>
+): InferredPosition[] {
+  const byCoin = new Map<string, { net: number; lastPx: number }>();
+  for (const f of fills) {
+    const coin = (f.coin ?? "").trim();
+    if (!coin || !coin.toLowerCase().startsWith("xyz:")) continue;
+    const dir = (f.dir ?? "").toLowerCase();
+    const sz = Number(f.sz ?? "0");
+    const px = Number(f.px ?? "0");
+    if (!Number.isFinite(sz) || sz <= 0) continue;
+    const row = byCoin.get(coin) ?? { net: 0, lastPx: Number.isFinite(px) && px > 0 ? px : 0 };
+
+    if (dir.startsWith("open long") || dir.startsWith("add long")) row.net += sz;
+    else if (dir.startsWith("close long") || dir.startsWith("reduce long")) row.net -= sz;
+    else if (dir.startsWith("open short") || dir.startsWith("add short")) row.net -= sz;
+    else if (dir.startsWith("close short") || dir.startsWith("reduce short")) row.net += sz;
+    else continue;
+
+    if (Number.isFinite(px) && px > 0) row.lastPx = px;
+    byCoin.set(coin, row);
+  }
+
+  const out: InferredPosition[] = [];
+  for (const [coin, row] of byCoin.entries()) {
+    if (!Number.isFinite(row.net) || Math.abs(row.net) <= 1e-9) continue;
+    const side: "long" | "short" = row.net > 0 ? "long" : "short";
+    const sizeAbs = Math.abs(row.net);
+    const notional = (row.lastPx || 0) * sizeAbs;
+    out.push({
+      coin,
+      side,
+      szi: row.net.toString(),
+      entryPx: row.lastPx > 0 ? row.lastPx.toString() : "0",
+      positionValue: Number.isFinite(notional) ? notional.toString() : "0",
+      unrealizedPnl: "0",
+    });
+  }
+  out.sort((a, b) => a.coin.localeCompare(b.coin));
+  return out;
+}
 
 /** Owner: admin list (LeverageWallet). Logged-in user: their UserLeverageWallet list. */
 export async function GET() {
@@ -71,10 +127,22 @@ export async function GET() {
     const traders = await getTopTradersPositions(tradersInput);
     const withTime = await Promise.all(
       traders.map(async (t) => {
-        const lastTradeTimeMs = await getLastFillTimeMs(t.address).catch(() => undefined);
+        const fills = await getUserFills(t.address).catch(() => []);
+        const inferredXyzPositions = inferOpenXyzPositionsFromFills(fills);
+        const existingCoins = new Set((t.positions ?? []).map((p) => p.coin.toLowerCase()));
+        const mergedPositions = [
+          ...(t.positions ?? []),
+          ...inferredXyzPositions.filter((p) => !existingCoins.has(p.coin.toLowerCase())),
+        ];
+
+        const lastTradeTimeMs =
+          fills.length > 0
+            ? Math.max(...fills.map((f) => (typeof f.time === "number" ? f.time : 0)).filter((n) => n > 0))
+            : await getLastFillTimeMs(t.address).catch(() => undefined);
         const isGlobal = globalAddressesForResponse === null ? true : globalAddressesForResponse.has(t.address.toLowerCase());
         return {
           ...t,
+          positions: mergedPositions,
           lastTradeTimeMs: lastTradeTimeMs ?? null,
           apexLiquidUrl: `${APEXLIQUID_DETAIL_URL}?address=${encodeURIComponent(t.address)}`,
           isGlobal,
