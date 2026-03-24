@@ -730,7 +730,7 @@ export default function Dashboard() {
   const [novaForecastCustomSymbols, setNovaForecastCustomSymbols] = useState("");
   const [novaForecastRange, setNovaForecastRange] = useState<string>("2w");
   const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
-  const [novaForecastSubTab, setNovaForecastSubTab] = useState<"agent" | "nova-smart">("agent");
+  const [novaForecastSubTab, setNovaForecastSubTab] = useState<"agent" | "nova-smart" | "nova-q">("agent");
   type NovaSmartTfResult = { id: string; label: string; high: number; low: number };
   type NovaSmartResult = { symbol: string; timeframes: NovaSmartTfResult[]; smartShortEntry: number; smartLongEntry: number; currentPrice: number | null; strategy: "scalp" | "swing" | "mixed"; strategyNote: string; suggestedLongEntry: number; suggestedLongExit: number; suggestedShortEntry: number; suggestedShortExit: number; entryExitNote: string; recommendedDirection: "long" | "short" | "neutral"; recommendationNote: string };
   const [novaSmartTimeframes, setNovaSmartTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
@@ -739,6 +739,13 @@ export default function Dashboard() {
   const [novaSmartLoading, setNovaSmartLoading] = useState(false);
   const [novaSmartError, setNovaSmartError] = useState<string | null>(null);
   const [novaSmartFeedbackSent, setNovaSmartFeedbackSent] = useState<Set<string>>(new Set());
+  type NovaQTfResult = { id: string; label: string; support: number; resistance: number; direction: "bullish" | "bearish" | "sideways" };
+  type NovaQResult = { symbol: string; currentPrice: number | null; marketDirection: "bullish" | "bearish" | "sideways"; timeframes: NovaQTfResult[] };
+  const [novaQTimeframes, setNovaQTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
+  const [novaQSymbol, setNovaQSymbol] = useState("BTC");
+  const [novaQResult, setNovaQResult] = useState<NovaQResult | null>(null);
+  const [novaQLoading, setNovaQLoading] = useState(false);
+  const [novaQError, setNovaQError] = useState<string | null>(null);
   type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
   const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
   const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
@@ -1479,6 +1486,32 @@ export default function Dashboard() {
       setNovaSmartError(e instanceof Error ? e.message : "NovaSmart failed");
     } finally {
       setNovaSmartLoading(false);
+    }
+  };
+
+  const fetchNovaQ = async () => {
+    setNovaQLoading(true);
+    setNovaQError(null);
+    const symbol = novaQSymbol.trim().toUpperCase() || "BTC";
+    try {
+      const res = await fetch("/api/nova-q", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol, timeframes: novaQTimeframes }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.result) {
+        setNovaQResult(data.result as NovaQResult);
+      } else {
+        setNovaQResult(null);
+        setNovaQError(data?.locked ? "NovaQ is for VIP subscribers." : (data?.error ?? (res.ok ? "No data" : `Error ${res.status}`)));
+      }
+    } catch (e) {
+      setNovaQResult(null);
+      setNovaQError(e instanceof Error ? e.message : "NovaQ failed");
+    } finally {
+      setNovaQLoading(false);
     }
   };
 
@@ -4949,13 +4982,16 @@ export default function Dashboard() {
               })()
             ) : activeTab === "nova-forecast" ? (
               <div className="mx-6 py-6">
-                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart")} className="space-y-4">
+                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q")} className="space-y-4">
                   <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg">
                     <TabsTrigger value="agent" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaForecast Agent
                     </TabsTrigger>
                     <TabsTrigger value="nova-smart" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaSmart Analysis
+                    </TabsTrigger>
+                    <TabsTrigger value="nova-q" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                      NovaQ
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent value="agent" className="mt-0">
@@ -5152,6 +5188,108 @@ export default function Dashboard() {
                               </CardContent>
                             </Card>
                           ))}
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="nova-q" className="mt-0">
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                      <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaQ (NovaIntelligence)</h2>
+                      <p className="text-xs text-muted-foreground mb-4">Select timeframe(s), enter a contract symbol (for example BTC), then run NovaQ to get support/resistance levels and current market direction from market structure.</p>
+                      <div className="flex flex-wrap items-center gap-4 mb-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
+                          {["5m", "15m", "30m", "1h", "4h", "24h", "48h", "72h", "1w", "2w"].map((tf) => (
+                            <label key={`nova-q-${tf}`} className="flex items-center gap-1.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={novaQTimeframes.includes(tf)}
+                                onChange={() => {
+                                  const order = ["5m", "15m", "30m", "1h", "4h", "24h", "48h", "72h", "1w", "2w"];
+                                  setNovaQTimeframes((prev) => {
+                                    const next = prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf];
+                                    return next.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+                                  });
+                                }}
+                                className="rounded border-zinc-400 dark:border-zinc-500"
+                              />
+                              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{tf}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Contract symbol e.g. BTC"
+                          value={novaQSymbol}
+                          onChange={(e) => setNovaQSymbol(e.target.value.toUpperCase())}
+                          className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-56 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                        />
+                        <Button onClick={fetchNovaQ} disabled={novaQLoading || novaQTimeframes.length === 0 || !novaQSymbol.trim()}>
+                          {novaQLoading ? "Running…" : "Run NovaQ"}
+                        </Button>
+                      </div>
+                      {novaQTimeframes.length === 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">Select at least one timeframe.</p>
+                      )}
+                      {novaQError && (
+                        <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{novaQError}</p>
+                      )}
+                      {!novaQLoading && !novaQError && !novaQResult && (
+                        <p className="text-xs text-muted-foreground">Choose timeframe(s), enter a symbol, then click Run NovaQ.</p>
+                      )}
+                      {novaQResult && (
+                        <div className="space-y-4">
+                          <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/60 dark:bg-zinc-900/30">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <span className="font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">{novaQResult.symbol}</span>
+                              <span className="text-xs text-muted-foreground">Price: {novaQResult.currentPrice != null ? `$${novaQResult.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}` : "—"}</span>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  novaQResult.marketDirection === "bullish"
+                                    ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
+                                    : novaQResult.marketDirection === "bearish"
+                                      ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
+                                      : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
+                                }
+                              >
+                                Market direction: {novaQResult.marketDirection}
+                              </Badge>
+                            </div>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              Direction guide: <span className="text-emerald-600 dark:text-emerald-400">bullish</span> means closes trend higher across selected timeframes, <span className="text-rose-600 dark:text-rose-400">bearish</span> means closes trend lower, and <span className="text-zinc-600 dark:text-zinc-300">sideways</span> means mixed or flat structure.
+                            </p>
+                          </div>
+                          {novaQResult.timeframes.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No timeframe data returned. Try another symbol or timeframe mix.</p>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="text-xs">Timeframe</TableHead>
+                                    <TableHead className="text-right text-xs">Support</TableHead>
+                                    <TableHead className="text-right text-xs">Resistance</TableHead>
+                                    <TableHead className="text-left text-xs">Direction</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {novaQResult.timeframes.map((tf) => (
+                                    <TableRow key={`nova-q-row-${tf.id}`}>
+                                      <TableCell className="text-xs font-medium">{tf.label}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">${tf.support.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">${tf.resistance.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
+                                      <TableCell className="text-xs">
+                                        <Badge variant="outline" className={tf.direction === "bullish" ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300" : tf.direction === "bearish" ? "border-rose-500/60 text-rose-700 dark:text-rose-300" : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"}>
+                                          {tf.direction}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
