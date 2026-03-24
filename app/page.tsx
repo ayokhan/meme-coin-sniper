@@ -61,6 +61,7 @@ type WalletAlert = {
 };
 
 const AUTO_REFRESH_SECONDS = 60;
+const LEVERAGE_TRADER_FAVORITES_LS_KEY = "novastaris-leverage-trader-favorites";
 
 type TabId =
   | "new"
@@ -634,6 +635,32 @@ export default function Dashboard() {
   const [topTradersLoading, setTopTradersLoading] = useState(false);
   const [topTradersError, setTopTradersError] = useState<string | null>(null);
   const [leverageTradersDateFilter, setLeverageTradersDateFilter] = useState<"all" | "today">("all");
+  const [leverageTraderFavoriteAddresses, setLeverageTraderFavoriteAddresses] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LEVERAGE_TRADER_FAVORITES_LS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return;
+      setLeverageTraderFavoriteAddresses(new Set(parsed.filter((x): x is string => typeof x === "string").map((a) => a.toLowerCase())));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const toggleLeverageTraderFavorite = useCallback((address: string) => {
+    const key = address.toLowerCase();
+    setLeverageTraderFavoriteAddresses((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        localStorage.setItem(LEVERAGE_TRADER_FAVORITES_LS_KEY, JSON.stringify([...next]));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
   const leverageFilteredTraders = useMemo(() => {
     if (leverageTradersDateFilter !== "today") return topTradersData;
     const now = new Date();
@@ -643,6 +670,14 @@ export default function Dashboard() {
       return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
   }, [leverageTradersDateFilter, topTradersData]);
+  const leverageDisplayTraders = useMemo(() => {
+    const fav = leverageTraderFavoriteAddresses;
+    return [...leverageFilteredTraders].sort((a, b) => {
+      const af = fav.has(a.address.toLowerCase()) ? 1 : 0;
+      const bf = fav.has(b.address.toLowerCase()) ? 1 : 0;
+      return bf - af;
+    });
+  }, [leverageFilteredTraders, leverageTraderFavoriteAddresses]);
   type TrendingPerpRow = { coin: string; markPx: string; prevDayPx: string; dayPct: number; dayNtlVlm: string; openInterest: string; funding?: string; timeframePct?: number; pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number; pct4h?: number };
   const [trendingPerps, setTrendingPerps] = useState<TrendingPerpRow[]>([]);
   const [trendingPerpsLoading, setTrendingPerpsLoading] = useState(false);
@@ -5680,13 +5715,28 @@ export default function Dashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {leverageFilteredTraders.flatMap((t) => {
+                          {leverageDisplayTraders.flatMap((t) => {
                             const displayName = t.nickname ?? t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`;
                             const lastTradeStr = t.lastTradeTimeMs
                               ? new Date(t.lastTradeTimeMs).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })
                               : "—";
+                            const isTraderFavorite = leverageTraderFavoriteAddresses.has(t.address.toLowerCase());
                             const traderCell = (
                               <span className="inline-flex items-center gap-1 flex-wrap min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    toggleLeverageTraderFavorite(t.address);
+                                  }}
+                                  className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-amber-500 dark:hover:text-amber-400 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 -ml-0.5"
+                                  aria-label={isTraderFavorite ? "Remove trader from favorites" : "Favorite trader (pin to top)"}
+                                  aria-pressed={isTraderFavorite}
+                                  title={isTraderFavorite ? "Remove favorite" : "Favorite — pinned to top of list"}
+                                >
+                                  <Star className={`h-3.5 w-3.5 ${isTraderFavorite ? "fill-amber-400 text-amber-400" : ""}`} />
+                                </button>
                                 {t.apexLiquidUrl ? (
                                   <a href={t.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono truncate max-w-full">{displayName}</a>
                                 ) : (
