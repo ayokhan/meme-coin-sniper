@@ -246,7 +246,7 @@ function SubscribeContent() {
       <main className="mx-auto max-w-4xl px-3 sm:px-4 py-6 sm:py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
           <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-          Pro: Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect. VIP: everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast, and on-demand NovaStaris AI Trading Bot (Crypto Futures). Pay by card or USDC (Solana).
+          Pro: Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect. VIP: everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast, NovaQ (support/resistance + direction), Nova Investment Agent (risk/duration leverage strategy planning), and on-demand NovaStaris AI Trading Bot (Crypto Futures). Pay by card or USDC (Solana).
         </p>
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 mb-6">
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">What&apos;s in each plan?</p>
@@ -288,7 +288,7 @@ function SubscribeContent() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
-        {tier === "pro" ? "Pro: $50/month. Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast, and on-demand NovaStaris AI Trading Bot (Crypto Futures)."}
+        {tier === "pro" ? "Pro: $50/month. Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast, NovaQ, and Nova Investment Agent, plus on-demand NovaStaris AI Trading Bot (Crypto Futures)."}
         </p>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 space-y-1">
           {tier === "pro" ? (
@@ -312,6 +312,8 @@ function SubscribeContent() {
                 <li>Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand)</li>
                 <li>Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram)</li>
                 <li>NovaForecast</li>
+                <li>NovaQ (NovaIntelligence) — support/resistance + market direction</li>
+                <li>Nova Investment Agent — risk/duration leverage strategy planning</li>
                 <li>NovaStaris AI Trading Bot — on-demand (Crypto Futures on Blofin)</li>
                 <li>Pay by credit card or USDC (Solana)</li>
               </ul>

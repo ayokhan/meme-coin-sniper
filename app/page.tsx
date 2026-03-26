@@ -24,6 +24,7 @@ import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
 import TradingBotPanel from "@/components/TradingBotPanel";
 import PropFirmBotPanel from "@/components/PropFirmBotPanel";
+import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 
 type Token = {
   id: string;
@@ -78,13 +79,14 @@ type TabId =
   | "trading-bot"
   | "coach-calls"
   | "nova-forecast"
+  | "nova-investment"
   | "bsc"
   | "watchlist"
   | "nova-connect"
   | "chris-clayton";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-connect"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast"];
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-investment"];
 const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   new: "page_tab_new",
   trending: "page_tab_trending",
@@ -100,6 +102,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   wallets: "page_tab_wallets",
   "coach-calls": "page_tab_coach_calls",
   "nova-forecast": "page_tab_nova_forecast",
+  "nova-investment": "page_tab_nova_investment_agent",
   bsc: "page_tab_bsc",
   watchlist: "page_tab_watchlist",
   "nova-connect": "page_tab_nova_connect",
@@ -120,6 +123,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "wallets",
   "coach-calls",
   "nova-forecast",
+  "nova-investment",
   "bsc",
   "watchlist",
   "nova-connect",
@@ -1697,7 +1701,7 @@ export default function Dashboard() {
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "nova-forecast" || activeTab === "watchlist") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "nova-forecast" || activeTab === "nova-investment" || activeTab === "watchlist") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (walletTrackerView === "meme") {
@@ -2595,6 +2599,9 @@ export default function Dashboard() {
                 {isTabVisibleInGui("nova-forecast") && (
                   <TabsTrigger value="nova-forecast" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaForecast Agent</TabsTrigger>
                 )}
+                {isTabVisibleInGui("nova-investment") && (
+                  <TabsTrigger value="nova-investment" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">Nova Investment Agent</TabsTrigger>
+                )}
                 {isTabVisibleInGui("bsc") && (
                   <TabsTrigger value="bsc" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
                 )}
@@ -2641,6 +2648,7 @@ export default function Dashboard() {
                       ? "Mem Coins Traders (Wallet Tracker → Meme) is VIP on-demand. Request access and an admin will enable it for your account."
                       : "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets.")}
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
+                  {activeTab === "nova-investment" && "Nova Investment Agent builds leverage strategies from your amount, risk preset, and duration (support/resistance + direction, leverage, stop loss, entry/exit). VIP only."}
                   {activeTab === "nova-connect" && "NovaConnect: the first social platform for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}
                   {" "}
                   {onDemandLocked
@@ -5296,6 +5304,8 @@ export default function Dashboard() {
                   </TabsContent>
                 </Tabs>
               </div>
+            ) : activeTab === "nova-investment" ? (
+              <NovaInvestmentAgentPanel isOwner={isOwner} />
             ) : activeTab === "coach-calls" ? (
               <CoachCallsPanel isOwner={isOwner} isVip={isVip} />
             ) : activeTab === "wallets" ? (

@@ -89,6 +89,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Tab: NovaForecast Agent",
     description: "Show/hide the NovaForecast Agent tab in the main GUI.",
   },
+  page_tab_nova_investment_agent: {
+    label: "Tab: Nova Investment Agent",
+    description: "Show/hide the Nova Investment Agent tab (VIP-only) in the main GUI.",
+  },
   page_tab_bsc: {
     label: "Tab: BSC",
     description: "Show/hide the BSC tab in the main GUI.",
