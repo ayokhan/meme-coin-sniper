@@ -556,3 +556,23 @@ model NovaSmartFeedback {
   @@index([worked])
   @@index([createdAt])
 }
+
+// VIP: Nova Investment Agent portfolio pins + owner feedback (worked/did not work + reason)
+model NovaInvestmentAgentPortfolioPin {
+  id                       String   @id @default(cuid())
+  userId                   String
+  baseSymbol               String
+  amountUsd                Float
+  riskProfitPreset        String
+  durationMode             String
+  totalExpectedReturnPct  Float
+  totalExpectedReturnUsd  Float
+  resultJson               Json
+  pinnedAt                 DateTime @default(now())
+  ownerFeedbackWorked     Boolean?
+  ownerFeedbackNote       String?
+  ownerFeedbackAt         DateTime?
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, pinnedAt])
+}

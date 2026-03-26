@@ -56,14 +56,12 @@ type InvestmentPin = {
   id: string;
   pinnedAt: string;
   result: NovaInvestmentAgentResult;
-  ownerFeedback?: {
+  ownerFeedback: {
     worked: boolean;
-    note: string;
-    at: string;
-  };
+    note: string | null;
+    at: string | null;
+  } | null;
 };
-
-const LS_PORTFOLIO_KEY = "novastaris-nova-investment-agent-portfolio-v1";
 
 function formatUsd(n: number) {
   if (!Number.isFinite(n)) return "—";
@@ -75,16 +73,6 @@ function formatPct(n: number) {
   return `${n.toFixed(1)}%`;
 }
 
-function safeId() {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const anyCrypto: any = crypto as any;
-    if (anyCrypto?.randomUUID) return anyCrypto.randomUUID() as string;
-  } catch {
-    // ignore
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
 
 export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean }) {
   const [amountUsd, setAmountUsd] = useState<number>(250);
@@ -112,30 +100,33 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
 
   const [pins, setPins] = useState<InvestmentPin[]>([]);
   const [pinsLoading, setPinsLoading] = useState(false);
+  const [portfolioActionLoading, setPortfolioActionLoading] = useState(false);
+  const [portfolioError, setPortfolioError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadPins = async () => {
     setPinsLoading(true);
+    setPortfolioError(null);
     try {
-      const raw = localStorage.getItem(LS_PORTFOLIO_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as InvestmentPin[];
-      if (!Array.isArray(parsed)) return;
-      setPins(parsed);
-    } catch {
-      // ignore
+      const res = await fetch("/api/nova-investment-agent/portfolio", { credentials: "include", cache: "no-store" });
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.pins)) {
+        setPins(data.pins as InvestmentPin[]);
+      } else {
+        setPins([]);
+        setPortfolioError(data?.error ?? `Error ${res.status}`);
+      }
+    } catch (e) {
+      setPins([]);
+      setPortfolioError(e instanceof Error ? e.message : "Failed to load portfolio");
     } finally {
       setPinsLoading(false);
     }
-  }, []);
-
-  const persistPins = (next: InvestmentPin[]) => {
-    setPins(next);
-    try {
-      localStorage.setItem(LS_PORTFOLIO_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
   };
+
+  useEffect(() => {
+    void loadPins();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const payload = useMemo(() => {
     const base: Record<string, unknown> = {
@@ -197,32 +188,63 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
     }
   };
 
-  const pinResult = () => {
+  const pinResult = async () => {
     if (!result) return;
-    const id = safeId();
-    const nextPin: InvestmentPin = {
-      id,
-      pinnedAt: new Date().toISOString(),
-      result,
-    };
-    persistPins([nextPin, ...pins].slice(0, 20));
+    setPortfolioActionLoading(true);
+    setPortfolioError(null);
+    try {
+      const res = await fetch("/api/nova-investment-agent/portfolio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ result }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) throw new Error(data?.error ?? `Error ${res.status}`);
+      await loadPins();
+    } catch (e) {
+      setPortfolioError(e instanceof Error ? e.message : "Failed to pin");
+    } finally {
+      setPortfolioActionLoading(false);
+    }
   };
 
-  const unpin = (id: string) => {
-    persistPins(pins.filter((p) => p.id !== id));
+  const unpin = async (id: string) => {
+    setPortfolioActionLoading(true);
+    setPortfolioError(null);
+    try {
+      const res = await fetch(`/api/nova-investment-agent/portfolio?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) throw new Error(data?.error ?? `Error ${res.status}`);
+      await loadPins();
+    } catch (e) {
+      setPortfolioError(e instanceof Error ? e.message : "Failed to unpin");
+    } finally {
+      setPortfolioActionLoading(false);
+    }
   };
 
-  const updateOwnerFeedback = (pinId: string, worked: boolean, note: string) => {
-    persistPins(
-      pins.map((p) =>
-        p.id === pinId
-          ? {
-              ...p,
-              ownerFeedback: { worked, note, at: new Date().toISOString() },
-            }
-          : p
-      )
-    );
+  const submitOwnerFeedback = async (pinId: string, worked: boolean, note: string) => {
+    setPortfolioActionLoading(true);
+    setPortfolioError(null);
+    try {
+      const res = await fetch("/api/nova-investment-agent/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ pinId, worked, note }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) throw new Error(data?.error ?? `Error ${res.status}`);
+      await loadPins();
+    } catch (e) {
+      setPortfolioError(e instanceof Error ? e.message : "Failed to save feedback");
+    } finally {
+      setPortfolioActionLoading(false);
+    }
   };
 
   return (
@@ -531,7 +553,12 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
                       )}
 
                       <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60">
-                        <Button variant="outline" size="sm" onClick={pinResult}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void pinResult()}
+                          disabled={portfolioActionLoading}
+                        >
                           Accept & Pin to Portfolio
                         </Button>
                       </div>
@@ -551,6 +578,9 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
           Portfolio (Nova Investment Agent) {pins.length > 0 ? `(${pins.length})` : ""}
         </summary>
         <div className="px-4 pb-4 pt-2 space-y-3">
+          {portfolioError && pins.length === 0 && (
+            <p className="text-xs text-rose-600 dark:text-rose-400">{portfolioError}</p>
+          )}
           {pinsLoading && pins.length === 0 ? (
             <p className="text-xs text-muted-foreground">Loading portfolio…</p>
           ) : pins.length === 0 ? (
@@ -568,7 +598,7 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => unpin(p.id)} className="text-rose-600 dark:text-rose-400">
+                    <Button variant="ghost" size="sm" onClick={() => void unpin(p.id)} className="text-rose-600 dark:text-rose-400" disabled={portfolioActionLoading}>
                       Unpin
                     </Button>
                   </div>
@@ -588,12 +618,12 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
                     </div>
                     {!p.ownerFeedback && (
                       <OwnerFeedbackForm
-                        onSubmit={(worked, note) => updateOwnerFeedback(p.id, worked, note)}
+                        onSubmit={(worked, note) => void submitOwnerFeedback(p.id, worked, note)}
                       />
                     )}
                     {p.ownerFeedback && (
                       <p className="text-xs text-muted-foreground">
-                        {p.ownerFeedback.note} • {new Date(p.ownerFeedback.at).toLocaleString()}
+                        {p.ownerFeedback.note ?? "—"} • {p.ownerFeedback.at ? new Date(p.ownerFeedback.at).toLocaleString() : "—"}
                       </p>
                     )}
                   </div>
