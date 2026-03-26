@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
-import type { NovaInvestmentAgentPortfolioPin } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +18,7 @@ type NovaInvestmentAgentPortfolioPinResponse = {
   ownerFeedback: NovaInvestmentAgentPinOwnerFeedback | null;
 };
 
-function formatOwnerFeedback(pin: NovaInvestmentAgentPortfolioPin): NovaInvestmentAgentPinOwnerFeedback | null {
+function formatOwnerFeedback(pin: { ownerFeedbackWorked: boolean | null; ownerFeedbackNote: string | null; ownerFeedbackAt: Date | null }): NovaInvestmentAgentPinOwnerFeedback | null {
   if (pin.ownerFeedbackWorked == null) return null;
   return {
     worked: !!pin.ownerFeedbackWorked,
@@ -44,13 +43,13 @@ export async function GET() {
     if (!userId) return NextResponse.json({ success: false, error: "Sign in to view portfolio.", locked: true }, { status: 401 });
     if (!isPaid) return NextResponse.json({ success: false, error: "Subscribe to use Nova Investment Agent.", locked: true }, { status: 403 });
 
-    const pins = await prisma.novaInvestmentAgentPortfolioPin.findMany({
+    const pins = await (prisma as any).novaInvestmentAgentPortfolioPin.findMany({
       where: { userId },
       orderBy: { pinnedAt: "desc" },
       take: 50,
     });
 
-    const mapped: NovaInvestmentAgentPortfolioPinResponse[] = pins.map((p) => ({
+    const mapped: NovaInvestmentAgentPortfolioPinResponse[] = (pins as any[]).map((p: any) => ({
       id: p.id,
       pinnedAt: p.pinnedAt.toISOString(),
       result: safeJsonResult(p.resultJson),
@@ -99,7 +98,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Invalid strategy result fields." }, { status: 400 });
     }
 
-    const created = await prisma.novaInvestmentAgentPortfolioPin.create({
+    const created = await (prisma as any).novaInvestmentAgentPortfolioPin.create({
       data: {
         userId,
         baseSymbol: baseSymbol.slice(0, 20),
@@ -141,7 +140,7 @@ export async function DELETE(request: Request) {
     const id = searchParams.get("id") ?? searchParams.get("pinId");
     if (!id) return NextResponse.json({ success: false, error: "Missing id." }, { status: 400 });
 
-    await prisma.novaInvestmentAgentPortfolioPin.deleteMany({
+    await (prisma as any).novaInvestmentAgentPortfolioPin.deleteMany({
       where: { id, userId },
     });
 
