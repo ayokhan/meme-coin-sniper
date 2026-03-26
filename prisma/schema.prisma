@@ -121,6 +121,7 @@ model User {
   accounts      Account[]
   subscriptions Subscription[]
   pinnedTokens  PinnedToken[]
+  novaInvestmentAgentPortfolioPins NovaInvestmentAgentPortfolioPin[]
   userTelegram  UserTelegram?
   aiAnalysisFeedbacks AiAnalysisFeedback[]
   novaSmartFeedbacks  NovaSmartFeedback[]
