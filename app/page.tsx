@@ -625,11 +625,11 @@ export default function Dashboard() {
   const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps">("ai");
   const [topAltcoins, setTopAltcoins] = useState<TrendingPerpRow[]>([]);
   const [topAltcoinsLoading, setTopAltcoinsLoading] = useState(false);
-  const [topAltcoinsSortBy, setTopAltcoinsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
+  const [topAltcoinsSortBy, setTopAltcoinsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h" | "48h" | "72h" | "1w" | "2w" | "3w" | "4w">("24h");
   const [hotPerps, setHotPerps] = useState<TrendingPerpRow[]>([]);
   const [hotPerpsLoading, setHotPerpsLoading] = useState(false);
   const [hotPerpsNewOnly, setHotPerpsNewOnly] = useState(false);
-  const [hotPerpsSortBy, setHotPerpsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("5m");
+  const [hotPerpsSortBy, setHotPerpsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h" | "48h" | "72h" | "1w" | "2w" | "3w" | "4w">("5m");
   const [futuresAnalysisCopied, setFuturesAnalysisCopied] = useState(false);
   type PerpAiSignal = { signal: "long" | "short" | "no_buy"; score: number; reason: string };
   const [perpAiSignals, setPerpAiSignals] = useState<Record<string, PerpAiSignal | "loading">>({});
@@ -682,7 +682,7 @@ export default function Dashboard() {
       return bf - af;
     });
   }, [leverageFilteredTraders, leverageTraderFavoriteAddresses]);
-  type TrendingPerpRow = { coin: string; markPx: string; prevDayPx: string; dayPct: number; dayNtlVlm: string; openInterest: string; funding?: string; timeframePct?: number; pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number; pct4h?: number };
+  type TrendingPerpRow = { coin: string; markPx: string; prevDayPx: string; dayPct: number; dayNtlVlm: string; openInterest: string; funding?: string; timeframePct?: number; pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number; pct4h?: number; pct48h?: number; pct72h?: number; pct1w?: number; pct2w?: number; pct3w?: number; pct4w?: number };
   const [trendingPerps, setTrendingPerps] = useState<TrendingPerpRow[]>([]);
   const [trendingPerpsLoading, setTrendingPerpsLoading] = useState(false);
   const [trendingPerpsTimeframe, setTrendingPerpsTimeframe] = useState<"24h" | "1h" | "30m" | "15m" | "5m">("24h");
@@ -3490,14 +3490,21 @@ export default function Dashboard() {
                         <span className="text-xs text-muted-foreground">Sort by:</span>
                         <select
                           value={topAltcoinsSortBy}
-                          onChange={(e) => setTopAltcoinsSortBy(e.target.value as "5m" | "15m" | "30m" | "1h" | "24h")}
+                          onChange={(e) => setTopAltcoinsSortBy(e.target.value as "5m" | "15m" | "30m" | "1h" | "4h" | "24h" | "48h" | "72h" | "1w" | "2w" | "3w" | "4w")}
                           className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
                         >
                           <option value="5m">5m %</option>
                           <option value="15m">15m %</option>
                           <option value="30m">30m %</option>
                           <option value="1h">1h %</option>
+                          <option value="4h">4h %</option>
                           <option value="24h">24h %</option>
+                          <option value="48h">48h %</option>
+                          <option value="72h">72h %</option>
+                          <option value="1w">1w %</option>
+                          <option value="2w">2w %</option>
+                          <option value="3w">3w %</option>
+                          <option value="4w">4w %</option>
                         </select>
                         <Button variant="outline" size="sm" onClick={fetchTopAltcoins} disabled={topAltcoinsLoading}>
                           {topAltcoinsLoading ? "Loading…" : "Refresh"}
@@ -3533,8 +3540,8 @@ export default function Dashboard() {
                             {filterPerpsByPreset([...topAltcoins])
                               .sort((a, b) => {
                                 const key = topAltcoinsSortBy;
-                                const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : (a.pct4h ?? 0);
-                                const vb = key === "24h" ? b.dayPct : key === "5m" ? (b.pct5m ?? 0) : key === "15m" ? (b.pct15m ?? 0) : key === "30m" ? (b.pct30m ?? 0) : key === "1h" ? (b.pct1h ?? 0) : (b.pct4h ?? 0);
+                                const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : key === "4h" ? (a.pct4h ?? 0) : key === "48h" ? (a.pct48h ?? 0) : key === "72h" ? (a.pct72h ?? 0) : key === "1w" ? (a.pct1w ?? 0) : key === "2w" ? (a.pct2w ?? 0) : key === "3w" ? (a.pct3w ?? 0) : (a.pct4w ?? 0);
+                                const vb = key === "24h" ? b.dayPct : key === "5m" ? (b.pct5m ?? 0) : key === "15m" ? (b.pct15m ?? 0) : key === "30m" ? (b.pct30m ?? 0) : key === "1h" ? (b.pct1h ?? 0) : key === "4h" ? (b.pct4h ?? 0) : key === "48h" ? (b.pct48h ?? 0) : key === "72h" ? (b.pct72h ?? 0) : key === "1w" ? (b.pct1w ?? 0) : key === "2w" ? (b.pct2w ?? 0) : key === "3w" ? (b.pct3w ?? 0) : (b.pct4w ?? 0);
                                 return Math.abs(vb) - Math.abs(va);
                               })
                               .map((p) => {
@@ -3588,7 +3595,7 @@ export default function Dashboard() {
                         <span className="text-xs text-muted-foreground">Sort by:</span>
                         <select
                           value={hotPerpsSortBy}
-                          onChange={(e) => setHotPerpsSortBy(e.target.value as "5m" | "15m" | "30m" | "1h" | "4h" | "24h")}
+                          onChange={(e) => setHotPerpsSortBy(e.target.value as "5m" | "15m" | "30m" | "1h" | "4h" | "24h" | "48h" | "72h" | "1w" | "2w" | "3w" | "4w")}
                           className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
                         >
                           <option value="5m">5m %</option>
@@ -3597,6 +3604,12 @@ export default function Dashboard() {
                           <option value="1h">1h %</option>
                           <option value="4h">4h %</option>
                           <option value="24h">24h %</option>
+                          <option value="48h">48h %</option>
+                          <option value="72h">72h %</option>
+                          <option value="1w">1w %</option>
+                          <option value="2w">2w %</option>
+                          <option value="3w">3w %</option>
+                          <option value="4w">4w %</option>
                         </select>
                         <Button variant="outline" size="sm" onClick={fetchHotPerps} disabled={hotPerpsLoading}>
                           {hotPerpsLoading ? "Loading…" : "Refresh"}
@@ -3637,8 +3650,8 @@ export default function Dashboard() {
                             {filterPerpsByPreset([...hotPerps])
                               .sort((a, b) => {
                                 const key = hotPerpsSortBy;
-                                const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : (a.pct4h ?? 0);
-                                const vb = key === "24h" ? b.dayPct : key === "5m" ? (b.pct5m ?? 0) : key === "15m" ? (b.pct15m ?? 0) : key === "30m" ? (b.pct30m ?? 0) : key === "1h" ? (b.pct1h ?? 0) : (b.pct4h ?? 0);
+                                const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : key === "4h" ? (a.pct4h ?? 0) : key === "48h" ? (a.pct48h ?? 0) : key === "72h" ? (a.pct72h ?? 0) : key === "1w" ? (a.pct1w ?? 0) : key === "2w" ? (a.pct2w ?? 0) : key === "3w" ? (a.pct3w ?? 0) : (a.pct4w ?? 0);
+                                const vb = key === "24h" ? b.dayPct : key === "5m" ? (b.pct5m ?? 0) : key === "15m" ? (b.pct15m ?? 0) : key === "30m" ? (b.pct30m ?? 0) : key === "1h" ? (b.pct1h ?? 0) : key === "4h" ? (b.pct4h ?? 0) : key === "48h" ? (b.pct48h ?? 0) : key === "72h" ? (b.pct72h ?? 0) : key === "1w" ? (b.pct1w ?? 0) : key === "2w" ? (b.pct2w ?? 0) : key === "3w" ? (b.pct3w ?? 0) : (b.pct4w ?? 0);
                                 return Math.abs(vb) - Math.abs(va);
                               })
                               .map((p) => {
@@ -5022,13 +5035,19 @@ export default function Dashboard() {
                           >
                             <option value="15m">Last 15 mins</option>
                             <option value="1h">1 hour</option>
+                            <option value="2h">2 hours</option>
                             <option value="4h">4 hours</option>
+                            <option value="6h">6 hours</option>
+                            <option value="10h">10 hours</option>
+                            <option value="12h">12 hours</option>
                             <option value="24h">24 hours</option>
                             <option value="48h">48 hours</option>
                             <option value="1w">1 week</option>
                             <option value="2w">2 weeks</option>
                             <option value="3w">3 weeks</option>
                             <option value="4w">4 weeks</option>
+                            <option value="5w">5 weeks</option>
+                            <option value="6w">6 weeks</option>
                           </select>
                           <input
                             type="text"
@@ -5092,13 +5111,13 @@ export default function Dashboard() {
                       <div className="flex flex-wrap items-center gap-4 mb-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
-                          {["5m", "15m", "30m", "1h", "4h", "24h", "48h", "72h", "1w", "2w"].map((tf) => (
+                          {["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w"].map((tf) => (
                             <label key={tf} className="flex items-center gap-1.5 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={novaSmartTimeframes.includes(tf)}
                                 onChange={() => {
-                          const order = ["5m", "15m", "30m", "1h", "4h", "24h", "48h", "72h", "1w", "2w"];
+                          const order = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w"];
                           setNovaSmartTimeframes((prev) => {
                             const next = prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf];
                             return next.sort((a, b) => order.indexOf(a) - order.indexOf(b));
@@ -5207,13 +5226,13 @@ export default function Dashboard() {
                       <div className="flex flex-wrap items-center gap-4 mb-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
-                          {["5m", "15m", "30m", "1h", "4h", "24h", "48h", "72h", "1w", "2w"].map((tf) => (
+                          {["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w"].map((tf) => (
                             <label key={`nova-q-${tf}`} className="flex items-center gap-1.5 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={novaQTimeframes.includes(tf)}
                                 onChange={() => {
-                                  const order = ["5m", "15m", "30m", "1h", "4h", "24h", "48h", "72h", "1w", "2w"];
+                                  const order = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w"];
                                   setNovaQTimeframes((prev) => {
                                     const next = prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf];
                                     return next.sort((a, b) => order.indexOf(a) - order.indexOf(b));

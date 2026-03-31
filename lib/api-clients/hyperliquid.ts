@@ -239,6 +239,12 @@ export type TrendingPerp = {
   pct30m?: number;
   pct1h?: number;
   pct4h?: number;
+  pct48h?: number;
+  pct72h?: number;
+  pct1w?: number;
+  pct2w?: number;
+  pct3w?: number;
+  pct4w?: number;
 };
 
 /**
