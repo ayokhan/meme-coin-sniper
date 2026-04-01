@@ -177,6 +177,34 @@ export async function POST(request: Request) {
         : entry + stopDistance * 1.8;
     const riskReward = stopDistance > 0 ? Math.abs((takeProfit - entry) / stopDistance) : 0;
 
+    /** Geometric meaning of entry / SL / TP (may differ from trend bias when bias is neutral). */
+    const tradeSetup: "long" | "short" =
+      takeProfit > entry && stopLoss < entry
+        ? "long"
+        : takeProfit < entry && stopLoss > entry
+          ? "short"
+          : takeProfit >= entry
+            ? "long"
+            : "short";
+
+    const tradeSetupSummary =
+      tradeSetup === "long"
+        ? "Take profit is above entry and stop loss is below — this is a long (buy) template: you gain if price moves up."
+        : "Take profit is below entry and stop loss is above — this is a short (sell) template: you gain if price moves down.";
+
+    const tradeSetupBiasNote =
+      bias === "neutral"
+        ? " Structure bias is neutral; the levels are for risk framing only—not a recommendation to enter."
+        : bias === "long" && tradeSetup === "long"
+          ? ""
+          : bias === "short" && tradeSetup === "short"
+            ? ""
+            : " Note: structure bias and the drawn levels use different rules—read the trade setup line for what the prices mean.";
+
+    const riskRewardExplained =
+      "Risk:reward (R:R) is the ratio of distance to take profit versus distance to stop loss. " +
+      `At ${riskReward.toFixed(2)}×, the target move is about ${riskReward.toFixed(2)} times as large as the stop move—roughly $${riskReward.toFixed(2)} of reward per $1.00 put at risk to the stop, if both levels were reached in proportion.`;
+
     const suggestedRiskAmount = amountValid != null ? amountValid * 0.01 : null;
     const suggestedPositionSize =
       suggestedRiskAmount != null && stopDistance > 0 ? suggestedRiskAmount / stopDistance : null;
@@ -211,6 +239,9 @@ export async function POST(request: Request) {
         stopLossDistancePct: stopLossPct,
         recommendedTakeProfit: takeProfit,
         riskReward,
+        riskRewardExplained,
+        tradeSetup,
+        tradeSetupSummary: tradeSetupSummary + tradeSetupBiasNote,
         analysis,
         levels: {
           rangeHigh: high,

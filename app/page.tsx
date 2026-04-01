@@ -760,6 +760,10 @@ export default function Dashboard() {
     currentPrice: number;
     marketDirection: "bullish" | "bearish" | "sideways";
     bias: "long" | "short" | "neutral";
+    /** Long vs short implied by entry / stop / target geometry (authoritative for reading the table). */
+    tradeSetup?: "long" | "short";
+    tradeSetupSummary?: string;
+    riskRewardExplained?: string;
     recommendedEntry: number;
     recommendedStopLoss: number;
     stopLossDistancePct: number;
@@ -5435,7 +5439,19 @@ export default function Dashboard() {
                   {!novaPlusLoading && !novaPlusError && !novaPlusResult && (
                     <p className="text-xs text-muted-foreground">Enter symbol and timeframe, then click Run Nova+.</p>
                   )}
-                  {novaPlusResult && (
+                  {novaPlusResult && (() => {
+                    const inferredSetup: "long" | "short" =
+                      novaPlusResult.tradeSetup ??
+                      (novaPlusResult.recommendedTakeProfit > novaPlusResult.recommendedEntry &&
+                      novaPlusResult.recommendedStopLoss < novaPlusResult.recommendedEntry
+                        ? "long"
+                        : novaPlusResult.recommendedTakeProfit < novaPlusResult.recommendedEntry &&
+                            novaPlusResult.recommendedStopLoss > novaPlusResult.recommendedEntry
+                          ? "short"
+                          : novaPlusResult.recommendedTakeProfit >= novaPlusResult.recommendedEntry
+                            ? "long"
+                            : "short");
+                    return (
                     <div className="space-y-4">
                       <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/60 dark:bg-zinc-900/30">
                         <div className="flex flex-wrap items-center gap-3">
@@ -5443,18 +5459,62 @@ export default function Dashboard() {
                           <Badge variant="outline">TF: {novaPlusResult.timeframeLabel}</Badge>
                           <span className="text-xs text-muted-foreground">Price: ${novaPlusResult.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span>
                           <Badge variant="outline" className={novaPlusResult.bias === "long" ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300" : novaPlusResult.bias === "short" ? "border-rose-500/60 text-rose-700 dark:text-rose-300" : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"}>
-                            Bias: {novaPlusResult.bias}
+                            Structure bias: {novaPlusResult.bias}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={
+                              inferredSetup === "long"
+                                ? "border-emerald-600/70 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 font-medium"
+                                : "border-rose-600/70 bg-rose-500/10 text-rose-800 dark:text-rose-200 font-medium"
+                            }
+                          >
+                            Trade table: {inferredSetup === "long" ? "Long (buy)" : "Short (sell)"}
                           </Badge>
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">{novaPlusResult.analysis}</p>
+                        {novaPlusResult.tradeSetupSummary ? (
+                          <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-200 border-t border-zinc-200/80 dark:border-zinc-600/80 pt-2">
+                            {novaPlusResult.tradeSetupSummary}
+                          </p>
+                        ) : (
+                          <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/80 dark:border-zinc-600/80 pt-2">
+                            {inferredSetup === "long"
+                              ? "How to read: stop is below entry and target is above → long (buy) idea."
+                              : "How to read: stop is above entry and target is below → short (sell) idea."}
+                          </p>
+                        )}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
-                          <h3 className="text-sm font-semibold mb-2">Trade Levels</h3>
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 className="text-sm font-semibold">Trade Levels</h3>
+                            <span
+                              className={
+                                inferredSetup === "long"
+                                  ? "text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"
+                                  : "text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300"
+                              }
+                            >
+                              {inferredSetup === "long" ? "Long setup" : "Short setup"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Red = stop (invalidation). Green = profit target. Numbers describe a {inferredSetup === "long" ? "long" : "short"} position at entry.
+                          </p>
                           <p className="text-xs">Entry: <span className="font-mono">${novaPlusResult.recommendedEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span></p>
                           <p className="text-xs">Stop loss: <span className="font-mono text-rose-600 dark:text-rose-400">${novaPlusResult.recommendedStopLoss.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span> ({novaPlusResult.stopLossDistancePct.toFixed(2)}%)</p>
                           <p className="text-xs">Take profit: <span className="font-mono text-emerald-600 dark:text-emerald-400">${novaPlusResult.recommendedTakeProfit.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span></p>
-                          <p className="text-xs">R:R: <span className="font-mono">{novaPlusResult.riskReward.toFixed(2)}x</span></p>
+                          <p className="text-xs">
+                            R:R{" "}
+                            <span className="font-mono" title="Risk:reward — see note below">
+                              {novaPlusResult.riskReward.toFixed(2)}×
+                            </span>
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                            {novaPlusResult.riskRewardExplained ??
+                              `Risk:reward compares distance to target vs distance to stop. ${novaPlusResult.riskReward.toFixed(2)}× means the target is about ${novaPlusResult.riskReward.toFixed(2)}× as far as the stop—roughly $${novaPlusResult.riskReward.toFixed(2)} of reward per $1.00 risked to the stop if both distances played out in proportion.`}
+                          </p>
                         </div>
                         <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
                           <h3 className="text-sm font-semibold mb-2">Risk Management</h3>
@@ -5466,14 +5526,14 @@ export default function Dashboard() {
                       </div>
                       <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
                         <h3 className="text-sm font-semibold mb-2">Market Structure + Order Book</h3>
-                        <p className="text-xs">Direction: <span className="capitalize">{novaPlusResult.marketDirection}</span></p>
+                        <p className="text-xs">Structure trend: <span className="capitalize">{novaPlusResult.marketDirection}</span></p>
                         <p className="text-xs">Range: low <span className="font-mono">${novaPlusResult.levels.rangeLow.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span> / high <span className="font-mono">${novaPlusResult.levels.rangeHigh.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span></p>
                         <p className="text-xs">Wall bias: <span className="capitalize">{novaPlusResult.orderBook.wallBias.replace("_", " ")}</span></p>
                         <p className="text-xs">Strongest bid wall: {novaPlusResult.orderBook.strongestBidWall ? `$${novaPlusResult.orderBook.strongestBidWall.px.toLocaleString(undefined, { maximumFractionDigits: 4 })} (size ${novaPlusResult.orderBook.strongestBidWall.sz.toLocaleString(undefined, { maximumFractionDigits: 2 })})` : "N/A"}</p>
                         <p className="text-xs">Strongest ask wall: {novaPlusResult.orderBook.strongestAskWall ? `$${novaPlusResult.orderBook.strongestAskWall.px.toLocaleString(undefined, { maximumFractionDigits: 4 })} (size ${novaPlusResult.orderBook.strongestAskWall.sz.toLocaleString(undefined, { maximumFractionDigits: 2 })})` : "N/A"}</p>
                       </div>
                     </div>
-                  )}
+                  ); })()}
                 </div>
               </div>
             ) : activeTab === "nova-investment" ? (
