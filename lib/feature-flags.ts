@@ -32,6 +32,7 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_WALLETS: 'page_tab_wallets',
   PAGE_TAB_COACH_CALLS: 'page_tab_coach_calls',
   PAGE_TAB_NOVA_FORECAST: 'page_tab_nova_forecast',
+  PAGE_TAB_NOVA_PLUS: 'page_tab_nova_plus',
   PAGE_TAB_NOVA_INVESTMENT_AGENT: 'page_tab_nova_investment_agent',
   PAGE_TAB_BSC: 'page_tab_bsc',
   PAGE_TAB_WATCHLIST: 'page_tab_watchlist',
