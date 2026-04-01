@@ -79,14 +79,15 @@ type TabId =
   | "trading-bot"
   | "coach-calls"
   | "nova-forecast"
+  | "nova-plus"
   | "nova-investment"
   | "bsc"
   | "watchlist"
   | "nova-connect"
   | "chris-clayton";
-const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-connect"];
+const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-connect"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-investment"];
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment"];
 const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   new: "page_tab_new",
   trending: "page_tab_trending",
@@ -102,6 +103,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   wallets: "page_tab_wallets",
   "coach-calls": "page_tab_coach_calls",
   "nova-forecast": "page_tab_nova_forecast",
+  "nova-plus": "page_tab_nova_plus",
   "nova-investment": "page_tab_nova_investment_agent",
   bsc: "page_tab_bsc",
   watchlist: "page_tab_watchlist",
@@ -123,6 +125,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "wallets",
   "coach-calls",
   "nova-forecast",
+  "nova-plus",
   "nova-investment",
   "bsc",
   "watchlist",
@@ -750,6 +753,39 @@ export default function Dashboard() {
   const [novaQResult, setNovaQResult] = useState<NovaQResult | null>(null);
   const [novaQLoading, setNovaQLoading] = useState(false);
   const [novaQError, setNovaQError] = useState<string | null>(null);
+  type NovaPlusResult = {
+    symbol: string;
+    timeframe: string;
+    timeframeLabel: string;
+    currentPrice: number;
+    marketDirection: "bullish" | "bearish" | "sideways";
+    bias: "long" | "short" | "neutral";
+    recommendedEntry: number;
+    recommendedStopLoss: number;
+    stopLossDistancePct: number;
+    recommendedTakeProfit: number;
+    riskReward: number;
+    analysis: string;
+    levels: { rangeHigh: number; rangeLow: number; mid: number };
+    orderBook: {
+      strongestBidWall: { px: number; sz: number } | null;
+      strongestAskWall: { px: number; sz: number } | null;
+      wallBias: "bid_support" | "ask_resistance" | "balanced" | "unknown";
+    };
+    riskManagement: {
+      maxRiskPctPerTrade: number;
+      accountAmount: number | null;
+      suggestedRiskAmount: number | null;
+      suggestedPositionSize: number | null;
+      note: string;
+    };
+  };
+  const [novaPlusSymbol, setNovaPlusSymbol] = useState("BTC");
+  const [novaPlusAmount, setNovaPlusAmount] = useState("");
+  const [novaPlusTimeframe, setNovaPlusTimeframe] = useState("4h");
+  const [novaPlusResult, setNovaPlusResult] = useState<NovaPlusResult | null>(null);
+  const [novaPlusLoading, setNovaPlusLoading] = useState(false);
+  const [novaPlusError, setNovaPlusError] = useState<string | null>(null);
   type LeverageAlertRow = { id: string; walletAddress: string; nickname: string | null; positionsSummary: string; createdAt: string };
   const [leverageAlerts, setLeverageAlerts] = useState<LeverageAlertRow[]>([]);
   const [leverageAlertsLoading, setLeverageAlertsLoading] = useState(false);
@@ -1519,6 +1555,37 @@ export default function Dashboard() {
     }
   };
 
+  const fetchNovaPlus = async () => {
+    setNovaPlusLoading(true);
+    setNovaPlusError(null);
+    const symbol = novaPlusSymbol.trim().toUpperCase() || "BTC";
+    const amount = Number(novaPlusAmount);
+    try {
+      const res = await fetch("/api/nova-plus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol,
+          timeframe: novaPlusTimeframe,
+          amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+        }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.result) {
+        setNovaPlusResult(data.result as NovaPlusResult);
+      } else {
+        setNovaPlusResult(null);
+        setNovaPlusError(data?.locked ? "Nova+ is for VIP subscribers." : (data?.error ?? (res.ok ? "No data" : `Error ${res.status}`)));
+      }
+    } catch (e) {
+      setNovaPlusResult(null);
+      setNovaPlusError(e instanceof Error ? e.message : "Nova+ failed");
+    } finally {
+      setNovaPlusLoading(false);
+    }
+  };
+
   const fetchTopAltcoins = async () => {
     setTopAltcoinsLoading(true);
     try {
@@ -1701,7 +1768,7 @@ export default function Dashboard() {
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "nova-forecast" || activeTab === "nova-investment" || activeTab === "watchlist") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (walletTrackerView === "meme") {
@@ -2599,6 +2666,9 @@ export default function Dashboard() {
                 {isTabVisibleInGui("nova-forecast") && (
                   <TabsTrigger value="nova-forecast" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaForecast Agent</TabsTrigger>
                 )}
+                {isTabVisibleInGui("nova-plus") && (
+                  <TabsTrigger value="nova-plus" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova+</TabsTrigger>
+                )}
                 {isTabVisibleInGui("nova-investment") && (
                   <TabsTrigger value="nova-investment" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">Nova Investment Agent</TabsTrigger>
                 )}
@@ -2648,6 +2718,7 @@ export default function Dashboard() {
                       ? "Mem Coins Traders (Wallet Tracker → Meme) is VIP on-demand. Request access and an admin will enable it for your account."
                       : "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets.")}
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
+                  {activeTab === "nova-plus" && "Nova+ provides risk-managed trade analysis with a recommended stop loss, take-profit target, and position sizing guidance. VIP only."}
                   {activeTab === "nova-investment" && "Nova Investment Agent builds leverage strategies from your amount, risk preset, and duration (support/resistance + direction, leverage, stop loss, entry/exit). VIP only."}
                   {activeTab === "nova-connect" && "NovaConnect: the first social platform for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}
                   {" "}
@@ -5322,6 +5393,88 @@ export default function Dashboard() {
                     </div>
                   </TabsContent>
                 </Tabs>
+              </div>
+            ) : activeTab === "nova-plus" ? (
+              <div className="mx-6 py-6">
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                  <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Nova+ Risk Management</h2>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Enter contract, optional account amount, and timeframe to get a risk-managed setup with recommended stop loss, take-profit, and position sizing.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 mb-4">
+                    <input
+                      type="text"
+                      placeholder="Contract symbol e.g. BTC"
+                      value={novaPlusSymbol}
+                      onChange={(e) => setNovaPlusSymbol(e.target.value.toUpperCase())}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-56 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Account amount (optional)"
+                      value={novaPlusAmount}
+                      onChange={(e) => setNovaPlusAmount(e.target.value)}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-56 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                    />
+                    <select
+                      value={novaPlusTimeframe}
+                      onChange={(e) => setNovaPlusTimeframe(e.target.value)}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                    >
+                      {["15m", "1h", "2h", "4h", "6h", "12h", "24h", "48h", "72h", "1w", "2w", "4w", "52w", "104w"].map((tf) => (
+                        <option key={`nova-plus-${tf}`} value={tf}>{tf}</option>
+                      ))}
+                    </select>
+                    <Button onClick={fetchNovaPlus} disabled={novaPlusLoading || !novaPlusSymbol.trim()}>
+                      {novaPlusLoading ? "Running…" : "Run Nova+"}
+                    </Button>
+                  </div>
+                  {novaPlusError && (
+                    <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{novaPlusError}</p>
+                  )}
+                  {!novaPlusLoading && !novaPlusError && !novaPlusResult && (
+                    <p className="text-xs text-muted-foreground">Enter symbol and timeframe, then click Run Nova+.</p>
+                  )}
+                  {novaPlusResult && (
+                    <div className="space-y-4">
+                      <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/60 dark:bg-zinc-900/30">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">{novaPlusResult.symbol}</span>
+                          <Badge variant="outline">TF: {novaPlusResult.timeframeLabel}</Badge>
+                          <span className="text-xs text-muted-foreground">Price: ${novaPlusResult.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span>
+                          <Badge variant="outline" className={novaPlusResult.bias === "long" ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300" : novaPlusResult.bias === "short" ? "border-rose-500/60 text-rose-700 dark:text-rose-300" : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"}>
+                            Bias: {novaPlusResult.bias}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">{novaPlusResult.analysis}</p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
+                          <h3 className="text-sm font-semibold mb-2">Trade Levels</h3>
+                          <p className="text-xs">Entry: <span className="font-mono">${novaPlusResult.recommendedEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span></p>
+                          <p className="text-xs">Stop loss: <span className="font-mono text-rose-600 dark:text-rose-400">${novaPlusResult.recommendedStopLoss.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span> ({novaPlusResult.stopLossDistancePct.toFixed(2)}%)</p>
+                          <p className="text-xs">Take profit: <span className="font-mono text-emerald-600 dark:text-emerald-400">${novaPlusResult.recommendedTakeProfit.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span></p>
+                          <p className="text-xs">R:R: <span className="font-mono">{novaPlusResult.riskReward.toFixed(2)}x</span></p>
+                        </div>
+                        <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
+                          <h3 className="text-sm font-semibold mb-2">Risk Management</h3>
+                          <p className="text-xs">Max risk/trade: {novaPlusResult.riskManagement.maxRiskPctPerTrade}%</p>
+                          <p className="text-xs">Suggested risk amount: {novaPlusResult.riskManagement.suggestedRiskAmount != null ? `$${novaPlusResult.riskManagement.suggestedRiskAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}` : "Enter account amount to calculate"}</p>
+                          <p className="text-xs">Suggested position size: {novaPlusResult.riskManagement.suggestedPositionSize != null ? `${novaPlusResult.riskManagement.suggestedPositionSize.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${novaPlusResult.symbol}` : "Enter account amount to calculate"}</p>
+                          <p className="text-xs text-muted-foreground mt-2">{novaPlusResult.riskManagement.note}</p>
+                        </div>
+                      </div>
+                      <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
+                        <h3 className="text-sm font-semibold mb-2">Market Structure + Order Book</h3>
+                        <p className="text-xs">Direction: <span className="capitalize">{novaPlusResult.marketDirection}</span></p>
+                        <p className="text-xs">Range: low <span className="font-mono">${novaPlusResult.levels.rangeLow.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span> / high <span className="font-mono">${novaPlusResult.levels.rangeHigh.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span></p>
+                        <p className="text-xs">Wall bias: <span className="capitalize">{novaPlusResult.orderBook.wallBias.replace("_", " ")}</span></p>
+                        <p className="text-xs">Strongest bid wall: {novaPlusResult.orderBook.strongestBidWall ? `$${novaPlusResult.orderBook.strongestBidWall.px.toLocaleString(undefined, { maximumFractionDigits: 4 })} (size ${novaPlusResult.orderBook.strongestBidWall.sz.toLocaleString(undefined, { maximumFractionDigits: 2 })})` : "N/A"}</p>
+                        <p className="text-xs">Strongest ask wall: {novaPlusResult.orderBook.strongestAskWall ? `$${novaPlusResult.orderBook.strongestAskWall.px.toLocaleString(undefined, { maximumFractionDigits: 4 })} (size ${novaPlusResult.orderBook.strongestAskWall.sz.toLocaleString(undefined, { maximumFractionDigits: 2 })})` : "N/A"}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : activeTab === "nova-investment" ? (
               <NovaInvestmentAgentPanel isOwner={isOwner} />
