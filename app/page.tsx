@@ -5111,13 +5111,13 @@ export default function Dashboard() {
                       <div className="flex flex-wrap items-center gap-4 mb-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
-                          {["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w"].map((tf) => (
+                          {["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w", "52w", "104w"].map((tf) => (
                             <label key={tf} className="flex items-center gap-1.5 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={novaSmartTimeframes.includes(tf)}
                                 onChange={() => {
-                          const order = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w"];
+                          const order = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w", "52w", "104w"];
                           setNovaSmartTimeframes((prev) => {
                             const next = prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf];
                             return next.sort((a, b) => order.indexOf(a) - order.indexOf(b));
@@ -5226,13 +5226,13 @@ export default function Dashboard() {
                       <div className="flex flex-wrap items-center gap-4 mb-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
-                          {["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w"].map((tf) => (
+                          {["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w", "52w", "104w"].map((tf) => (
                             <label key={`nova-q-${tf}`} className="flex items-center gap-1.5 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={novaQTimeframes.includes(tf)}
                                 onChange={() => {
-                                  const order = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w"];
+                                  const order = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w", "52w", "104w"];
                                   setNovaQTimeframes((prev) => {
                                     const next = prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf];
                                     return next.sort((a, b) => order.indexOf(a) - order.indexOf(b));

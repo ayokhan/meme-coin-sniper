@@ -24,6 +24,8 @@ const NOVA_Q_TIMEFRAMES = [
   { id: "4w", label: "4 weeks", interval: "1d", limit: 28 },
   { id: "5w", label: "5 weeks", interval: "1d", limit: 35 },
   { id: "6w", label: "6 weeks", interval: "1d", limit: 42 },
+  { id: "52w", label: "52 weeks", interval: "1d", limit: 364 },
+  { id: "104w", label: "104 weeks", interval: "1d", limit: 728 },
 ] as const;
 
 type CandleTuple = [string, string, string, string, string, ...string[]];
