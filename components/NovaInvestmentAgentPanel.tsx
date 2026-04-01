@@ -102,6 +102,7 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
   const [pinsLoading, setPinsLoading] = useState(false);
   const [portfolioActionLoading, setPortfolioActionLoading] = useState(false);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
+  const selectedClass = "bg-violet-600 hover:bg-violet-700 text-white border-violet-500";
 
   const loadPins = async () => {
     setPinsLoading(true);
@@ -303,7 +304,7 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
                     type="button"
                     variant={riskProfitPreset === key ? "secondary" : "outline"}
                     onClick={() => setRiskProfitPreset(key)}
-                    className={riskProfitPreset === key ? "border-violet-500" : ""}
+                    className={riskProfitPreset === key ? selectedClass : ""}
                   >
                     {label}
                   </Button>
@@ -327,7 +328,7 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
                     type="button"
                     variant={durationMode === mode ? "secondary" : "outline"}
                     onClick={() => setDurationMode(mode)}
-                    className={durationMode === mode ? "border-violet-500" : ""}
+                    className={durationMode === mode ? selectedClass : ""}
                   >
                     {label}
                   </Button>
@@ -339,7 +340,7 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-xs text-muted-foreground">Pick:</span>
                 {(["1w", "2w", "1m", "2m"] as const).map((id) => (
-                  <Button key={id} type="button" variant={longTermId === id ? "secondary" : "outline"} onClick={() => setLongTermId(id)} className={longTermId === id ? "border-violet-500" : ""}>
+                  <Button key={id} type="button" variant={longTermId === id ? "secondary" : "outline"} onClick={() => setLongTermId(id)} className={longTermId === id ? selectedClass : ""}>
                     {id === "1w" ? "1 week" : id === "2w" ? "2 weeks" : id === "1m" ? "1 month" : "2 months"}
                   </Button>
                 ))}
@@ -350,7 +351,7 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-xs text-muted-foreground">Pick:</span>
                 {(["1d", "2d"] as const).map((id) => (
-                  <Button key={id} type="button" variant={shortTermId === id ? "secondary" : "outline"} onClick={() => setShortTermId(id)} className={shortTermId === id ? "border-violet-500" : ""}>
+                  <Button key={id} type="button" variant={shortTermId === id ? "secondary" : "outline"} onClick={() => setShortTermId(id)} className={shortTermId === id ? selectedClass : ""}>
                     {id === "1d" ? "1 day" : "2 days"}
                   </Button>
                 ))}
@@ -360,7 +361,7 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
             {durationMode === "scalp" && (
               <div className="flex flex-wrap items-center gap-2">
                 {(["5m", "15m", "30m", "1h", "2h"] as const).map((id) => (
-                  <Button key={id} type="button" variant={scalpId === id ? "secondary" : "outline"} onClick={() => setScalpId(id)} className={scalpId === id ? "border-violet-500" : ""}>
+                  <Button key={id} type="button" variant={scalpId === id ? "secondary" : "outline"} onClick={() => setScalpId(id)} className={scalpId === id ? selectedClass : ""}>
                     {id}
                   </Button>
                 ))}
@@ -370,7 +371,7 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
             {durationMode === "swing" && (
               <div className="flex flex-wrap items-center gap-2">
                 {(["1h", "2h", "4h", "8h", "24h", "48h", "72h"] as const).map((id) => (
-                  <Button key={id} type="button" variant={swingId === id ? "secondary" : "outline"} onClick={() => setSwingId(id)} className={swingId === id ? "border-violet-500" : ""}>
+                  <Button key={id} type="button" variant={swingId === id ? "secondary" : "outline"} onClick={() => setSwingId(id)} className={swingId === id ? selectedClass : ""}>
                     {id}
                   </Button>
                 ))}

@@ -5,6 +5,7 @@ import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
+const HL_INFO_BASE = "https://api.hyperliquid.xyz/info";
 
 type RiskProfitPreset = "low_low" | "low_medium" | "medium_medium" | "high_high";
 type DurationMode =
@@ -100,6 +101,8 @@ type StrategyLeg = {
   notes?: string[];
 };
 
+type BookLevel = { px: number; sz: number };
+
 type NovaInvestmentAgentResult = {
   baseSymbol: string;
   amountUsd: number;
@@ -147,6 +150,57 @@ function getTfDirection(candles: CandleTuple[]): "bullish" | "bearish" | "sidewa
   if (pct > 0.0025) return "bullish";
   if (pct < -0.0025) return "bearish";
   return "sideways";
+}
+
+function getAtrPct(candles: CandleTuple[], price: number): number {
+  if (!candles.length || !Number.isFinite(price) || price <= 0) return 0.01;
+  const ranges = candles
+    .map((c) => ({ h: Number(c[2]), l: Number(c[3]) }))
+    .filter((x) => Number.isFinite(x.h) && Number.isFinite(x.l) && x.h > 0 && x.l > 0 && x.h >= x.l)
+    .slice(0, 24)
+    .map((x) => (x.h - x.l) / price);
+  if (ranges.length === 0) return 0.01;
+  return ranges.reduce((sum, r) => sum + r, 0) / ranges.length;
+}
+
+async function fetchOrderBookWalls(symbol: string): Promise<{
+  strongestBidWall: BookLevel | null;
+  strongestAskWall: BookLevel | null;
+}> {
+  try {
+    const res = await fetch(HL_INFO_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "l2Book", coin: symbol }),
+      cache: "no-store",
+    });
+    if (!res.ok) return { strongestBidWall: null, strongestAskWall: null };
+    const raw = await res.json() as { levels?: unknown[] } | unknown[];
+    const levels = Array.isArray((raw as { levels?: unknown[] })?.levels)
+      ? (raw as { levels?: unknown[] }).levels as unknown[]
+      : (Array.isArray(raw) ? raw : []);
+    const bidsRaw = Array.isArray(levels[0]) ? levels[0] as unknown[] : [];
+    const asksRaw = Array.isArray(levels[1]) ? levels[1] as unknown[] : [];
+    const parse = (arr: unknown[]) =>
+      arr
+        .map((row) => {
+          if (Array.isArray(row)) return { px: Number(row[0]), sz: Number(row[1]) };
+          if (row && typeof row === "object") {
+            const r = row as Record<string, unknown>;
+            return { px: Number(r.px ?? r.price), sz: Number(r.sz ?? r.size) };
+          }
+          return { px: 0, sz: 0 };
+        })
+        .filter((x) => Number.isFinite(x.px) && Number.isFinite(x.sz) && x.px > 0 && x.sz > 0);
+    const bids = parse(bidsRaw);
+    const asks = parse(asksRaw);
+    return {
+      strongestBidWall: bids.length ? bids.reduce((a, b) => (b.sz > a.sz ? b : a)) : null,
+      strongestAskWall: asks.length ? asks.reduce((a, b) => (b.sz > a.sz ? b : a)) : null,
+    };
+  } catch {
+    return { strongestBidWall: null, strongestAskWall: null };
+  }
 }
 
 function mapRiskPreset(preset: RiskProfitPreset): { leverage: number; stopLossPct: number; takeProfitPct: number; highVolAllocPct: number } {
@@ -342,6 +396,28 @@ export async function POST(request: Request) {
 
       const tfDir = getTfDirection(candlesBase as CandleTuple[]);
       const legDirection = chooseDirectionFromMarketStructure(tfDir, currentPrice, hl.low, hl.high);
+      const { strongestBidWall, strongestAskWall } = await fetchOrderBookWalls(baseSymbol);
+      const atrPct = getAtrPct(candlesBase as CandleTuple[], currentPrice);
+      const rangePct = hl.high > 0 ? (hl.high - hl.low) / hl.high : 0.01;
+
+      const entryAnchor = legDirection === "long" ? hl.low * 1.004 : hl.high * 0.996;
+      const structureInvalidation = legDirection === "long"
+        ? Math.min(hl.low, strongestBidWall?.px ? strongestBidWall.px * 0.995 : hl.low)
+        : Math.max(hl.high, strongestAskWall?.px ? strongestAskWall.px * 1.005 : hl.high);
+      const structureStopPct = legDirection === "long"
+        ? Math.max(0, (entryAnchor - structureInvalidation) / entryAnchor)
+        : Math.max(0, (structureInvalidation - entryAnchor) / entryAnchor);
+
+      const baseStopPct = Math.max(stopLossPct / 100, atrPct * 1.2, rangePct * 0.22, 0.004);
+      const dynamicStopPct = Math.min(0.09, Math.max(baseStopPct, structureStopPct));
+      const capTpPct =
+        legType === "scalp" ? 1.2 :
+        legType === "short" ? 2.0 :
+        legType === "swing" ? 4.0 : 7.0;
+      const dynamicTakeProfitPct = Math.min(
+        capTpPct,
+        Math.max(dynamicStopPct * 100 * 1.7, takeProfitPct * (legType === "scalp" ? 0.45 : legType === "short" ? 0.65 : 1))
+      );
 
       const candidateSymbols = Array.from(new Set([baseSymbol, ...candidateMajors])).slice(0, 6);
       const candlesPerCoin: Record<string, CandleTuple[]> = {};
@@ -362,8 +438,8 @@ export async function POST(request: Request) {
         highVolatileCoinSymbols: highVolatile,
         highVolAllocPct,
         leverage,
-        stopLossPct,
-        takeProfitPct,
+        stopLossPct: Number((dynamicStopPct * 100).toFixed(2)),
+        takeProfitPct: Number(dynamicTakeProfitPct.toFixed(2)),
         amountUsd: legUsd,
         legEntryZone: {
           support: hl.low,
@@ -377,13 +453,13 @@ export async function POST(request: Request) {
       });
 
       // Futures approximation: expected return on margin ~ leverage * takeProfitPct
-      const expectedReturnPctOnMargin = leverage * takeProfitPct;
+      const expectedReturnPctOnMargin = leverage * dynamicTakeProfitPct;
       const expectedReturnUsdOnLeg = (legUsd * expectedReturnPctOnMargin) / 100;
 
       const directionTxt = legDirection === "long" ? "Long" : "Short";
       const entryZoneTxt = legDirection === "long" ? `pullback to support zone (${hl.low.toFixed(4)} … ${(hl.low * 1.006).toFixed(4)})` : `retest of resistance zone (${(hl.high * 0.994).toFixed(4)} … ${hl.high.toFixed(4)})`;
-      const stopLossTxt = legDirection === "long" ? `stop below support (${(hl.low * (1 - stopLossPct / 100)).toFixed(4)})` : `stop above resistance (${(hl.high * (1 + stopLossPct / 100)).toFixed(4)})`;
-      const takeProfitTxt = legDirection === "long" ? `take profit near ${takeProfitPct}% move` : `take profit near ${takeProfitPct}% move`;
+      const stopLossTxt = legDirection === "long" ? `stop below invalidation (${(entryAnchor * (1 - dynamicStopPct)).toFixed(4)})` : `stop above invalidation (${(entryAnchor * (1 + dynamicStopPct)).toFixed(4)})`;
+      const takeProfitTxt = `take profit near ${dynamicTakeProfitPct.toFixed(2)}% move`;
 
       return {
         legType,
@@ -391,14 +467,17 @@ export async function POST(request: Request) {
         timeframeId: window.id,
         direction: legDirection,
         leverage,
-        stopLossPct,
-        takeProfitPct,
+        stopLossPct: Number((dynamicStopPct * 100).toFixed(2)),
+        takeProfitPct: Number(dynamicTakeProfitPct.toFixed(2)),
         expectedReturnPctOnMargin,
         expectedReturnUsdOnLeg,
         entryPlan: `${directionTxt} entry: wait for ${baseSymbol} price to ${entryZoneTxt}.`,
         exitPlan: `Exit plan: ${takeProfitTxt}; ${stopLossTxt}. If neither hits within the selected timeframe, close/rotate.`,
         coins,
-        notes: notes.length ? notes : undefined,
+        notes: [
+          ...notes,
+          `Risk engine: ATR ${ (atrPct * 100).toFixed(2) }%, structure ${ (rangePct * 100).toFixed(2) }%, order-book wall aware.`,
+        ],
       } satisfies StrategyLeg;
     };
 
