@@ -787,10 +787,16 @@ export default function Dashboard() {
       profitIfTakeProfitUsd: number;
       lossIfStopUsd: number;
       notionalUsd: number;
+      notionalFromSizingExplanation?: string;
       leverage: number | null;
       estimatedMarginUsd: number | null;
+      marginPctOfAccount?: number | null;
+      theoreticalMaxNotionalIfFullAccountUsd?: number | null;
       returnOnMarginIfTpPct: number | null;
       returnOnMarginIfSlPct: number | null;
+      estimatedLiquidationPx?: number | null;
+      liquidationDistanceFromEntryPct?: number | null;
+      liquidationDisclaimer?: string;
       note: string;
     } | null;
   };
@@ -5562,15 +5568,69 @@ export default function Dashboard() {
                                   −${novaPlusResult.pnlPreview.lossIfStopUsd.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
                                 </span>
                               </p>
-                              <p className="text-xs text-muted-foreground">
-                                Notional ≈ ${novaPlusResult.pnlPreview.notionalUsd.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                              <p className="text-xs">
+                                Position notional (size × price):{" "}
+                                <span className="font-mono">
+                                  ≈ ${novaPlusResult.pnlPreview.notionalUsd.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                                </span>
                               </p>
+                              {novaPlusResult.pnlPreview.notionalFromSizingExplanation && (
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                  {novaPlusResult.pnlPreview.notionalFromSizingExplanation}
+                                </p>
+                              )}
+                              {novaPlusResult.pnlPreview.theoreticalMaxNotionalIfFullAccountUsd != null &&
+                                novaPlusResult.riskManagement.accountAmount != null && (
+                                  <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                                    Compare: if you used the <strong>entire</strong> ${novaPlusResult.riskManagement.accountAmount.toLocaleString()} account as
+                                    margin at {novaPlusResult.pnlPreview.leverage}×, theoretical exposure cap is ≈{" "}
+                                    <span className="font-mono">
+                                      $
+                                      {novaPlusResult.pnlPreview.theoreticalMaxNotionalIfFullAccountUsd.toLocaleString(undefined, {
+                                        maximumFractionDigits: 0,
+                                      })}
+                                    </span>
+                                    . This trade is sized from your 1% stop risk, so actual notional is lower.
+                                  </p>
+                                )}
                               {novaPlusResult.pnlPreview.leverage != null && novaPlusResult.pnlPreview.estimatedMarginUsd != null ? (
                                 <>
                                   <p className="text-xs">
                                     Est. margin ({novaPlusResult.pnlPreview.leverage}×):{" "}
                                     <span className="font-mono">${novaPlusResult.pnlPreview.estimatedMarginUsd.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</span>
+                                    {novaPlusResult.pnlPreview.marginPctOfAccount != null && (
+                                      <span className="text-muted-foreground">
+                                        {" "}
+                                        (~{novaPlusResult.pnlPreview.marginPctOfAccount.toFixed(1)}% of account)
+                                      </span>
+                                    )}
                                   </p>
+                                  {novaPlusResult.pnlPreview.estimatedLiquidationPx != null &&
+                                    novaPlusResult.pnlPreview.liquidationDistanceFromEntryPct != null && (
+                                      <p className="text-xs">
+                                        Est. liquidation (isolated approx.):{" "}
+                                        <span className="font-mono text-amber-700 dark:text-amber-300">
+                                          $
+                                          {novaPlusResult.pnlPreview.estimatedLiquidationPx.toLocaleString(undefined, {
+                                            maximumFractionDigits: 2,
+                                            minimumFractionDigits: 2,
+                                          })}
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                          {" "}
+                                          ({novaPlusResult.pnlPreview.liquidationDistanceFromEntryPct >= 0 ? "+" : ""}
+                                          {novaPlusResult.pnlPreview.liquidationDistanceFromEntryPct.toFixed(2)}% from entry)
+                                        </span>
+                                      </p>
+                                    )}
+                                  {novaPlusResult.pnlPreview.estimatedLiquidationPx == null && (
+                                    <p className="text-[11px] text-muted-foreground">
+                                      Est. liquidation not computed for this shape—use your exchange&apos;s risk tab for exact liq.
+                                    </p>
+                                  )}
+                                  {novaPlusResult.pnlPreview.liquidationDisclaimer && (
+                                    <p className="text-[11px] text-muted-foreground">{novaPlusResult.pnlPreview.liquidationDisclaimer}</p>
+                                  )}
                                   {novaPlusResult.pnlPreview.returnOnMarginIfTpPct != null && (
                                     <p className="text-xs">
                                       ROE if TP:{" "}
@@ -5589,7 +5649,7 @@ export default function Dashboard() {
                                   )}
                                 </>
                               ) : (
-                                <p className="text-[11px] text-muted-foreground">Add leverage above to see est. margin and ROE% on that margin.</p>
+                                <p className="text-[11px] text-muted-foreground">Add leverage to see est. margin, approximate liquidation, and ROE% on margin.</p>
                               )}
                               <p className="text-[11px] text-muted-foreground mt-1">{novaPlusResult.pnlPreview.note}</p>
                             </div>

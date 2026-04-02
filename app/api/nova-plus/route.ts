@@ -37,6 +37,36 @@ function toNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Illustrative maintenance rate for isolated USDC linear perps (not exchange-specific). */
+const LiqMaintMarginRate = 0.006;
+
+/**
+ * Rough isolated liquidation mark for linear coin/USD (size in coin, prices in USD).
+ * Equity = margin + unrealized; liq when equity ≈ maintenance on position.
+ */
+function estimateIsolatedLiquidationPx(
+  tradeSetup: "long" | "short",
+  entry: number,
+  positionSize: number,
+  marginUsd: number
+): number | null {
+  if (!(entry > 0) || !(positionSize > 0) || !(marginUsd > 0)) return null;
+  const Q = positionSize;
+  const mm = LiqMaintMarginRate;
+  if (tradeSetup === "long") {
+    const denom = Q * (mm - 1);
+    if (Math.abs(denom) < 1e-12) return null;
+    const p = (marginUsd - Q * entry) / denom;
+    if (!Number.isFinite(p) || p <= 0 || p >= entry) return null;
+    return p;
+  }
+  const denom = Q * (1 + mm);
+  if (Math.abs(denom) < 1e-12) return null;
+  const p = (marginUsd + Q * entry) / denom;
+  if (!Number.isFinite(p) || p <= 0 || p <= entry) return null;
+  return p;
+}
+
 function getTrend(closesNewestFirst: number[]): "bullish" | "bearish" | "sideways" {
   if (closesNewestFirst.length < 6) return "sideways";
   const closes = [...closesNewestFirst].reverse();
@@ -212,15 +242,21 @@ export async function POST(request: Request) {
     const suggestedPositionSize =
       suggestedRiskAmount != null && stopDistance > 0 ? suggestedRiskAmount / stopDistance : null;
 
-    /** USD P&L for linear (US$ margin) perps: PnL ≈ coin size × $ price move. Leverage changes margin and ROE%, not these $ amounts at fixed size. */
+    /** USD P&L for linear (US$ margin) perps: PnL ≈ coin size × $ price move. Leverage sets margin = notional ÷ leverage for isolated-style math. */
     let pnlPreview: {
       profitIfTakeProfitUsd: number;
       lossIfStopUsd: number;
       notionalUsd: number;
+      notionalFromSizingExplanation: string;
       leverage: number | null;
       estimatedMarginUsd: number | null;
+      marginPctOfAccount: number | null;
+      theoreticalMaxNotionalIfFullAccountUsd: number | null;
       returnOnMarginIfTpPct: number | null;
       returnOnMarginIfSlPct: number | null;
+      estimatedLiquidationPx: number | null;
+      liquidationDistanceFromEntryPct: number | null;
+      liquidationDisclaimer: string;
       note: string;
     } | null = null;
 
@@ -239,6 +275,12 @@ export async function POST(request: Request) {
       lossIfStopUsd = Math.max(0, lossIfStopUsd);
       const estimatedMarginUsd =
         leverage != null && leverage > 0 ? notionalUsd / leverage : null;
+      const theoreticalMaxNotionalIfFullAccountUsd =
+        amountValid != null && leverage != null && leverage > 0 ? amountValid * leverage : null;
+      const marginPctOfAccount =
+        amountValid != null && amountValid > 0 && estimatedMarginUsd != null
+          ? (estimatedMarginUsd / amountValid) * 100
+          : null;
       const returnOnMarginIfTpPct =
         estimatedMarginUsd != null && estimatedMarginUsd > 0
           ? (profitIfTakeProfitUsd / estimatedMarginUsd) * 100
@@ -247,18 +289,47 @@ export async function POST(request: Request) {
         estimatedMarginUsd != null && estimatedMarginUsd > 0
           ? -(lossIfStopUsd / estimatedMarginUsd) * 100
           : null;
+
+      let estimatedLiquidationPx: number | null = null;
+      let liquidationDistanceFromEntryPct: number | null = null;
+      if (estimatedMarginUsd != null && estimatedMarginUsd > 0) {
+        estimatedLiquidationPx = estimateIsolatedLiquidationPx(
+          tradeSetup,
+          entry,
+          suggestedPositionSize,
+          estimatedMarginUsd
+        );
+        if (estimatedLiquidationPx != null && entry > 0) {
+          liquidationDistanceFromEntryPct = ((estimatedLiquidationPx - entry) / entry) * 100;
+        }
+      }
+
+      const notionalFromSizingExplanation =
+        "Notional here = suggested coin size × entry (your USD exposure). " +
+        "It comes from risking 1% of account to the stop—not from account × leverage. " +
+        "Leverage only splits that exposure into margin: margin ≈ notional ÷ leverage.";
+
+      const liquidationDisclaimer =
+        `Approx. isolated liq using ${(LiqMaintMarginRate * 100).toFixed(2)}% maintenance (illustrative). Real liq depends on the exchange, cross vs isolated, funding, fees, and mark price.`;
+
       pnlPreview = {
         profitIfTakeProfitUsd,
         lossIfStopUsd,
         notionalUsd,
+        notionalFromSizingExplanation,
         leverage,
         estimatedMarginUsd,
+        marginPctOfAccount,
+        theoreticalMaxNotionalIfFullAccountUsd,
         returnOnMarginIfTpPct,
         returnOnMarginIfSlPct,
+        estimatedLiquidationPx,
+        liquidationDistanceFromEntryPct,
+        liquidationDisclaimer,
         note:
           leverage != null
-            ? `Est. margin ≈ notional (${notionalUsd.toFixed(2)} USD) ÷ ${leverage}x. ROE% is profit or loss divided by that margin (excl. fees, funding, liquidation).`
-            : "Add optional leverage to see estimated margin and return on margin (ROE%) for this coin size. Dollar amounts at TP/SL do not change with leverage for a fixed position size.",
+            ? `Check margin: $${estimatedMarginUsd?.toFixed(2) ?? "—"} ≈ notional $${notionalUsd.toFixed(2)} ÷ ${leverage}x. ROE% uses that margin (excl. fees, funding, liquidation).`
+            : "Add optional leverage to see margin, ROE%, and an approximate liquidation level. Dollar P&L at TP/SL depends on size, not leverage.",
       };
     }
 
