@@ -23,7 +23,6 @@ import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
 import TradingBotPanel from "@/components/TradingBotPanel";
-import NovaScalperPanel from "@/components/NovaScalperPanel";
 import PropFirmBotPanel from "@/components/PropFirmBotPanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 
@@ -384,7 +383,7 @@ export default function Dashboard() {
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
   const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
-  type TradingBotView = "crypto" | "nova-scalper" | "prop-firm";
+  type TradingBotView = "crypto" | "prop-firm";
   const [tradingBotView, setTradingBotView] = useState<TradingBotView>("crypto");
   type WalletTrackerView = "meme" | "leverage";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
@@ -5088,22 +5087,15 @@ export default function Dashboard() {
                 </div>
                 ) : (
                 <div className="mx-3 sm:mx-6 mt-4 mb-3">
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTradingBotView("crypto")}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium ${tradingBotView === "crypto" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"}`}
-                    >
-                      Crypto Futures Bot
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTradingBotView("nova-scalper")}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium ${tradingBotView === "nova-scalper" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"}`}
-                    >
-                      NovaScalper
-                    </button>
-                    {isOwner && (
+                  {isOwner && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setTradingBotView("crypto")}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${tradingBotView === "crypto" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"}`}
+                      >
+                        Crypto Futures Bot
+                      </button>
                       <button
                         type="button"
                         onClick={() => setTradingBotView("prop-firm")}
@@ -5111,19 +5103,12 @@ export default function Dashboard() {
                       >
                         Prop Firm Bot (Owner)
                       </button>
-                    )}
-                  </div>
-                  {tradingBotView === "crypto" ? (
+                    </div>
+                  )}
+                  {(!isOwner || tradingBotView === "crypto") ? (
                     <>
                       <p className="text-sm text-muted-foreground mb-3">Blofin futures bot: configure symbol, leverage, TP/SL; run demo or live. VIP + On demand.</p>
                       <TradingBotPanel />
-                    </>
-                  ) : tradingBotView === "nova-scalper" ? (
-                    <>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        NovaScalper — repeatable mark-price entry and exit on Blofin (same API keys as Crypto Futures Bot). VIP + On demand.
-                      </p>
-                      <NovaScalperPanel />
                     </>
                   ) : (
                     <>

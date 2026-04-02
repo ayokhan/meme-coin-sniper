@@ -527,9 +527,10 @@ model TradingBot {
   @@index([enabled])
 }
 
-// NovaScalper — owner/VIP Blofin: repeat entry at price A, exit (close position) at price B, optional stop. Singleton row.
+// NovaScalper — per-user Blofin config (VIP + owner). symbol = base only e.g. BTC; marginCurrency = USDT|USDC.
 model NovaScalperConfig {
   id               String   @id @default(cuid())
+  userId           String?  @unique
   enabled          Boolean  @default(false)
   mode             String   @default("demo") // demo | live
   symbol           String   @default("BTC")

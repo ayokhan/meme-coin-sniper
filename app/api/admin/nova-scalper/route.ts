@@ -4,15 +4,58 @@ import { authOptions, canAccessTradingBot } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isBlofinConfigured } from "@/lib/blofin";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
+import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
 
 export const dynamic = "force-dynamic";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
+async function ensureNovaScalperRow(sessionUserId: string) {
+  let row = await db.novaScalperConfig.findFirst({ where: { userId: sessionUserId } });
+  if (row) return row;
+  const legacyList = await db.novaScalperConfig.findMany({ where: { userId: null } });
+  if (legacyList.length === 1) {
+    return await db.novaScalperConfig.update({
+      where: { id: legacyList[0].id },
+      data: { userId: sessionUserId },
+    });
+  }
+  if (legacyList.length > 1) {
+    await db.novaScalperConfig.deleteMany({ where: { userId: null } });
+  }
+  return await db.novaScalperConfig.create({
+    data: {
+      userId: sessionUserId,
+      symbol: "BTC",
+      marginCurrency: "USDT",
+      entryPrice: 95000,
+      exitPrice: 96000,
+      positionSizeUsdt: 50,
+      leverage: 5,
+      side: "long",
+    },
+  });
+}
+
+async function normalizeStoredInstrument(row: { id: string; symbol: string; marginCurrency?: string }) {
+  const sym = String(row.symbol);
+  if (!sym.includes("/") && !sym.includes("-")) return row;
+  const { base, quote } = parseScalperInstrument(sym, row.marginCurrency ?? "USDT");
+  if (!base) return row;
+  if (sym === base) return row;
+  return await db.novaScalperConfig.update({
+    where: { id: row.id },
+    data: { symbol: base, marginCurrency: quote },
+  });
+}
+
 function validateBody(body: Record<string, unknown>): string | undefined {
-  const symbol = String(body.symbol ?? "").trim().toUpperCase();
-  if (!symbol) return "Symbol is required.";
+  const parsed = parseScalperInstrument(
+    String(body.symbol ?? ""),
+    body.marginCurrency === "USDC" ? "USDC" : "USDT"
+  );
+  if (!parsed.base || !parsed.instId) return "Instrument is required (e.g. BTC/USDT or BTC/USDC).";
   const lev = Number(body.leverage);
   if (!Number.isFinite(lev) || lev < 1 || lev > 125) return "Leverage must be 1–125.";
   const entry = Number(body.entryPrice);
@@ -23,7 +66,7 @@ function validateBody(body: Record<string, unknown>): string | undefined {
   if (side === "long" && exit <= entry) return "Long: exit must be above entry.";
   if (side === "short" && exit >= entry) return "Short: exit must be below entry.";
   const pos = Number(body.positionSizeUsdt);
-  if (!Number.isFinite(pos) || pos < 1 || pos > 1_000_000) return "Margin (USDT) must be 1–1,000,000.";
+  if (!Number.isFinite(pos) || pos < 1 || pos > 1_000_000) return "Margin must be 1–1,000,000.";
   const sl = body.stopLossPrice;
   if (sl != null && sl !== "") {
     const s = Number(sl);
@@ -35,12 +78,17 @@ function validateBody(body: Record<string, unknown>): string | undefined {
 }
 
 function toConfig(row: Record<string, unknown>) {
+  const base = String(row.symbol ?? "BTC");
+  const quote = row.marginCurrency === "USDC" ? "USDC" : "USDT";
+  const { instId } = parseScalperInstrument(base, quote);
   return {
     id: row.id,
     enabled: !!row.enabled,
     mode: row.mode === "live" ? "live" : "demo",
-    symbol: row.symbol,
-    marginCurrency: row.marginCurrency ?? "USDT",
+    symbol: base,
+    marginCurrency: quote,
+    instrumentPair: `${base}/${quote}`,
+    instId,
     marginMode: row.marginMode === "isolated" ? "isolated" : "cross",
     side: row.side === "short" ? "short" : "long",
     entryTrigger: row.entryTrigger === "cross_up" ? "cross_up" : "cross_down",
@@ -68,25 +116,26 @@ export async function GET() {
     if (!canAccessTradingBot(session)) {
       return NextResponse.json({ success: false, error: "Access denied." }, { status: 403 });
     }
-    let row = await db.novaScalperConfig.findFirst({ orderBy: { updatedAt: "desc" } });
-    if (!row) {
-      row = await db.novaScalperConfig.create({
-        data: {
-          symbol: "BTC",
-          entryPrice: 95000,
-          exitPrice: 96000,
-          positionSizeUsdt: 50,
-          leverage: 5,
-          side: "long",
-        },
-      });
+    const sessionUserId = session?.user?.id;
+    if (!sessionUserId) {
+      return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
     }
+
+    let row = await ensureNovaScalperRow(sessionUserId);
+    row = await normalizeStoredInstrument(row);
+
     return NextResponse.json({ success: true, config: toConfig(row as Record<string, unknown>) });
   } catch (e) {
     console.error("nova-scalper GET:", e);
     const msg = e instanceof Error ? e.message : "Failed to load.";
     return NextResponse.json(
-      { success: false, error: msg.includes("nova_scalper") ? "Run: npx prisma db push" : msg },
+      {
+        success: false,
+        error:
+          msg.includes("userId") || msg.includes("NovaScalperConfig")
+            ? "Database needs the latest schema. Run: npx prisma db push"
+            : msg,
+      },
       { status: 500 }
     );
   }
@@ -98,34 +147,38 @@ export async function PATCH(request: Request) {
     if (!canAccessTradingBot(session)) {
       return NextResponse.json({ success: false, error: "Access denied." }, { status: 403 });
     }
-    const uid = session?.user?.id;
-    const userCfg = uid ? await getBlofinConfigForUser(uid) : null;
-    if (!isBlofinConfigured() && !userCfg) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Save Blofin keys (Trading Bot section) or set server BLOFIN_* env before enabling.",
-        },
-        { status: 400 }
-      );
+    const sessionUserId = session?.user?.id;
+    if (!sessionUserId) {
+      return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
     }
+
+    const uid = sessionUserId;
+    const userCfg = await getBlofinConfigForUser(uid);
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const err = validateBody(body);
     if (err) return NextResponse.json({ success: false, error: err }, { status: 400 });
 
-    let row = await db.novaScalperConfig.findFirst({ orderBy: { updatedAt: "desc" } });
-    if (!row) {
-      row = await db.novaScalperConfig.create({
-        data: { symbol: "BTC", entryPrice: 1, exitPrice: 2, positionSizeUsdt: 50, leverage: 5 },
-      });
+    if (body.enabled === true && !isBlofinConfigured() && !userCfg) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Add your Blofin API keys below (or in Trading Bot) before enabling NovaScalper. VIP accounts use their own keys.",
+        },
+        { status: 400 }
+      );
     }
 
+    let row = await ensureNovaScalperRow(sessionUserId);
+
+    const { base, quote } = parseScalperInstrument(
+      String(body.symbol ?? ""),
+      body.marginCurrency === "USDC" ? "USDC" : "USDT"
+    );
+
     const stopRaw = body.stopLossPrice;
-    const stopLossPrice =
-      stopRaw == null || stopRaw === ""
-        ? null
-        : Number(stopRaw);
+    const stopLossPrice = stopRaw == null || stopRaw === "" ? null : Number(stopRaw);
 
     const tpslTp = body.tpslTpPct != null && body.tpslTpPct !== "" ? Number(body.tpslTpPct) : null;
     const tpslSl = body.tpslSlPct != null && body.tpslSlPct !== "" ? Number(body.tpslSlPct) : null;
@@ -135,8 +188,8 @@ export async function PATCH(request: Request) {
       data: {
         enabled: body.enabled === true,
         mode: body.mode === "live" ? "live" : "demo",
-        symbol: String(body.symbol ?? "BTC").trim().toUpperCase(),
-        marginCurrency: body.marginCurrency === "USDC" ? "USDC" : "USDT",
+        symbol: base,
+        marginCurrency: quote,
         marginMode: body.marginMode === "isolated" ? "isolated" : "cross",
         side: body.side === "short" ? "short" : "long",
         entryTrigger: body.entryTrigger === "cross_up" ? "cross_up" : "cross_down",

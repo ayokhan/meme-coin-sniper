@@ -11,10 +11,14 @@ export async function POST(request: Request) {
     if (!canAccessTradingBot(session)) {
       return NextResponse.json({ success: false, error: "Access denied." }, { status: 403 });
     }
+    const userId = session?.user?.id;
+    if (!userId) {
+      return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
+    }
     const body = (await request.json().catch(() => ({}))) as {
       clearRounds?: boolean;
     };
-    const r = await resetNovaScalperState({
+    const r = await resetNovaScalperState(userId, {
       clearRounds: body.clearRounds === true,
       clearInPosition: true,
     });

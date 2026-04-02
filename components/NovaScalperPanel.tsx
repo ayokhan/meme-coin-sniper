@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
 
 type ScalperConfig = {
   id: string;
@@ -10,6 +11,9 @@ type ScalperConfig = {
   mode: "demo" | "live";
   symbol: string;
   marginCurrency: string;
+  /** Editable pair e.g. BTC/USDT — sent as `symbol` on save */
+  instrumentPair: string;
+  instId: string;
   marginMode: "cross" | "isolated";
   side: "long" | "short";
   entryTrigger: "cross_down" | "cross_up";
@@ -38,21 +42,51 @@ export default function NovaScalperPanel() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [autoSec, setAutoSec] = useState<0 | 15 | 30 | 60>(0);
+  const [userBlofinConfigured, setUserBlofinConfigured] = useState<boolean | null>(null);
+  const [blofinKeysForm, setBlofinKeysForm] = useState({
+    apiKey: "",
+    secretKey: "",
+    passphrase: "",
+    demoMode: true,
+    brokerId: "",
+  });
+  const [savingBlofinKeys, setSavingBlofinKeys] = useState(false);
+  const [clearingBlofinKeys, setClearingBlofinKeys] = useState(false);
+
+  const loadUserBlofinConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/user/blofin-config", { credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      setUserBlofinConfigured(data.success && data.configured === true);
+    } catch {
+      setUserBlofinConfigured(null);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      void loadUserBlofinConfig();
       const res = await fetch("/api/admin/nova-scalper", { credentials: "include", cache: "no-store" });
       const data = await res.json();
-      if (data.success && data.config) setConfig(data.config as ScalperConfig);
-      else setError(data.error ?? `Error ${res.status}`);
+      if (data.success && data.config) {
+        const c = data.config as ScalperConfig;
+        const pair =
+          c.instrumentPair?.trim() ||
+          `${String(c.symbol ?? "BTC").toUpperCase()}/${c.marginCurrency === "USDC" ? "USDC" : "USDT"}`;
+        setConfig({
+          ...c,
+          instrumentPair: pair,
+          instId: String(c.instId ?? ""),
+        });
+      } else setError(data.error ?? `Error ${res.status}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Load failed");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadUserBlofinConfig]);
 
   useEffect(() => {
     void load();
@@ -80,15 +114,22 @@ export default function NovaScalperPanel() {
     setError(null);
     setSuccess(null);
     try {
+      const { instrumentPair, instId, ...rest } = config;
+      const normalizedSymbol = instrumentPair.trim().toUpperCase().replace(/-/g, "/");
       const res = await fetch("/api/admin/nova-scalper", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(config),
+        body: JSON.stringify({ ...rest, symbol: normalizedSymbol }),
       });
       const data = await res.json();
       if (data.success && data.config) {
-        setConfig(data.config);
+        const c = data.config as ScalperConfig;
+        setConfig({
+          ...c,
+          instrumentPair: c.instrumentPair ?? `${c.symbol}/${c.marginCurrency === "USDC" ? "USDC" : "USDT"}`,
+          instId: String(c.instId ?? ""),
+        });
         setSuccess("NovaScalper saved.");
       } else setError(data.error ?? "Save failed");
     } catch (e) {
@@ -142,13 +183,18 @@ export default function NovaScalperPanel() {
     setConfig((c) => (c ? { ...c, [key]: value } : c));
   };
 
+  const parsedInstrument = parseScalperInstrument(config.instrumentPair, config.marginCurrency);
+  const priceQuote = parsedInstrument.quote;
+  const displayInstId = parsedInstrument.instId || config.instId || "";
+
   return (
     <div className="space-y-6 max-w-2xl">
       <p className="text-sm text-muted-foreground">
         <strong className="text-cyan-600 dark:text-cyan-400">NovaScalper</strong> repeats{" "}
         <strong>enter → exit</strong> on Blofin futures using your prices. Exits use{" "}
-        <strong>close position</strong> when price crosses your exit target (TP orders optional). Same Blofin keys as the AI
-        bot.
+        <strong>close position</strong> when price crosses your exit target (TP orders optional).{" "}
+        <strong>Entry, exit, and stop</strong> are in the contract quote ({priceQuote}) — same units as Blofin mark for{" "}
+        <span className="font-mono text-xs">{displayInstId || "…"}</span>.
       </p>
 
       {success && (
@@ -157,10 +203,144 @@ export default function NovaScalperPanel() {
         </div>
       )}
       {error && (
-        <div className="rounded-lg border border-rose-200/80 dark:border-rose-800/80 bg-rose-50/50 dark:bg-rose-950/30 p-3 text-sm text-rose-700 dark:text-rose-300">
-          {error}
+        <div className="rounded-lg border border-rose-200/80 dark:border-rose-800/80 bg-rose-50/50 dark:bg-rose-950/30 p-3 text-sm text-rose-700 dark:text-rose-300 space-y-2">
+          <p>{error}</p>
+          {(error.includes("does not exist") || error.includes("column") || error.includes("userId") || error.includes("NovaScalperConfig")) && (
+            <p className="text-xs text-rose-600/90 dark:text-rose-400/90">
+              Database may need updating. Run:{" "}
+              <code className="bg-rose-200/50 dark:bg-rose-900/30 px-1 rounded">npx prisma db push</code> against your
+              production <code className="bg-rose-200/50 dark:bg-rose-900/30 px-1 rounded">DATABASE_URL</code>.
+            </p>
+          )}
         </div>
       )}
+
+      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">Your Blofin API keys</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            VIP and on-demand accounts: save your Blofin API keys here so NovaScalper runs on your account (encrypted; used
+            only to call Blofin). If the server has global Blofin env keys, those are used when you have no keys saved.
+          </p>
+          {userBlofinConfigured === true && (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">Keys are configured. Ticks use your account.</p>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Key</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={blofinKeysForm.apiKey}
+                onChange={(e) => setBlofinKeysForm((f) => ({ ...f, apiKey: e.target.value }))}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Secret Key</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={blofinKeysForm.secretKey}
+                onChange={(e) => setBlofinKeysForm((f) => ({ ...f, secretKey: e.target.value }))}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Passphrase</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={blofinKeysForm.passphrase}
+                onChange={(e) => setBlofinKeysForm((f) => ({ ...f, passphrase: e.target.value }))}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="nova-scalper-blofin-demo"
+                checked={blofinKeysForm.demoMode}
+                onChange={(e) => setBlofinKeysForm((f) => ({ ...f, demoMode: e.target.checked }))}
+                className="rounded"
+              />
+              <label htmlFor="nova-scalper-blofin-demo" className="text-sm">
+                Demo mode
+              </label>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Broker ID (optional)</label>
+              <input
+                type="text"
+                placeholder="Leave empty if not using broker key"
+                value={blofinKeysForm.brokerId}
+                onChange={(e) => setBlofinKeysForm((f) => ({ ...f, brokerId: e.target.value }))}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              disabled={
+                savingBlofinKeys || !blofinKeysForm.apiKey || !blofinKeysForm.secretKey || !blofinKeysForm.passphrase
+              }
+              onClick={async () => {
+                setSavingBlofinKeys(true);
+                try {
+                  const res = await fetch("/api/user/blofin-config", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                      apiKey: blofinKeysForm.apiKey,
+                      secretKey: blofinKeysForm.secretKey,
+                      passphrase: blofinKeysForm.passphrase,
+                      demoMode: blofinKeysForm.demoMode,
+                      brokerId: blofinKeysForm.brokerId || undefined,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setUserBlofinConfigured(true);
+                    setBlofinKeysForm((f) => ({ ...f, apiKey: "", secretKey: "", passphrase: "" }));
+                    setSuccess("Blofin keys saved.");
+                  } else setError(data.error ?? "Save failed");
+                } finally {
+                  setSavingBlofinKeys(false);
+                }
+              }}
+            >
+              {savingBlofinKeys ? "Saving…" : "Save keys"}
+            </Button>
+            {userBlofinConfigured && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={clearingBlofinKeys}
+                onClick={async () => {
+                  setClearingBlofinKeys(true);
+                  try {
+                    const res = await fetch("/api/user/blofin-config", { method: "DELETE", credentials: "include" });
+                    const data = await res.json();
+                    if (data.success) {
+                      setUserBlofinConfigured(false);
+                      setSuccess("Blofin keys cleared.");
+                    }
+                  } finally {
+                    setClearingBlofinKeys(false);
+                    void loadUserBlofinConfig();
+                  }
+                }}
+              >
+                {clearingBlofinKeys ? "…" : "Clear keys"}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
         <CardHeader className="pb-3">
@@ -185,13 +365,19 @@ export default function NovaScalperPanel() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Symbol</label>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Instrument (pair)
+              </label>
               <input
-                value={config.symbol}
-                onChange={(e) => setField("symbol", e.target.value.toUpperCase())}
-                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                value={config.instrumentPair}
+                onChange={(e) => setField("instrumentPair", e.target.value.toUpperCase())}
+                placeholder="BTC/USDT or BTC/USDC"
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Blofin instrument id: <span className="font-mono">{displayInstId || "—"}</span>
+              </p>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Side</label>
@@ -219,7 +405,9 @@ export default function NovaScalperPanel() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Margin (USDT)</label>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Margin ({priceQuote})
+              </label>
               <input
                 type="number"
                 min={1}
@@ -228,6 +416,7 @@ export default function NovaScalperPanel() {
                 onChange={(e) => setField("positionSizeUsdt", parseFloat(e.target.value) || 1)}
                 className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
               />
+              <p className="text-xs text-muted-foreground mt-1">Notional = margin × leverage.</p>
             </div>
           </div>
 
@@ -249,7 +438,9 @@ export default function NovaScalperPanel() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Entry price</label>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Entry price ({priceQuote})
+              </label>
               <input
                 type="number"
                 step="any"
@@ -259,7 +450,9 @@ export default function NovaScalperPanel() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Exit price (close target)</label>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Exit price — take profit ({priceQuote})
+              </label>
               <input
                 type="number"
                 step="any"
@@ -271,7 +464,9 @@ export default function NovaScalperPanel() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Stop loss (optional)</label>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+              Stop loss (optional, {priceQuote})
+            </label>
             <input
               type="number"
               step="any"
@@ -379,6 +574,9 @@ export default function NovaScalperPanel() {
           <CardTitle className="text-sm font-semibold">Status</CardTitle>
         </CardHeader>
         <CardContent className="text-sm space-y-1 text-zinc-700 dark:text-zinc-300">
+          <p>
+            Contract: <strong className="font-mono">{displayInstId || "—"}</strong>
+          </p>
           <p>
             In position (internal): <strong>{config.inPosition ? "yes" : "no"}</strong>
           </p>

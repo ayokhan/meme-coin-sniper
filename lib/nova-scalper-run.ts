@@ -16,6 +16,7 @@ import {
   type BlofinConfig,
 } from "@/lib/blofin";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
+import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -31,14 +32,9 @@ function roundSize(size: number, minSize: number, lotSize: number): string {
   return n.toFixed(1);
 }
 
-function normalizeInstId(symbol: string, marginCurrency: string): string {
-  const raw = symbol.trim().toUpperCase();
-  if (!raw) return `BTC-${marginCurrency || "USDT"}`;
-  return raw.includes("/") ? raw.replace("/", "-") : `${raw}-${marginCurrency || "USDT"}`;
-}
-
 type ScalperRow = {
   id: string;
+  userId?: string | null;
   enabled: boolean;
   mode: string;
   symbol: string;
@@ -80,16 +76,20 @@ function stopHit(side: string, stop: number, price: number): boolean {
   return price >= stop;
 }
 
-export async function runNovaScalperTick(userId?: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+export async function runNovaScalperTick(userId: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+  if (!userId) {
+    return { ok: false, error: "Sign in required to run NovaScalper." };
+  }
+
   let row: ScalperRow | null = null;
   try {
-    row = await db.novaScalperConfig.findFirst({ orderBy: { updatedAt: "desc" } });
+    row = await db.novaScalperConfig.findFirst({ where: { userId } });
   } catch {
     return { ok: false, error: "NovaScalper table missing. Run prisma db push." };
   }
 
   if (!row || !row.enabled) {
-    return { ok: true, message: "NovaScalper is off." };
+    return { ok: true, message: "NovaScalper is off or save your config first." };
   }
 
   let blofinConfig: BlofinConfig | null = null;
@@ -107,7 +107,10 @@ export async function runNovaScalperTick(userId?: string): Promise<{ ok: boolean
   const isDemo = row.mode === "demo";
   const blofinOpts = { demo: isDemo, config: blofinConfig };
   const marginMode = (row.marginMode === "isolated" ? "isolated" : "cross") as "isolated" | "cross";
-  const instId = normalizeInstId(row.symbol, row.marginCurrency ?? "USDT");
+  const { instId, base } = parseScalperInstrument(row.symbol, row.marginCurrency ?? "USDT");
+  if (!base || !instId) {
+    return { ok: false, error: "Invalid instrument. Save BTC/USDT or BTC/USDC (or base + margin) in NovaScalper." };
+  }
   const side = row.side === "short" ? "short" : "long";
 
   if (side === "long" && row.exitPrice <= row.entryPrice) {
@@ -282,13 +285,16 @@ export async function runNovaScalperTick(userId?: string): Promise<{ ok: boolean
   return { ok: true, message: `Entered ${side}. Monitoring exit/stop.` };
 }
 
-export async function resetNovaScalperState(options?: {
-  clearRounds?: boolean;
-  clearInPosition?: boolean;
-}): Promise<{ ok: boolean; error?: string }> {
+export async function resetNovaScalperState(
+  userId: string,
+  options?: {
+    clearRounds?: boolean;
+    clearInPosition?: boolean;
+  }
+): Promise<{ ok: boolean; error?: string }> {
   try {
-    const row = await db.novaScalperConfig.findFirst({ orderBy: { updatedAt: "desc" } });
-    if (!row) return { ok: false, error: "No config." };
+    const row = await db.novaScalperConfig.findFirst({ where: { userId } });
+    if (!row) return { ok: false, error: "No config. Open NovaScalper once to create it." };
     await db.novaScalperConfig.update({
       where: { id: row.id },
       data: {
