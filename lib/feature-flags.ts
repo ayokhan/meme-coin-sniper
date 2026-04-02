@@ -49,12 +49,17 @@ export const FEATURE_FLAG_KEYS = {
   DIGEST_TO_NEWSLETTER_SUBSCRIBERS: 'digest_to_newsletter_subscribers',
   /** NovaConnect social portal (Nova Connect tab, community rules, and links). When OFF, Nova Connect tab is hidden. */
   NOVA_CONNECT: 'nova_connect',
+  /** Vercel cron /api/cron/nova-scalper: run automated Blofin ticks for enabled NovaScalper users. Default OFF; turn ON in Admin → Feature flags when ready. */
+  NOVA_SCALPER_CRON: 'nova_scalper_cron',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
 
 const DEFAULT_ENABLED = true;
-const DEFAULT_DISABLED_KEYS: Set<string> = new Set([FEATURE_FLAG_KEYS.DIGEST_TO_NEWSLETTER_SUBSCRIBERS]);
+const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
+  FEATURE_FLAG_KEYS.DIGEST_TO_NEWSLETTER_SUBSCRIBERS,
+  FEATURE_FLAG_KEYS.NOVA_SCALPER_CRON,
+]);
 
 type PrismaWithFeatureFlag = typeof prisma & {
   featureFlag?: {

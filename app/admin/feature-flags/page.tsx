@@ -129,6 +129,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "NovaConnect (social portal)",
     description: "Enable the NovaConnect tab (social feed + community rules). When OFF, the NovaConnect tab is hidden for all users.",
   },
+  nova_scalper_cron: {
+    label: "NovaScalper scheduled cron",
+    description:
+      "When ON, Vercel’s /api/cron/nova-scalper job (see vercel.json schedule) runs Blofin ticks for every user with NovaScalper enabled. When OFF, the route returns immediately—no trades. Vercel may still invoke the URL on schedule; work is skipped.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {
