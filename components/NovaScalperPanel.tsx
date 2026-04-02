@@ -1,83 +1,52 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 type ScalperConfig = {
+  id: string;
+  enabled: boolean;
+  mode: "demo" | "live";
   symbol: string;
   marginCurrency: string;
-  marginMode: string;
-  side: string;
-  openWhen: string;
+  marginMode: "cross" | "isolated";
+  side: "long" | "short";
+  entryTrigger: "cross_down" | "cross_up";
+  leverage: number;
   entryPrice: number;
   exitPrice: number;
   stopLossPrice: number | null;
-  marginUsdt: number;
-  leverage: number;
-  mode: string;
-  enabled: boolean;
-  runState: string;
-  cyclesCompleted: number;
-  lastMark: number | null;
+  positionSizeUsdt: number;
+  maxRounds: number;
+  completedRounds: number;
+  inPosition: boolean;
+  lastRefPrice: number | null;
+  attachTpsl: boolean;
+  tpslTpPct: number | null;
+  tpslSlPct: number | null;
   lastTickAt: string | null;
-  lastActionAt: string | null;
-  lastActionMsg: string | null;
   lastError: string | null;
+  lastAction: string | null;
 };
 
 export default function NovaScalperPanel() {
+  const [config, setConfig] = useState<ScalperConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [ticking, setTicking] = useState(false);
-  const [autoTick, setAutoTick] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [lastTickAction, setLastTickAction] = useState<string | null>(null);
-
-  const [symbol, setSymbol] = useState("BTC");
-  const [side, setSide] = useState<"long" | "short">("long");
-  const [openWhen, setOpenWhen] = useState<"lte" | "gte">("lte");
-  const [entryPrice, setEntryPrice] = useState("");
-  const [exitPrice, setExitPrice] = useState("");
-  const [stopLossPrice, setStopLossPrice] = useState("");
-  const [marginUsdt, setMarginUsdt] = useState("50");
-  const [leverage, setLeverage] = useState("10");
-  const [marginMode, setMarginMode] = useState<"cross" | "isolated">("cross");
-  const [mode, setMode] = useState<"demo" | "live">("demo");
-  const [enabled, setEnabled] = useState(false);
-  const [status, setStatus] = useState<Partial<ScalperConfig>>({});
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const clearFeedback = () => {
-    setError(null);
-    setSuccess(null);
-  };
+  const [autoSec, setAutoSec] = useState<0 | 15 | 30 | 60>(0);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      clearFeedback();
-      const res = await fetch("/api/admin/trading-bot/nova-scalper", { credentials: "include" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success || !data.config) {
-        setError(data.error ?? `Load failed (${res.status})`);
-        return;
-      }
-      const c = data.config as ScalperConfig;
-      setSymbol(c.symbol ?? "BTC");
-      setSide(c.side === "short" ? "short" : "long");
-      setOpenWhen(c.openWhen === "gte" ? "gte" : "lte");
-      setEntryPrice(c.entryPrice > 0 ? String(c.entryPrice) : "");
-      setExitPrice(c.exitPrice > 0 ? String(c.exitPrice) : "");
-      setStopLossPrice(c.stopLossPrice != null && c.stopLossPrice > 0 ? String(c.stopLossPrice) : "");
-      setMarginUsdt(String(c.marginUsdt ?? 50));
-      setLeverage(String(c.leverage ?? 10));
-      setMarginMode(c.marginMode === "isolated" ? "isolated" : "cross");
-      setMode(c.mode === "live" ? "live" : "demo");
-      setEnabled(!!c.enabled);
-      setStatus(c);
+      const res = await fetch("/api/admin/nova-scalper", { credentials: "include", cache: "no-store" });
+      const data = await res.json();
+      if (data.success && data.config) setConfig(data.config as ScalperConfig);
+      else setError(data.error ?? `Error ${res.status}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Load failed");
     } finally {
@@ -90,52 +59,38 @@ export default function NovaScalperPanel() {
   }, [load]);
 
   useEffect(() => {
-    if (!autoTick || !enabled) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-    intervalRef.current = setInterval(() => {
-      void tick();
-    }, 15_000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tick closure intentional
-  }, [autoTick, enabled]);
+    if (autoSec === 0 || !config?.enabled) return;
+    const id = setInterval(() => {
+      void (async () => {
+        try {
+          const res = await fetch("/api/admin/nova-scalper/tick", { method: "POST", credentials: "include" });
+          const data = await res.json();
+          if (data.success) await load();
+        } catch {
+          /* ignore */
+        }
+      })();
+    }, autoSec * 1000);
+    return () => clearInterval(id);
+  }, [autoSec, config?.enabled, load]);
 
-  const save = async (nextEnabled?: boolean) => {
+  const save = async () => {
+    if (!config) return;
     setSaving(true);
-    clearFeedback();
+    setError(null);
+    setSuccess(null);
     try {
-      const res = await fetch("/api/admin/trading-bot/nova-scalper", {
+      const res = await fetch("/api/admin/nova-scalper", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          symbol,
-          side,
-          openWhen,
-          entryPrice: parseFloat(entryPrice) || 0,
-          exitPrice: parseFloat(exitPrice) || 0,
-          stopLossPrice: stopLossPrice.trim() === "" ? null : parseFloat(stopLossPrice),
-          marginUsdt: parseFloat(marginUsdt) || 50,
-          leverage: parseInt(leverage, 10) || 10,
-          marginMode,
-          mode,
-          enabled: nextEnabled ?? enabled,
-        }),
+        body: JSON.stringify(config),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        setError(data.error ?? "Save failed");
-        return;
-      }
-      setEnabled(!!data.config?.enabled);
-      setStatus(data.config);
-      setSuccess("Saved.");
+      const data = await res.json();
+      if (data.success && data.config) {
+        setConfig(data.config);
+        setSuccess("NovaScalper saved.");
+      } else setError(data.error ?? "Save failed");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -145,16 +100,14 @@ export default function NovaScalperPanel() {
 
   const tick = async () => {
     setTicking(true);
+    setError(null);
+    setSuccess(null);
     try {
-      const res = await fetch("/api/admin/trading-bot/nova-scalper/tick", {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = await res.json().catch(() => ({}));
-      setLastTickAction(data.action ?? (data.success ? "ok" : "error"));
-      if (!data.success && data.error) setError(data.error);
-      else if (data.message && data.action && data.action !== "hold") setSuccess(data.message);
+      const res = await fetch("/api/admin/nova-scalper/tick", { method: "POST", credentials: "include" });
+      const data = await res.json();
       await load();
+      if (data.success) setSuccess(data.message ?? "Tick OK.");
+      else setError(data.error ?? "Tick failed");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Tick failed");
     } finally {
@@ -162,185 +115,288 @@ export default function NovaScalperPanel() {
     }
   };
 
-  if (loading) {
-    return <p className="text-sm text-muted-foreground py-6">Loading NovaScalper…</p>;
+  const resetState = async (clearRounds: boolean) => {
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/nova-scalper/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ clearRounds }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(clearRounds ? "Reset reference, position flag, and round count." : "Reset reference and position flag.");
+        await load();
+      } else setError(data.error ?? "Reset failed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reset failed");
+    }
+  };
+
+  if (loading || !config) {
+    return <p className="text-sm text-muted-foreground py-4">{loading ? "Loading NovaScalper…" : "No config."}</p>;
   }
 
+  const setField = <K extends keyof ScalperConfig>(key: K, value: ScalperConfig[K]) => {
+    setConfig((c) => (c ? { ...c, [key]: value } : c));
+  };
+
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div className="rounded-lg border border-cyan-200/80 dark:border-cyan-900/60 bg-cyan-50/40 dark:bg-cyan-950/20 p-4">
-        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">NovaScalper</h3>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Blofin leverage scalper: opens when <strong>mark price</strong> hits your entry rule, closes at your exit price (or optional stop).
-          Cycles repeat automatically. Uses the same API keys as the Crypto Futures Bot. Not financial advice—test on demo first.
-        </p>
-      </div>
+    <div className="space-y-6 max-w-2xl">
+      <p className="text-sm text-muted-foreground">
+        <strong className="text-cyan-600 dark:text-cyan-400">NovaScalper</strong> repeats{" "}
+        <strong>enter → exit</strong> on Blofin futures using your prices. Exits use{" "}
+        <strong>close position</strong> when price crosses your exit target (TP orders optional). Same Blofin keys as the AI
+        bot.
+      </p>
 
-      {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
-      {success && <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Symbol</label>
-          <input
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
-            placeholder="BTC"
-          />
+      {success && (
+        <div className="rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/60 dark:bg-emerald-950/30 p-3 text-sm text-emerald-800 dark:text-emerald-200">
+          {success}
         </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Side</label>
-          <div className="flex gap-2">
-            <Button type="button" size="sm" variant={side === "long" ? "default" : "outline"} onClick={() => setSide("long")}>
-              Long
+      )}
+      {error && (
+        <div className="rounded-lg border border-rose-200/80 dark:border-rose-800/80 bg-rose-50/50 dark:bg-rose-950/30 p-3 text-sm text-rose-700 dark:text-rose-300">
+          {error}
+        </div>
+      )}
+
+      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">NovaScalper config</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={config.enabled} onChange={(e) => setField("enabled", e.target.checked)} />
+            <span className="text-sm font-medium">Enabled</span>
+          </label>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Mode</label>
+            <select
+              value={config.mode}
+              onChange={(e) => setField("mode", e.target.value as "demo" | "live")}
+              className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+            >
+              <option value="demo">Demo</option>
+              <option value="live">Live</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Symbol</label>
+              <input
+                value={config.symbol}
+                onChange={(e) => setField("symbol", e.target.value.toUpperCase())}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Side</label>
+              <select
+                value={config.side}
+                onChange={(e) => setField("side", e.target.value as "long" | "short")}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              >
+                <option value="long">Long</option>
+                <option value="short">Short</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Leverage</label>
+              <input
+                type="number"
+                min={1}
+                max={125}
+                value={config.leverage}
+                onChange={(e) => setField("leverage", Math.max(1, Math.min(125, parseInt(e.target.value, 10) || 1)))}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Margin (USDT)</label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={config.positionSizeUsdt}
+                onChange={(e) => setField("positionSizeUsdt", parseFloat(e.target.value) || 1)}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Entry trigger</label>
+            <select
+              value={config.entryTrigger}
+              onChange={(e) => setField("entryTrigger", e.target.value as "cross_down" | "cross_up")}
+              className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+            >
+              <option value="cross_down">
+                Cross down (long: dip to entry · short: breakdown through entry)
+              </option>
+              <option value="cross_up">
+                Cross up (long: breakout · short: rally to entry)
+              </option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Entry price</label>
+              <input
+                type="number"
+                step="any"
+                value={config.entryPrice}
+                onChange={(e) => setField("entryPrice", parseFloat(e.target.value) || 0)}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Exit price (close target)</label>
+              <input
+                type="number"
+                step="any"
+                value={config.exitPrice}
+                onChange={(e) => setField("exitPrice", parseFloat(e.target.value) || 0)}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Stop loss (optional)</label>
+            <input
+              type="number"
+              step="any"
+              placeholder="Leave empty for no stop"
+              value={config.stopLossPrice ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setField("stopLossPrice", v === "" ? null : parseFloat(v));
+              }}
+              className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Max rounds (0 = unlimited)</label>
+            <input
+              type="number"
+              min={0}
+              value={config.maxRounds}
+              onChange={(e) => setField("maxRounds", Math.max(0, parseInt(e.target.value, 10) || 0))}
+              className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Margin mode</label>
+            <select
+              value={config.marginMode}
+              onChange={(e) => setField("marginMode", e.target.value as "cross" | "isolated")}
+              className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+            >
+              <option value="cross">Cross</option>
+              <option value="isolated">Isolated</option>
+            </select>
+          </div>
+
+          <div className="rounded-md border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 p-3 space-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={config.attachTpsl}
+                onChange={(e) => setField("attachTpsl", e.target.checked)}
+              />
+              <span className="text-sm">Also attach Blofin TP/SL after entry (experimental; primary exit is still close at exit price)</span>
+            </label>
+            {config.attachTpsl && (
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  placeholder="TP %"
+                  value={config.tpslTpPct ?? ""}
+                  onChange={(e) => setField("tpslTpPct", e.target.value === "" ? null : parseFloat(e.target.value))}
+                  className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm"
+                />
+                <input
+                  type="number"
+                  placeholder="SL %"
+                  value={config.tpslSlPct ?? ""}
+                  onChange={(e) => setField("tpslSlPct", e.target.value === "" ? null : parseFloat(e.target.value))}
+                  className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => void save()} disabled={saving}>
+              {saving ? "Saving…" : "Save"}
             </Button>
-            <Button type="button" size="sm" variant={side === "short" ? "default" : "outline"} onClick={() => setSide("short")}>
-              Short
+            <Button size="sm" variant="secondary" onClick={() => void tick()} disabled={ticking || !config.enabled}>
+              {ticking ? "Checking…" : "Check price now"}
             </Button>
           </div>
-        </div>
-        <div className="space-y-1 sm:col-span-2">
-          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Open when mark is…</label>
-          <select
-            value={openWhen}
-            onChange={(e) => setOpenWhen(e.target.value as "lte" | "gte")}
-            className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
-          >
-            <option value="lte">
-              At or below entry (e.g. long: buy the dip; short: breakdown)
-            </option>
-            <option value="gte">
-              At or above entry (e.g. long: breakout; short: fade rally)
-            </option>
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Entry price</label>
-          <input
-            value={entryPrice}
-            onChange={(e) => setEntryPrice(e.target.value)}
-            inputMode="decimal"
-            className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Exit price (take profit)</label>
-          <input
-            value={exitPrice}
-            onChange={(e) => setExitPrice(e.target.value)}
-            inputMode="decimal"
-            className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Stop loss (optional)</label>
-          <input
-            value={stopLossPrice}
-            onChange={(e) => setStopLossPrice(e.target.value)}
-            inputMode="decimal"
-            placeholder="Absolute price"
-            className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Leverage (×)</label>
-          <input
-            value={leverage}
-            onChange={(e) => setLeverage(e.target.value)}
-            inputMode="numeric"
-            className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Margin (USDT)</label>
-          <input
-            value={marginUsdt}
-            onChange={(e) => setMarginUsdt(e.target.value)}
-            inputMode="decimal"
-            className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
-          />
-          <p className="text-[10px] text-muted-foreground">Notional ≈ margin × leverage (same as main bot).</p>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Margin mode</label>
-          <select
-            value={marginMode}
-            onChange={(e) => setMarginMode(e.target.value as "cross" | "isolated")}
-            className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
-          >
-            <option value="cross">Cross</option>
-            <option value="isolated">Isolated</option>
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Blofin mode</label>
-          <select
-            value={mode}
-            onChange={(e) => setMode(e.target.value as "demo" | "live")}
-            className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
-          >
-            <option value="demo">Demo</option>
-            <option value="live">Live</option>
-          </select>
-        </div>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={() => void save()} disabled={saving}>
-          {saving ? "Saving…" : "Save config"}
-        </Button>
-        <Button
-          type="button"
-          variant={enabled ? "destructive" : "default"}
-          onClick={() => void save(!enabled)}
-          disabled={saving}
-        >
-          {enabled ? "Disable bot" : "Enable bot"}
-        </Button>
-        <Button type="button" variant="outline" onClick={() => void tick()} disabled={ticking || !enabled}>
-          {ticking ? "Running tick…" : "Run tick now"}
-        </Button>
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="checkbox" checked={autoTick && enabled} onChange={(e) => setAutoTick(e.target.checked)} />
-          Auto tick every 15s (keep tab open)
-        </label>
-      </div>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Auto tick:</span>
+            <select
+              value={autoSec}
+              onChange={(e) => setAutoSec(Number(e.target.value) as 0 | 15 | 30 | 60)}
+              className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm"
+            >
+              <option value={0}>Off</option>
+              <option value={15}>Every 15s</option>
+              <option value={30}>Every 30s</option>
+              <option value={60}>Every 60s</option>
+            </select>
+            {config.enabled && autoSec > 0 && (
+              <span className="text-xs text-amber-700 dark:text-amber-300">Runs only while this tab is open.</span>
+            )}
+          </div>
 
-      <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 text-xs space-y-2">
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="font-medium text-zinc-800 dark:text-zinc-200">Status</span>
-          <Badge variant="outline">{status.runState === "in_position" ? "In position" : "Flat"}</Badge>
-          {enabled ? (
-            <Badge className="bg-emerald-600">Enabled</Badge>
-          ) : (
-            <Badge variant="secondary">Off</Badge>
-          )}
-          {lastTickAction && (
-            <span className="text-muted-foreground">
-              Last tick: <span className="font-mono">{lastTickAction}</span>
-            </span>
-          )}
-        </div>
-        <p>
-          Cycles completed: <span className="font-mono">{status.cyclesCompleted ?? 0}</span>
-        </p>
-        {status.lastMark != null && Number.isFinite(status.lastMark) && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => void resetState(false)}>
+              Reset cross reference
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => void resetState(true)}>
+              Reset + clear round count
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Status</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm space-y-1 text-zinc-700 dark:text-zinc-300">
           <p>
-            Last mark: <span className="font-mono">${status.lastMark.toLocaleString()}</span>
+            In position (internal): <strong>{config.inPosition ? "yes" : "no"}</strong>
           </p>
-        )}
-        {status.lastActionMsg && (
-          <p className="text-zinc-700 dark:text-zinc-300">
-            Last action: {status.lastActionMsg}
+          <p>
+            Completed rounds: <strong>{config.completedRounds}</strong>
+            {config.maxRounds > 0 ? ` / ${config.maxRounds}` : ""}
           </p>
-        )}
-        {status.lastError && <p className="text-rose-600 dark:text-rose-400">Error: {status.lastError}</p>}
-        <p className="text-muted-foreground leading-relaxed">
-          Optional: Vercel cron can call <code className="text-[11px]">GET /api/cron/nova-scalper</code> with{" "}
-          <code className="text-[11px]">Authorization: Bearer CRON_SECRET</code> for server-side ticks.
-        </p>
-      </div>
+          <p>
+            Last ref price:{" "}
+            <strong>{config.lastRefPrice != null ? config.lastRefPrice.toLocaleString() : "—"}</strong>
+          </p>
+          <p>
+            Last tick: <strong>{config.lastTickAt ? new Date(config.lastTickAt).toLocaleString() : "—"}</strong>
+          </p>
+          {config.lastAction && <p className="text-xs text-muted-foreground">Last action: {config.lastAction}</p>}
+          {config.lastError && <p className="text-xs text-rose-600 dark:text-rose-400">Error: {config.lastError}</p>}
+        </CardContent>
+      </Card>
     </div>
   );
 }

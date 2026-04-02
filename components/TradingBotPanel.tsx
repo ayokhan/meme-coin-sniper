@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import NovaScalperPanel from "@/components/NovaScalperPanel";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
 
 type PositionWithPnl = {
@@ -97,6 +99,7 @@ export default function TradingBotPanel() {
   const [clearingBlofinKeys, setClearingBlofinKeys] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
+  const [botSubTab, setBotSubTab] = useState<"ai" | "scalper">("ai");
 
   const formatLocalTime = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : null;
@@ -613,10 +616,32 @@ export default function TradingBotPanel() {
   return (
     <div className="mx-6 py-8 max-w-2xl space-y-6">
       <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
-        NovaStaris AI Trading Bot (Crypto Futures)
+        NovaStaris Trading Bot (Crypto Futures)
       </h2>
+      <Tabs value={botSubTab} onValueChange={(v) => setBotSubTab(v as "ai" | "scalper")} className="space-y-4">
+        <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
+          <TabsTrigger
+            value="ai"
+            className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+          >
+            AI Trading Bot
+          </TabsTrigger>
+          <TabsTrigger
+            value="scalper"
+            className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+          >
+            NovaScalper
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="scalper" className="mt-0 space-y-4">
+          <NovaScalperPanel />
+        </TabsContent>
+
+        <TabsContent value="ai" className="mt-0 space-y-6">
       <p className="text-sm text-muted-foreground">
-        <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris</strong> futures bot (long/short) via <strong>Blofin</strong>. Configure symbol, timeframe, leverage, take profit &amp; stop loss.
+        <strong className="text-cyan-600 dark:text-cyan-400">AI bot</strong> (this tab): signals + Blofin execution. Use{" "}
+        <strong>NovaScalper</strong> for fixed entry/exit price loops.
       </p>
 
       {success && (
@@ -1609,6 +1634,8 @@ export default function TradingBotPanel() {
           </p>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

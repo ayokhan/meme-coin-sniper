@@ -214,7 +214,7 @@ export async function getTicker(instId: string, demoOverride?: boolean, options?
   return Array.isArray(out.data) ? out.data[0] : null;
 }
 
-/** Set leverage. options.demo / options.config override env (per-user Blofin keys). */
+/** Set leverage. options.demo / options.config: use bot mode and per-user keys when provided. */
 export async function setLeverage(
   instId: string,
   leverage: number,

@@ -290,7 +290,7 @@ export async function runTradingBotCycle(userId?: string): Promise<{ ok: boolean
     }
 
     const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
-    const leverageOk = await setLeverage(instId, bot.leverage, marginMode);
+    const leverageOk = await setLeverage(instId, bot.leverage, marginMode, { demo: isDemo, config: blofinConfig });
     if (!leverageOk.ok) {
       console.warn("setLeverage:", leverageOk.error);
       // continue anyway

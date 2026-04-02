@@ -1,5 +1,6 @@
 /**
- * NovaScalper: Blofin per-user repeatable entry → exit cycles (mark-price triggers).
+ * NovaScalper: Blofin perps — enter at entry price (cross), exit by closing position at exit price (or optional stop).
+ * Repeats when flat up to maxRounds (0 = unlimited). Uses same margin sizing as AI bot: notional = positionSizeUsdt × leverage.
  */
 
 import { prisma } from "@/lib/db";
@@ -9,6 +10,7 @@ import {
   getPositions,
   setLeverage,
   placeMarketOrder,
+  placeTPSLOrder,
   closePositionViaApi,
   getConfig as getBlofinEnvConfig,
   type BlofinConfig,
@@ -29,243 +31,276 @@ function roundSize(size: number, minSize: number, lotSize: number): string {
   return n.toFixed(1);
 }
 
-function toInstId(symbolRaw: string, marginCurrency: string): string {
-  const raw = symbolRaw.trim().toUpperCase();
-  if (!raw) return "";
+function normalizeInstId(symbol: string, marginCurrency: string): string {
+  const raw = symbol.trim().toUpperCase();
+  if (!raw) return `BTC-${marginCurrency || "USDT"}`;
   return raw.includes("/") ? raw.replace("/", "-") : `${raw}-${marginCurrency || "USDT"}`;
-}
-
-export async function resolveScalperBlofin(
-  userId: string,
-  mode: string,
-  allowEnvFallback: boolean
-): Promise<{ config: BlofinConfig; demo: boolean } | null> {
-  const isDemo = mode !== "live";
-  const userCfg = await getBlofinConfigForUser(userId);
-  if (userCfg) {
-    return { config: userCfg, demo: isDemo };
-  }
-  if (allowEnvFallback) {
-    const env = getBlofinEnvConfig();
-    if (env) return { config: env, demo: isDemo };
-  }
-  return null;
 }
 
 type ScalperRow = {
   id: string;
-  userId: string;
+  enabled: boolean;
+  mode: string;
   symbol: string;
   marginCurrency: string;
   marginMode: string;
   side: string;
-  openWhen: string;
+  entryTrigger: string;
+  leverage: number;
   entryPrice: number;
   exitPrice: number;
   stopLossPrice: number | null;
-  marginUsdt: number;
-  leverage: number;
-  mode: string;
-  enabled: boolean;
-  runState: string;
-  cyclesCompleted: number;
+  positionSizeUsdt: number;
+  maxRounds: number;
+  completedRounds: number;
+  inPosition: boolean;
+  lastRefPrice: number | null;
+  attachTpsl: boolean;
+  tpslTpPct: number | null;
+  tpslSlPct: number | null;
 };
 
-export async function runNovaScalperTick(
-  userId: string,
-  options?: { allowEnvFallback?: boolean }
-): Promise<{ ok: boolean; message?: string; error?: string; action?: string }> {
-  const allowEnvFallback = options?.allowEnvFallback === true;
+function shouldEnter(side: string, trigger: string, entry: number, lastRef: number, price: number): boolean {
+  const t = trigger === "cross_up" ? "cross_up" : "cross_down";
+  if (side === "long") {
+    if (t === "cross_down") return lastRef >= entry && price <= entry;
+    return lastRef <= entry && price >= entry;
+  }
+  if (t === "cross_up") return lastRef <= entry && price >= entry;
+  return lastRef >= entry && price <= entry;
+}
 
-  let scalper: ScalperRow | null = null;
+function shouldExit(side: string, exit: number, lastRef: number, price: number): boolean {
+  if (side === "long") return lastRef < exit && price >= exit;
+  return lastRef > exit && price <= exit;
+}
+
+function stopHit(side: string, stop: number, price: number): boolean {
+  if (side === "long") return price <= stop;
+  return price >= stop;
+}
+
+export async function runNovaScalperTick(userId?: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+  let row: ScalperRow | null = null;
   try {
-    scalper = await db.novaScalperConfig.findUnique({ where: { userId } });
+    row = await db.novaScalperConfig.findFirst({ orderBy: { updatedAt: "desc" } });
   } catch {
-    return { ok: false, error: "Failed to load NovaScalper config." };
-  }
-  if (!scalper || !scalper.enabled) {
-    return { ok: true, message: "NovaScalper is off.", action: "idle" };
+    return { ok: false, error: "NovaScalper table missing. Run prisma db push." };
   }
 
-  const blofin = await resolveScalperBlofin(userId, scalper.mode, allowEnvFallback);
-  if (!blofin) {
-    const msg = allowEnvFallback
-      ? "Blofin keys missing. Add keys in Trading Bot (Blofin) or set server env."
-      : "Blofin keys not configured for your account. Save API keys under Trading Bot.";
+  if (!row || !row.enabled) {
+    return { ok: true, message: "NovaScalper is off." };
+  }
+
+  let blofinConfig: BlofinConfig | null = null;
+  if (userId) blofinConfig = await getBlofinConfigForUser(userId);
+  if (!blofinConfig) blofinConfig = getBlofinEnvConfig();
+  if (!blofinConfig) {
+    return {
+      ok: false,
+      error: userId
+        ? "Blofin API keys missing. Save keys under Trading Bot or set server env."
+        : "Blofin API keys not set for server run.",
+    };
+  }
+
+  const isDemo = row.mode === "demo";
+  const blofinOpts = { demo: isDemo, config: blofinConfig };
+  const marginMode = (row.marginMode === "isolated" ? "isolated" : "cross") as "isolated" | "cross";
+  const instId = normalizeInstId(row.symbol, row.marginCurrency ?? "USDT");
+  const side = row.side === "short" ? "short" : "long";
+
+  if (side === "long" && row.exitPrice <= row.entryPrice) {
+    return { ok: false, error: "Long: exit price should be above entry price." };
+  }
+  if (side === "short" && row.exitPrice >= row.entryPrice) {
+    return { ok: false, error: "Short: exit price should be below entry price." };
+  }
+
+  const ticker = await getTicker(instId, isDemo, { config: blofinConfig });
+  const price = ticker?.last ? parseFloatSafe(ticker.last) : 0;
+  if (!Number.isFinite(price) || price <= 0) {
     await db.novaScalperConfig.update({
-      where: { id: scalper.id },
-      data: { lastError: msg, lastTickAt: new Date() },
+      where: { id: row.id },
+      data: { lastError: "No price", lastTickAt: new Date() },
     });
-    return { ok: false, error: msg };
+    return { ok: false, error: "Could not read last price." };
   }
 
-  const instId = toInstId(scalper.symbol, scalper.marginCurrency ?? "USDT");
-  if (!instId) {
-    return { ok: false, error: "Invalid symbol." };
-  }
+  const positions = await getPositions(instId, blofinOpts);
+  const hasExchangePosition = positions.length > 0;
 
-  const marginMode = (scalper.marginMode === "isolated" ? "isolated" : "cross") as "isolated" | "cross";
-  const side = scalper.side === "short" ? "short" : "long";
-  const openWhen = scalper.openWhen === "gte" ? "gte" : "lte";
-  const blofinOpts = { demo: blofin.demo, config: blofin.config };
+  const updateRow = async (data: Record<string, unknown>) => {
+    await db.novaScalperConfig.update({ where: { id: row!.id }, data });
+  };
 
-  const ticker = await getTicker(instId, blofin.demo, { config: blofin.config });
-  const mark = ticker?.last ? parseFloatSafe(ticker.last) : 0;
-  if (mark <= 0) {
-    await db.novaScalperConfig.update({
-      where: { id: scalper.id },
-      data: { lastError: "Could not read mark price.", lastTickAt: new Date() },
+  if (row.inPosition && !hasExchangePosition) {
+    await updateRow({
+      inPosition: false,
+      lastAction: "Sync: was marked in-position but exchange has no position; reset to flat.",
+      lastRefPrice: price,
+      lastTickAt: new Date(),
+      lastError: null,
     });
-    return { ok: false, error: "Could not read mark price." };
+    row.inPosition = false;
+    row.lastRefPrice = price;
   }
 
-  let positions = await getPositions(instId, blofinOpts);
-  const hasPos = positions.some((p) => Math.abs(parseFloatSafe(String(p.pos ?? "0"))) > 0);
-  let runState = scalper.runState;
-
-  if (runState === "in_position" && !hasPos) {
-    runState = "flat";
-    await db.novaScalperConfig.update({
-      where: { id: scalper.id },
-      data: {
-        runState: "flat",
-        lastActionMsg: "Position closed (exchange flat); ready for next cycle.",
-        lastError: null,
-        lastMark: mark,
-        lastTickAt: new Date(),
-      },
+  if (!row.inPosition && hasExchangePosition) {
+    await updateRow({
+      inPosition: true,
+      lastAction:
+        "Detected open position on exchange (manual or prior run). NovaScalper will try to exit at your exit/stop only.",
+      lastRefPrice: price,
+      lastTickAt: new Date(),
+      lastError: null,
     });
-    return { ok: true, message: "Synced: was in_position but exchange flat.", action: "sync_flat" };
+    row.inPosition = true;
+    row.lastRefPrice = price;
   }
 
-  if (runState === "flat" && hasPos) {
-    await db.novaScalperConfig.update({
-      where: { id: scalper.id },
-      data: { runState: "in_position", lastError: null, lastMark: mark, lastTickAt: new Date() },
-    });
-    runState = "in_position";
+  let lastRef = row.lastRefPrice;
+  if (lastRef == null || !Number.isFinite(lastRef)) {
+    await updateRow({ lastRefPrice: price, lastTickAt: new Date(), lastError: null, lastAction: "Primed reference price for cross detection." });
+    return { ok: true, message: "Primed price reference. Next tick evaluates entry/exit crosses." };
   }
 
-  const inst = await getInstrument(instId, blofinOpts);
-  if (!inst) {
-    await db.novaScalperConfig.update({
-      where: { id: scalper.id },
-      data: { lastError: "Instrument not found.", lastTickAt: new Date(), lastMark: mark },
-    });
-    return { ok: false, error: "Instrument not found." };
-  }
-  const contractValue = parseFloatSafe(inst.contractValue);
-  const minSize = parseFloatSafe(inst.minSize);
-  if (contractValue <= 0) {
-    return { ok: false, error: "Invalid contract." };
-  }
+  const trigger = row.entryTrigger === "cross_up" ? "cross_up" : "cross_down";
 
-  const lev = Math.min(125, Math.max(1, scalper.leverage ?? 10));
-  const marginUsdt = Math.max(1, scalper.marginUsdt ?? 50);
-  const notionalUsdt = marginUsdt * lev;
-  const sizeContracts = notionalUsdt / (mark * contractValue);
-  const sizeStr = roundSize(sizeContracts, minSize, minSize);
-  if (parseFloat(sizeStr) < minSize) {
-    await db.novaScalperConfig.update({
-      where: { id: scalper.id },
-      data: {
-        lastError: `Size below minimum (${minSize} contracts). Increase margin or leverage.`,
-        lastTickAt: new Date(),
-        lastMark: mark,
-      },
-    });
-    return { ok: false, error: `Size below minimum (${minSize}).` };
-  }
-
-  const entry = scalper.entryPrice;
-  const exitP = scalper.exitPrice;
-  const sl = scalper.stopLossPrice;
-
-  const shouldOpen =
-    runState === "flat" &&
-    !hasPos &&
-    (side === "long"
-      ? openWhen === "lte"
-        ? mark <= entry
-        : mark >= entry
-      : openWhen === "lte"
-        ? mark <= entry
-        : mark >= entry);
-
-  if (shouldOpen) {
-    await setLeverage(instId, lev, marginMode, blofinOpts);
-    const orderSide = side === "long" ? "buy" : "sell";
-    const order = await placeMarketOrder(instId, orderSide, sizeStr, marginMode, {
-      ...blofinOpts,
-      reduceOnly: false,
-    });
-    if (!order.ok) {
-      await db.novaScalperConfig.update({
-        where: { id: scalper.id },
-        data: { lastError: order.error ?? "Open failed", lastTickAt: new Date(), lastMark: mark },
-      });
-      return { ok: false, error: order.error ?? "Open failed" };
-    }
-    await db.novaScalperConfig.update({
-      where: { id: scalper.id },
-      data: {
-        runState: "in_position",
-        lastError: null,
-        lastMark: mark,
-        lastTickAt: new Date(),
-        lastActionAt: new Date(),
-        lastActionMsg: `Opened ${side} ${sizeStr} @ ~${mark} (entry ${entry}).`,
-      },
-    });
-    return { ok: true, message: `Opened ${side}.`, action: "open" };
-  }
-
-  if (runState === "in_position" && hasPos) {
-    const hitTp =
-      side === "long" ? mark >= exitP : mark <= exitP;
-    const hitSl =
-      sl != null && Number.isFinite(sl) && (side === "long" ? mark <= sl : mark >= sl);
-
-    if (hitSl || hitTp) {
-      const rawPosSide = (positions[0] as { rawPositionSide?: string })?.rawPositionSide?.toLowerCase();
-      const posSide = (rawPosSide === "net" ? "net" : positions[0]?.posSide === "short" ? "short" : "long") as
-        | "long"
-        | "short"
-        | "net";
-      const closeResult = await closePositionViaApi(instId, marginMode, posSide, blofinOpts);
-      if (!closeResult.ok) {
-        await db.novaScalperConfig.update({
-          where: { id: scalper.id },
-          data: { lastError: closeResult.error ?? "Close failed", lastTickAt: new Date(), lastMark: mark },
-        });
-        return { ok: false, error: closeResult.error ?? "Close failed" };
+  if (row.inPosition || hasExchangePosition) {
+    if (row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && stopHit(side, row.stopLossPrice, price)) {
+      const cl = await closePositionViaApi(instId, marginMode, "net", blofinOpts);
+      if (!cl.ok) {
+        await updateRow({ lastError: cl.error ?? "Stop close failed", lastTickAt: new Date() });
+        return { ok: false, error: cl.error };
       }
-      const cycles = (scalper.cyclesCompleted ?? 0) + 1;
-      await db.novaScalperConfig.update({
-        where: { id: scalper.id },
-        data: {
-          runState: "flat",
-          cyclesCompleted: cycles,
-          lastError: null,
-          lastMark: mark,
-          lastTickAt: new Date(),
-          lastActionAt: new Date(),
-          lastActionMsg: hitSl
-            ? `Closed on stop (~${mark}). Cycle #${cycles}.`
-            : `Closed on exit (~${mark}). Cycle #${cycles}.`,
-        },
-      });
-      return {
-        ok: true,
-        message: hitSl ? "Closed (stop loss)." : "Closed (take exit).",
-        action: hitSl ? "close_sl" : "close_tp",
+      const rounds = (row.completedRounds ?? 0) + 1;
+      const stopData: Record<string, unknown> = {
+        inPosition: false,
+        completedRounds: rounds,
+        lastRefPrice: price,
+        lastTickAt: new Date(),
+        lastError: null,
+        lastAction: `Stop loss hit @ ~${price}. Closed. Round ${rounds}.`,
       };
+      if (row.maxRounds > 0 && rounds >= row.maxRounds) {
+        stopData.enabled = false;
+        stopData.lastAction = `Max rounds (${row.maxRounds}) reached after stop. Disabled.`;
+      }
+      await updateRow(stopData);
+      return { ok: true, message: "Closed on stop loss." };
     }
+
+    if (shouldExit(side, row.exitPrice, lastRef, price)) {
+      const cl = await closePositionViaApi(instId, marginMode, "net", blofinOpts);
+      if (!cl.ok) {
+        await updateRow({ lastError: cl.error ?? "Exit close failed", lastTickAt: new Date() });
+        return { ok: false, error: cl.error };
+      }
+      const rounds = (row.completedRounds ?? 0) + 1;
+      const exitData: Record<string, unknown> = {
+        inPosition: false,
+        completedRounds: rounds,
+        lastRefPrice: price,
+        lastTickAt: new Date(),
+        lastError: null,
+        lastAction: `Exit target hit @ ~${price}. Position closed. Round ${rounds}.`,
+      };
+      if (row.maxRounds > 0 && rounds >= row.maxRounds) {
+        exitData.enabled = false;
+        exitData.lastAction = `Max rounds (${row.maxRounds}) reached. Disabled.`;
+      }
+      await updateRow(exitData);
+      return { ok: true, message: "Closed at exit target." };
+    }
+
+    await updateRow({ lastRefPrice: price, lastTickAt: new Date(), lastError: null });
+    return { ok: true, message: "In position; waiting for exit or stop." };
   }
 
-  await db.novaScalperConfig.update({
-    where: { id: scalper.id },
-    data: { lastMark: mark, lastTickAt: new Date(), lastError: null },
+  if (row.maxRounds > 0 && (row.completedRounds ?? 0) >= row.maxRounds) {
+    await updateRow({ lastRefPrice: price, lastTickAt: new Date() });
+    return { ok: true, message: "Max rounds reached; not opening again." };
+  }
+
+  if (!shouldEnter(side, trigger, row.entryPrice, lastRef, price)) {
+    await updateRow({ lastRefPrice: price, lastTickAt: new Date(), lastError: null });
+    return { ok: true, message: "Flat; waiting for entry cross." };
+  }
+
+  const instRes = await getInstrument(instId, { demo: isDemo, config: blofinConfig });
+  if (!instRes) {
+    await updateRow({ lastError: "No instrument", lastTickAt: new Date() });
+    return { ok: false, error: "Could not load instrument." };
+  }
+  const contractValue = parseFloatSafe(instRes.contractValue);
+  const minSize = parseFloatSafe(instRes.minSize);
+  const lotSize = minSize;
+  if (contractValue <= 0) {
+    return { ok: false, error: "Invalid contract value." };
+  }
+
+  const lev = Math.max(1, Math.min(125, row.leverage || 1));
+  const notionalUsdt = row.positionSizeUsdt * lev;
+  const sizeContracts = notionalUsdt / (price * contractValue);
+  const sizeStr = roundSize(sizeContracts, minSize, lotSize);
+  if (parseFloat(sizeStr) < minSize) {
+    return { ok: false, error: `Size below minimum (${minSize} contracts). Increase margin or leverage.` };
+  }
+
+  await setLeverage(instId, lev, marginMode, blofinOpts);
+  const orderSide = side === "long" ? "buy" : "sell";
+  const ord = await placeMarketOrder(instId, orderSide, sizeStr, marginMode, blofinOpts);
+  if (!ord.ok) {
+    await updateRow({ lastError: ord.error ?? "Order failed", lastTickAt: new Date() });
+    return { ok: false, error: ord.error };
+  }
+
+  let tpslNote = "";
+  if (row.attachTpsl && (row.tpslTpPct ?? 0) > 0 && (row.tpslSlPct ?? 0) > 0) {
+    const tpsl = await placeTPSLOrder(
+      instId,
+      orderSide,
+      sizeStr,
+      marginMode,
+      price,
+      row.tpslTpPct ?? 2,
+      row.tpslSlPct ?? 1,
+      blofinOpts
+    );
+    tpslNote = tpsl.ok ? " TP/SL attach attempted." : ` TP/SL skipped: ${tpsl.error ?? ""}`;
+  }
+
+  await updateRow({
+    inPosition: true,
+    lastRefPrice: price,
+    lastTickAt: new Date(),
+    lastError: null,
+    lastAction: `Opened ${side} ${sizeStr} @ ~${price}.${tpslNote} Will close at exit ${row.exitPrice} or stop.`,
   });
-  return { ok: true, message: "No action.", action: "hold" };
+
+  return { ok: true, message: `Entered ${side}. Monitoring exit/stop.` };
+}
+
+export async function resetNovaScalperState(options?: {
+  clearRounds?: boolean;
+  clearInPosition?: boolean;
+}): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const row = await db.novaScalperConfig.findFirst({ orderBy: { updatedAt: "desc" } });
+    if (!row) return { ok: false, error: "No config." };
+    await db.novaScalperConfig.update({
+      where: { id: row.id },
+      data: {
+        lastRefPrice: null,
+        ...(options?.clearInPosition !== false ? { inPosition: false } : {}),
+        ...(options?.clearRounds ? { completedRounds: 0 } : {}),
+        lastAction: "State reset by user.",
+        lastError: null,
+      },
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Reset failed" };
+  }
 }
