@@ -119,6 +119,9 @@ export async function POST(request: Request) {
     const timeframeId = String(body.timeframe ?? "4h").toLowerCase();
     const amount = Number(body.amount);
     const amountValid = Number.isFinite(amount) && amount > 0 ? amount : null;
+    const levIn = Number(body.leverage);
+    const leverage =
+      Number.isFinite(levIn) && levIn >= 1 && levIn <= 125 ? Math.min(125, Math.max(1, levIn)) : null;
     const tf = NOVA_PLUS_TIMEFRAMES.find((t) => t.id === timeframeId) ?? NOVA_PLUS_TIMEFRAMES[3];
 
     const [candles, ticker, walls] = await Promise.all([
@@ -209,6 +212,56 @@ export async function POST(request: Request) {
     const suggestedPositionSize =
       suggestedRiskAmount != null && stopDistance > 0 ? suggestedRiskAmount / stopDistance : null;
 
+    /** USD P&L for linear (US$ margin) perps: PnL ≈ coin size × $ price move. Leverage changes margin and ROE%, not these $ amounts at fixed size. */
+    let pnlPreview: {
+      profitIfTakeProfitUsd: number;
+      lossIfStopUsd: number;
+      notionalUsd: number;
+      leverage: number | null;
+      estimatedMarginUsd: number | null;
+      returnOnMarginIfTpPct: number | null;
+      returnOnMarginIfSlPct: number | null;
+      note: string;
+    } | null = null;
+
+    if (suggestedPositionSize != null && suggestedPositionSize > 0 && entry > 0) {
+      const notionalUsd = suggestedPositionSize * entry;
+      let profitIfTakeProfitUsd: number;
+      let lossIfStopUsd: number;
+      if (tradeSetup === "long") {
+        profitIfTakeProfitUsd = suggestedPositionSize * (takeProfit - entry);
+        lossIfStopUsd = suggestedPositionSize * (entry - stopLoss);
+      } else {
+        profitIfTakeProfitUsd = suggestedPositionSize * (entry - takeProfit);
+        lossIfStopUsd = suggestedPositionSize * (stopLoss - entry);
+      }
+      profitIfTakeProfitUsd = Math.max(0, profitIfTakeProfitUsd);
+      lossIfStopUsd = Math.max(0, lossIfStopUsd);
+      const estimatedMarginUsd =
+        leverage != null && leverage > 0 ? notionalUsd / leverage : null;
+      const returnOnMarginIfTpPct =
+        estimatedMarginUsd != null && estimatedMarginUsd > 0
+          ? (profitIfTakeProfitUsd / estimatedMarginUsd) * 100
+          : null;
+      const returnOnMarginIfSlPct =
+        estimatedMarginUsd != null && estimatedMarginUsd > 0
+          ? -(lossIfStopUsd / estimatedMarginUsd) * 100
+          : null;
+      pnlPreview = {
+        profitIfTakeProfitUsd,
+        lossIfStopUsd,
+        notionalUsd,
+        leverage,
+        estimatedMarginUsd,
+        returnOnMarginIfTpPct,
+        returnOnMarginIfSlPct,
+        note:
+          leverage != null
+            ? `Est. margin ≈ notional (${notionalUsd.toFixed(2)} USD) ÷ ${leverage}x. ROE% is profit or loss divided by that margin (excl. fees, funding, liquidation).`
+            : "Add optional leverage to see estimated margin and return on margin (ROE%) for this coin size. Dollar amounts at TP/SL do not change with leverage for a fixed position size.",
+      };
+    }
+
     const wallBias =
       bidWall && askWall
         ? bidWall.sz > askWall.sz * 1.2
@@ -261,6 +314,7 @@ export async function POST(request: Request) {
           note:
             "The stop loss is an invalidation level. If price hits this level, the setup is likely broken and continuation risk increases.",
         },
+        pnlPreview,
       },
     });
   } catch (e) {

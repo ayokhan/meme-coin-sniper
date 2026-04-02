@@ -783,9 +783,20 @@ export default function Dashboard() {
       suggestedPositionSize: number | null;
       note: string;
     };
+    pnlPreview?: {
+      profitIfTakeProfitUsd: number;
+      lossIfStopUsd: number;
+      notionalUsd: number;
+      leverage: number | null;
+      estimatedMarginUsd: number | null;
+      returnOnMarginIfTpPct: number | null;
+      returnOnMarginIfSlPct: number | null;
+      note: string;
+    } | null;
   };
   const [novaPlusSymbol, setNovaPlusSymbol] = useState("BTC");
   const [novaPlusAmount, setNovaPlusAmount] = useState("");
+  const [novaPlusLeverage, setNovaPlusLeverage] = useState("");
   const [novaPlusTimeframe, setNovaPlusTimeframe] = useState("4h");
   const [novaPlusResult, setNovaPlusResult] = useState<NovaPlusResult | null>(null);
   const [novaPlusLoading, setNovaPlusLoading] = useState(false);
@@ -1572,6 +1583,10 @@ export default function Dashboard() {
           symbol,
           timeframe: novaPlusTimeframe,
           amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+          leverage: (() => {
+            const L = Number(novaPlusLeverage);
+            return Number.isFinite(L) && L >= 1 ? L : null;
+          })(),
         }),
         credentials: "include",
       });
@@ -5403,7 +5418,7 @@ export default function Dashboard() {
                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                   <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Nova+ Risk Management</h2>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Enter contract, optional account amount, and timeframe to get a risk-managed setup with recommended stop loss, take-profit, and position sizing.
+                    Enter contract, optional account amount and leverage, and timeframe for stop/target levels, position size, and estimated $ profit at take-profit vs loss at stop (linear perp style).
                   </p>
                   <div className="flex flex-wrap items-center gap-3 mb-4">
                     <input
@@ -5419,6 +5434,17 @@ export default function Dashboard() {
                       value={novaPlusAmount}
                       onChange={(e) => setNovaPlusAmount(e.target.value)}
                       className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-56 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      max={125}
+                      step={1}
+                      placeholder="Leverage (optional)"
+                      value={novaPlusLeverage}
+                      onChange={(e) => setNovaPlusLeverage(e.target.value)}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-44 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                      title="Optional. Used to estimate margin and return on margin (ROE%). 1–125×."
                     />
                     <select
                       value={novaPlusTimeframe}
@@ -5521,6 +5547,55 @@ export default function Dashboard() {
                           <p className="text-xs">Max risk/trade: {novaPlusResult.riskManagement.maxRiskPctPerTrade}%</p>
                           <p className="text-xs">Suggested risk amount: {novaPlusResult.riskManagement.suggestedRiskAmount != null ? `$${novaPlusResult.riskManagement.suggestedRiskAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}` : "Enter account amount to calculate"}</p>
                           <p className="text-xs">Suggested position size: {novaPlusResult.riskManagement.suggestedPositionSize != null ? `${novaPlusResult.riskManagement.suggestedPositionSize.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${novaPlusResult.symbol}` : "Enter account amount to calculate"}</p>
+                          {novaPlusResult.pnlPreview ? (
+                            <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-600 space-y-1">
+                              <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">Est. P&amp;L (this size, excl. fees)</p>
+                              <p className="text-xs">
+                                If take profit:{" "}
+                                <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                                  +${novaPlusResult.pnlPreview.profitIfTakeProfitUsd.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                                </span>
+                              </p>
+                              <p className="text-xs">
+                                If stop loss:{" "}
+                                <span className="font-mono text-rose-600 dark:text-rose-400">
+                                  −${novaPlusResult.pnlPreview.lossIfStopUsd.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                                </span>
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Notional ≈ ${novaPlusResult.pnlPreview.notionalUsd.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                              </p>
+                              {novaPlusResult.pnlPreview.leverage != null && novaPlusResult.pnlPreview.estimatedMarginUsd != null ? (
+                                <>
+                                  <p className="text-xs">
+                                    Est. margin ({novaPlusResult.pnlPreview.leverage}×):{" "}
+                                    <span className="font-mono">${novaPlusResult.pnlPreview.estimatedMarginUsd.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</span>
+                                  </p>
+                                  {novaPlusResult.pnlPreview.returnOnMarginIfTpPct != null && (
+                                    <p className="text-xs">
+                                      ROE if TP:{" "}
+                                      <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                                        +{novaPlusResult.pnlPreview.returnOnMarginIfTpPct.toFixed(1)}%
+                                      </span>
+                                    </p>
+                                  )}
+                                  {novaPlusResult.pnlPreview.returnOnMarginIfSlPct != null && (
+                                    <p className="text-xs">
+                                      ROE if stop:{" "}
+                                      <span className="font-mono text-rose-600 dark:text-rose-400">
+                                        {novaPlusResult.pnlPreview.returnOnMarginIfSlPct.toFixed(1)}%
+                                      </span>
+                                    </p>
+                                  )}
+                                </>
+                              ) : (
+                                <p className="text-[11px] text-muted-foreground">Add leverage above to see est. margin and ROE% on that margin.</p>
+                              )}
+                              <p className="text-[11px] text-muted-foreground mt-1">{novaPlusResult.pnlPreview.note}</p>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground mt-2">Enter account amount to see estimated $ profit at TP and $ loss at stop for the suggested size.</p>
+                          )}
                           <p className="text-xs text-muted-foreground mt-2">{novaPlusResult.riskManagement.note}</p>
                         </div>
                       </div>
