@@ -25,14 +25,18 @@ export default function AboutPage() {
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-cyan-400 via-violet-400 to-blue-500 bg-clip-text text-transparent">
             About NovaStaris
           </h1>
-            <p className="mt-3 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-              Spot viral tokens before the crowd. Analyze with NovaStaris AI Agent in seconds. Move with smart money—Solana, BSC, Crypto Futures,{" "}
-              <strong className="text-violet-500 dark:text-violet-400">NovaForecast Agent</strong> (where to look for your next short or long futures entry),{" "}
-              <strong className="text-violet-500 dark:text-violet-400">NovaQ (NovaIntelligence)</strong>,{" "}
+            <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+              Beat the crowd to the narrative—then trade it with a full stack behind you.{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">NovaStaris AI Agent</strong> turns a contract into a clear read in seconds.{" "}
+              From there: <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Solana</strong> &amp;{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">BSC</strong> discovery,{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Crypto Futures</strong>,{" "}
+              <strong className="text-violet-500 dark:text-violet-400">NovaForecast Agent</strong> for where to hunt your next long or short,{" "}
+              <strong className="text-violet-500 dark:text-violet-400">NovaQ (NovaIntelligence)</strong>, the{" "}
               <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Trading Bot</strong>,{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">Nova+</strong> and{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">NovaScalper</strong> (eligible members), and{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">NovaConnect</strong>. All in one platform.
+              <strong className="text-cyan-600 dark:text-cyan-400">Nova+</strong>,{" "}
+              <strong className="text-cyan-600 dark:text-cyan-400">NovaScalper</strong>, and trader-to-trader{" "}
+              <strong className="text-cyan-600 dark:text-cyan-400">NovaConnect</strong>—one platform, not a dozen tabs.
             </p>
         </div>
 
