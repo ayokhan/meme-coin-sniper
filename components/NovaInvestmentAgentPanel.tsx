@@ -43,6 +43,8 @@ type StrategyLeg = {
 
 type NovaInvestmentAgentResult = {
   baseSymbol: string;
+  contractsFocus?: string[];
+  focusMode?: "basket" | "contracts";
   amountUsd: number;
   riskProfitPreset: RiskProfitPreset;
   durationMode: DurationMode;
@@ -50,6 +52,9 @@ type NovaInvestmentAgentResult = {
   totalExpectedReturnUsd: number;
   legs: StrategyLeg[];
   overallNote?: string;
+  optionalStopLossPct?: number | null;
+  optionalTakeProfitPct?: number | null;
+  optionalTargetProfitUsd?: number | null;
 };
 
 type InvestmentPin = {
@@ -76,7 +81,12 @@ function formatPct(n: number) {
 
 export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean }) {
   const [amountUsd, setAmountUsd] = useState<number>(250);
-  const [baseSymbol, setBaseSymbol] = useState<string>("BTC");
+  /** Comma-separated contracts; when empty, basket scan uses anchor symbol for leg direction. */
+  const [contractsInput, setContractsInput] = useState<string>("");
+  const [basketAnchorSymbol, setBasketAnchorSymbol] = useState<string>("BTC");
+  const [optionalStopLossPct, setOptionalStopLossPct] = useState<string>("");
+  const [optionalTakeProfitPct, setOptionalTakeProfitPct] = useState<string>("");
+  const [optionalTargetProfitUsd, setOptionalTargetProfitUsd] = useState<string>("");
 
   const [riskProfitPreset, setRiskProfitPreset] = useState<RiskProfitPreset>("low_medium");
   const [durationMode, setDurationMode] = useState<DurationMode>("short_term");
@@ -132,10 +142,17 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
   const payload = useMemo(() => {
     const base: Record<string, unknown> = {
       amountUsd,
-      baseSymbol,
+      contracts: contractsInput.trim(),
+      baseSymbol: basketAnchorSymbol.trim() || "BTC",
       riskProfitPreset,
       durationMode,
     };
+    const sl = Number(optionalStopLossPct);
+    if (Number.isFinite(sl) && sl > 0) base.optionalStopLossPct = sl;
+    const tp = Number(optionalTakeProfitPct);
+    if (Number.isFinite(tp) && tp > 0) base.optionalTakeProfitPct = tp;
+    const tgt = Number(optionalTargetProfitUsd);
+    if (Number.isFinite(tgt) && tgt > 0) base.targetProfitUsd = tgt;
     if (durationMode === "long_term") base.longTermId = longTermId;
     if (durationMode === "short_term") base.shortTermId = shortTermId;
     if (durationMode === "scalp") base.scalpId = scalpId;
@@ -153,7 +170,11 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
     return base;
   }, [
     amountUsd,
-    baseSymbol,
+    contractsInput,
+    basketAnchorSymbol,
+    optionalStopLossPct,
+    optionalTakeProfitPct,
+    optionalTargetProfitUsd,
     riskProfitPreset,
     durationMode,
     longTermId,
@@ -278,13 +299,70 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
                 className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
               />
             </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Contract symbol (e.g. BTC)</label>
+            <div className="space-y-1 md:col-span-2">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                Contracts (optional, comma-separated)
+              </label>
               <input
                 type="text"
-                value={baseSymbol}
-                onChange={(e) => setBaseSymbol(e.target.value.toUpperCase())}
-                className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                placeholder="e.g. BTC, ETH, SOL — leave empty to scan a basket of majors"
+                value={contractsInput}
+                onChange={(e) => setContractsInput(e.target.value.toUpperCase())}
+                className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                When set, recommendations list only these contracts (equal split). When empty, the table can include multiple majors from the scan.
+              </p>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                Basket anchor symbol
+              </label>
+              <input
+                type="text"
+                placeholder="BTC"
+                value={basketAnchorSymbol}
+                onChange={(e) => setBasketAnchorSymbol(e.target.value.toUpperCase())}
+                className="w-full max-w-xs text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Used for leg direction and structure when contracts are empty. Ignored as anchor when you list contracts (first listed contract drives structure).
+              </p>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Stop loss % (optional)</label>
+              <input
+                type="number"
+                min={0.1}
+                step={0.1}
+                placeholder="Preset default"
+                value={optionalStopLossPct}
+                onChange={(e) => setOptionalStopLossPct(e.target.value)}
+                className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Take profit % (optional)</label>
+              <input
+                type="number"
+                min={0.1}
+                step={0.1}
+                placeholder="Preset default"
+                value={optionalTakeProfitPct}
+                onChange={(e) => setOptionalTakeProfitPct(e.target.value)}
+                className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Target profit USD (optional)</label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                placeholder="Reference goal — shown in summary vs plan expected return"
+                value={optionalTargetProfitUsd}
+                onChange={(e) => setOptionalTargetProfitUsd(e.target.value)}
+                className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
               />
             </div>
           </div>

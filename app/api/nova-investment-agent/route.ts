@@ -105,6 +105,9 @@ type BookLevel = { px: number; sz: number };
 
 type NovaInvestmentAgentResult = {
   baseSymbol: string;
+  /** When set, recommendations are limited to these contracts only (equal split). */
+  contractsFocus?: string[];
+  focusMode: "basket" | "contracts";
   amountUsd: number;
   riskProfitPreset: RiskProfitPreset;
   durationMode: DurationMode;
@@ -112,6 +115,9 @@ type NovaInvestmentAgentResult = {
   totalExpectedReturnUsd: number;
   legs: StrategyLeg[];
   overallNote?: string;
+  optionalStopLossPct?: number | null;
+  optionalTakeProfitPct?: number | null;
+  optionalTargetProfitUsd?: number | null;
 };
 
 function normalizeSymbol(raw: string): string {
@@ -119,6 +125,24 @@ function normalizeSymbol(raw: string): string {
   if (!upper) return "BTC";
   // Normalize BTC/USDT, BTC-USDT, BTC.USDT -> BTC
   return upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim() || upper;
+}
+
+function parseFocusSymbols(body: Record<string, unknown>): string[] {
+  if (Array.isArray(body.symbols)) {
+    const out = body.symbols
+      .map((s) => normalizeSymbol(String(s)))
+      .filter((s) => s.length > 0);
+    return [...new Set(out)].slice(0, 12);
+  }
+  const contracts = String(body.contracts ?? "").trim();
+  if (contracts) {
+    const out = contracts
+      .split(/[,;\s]+/)
+      .map((s) => normalizeSymbol(s.trim()))
+      .filter((s) => s.length > 0);
+    return [...new Set(out)].slice(0, 12);
+  }
+  return [];
 }
 
 function highLowFromCandles(candles: CandleTuple[]): { high: number; low: number } | null {
@@ -221,6 +245,8 @@ function buildLegCoins(params: {
   baseSymbol: string;
   legDirection: "long" | "short";
   candidateSymbols: string[];
+  /** If set, only these symbols appear in the leg (equal allocation), in list order. */
+  restrictToSymbols?: string[] | null;
   highVolatileCoinSymbols: string[];
   highVolAllocPct: number;
   leverage: number;
@@ -235,6 +261,7 @@ function buildLegCoins(params: {
     baseSymbol,
     legDirection,
     candidateSymbols,
+    restrictToSymbols,
     highVolatileCoinSymbols,
     highVolAllocPct,
     leverage,
@@ -255,6 +282,35 @@ function buildLegCoins(params: {
     const tfDir = getTfDirection(candles);
     const dir = chooseDirectionFromMarketStructure(tfDir, currentPrice, hl.low, hl.high);
     coinDirections[sym] = { dir, support: hl.low, resistance: hl.high, currentPrice };
+  }
+
+  if (restrictToSymbols && restrictToSymbols.length > 0) {
+    const symbolsToUse = restrictToSymbols.filter((s) => coinDirections[s]);
+    const missing = restrictToSymbols.filter((s) => !coinDirections[s]);
+    const notes: string[] = [];
+    if (missing.length) notes.push(`Skipped (no data): ${missing.join(", ")}.`);
+    if (symbolsToUse.length === 0) {
+      return { coins: [], notes: [`No market data for: ${restrictToSymbols.join(", ")}.`, ...notes] };
+    }
+    const per = 100 / symbolsToUse.length;
+    const coins: StrategyLegCoin[] = [];
+    for (const sym of symbolsToUse) {
+      const d = coinDirections[sym]!;
+      const entryZoneLow = legDirection === "long" ? d.support * (1 + 0.002) : d.resistance * (1 - 0.002);
+      const entryZoneHigh = legDirection === "long" ? d.support * (1 + 0.006) : d.resistance * (1 - 0.006);
+      const stopLossPrice = legDirection === "long" ? entryZoneLow * (1 - stopLossPct / 100) : entryZoneLow * (1 + stopLossPct / 100);
+      const takeProfitPrice = legDirection === "long" ? entryZoneHigh * (1 + takeProfitPct / 100) : entryZoneHigh * (1 - takeProfitPct / 100);
+      coins.push({
+        symbol: sym,
+        allocationPct: per,
+        direction: legDirection,
+        entryZoneLow: Math.min(entryZoneLow, entryZoneHigh),
+        entryZoneHigh: Math.max(entryZoneLow, entryZoneHigh),
+        stopLossPrice,
+        takeProfitPrice,
+      });
+    }
+    return { coins, notes };
   }
 
   const base = coinDirections[baseSymbol];
@@ -355,24 +411,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Nova Investment Agent is for VIP subscribers.", locked: true }, { status: 403 });
     }
 
-    const body = await request.json().catch(() => ({}));
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const amountUsdRaw = body.amountUsd ?? body.amount ?? body.investmentAmount;
-    const baseSymbol = normalizeSymbol(String(body.baseSymbol ?? body.symbol ?? "BTC"));
-    const riskProfitPreset: RiskProfitPreset = body.riskProfitPreset ?? body.risk_profile ?? "low_medium";
-    const durationMode: DurationMode = body.durationMode ?? body.duration_mode ?? "short_term";
+    const focusSymbols = parseFocusSymbols(body);
+    const legacyBase = normalizeSymbol(String(body.baseSymbol ?? body.symbol ?? "BTC"));
+    const anchorSymbol = focusSymbols.length > 0 ? focusSymbols[0]! : legacyBase;
+    const focusMode = focusSymbols.length > 0;
+
+    const riskProfitPreset: RiskProfitPreset = (body.riskProfitPreset ?? body.risk_profile ?? "low_medium") as RiskProfitPreset;
+    const durationMode: DurationMode = (body.durationMode ?? body.duration_mode ?? "short_term") as DurationMode;
 
     const amountUsd = Number(amountUsdRaw);
     if (!Number.isFinite(amountUsd) || amountUsd <= 0) {
       return NextResponse.json({ success: false, error: "Enter a valid investment amount (USD)." }, { status: 400 });
     }
 
-    const candidateMajors = Array.from(new Set([baseSymbol, "BTC", "ETH", "SOL", "AVAX", "LINK", "UNI", "DOGE"]));
-    const highVolatile = Array.from(new Set(["DOGE", "AVAX", "UNI", "SOL", "SHIB", "PEPE", "APT"])).filter((s) => s !== baseSymbol);
+    const parsedSl = Number(body.optionalStopLossPct ?? body.stopLossPct);
+    const parsedTp = Number(body.optionalTakeProfitPct ?? body.takeProfitPct);
+    const optTargetProfit = Number(body.targetProfitUsd ?? body.optionalTargetProfitUsd);
 
-    const { leverage, stopLossPct, takeProfitPct, highVolAllocPct } = mapRiskPreset(riskProfitPreset as RiskProfitPreset);
+    let { leverage, stopLossPct, takeProfitPct, highVolAllocPct } = mapRiskPreset(riskProfitPreset);
+    if (Number.isFinite(parsedSl) && parsedSl > 0 && parsedSl <= 50) stopLossPct = parsedSl;
+    if (Number.isFinite(parsedTp) && parsedTp > 0 && parsedTp <= 200) takeProfitPct = parsedTp;
+
+    const optionalStopLossPct =
+      Number.isFinite(parsedSl) && parsedSl > 0 && parsedSl <= 50 ? parsedSl : null;
+    const optionalTakeProfitPct =
+      Number.isFinite(parsedTp) && parsedTp > 0 && parsedTp <= 200 ? parsedTp : null;
+    const optionalTargetProfitUsd =
+      Number.isFinite(optTargetProfit) && optTargetProfit > 0 ? optTargetProfit : null;
+
+    const effectiveHighVol = focusMode ? 0 : highVolAllocPct;
+    const candidateMajors = Array.from(new Set([legacyBase, "BTC", "ETH", "SOL", "AVAX", "LINK", "UNI", "DOGE"]));
+    const highVolatile = Array.from(new Set(["DOGE", "AVAX", "UNI", "SOL", "SHIB", "PEPE", "APT"])).filter((s) =>
+      focusMode ? !focusSymbols.includes(s) : s !== legacyBase,
+    );
 
     const buildLegFromWindow = async (legType: StrategyLeg["legType"], window: CandleWindow, legUsd: number) => {
-      const [candlesBase, tickerBase] = await Promise.all([getCandles(baseSymbol, window.interval, window.limit), getTicker(baseSymbol)]);
+      const [candlesBase, tickerBase] = await Promise.all([getCandles(anchorSymbol, window.interval, window.limit), getTicker(anchorSymbol)]);
       const hl = highLowFromCandles(candlesBase as CandleTuple[]);
       const currentPrice = tickerBase?.last != null && Number.isFinite(Number(tickerBase.last)) ? Number(tickerBase.last) : null;
 
@@ -396,7 +472,7 @@ export async function POST(request: Request) {
 
       const tfDir = getTfDirection(candlesBase as CandleTuple[]);
       const legDirection = chooseDirectionFromMarketStructure(tfDir, currentPrice, hl.low, hl.high);
-      const { strongestBidWall, strongestAskWall } = await fetchOrderBookWalls(baseSymbol);
+      const { strongestBidWall, strongestAskWall } = await fetchOrderBookWalls(anchorSymbol);
       const atrPct = getAtrPct(candlesBase as CandleTuple[], currentPrice);
       const rangePct = hl.high > 0 ? (hl.high - hl.low) / hl.high : 0.01;
 
@@ -419,7 +495,9 @@ export async function POST(request: Request) {
         Math.max(dynamicStopPct * 100 * 1.7, takeProfitPct * (legType === "scalp" ? 0.45 : legType === "short" ? 0.65 : 1))
       );
 
-      const candidateSymbols = Array.from(new Set([baseSymbol, ...candidateMajors])).slice(0, 6);
+      const candidateSymbols = focusMode
+        ? [...new Set(focusSymbols)].slice(0, 12)
+        : Array.from(new Set([anchorSymbol, ...candidateMajors])).slice(0, 6);
       const candlesPerCoin: Record<string, CandleTuple[]> = {};
       const tickerPerCoin: Record<string, { last: string } | null> = {};
 
@@ -432,11 +510,12 @@ export async function POST(request: Request) {
       );
 
       const { coins, notes } = buildLegCoins({
-        baseSymbol,
+        baseSymbol: anchorSymbol,
         legDirection,
         candidateSymbols,
+        restrictToSymbols: focusMode ? focusSymbols : null,
         highVolatileCoinSymbols: highVolatile,
-        highVolAllocPct,
+        highVolAllocPct: effectiveHighVol,
         leverage,
         stopLossPct: Number((dynamicStopPct * 100).toFixed(2)),
         takeProfitPct: Number(dynamicTakeProfitPct.toFixed(2)),
@@ -471,7 +550,7 @@ export async function POST(request: Request) {
         takeProfitPct: Number(dynamicTakeProfitPct.toFixed(2)),
         expectedReturnPctOnMargin,
         expectedReturnUsdOnLeg,
-        entryPlan: `${directionTxt} entry: wait for ${baseSymbol} price to ${entryZoneTxt}.`,
+        entryPlan: `${directionTxt} entry: wait for ${anchorSymbol} price to ${entryZoneTxt}.`,
         exitPlan: `Exit plan: ${takeProfitTxt}; ${stopLossTxt}. If neither hits within the selected timeframe, close/rotate.`,
         coins,
         notes: [
@@ -546,18 +625,31 @@ export async function POST(request: Request) {
     const totalExpectedReturnUsd = legs.reduce((sum, l) => sum + (l.expectedReturnUsdOnLeg ?? 0), 0);
     const totalExpectedReturnPct = amountUsd > 0 ? (totalExpectedReturnUsd / amountUsd) * 100 : 0;
 
+    let overallNote =
+      "This is a strategy suggestion (not financial advice). Use it as a checklist for your own execution and risk limits.";
+    if (optionalTargetProfitUsd != null) {
+      overallNote += ` Your stated profit goal: $${optionalTargetProfitUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })} (reference only; plan total expected ≈ $${totalExpectedReturnUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}).`;
+    }
+    if (focusMode) {
+      overallNote += ` Contracts focus: ${focusSymbols.join(", ")} — the coin table lists only these symbols.`;
+    }
+
     return NextResponse.json({
       success: true,
       result: {
-        baseSymbol,
+        baseSymbol: anchorSymbol,
+        contractsFocus: focusMode ? focusSymbols : undefined,
+        focusMode: focusMode ? "contracts" : "basket",
         amountUsd,
         riskProfitPreset,
         durationMode,
         totalExpectedReturnPct,
         totalExpectedReturnUsd,
         legs,
-        overallNote:
-          "This is a strategy suggestion (not financial advice). Use it as a checklist for your own execution and risk limits.",
+        overallNote,
+        optionalStopLossPct,
+        optionalTakeProfitPct,
+        optionalTargetProfitUsd,
       } satisfies NovaInvestmentAgentResult,
     });
   } catch (e) {
