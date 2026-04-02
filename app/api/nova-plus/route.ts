@@ -149,6 +149,9 @@ export async function POST(request: Request) {
     const timeframeId = String(body.timeframe ?? "4h").toLowerCase();
     const amount = Number(body.amount);
     const amountValid = Number.isFinite(amount) && amount > 0 ? amount : null;
+    const targetProfitIn = Number(body.targetProfitUsd);
+    const targetProfitValid =
+      Number.isFinite(targetProfitIn) && targetProfitIn > 0 ? targetProfitIn : null;
     const levIn = Number(body.leverage);
     const leverage =
       Number.isFinite(levIn) && levIn >= 1 && levIn <= 125 ? Math.min(125, Math.max(1, levIn)) : null;
@@ -238,9 +241,47 @@ export async function POST(request: Request) {
       "Risk:reward (R:R) is the ratio of distance to take profit versus distance to stop loss. " +
       `At ${riskReward.toFixed(2)}×, the target move is about ${riskReward.toFixed(2)} times as large as the stop move—roughly $${riskReward.toFixed(2)} of reward per $1.00 put at risk to the stop, if both levels were reached in proportion.`;
 
-    const suggestedRiskAmount = amountValid != null ? amountValid * 0.01 : null;
-    const suggestedPositionSize =
-      suggestedRiskAmount != null && stopDistance > 0 ? suggestedRiskAmount / stopDistance : null;
+    const tpDistanceUsd = Math.abs(takeProfit - entry);
+    const sizeFor1PctRisk =
+      amountValid != null && stopDistance > 0 ? (amountValid * 0.01) / stopDistance : null;
+    const sizeForTargetProfit =
+      targetProfitValid != null && tpDistanceUsd > 1e-12 ? targetProfitValid / tpDistanceUsd : null;
+
+    type SizingMode = "risk_1pct" | "target_profit" | "capped_to_1pct_risk";
+    let suggestedPositionSize: number | null = null;
+    let sizingMode: SizingMode = "risk_1pct";
+    let sizingNote = "";
+
+    if (sizeForTargetProfit != null && sizeForTargetProfit > 0) {
+      if (sizeFor1PctRisk != null) {
+        if (sizeForTargetProfit <= sizeFor1PctRisk) {
+          suggestedPositionSize = sizeForTargetProfit;
+          sizingMode = "target_profit";
+          sizingNote =
+            "Position sized so profit at the suggested take-profit matches your target (stop risk is below or equal to 1% of account).";
+        } else {
+          suggestedPositionSize = sizeFor1PctRisk;
+          sizingMode = "capped_to_1pct_risk";
+          const achievable = sizeFor1PctRisk * tpDistanceUsd;
+          sizingNote = `Your target profit $${targetProfitIn.toFixed(2)} would need a larger position than 1% risk to the stop allows. Capped to 1% risk: est. profit at TP ≈ $${achievable.toFixed(2)}.`;
+        }
+      } else {
+        suggestedPositionSize = sizeForTargetProfit;
+        sizingMode = "target_profit";
+        sizingNote =
+          "Position sized to your target profit at the suggested take-profit. Add account amount to compare stop risk vs a 1% cap.";
+      }
+    } else if (sizeFor1PctRisk != null) {
+      suggestedPositionSize = sizeFor1PctRisk;
+      sizingMode = "risk_1pct";
+      sizingNote =
+        "Position sized from 1% of account at the stop (default). Add optional target profit to size toward a $ goal at TP instead.";
+    }
+
+    const riskCapUsd = amountValid != null ? amountValid * 0.01 : null;
+    /** Actual dollars lost if stop hits for the chosen size. */
+    const suggestedRiskAmount =
+      suggestedPositionSize != null && stopDistance > 0 ? suggestedPositionSize * stopDistance : null;
 
     /** USD P&L for linear (US$ margin) perps: PnL ≈ coin size × $ price move. Leverage sets margin = notional ÷ leverage for isolated-style math. */
     let pnlPreview: {
@@ -305,9 +346,11 @@ export async function POST(request: Request) {
       }
 
       const notionalFromSizingExplanation =
-        "Notional here = suggested coin size × entry (your USD exposure). " +
-        "It comes from risking 1% of account to the stop—not from account × leverage. " +
-        "Leverage only splits that exposure into margin: margin ≈ notional ÷ leverage.";
+        sizingMode === "risk_1pct"
+          ? "Notional = size × price. Size is set so ~1% of your account is at risk to the stop—not from account × leverage. Leverage only divides notional into margin."
+          : sizingMode === "capped_to_1pct_risk"
+            ? "Notional = size × price. Size is capped by 1% stop risk, so it is smaller than a pure “target profit” size would require."
+            : "Notional = size × price. Size was chosen from your target $ profit at TP (see sizing note). Leverage only divides notional into margin.";
 
       const liquidationDisclaimer =
         `Approx. isolated liq using ${(LiqMaintMarginRate * 100).toFixed(2)}% maintenance (illustrative). Real liq depends on the exchange, cross vs isolated, funding, fees, and mark price.`;
@@ -380,6 +423,10 @@ export async function POST(request: Request) {
         riskManagement: {
           maxRiskPctPerTrade: 1,
           accountAmount: amountValid,
+          riskCapUsd,
+          targetProfitUsd: targetProfitValid,
+          sizingMode,
+          sizingNote,
           suggestedRiskAmount,
           suggestedPositionSize,
           note:

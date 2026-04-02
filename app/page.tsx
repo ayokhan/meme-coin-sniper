@@ -779,6 +779,10 @@ export default function Dashboard() {
     riskManagement: {
       maxRiskPctPerTrade: number;
       accountAmount: number | null;
+      riskCapUsd?: number | null;
+      targetProfitUsd?: number | null;
+      sizingMode?: "risk_1pct" | "target_profit" | "capped_to_1pct_risk";
+      sizingNote?: string;
       suggestedRiskAmount: number | null;
       suggestedPositionSize: number | null;
       note: string;
@@ -802,6 +806,7 @@ export default function Dashboard() {
   };
   const [novaPlusSymbol, setNovaPlusSymbol] = useState("BTC");
   const [novaPlusAmount, setNovaPlusAmount] = useState("");
+  const [novaPlusTargetProfit, setNovaPlusTargetProfit] = useState("");
   const [novaPlusLeverage, setNovaPlusLeverage] = useState("");
   const [novaPlusTimeframe, setNovaPlusTimeframe] = useState("4h");
   const [novaPlusResult, setNovaPlusResult] = useState<NovaPlusResult | null>(null);
@@ -1589,6 +1594,10 @@ export default function Dashboard() {
           symbol,
           timeframe: novaPlusTimeframe,
           amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+          targetProfitUsd: (() => {
+            const p = Number(novaPlusTargetProfit);
+            return Number.isFinite(p) && p > 0 ? p : null;
+          })(),
           leverage: (() => {
             const L = Number(novaPlusLeverage);
             return Number.isFinite(L) && L >= 1 ? L : null;
@@ -5424,7 +5433,7 @@ export default function Dashboard() {
                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                   <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Nova+ Risk Management</h2>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Enter contract, optional account amount and leverage, and timeframe for stop/target levels, position size, and estimated $ profit at take-profit vs loss at stop (linear perp style).
+                    Enter contract, optional account amount, optional target $ profit at take-profit, leverage, and timeframe. Default size uses 1% of account at the stop; target profit sizes toward a $ gain at TP (capped by that 1% rule when account is set).
                   </p>
                   <div className="flex flex-wrap items-center gap-3 mb-4">
                     <input
@@ -5440,6 +5449,16 @@ export default function Dashboard() {
                       value={novaPlusAmount}
                       onChange={(e) => setNovaPlusAmount(e.target.value)}
                       className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-56 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                    />
+                    <input
+                      type="number"
+                      min={0.01}
+                      step={0.01}
+                      placeholder="Target $ profit at TP (optional)"
+                      value={novaPlusTargetProfit}
+                      onChange={(e) => setNovaPlusTargetProfit(e.target.value)}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-52 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                      title="Optional. Sizes position so profit at the suggested take-profit ≈ this amount (capped by 1% stop risk if account is set)."
                     />
                     <input
                       type="number"
@@ -5550,9 +5569,46 @@ export default function Dashboard() {
                         </div>
                         <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
                           <h3 className="text-sm font-semibold mb-2">Risk Management</h3>
-                          <p className="text-xs">Max risk/trade: {novaPlusResult.riskManagement.maxRiskPctPerTrade}%</p>
-                          <p className="text-xs">Suggested risk amount: {novaPlusResult.riskManagement.suggestedRiskAmount != null ? `$${novaPlusResult.riskManagement.suggestedRiskAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}` : "Enter account amount to calculate"}</p>
-                          <p className="text-xs">Suggested position size: {novaPlusResult.riskManagement.suggestedPositionSize != null ? `${novaPlusResult.riskManagement.suggestedPositionSize.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${novaPlusResult.symbol}` : "Enter account amount to calculate"}</p>
+                          <p className="text-xs">Max risk/trade (plan): {novaPlusResult.riskManagement.maxRiskPctPerTrade}% of account</p>
+                          {novaPlusResult.riskManagement.riskCapUsd != null && (
+                            <p className="text-xs text-muted-foreground">
+                              1% risk budget:{" "}
+                              <span className="font-mono">${novaPlusResult.riskManagement.riskCapUsd.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</span>
+                            </p>
+                          )}
+                          <p className="text-xs">
+                            Est. $ if stop hits (this size):{" "}
+                            {novaPlusResult.riskManagement.suggestedRiskAmount != null ? (
+                              <span className="font-mono">
+                                ${novaPlusResult.riskManagement.suggestedRiskAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                              </span>
+                            ) : (
+                              "Enter account and/or target profit at TP"
+                            )}
+                            {novaPlusResult.riskManagement.accountAmount != null &&
+                              novaPlusResult.riskManagement.suggestedRiskAmount != null && (
+                                <span className="text-muted-foreground">
+                                  {" "}
+                                  (
+                                  {(
+                                    (novaPlusResult.riskManagement.suggestedRiskAmount / novaPlusResult.riskManagement.accountAmount) *
+                                    100
+                                  ).toFixed(2)}
+                                  % of account)
+                                </span>
+                              )}
+                          </p>
+                          <p className="text-xs">
+                            Suggested position size:{" "}
+                            {novaPlusResult.riskManagement.suggestedPositionSize != null
+                              ? `${novaPlusResult.riskManagement.suggestedPositionSize.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${novaPlusResult.symbol}`
+                              : "Enter account and/or target profit at TP"}
+                          </p>
+                          {novaPlusResult.riskManagement.sizingNote && (
+                            <p className="text-[11px] text-cyan-800/90 dark:text-cyan-200/90 mt-1 leading-relaxed">
+                              {novaPlusResult.riskManagement.sizingNote}
+                            </p>
+                          )}
                           {novaPlusResult.pnlPreview ? (
                             <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-600 space-y-1">
                               <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">Est. P&amp;L (this size, excl. fees)</p>
