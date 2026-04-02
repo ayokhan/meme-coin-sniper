@@ -69,9 +69,13 @@ export default function NovaScalperPanel() {
     try {
       void loadUserBlofinConfig();
       const res = await fetch("/api/admin/nova-scalper", { credentials: "include", cache: "no-store" });
-      const data = await res.json();
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        config?: ScalperConfig;
+        error?: string;
+      };
       if (data.success && data.config) {
-        const c = data.config as ScalperConfig;
+        const c = data.config;
         const pair =
           c.instrumentPair?.trim() ||
           `${String(c.symbol ?? "BTC").toUpperCase()}/${c.marginCurrency === "USDC" ? "USDC" : "USDT"}`;
@@ -80,8 +84,15 @@ export default function NovaScalperPanel() {
           instrumentPair: pair,
           instId: String(c.instId ?? ""),
         });
-      } else setError(data.error ?? `Error ${res.status}`);
+      } else {
+        setConfig(null);
+        setError(
+          data.error ??
+            (!res.ok ? `Request failed (${res.status}).` : "No config returned. Try again or check the server logs.")
+        );
+      }
     } catch (e) {
+      setConfig(null);
       setError(e instanceof Error ? e.message : "Load failed");
     } finally {
       setLoading(false);
@@ -175,8 +186,45 @@ export default function NovaScalperPanel() {
     }
   };
 
-  if (loading || !config) {
-    return <p className="text-sm text-muted-foreground py-4">{loading ? "Loading NovaScalper…" : "No config."}</p>;
+  if (loading) {
+    return <p className="text-sm text-muted-foreground py-4">Loading NovaScalper…</p>;
+  }
+
+  if (!config) {
+    return (
+      <div className="space-y-4 max-w-2xl py-4">
+        <p className="text-sm text-muted-foreground">
+          NovaScalper could not load your saved settings. If the message below mentions the database or{" "}
+          <code className="text-xs rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">userId</code>, update production with{" "}
+          <code className="text-xs rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">npx prisma db push</code>.
+        </p>
+        {error && (
+          <div className="rounded-lg border border-rose-200/80 dark:border-rose-800/80 bg-rose-50/50 dark:bg-rose-950/30 p-3 text-sm text-rose-700 dark:text-rose-300 space-y-2">
+            <p>{error}</p>
+            {(error.includes("does not exist") ||
+              error.includes("column") ||
+              error.includes("userId") ||
+              error.includes("NovaScalperConfig") ||
+              error.includes("prisma")) && (
+              <p className="text-xs text-rose-600/90 dark:text-rose-400/90">
+                Run <code className="bg-rose-200/50 dark:bg-rose-900/30 px-1 rounded">npx prisma db push</code> against the
+                same <code className="bg-rose-200/50 dark:bg-rose-900/30 px-1 rounded">DATABASE_URL</code> Vercel (or your
+                host) uses, then redeploy if needed.
+              </p>
+            )}
+            {(error.toLowerCase().includes("sign in") || error.includes("401")) && (
+              <p className="text-xs text-rose-600/90 dark:text-rose-400/90">Sign in, then open this tab again.</p>
+            )}
+          </div>
+        )}
+        {!error && (
+          <p className="text-sm text-muted-foreground">No config was returned. Use Retry or check your connection.</p>
+        )}
+        <Button size="sm" variant="secondary" onClick={() => void load()}>
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   const setField = <K extends keyof ScalperConfig>(key: K, value: ScalperConfig[K]) => {
