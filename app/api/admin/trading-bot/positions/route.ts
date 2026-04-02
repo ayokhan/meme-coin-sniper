@@ -1,32 +1,27 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, canAccessTradingBot } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { getPositions as getPositionsBlofin, getTicker, getInstrument, isBlofinConfigured } from "@/lib/blofin";
+import { authOptions } from "@/lib/auth";
+import { getPositions as getPositionsBlofin, getTicker, getInstrument } from "@/lib/blofin";
+import { resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
 
 export const dynamic = "force-dynamic";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = prisma as any;
 
 function parseNum(s: string): number {
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
 }
 
-/** GET - All open positions with unrealized PNL (all symbols). Owner only. */
+/** GET - All open positions with unrealized PNL for the signed-in user's Blofin account. */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!canAccessTradingBot(session)) {
-      return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
+    const resolved = await resolveBlofinConfigForTradingBotSession(session);
+    if (!resolved.ok) {
+      return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
-    if (!isBlofinConfigured()) {
-      return NextResponse.json({ success: false, error: "Blofin not configured." }, { status: 400 });
-    }
-    const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
-    const isDemo = bot?.mode === "demo";
-    const positions = await getPositionsBlofin(undefined, { demo: isDemo });
+    const { config } = resolved;
+    const isDemo = config.demo;
+    const positions = await getPositionsBlofin(undefined, { demo: isDemo, config });
 
     if (!positions.length) {
       return NextResponse.json({
@@ -41,8 +36,8 @@ export async function GET() {
     const instData = await Promise.all(
       uniqueInstIds.map(async (id) => {
         const [instrument, ticker] = await Promise.all([
-          getInstrument(id, { demo: isDemo }),
-          getTicker(id, isDemo),
+          getInstrument(id, { demo: isDemo, config }),
+          getTicker(id, isDemo, { config }),
         ]);
         return {
           instId: id,

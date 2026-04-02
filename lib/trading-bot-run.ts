@@ -337,22 +337,23 @@ export async function closeTradingBotPosition(options?: {
   closeInstId?: string;
   closeAll?: boolean;
   posSide?: "long" | "short" | "net";
+  blofinConfig: BlofinConfig;
 }): Promise<{ ok: boolean; message?: string; error?: string }> {
   const closeInstId = options?.closeInstId?.trim();
   const closeAll = options?.closeAll === true;
   const filterPosSide = options?.posSide;
+  const blofinConfig = options?.blofinConfig;
+  if (!blofinConfig) return { ok: false, error: "Blofin config missing." };
 
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) return { ok: false, error: "No bot config." };
-  if (!isBlofinConfigured()) {
-    return { ok: false, error: "Blofin API keys not set." };
-  }
 
-  const isDemo = bot.mode === "demo";
+  const isDemo = blofinConfig.demo;
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
+  const blofinOpts = { demo: isDemo, config: blofinConfig };
 
   let positions = closeAll
-    ? await getPositionsBlofin(undefined, { demo: isDemo })
+    ? await getPositionsBlofin(undefined, blofinOpts)
     : await getPositionsBlofin(
         closeInstId
           ? closeInstId.replace("/", "-")
@@ -363,7 +364,7 @@ export async function closeTradingBotPosition(options?: {
                 ? rawSymbol.replace("/", "-")
                 : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
             })(),
-        { demo: isDemo }
+        blofinOpts
       );
 
   if (filterPosSide) {
@@ -392,11 +393,11 @@ export async function closeTradingBotPosition(options?: {
     // Blofin one-way mode returns positionSide "net"; close-position API expects "net" in that case, not long/short.
     const rawPosSide = (pos as { rawPositionSide?: string }).rawPositionSide?.toLowerCase();
     const positionSide = (rawPosSide === "net" ? "net" : (pos.posSide === "long" || pos.posSide === "short" ? pos.posSide : "net")) as "long" | "short" | "net";
-    let result = await closePositionViaApiBlofin(instId, marginMode, positionSide, { demo: isDemo });
+    let result = await closePositionViaApiBlofin(instId, marginMode, positionSide, blofinOpts);
     if (!result.ok && positionSide !== "net") {
       const errMsg = (result.error ?? "").toLowerCase();
       if (errMsg.includes("closed") || errMsg.includes("position")) {
-        result = await closePositionViaApiBlofin(instId, marginMode, "net", { demo: isDemo });
+        result = await closePositionViaApiBlofin(instId, marginMode, "net", blofinOpts);
       }
     }
     if (!result.ok) {
@@ -413,16 +414,18 @@ export async function closeTradingBotPosition(options?: {
 export async function placeLimitOrderTradingBot(options: {
   price: number;
   side: "long" | "short";
+  blofinConfig: BlofinConfig;
 }): Promise<{ ok: boolean; orderId?: string; message?: string; error?: string }> {
+  const blofinConfig = options.blofinConfig;
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) return { ok: false, error: "No bot config." };
-  if (!isBlofinConfigured()) return { ok: false, error: "Blofin API keys not set." };
   const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
   if (!rawSymbol) return { ok: false, error: "Symbol required." };
   const instId = rawSymbol.includes("/") ? rawSymbol.replace("/", "-") : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
-  const isDemo = bot.mode === "demo";
+  const isDemo = blofinConfig.demo;
+  const blofinOpts = { demo: isDemo, config: blofinConfig };
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
-  const instRes = await getInstrumentBlofin(instId, { demo: isDemo });
+  const instRes = await getInstrumentBlofin(instId, blofinOpts);
   if (!instRes) return { ok: false, error: "Could not get instrument." };
   const contractValue = parseFloatSafe(instRes.contractValue);
   const minSize = parseFloatSafe(instRes.minSize);
@@ -431,9 +434,9 @@ export async function placeLimitOrderTradingBot(options: {
   const sizeContracts = notionalUsdt / (options.price * contractValue);
   const sizeStr = roundSize(sizeContracts, minSize, minSize);
   if (parseFloat(sizeStr) < minSize) return { ok: false, error: `Size below minimum (${minSize} contracts).` };
-  await setLeverageBlofin(instId, bot.leverage, marginMode, { demo: isDemo });
+  await setLeverageBlofin(instId, bot.leverage, marginMode, blofinOpts);
   const side = options.side === "long" ? "buy" : "sell";
-  const result = await placeLimitOrderBlofin(instId, side, sizeStr, String(options.price), marginMode, { demo: isDemo });
+  const result = await placeLimitOrderBlofin(instId, side, sizeStr, String(options.price), marginMode, blofinOpts);
   if (!result.ok) return { ok: false, error: result.error };
   return { ok: true, orderId: result.orderId, message: `Limit ${options.side} ${sizeStr} @ ${options.price} placed.` };
 }
@@ -441,7 +444,7 @@ export async function placeLimitOrderTradingBot(options: {
 export type SuggestedClose = { instId: string; posSide: "long" | "short" | "net"; reason: string };
 
 /** Run AI monitor: evaluate open positions. When dryRun is true, returns suggested closes only (no auto-close). When dryRun is false, closes positions (used only after user confirmation). pinnedOnly: true = only pinned (monitoring board) symbols; false/omit = all open positions. */
-export async function runAIMonitorCycle(options?: { dryRun?: boolean; pinnedOnly?: boolean }): Promise<{
+export async function runAIMonitorCycle(options?: { dryRun?: boolean; pinnedOnly?: boolean; blofinConfig: BlofinConfig }): Promise<{
   ok: boolean;
   closed: number;
   message?: string;
@@ -450,13 +453,15 @@ export async function runAIMonitorCycle(options?: { dryRun?: boolean; pinnedOnly
   suggestedCloses?: SuggestedClose[];
 }> {
   const dryRun = options?.dryRun !== false; // default true: require user confirmation, never auto-close
+  const blofinConfig = options?.blofinConfig;
+  if (!blofinConfig) return { ok: false, closed: 0, error: "Blofin config missing." };
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) return { ok: false, closed: 0, error: "No bot config." };
-  if (!isBlofinConfigured()) return { ok: false, closed: 0, error: "Blofin API keys not set." };
-  const isDemo = bot.mode === "demo";
+  const isDemo = blofinConfig.demo;
+  const blofinOpts = { demo: isDemo, config: blofinConfig };
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
   const strategy = (bot as { strategy?: string }).strategy ?? "simple";
-  const allPositions = await getPositionsBlofin(undefined, { demo: isDemo });
+  const allPositions = await getPositionsBlofin(undefined, blofinOpts);
   // pinnedOnly === false → all open positions (AI Monitor). pinnedOnly === true → only pinned symbols (empty list = none). undefined → use saved monitorSymbols if set, else all.
   const monitorSymbolsRaw =
     options?.pinnedOnly === false ? null : (bot as { monitorSymbols?: string | null }).monitorSymbols;
@@ -480,7 +485,7 @@ export async function runAIMonitorCycle(options?: { dryRun?: boolean; pinnedOnly
   }
   if (!positions.length) {
     const openSymbols = [...new Set(allPositions.map((p) => (p.instId ?? "").trim()).filter(Boolean))];
-    const modeLabel = isDemo ? "Demo" : "Live";
+    const modeLabel = blofinConfig.demo ? "Demo" : "Live";
     if (monitorSet?.size && openSymbols.length > 0) {
       return {
         ok: true,
@@ -513,8 +518,8 @@ export async function runAIMonitorCycle(options?: { dryRun?: boolean; pinnedOnly
     if (!instId) continue;
     const posSide = (pos.posSide ?? "").toLowerCase();
     const isLongPos = posSide === "long";
-    const candles = await getCandlesBlofin(instId, bar, candleLimit, isDemo);
-    const ticker = await getTickerBlofin(instId, isDemo);
+    const candles = await getCandlesBlofin(instId, bar, candleLimit, isDemo, { config: blofinConfig });
+    const ticker = await getTickerBlofin(instId, isDemo, { config: blofinConfig });
     const lastPrice = ticker?.last ? parseFloatSafe(ticker.last) : (candles.length ? parseFloatSafe(candles[0][4]) : 0);
     if (candles.length < 5 || lastPrice <= 0) {
       reasons.push(`${instId} ${posSide.toUpperCase()}: skipped (insufficient data).`);
@@ -552,7 +557,7 @@ export async function runAIMonitorCycle(options?: { dryRun?: boolean; pinnedOnly
       reasons.push(`${instId} ${positionSide.toUpperCase()}: suggested close — ${analysisMsg}`);
       continue;
     }
-    const result = await closePositionViaApiBlofin(instId, marginMode, positionSide, { demo: isDemo });
+    const result = await closePositionViaApiBlofin(instId, marginMode, positionSide, blofinOpts);
     if (result.ok) {
       closed++;
       reasons.push(`${instId} ${posSide.toUpperCase()}: closed — ${analysisMsg}`);

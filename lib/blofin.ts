@@ -249,17 +249,17 @@ export async function closePositionViaApi(
   return { ok: true };
 }
 
-/** Cancel an open order by instId and orderId. options.demo: use bot mode. */
+/** Cancel an open order by instId and orderId. options.demo: use bot mode. options.config: per-user keys. */
 export async function cancelOrder(
   instId: string,
   orderId: string,
-  options?: { demo?: boolean }
+  options?: { demo?: boolean; config?: BlofinConfig | null }
 ): Promise<{ ok: boolean; error?: string }> {
-  const config = getConfig();
+  const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Blofin API keys not configured" };
   const body: Record<string, unknown> = { instId, orderId };
   if (config.brokerId) body.brokerId = config.brokerId;
-  const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/cancel-order", body, options?.demo);
+  const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/cancel-order", body, options?.demo, options?.config);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true };
 }
@@ -418,15 +418,26 @@ export async function getOpenOrders(options?: {
   return [];
 }
 
-/** GET order history (filled/canceled). options.demo: use bot mode. Includes pnl when present (e.g. closing orders). */
-export async function getOrderHistory(options?: { demo?: boolean; instId?: string; limit?: number }): Promise<
+/** GET order history (filled/canceled). options.demo: use bot mode. options.config: per-user keys. Includes pnl when present (e.g. closing orders). */
+export async function getOrderHistory(options?: {
+  demo?: boolean;
+  instId?: string;
+  limit?: number;
+  config?: BlofinConfig | null;
+}): Promise<
   { orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string; pnl?: string }[]
 > {
   const limit = options?.limit ?? 50;
   const path = options?.instId
     ? `/api/v1/trade/orders-history?instId=${encodeURIComponent(options.instId)}&limit=${limit}`
     : `/api/v1/trade/orders-history?limit=${limit}`;
-  const out = await privateRequest<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createTime?: string; pnl?: string }[]>("GET", path, undefined, options?.demo);
+  const out = await privateRequest<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createTime?: string; pnl?: string }[]>(
+    "GET",
+    path,
+    undefined,
+    options?.demo,
+    options?.config
+  );
   if (out.code !== "0" || !out.data) return [];
   type OrderRow = { orderId?: string; instId?: string; side?: string; orderType?: string; size?: string; price?: string; state?: string; fillPrice?: string; createTime?: string; pnl?: string };
   const list: OrderRow[] = Array.isArray(out.data) ? (out.data as OrderRow[]) : ((out.data as { data?: OrderRow[] })?.data ?? []);

@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, canAccessTradingBot } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { closeTradingBotPosition } from "@/lib/trading-bot-run";
+import { resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
 
 export const dynamic = "force-dynamic";
 
-/** POST - Close open position(s). Body: { instId?: string } close one symbol; { closeAll: true } close all positions; omit to close bot's symbol. Owner only. */
+/** POST - Close open position(s) on the signed-in user's Blofin account. Body: { instId?: string }; { closeAll: true }; omit instId to close bot symbol from shared config. */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!canAccessTradingBot(session)) {
-      return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
+    const resolved = await resolveBlofinConfigForTradingBotSession(session);
+    if (!resolved.ok) {
+      return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
     let closeInstId: string | undefined;
     let closeAll = false;
@@ -23,7 +25,12 @@ export async function POST(req: Request) {
     } catch {
       // no body
     }
-    const result = await closeTradingBotPosition({ closeInstId, closeAll, posSide });
+    const result = await closeTradingBotPosition({
+      closeInstId,
+      closeAll,
+      posSide,
+      blofinConfig: resolved.config,
+    });
     if (!result.ok) {
       return NextResponse.json(
         { success: false, error: result.error ?? "Failed to close position." },

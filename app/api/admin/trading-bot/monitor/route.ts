@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, canAccessTradingBot } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { runAIMonitorCycle } from "@/lib/trading-bot-run";
+import { resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
 
 export const dynamic = "force-dynamic";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
-/** POST - Run AI monitor once. When Autopilot is on, closes positions automatically. When off, returns suggested closes only (no close). Owner only. Body: { pinnedOnly?: boolean } — true = only pinned (monitoring board) symbols, false/omit = all open positions. */
+/** POST - Run AI monitor on the signed-in user's Blofin positions. Body: { pinnedOnly?: boolean }. */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!canAccessTradingBot(session)) {
-      return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
+    const resolved = await resolveBlofinConfigForTradingBotSession(session);
+    if (!resolved.ok) {
+      return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
     let pinnedOnly: boolean | undefined;
     try {
@@ -25,7 +27,7 @@ export async function POST(req: Request) {
     }
     const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
     const autopilot = (bot as { aiMonitorAutopilot?: boolean } | null)?.aiMonitorAutopilot ?? false;
-    const result = await runAIMonitorCycle({ dryRun: !autopilot, pinnedOnly });
+    const result = await runAIMonitorCycle({ dryRun: !autopilot, pinnedOnly, blofinConfig: resolved.config });
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error ?? "Monitor failed." }, { status: 400 });
     }

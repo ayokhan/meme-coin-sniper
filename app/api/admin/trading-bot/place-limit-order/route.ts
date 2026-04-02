@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, canAccessTradingBot } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { placeLimitOrderTradingBot } from "@/lib/trading-bot-run";
+import { resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
 
 export const dynamic = "force-dynamic";
 
-/** POST - Place limit order at given price (e.g. AI suggested entry). Body: { price: number, side?: "long" | "short" }. Owner only. */
+/** POST - Place limit order on the signed-in user's Blofin account. Body: { price: number, side?: "long" | "short" }. */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!canAccessTradingBot(session)) {
-      return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
+    const resolved = await resolveBlofinConfigForTradingBotSession(session);
+    if (!resolved.ok) {
+      return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
     const body = await req.json().catch(() => ({}));
     const price = typeof body.price === "number" ? body.price : parseFloat(body.price);
@@ -18,7 +20,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Valid price (number > 0) required." }, { status: 400 });
     }
     const side = body.side === "short" ? "short" : "long";
-    const result = await placeLimitOrderTradingBot({ price, side });
+    const result = await placeLimitOrderTradingBot({ price, side, blofinConfig: resolved.config });
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error ?? "Failed to place limit order." }, { status: 400 });
     }
