@@ -178,7 +178,11 @@ export default function NovaScalperPanel() {
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess(clearRounds ? "Reset reference, position flag, and round count." : "Reset reference and position flag.");
+        setSuccess(
+          clearRounds
+            ? "Reset last ref price, position flag, and round count."
+            : "Reset last ref price and position flag."
+        );
         await load();
       } else setError(data.error ?? "Reset failed");
     } catch (e) {
@@ -642,13 +646,20 @@ export default function NovaScalperPanel() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => void resetState(false)}>
-              Reset cross reference
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => void resetState(true)}>
-              Reset + clear round count
-            </Button>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              <strong>Reset last ref price</strong> clears the stored price used to detect entry/exit <em>crosses</em> (not
+              margin mode). Next tick re-primes from the market. Also clears the internal &quot;in position&quot; flag unless
+              you only reset rounds.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => void resetState(false)} title="Clears last ref price and in-position flag">
+                Reset last ref price
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => void resetState(true)} title="Same reset plus completedRounds → 0">
+                Reset + clear round count
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

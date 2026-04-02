@@ -97,7 +97,14 @@ export default function AdminNovaScalperPage() {
   };
 
   const runReset = async (userId: string, clearRounds: boolean) => {
-    if (!window.confirm(clearRounds ? "Reset state and clear round count for this user?" : "Reset cross reference and in-position flag?")) return;
+    if (
+      !window.confirm(
+        clearRounds
+          ? "Reset NovaScalper state, clear round count, last ref price, and in-position flag for this user?"
+          : "Reset last ref price and in-position flag for this user? (Re-primes cross detection on next tick.)"
+      )
+    )
+      return;
     setBusyUserId(userId);
     setFlash(null);
     try {
