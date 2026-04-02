@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Lightbulb,
   Headphones,
+  Activity,
 } from "lucide-react";
 
 type Ticket = {
@@ -71,6 +72,7 @@ export default function AdminHubPage() {
     { href: "/admin/insights", label: "App insights", icon: BarChart3 },
     { href: "/admin/metrics", label: "Metrics", icon: BarChart3 },
     { href: "/admin/customers", label: "Customers", icon: Users },
+    { href: "/admin/nova-scalper", label: "NovaScalper", icon: Activity },
     { href: "/admin/wallet-tracker", label: "Wallet Tracker", icon: Wallet },
     { href: "/admin/leverage-wallet-tracker", label: "Leverage Wallet Tracker", icon: Wallet },
     { href: "/admin/feature-flags", label: "Feature flags", icon: Flag },
@@ -93,7 +95,7 @@ export default function AdminHubPage() {
           <CardHeader>
             <CardTitle className="text-xl">Nova Admin hub</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Central links for insights, metrics, customers, wallet tracking, feature flags, support, and chat.
+              Central links for insights, metrics, customers, NovaScalper, wallet tracking, feature flags, support, and chat.
             </p>
           </CardHeader>
           <CardContent>
