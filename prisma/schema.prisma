@@ -129,6 +129,8 @@ model User {
   userLeverageWallets  UserLeverageWallet[]
   userMemeCoinWallets  UserMemeCoinWallet[]
   userBlofinConfig     UserBlofinConfig?
+  /** Repeatable entry/exit scalper (Blofin); per-user config. */
+  novaScalperConfig    NovaScalperConfig?
   perpAlerts           PerpAlert[]
   /** Eligible (e.g. VIP) users can set 2–5; alert when this many tracked wallets buy same token. */
   walletTrackerMinBuyers Int?
@@ -166,6 +168,40 @@ model UserBlofinConfig {
   updatedAt            DateTime @updatedAt
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
+}
+
+/** NovaScalper: Blofin leverage bot that opens at entry price / closes at exit (repeatable cycles). */
+model NovaScalperConfig {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  symbol           String    @default("BTC")
+  marginCurrency   String    @default("USDT")
+  marginMode       String    @default("cross") // cross | isolated
+  /** long | short */
+  side             String    @default("long")
+  /** Open when mark price is lte or gte entryPrice (e.g. long dip: lte; long breakout: gte). */
+  openWhen         String    @default("lte")
+  entryPrice       Float
+  exitPrice        Float
+  /** Optional absolute stop price. */
+  stopLossPrice    Float?
+  /** Margin in USDT; notional ≈ margin × leverage (matches main trading bot). */
+  marginUsdt       Float     @default(50)
+  leverage         Int       @default(10)
+  mode             String    @default("demo") // demo | live
+  enabled          Boolean   @default(false)
+  /** flat | in_position */
+  runState         String    @default("flat")
+  cyclesCompleted  Int       @default(0)
+  lastMark         Float?
+  lastTickAt       DateTime?
+  lastActionAt     DateTime?
+  lastActionMsg    String?
+  lastError        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([enabled])
 }
 
 model PasswordResetToken {

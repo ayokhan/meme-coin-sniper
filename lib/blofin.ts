@@ -214,14 +214,18 @@ export async function getTicker(instId: string, demoOverride?: boolean, options?
   return Array.isArray(out.data) ? out.data[0] : null;
 }
 
-/** Set leverage. options.demo: use bot mode. */
-export async function setLeverage(instId: string, leverage: number, marginMode: "isolated" | "cross", options?: { demo?: boolean }): Promise<{ ok: boolean; error?: string }> {
-  const config = getConfig();
+/** Set leverage. options.demo / options.config override env (per-user Blofin keys). */
+export async function setLeverage(
+  instId: string,
+  leverage: number,
+  marginMode: "isolated" | "cross",
+  options?: { demo?: boolean; config?: BlofinConfig | null }
+): Promise<{ ok: boolean; error?: string }> {
+  const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Blofin API keys not configured" };
   const body: Record<string, unknown> = { instId, leverage: String(leverage), marginMode };
   if (config.brokerId) body.brokerId = config.brokerId;
-  const out = await privateRequest("POST", "/api/v1/account/set-leverage", body, options?.demo);
-  if (!config) return { ok: false, error: "Blofin API keys not configured" };
+  const out = await privateRequest("POST", "/api/v1/account/set-leverage", body, options?.demo, options?.config);
   if (out.code !== "0") return { ok: false, error: out.msg || out.code };
   return { ok: true };
 }
