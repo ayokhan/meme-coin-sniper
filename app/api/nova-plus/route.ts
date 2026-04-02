@@ -286,6 +286,54 @@ export async function POST(request: Request) {
     const suggestedRiskAmount =
       suggestedPositionSize != null && stopDistance > 0 ? suggestedPositionSize * stopDistance : null;
 
+    const tradeLevelsContext =
+      "These prices are Nova’s structural template (range, ATR, order-book walls). The % next to the stop is how far price must move from entry to hit that stop—not your “risk % of account” input. Your risk % sizes position size so dollars lost if that structural stop hits stay near your cap (see Risk Management).";
+
+    let userInputAlignedLevels: {
+      stopForFullRiskBudget: number | null;
+      takeProfitForTargetUsd: number | null;
+      stopPctFromEntry: number | null;
+      takeProfitPctFromEntry: number | null;
+      note: string;
+    } | null = null;
+
+    if (suggestedPositionSize != null && suggestedPositionSize > 0 && entry > 0) {
+      let stopAlt: number | null = null;
+      let tpAlt: number | null = null;
+      if (riskCapUsd != null && riskCapUsd > 0) {
+        stopAlt =
+          tradeSetup === "long"
+            ? entry - riskCapUsd / suggestedPositionSize
+            : entry + riskCapUsd / suggestedPositionSize;
+      }
+      if (targetProfitValid != null && targetProfitValid > 0) {
+        tpAlt =
+          tradeSetup === "long"
+            ? entry + targetProfitValid / suggestedPositionSize
+            : entry - targetProfitValid / suggestedPositionSize;
+      }
+      const validStop =
+        stopAlt != null &&
+        Number.isFinite(stopAlt) &&
+        stopAlt > 0 &&
+        (tradeSetup === "long" ? stopAlt < entry : stopAlt > entry);
+      const validTp =
+        tpAlt != null &&
+        Number.isFinite(tpAlt) &&
+        tpAlt > 0 &&
+        (tradeSetup === "long" ? tpAlt > entry : tpAlt < entry);
+      if (validStop || validTp) {
+        userInputAlignedLevels = {
+          stopForFullRiskBudget: validStop ? stopAlt : null,
+          takeProfitForTargetUsd: validTp ? tpAlt : null,
+          stopPctFromEntry: validStop ? (Math.abs(entry - stopAlt!) / entry) * 100 : null,
+          takeProfitPctFromEntry: validTp ? (Math.abs(tpAlt! - entry) / entry) * 100 : null,
+          note:
+            "Derived from your account risk budget and/or target $ profit using the suggested size below (linear coin P&L). Compare to structural Trade Levels—they can differ because structure uses invalidation, not your dollar inputs.",
+        };
+      }
+    }
+
     /** USD P&L for linear (US$ margin) perps: PnL ≈ coin size × $ price move. Leverage sets margin = notional ÷ leverage for isolated-style math. */
     let pnlPreview: {
       profitIfTakeProfitUsd: number;
@@ -412,6 +460,8 @@ export async function POST(request: Request) {
         riskRewardExplained,
         tradeSetup,
         tradeSetupSummary: tradeSetupSummary + tradeSetupBiasNote,
+        tradeLevelsContext,
+        userInputAlignedLevels,
         analysis,
         levels: {
           rangeHigh: high,

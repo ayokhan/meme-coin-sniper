@@ -55,6 +55,7 @@ type NovaInvestmentAgentResult = {
   optionalStopLossPct?: number | null;
   optionalTakeProfitPct?: number | null;
   optionalTargetProfitUsd?: number | null;
+  targetProfitSummary?: string;
 };
 
 type InvestmentPin = {
@@ -359,7 +360,7 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
                 type="number"
                 min={1}
                 step={1}
-                placeholder="Reference goal — shown in summary vs plan expected return"
+                placeholder="Raises modeled TP toward this $ goal where leg caps allow"
                 value={optionalTargetProfitUsd}
                 onChange={(e) => setOptionalTargetProfitUsd(e.target.value)}
                 className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
@@ -542,14 +543,26 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
 
           {result && (
             <>
-              <div className="rounded-lg border border-emerald-200/60 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/30 p-3">
+              <div className="rounded-lg border border-emerald-200/60 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/30 p-3 space-y-2">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">Expected return</span>
+                  <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">Modeled return</span>
                   <Badge variant="outline" className="border-emerald-400/60 text-emerald-800 dark:text-emerald-200">
                     {formatUsd(result.totalExpectedReturnUsd)} ({formatPct(result.totalExpectedReturnPct)})
                   </Badge>
-                  <span className="text-xs text-muted-foreground">Approximation based on selected TP + leverage (not a guarantee).</span>
+                  <span className="text-xs text-muted-foreground">
+                    TP × leverage × allocation after fitting to your profit goal where caps allow (not a guarantee).
+                  </span>
                 </div>
+                {result.optionalTargetProfitUsd != null && (
+                  <p className="text-xs text-zinc-700 dark:text-zinc-300">
+                    Profit goal (input): <span className="font-semibold">{formatUsd(result.optionalTargetProfitUsd)}</span>
+                  </p>
+                )}
+                {result.targetProfitSummary && (
+                  <p className="text-[11px] text-amber-900/90 dark:text-amber-200/90 leading-relaxed border-t border-emerald-200/50 dark:border-emerald-800/50 pt-2">
+                    {result.targetProfitSummary}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-4">

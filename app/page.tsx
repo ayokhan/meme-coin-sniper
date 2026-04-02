@@ -764,6 +764,14 @@ export default function Dashboard() {
     tradeSetup?: "long" | "short";
     tradeSetupSummary?: string;
     riskRewardExplained?: string;
+    tradeLevelsContext?: string;
+    userInputAlignedLevels?: {
+      stopForFullRiskBudget: number | null;
+      takeProfitForTargetUsd: number | null;
+      stopPctFromEntry: number | null;
+      takeProfitPctFromEntry: number | null;
+      note: string;
+    } | null;
     recommendedEntry: number;
     recommendedStopLoss: number;
     stopLossDistancePct: number;
@@ -5540,6 +5548,11 @@ export default function Dashboard() {
                           </Badge>
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">{novaPlusResult.analysis}</p>
+                        {novaPlusResult.tradeLevelsContext && (
+                          <p className="mt-2 text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed border-t border-zinc-200/80 dark:border-zinc-600/80 pt-2">
+                            {novaPlusResult.tradeLevelsContext}
+                          </p>
+                        )}
                         {novaPlusResult.tradeSetupSummary ? (
                           <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-200 border-t border-zinc-200/80 dark:border-zinc-600/80 pt-2">
                             {novaPlusResult.tradeSetupSummary}
@@ -5570,8 +5583,62 @@ export default function Dashboard() {
                             Red = stop (invalidation). Green = profit target. Numbers describe a {inferredSetup === "long" ? "long" : "short"} position at entry.
                           </p>
                           <p className="text-xs">Entry: <span className="font-mono">${novaPlusResult.recommendedEntry.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span></p>
-                          <p className="text-xs">Stop loss: <span className="font-mono text-rose-600 dark:text-rose-400">${novaPlusResult.recommendedStopLoss.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span> ({novaPlusResult.stopLossDistancePct.toFixed(2)}%)</p>
+                          <p className="text-xs">
+                            Stop (structure / invalidation):{" "}
+                            <span className="font-mono text-rose-600 dark:text-rose-400">
+                              ${novaPlusResult.recommendedStopLoss.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}
+                            </span>{" "}
+                            <span className="text-muted-foreground">
+                              ({novaPlusResult.stopLossDistancePct.toFixed(2)}% price move from entry — not account risk %)
+                            </span>
+                          </p>
                           <p className="text-xs">Take profit: <span className="font-mono text-emerald-600 dark:text-emerald-400">${novaPlusResult.recommendedTakeProfit.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</span></p>
+                          {novaPlusResult.userInputAlignedLevels &&
+                            (novaPlusResult.userInputAlignedLevels.stopForFullRiskBudget != null ||
+                              novaPlusResult.userInputAlignedLevels.takeProfitForTargetUsd != null) && (
+                              <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-600 space-y-1">
+                                <p className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">
+                                  Your inputs at the suggested size (dollar math)
+                                </p>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">{novaPlusResult.userInputAlignedLevels.note}</p>
+                                {novaPlusResult.userInputAlignedLevels.stopForFullRiskBudget != null && (
+                                  <p className="text-xs">
+                                    Stop if full {novaPlusResult.riskManagement.maxRiskPctPerTrade}% risk budget:{" "}
+                                    <span className="font-mono text-rose-600 dark:text-rose-400">
+                                      $
+                                      {novaPlusResult.userInputAlignedLevels.stopForFullRiskBudget.toLocaleString(undefined, {
+                                        maximumFractionDigits: 4,
+                                        minimumFractionDigits: 2,
+                                      })}
+                                    </span>
+                                    {novaPlusResult.userInputAlignedLevels.stopPctFromEntry != null && (
+                                      <span className="text-muted-foreground text-[11px]">
+                                        {" "}
+                                        ({novaPlusResult.userInputAlignedLevels.stopPctFromEntry.toFixed(2)}% from entry)
+                                      </span>
+                                    )}
+                                  </p>
+                                )}
+                                {novaPlusResult.userInputAlignedLevels.takeProfitForTargetUsd != null && (
+                                  <p className="text-xs">
+                                    TP for your target $ profit:{" "}
+                                    <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                                      $
+                                      {novaPlusResult.userInputAlignedLevels.takeProfitForTargetUsd.toLocaleString(undefined, {
+                                        maximumFractionDigits: 4,
+                                        minimumFractionDigits: 2,
+                                      })}
+                                    </span>
+                                    {novaPlusResult.userInputAlignedLevels.takeProfitPctFromEntry != null && (
+                                      <span className="text-muted-foreground text-[11px]">
+                                        {" "}
+                                        ({novaPlusResult.userInputAlignedLevels.takeProfitPctFromEntry.toFixed(2)}% from entry)
+                                      </span>
+                                    )}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           <p className="text-xs">
                             R:R{" "}
                             <span className="font-mono" title="Risk:reward — see note below">

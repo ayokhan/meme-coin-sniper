@@ -118,6 +118,8 @@ type NovaInvestmentAgentResult = {
   optionalStopLossPct?: number | null;
   optionalTakeProfitPct?: number | null;
   optionalTargetProfitUsd?: number | null;
+  /** Plain-language note when a profit goal was set (gap vs modeled return, caps, etc.). */
+  targetProfitSummary?: string;
 };
 
 function normalizeSymbol(raw: string): string {
@@ -447,7 +449,12 @@ export async function POST(request: Request) {
       focusMode ? !focusSymbols.includes(s) : s !== legacyBase,
     );
 
-    const buildLegFromWindow = async (legType: StrategyLeg["legType"], window: CandleWindow, legUsd: number) => {
+    const buildLegFromWindow = async (
+      legType: StrategyLeg["legType"],
+      window: CandleWindow,
+      legUsd: number,
+      legProfitGoalUsd: number | null
+    ) => {
       const [candlesBase, tickerBase] = await Promise.all([getCandles(anchorSymbol, window.interval, window.limit), getTicker(anchorSymbol)]);
       const hl = highLowFromCandles(candlesBase as CandleTuple[]);
       const currentPrice = tickerBase?.last != null && Number.isFinite(Number(tickerBase.last)) ? Number(tickerBase.last) : null;
@@ -490,10 +497,24 @@ export async function POST(request: Request) {
         legType === "scalp" ? 1.2 :
         legType === "short" ? 2.0 :
         legType === "swing" ? 4.0 : 7.0;
-      const dynamicTakeProfitPct = Math.min(
+      let dynamicTakeProfitPct = Math.min(
         capTpPct,
         Math.max(dynamicStopPct * 100 * 1.7, takeProfitPct * (legType === "scalp" ? 0.45 : legType === "short" ? 0.65 : 1))
       );
+
+      const goalAdjustNotes: string[] = [];
+      if (legProfitGoalUsd != null && legProfitGoalUsd > 0 && legUsd > 0 && leverage > 0) {
+        const neededTpPct = (legProfitGoalUsd * 100) / (legUsd * leverage);
+        if (Number.isFinite(neededTpPct) && neededTpPct > 0) {
+          if (neededTpPct > capTpPct + 1e-6) {
+            const atCapUsd = (legUsd * leverage * capTpPct) / 100;
+            goalAdjustNotes.push(
+              `Profit goal $${legProfitGoalUsd.toFixed(0)} would need ~${neededTpPct.toFixed(2)}% take-profit (coin move) on this leg; this duration style caps TP near ${capTpPct.toFixed(2)}% (≈ $${atCapUsd.toFixed(0)} modeled). Try swing/long hybrid, a higher risk/reward preset, optional take-profit %, or more capital.`
+            );
+          }
+          dynamicTakeProfitPct = Math.min(capTpPct, Math.max(dynamicTakeProfitPct, neededTpPct));
+        }
+      }
 
       const candidateSymbols = focusMode
         ? [...new Set(focusSymbols)].slice(0, 12)
@@ -555,6 +576,7 @@ export async function POST(request: Request) {
         coins,
         notes: [
           ...notes,
+          ...goalAdjustNotes,
           `Risk engine: ATR ${ (atrPct * 100).toFixed(2) }%, structure ${ (rangePct * 100).toFixed(2) }%, order-book wall aware.`,
         ],
       } satisfies StrategyLeg;
@@ -573,19 +595,19 @@ export async function POST(request: Request) {
     if (durationMode === "long_term") {
       const id = String(body.longTermId ?? body.durationId ?? "2w") as DurationId;
       const window = LONG_WINDOWS.find((w) => w.id === id) ?? LONG_WINDOWS[1];
-      legs = [await buildLegFromWindow("long", window, amountUsd)];
+      legs = [await buildLegFromWindow("long", window, amountUsd, optionalTargetProfitUsd)];
     } else if (durationMode === "short_term") {
       const id = String(body.shortTermId ?? body.durationId ?? "1d") as DurationId;
       const window = SHORT_WINDOWS.find((w) => w.id === id) ?? SHORT_WINDOWS[0];
-      legs = [await buildLegFromWindow("short", window, amountUsd)];
+      legs = [await buildLegFromWindow("short", window, amountUsd, optionalTargetProfitUsd)];
     } else if (durationMode === "scalp") {
       const id = String(body.scalpId ?? body.durationId ?? "15m") as DurationId;
       const window = SCALP_WINDOWS.find((w) => w.id === id) ?? SCALP_WINDOWS[1];
-      legs = [await buildLegFromWindow("scalp", window, amountUsd)];
+      legs = [await buildLegFromWindow("scalp", window, amountUsd, optionalTargetProfitUsd)];
     } else if (durationMode === "swing") {
       const id = String(body.swingId ?? body.durationId ?? "4h") as DurationId;
       const window = SWING_WINDOWS.find((w) => w.id === id) ?? SWING_WINDOWS[2];
-      legs = [await buildLegFromWindow("swing", window, amountUsd)];
+      legs = [await buildLegFromWindow("swing", window, amountUsd, optionalTargetProfitUsd)];
     } else if (durationMode === "hybrid_scalp_swing") {
       const scalpId = String(body.scalpId ?? "15m") as DurationId;
       const swingId = String(body.swingId ?? "24h") as DurationId;
@@ -599,8 +621,18 @@ export async function POST(request: Request) {
       const leg2Usd = (amountUsd * swingSplitPct) / 100;
 
       legs = [
-        await buildLegFromWindow("scalp", scalpWindow, leg1Usd),
-        await buildLegFromWindow("swing", swingWindow, leg2Usd),
+        await buildLegFromWindow(
+          "scalp",
+          scalpWindow,
+          leg1Usd,
+          optionalTargetProfitUsd != null ? (optionalTargetProfitUsd * leg1Usd) / amountUsd : null
+        ),
+        await buildLegFromWindow(
+          "swing",
+          swingWindow,
+          leg2Usd,
+          optionalTargetProfitUsd != null ? (optionalTargetProfitUsd * leg2Usd) / amountUsd : null
+        ),
       ];
     } else if (durationMode === "hybrid_short_long") {
       const shortId = String(body.shortId ?? "1d") as DurationId;
@@ -615,8 +647,18 @@ export async function POST(request: Request) {
       const leg2Usd = (amountUsd * longSplitPct) / 100;
 
       legs = [
-        await buildLegFromWindow("short", shortWindow, leg1Usd),
-        await buildLegFromWindow("long", longWindow, leg2Usd),
+        await buildLegFromWindow(
+          "short",
+          shortWindow,
+          leg1Usd,
+          optionalTargetProfitUsd != null ? (optionalTargetProfitUsd * leg1Usd) / amountUsd : null
+        ),
+        await buildLegFromWindow(
+          "long",
+          longWindow,
+          leg2Usd,
+          optionalTargetProfitUsd != null ? (optionalTargetProfitUsd * leg2Usd) / amountUsd : null
+        ),
       ];
     } else {
       return NextResponse.json({ success: false, error: "Invalid durationMode." }, { status: 400 });
@@ -625,10 +667,20 @@ export async function POST(request: Request) {
     const totalExpectedReturnUsd = legs.reduce((sum, l) => sum + (l.expectedReturnUsdOnLeg ?? 0), 0);
     const totalExpectedReturnPct = amountUsd > 0 ? (totalExpectedReturnUsd / amountUsd) * 100 : 0;
 
+    let targetProfitSummary: string | undefined;
+    if (optionalTargetProfitUsd != null) {
+      const gap = optionalTargetProfitUsd - totalExpectedReturnUsd;
+      if (gap > 1) {
+        targetProfitSummary = `Your profit goal is $${optionalTargetProfitUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}. After fitting take-profit to that goal within each leg’s safety caps, the plan models about $${totalExpectedReturnUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} total — short by ~$${gap.toLocaleString(undefined, { maximumFractionDigits: 0 })}. See orange notes on legs for details, or use a longer duration / higher reward preset.`;
+      } else {
+        targetProfitSummary = `Your profit goal ($${optionalTargetProfitUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}) is close to the modeled plan return (≈ $${totalExpectedReturnUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}).`;
+      }
+    }
+
     let overallNote =
       "This is a strategy suggestion (not financial advice). Use it as a checklist for your own execution and risk limits.";
     if (optionalTargetProfitUsd != null) {
-      overallNote += ` Your stated profit goal: $${optionalTargetProfitUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })} (reference only; plan total expected ≈ $${totalExpectedReturnUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}).`;
+      overallNote += ` Profit goal: $${optionalTargetProfitUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}. Modeled return (TP × leverage × allocation): ≈ $${totalExpectedReturnUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}.`;
     }
     if (focusMode) {
       overallNote += ` Contracts focus: ${focusSymbols.join(", ")} — the coin table lists only these symbols.`;
@@ -650,6 +702,7 @@ export async function POST(request: Request) {
         optionalStopLossPct,
         optionalTakeProfitPct,
         optionalTargetProfitUsd,
+        targetProfitSummary,
       } satisfies NovaInvestmentAgentResult,
     });
   } catch (e) {
