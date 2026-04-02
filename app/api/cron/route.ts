@@ -31,6 +31,7 @@ export async function GET(request: Request) {
     perpNewListing?: { ok: boolean; newListings?: number; sent?: number; message?: string };
     perpDigest?: { ok: boolean; message?: string };
     perpAlerts?: { ok: boolean; triggered?: number; message?: string };
+    novaScalper?: { ok: boolean; processed?: number; skipped?: boolean; message?: string };
   } = {};
 
   try {
@@ -183,6 +184,23 @@ export async function GET(request: Request) {
     };
   } catch (e) {
     results.perpAlerts = { ok: false, message: e instanceof Error ? e.message : 'Perp alerts failed' };
+  }
+
+  try {
+    const authNs = request.headers.get('authorization');
+    const nsRes = await fetch(`${base}/api/cron/nova-scalper`, {
+      cache: 'no-store',
+      headers: authNs ? { Authorization: authNs } : {},
+    });
+    const nsData = await nsRes.json().catch(() => ({}));
+    results.novaScalper = {
+      ok: nsData.success === true,
+      processed: typeof nsData.processed === 'number' ? nsData.processed : undefined,
+      skipped: nsData.skipped === true,
+      message: nsData.reason ?? nsData.error,
+    };
+  } catch (e) {
+    results.novaScalper = { ok: false, message: e instanceof Error ? e.message : 'NovaScalper cron failed' };
   }
 
   return NextResponse.json({ success: true, cron: results });

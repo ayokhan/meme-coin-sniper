@@ -132,7 +132,7 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   nova_scalper_cron: {
     label: "NovaScalper scheduled cron",
     description:
-      "When ON, Vercel’s /api/cron/nova-scalper job (see vercel.json schedule) runs Blofin ticks for every user with NovaScalper enabled. When OFF, the route returns immediately—no trades. Vercel may still invoke the URL on schedule; work is skipped.",
+      "When ON, the daily /api/cron job also runs NovaScalper ticks for every user with NovaScalper enabled (Hobby-safe). When OFF, that step is skipped. On Vercel Pro you can add a second cron in vercel.json for a shorter interval and hit /api/cron/nova-scalper directly.",
   },
 };
 

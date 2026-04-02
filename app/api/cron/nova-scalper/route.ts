@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * Vercel Cron (see vercel.json): runs one Blofin tick per enabled NovaScalper user.
+ * NovaScalper batch tick. Called from the main daily /api/cron (Hobby) or directly (e.g. extra vercel.json cron on Pro).
+ * Gated by feature flag nova_scalper_cron (Admin → Feature flags). Default OFF.
  * Auth: Authorization: Bearer CRON_SECRET (set in Vercel env).
- * Each user uses their saved keys; owner accounts may fall back to BLOFIN_* env per runNovaScalperTick rules.
  */
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
