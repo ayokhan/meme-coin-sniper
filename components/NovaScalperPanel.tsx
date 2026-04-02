@@ -269,8 +269,16 @@ export default function NovaScalperPanel() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            VIP and on-demand accounts: save your Blofin API keys here so NovaScalper runs on your account (encrypted; used
-            only to call Blofin). If the server has global Blofin env keys, those are used when you have no keys saved.
+            VIP and on-demand: save keys here so NovaScalper uses your account (encrypted; used only to call Blofin).
+            Server-side <code className="text-xs rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">BLOFIN_*</code> env keys are
+            used when you have nothing saved here.{" "}
+            <strong className="font-medium text-foreground">Owner:</strong> you do not need to paste keys again if global env
+            keys are already set—only add keys here if you want this login to trade a different Blofin account.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            For <strong className="text-foreground">Live</strong> trading, use API keys created for Blofin live, uncheck{" "}
+            <strong className="text-foreground">Demo mode</strong> above when saving keys, and set NovaScalper{" "}
+            <strong className="text-foreground">Mode</strong> below to Live so URLs and keys stay in sync.
           </p>
           {userBlofinConfigured === true && (
             <p className="text-sm text-emerald-600 dark:text-emerald-400">Keys are configured. Ticks use your account.</p>
@@ -399,6 +407,13 @@ export default function NovaScalperPanel() {
             <input type="checkbox" checked={config.enabled} onChange={(e) => setField("enabled", e.target.checked)} />
             <span className="text-sm font-medium">Enabled</span>
           </label>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Enabled means NovaScalper is allowed to trade on each <strong className="text-foreground">tick</strong> (Check
+            price / Auto tick). It does not run in the background by itself while the tab is closed. Each{" "}
+            <strong className="text-foreground">completed round</strong> is one full entry then exit (or stop); use{" "}
+            <strong className="text-foreground">Max repeat rounds</strong> to stop after N successes (
+            <strong className="text-foreground">0</strong> = keep going when flat).
+          </p>
 
           <div>
             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Mode</label>
@@ -410,6 +425,10 @@ export default function NovaScalperPanel() {
               <option value="demo">Demo</option>
               <option value="live">Live</option>
             </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Demo vs Live chooses Blofin&apos;s demo or production API host. It must match the API keys you use (saved
+              above or server env).
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -484,6 +503,15 @@ export default function NovaScalperPanel() {
             </select>
           </div>
 
+          <div className="rounded-md border border-zinc-200/90 dark:border-zinc-600/80 bg-zinc-50/80 dark:bg-zinc-900/40 p-3 text-xs text-muted-foreground space-y-1">
+            <p>
+              <strong className="text-foreground">Exit target:</strong> when price crosses your exit level (same
+              cross-style logic as entry, using last price), NovaScalper calls Blofin&apos;s{" "}
+              <strong className="text-foreground">close position</strong> API—the same mechanism the Crypto Futures bot uses
+              for manual <strong className="text-foreground">Close</strong> on that symbol.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
@@ -529,7 +557,9 @@ export default function NovaScalperPanel() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Max rounds (0 = unlimited)</label>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+              Max repeat rounds (full cycles)
+            </label>
             <input
               type="number"
               min={0}
@@ -537,6 +567,12 @@ export default function NovaScalperPanel() {
               onChange={(e) => setField("maxRounds", Math.max(0, parseInt(e.target.value, 10) || 0))}
               className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              <strong className="text-foreground">0</strong> = unlimited repeats.{" "}
+              <strong className="text-foreground">1, 2, …</strong> = after that many successful exit (or stop) closes,
+              NovaScalper turns off. While you already hold a position or have a pending order on this contract, no second
+              entry is placed.
+            </p>
           </div>
 
           <div>

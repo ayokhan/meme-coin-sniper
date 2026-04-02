@@ -8,6 +8,7 @@ import {
   getTicker,
   getInstrument,
   getPositions,
+  getOpenOrders,
   setLeverage,
   placeMarketOrder,
   placeTPSLOrder,
@@ -74,6 +75,12 @@ function shouldExit(side: string, exit: number, lastRef: number, price: number):
 function stopHit(side: string, stop: number, price: number): boolean {
   if (side === "long") return price <= stop;
   return price >= stop;
+}
+
+/** Match Blofin instId variants (BTC-USDT vs BTC/USDT). */
+function sameInstId(a: string, b: string): boolean {
+  const norm = (s: string) => (s || "").replace(/[-/]/g, "").toUpperCase();
+  return norm(a) === norm(b);
 }
 
 export async function runNovaScalperTick(userId: string): Promise<{ ok: boolean; message?: string; error?: string }> {
@@ -224,6 +231,18 @@ export async function runNovaScalperTick(userId: string): Promise<{ ok: boolean;
   if (row.maxRounds > 0 && (row.completedRounds ?? 0) >= row.maxRounds) {
     await updateRow({ lastRefPrice: price, lastTickAt: new Date() });
     return { ok: true, message: "Max rounds reached; not opening again." };
+  }
+
+  const openOrders = await getOpenOrders({ demo: isDemo, instId, limit: 50, config: blofinConfig });
+  const pendingHere = openOrders.filter((o) => sameInstId(o.instId, instId));
+  if (pendingHere.length > 0) {
+    await updateRow({
+      lastRefPrice: price,
+      lastTickAt: new Date(),
+      lastError: null,
+      lastAction: `Open/pending order(s) on ${instId}; skipping new entry until order(s) complete or cancel.`,
+    });
+    return { ok: true, message: "Pending orders on this contract; not opening another entry." };
   }
 
   if (!shouldEnter(side, trigger, row.entryPrice, lastRef, price)) {

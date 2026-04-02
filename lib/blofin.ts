@@ -390,15 +390,20 @@ function mapOpenOrder(o: Record<string, unknown>): { orderId: string; instId: st
   };
 }
 
-/** GET open (pending/live) orders. options.demo: use bot mode. Tries Blofin orders then orders-pending. */
-export async function getOpenOrders(options?: { demo?: boolean; instId?: string; limit?: number }): Promise<
+/** GET open (pending/live) orders. options.demo: use bot mode. options.config: per-user keys. Tries Blofin orders then orders-pending. */
+export async function getOpenOrders(options?: {
+  demo?: boolean;
+  instId?: string;
+  limit?: number;
+  config?: BlofinConfig | null;
+}): Promise<
   { orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; createdAt?: string }[]
 > {
   const limit = options?.limit ?? 50;
   const base = options?.instId ? `instId=${encodeURIComponent(options.instId)}&limit=${limit}` : `limit=${limit}`;
   const paths = [`/api/v1/trade/orders?${base}`, `/api/v1/trade/orders-pending?${base}`];
   for (const path of paths) {
-    const out = await privateRequest<unknown>("GET", path, undefined, options?.demo);
+    const out = await privateRequest<unknown>("GET", path, undefined, options?.demo, options?.config);
     if (out.code !== "0") continue;
     const raw = out.data;
     const list: Record<string, unknown>[] = Array.isArray(raw)
