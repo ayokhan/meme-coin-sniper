@@ -130,7 +130,10 @@ function roundSize(size: number, minSize: number, lotSize: number): string {
   return n.toFixed(1);
 }
 
-export async function runTradingBotCycle(userId?: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+export async function runTradingBotCycle(
+  userId?: string,
+  runOpts?: { envFallbackForOwner?: boolean }
+): Promise<{ ok: boolean; message?: string; error?: string }> {
   let bot: {
     id: string;
     provider: string;
@@ -166,7 +169,11 @@ export async function runTradingBotCycle(userId?: string): Promise<{ ok: boolean
   if (userId) {
     blofinConfig = await getBlofinConfigForUser(userId);
   }
-  if (!blofinConfig) {
+  // Server env keys: cron (no userId), or explicit owner fallback — never for customers / VIP.
+  if (!blofinConfig && userId && runOpts?.envFallbackForOwner) {
+    blofinConfig = getBlofinEnvConfig();
+  }
+  if (!blofinConfig && !userId) {
     blofinConfig = getBlofinEnvConfig();
   }
   if (!blofinConfig) {

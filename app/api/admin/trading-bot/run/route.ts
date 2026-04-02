@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
-async function runWithPreCheck(userId?: string) {
+async function runWithPreCheck(userId?: string, runOpts?: { envFallbackForOwner?: boolean }) {
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) {
     return { ok: false, message: null, error: "No bot config. Save config first." };
@@ -31,7 +31,7 @@ async function runWithPreCheck(userId?: string) {
   if (!symbol) {
     return { ok: false, message: null, error: "Symbol is required in config." };
   }
-  return runTradingBotCycle(userId);
+  return runTradingBotCycle(userId, runOpts);
 }
 
 /**
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     }
     userId = session?.user?.id;
   }
-  const result = await runWithPreCheck(userId);
+  const result = await runWithPreCheck(userId, { envFallbackForOwner: true });
   return NextResponse.json({
     success: result.ok,
     message: result.message,
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   if (!canAccessTradingBot(session)) {
     return NextResponse.json({ success: false, error: "Trading Bot run requires VIP + on demand access. Request access from the owner." }, { status: 403 });
   }
-  const result = await runWithPreCheck(session.user.id);
+  const result = await runWithPreCheck(session.user.id, { envFallbackForOwner: isOwnerSession(session) });
   return NextResponse.json({
     success: result.ok,
     message: result.message,

@@ -49,6 +49,21 @@ export function isOwnerSession(session: { user?: { email?: string | null; wallet
   return !!session?.user && (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress));
 }
 
+/** True if this DB user is an owner (same rules as session). Used to gate server env Blofin keys. */
+export async function isOwnerUserId(userId: string | null | undefined): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const u = await (prisma as { user: { findUnique: (args: unknown) => Promise<{ email: string | null; walletAddress: string | null } | null> } }).user.findUnique({
+      where: { id: userId },
+      select: { email: true, walletAddress: true },
+    });
+    if (!u) return false;
+    return isOwnerEmail(u.email) || isOwnerWallet(u.walletAddress);
+  } catch {
+    return false;
+  }
+}
+
 /** True if session can use Trading Bot: owner or VIP with on-demand access. */
 export function canAccessTradingBot(session: { user?: { email?: string | null; walletAddress?: string | null; tier?: Tier | string | null; tradingBotOnDemand?: boolean } } | null): boolean {
   if (!session?.user) return false;

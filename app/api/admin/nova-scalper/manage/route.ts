@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, isOwnerSession } from "@/lib/auth";
+import { authOptions, isOwnerSession, isOwnerUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { runNovaScalperTick, resetNovaScalperState } from "@/lib/nova-scalper-run";
 import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
@@ -123,7 +123,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: "State reset." });
     }
 
-    const result = await runNovaScalperTick(userId);
+    const targetIsOwner = await isOwnerUserId(userId);
+    const result = await runNovaScalperTick(userId, { envFallbackForOwner: targetIsOwner });
     return NextResponse.json({
       success: result.ok,
       message: result.message,

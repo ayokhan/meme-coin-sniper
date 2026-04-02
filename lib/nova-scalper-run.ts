@@ -83,7 +83,10 @@ function sameInstId(a: string, b: string): boolean {
   return norm(a) === norm(b);
 }
 
-export async function runNovaScalperTick(userId: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+export async function runNovaScalperTick(
+  userId: string,
+  runOpts?: { envFallbackForOwner?: boolean }
+): Promise<{ ok: boolean; message?: string; error?: string }> {
   if (!userId) {
     return { ok: false, error: "Sign in required to run NovaScalper." };
   }
@@ -99,15 +102,16 @@ export async function runNovaScalperTick(userId: string): Promise<{ ok: boolean;
     return { ok: true, message: "NovaScalper is off or save your config first." };
   }
 
-  let blofinConfig: BlofinConfig | null = null;
-  if (userId) blofinConfig = await getBlofinConfigForUser(userId);
-  if (!blofinConfig) blofinConfig = getBlofinEnvConfig();
+  let blofinConfig: BlofinConfig | null = await getBlofinConfigForUser(userId);
+  if (!blofinConfig && runOpts?.envFallbackForOwner) {
+    blofinConfig = getBlofinEnvConfig();
+  }
   if (!blofinConfig) {
     return {
       ok: false,
-      error: userId
-        ? "Blofin API keys missing. Save keys under Trading Bot or set server env."
-        : "Blofin API keys not set for server run.",
+      error: runOpts?.envFallbackForOwner
+        ? "Blofin API keys missing. Save keys under Trading Bot or set server BLOFIN_* env."
+        : "Blofin API keys missing. Save your keys in Trading Bot settings (server keys are owner-only).",
     };
   }
 
