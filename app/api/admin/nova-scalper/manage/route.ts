@@ -4,6 +4,7 @@ import { authOptions, isOwnerSession, isOwnerUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { runNovaScalperTick, resetNovaScalperState } from "@/lib/nova-scalper-run";
 import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
+import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +89,8 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ success: true, configs });
+    const novaScalperCronFlagEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_SCALPER_CRON);
+    return NextResponse.json({ success: true, configs, novaScalperCronFlagEnabled });
   } catch (e) {
     console.error("nova-scalper manage GET:", e);
     return NextResponse.json({ success: false, error: "Failed to load configs." }, { status: 500 });

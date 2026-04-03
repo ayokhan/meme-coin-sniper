@@ -38,6 +38,7 @@ export default function AdminNovaScalperPage() {
   const [search, setSearch] = useState("");
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [cronFlagOn, setCronFlagOn] = useState<boolean | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -45,8 +46,10 @@ export default function AdminNovaScalperPage() {
     fetch("/api/admin/nova-scalper/manage")
       .then((r) => r.json())
       .then((data) => {
-        if (data.success && Array.isArray(data.configs)) setConfigs(data.configs);
-        else setError(data.error ?? "Failed to load");
+        if (data.success && Array.isArray(data.configs)) {
+          setConfigs(data.configs);
+          setCronFlagOn(typeof data.novaScalperCronFlagEnabled === "boolean" ? data.novaScalperCronFlagEnabled : null);
+        } else setError(data.error ?? "Failed to load");
       })
       .catch(() => setError("Failed to load"))
       .finally(() => setLoading(false));
@@ -137,7 +140,11 @@ export default function AdminNovaScalperPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setFlash(enabled ? "Enabled." : "Disabled.");
+        setFlash(
+          enabled
+            ? "NovaScalper automation enabled for this user (column “Scalper”)."
+            : "NovaScalper automation disabled for this user (column “Scalper”)."
+        );
         load();
       } else setFlash(data.error ?? "Update failed");
     } catch {
@@ -173,10 +180,41 @@ export default function AdminNovaScalperPage() {
               <Activity className="h-5 w-5 text-cyan-500" />
               NovaScalper (all users)
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Owner-only overview: per-user Blofin scalper configs. Run a tick or reset state using the user&apos;s saved keys
-              (or server env if they have none). Disabling stops automated ticks until they re-enable in the app.
-            </p>
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p>
+                Owner-only overview: per-user Blofin scalper configs. Run a tick or reset state using the user&apos;s saved keys
+                (owner-only env fallback rules apply). The <strong className="text-zinc-700 dark:text-zinc-300">Scalper</strong> column
+                is NovaScalper on/off — not the same as the purple badge.
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-xs">
+                <li>
+                  <strong className="text-zinc-600 dark:text-zinc-400">Scalper yes/no</strong> —{" "}
+                  <code className="text-[11px]">NovaScalperConfig.enabled</code> (automation + daily cron when flag below is on).
+                </li>
+                <li>
+                  <strong className="text-zinc-600 dark:text-zinc-400">Purple badge</strong> —{" "}
+                  <code className="text-[11px]">Trading Bot (on-demand)</code> from Admin → Customers: access to the{" "}
+                  <em>AI Trading Bot</em> tab only. Does not turn NovaScalper on.
+                </li>
+                <li>
+                  <strong className="text-zinc-600 dark:text-zinc-400">Scheduled cron</strong> — feature flag{" "}
+                  <code className="text-[11px]">nova_scalper_cron</code> in Admin → Feature flags; when off, the daily job skips
+                  NovaScalper ticks even if Scalper is yes.
+                </li>
+              </ul>
+              {cronFlagOn !== null && (
+                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  Scheduled NovaScalper cron (feature flag):{" "}
+                  <span className={cronFlagOn ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-500"}>
+                    {cronFlagOn ? "ON" : "OFF"}
+                  </span>
+                  {" — "}
+                  <Link href="/admin/feature-flags" className="text-cyan-600 dark:text-cyan-400 underline">
+                    Feature flags
+                  </Link>
+                </p>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2 items-center">
@@ -215,7 +253,9 @@ export default function AdminNovaScalperPage() {
                       <th className="p-2 font-medium">Pair</th>
                       <th className="p-2 font-medium">Mode</th>
                       <th className="p-2 font-medium">Side</th>
-                      <th className="p-2 font-medium">On</th>
+                      <th className="p-2 font-medium" title="NovaScalper automation (not Trading Bot on-demand)">
+                        Scalper
+                      </th>
                       <th className="p-2 font-medium">Pos</th>
                       <th className="p-2 font-medium">Rounds</th>
                       <th className="p-2 font-medium">Last tick</th>
@@ -233,8 +273,11 @@ export default function AdminNovaScalperPage() {
                             {c.userName && <div className="text-xs text-muted-foreground">{c.userName}</div>}
                             {c.walletPreview && <div className="text-xs font-mono text-muted-foreground">{c.walletPreview}</div>}
                             {c.tradingBotOnDemand && (
-                              <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200">
-                                Bot on-demand
+                              <span
+                                className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200 max-w-[220px]"
+                                title="VIP can open the AI Trading Bot tab (set in Admin → Customers). This is not NovaScalper on/off."
+                              >
+                                AI Trading Bot (on-demand)
                               </span>
                             )}
                             {uid && <div className="text-[10px] font-mono text-zinc-400 mt-1 break-all">{uid}</div>}
