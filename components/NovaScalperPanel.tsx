@@ -277,9 +277,7 @@ export default function NovaScalperPanel() {
           <p className="text-sm text-muted-foreground">
             VIP and on-demand: save keys here so NovaScalper uses your account (encrypted; used only to call Blofin).
             Server-side <code className="text-xs rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">BLOFIN_*</code> env keys are
-            used when you have nothing saved here.{" "}
-            <strong className="font-medium text-foreground">Owner:</strong> you do not need to paste keys again if global env
-            keys are already set—only add keys here if you want this login to trade a different Blofin account.
+            used when you have nothing saved here.
           </p>
           <p className="text-xs text-muted-foreground">
             For <strong className="text-foreground">Live</strong> trading, use API keys created for Blofin live, uncheck{" "}
