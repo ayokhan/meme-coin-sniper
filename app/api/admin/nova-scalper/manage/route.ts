@@ -14,6 +14,7 @@ const db = prisma as any;
 type ScalperRow = {
   id: string;
   userId: string | null;
+  slot?: number;
   enabled: boolean;
   ownerForceOff?: boolean;
   mode: string;
@@ -65,6 +66,7 @@ export async function GET() {
       const { instId } = parseScalperInstrument(String(r.symbol ?? ""), quote);
       return {
         id: r.id,
+        slot: r.slot ?? 1,
         userId: uid,
         userEmail: u?.email ?? null,
         userName: u?.name ?? null,
@@ -99,7 +101,7 @@ export async function GET() {
   }
 }
 
-/** POST — { action: "tick" | "reset", userId, clearRounds?: boolean }. Owner-only. */
+/** POST — { action: "tick" | "reset", configId, clearRounds?: boolean }. Owner-only. */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -108,19 +110,33 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const userId = String(body.userId ?? "").trim();
-    if (!userId) {
-      return NextResponse.json({ success: false, error: "userId is required." }, { status: 400 });
+    let configId = String(body.configId ?? "").trim();
+    const legacyUserId = String(body.userId ?? "").trim();
+    if (!configId && legacyUserId) {
+      const legacyRow = await db.novaScalperConfig.findFirst({
+        where: { userId: legacyUserId },
+        orderBy: { slot: "asc" },
+      });
+      if (legacyRow) configId = legacyRow.id as string;
+    }
+    if (!configId) {
+      return NextResponse.json({ success: false, error: "configId is required." }, { status: 400 });
     }
 
-    const row = await db.novaScalperConfig.findFirst({ where: { userId } });
-    if (!row) {
-      return NextResponse.json({ success: false, error: "No NovaScalper config for this user." }, { status: 404 });
+    const rowUnknown = await db.novaScalperConfig.findFirst({ where: { id: configId } });
+    const row = rowUnknown as { id: string; userId: string | null } | null;
+    if (!row?.userId) {
+      return NextResponse.json({ success: false, error: "No NovaScalper config for this id." }, { status: 404 });
     }
+    const userId = row.userId as string;
 
     if (body.action === "reset") {
       const clearRounds = body.clearRounds === true;
-      const r = await resetNovaScalperState(userId, { clearRounds, clearInPosition: true });
+      const r = await resetNovaScalperState(userId, {
+        configId: row.id,
+        clearRounds,
+        clearInPosition: true,
+      });
       if (!r.ok) {
         return NextResponse.json({ success: false, error: r.error ?? "Reset failed." }, { status: 400 });
       }
@@ -128,7 +144,7 @@ export async function POST(request: Request) {
     }
 
     const targetIsOwner = await isOwnerUserId(userId);
-    const result = await runNovaScalperTick(userId, { envFallbackForOwner: targetIsOwner });
+    const result = await runNovaScalperTick(userId, { envFallbackForOwner: targetIsOwner, configId: row.id });
     return NextResponse.json({
       success: result.ok,
       message: result.message,
@@ -140,7 +156,7 @@ export async function POST(request: Request) {
   }
 }
 
-/** PATCH — { userId, enabled: boolean }. Owner-only. */
+/** PATCH — { configId, enabled: boolean }. Owner-only. */
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -149,22 +165,30 @@ export async function PATCH(request: Request) {
     }
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const userId = String(body.userId ?? "").trim();
-    if (!userId) {
-      return NextResponse.json({ success: false, error: "userId is required." }, { status: 400 });
+    let configId = String(body.configId ?? "").trim();
+    const legacyUserId = String(body.userId ?? "").trim();
+    if (!configId && legacyUserId) {
+      const legacyRow = await db.novaScalperConfig.findFirst({
+        where: { userId: legacyUserId },
+        orderBy: { slot: "asc" },
+      });
+      if (legacyRow) configId = legacyRow.id as string;
+    }
+    if (!configId) {
+      return NextResponse.json({ success: false, error: "configId is required." }, { status: 400 });
     }
     if (body.enabled !== true && body.enabled !== false) {
       return NextResponse.json({ success: false, error: "enabled must be true or false." }, { status: 400 });
     }
 
-    const row = await db.novaScalperConfig.findFirst({ where: { userId } });
-    if (!row) {
-      return NextResponse.json({ success: false, error: "No NovaScalper config for this user." }, { status: 404 });
+    const rowUnknown = await db.novaScalperConfig.findFirst({ where: { id: configId } });
+    if (!rowUnknown) {
+      return NextResponse.json({ success: false, error: "No NovaScalper config." }, { status: 404 });
     }
 
     const on = body.enabled === true;
     await db.novaScalperConfig.update({
-      where: { id: row.id },
+      where: { id: configId },
       data: {
         enabled: on,
         // Owner "Disable" locks so a stale client Save cannot re-enable; "Enable" clears the lock.

@@ -7,6 +7,8 @@ import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
 
 type ScalperConfig = {
   id: string;
+  /** 1-based label: Config 1, Config 2, … */
+  slot: number;
   enabled: boolean;
   /** True when owner used Admin → NovaScalper Disable; user cannot re-enable from here. */
   ownerForceOff?: boolean;
@@ -36,11 +38,27 @@ type ScalperConfig = {
   lastAction: string | null;
 };
 
+function normalizeConfigPayload(c: ScalperConfig): ScalperConfig {
+  const pair =
+    c.instrumentPair?.trim() ||
+    `${String(c.symbol ?? "BTC").toUpperCase()}/${c.marginCurrency === "USDC" ? "USDC" : "USDT"}`;
+  return {
+    ...c,
+    slot: typeof c.slot === "number" ? c.slot : 1,
+    instrumentPair: pair,
+    instId: String(c.instId ?? ""),
+  };
+}
+
 export default function NovaScalperPanel() {
-  const [config, setConfig] = useState<ScalperConfig | null>(null);
+  const [configs, setConfigs] = useState<ScalperConfig[]>([]);
+  const [activeConfigId, setActiveConfigId] = useState<string>("");
+  const [maxConfigs, setMaxConfigs] = useState(6);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [ticking, setTicking] = useState(false);
+  const [addingConfig, setAddingConfig] = useState(false);
+  const [removingConfig, setRemovingConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [autoSec, setAutoSec] = useState<0 | 15 | 30 | 60>(0);
@@ -73,28 +91,29 @@ export default function NovaScalperPanel() {
       const res = await fetch("/api/admin/nova-scalper", { credentials: "include", cache: "no-store" });
       const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
-        config?: ScalperConfig;
+        configs?: ScalperConfig[];
+        maxConfigs?: number;
         error?: string;
       };
-      if (data.success && data.config) {
-        const c = data.config;
-        const pair =
-          c.instrumentPair?.trim() ||
-          `${String(c.symbol ?? "BTC").toUpperCase()}/${c.marginCurrency === "USDC" ? "USDC" : "USDT"}`;
-        setConfig({
-          ...c,
-          instrumentPair: pair,
-          instId: String(c.instId ?? ""),
+      if (data.success && Array.isArray(data.configs) && data.configs.length > 0) {
+        const list = data.configs.map(normalizeConfigPayload);
+        setConfigs(list);
+        setMaxConfigs(typeof data.maxConfigs === "number" ? data.maxConfigs : 6);
+        setActiveConfigId((prev) => {
+          if (prev && list.some((c) => c.id === prev)) return prev;
+          return list[0].id;
         });
       } else {
-        setConfig(null);
+        setConfigs([]);
+        setActiveConfigId("");
         setError(
           data.error ??
             (!res.ok ? `Request failed (${res.status}).` : "No config returned. Try again or check the server logs.")
         );
       }
     } catch (e) {
-      setConfig(null);
+      setConfigs([]);
+      setActiveConfigId("");
       setError(e instanceof Error ? e.message : "Load failed");
     } finally {
       setLoading(false);
@@ -125,11 +144,17 @@ export default function NovaScalperPanel() {
   }, [load]);
 
   useEffect(() => {
+    const config = configs.find((c) => c.id === activeConfigId);
     if (autoSec === 0 || !config?.enabled) return;
     const id = setInterval(() => {
       void (async () => {
         try {
-          const res = await fetch("/api/admin/nova-scalper/tick", { method: "POST", credentials: "include" });
+          const res = await fetch("/api/admin/nova-scalper/tick", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ configId: config.id }),
+          });
           await res.json().catch(() => ({}));
           await load();
         } catch {
@@ -138,30 +163,27 @@ export default function NovaScalperPanel() {
       })();
     }, autoSec * 1000);
     return () => clearInterval(id);
-  }, [autoSec, config?.enabled, load]);
+  }, [autoSec, activeConfigId, configs, load]);
 
   const save = async () => {
+    const config = configs.find((c) => c.id === activeConfigId);
     if (!config) return;
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      const { instrumentPair, instId, ...rest } = config;
+      const { instrumentPair, instId: _inst, ...rest } = config;
       const normalizedSymbol = instrumentPair.trim().toUpperCase().replace(/-/g, "/");
       const res = await fetch("/api/admin/nova-scalper", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ...rest, symbol: normalizedSymbol }),
+        body: JSON.stringify({ ...rest, symbol: normalizedSymbol, configId: config.id }),
       });
       const data = await res.json();
       if (data.success && data.config) {
-        const c = data.config as ScalperConfig;
-        setConfig({
-          ...c,
-          instrumentPair: c.instrumentPair ?? `${c.symbol}/${c.marginCurrency === "USDC" ? "USDC" : "USDT"}`,
-          instId: String(c.instId ?? ""),
-        });
+        const c = normalizeConfigPayload(data.config as ScalperConfig);
+        setConfigs((list) => list.map((row) => (row.id === c.id ? c : row)));
         setSuccess("NovaScalper saved.");
       } else setError(data.error ?? "Save failed");
     } catch (e) {
@@ -171,12 +193,65 @@ export default function NovaScalperPanel() {
     }
   };
 
+  const addConfig = async () => {
+    setAddingConfig(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/admin/nova-scalper", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.configs)) {
+        const list = (data.configs as ScalperConfig[]).map(normalizeConfigPayload);
+        setConfigs(list);
+        if (data.config?.id) setActiveConfigId(String(data.config.id));
+        setSuccess("Added config.");
+      } else setError(data.error ?? "Could not add config.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add config.");
+    } finally {
+      setAddingConfig(false);
+    }
+  };
+
+  const removeActiveConfig = async () => {
+    const config = configs.find((c) => c.id === activeConfigId);
+    if (!config || configs.length <= 1) return;
+    if (!window.confirm(`Remove Config ${config.slot}? This deletes its settings and state.`)) return;
+    setRemovingConfig(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch(`/api/admin/nova-scalper?id=${encodeURIComponent(config.id)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.configs)) {
+        const list = (data.configs as ScalperConfig[]).map(normalizeConfigPayload);
+        setConfigs(list);
+        setActiveConfigId(list[0]?.id ?? "");
+        setSuccess("Config removed.");
+      } else setError(data.error ?? "Remove failed.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Remove failed.");
+    } finally {
+      setRemovingConfig(false);
+    }
+  };
+
   const tick = async () => {
+    const config = configs.find((c) => c.id === activeConfigId);
+    if (!config) return;
     setTicking(true);
     setError(null);
     setSuccess(null);
     try {
-      const res = await fetch("/api/admin/nova-scalper/tick", { method: "POST", credentials: "include" });
+      const res = await fetch("/api/admin/nova-scalper/tick", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ configId: config.id }),
+      });
       const data = await res.json();
       await load();
       if (data.success) setSuccess(data.message ?? "Tick OK.");
@@ -189,13 +264,15 @@ export default function NovaScalperPanel() {
   };
 
   const resetState = async (clearRounds: boolean) => {
+    const config = configs.find((c) => c.id === activeConfigId);
+    if (!config) return;
     setError(null);
     try {
       const res = await fetch("/api/admin/nova-scalper/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ clearRounds }),
+        body: JSON.stringify({ clearRounds, configId: config.id }),
       });
       const data = await res.json();
       if (data.success) {
@@ -215,7 +292,7 @@ export default function NovaScalperPanel() {
     return <p className="text-sm text-muted-foreground py-4">Loading NovaScalper…</p>;
   }
 
-  if (!config) {
+  if (configs.length === 0) {
     return (
       <div className="space-y-4 max-w-2xl py-4">
         <p className="text-sm text-muted-foreground">
@@ -252,8 +329,13 @@ export default function NovaScalperPanel() {
     );
   }
 
+  const config = configs.find((c) => c.id === activeConfigId);
+  if (!config) {
+    return <p className="text-sm text-muted-foreground py-4">Loading NovaScalper…</p>;
+  }
+
   const setField = <K extends keyof ScalperConfig>(key: K, value: ScalperConfig[K]) => {
-    setConfig((c) => (c ? { ...c, [key]: value } : c));
+    setConfigs((list) => list.map((c) => (c.id === activeConfigId ? { ...c, [key]: value } : c)));
   };
 
   const parsedInstrument = parseScalperInstrument(config.instrumentPair, config.marginCurrency);
@@ -264,9 +346,12 @@ export default function NovaScalperPanel() {
     <div className="space-y-6 max-w-2xl">
       <p className="text-sm text-muted-foreground">
         <strong className="text-cyan-600 dark:text-cyan-400">NovaScalper</strong> repeats{" "}
-        <strong>enter → exit</strong> on Blofin futures using your prices. Exits use{" "}
+        <strong>enter → exit</strong> on Blofin futures using your prices. Use{" "}
+        <strong className="text-foreground">Config 1, Config 2, …</strong> to run{" "}
+        <strong className="text-foreground">different contracts in parallel</strong> (each has its own instrument and
+        automation flag). Scheduled cron and manual ticks evaluate every enabled config. Exits use{" "}
         <strong>close position</strong> when price crosses your exit target (TP orders optional).{" "}
-        <strong>Entry, exit, and stop</strong> are in the contract quote ({priceQuote}) — same units as Blofin mark for{" "}
+        <strong>Entry, exit, and stop</strong> for this config are in {priceQuote} — same units as Blofin mark for{" "}
         <span className="font-mono text-xs">{displayInstId || "…"}</span>.
       </p>
 
@@ -422,8 +507,46 @@ export default function NovaScalperPanel() {
       </Card>
 
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">NovaScalper config</CardTitle>
+        <CardHeader className="pb-3 space-y-3">
+          <CardTitle className="text-base font-semibold">NovaScalper configs</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-600/80">
+              {configs.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setActiveConfigId(c.id)}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    c.id === activeConfigId
+                      ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                      : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
+                  }`}
+                >
+                  Config {c.slot}
+                </button>
+              ))}
+            </div>
+            {configs.length < maxConfigs && (
+              <Button type="button" size="sm" variant="outline" disabled={addingConfig} onClick={() => void addConfig()}>
+                {addingConfig ? "Adding…" : "+ Add config"}
+              </Button>
+            )}
+            {configs.length > 1 && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-rose-600 dark:text-rose-400"
+                disabled={removingConfig}
+                onClick={() => void removeActiveConfig()}
+              >
+                {removingConfig ? "Removing…" : `Remove config ${config.slot}`}
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Editing <strong className="text-foreground">Config {config.slot}</strong>. Save applies only to this config.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {config.ownerForceOff && (

@@ -85,7 +85,7 @@ function sameInstId(a: string, b: string): boolean {
 
 export async function runNovaScalperTick(
   userId: string,
-  runOpts?: { envFallbackForOwner?: boolean }
+  runOpts?: { envFallbackForOwner?: boolean; configId?: string }
 ): Promise<{ ok: boolean; message?: string; error?: string }> {
   if (!userId) {
     return { ok: false, error: "Sign in required to run NovaScalper." };
@@ -93,7 +93,16 @@ export async function runNovaScalperTick(
 
   let row: ScalperRow | null = null;
   try {
-    row = await db.novaScalperConfig.findFirst({ where: { userId } });
+    if (runOpts?.configId) {
+      row = await db.novaScalperConfig.findFirst({
+        where: { id: runOpts.configId, userId },
+      });
+    } else {
+      row = await db.novaScalperConfig.findFirst({
+        where: { userId },
+        orderBy: { slot: "asc" },
+      });
+    }
   } catch {
     return { ok: false, error: "NovaScalper table missing. Run prisma db push." };
   }
@@ -314,12 +323,21 @@ export async function runNovaScalperTick(
 export async function resetNovaScalperState(
   userId: string,
   options?: {
+    configId?: string;
     clearRounds?: boolean;
     clearInPosition?: boolean;
   }
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const row = await db.novaScalperConfig.findFirst({ where: { userId } });
+    let row: { id: string } | null = null;
+    if (options?.configId) {
+      row = await db.novaScalperConfig.findFirst({ where: { id: options.configId, userId } });
+    } else {
+      row = await db.novaScalperConfig.findFirst({
+        where: { userId },
+        orderBy: { slot: "asc" },
+      });
+    }
     if (!row) return { ok: false, error: "No config. Open NovaScalper once to create it." };
     await db.novaScalperConfig.update({
       where: { id: row.id },

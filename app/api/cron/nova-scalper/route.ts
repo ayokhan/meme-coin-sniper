@@ -33,23 +33,24 @@ export async function GET(request: Request) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = prisma as any;
-  const rows: { userId: string | null }[] = await db.novaScalperConfig.findMany({
+  const rows: { id: string; userId: string | null }[] = await db.novaScalperConfig.findMany({
     where: {
       enabled: true,
       ownerForceOff: false,
       userId: { not: null },
     },
-    select: { userId: true },
+    select: { id: true, userId: true },
   });
 
-  const results: { userId: string; ok: boolean; message?: string; error?: string }[] = [];
+  const results: { userId: string; configId: string; ok: boolean; message?: string; error?: string }[] = [];
 
   for (const row of rows) {
     const userId = row.userId as string;
     const envFallbackForOwner = await isOwnerUserId(userId);
-    const out = await runNovaScalperTick(userId, { envFallbackForOwner });
+    const out = await runNovaScalperTick(userId, { envFallbackForOwner, configId: row.id });
     results.push({
       userId,
+      configId: row.id,
       ok: out.ok,
       message: out.message,
       error: out.error,

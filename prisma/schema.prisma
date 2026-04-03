@@ -530,7 +530,9 @@ model TradingBot {
 // NovaScalper — per-user Blofin config (VIP + owner). symbol = base only e.g. BTC; marginCurrency = USDT|USDC.
 model NovaScalperConfig {
   id               String   @id @default(cuid())
-  userId           String?  @unique
+  userId           String?
+  /** 1-based slot per user: Config 1, Config 2, … for parallel contracts. */
+  slot             Int      @default(1)
   enabled          Boolean  @default(false)
   /** When true (set by owner in Admin → NovaScalper), user cannot turn NovaScalper back on from the app until owner clears it. */
   ownerForceOff    Boolean  @default(false)
@@ -560,6 +562,8 @@ model NovaScalperConfig {
   lastAction       String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  @@unique([userId, slot])
+  @@index([userId])
 }
 
 // Owner-only feedback on NovaStaris AI token analysis (for improving the model)

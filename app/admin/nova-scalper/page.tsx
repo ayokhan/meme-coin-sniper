@@ -9,6 +9,7 @@ import { Zap, RefreshCw, Activity, Ban, RotateCcw } from "lucide-react";
 
 type ScalperAdminRow = {
   id: string;
+  slot: number;
   userId: string | null;
   userEmail: string | null;
   userName: string | null;
@@ -37,7 +38,7 @@ export default function AdminNovaScalperPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [busyConfigId, setBusyConfigId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [cronFlagOn, setCronFlagOn] = useState<boolean | null>(null);
 
@@ -79,14 +80,14 @@ export default function AdminNovaScalperPage() {
     });
   }, [configs, search]);
 
-  const runTick = async (userId: string) => {
-    setBusyUserId(userId);
+  const runTick = async (configId: string) => {
+    setBusyConfigId(configId);
     setFlash(null);
     try {
       const res = await fetch("/api/admin/nova-scalper/manage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "tick", userId }),
+        body: JSON.stringify({ action: "tick", configId }),
       });
       const data = await res.json();
       if (data.success) {
@@ -96,11 +97,11 @@ export default function AdminNovaScalperPage() {
     } catch {
       setFlash("Tick failed");
     } finally {
-      setBusyUserId(null);
+      setBusyConfigId(null);
     }
   };
 
-  const runReset = async (userId: string, clearRounds: boolean) => {
+  const runReset = async (configId: string, clearRounds: boolean) => {
     if (
       !window.confirm(
         clearRounds
@@ -109,13 +110,13 @@ export default function AdminNovaScalperPage() {
       )
     )
       return;
-    setBusyUserId(userId);
+    setBusyConfigId(configId);
     setFlash(null);
     try {
       const res = await fetch("/api/admin/nova-scalper/manage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reset", userId, clearRounds }),
+        body: JSON.stringify({ action: "reset", configId, clearRounds }),
       });
       const data = await res.json();
       if (data.success) {
@@ -125,33 +126,33 @@ export default function AdminNovaScalperPage() {
     } catch {
       setFlash("Reset failed");
     } finally {
-      setBusyUserId(null);
+      setBusyConfigId(null);
     }
   };
 
-  const setEnabled = async (userId: string, enabled: boolean) => {
+  const setEnabled = async (configId: string, enabled: boolean) => {
     if (enabled && !window.confirm("Enable NovaScalper for this user? They must still meet Blofin key rules when trading.")) return;
-    setBusyUserId(userId);
+    setBusyConfigId(configId);
     setFlash(null);
     try {
       const res = await fetch("/api/admin/nova-scalper/manage", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, enabled }),
+        body: JSON.stringify({ configId, enabled }),
       });
       const data = await res.json();
       if (data.success) {
         setFlash(
           enabled
-            ? "NovaScalper automation enabled for this user (column “Scalper”)."
-            : "NovaScalper automation disabled for this user (column “Scalper”)."
+            ? "NovaScalper automation enabled for this config (column “Scalper”)."
+            : "NovaScalper automation disabled for this config (column “Scalper”)."
         );
         load();
       } else setFlash(data.error ?? "Update failed");
     } catch {
       setFlash("Update failed");
     } finally {
-      setBusyUserId(null);
+      setBusyConfigId(null);
     }
   };
 
@@ -183,14 +184,14 @@ export default function AdminNovaScalperPage() {
             </CardTitle>
             <div className="text-sm text-muted-foreground space-y-2">
               <p>
-                Owner-only overview: per-user Blofin scalper configs. Run a tick or reset state using the user&apos;s saved keys
+                Owner-only overview: each row is one scalper config (users can have several contracts). Run a tick or reset using that user&apos;s saved keys
                 (owner-only env fallback rules apply). The <strong className="text-zinc-700 dark:text-zinc-300">Scalper</strong> column
                 is NovaScalper on/off — not the same as the purple badge.
               </p>
               <ul className="list-disc pl-5 space-y-1 text-xs">
                 <li>
                   <strong className="text-zinc-600 dark:text-zinc-400">Scalper yes/no</strong> —{" "}
-                  <code className="text-[11px]">NovaScalperConfig.enabled</code> (automation + daily cron when flag below is on).
+                  <code className="text-[11px]">NovaScalperConfig.enabled</code> per config (automation + daily cron when flag below is on).
                 </li>
                 <li>
                   <strong className="text-zinc-600 dark:text-zinc-400">Purple badge</strong> —{" "}
@@ -251,6 +252,7 @@ export default function AdminNovaScalperPage() {
                   <thead>
                     <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/80 text-left">
                       <th className="p-2 font-medium">User</th>
+                      <th className="p-2 font-medium">Cfg</th>
                       <th className="p-2 font-medium">Pair</th>
                       <th className="p-2 font-medium">Mode</th>
                       <th className="p-2 font-medium">Side</th>
@@ -269,7 +271,7 @@ export default function AdminNovaScalperPage() {
                   <tbody>
                     {filtered.map((c) => {
                       const uid = c.userId;
-                      const busy = uid != null && busyUserId === uid;
+                      const busy = busyConfigId === c.id;
                       return (
                         <tr key={c.id} className="border-b border-zinc-100 dark:border-zinc-800 align-top">
                           <td className="p-2">
@@ -287,6 +289,7 @@ export default function AdminNovaScalperPage() {
                             {uid && <div className="text-[10px] font-mono text-zinc-400 mt-1 break-all">{uid}</div>}
                             {!uid && <span className="text-xs text-amber-600 dark:text-amber-400">No userId</span>}
                           </td>
+                          <td className="p-2 text-center font-medium">{c.slot}</td>
                           <td className="p-2 font-mono text-xs">{c.instrumentPair}</td>
                           <td className="p-2">{c.mode}</td>
                           <td className="p-2">{c.side}</td>
@@ -313,7 +316,7 @@ export default function AdminNovaScalperPage() {
                                   variant="secondary"
                                   className="h-8 text-xs"
                                   disabled={busy}
-                                  onClick={() => void runTick(uid)}
+                                  onClick={() => void runTick(c.id)}
                                 >
                                   Run tick
                                 </Button>
@@ -322,7 +325,7 @@ export default function AdminNovaScalperPage() {
                                   variant="outline"
                                   className="h-8 text-xs"
                                   disabled={busy}
-                                  onClick={() => void runReset(uid, false)}
+                                  onClick={() => void runReset(c.id, false)}
                                 >
                                   <RotateCcw className="h-3 w-3 mr-1" />
                                   Reset state
@@ -332,7 +335,7 @@ export default function AdminNovaScalperPage() {
                                   variant="outline"
                                   className="h-8 text-xs"
                                   disabled={busy}
-                                  onClick={() => void runReset(uid, true)}
+                                  onClick={() => void runReset(c.id, true)}
                                 >
                                   Reset + rounds
                                 </Button>
@@ -342,7 +345,7 @@ export default function AdminNovaScalperPage() {
                                     variant="destructive"
                                     className="h-8 text-xs"
                                     disabled={busy}
-                                    onClick={() => void setEnabled(uid, false)}
+                                    onClick={() => void setEnabled(c.id, false)}
                                   >
                                     <Ban className="h-3 w-3 mr-1" />
                                     Disable
@@ -353,7 +356,7 @@ export default function AdminNovaScalperPage() {
                                     variant="default"
                                     className="h-8 text-xs"
                                     disabled={busy}
-                                    onClick={() => void setEnabled(uid, true)}
+                                    onClick={() => void setEnabled(c.id, true)}
                                   >
                                     Enable
                                   </Button>

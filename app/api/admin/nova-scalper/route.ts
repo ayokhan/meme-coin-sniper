@@ -5,37 +5,48 @@ import { prisma } from "@/lib/db";
 import { isBlofinConfigured } from "@/lib/blofin";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
 import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
+import { NOVA_SCALPER_MAX_CONFIGS } from "@/lib/nova-scalper-constants";
 
 export const dynamic = "force-dynamic";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
-async function ensureNovaScalperRow(sessionUserId: string) {
-  let row = await db.novaScalperConfig.findFirst({ where: { userId: sessionUserId } });
-  if (row) return row;
+const defaultNovaScalperCreate = {
+  symbol: "BTC",
+  marginCurrency: "USDT",
+  entryPrice: 95000,
+  exitPrice: 96000,
+  positionSizeUsdt: 50,
+  leverage: 5,
+  side: "long",
+};
+
+async function ensureNovaScalperConfigsForUser(sessionUserId: string) {
+  let rows = await db.novaScalperConfig.findMany({
+    where: { userId: sessionUserId },
+    orderBy: { slot: "asc" },
+  });
+  if (rows.length > 0) return rows;
   const legacyList = await db.novaScalperConfig.findMany({ where: { userId: null } });
   if (legacyList.length === 1) {
-    return await db.novaScalperConfig.update({
+    const updated = await db.novaScalperConfig.update({
       where: { id: legacyList[0].id },
-      data: { userId: sessionUserId },
+      data: { userId: sessionUserId, slot: 1 },
     });
+    return [updated];
   }
   if (legacyList.length > 1) {
     await db.novaScalperConfig.deleteMany({ where: { userId: null } });
   }
-  return await db.novaScalperConfig.create({
+  const created = await db.novaScalperConfig.create({
     data: {
       userId: sessionUserId,
-      symbol: "BTC",
-      marginCurrency: "USDT",
-      entryPrice: 95000,
-      exitPrice: 96000,
-      positionSizeUsdt: 50,
-      leverage: 5,
-      side: "long",
+      slot: 1,
+      ...defaultNovaScalperCreate,
     },
   });
+  return [created];
 }
 
 async function normalizeStoredInstrument(row: { id: string; symbol: string; marginCurrency?: string }) {
@@ -85,6 +96,7 @@ function toConfig(row: Record<string, unknown>) {
   const rawEnabled = !!row.enabled;
   return {
     id: row.id,
+    slot: typeof row.slot === "number" ? row.slot : 1,
     enabled: rawEnabled && !ownerForceOff,
     ownerForceOff,
     mode: row.mode === "live" ? "live" : "demo",
@@ -124,10 +136,17 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
     }
 
-    let row = await ensureNovaScalperRow(sessionUserId);
-    row = await normalizeStoredInstrument(row);
-
-    return NextResponse.json({ success: true, config: toConfig(row as Record<string, unknown>) });
+    const rows = await ensureNovaScalperConfigsForUser(sessionUserId);
+    const configs: ReturnType<typeof toConfig>[] = [];
+    for (const r of rows) {
+      const norm = await normalizeStoredInstrument(r);
+      configs.push(toConfig(norm as Record<string, unknown>));
+    }
+    return NextResponse.json({
+      success: true,
+      configs,
+      maxConfigs: NOVA_SCALPER_MAX_CONFIGS,
+    });
   } catch (e) {
     console.error("nova-scalper GET:", e);
     const msg = e instanceof Error ? e.message : "Failed to load.";
@@ -162,7 +181,25 @@ export async function PATCH(request: Request) {
     const err = validateBody(body);
     if (err) return NextResponse.json({ success: false, error: err }, { status: 400 });
 
-    let row = await ensureNovaScalperRow(sessionUserId);
+    let configId = String(body.configId ?? "").trim();
+    if (!configId) {
+      const all = await ensureNovaScalperConfigsForUser(sessionUserId);
+      if (all.length === 1) configId = all[0].id as string;
+      else {
+        return NextResponse.json(
+          { success: false, error: "configId is required when you have more than one NovaScalper config." },
+          { status: 400 }
+        );
+      }
+    }
+
+    let row = await db.novaScalperConfig.findFirst({
+      where: { id: configId, userId: sessionUserId },
+    });
+    if (!row) {
+      return NextResponse.json({ success: false, error: "Config not found." }, { status: 404 });
+    }
+    row = await normalizeStoredInstrument(row);
     const lockedByOwner = !!(row as { ownerForceOff?: boolean }).ownerForceOff;
     if (lockedByOwner && body.enabled === true) {
       return NextResponse.json(
@@ -223,5 +260,97 @@ export async function PATCH(request: Request) {
   } catch (e) {
     console.error("nova-scalper PATCH:", e);
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : "Save failed." }, { status: 500 });
+  }
+}
+
+/** Add another parallel config (next slot). */
+export async function POST() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!canAccessTradingBot(session)) {
+      return NextResponse.json({ success: false, error: "Access denied." }, { status: 403 });
+    }
+    const sessionUserId = session?.user?.id;
+    if (!sessionUserId) {
+      return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
+    }
+
+    const rows = await ensureNovaScalperConfigsForUser(sessionUserId);
+    if (rows.length >= NOVA_SCALPER_MAX_CONFIGS) {
+      return NextResponse.json(
+        { success: false, error: `You can have at most ${NOVA_SCALPER_MAX_CONFIGS} NovaScalper configs.` },
+        { status: 400 }
+      );
+    }
+    const maxSlot = rows.reduce((m: number, r: { slot?: number }) => Math.max(m, r.slot ?? 0), 0);
+    const created = await db.novaScalperConfig.create({
+      data: {
+        userId: sessionUserId,
+        slot: maxSlot + 1,
+        ...defaultNovaScalperCreate,
+      },
+    });
+    const norm = await normalizeStoredInstrument(created);
+    const all = await db.novaScalperConfig.findMany({
+      where: { userId: sessionUserId },
+      orderBy: { slot: "asc" },
+    });
+    const configs = [];
+    for (const r of all) {
+      const n = await normalizeStoredInstrument(r);
+      configs.push(toConfig(n as Record<string, unknown>));
+    }
+    return NextResponse.json({ success: true, config: toConfig(norm as Record<string, unknown>), configs });
+  } catch (e) {
+    console.error("nova-scalper POST:", e);
+    return NextResponse.json({ success: false, error: e instanceof Error ? e.message : "Create failed." }, { status: 500 });
+  }
+}
+
+/** Remove a config (must keep at least one). */
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!canAccessTradingBot(session)) {
+      return NextResponse.json({ success: false, error: "Access denied." }, { status: 403 });
+    }
+    const sessionUserId = session?.user?.id;
+    if (!sessionUserId) {
+      return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
+    }
+
+    const id = new URL(request.url).searchParams.get("id")?.trim();
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Missing id." }, { status: 400 });
+    }
+
+    const count = await db.novaScalperConfig.count({ where: { userId: sessionUserId } });
+    if (count <= 1) {
+      return NextResponse.json(
+        { success: false, error: "Keep at least one NovaScalper config. Clear settings instead." },
+        { status: 400 }
+      );
+    }
+
+    const row = await db.novaScalperConfig.findFirst({ where: { id, userId: sessionUserId } });
+    if (!row) {
+      return NextResponse.json({ success: false, error: "Config not found." }, { status: 404 });
+    }
+
+    await db.novaScalperConfig.delete({ where: { id } });
+
+    const all = await db.novaScalperConfig.findMany({
+      where: { userId: sessionUserId },
+      orderBy: { slot: "asc" },
+    });
+    const configs = [];
+    for (const r of all) {
+      const n = await normalizeStoredInstrument(r);
+      configs.push(toConfig(n as Record<string, unknown>));
+    }
+    return NextResponse.json({ success: true, configs });
+  } catch (e) {
+    console.error("nova-scalper DELETE:", e);
+    return NextResponse.json({ success: false, error: e instanceof Error ? e.message : "Delete failed." }, { status: 500 });
   }
 }
