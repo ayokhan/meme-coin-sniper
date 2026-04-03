@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef, useMemo, type Dispatch, type SetStateAction } from "react";
 import { useTheme } from "next-themes";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -229,6 +229,25 @@ export default function Dashboard() {
       });
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  /** Admin toggles (Trading Bot on-demand, etc.) are read from DB on each session fetch; refresh client session when user returns to the tab. */
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const pull = () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => void getSession(), 200);
+    };
+    const onVis = () => {
+      if (document.visibilityState === "visible") pull();
+    };
+    window.addEventListener("focus", pull);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      if (t) clearTimeout(t);
+      window.removeEventListener("focus", pull);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, []);
 

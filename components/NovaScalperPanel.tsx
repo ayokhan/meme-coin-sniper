@@ -105,14 +105,33 @@ export default function NovaScalperPanel() {
     void load();
   }, [load]);
 
+  /** Sync when returning to the tab — admin may have disabled NovaScalper or cleared the owner lock. */
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => void load(), 250);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") schedule();
+    };
+    window.addEventListener("focus", schedule);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      if (t) clearTimeout(t);
+      window.removeEventListener("focus", schedule);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [load]);
+
   useEffect(() => {
     if (autoSec === 0 || !config?.enabled) return;
     const id = setInterval(() => {
       void (async () => {
         try {
           const res = await fetch("/api/admin/nova-scalper/tick", { method: "POST", credentials: "include" });
-          const data = await res.json();
-          if (data.success) await load();
+          await res.json().catch(() => ({}));
+          await load();
         } catch {
           /* ignore */
         }

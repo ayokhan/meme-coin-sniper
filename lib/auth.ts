@@ -196,23 +196,76 @@ export const authOptions: NextAuthOptions = {
         let tier = (token.tier as Tier | null) ?? null;
         let tradingBotOnDemand = (token.tradingBotOnDemand as boolean) ?? false;
         let ctScanOnDemand = (token.ctScanOnDemand as boolean) ?? false;
+        let ctScanOnDemandExpiresAt: Date | string | null | undefined =
+          (token as { ctScanOnDemandExpiresAt?: Date | string | null }).ctScanOnDemandExpiresAt ?? null;
         let memeCoinsTraderOnDemand = (token.memeCoinsTraderOnDemand as boolean) ?? false;
+        let memeCoinsTraderOnDemandExpiresAt: Date | string | null | undefined =
+          (token as { memeCoinsTraderOnDemandExpiresAt?: Date | string | null }).memeCoinsTraderOnDemandExpiresAt ?? null;
+        let novaConnectCommunityRep = (token.novaConnectCommunityRep as boolean) ?? false;
+        let novaConnectAllowedByAdmin = (token.novaConnectAllowedByAdmin as boolean) ?? false;
         const owner = isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress);
         if (owner) {
           isPaid = true;
           tier = 'vip';
           tradingBotOnDemand = true;
           ctScanOnDemand = true;
+          ctScanOnDemandExpiresAt = null;
           memeCoinsTraderOnDemand = true;
+          memeCoinsTraderOnDemandExpiresAt = null;
+        } else {
+          const uid = token.id as string | undefined;
+          if (uid) {
+            try {
+              const fresh = await (
+                prisma as {
+                  user: {
+                    findUnique: (args: unknown) => Promise<{
+                      tradingBotOnDemand: boolean;
+                      ctScanOnDemand: boolean;
+                      ctScanOnDemandExpiresAt: Date | null;
+                      memeCoinsTraderOnDemand: boolean;
+                      memeCoinsTraderOnDemandExpiresAt: Date | null;
+                      novaConnectCommunityRep: boolean;
+                      novaConnectAllowedByAdmin: boolean;
+                    } | null>;
+                  };
+                }
+              ).user.findUnique({
+                where: { id: uid },
+                select: {
+                  tradingBotOnDemand: true,
+                  ctScanOnDemand: true,
+                  ctScanOnDemandExpiresAt: true,
+                  memeCoinsTraderOnDemand: true,
+                  memeCoinsTraderOnDemandExpiresAt: true,
+                  novaConnectCommunityRep: true,
+                  novaConnectAllowedByAdmin: true,
+                },
+              });
+              if (fresh) {
+                tradingBotOnDemand = !!fresh.tradingBotOnDemand;
+                ctScanOnDemand = !!fresh.ctScanOnDemand;
+                ctScanOnDemandExpiresAt = fresh.ctScanOnDemandExpiresAt;
+                memeCoinsTraderOnDemand = !!fresh.memeCoinsTraderOnDemand;
+                memeCoinsTraderOnDemandExpiresAt = fresh.memeCoinsTraderOnDemandExpiresAt;
+                novaConnectCommunityRep = !!fresh.novaConnectCommunityRep;
+                novaConnectAllowedByAdmin = !!fresh.novaConnectAllowedByAdmin;
+              }
+            } catch {
+              /* keep values derived from JWT */
+            }
+          }
         }
         session.user.isPaid = isPaid;
         session.user.isOwner = owner;
         session.user.tier = tier;
         session.user.tradingBotOnDemand = tradingBotOnDemand;
         session.user.ctScanOnDemand = ctScanOnDemand;
+        session.user.ctScanOnDemandExpiresAt = ctScanOnDemandExpiresAt ?? null;
         session.user.memeCoinsTraderOnDemand = memeCoinsTraderOnDemand;
-        session.user.novaConnectCommunityRep = (token.novaConnectCommunityRep as boolean) ?? false;
-        session.user.novaConnectAllowedByAdmin = (token.novaConnectAllowedByAdmin as boolean) ?? false;
+        session.user.memeCoinsTraderOnDemandExpiresAt = memeCoinsTraderOnDemandExpiresAt ?? null;
+        session.user.novaConnectCommunityRep = novaConnectCommunityRep;
+        session.user.novaConnectAllowedByAdmin = novaConnectAllowedByAdmin;
       }
       return session;
     },
