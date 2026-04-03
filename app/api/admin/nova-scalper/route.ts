@@ -81,9 +81,12 @@ function toConfig(row: Record<string, unknown>) {
   const base = String(row.symbol ?? "BTC");
   const quote = row.marginCurrency === "USDC" ? "USDC" : "USDT";
   const { instId } = parseScalperInstrument(base, quote);
+  const ownerForceOff = !!(row.ownerForceOff as boolean | undefined);
+  const rawEnabled = !!row.enabled;
   return {
     id: row.id,
-    enabled: !!row.enabled,
+    enabled: rawEnabled && !ownerForceOff,
+    ownerForceOff,
     mode: row.mode === "live" ? "live" : "demo",
     symbol: base,
     marginCurrency: quote,
@@ -159,6 +162,19 @@ export async function PATCH(request: Request) {
     const err = validateBody(body);
     if (err) return NextResponse.json({ success: false, error: err }, { status: 400 });
 
+    let row = await ensureNovaScalperRow(sessionUserId);
+    const lockedByOwner = !!(row as { ownerForceOff?: boolean }).ownerForceOff;
+    if (lockedByOwner && body.enabled === true) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "NovaScalper was disabled by the owner. You cannot turn it back on until they allow it again in Admin → NovaScalper.",
+        },
+        { status: 403 }
+      );
+    }
+
     if (body.enabled === true && !isBlofinConfigured() && !userCfg) {
       return NextResponse.json(
         {
@@ -169,8 +185,6 @@ export async function PATCH(request: Request) {
         { status: 400 }
       );
     }
-
-    let row = await ensureNovaScalperRow(sessionUserId);
 
     const { base, quote } = parseScalperInstrument(
       String(body.symbol ?? ""),

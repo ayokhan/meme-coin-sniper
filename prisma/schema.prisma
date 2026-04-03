@@ -532,6 +532,8 @@ model NovaScalperConfig {
   id               String   @id @default(cuid())
   userId           String?  @unique
   enabled          Boolean  @default(false)
+  /** When true (set by owner in Admin → NovaScalper), user cannot turn NovaScalper back on from the app until owner clears it. */
+  ownerForceOff    Boolean  @default(false)
   mode             String   @default("demo") // demo | live
   symbol           String   @default("BTC")
   marginCurrency   String   @default("USDT")

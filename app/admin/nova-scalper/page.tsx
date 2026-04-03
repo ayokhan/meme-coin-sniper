@@ -15,6 +15,7 @@ type ScalperAdminRow = {
   walletPreview: string | null;
   tradingBotOnDemand: boolean;
   enabled: boolean;
+  ownerForceOff: boolean;
   mode: string;
   symbol: string;
   marginCurrency: string;
@@ -256,6 +257,9 @@ export default function AdminNovaScalperPage() {
                       <th className="p-2 font-medium" title="NovaScalper automation (not Trading Bot on-demand)">
                         Scalper
                       </th>
+                      <th className="p-2 font-medium" title="Owner disable lock: user cannot re-enable from app">
+                        Lock
+                      </th>
                       <th className="p-2 font-medium">Pos</th>
                       <th className="p-2 font-medium">Rounds</th>
                       <th className="p-2 font-medium">Last tick</th>
@@ -287,6 +291,7 @@ export default function AdminNovaScalperPage() {
                           <td className="p-2">{c.mode}</td>
                           <td className="p-2">{c.side}</td>
                           <td className="p-2">{c.enabled ? "yes" : "no"}</td>
+                          <td className="p-2">{c.ownerForceOff ? "yes" : "no"}</td>
                           <td className="p-2">{c.inPosition ? "yes" : "no"}</td>
                           <td className="p-2">
                             {c.completedRounds}

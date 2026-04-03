@@ -15,6 +15,7 @@ type ScalperRow = {
   id: string;
   userId: string | null;
   enabled: boolean;
+  ownerForceOff?: boolean;
   mode: string;
   symbol: string;
   marginCurrency: string | null;
@@ -73,6 +74,7 @@ export async function GET() {
             : null,
         tradingBotOnDemand: u?.tradingBotOnDemand ?? false,
         enabled: r.enabled,
+        ownerForceOff: !!r.ownerForceOff,
         mode: r.mode === "live" ? "live" : "demo",
         symbol: String(r.symbol ?? ""),
         marginCurrency: quote,
@@ -160,12 +162,17 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: "No NovaScalper config for this user." }, { status: 404 });
     }
 
+    const on = body.enabled === true;
     await db.novaScalperConfig.update({
       where: { id: row.id },
-      data: { enabled: body.enabled === true },
+      data: {
+        enabled: on,
+        // Owner "Disable" locks so a stale client Save cannot re-enable; "Enable" clears the lock.
+        ownerForceOff: on ? false : true,
+      },
     });
 
-    return NextResponse.json({ success: true, enabled: body.enabled === true });
+    return NextResponse.json({ success: true, enabled: on, ownerForceOff: on ? false : true });
   } catch (e) {
     console.error("nova-scalper manage PATCH:", e);
     return NextResponse.json({ success: false, error: "Update failed." }, { status: 500 });

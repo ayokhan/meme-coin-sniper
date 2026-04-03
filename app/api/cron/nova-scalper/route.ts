@@ -34,7 +34,11 @@ export async function GET(request: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = prisma as any;
   const rows: { userId: string | null }[] = await db.novaScalperConfig.findMany({
-    where: { enabled: true, userId: { not: null } },
+    where: {
+      enabled: true,
+      ownerForceOff: false,
+      userId: { not: null },
+    },
     select: { userId: true },
   });
 

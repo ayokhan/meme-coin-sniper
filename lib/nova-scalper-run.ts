@@ -98,8 +98,11 @@ export async function runNovaScalperTick(
     return { ok: false, error: "NovaScalper table missing. Run prisma db push." };
   }
 
-  if (!row || !row.enabled) {
-    return { ok: true, message: "NovaScalper is off or save your config first." };
+  if (!row || !row.enabled || (row as { ownerForceOff?: boolean }).ownerForceOff) {
+    return {
+      ok: true,
+      message: "NovaScalper is off, suspended by the owner, or save your config first.",
+    };
   }
 
   let blofinConfig: BlofinConfig | null = await getBlofinConfigForUser(userId);

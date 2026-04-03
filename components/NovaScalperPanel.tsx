@@ -8,6 +8,8 @@ import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
 type ScalperConfig = {
   id: string;
   enabled: boolean;
+  /** True when owner used Admin → NovaScalper Disable; user cannot re-enable from here. */
+  ownerForceOff?: boolean;
   mode: "demo" | "live";
   symbol: string;
   marginCurrency: string;
@@ -407,8 +409,19 @@ export default function NovaScalperPanel() {
           <CardTitle className="text-base font-semibold">NovaScalper config</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {config.ownerForceOff && (
+            <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/90 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+              NovaScalper was <strong>disabled by the owner</strong> in Admin. The switch below stays off until they enable
+              you again. You can still change prices and save other settings.
+            </div>
+          )}
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={config.enabled} onChange={(e) => setField("enabled", e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={config.enabled}
+              disabled={!!config.ownerForceOff}
+              onChange={(e) => setField("enabled", e.target.checked)}
+            />
             <span className="text-sm font-medium">Enabled</span>
           </label>
           <p className="text-xs text-muted-foreground -mt-2">
