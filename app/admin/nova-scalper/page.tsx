@@ -191,7 +191,8 @@ export default function AdminNovaScalperPage() {
               <ul className="list-disc pl-5 space-y-1 text-xs">
                 <li>
                   <strong className="text-zinc-600 dark:text-zinc-400">Scalper yes/no</strong> —{" "}
-                  <code className="text-[11px]">NovaScalperConfig.enabled</code> per config (automation + daily cron when flag below is on).
+                  <code className="text-[11px]">NovaScalperConfig.enabled</code> per config (automation + optional overnight
+                  server runs when the flag below is on).
                 </li>
                 <li>
                   <strong className="text-zinc-600 dark:text-zinc-400">Purple badge</strong> —{" "}
@@ -199,14 +200,14 @@ export default function AdminNovaScalperPage() {
                   <em>AI Trading Bot</em> tab only. Does not turn NovaScalper on.
                 </li>
                 <li>
-                  <strong className="text-zinc-600 dark:text-zinc-400">Scheduled cron</strong> — feature flag{" "}
-                  <code className="text-[11px]">nova_scalper_cron</code> in Admin → Feature flags; when off, the daily job skips
-                  NovaScalper ticks even if Scalper is yes.
+                  <strong className="text-zinc-600 dark:text-zinc-400">Overnight automation</strong> — feature flag{" "}
+                  <code className="text-[11px]">nova_scalper_cron</code> in Admin → Feature flags; when off, the daily server
+                  job does not run NovaScalper ticks even if Scalper is yes.
                 </li>
               </ul>
               {cronFlagOn !== null && (
                 <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  Scheduled NovaScalper cron (feature flag):{" "}
+                  NovaScalper overnight automation (feature flag):{" "}
                   <span className={cronFlagOn ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-500"}>
                     {cronFlagOn ? "ON" : "OFF"}
                   </span>

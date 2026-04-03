@@ -49,7 +49,7 @@ export const FEATURE_FLAG_KEYS = {
   DIGEST_TO_NEWSLETTER_SUBSCRIBERS: 'digest_to_newsletter_subscribers',
   /** NovaConnect social portal (Nova Connect tab, community rules, and links). When OFF, Nova Connect tab is hidden. */
   NOVA_CONNECT: 'nova_connect',
-  /** Vercel cron /api/cron/nova-scalper: run automated Blofin ticks for enabled NovaScalper users. Default OFF; turn ON in Admin → Feature flags when ready. */
+  /** Server batch job /api/cron/nova-scalper: run NovaScalper ticks for enabled users. Default OFF; Admin → Feature flags → NovaScalper overnight automation. */
   NOVA_SCALPER_CRON: 'nova_scalper_cron',
 } as const;
 

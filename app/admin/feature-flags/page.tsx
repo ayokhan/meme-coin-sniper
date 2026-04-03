@@ -130,9 +130,9 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description: "Enable the NovaConnect tab (social feed + community rules). When OFF, the NovaConnect tab is hidden for all users.",
   },
   nova_scalper_cron: {
-    label: "NovaScalper scheduled cron",
+    label: "NovaScalper overnight automation",
     description:
-      "When ON, the daily /api/cron job also runs NovaScalper ticks for every user with NovaScalper enabled (Hobby-safe). When OFF, that step is skipped. On Vercel Pro you can add a second cron in vercel.json for a shorter interval and hit /api/cron/nova-scalper directly.",
+      "When ON, the server’s daily maintenance job also advances NovaScalper for every user who has it enabled (one batch per day on typical hosting). When OFF, that pass is skipped—users still get ticks when they use Check price or leave the tab open with auto tick. Advanced: on Pro hosting you can add more frequent scheduled calls to /api/cron/nova-scalper if needed.",
   },
 };
 

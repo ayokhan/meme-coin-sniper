@@ -72,6 +72,21 @@ export default function NovaScalperPanel() {
   });
   const [savingBlofinKeys, setSavingBlofinKeys] = useState(false);
   const [clearingBlofinKeys, setClearingBlofinKeys] = useState(false);
+  const [pnl, setPnl] = useState<{
+    loading: boolean;
+    upl: number | null;
+    quote: string;
+    hasPosition: boolean;
+    markPrice: number | null;
+    needsKeys?: boolean;
+    err?: string | null;
+  }>({
+    loading: false,
+    upl: null,
+    quote: "USDT",
+    hasPosition: false,
+    markPrice: null,
+  });
 
   const loadUserBlofinConfig = useCallback(async () => {
     try {
@@ -124,12 +139,76 @@ export default function NovaScalperPanel() {
     void load();
   }, [load]);
 
+  const fetchPositionPnl = useCallback(async () => {
+    const cfg = configs.find((c) => c.id === activeConfigId);
+    if (!cfg?.id) return;
+    setPnl((prev) => ({ ...prev, loading: true, err: null }));
+    try {
+      const res = await fetch(
+        `/api/admin/nova-scalper/position?configId=${encodeURIComponent(cfg.id)}`,
+        { credentials: "include", cache: "no-store" }
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        upl?: number | null;
+        quote?: string;
+        hasPosition?: boolean;
+        markPrice?: number | null;
+        needsKeys?: boolean;
+        error?: string;
+      };
+      if (!data.success) {
+        setPnl({
+          loading: false,
+          upl: null,
+          quote: cfg.marginCurrency === "USDC" ? "USDC" : "USDT",
+          hasPosition: false,
+          markPrice: null,
+          err: data.error ?? "Could not load PnL",
+        });
+        return;
+      }
+      setPnl({
+        loading: false,
+        upl: data.upl ?? null,
+        quote: data.quote ?? "USDT",
+        hasPosition: !!data.hasPosition,
+        markPrice: typeof data.markPrice === "number" ? data.markPrice : null,
+        needsKeys: !!data.needsKeys,
+        err: null,
+      });
+    } catch {
+      setPnl((prev) => ({
+        ...prev,
+        loading: false,
+        err: "Could not load PnL",
+      }));
+    }
+  }, [configs, activeConfigId]);
+
+  useEffect(() => {
+    if (!activeConfigId || !configs.some((c) => c.id === activeConfigId)) return;
+    void fetchPositionPnl();
+  }, [activeConfigId, configs, fetchPositionPnl]);
+
+  useEffect(() => {
+    if (!activeConfigId || !configs.some((c) => c.id === activeConfigId)) return;
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void fetchPositionPnl();
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [activeConfigId, configs, fetchPositionPnl]);
+
   /** Sync when returning to the tab — admin may have disabled NovaScalper or cleared the owner lock. */
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => {
       if (t) clearTimeout(t);
-      t = setTimeout(() => void load(), 250);
+      t = setTimeout(() => {
+        void load();
+        setTimeout(() => void fetchPositionPnl(), 600);
+      }, 250);
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") schedule();
@@ -141,7 +220,7 @@ export default function NovaScalperPanel() {
       window.removeEventListener("focus", schedule);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [load]);
+  }, [load, fetchPositionPnl]);
 
   useEffect(() => {
     const config = configs.find((c) => c.id === activeConfigId);
@@ -157,13 +236,14 @@ export default function NovaScalperPanel() {
           });
           await res.json().catch(() => ({}));
           await load();
+          setTimeout(() => void fetchPositionPnl(), 500);
         } catch {
           /* ignore */
         }
       })();
     }, autoSec * 1000);
     return () => clearInterval(id);
-  }, [autoSec, activeConfigId, configs, load]);
+  }, [autoSec, activeConfigId, configs, load, fetchPositionPnl]);
 
   const save = async () => {
     const config = configs.find((c) => c.id === activeConfigId);
@@ -254,6 +334,7 @@ export default function NovaScalperPanel() {
       });
       const data = await res.json();
       await load();
+      setTimeout(() => void fetchPositionPnl(), 400);
       if (data.success) setSuccess(data.message ?? "Tick OK.");
       else setError(data.error ?? "Tick failed");
     } catch (e) {
@@ -282,6 +363,7 @@ export default function NovaScalperPanel() {
             : "Reset last ref price and position flag."
         );
         await load();
+        setTimeout(() => void fetchPositionPnl(), 400);
       } else setError(data.error ?? "Reset failed");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Reset failed");
@@ -349,7 +431,10 @@ export default function NovaScalperPanel() {
         <strong>enter → exit</strong> on Blofin futures using your prices. Use{" "}
         <strong className="text-foreground">Config 1, Config 2, …</strong> to run{" "}
         <strong className="text-foreground">different contracts in parallel</strong> (each has its own instrument and
-        automation flag). Scheduled cron and manual ticks evaluate every enabled config. Exits use{" "}
+        automation flag).{" "}
+        <strong className="text-foreground">Check price</strong> and optional in-tab auto checks evaluate each enabled
+        config. If your host runs <strong className="text-foreground">overnight automation</strong> (when turned on in
+        admin), those runs do the same. Exits use{" "}
         <strong>close position</strong> when price crosses your exit target (TP orders optional).{" "}
         <strong>Entry, exit, and stop</strong> for this config are in {priceQuote} — same units as Blofin mark for{" "}
         <span className="font-mono text-xs">{displayInstId || "…"}</span>.
@@ -827,6 +912,46 @@ export default function NovaScalperPanel() {
           </p>
           <p>
             In position (internal): <strong>{config.inPosition ? "yes" : "no"}</strong>
+          </p>
+          <p>
+            Live PnL (unrealized):{" "}
+            {pnl.needsKeys ? (
+              <span className="text-muted-foreground font-normal">— save Blofin keys above to load from the exchange</span>
+            ) : pnl.loading ? (
+              <span className="text-muted-foreground font-normal">…</span>
+            ) : !pnl.hasPosition ? (
+              <span className="text-muted-foreground font-normal">
+                Flat — no open position on Blofin for {displayInstId || "this contract"}
+              </span>
+            ) : pnl.upl != null && Number.isFinite(pnl.upl) ? (
+              <strong
+                className={
+                  pnl.upl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                }
+              >
+                {pnl.upl >= 0 ? "+" : ""}
+                {pnl.upl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
+                {pnl.quote}
+              </strong>
+            ) : (
+              <span className="text-muted-foreground font-normal">—</span>
+            )}
+          </p>
+          {pnl.err && (
+            <p className="text-xs text-rose-600 dark:text-rose-400">PnL: {pnl.err}</p>
+          )}
+          {pnl.hasPosition && pnl.markPrice != null && Number.isFinite(pnl.markPrice) && (
+            <p className="text-xs text-muted-foreground">
+              Mark (Blofin):{" "}
+              <strong>
+                {pnl.markPrice.toLocaleString(undefined, { maximumFractionDigits: 8 })}
+              </strong>{" "}
+              {pnl.quote}
+            </p>
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            Unrealized profit/loss from your Blofin position for this contract. If the exchange does not return it directly,
+            we estimate from mark vs average entry (same instrument as this config).
           </p>
           <p>
             Completed rounds: <strong>{config.completedRounds}</strong>

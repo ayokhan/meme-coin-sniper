@@ -138,6 +138,10 @@ export type PositionRow = {
   margin?: string | null;
   imr?: string | null;
   mgnRatio?: string | null;
+  /** Unrealized PnL in quote (e.g. USDT) when Blofin returns it */
+  upl?: string | null;
+  /** Mark / last price on position row when API returns it */
+  markPx?: string | null;
 };
 
 /** Extract positions array from Blofin API response (various shapes). Blofin: data[] with positions, averagePrice, positionSide (net). Picks liqPx, margin, imr when present. */
@@ -165,6 +169,9 @@ function extractPositionsList(data: unknown): PositionRow[] {
     const margin = obj.margin ?? obj.marginBalance ?? obj.margin_balance ?? null;
     const imr = obj.imr ?? obj.initialMargin ?? obj.initial_margin ?? null;
     const mgnRatio = obj.mgnRatio ?? obj.marginRatio ?? obj.margin_ratio ?? null;
+    const uplRaw =
+      obj.upl ?? obj.unrealizedPnl ?? obj.unrealizedPnL ?? obj.unrealized_pnl ?? obj.uPnl ?? obj.profit ?? null;
+    const markPxRaw = obj.markPx ?? obj.mark_px ?? obj.markPrice ?? obj.last ?? obj.lastPrice ?? null;
     result.push({
       instId,
       posSide,
@@ -175,6 +182,8 @@ function extractPositionsList(data: unknown): PositionRow[] {
       margin: margin != null ? String(margin) : imr != null ? String(imr) : undefined,
       imr: imr != null ? String(imr) : undefined,
       mgnRatio: mgnRatio != null ? String(mgnRatio) : undefined,
+      upl: uplRaw != null && uplRaw !== "" ? String(uplRaw) : undefined,
+      markPx: markPxRaw != null && markPxRaw !== "" ? String(markPxRaw) : undefined,
     });
   }
   return result;

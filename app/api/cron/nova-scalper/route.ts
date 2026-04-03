@@ -25,7 +25,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       skipped: true,
-      reason: "NovaScalper cron is OFF. Enable Admin → Feature flags → NovaScalper scheduled cron.",
+      reason:
+        "NovaScalper overnight automation is OFF. Enable it under Admin → Feature flags → NovaScalper overnight automation.",
       processed: 0,
       results: [] as { userId: string; ok: boolean; message?: string; error?: string }[],
     });
