@@ -756,7 +756,7 @@ export default function Dashboard() {
   const [novaForecastCustomSymbols, setNovaForecastCustomSymbols] = useState("");
   const [novaForecastRange, setNovaForecastRange] = useState<string>("2w");
   const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
-  const [novaForecastSubTab, setNovaForecastSubTab] = useState<"agent" | "nova-smart" | "nova-q">("agent");
+  const [novaForecastSubTab, setNovaForecastSubTab] = useState<"agent" | "nova-smart" | "nova-q" | "nova-radar">("agent");
   type NovaSmartTfResult = { id: string; label: string; high: number; low: number };
   type NovaSmartResult = { symbol: string; timeframes: NovaSmartTfResult[]; smartShortEntry: number; smartLongEntry: number; currentPrice: number | null; strategy: "scalp" | "swing" | "mixed"; strategyNote: string; suggestedLongEntry: number; suggestedLongExit: number; suggestedShortEntry: number; suggestedShortExit: number; entryExitNote: string; recommendedDirection: "long" | "short" | "neutral"; recommendationNote: string };
   const [novaSmartTimeframes, setNovaSmartTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
@@ -772,6 +772,36 @@ export default function Dashboard() {
   const [novaQResult, setNovaQResult] = useState<NovaQResult | null>(null);
   const [novaQLoading, setNovaQLoading] = useState(false);
   const [novaQError, setNovaQError] = useState<string | null>(null);
+  type NovaRadarTf = { id: string; label: string; support: number; resistance: number; direction: "bullish" | "bearish" | "sideways" };
+  type NovaRadarResult = {
+    symbol: string;
+    side: "long" | "short";
+    targetPrice: number;
+    currentPrice: number;
+    marketDirection: "bullish" | "bearish" | "sideways";
+    pricePath: "up" | "down" | "at_target";
+    pctMoveFromSpot: number;
+    structureAlignment: "aligned" | "mixed" | "against_trend";
+    realism: "realistic" | "stretched" | "unrealistic";
+    unrealistic: boolean;
+    caveats: string[];
+    estimatedReachDateEarly: string | null;
+    estimatedReachDateLate: string | null;
+    optimisticDays: number | null;
+    pessimisticDays: number | null;
+    structureTimeframes: NovaRadarTf[];
+    range52w: { low: number; high: number } | null;
+    avgDailyRangeUsd: number | null;
+    summary: string;
+    orderIntentNote: string;
+    disclaimer: string;
+  };
+  const [novaRadarSymbol, setNovaRadarSymbol] = useState("BTC");
+  const [novaRadarTarget, setNovaRadarTarget] = useState("");
+  const [novaRadarSide, setNovaRadarSide] = useState<"long" | "short">("long");
+  const [novaRadarLoading, setNovaRadarLoading] = useState(false);
+  const [novaRadarError, setNovaRadarError] = useState<string | null>(null);
+  const [novaRadarResult, setNovaRadarResult] = useState<NovaRadarResult | null>(null);
   type NovaPlusResult = {
     symbol: string;
     timeframe: string;
@@ -1606,6 +1636,38 @@ export default function Dashboard() {
       setNovaQError(e instanceof Error ? e.message : "NovaQ failed");
     } finally {
       setNovaQLoading(false);
+    }
+  };
+
+  const fetchNovaRadar = async () => {
+    setNovaRadarLoading(true);
+    setNovaRadarError(null);
+    const targetRaw = novaRadarTarget.trim();
+    if (!targetRaw) {
+      setNovaRadarError("Enter a limit price (for example 67000).");
+      setNovaRadarLoading(false);
+      return;
+    }
+    const symbol = novaRadarSymbol.trim().toUpperCase() || "BTC";
+    try {
+      const res = await fetch("/api/nova-radar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol, targetPrice: targetRaw, side: novaRadarSide }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.result) {
+        setNovaRadarResult(data.result as NovaRadarResult);
+      } else {
+        setNovaRadarResult(null);
+        setNovaRadarError(data?.locked ? "NovaRadar is for VIP subscribers." : (data?.error ?? (res.ok ? "No data" : `Error ${res.status}`)));
+      }
+    } catch (e) {
+      setNovaRadarResult(null);
+      setNovaRadarError(e instanceof Error ? e.message : "NovaRadar failed");
+    } finally {
+      setNovaRadarLoading(false);
     }
   };
 
@@ -5140,8 +5202,8 @@ export default function Dashboard() {
               })()
             ) : activeTab === "nova-forecast" ? (
               <div className="mx-6 py-6">
-                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q")} className="space-y-4">
-                  <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg">
+                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-radar")} className="space-y-4">
+                  <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg flex-wrap h-auto gap-1">
                     <TabsTrigger value="agent" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaForecast Agent
                     </TabsTrigger>
@@ -5150,6 +5212,9 @@ export default function Dashboard() {
                     </TabsTrigger>
                     <TabsTrigger value="nova-q" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaQ
+                    </TabsTrigger>
+                    <TabsTrigger value="nova-radar" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                      NovaRadar
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent value="agent" className="mt-0">
@@ -5454,6 +5519,153 @@ export default function Dashboard() {
                               </Table>
                             </div>
                           )}
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="nova-radar" className="mt-0">
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                      <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaRadar (limit orders)</h2>
+                      <p className="text-xs text-muted-foreground mb-4">
+                        VIP only. Pick a perp contract, your limit price, and Long or Short. NovaRadar reads market structure (multi-timeframe), trend, and recent volatility to say whether the level looks realistic, whether price likely needs to rally or dip to get there, and an illustrative date band—not a guarantee.
+                      </p>
+                      <div className="flex flex-wrap items-end gap-3 mb-4">
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-1">Contract</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. BTC"
+                            value={novaRadarSymbol}
+                            onChange={(e) => setNovaRadarSymbol(e.target.value.toUpperCase())}
+                            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-28 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-1">Limit price ($)</label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="e.g. 67000"
+                            value={novaRadarTarget}
+                            onChange={(e) => setNovaRadarTarget(e.target.value)}
+                            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-36 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground block mb-1">Side</span>
+                          <div className="flex rounded-md border border-zinc-300 dark:border-zinc-600 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => setNovaRadarSide("long")}
+                              className={`px-3 py-1.5 text-sm font-medium ${novaRadarSide === "long" ? "bg-emerald-500 text-white dark:bg-emerald-600" : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"}`}
+                            >
+                              Long
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setNovaRadarSide("short")}
+                              className={`px-3 py-1.5 text-sm font-medium ${novaRadarSide === "short" ? "bg-rose-500 text-white dark:bg-rose-600" : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"}`}
+                            >
+                              Short
+                            </button>
+                          </div>
+                        </div>
+                        <Button onClick={fetchNovaRadar} disabled={novaRadarLoading || !novaRadarSymbol.trim()}>
+                          {novaRadarLoading ? "Running…" : "Run NovaRadar"}
+                        </Button>
+                      </div>
+                      {novaRadarError && (
+                        <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{novaRadarError}</p>
+                      )}
+                      {!novaRadarLoading && !novaRadarError && !novaRadarResult && (
+                        <p className="text-xs text-muted-foreground">Enter contract, limit price, side, then Run NovaRadar. Unrealistic levels are flagged immediately.</p>
+                      )}
+                      {novaRadarResult && (
+                        <div className="space-y-4">
+                          <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/60 dark:bg-zinc-900/30">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <span className="font-mono text-sm font-semibold">{novaRadarResult.symbol}</span>
+                              <Badge variant="outline" className={novaRadarResult.side === "long" ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300" : "border-rose-500/60 text-rose-700 dark:text-rose-300"}>
+                                {novaRadarResult.side === "long" ? "Long limit" : "Short limit"}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  novaRadarResult.realism === "unrealistic"
+                                    ? "border-rose-600/80 text-rose-800 dark:text-rose-200"
+                                    : novaRadarResult.realism === "stretched"
+                                      ? "border-amber-500/60 text-amber-800 dark:text-amber-200"
+                                      : "border-emerald-500/60 text-emerald-800 dark:text-emerald-200"
+                                }
+                              >
+                                {novaRadarResult.realism === "unrealistic" ? "Unrealistic" : novaRadarResult.realism === "stretched" ? "Stretched" : "Plausible"}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{novaRadarResult.summary}</p>
+                          </div>
+                          {novaRadarResult.caveats.length > 0 && (
+                            <div className="rounded-md border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/30 p-3">
+                              <p className="text-xs font-medium text-amber-900 dark:text-amber-200 mb-1">Flags</p>
+                              <ul className="text-xs text-amber-900/90 dark:text-amber-100/90 list-disc pl-4 space-y-1">
+                                {novaRadarResult.caveats.map((c) => (
+                                  <li key={c}>{c}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
+                              <span className="text-xs text-muted-foreground">Spot</span>
+                              <p className="font-mono">${novaRadarResult.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
+                              <span className="text-xs text-muted-foreground mt-2 block">Limit</span>
+                              <p className="font-mono">${novaRadarResult.targetPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
+                            </div>
+                            <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
+                              <span className="text-xs text-muted-foreground">Path vs spot</span>
+                              <p className="capitalize">{novaRadarResult.pricePath === "at_target" ? "Already near level" : novaRadarResult.pricePath === "up" ? "Needs higher prices" : "Needs lower prices"}</p>
+                              <span className="text-xs text-muted-foreground mt-2 block">Structure vs path</span>
+                              <p className="capitalize">{novaRadarResult.structureAlignment.replace("_", " ")}</p>
+                            </div>
+                          </div>
+                          {novaRadarResult.estimatedReachDateEarly && novaRadarResult.estimatedReachDateLate && novaRadarResult.optimisticDays != null && novaRadarResult.pessimisticDays != null && (
+                            <div className="rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/30 p-3">
+                              <p className="text-xs font-medium text-violet-900 dark:text-violet-200 mb-1">Illustrative date band</p>
+                              <p className="text-sm font-mono text-violet-800 dark:text-violet-100">
+                                {novaRadarResult.estimatedReachDateEarly} → {novaRadarResult.estimatedReachDateLate}{" "}
+                                <span className="text-xs font-sans text-muted-foreground">(~{novaRadarResult.optimisticDays}–{novaRadarResult.pessimisticDays} days)</span>
+                              </p>
+                            </div>
+                          )}
+                          {novaRadarResult.range52w && (
+                            <p className="text-xs text-muted-foreground">
+                              ~1y range (loaded history): ${novaRadarResult.range52w.low.toLocaleString(undefined, { maximumFractionDigits: 4 })} – ${novaRadarResult.range52w.high.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                            </p>
+                          )}
+                          {novaRadarResult.structureTimeframes.length > 0 && (
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="text-xs">TF</TableHead>
+                                    <TableHead className="text-right text-xs">Support</TableHead>
+                                    <TableHead className="text-right text-xs">Resistance</TableHead>
+                                    <TableHead className="text-left text-xs">Bias</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {novaRadarResult.structureTimeframes.map((tf) => (
+                                    <TableRow key={tf.id}>
+                                      <TableCell className="text-xs">{tf.label}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">${tf.support.toLocaleString(undefined, { maximumFractionDigits: 4 })}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">${tf.resistance.toLocaleString(undefined, { maximumFractionDigits: 4 })}</TableCell>
+                                      <TableCell className="text-xs capitalize">{tf.direction}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          )}
+                          <p className="text-[11px] text-muted-foreground leading-relaxed border-t border-zinc-200 dark:border-zinc-700 pt-3">{novaRadarResult.disclaimer}</p>
                         </div>
                       )}
                     </div>
