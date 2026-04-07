@@ -644,7 +644,36 @@ export default function Dashboard() {
   } | null>(null);
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
-  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps">("ai");
+  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "nova-crypto-narratives">("ai");
+  type NovaCryptoNarrativesHeadline = { title: string; link: string; pubDate?: string };
+  type NovaCryptoNarrativesCot = {
+    marketName: string;
+    contractMarketCode: string;
+    reportDate: string;
+    openInterest: number;
+    assetManagersNet: number;
+    leveragedFundsNet: number;
+    dealersNet: number;
+    otherReportablesNet: number;
+    weekOverWeekChangeLevNet: number | null;
+    cftcDatasetUrl: string;
+    tradingsterUrl: string;
+  };
+  type NovaCryptoNarrativesPanelResult = {
+    symbol: string;
+    newsHeadlines: NovaCryptoNarrativesHeadline[];
+    cot: NovaCryptoNarrativesCot | null;
+    noiseSummary: string;
+    narrativeDirection: "bullish" | "bearish" | "mixed";
+    directionConfidence: "low" | "medium" | "high";
+    institutionalNarrative: string;
+    aiGenerated: boolean;
+    disclaimer: string;
+  };
+  const [novaCryptoNarrativesSymbol, setNovaCryptoNarrativesSymbol] = useState("BTC");
+  const [novaCryptoNarrativesLoading, setNovaCryptoNarrativesLoading] = useState(false);
+  const [novaCryptoNarrativesError, setNovaCryptoNarrativesError] = useState<string | null>(null);
+  const [novaCryptoNarrativesResult, setNovaCryptoNarrativesResult] = useState<NovaCryptoNarrativesPanelResult | null>(null);
   const [topAltcoins, setTopAltcoins] = useState<TrendingPerpRow[]>([]);
   const [topAltcoinsLoading, setTopAltcoinsLoading] = useState(false);
   const [topAltcoinsSortBy, setTopAltcoinsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h" | "48h" | "72h" | "1w" | "2w" | "3w" | "4w">("24h");
@@ -2114,6 +2143,38 @@ export default function Dashboard() {
       setFuturesAnalysisError(e instanceof Error ? e.message : "Request failed.");
     } finally {
       setFuturesAnalysisLoading(false);
+    }
+  };
+
+  const fetchNovaCryptoNarratives = async () => {
+    const sym = novaCryptoNarrativesSymbol.trim();
+    if (!sym) {
+      setNovaCryptoNarrativesError("Enter a contract symbol (e.g. BTC).");
+      return;
+    }
+    setNovaCryptoNarrativesLoading(true);
+    setNovaCryptoNarrativesError(null);
+    try {
+      const res = await fetch("/api/nova-crypto-narratives", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol: sym }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.result) {
+        setNovaCryptoNarrativesResult(data.result as NovaCryptoNarrativesPanelResult);
+      } else {
+        setNovaCryptoNarrativesResult(null);
+        setNovaCryptoNarrativesError(
+          data?.locked ? "Nova Crypto Narratives is for Pro and VIP subscribers." : (data?.error ?? `Error ${res.status}`)
+        );
+      }
+    } catch (e) {
+      setNovaCryptoNarrativesResult(null);
+      setNovaCryptoNarrativesError(e instanceof Error ? e.message : "Request failed.");
+    } finally {
+      setNovaCryptoNarrativesLoading(false);
     }
   };
 
@@ -3667,6 +3728,14 @@ export default function Dashboard() {
                   >
                     Hot New Perps
                   </Button>
+                  <Button
+                    variant={futuresView === "nova-crypto-narratives" ? "default" : "outline"}
+                    size="sm"
+                    className={futuresView === "nova-crypto-narratives" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
+                    onClick={() => setFuturesView("nova-crypto-narratives")}
+                  >
+                    Nova Crypto Narratives
+                  </Button>
                 </div>
                 {futuresView === "workflow" ? (
                   <FuturesWorkflow />
@@ -3882,6 +3951,111 @@ export default function Dashboard() {
                               })}
                           </TableBody>
                         </Table>
+                      </div>
+                    )}
+                  </div>
+                ) : futuresView === "nova-crypto-narratives" ? (
+                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 max-w-3xl space-y-4">
+                    <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Crypto Narratives</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Pro and VIP. Pulls recent headlines (via public news search), summarizes narrative noise, and pairs it with{" "}
+                      <strong className="text-zinc-700 dark:text-zinc-300">CFTC Traders in Financial Futures (TFF)</strong> positioning where we map your symbol to a listed contract. The same data is viewable on{" "}
+                      <a href="https://www.tradingster.com/cot/futures/fin/133741" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+                        Tradingster
+                      </a>{" "}
+                      (example: CME Bitcoin 133741). Reports are weekly—always check the as-of date.
+                    </p>
+                    <div className="flex flex-wrap items-end gap-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground block mb-1">Contract</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. BTC, ETH, SOL"
+                          value={novaCryptoNarrativesSymbol}
+                          onChange={(e) => setNovaCryptoNarrativesSymbol(e.target.value.toUpperCase())}
+                          className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-40 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                        />
+                      </div>
+                      <Button
+                        onClick={fetchNovaCryptoNarratives}
+                        disabled={novaCryptoNarrativesLoading || !novaCryptoNarrativesSymbol.trim()}
+                        className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700"
+                      >
+                        {novaCryptoNarrativesLoading ? "Loading…" : "See Narratives"}
+                      </Button>
+                    </div>
+                    {novaCryptoNarrativesError && (
+                      <p className="text-sm text-rose-600 dark:text-rose-400">{novaCryptoNarrativesError}</p>
+                    )}
+                    {novaCryptoNarrativesResult && (
+                      <div className="space-y-4 pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">{novaCryptoNarrativesResult.symbol}</span>
+                          <Badge
+                            variant="outline"
+                            className={
+                              novaCryptoNarrativesResult.narrativeDirection === "bullish"
+                                ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
+                                : novaCryptoNarrativesResult.narrativeDirection === "bearish"
+                                  ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
+                                  : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
+                            }
+                          >
+                            Narrative: {novaCryptoNarrativesResult.narrativeDirection}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs capitalize">
+                            Confidence: {novaCryptoNarrativesResult.directionConfidence}
+                          </Badge>
+                          {novaCryptoNarrativesResult.aiGenerated && (
+                            <Badge variant="outline" className="text-xs border-violet-400/60 text-violet-700 dark:text-violet-300">
+                              AI summary
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="rounded-md bg-cyan-50/60 dark:bg-cyan-950/25 border border-cyan-200/80 dark:border-cyan-900/50 p-3">
+                          <p className="text-xs font-medium text-cyan-900 dark:text-cyan-200 mb-1">Noise &amp; headline read</p>
+                          <p className="text-sm text-cyan-900/90 dark:text-cyan-100/90">{novaCryptoNarrativesResult.noiseSummary}</p>
+                        </div>
+                        <div className="rounded-md bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 p-3">
+                          <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200 mb-1">Institutional positioning (CFTC TFF)</p>
+                          <p className="text-sm text-zinc-700 dark:text-zinc-300">{novaCryptoNarrativesResult.institutionalNarrative}</p>
+                          {novaCryptoNarrativesResult.cot && (
+                            <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                              <a
+                                href={novaCryptoNarrativesResult.cot.tradingsterUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+                              >
+                                Open Tradingster breakdown
+                              </a>
+                              <a
+                                href="https://publicreporting.cftc.gov/dataset/gpe5-46if"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+                              >
+                                CFTC dataset (TFF futures only)
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                        {novaCryptoNarrativesResult.newsHeadlines.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Sources (headlines)</p>
+                            <ul className="space-y-2 max-h-60 overflow-y-auto text-sm">
+                              {novaCryptoNarrativesResult.newsHeadlines.map((h, i) => (
+                                <li key={`${h.link}-${i}`}>
+                                  <a href={h.link} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+                                    {h.title}
+                                  </a>
+                                  {h.pubDate && <span className="text-xs text-muted-foreground ml-2">{h.pubDate}</span>}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">{novaCryptoNarrativesResult.disclaimer}</p>
                       </div>
                     )}
                   </div>
