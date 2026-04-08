@@ -742,7 +742,7 @@ export default function TradingBotPanel() {
               <p className="text-xs text-amber-700 dark:text-amber-300">
                 No AI can guarantee wins. This copilot improves process, not certainty.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
                 <div>
                   <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Market keyword</label>
                   <input
@@ -750,7 +750,7 @@ export default function TradingBotPanel() {
                     value={polyKeyword}
                     onChange={(e) => setPolyKeyword(e.target.value)}
                     placeholder="e.g. bitcoin, election, fed"
-                    className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                    className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
                   />
                 </div>
                 <div>
@@ -761,7 +761,7 @@ export default function TradingBotPanel() {
                     step="1"
                     value={polyBankroll}
                     onChange={(e) => setPolyBankroll(e.target.value)}
-                    className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                    className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
                   />
                 </div>
                 <div>
@@ -769,13 +769,14 @@ export default function TradingBotPanel() {
                   <select
                     value={polyMode}
                     onChange={(e) => setPolyMode(e.target.value as "demo" | "live")}
-                    className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                    className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
                   >
                     <option value="demo">Demo</option>
                     <option value="live">Live</option>
                   </select>
                 </div>
-                <div className="flex items-end">
+                <div>
+                  <label className="block text-xs font-medium text-transparent mb-1 select-none">Run</label>
                   <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full h-9">
                     {polyLoading ? "Running…" : "Run Polymarket Copilot"}
                   </Button>
@@ -802,6 +803,12 @@ export default function TradingBotPanel() {
                     <option value="scaled">Scaled copy</option>
                   </select>
                 </div>
+              </div>
+              <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2 text-xs text-muted-foreground">
+                <p><strong className="text-zinc-700 dark:text-zinc-300">How to connect wallet:</strong></p>
+                <p>1) Open Polymarket and connect your wallet there (MetaMask/Coinbase Wallet on Polygon).</p>
+                <p>2) Sign in and keep that wallet session active in your browser.</p>
+                <p>3) In NovaStaris, tick <strong>Wallet logged in</strong> and run in <strong>Live</strong> mode.</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Copy-trader wallets (optional, comma/newline separated)</label>
