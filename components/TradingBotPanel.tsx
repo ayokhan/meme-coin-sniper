@@ -813,7 +813,7 @@ export default function TradingBotPanel() {
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
                 <div className="flex flex-col">
-                  <label className="h-4 block text-xs font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Market keyword</label>
+                  <label className="h-4 block text-[11px] font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Keyword</label>
                   <input
                     type="text"
                     value={polyKeyword}
@@ -823,7 +823,7 @@ export default function TradingBotPanel() {
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="h-4 block text-xs font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Bankroll ($)</label>
+                  <label className="h-4 block text-[11px] font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Bankroll ($)</label>
                   <input
                     type="number"
                     min="0"
@@ -834,7 +834,7 @@ export default function TradingBotPanel() {
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="h-4 block text-xs font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Mode</label>
+                  <label className="h-4 block text-[11px] font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Mode</label>
                   <select
                     value={polyMode}
                     onChange={(e) => setPolyMode(e.target.value as "demo" | "live")}
@@ -845,9 +845,9 @@ export default function TradingBotPanel() {
                   </select>
                 </div>
                 <div className="flex flex-col">
-                  <label className="h-4 block text-xs font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Action</label>
-                  <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full h-9 py-0 align-middle">
-                    {polyLoading ? "Running…" : "Run Polymarket Copilot"}
+                  <label className="h-4 block text-[11px] font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Run</label>
+                  <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full h-9 py-0 text-sm align-middle">
+                    {polyLoading ? "Running…" : "Run Copilot"}
                   </Button>
                 </div>
               </div>
