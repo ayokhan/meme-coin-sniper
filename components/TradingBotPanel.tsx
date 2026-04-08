@@ -845,8 +845,8 @@ export default function TradingBotPanel() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-transparent mb-1 select-none">Run</label>
-                  <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full h-9">
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Action</label>
+                  <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full h-9 py-0">
                     {polyLoading ? "Running…" : "Run Polymarket Copilot"}
                   </Button>
                 </div>
