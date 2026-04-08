@@ -130,6 +130,9 @@ export default function TradingBotPanel() {
   const [polyWalletConnecting, setPolyWalletConnecting] = useState(false);
   const [polyCopyMode, setPolyCopyMode] = useState<"exact" | "scaled">("exact");
   const [polyCopyWallets, setPolyCopyWallets] = useState("");
+  const [polyTradeAmount, setPolyTradeAmount] = useState("50");
+  const [polyTradeOutcome, setPolyTradeOutcome] = useState<"yes" | "no">("yes");
+  const [polyTradeUrl, setPolyTradeUrl] = useState<string | null>(null);
   const [polyLoading, setPolyLoading] = useState(false);
   const [polyError, setPolyError] = useState<string | null>(null);
   const [polyResult, setPolyResult] = useState<{
@@ -140,6 +143,7 @@ export default function TradingBotPanel() {
     markets: PolymarketMarket[];
     institutionalHint: string;
     copyPlan: { wallet: string; allocationUsd: number | null; copyMode: "exact" | "scaled"; note: string }[];
+    copySignals: { slug: string; title: string; outcome: string; wallets: string[]; buys: number; sells: number; score: number; url: string }[];
     execution: {
       mode: "demo" | "live";
       walletConnected: boolean;
@@ -751,6 +755,24 @@ export default function TradingBotPanel() {
     }
   };
 
+  const placePolymarketTrade = (url: string) => {
+    if (!polyWalletConnected && !isOwner) {
+      setPolyError("Connect wallet first for live trading.");
+      return;
+    }
+    const amount = Number(polyTradeAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPolyError("Enter a valid trade amount.");
+      return;
+    }
+    // Polymarket does not support stable prefill query params for order placement.
+    // We still route user directly to selected market so they can confirm in wallet.
+    const hint = `Opening market for manual confirmation: ${polyTradeOutcome.toUpperCase()} / $${amount}.`;
+    setPolyError(null);
+    setSuccess(hint);
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   if (loading) {
     return (
       <div className="mx-6 py-8">
@@ -879,6 +901,51 @@ export default function TradingBotPanel() {
                 <p>2) Make sure the same wallet is used for Polymarket trading.</p>
                 <p>3) Set mode to <strong>Live</strong> and run the copilot.</p>
               </div>
+              <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Trade ticket</p>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1">Selected market URL</label>
+                    <input
+                      type="text"
+                      value={polyTradeUrl ?? ""}
+                      onChange={(e) => setPolyTradeUrl(e.target.value)}
+                      placeholder="Pick a market below or paste market URL"
+                      className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1">Outcome</label>
+                    <select
+                      value={polyTradeOutcome}
+                      onChange={(e) => setPolyTradeOutcome(e.target.value as "yes" | "no")}
+                      className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                    >
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1">Amount ($)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={polyTradeAmount}
+                      onChange={(e) => setPolyTradeAmount(e.target.value)}
+                      className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => polyTradeUrl && placePolymarketTrade(polyTradeUrl)}
+                  disabled={!polyTradeUrl}
+                  className="bg-cyan-500 hover:bg-cyan-600 text-white"
+                >
+                  Place Trade
+                </Button>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Copy-trader wallets (optional, comma/newline separated)</label>
                 <textarea
@@ -914,6 +981,13 @@ export default function TradingBotPanel() {
                           <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">
                             Trade this market on Polymarket
                           </a>
+                          <button
+                            type="button"
+                            onClick={() => setPolyTradeUrl(m.url)}
+                            className="ml-3 text-xs text-violet-600 dark:text-violet-400 hover:underline"
+                          >
+                            Use in ticket
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -926,6 +1000,32 @@ export default function TradingBotPanel() {
                           {c.wallet}: {c.allocationUsd != null ? `$${c.allocationUsd}` : "—"} · {c.copyMode === "exact" ? "Exact" : "Scaled"} · {c.note}
                         </p>
                       ))}
+                    </div>
+                  )}
+                  {polyResult.copySignals.length > 0 && (
+                    <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-900/40">
+                      <p className="text-sm font-medium mb-2">Copy-trader live signals</p>
+                      <div className="space-y-2">
+                        {polyResult.copySignals.map((s, i) => (
+                          <div key={`${s.slug}-${i}`} className="rounded border border-zinc-200 dark:border-zinc-700 p-2 text-xs">
+                            <p className="font-medium text-sm">{s.title}</p>
+                            <p className="text-muted-foreground">Outcome: {s.outcome} · Buys {s.buys} / Sells {s.sells} · Wallets: {s.wallets.length}</p>
+                            <div className="mt-1 flex items-center gap-3">
+                              <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">Open market</a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPolyTradeUrl(s.url);
+                                  setPolyTradeOutcome(/yes|up|higher|win/i.test(s.outcome) ? "yes" : "no");
+                                }}
+                                className="text-violet-600 dark:text-violet-400 hover:underline"
+                              >
+                                Mirror in ticket
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                   <p className="text-xs text-amber-700 dark:text-amber-300">{polyResult.riskNote}</p>

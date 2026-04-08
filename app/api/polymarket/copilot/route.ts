@@ -16,6 +16,16 @@ type GammaMarket = {
   outcomes?: string;
   outcomePrices?: string;
 };
+type DataTrade = {
+  proxyWallet?: string;
+  side?: "BUY" | "SELL";
+  size?: number;
+  price?: number;
+  timestamp?: number;
+  title?: string;
+  slug?: string;
+  outcome?: string;
+};
 
 function n(v: unknown): number {
   const x = Number(v);
@@ -119,6 +129,67 @@ export async function POST(request: Request) {
         }))
       : [];
 
+    // Copy-trader signals (public Polymarket Data API trades per wallet).
+    const signalsMap = new Map<string, {
+      slug: string;
+      title: string;
+      outcome: string;
+      buys: number;
+      sells: number;
+      wallets: Set<string>;
+      score: number;
+      url: string;
+    }>();
+
+    if (wallets.length > 0) {
+      await Promise.all(wallets.map(async (w) => {
+        try {
+          const tRes = await fetch(`https://data-api.polymarket.com/trades?user=${encodeURIComponent(w)}&limit=40`, { cache: "no-store" });
+          const trades = (await tRes.json().catch(() => [])) as DataTrade[];
+          for (const t of Array.isArray(trades) ? trades : []) {
+            const slug = String(t.slug ?? "").trim();
+            if (!slug) continue;
+            const key = `${slug}::${String(t.outcome ?? "Unknown")}`;
+            const prev = signalsMap.get(key) ?? {
+              slug,
+              title: String(t.title ?? "Untitled market"),
+              outcome: String(t.outcome ?? "Unknown"),
+              buys: 0,
+              sells: 0,
+              wallets: new Set<string>(),
+              score: 0,
+              url: `https://polymarket.com/event/${slug}`,
+            };
+            if (t.side === "BUY") prev.buys += 1;
+            if (t.side === "SELL") prev.sells += 1;
+            prev.wallets.add(w);
+            prev.score += n(t.size) * Math.max(0.01, n(t.price));
+            signalsMap.set(key, prev);
+          }
+        } catch {
+          // ignore failing wallet feed
+        }
+      }));
+    }
+
+    const copySignals = [...signalsMap.values()]
+      .sort((a, b) => {
+        const aStrength = (a.buys - a.sells) * 10 + a.wallets.size * 5 + a.score;
+        const bStrength = (b.buys - b.sells) * 10 + b.wallets.size * 5 + b.score;
+        return bStrength - aStrength;
+      })
+      .slice(0, 10)
+      .map((s) => ({
+        slug: s.slug,
+        title: s.title,
+        outcome: s.outcome,
+        wallets: [...s.wallets],
+        buys: s.buys,
+        sells: s.sells,
+        score: Number(s.score.toFixed(2)),
+        url: s.url,
+      }));
+
     return NextResponse.json({
       success: true,
       result: {
@@ -131,6 +202,7 @@ export async function POST(request: Request) {
         markets,
         institutionalHint: "Higher-liquidity markets usually reflect larger and more informed flow. Prioritize markets with deeper liquidity and tighter pricing.",
         copyPlan,
+        copySignals,
         execution: {
           mode,
           walletConnected,
