@@ -61,6 +61,25 @@ type PolymarketMarket = {
   confidencePct: number;
   direction: "bullish" | "bearish" | "mixed";
 };
+type PolymarketPosition = {
+  title?: string;
+  slug?: string;
+  outcome?: string;
+  size?: number;
+  avgPrice?: number;
+  currentValue?: number;
+  initialValue?: number;
+  cashPnl?: number;
+};
+type PolymarketTrade = {
+  side?: "BUY" | "SELL";
+  title?: string;
+  outcome?: string;
+  size?: number;
+  price?: number;
+  timestamp?: number;
+  slug?: string;
+};
 
 type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] | Record<string, unknown> }) => Promise<unknown>;
@@ -143,6 +162,11 @@ export default function TradingBotPanel() {
   const [polyAutoCopyLastRunAt, setPolyAutoCopyLastRunAt] = useState<string | null>(null);
   const [polyAutoCopyQueue, setPolyAutoCopyQueue] = useState<Array<{ key: string; title: string; outcome: "yes" | "no"; url: string; amountUsd: number; slPct: number; tpPct: number }>>([]);
   const polySeenSignalKeysRef = useRef<Set<string>>(new Set());
+  const [polyLiveLoading, setPolyLiveLoading] = useState(false);
+  const [polyLiveError, setPolyLiveError] = useState<string | null>(null);
+  const [polyLiveValueUsd, setPolyLiveValueUsd] = useState<number | null>(null);
+  const [polyLivePositions, setPolyLivePositions] = useState<PolymarketPosition[]>([]);
+  const [polyLiveTrades, setPolyLiveTrades] = useState<PolymarketTrade[]>([]);
   const [polyLoading, setPolyLoading] = useState(false);
   const [polyError, setPolyError] = useState<string | null>(null);
   const [polyResult, setPolyResult] = useState<{
@@ -212,6 +236,17 @@ export default function TradingBotPanel() {
     }
   };
 
+  const disconnectPolymarketWallet = () => {
+    setPolyWalletConnected(false);
+    setPolyWalletAddress(null);
+    setPolyLiveValueUsd(null);
+    setPolyLivePositions([]);
+    setPolyLiveTrades([]);
+    setPolyAutoCopyEnabled(false);
+    setPolyAutoCopyQueue([]);
+    setPolyError("Wallet disconnected from NovaStaris session. If needed, disconnect in your wallet extension too.");
+  };
+
   useEffect(() => {
     refreshConnectedWallet();
     const provider = getEthereumProvider();
@@ -225,6 +260,35 @@ export default function TradingBotPanel() {
     provider.on("accountsChanged", onAccountsChanged);
     return () => provider.removeListener?.("accountsChanged", onAccountsChanged);
   }, [refreshConnectedWallet]);
+
+  const fetchPolymarketLiveData = useCallback(async () => {
+    if (!polyWalletAddress) return;
+    try {
+      setPolyLiveLoading(true);
+      setPolyLiveError(null);
+      const [vRes, pRes, tRes] = await Promise.all([
+        fetch(`https://data-api.polymarket.com/value?user=${encodeURIComponent(polyWalletAddress)}`, { cache: "no-store" }),
+        fetch(`https://data-api.polymarket.com/positions?user=${encodeURIComponent(polyWalletAddress)}&sizeThreshold=1`, { cache: "no-store" }),
+        fetch(`https://data-api.polymarket.com/trades?user=${encodeURIComponent(polyWalletAddress)}&limit=20`, { cache: "no-store" }),
+      ]);
+      const vJson = await vRes.json().catch(() => ({}));
+      const pJson = await pRes.json().catch(() => []);
+      const tJson = await tRes.json().catch(() => []);
+      setPolyLiveValueUsd(typeof vJson?.value === "number" ? vJson.value : (typeof vJson?.totalValue === "number" ? vJson.totalValue : null));
+      setPolyLivePositions(Array.isArray(pJson) ? pJson.slice(0, 20) : []);
+      setPolyLiveTrades(Array.isArray(tJson) ? tJson.slice(0, 20) : []);
+    } catch {
+      setPolyLiveError("Could not load live Polymarket data for this wallet.");
+    } finally {
+      setPolyLiveLoading(false);
+    }
+  }, [polyWalletAddress]);
+
+  useEffect(() => {
+    if (botSubTab !== "polymarket") return;
+    if (!polyWalletConnected || !polyWalletAddress) return;
+    fetchPolymarketLiveData();
+  }, [botSubTab, polyWalletConnected, polyWalletAddress, fetchPolymarketLiveData]);
 
   const formatLocalTime = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : null;
@@ -875,7 +939,7 @@ export default function TradingBotPanel() {
             value="ai"
             className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
           >
-            AI Trading Bot
+            NovaAI Futures Bot
           </TabsTrigger>
           <TabsTrigger
             value="scalper"
@@ -963,6 +1027,11 @@ export default function TradingBotPanel() {
                 <Button type="button" variant="ghost" size="sm" onClick={refreshConnectedWallet}>
                   Refresh wallet status
                 </Button>
+                {polyWalletConnected && (
+                  <Button type="button" variant="ghost" size="sm" onClick={disconnectPolymarketWallet} className="text-rose-600 dark:text-rose-400">
+                    Disconnect wallet
+                  </Button>
+                )}
                 <span className={`text-xs ${polyWalletConnected ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"}`}>
                   {polyWalletConnected ? `Connected: ${polyWalletAddress?.slice(0, 6)}…${polyWalletAddress?.slice(-4)}` : "Not connected"}
                 </span>
@@ -1038,6 +1107,53 @@ export default function TradingBotPanel() {
                   rows={3}
                   className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
                 />
+              </div>
+              <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Live Polymarket account data</p>
+                  <Button type="button" size="sm" variant="outline" onClick={fetchPolymarketLiveData} disabled={!polyWalletConnected || polyLiveLoading}>
+                    {polyLiveLoading ? "Refreshing…" : "Refresh live data"}
+                  </Button>
+                </div>
+                {!polyWalletConnected ? (
+                  <p className="text-xs text-muted-foreground">Connect wallet to load live positions, PNL and recent trades.</p>
+                ) : (
+                  <>
+                    {polyLiveError && <p className="text-xs text-rose-600 dark:text-rose-400">{polyLiveError}</p>}
+                    <p className="text-xs text-muted-foreground">
+                      Total value: {polyLiveValueUsd != null ? `$${polyLiveValueUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"} · Open orders: requires CLOB authenticated API (coming next).
+                    </p>
+                    {polyLivePositions.length > 0 && (
+                      <div className="space-y-1 max-h-44 overflow-y-auto">
+                        {polyLivePositions.map((p, i) => {
+                          const pnl = typeof p.cashPnl === "number" ? p.cashPnl : ((p.currentValue ?? 0) - (p.initialValue ?? 0));
+                          return (
+                            <div key={`${p.slug ?? "pos"}-${i}`} className="rounded border border-zinc-200 dark:border-zinc-700 p-2 text-xs">
+                              <p className="font-medium">{p.title ?? "Position"} · {p.outcome ?? "—"}</p>
+                              <p className="text-muted-foreground">
+                                Size {p.size ?? 0} · Avg {p.avgPrice ?? 0} · PNL: <span className={pnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}</span>
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {polyLiveTrades.length > 0 && (
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Recent trades</p>
+                        {polyLiveTrades.map((t, i) => (
+                          <div key={`trade-${i}`} className="rounded border border-zinc-200 dark:border-zinc-700 p-2 text-xs">
+                            <p className="font-medium">{t.title ?? "Trade"} · {t.outcome ?? "—"}</p>
+                            <p className="text-muted-foreground">
+                              {t.side ?? "—"} · size {t.size ?? 0} · price {t.price ?? 0}
+                              {t.timestamp ? ` · ${new Date(t.timestamp).toLocaleString()}` : ""}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
               <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3">
                 <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-2">Copy trader risk settings</p>
