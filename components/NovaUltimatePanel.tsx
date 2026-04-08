@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Connection, VersionedTransaction } from "@solana/web3.js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Flame } from "lucide-react";
 
 const LS_KEY = "novastaris_nova_ultimate_meme_v1";
+const LS_PERPS_KEY = "novastaris_nova_ultimate_perps_v1";
+const DEFAULT_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC ?? "https://api.mainnet-beta.solana.com";
 
 export type MemeStrategyPreset = "aggressive" | "snipe" | "low_risk" | "medium_risk" | "custom";
 
@@ -29,9 +32,32 @@ export type MemeSniperConfig = {
   copyFrontRunMinProfitPct: string;
 };
 
+type PhantomSolana = {
+  isPhantom?: boolean;
+  connect: (opts?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: { toBase58: () => string } }>;
+  disconnect?: () => Promise<void>;
+  publicKey?: { toBase58: () => string };
+  signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>;
+};
+
+function getPhantomProvider(): PhantomSolana | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as { solana?: PhantomSolana };
+  const p = w.solana;
+  if (p?.isPhantom || (p && "signTransaction" in p)) return p;
+  return null;
+}
+
+function b64ToUint8Array(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 const DEFAULT_MEME: MemeSniperConfig = {
   preset: "medium_risk",
-  mode: "demo",
+  mode: "live",
   maxEntrySol: "0.25",
   slippageBps: "800",
   takeProfitPct: "35",
@@ -98,10 +124,29 @@ function applyPreset(preset: MemeStrategyPreset): Partial<MemeSniperConfig> {
   }
 }
 
+type PerpsPrefs = {
+  watchlist: string;
+  riskNote: string;
+  defaultSizeUsd: string;
+};
+
+const DEFAULT_PERPS: PerpsPrefs = {
+  watchlist: "BTC-PERP, SOL-PERP, ETH-PERP",
+  riskNote: "Reduce size into news; perps can liquidate quickly.",
+  defaultSizeUsd: "100",
+};
+
 export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletShort?: string | null }) {
-  const [ultimateSub, setUltimateSub] = useState<"meme" | "terminal">("meme");
+  const [ultimateSub, setUltimateSub] = useState<"meme" | "terminal" | "perps">("meme");
   const [meme, setMeme] = useState<MemeSniperConfig>(DEFAULT_MEME);
+  const [perps, setPerps] = useState<PerpsPrefs>(DEFAULT_PERPS);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  const [snipeMint, setSnipeMint] = useState("");
+  const [phantomPk, setPhantomPk] = useState<string | null>(null);
+  const [quoteResponse, setQuoteResponse] = useState<unknown | null>(null);
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [liveBusy, setLiveBusy] = useState(false);
 
   useEffect(() => {
     try {
@@ -110,6 +155,8 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
         const parsed = JSON.parse(raw) as MemeSniperConfig;
         setMeme({ ...DEFAULT_MEME, ...parsed });
       }
+      const pr = localStorage.getItem(LS_PERPS_KEY);
+      if (pr) setPerps({ ...DEFAULT_PERPS, ...JSON.parse(pr) });
     } catch {
       /* ignore */
     }
@@ -118,59 +165,215 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
   const saveLocal = useCallback(() => {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(meme));
+      localStorage.setItem(LS_PERPS_KEY, JSON.stringify(perps));
       setSavedAt(new Date().toISOString());
     } catch {
       /* ignore */
     }
-  }, [meme]);
+  }, [meme, perps]);
 
   const setPreset = (preset: MemeStrategyPreset) => {
     const patch = applyPreset(preset);
     setMeme((m) => ({ ...m, preset, ...patch }));
   };
 
+  const connectPhantomForSnipe = async () => {
+    const p = getPhantomProvider();
+    if (!p) {
+      setLiveStatus("Install Phantom and use this page in a desktop browser where Phantom is available.");
+      return;
+    }
+    try {
+      const r = await p.connect();
+      setPhantomPk(r.publicKey.toBase58());
+      setLiveStatus(null);
+    } catch {
+      setLiveStatus("Phantom connection was rejected.");
+    }
+  };
+
+  const fetchLiveQuote = async () => {
+    setLiveStatus(null);
+    setQuoteResponse(null);
+    if (!snipeMint.trim()) {
+      setLiveStatus("Enter a token mint to snipe.");
+      return;
+    }
+    setLiveBusy(true);
+    try {
+      const res = await fetch("/api/nova-ultimate/jupiter-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          tokenMint: snipeMint.trim(),
+          amountSol: Number(meme.maxEntrySol),
+          direction: "buy",
+          slippageBps: Number(meme.slippageBps) || 800,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success || !data.quoteResponse) {
+        setLiveStatus(data.error ?? "Could not build quote.");
+        return;
+      }
+      setQuoteResponse(data.quoteResponse);
+      setLiveStatus("Quote ready. Review in Phantom, then sign & send.");
+    } catch {
+      setLiveStatus("Quote request failed.");
+    } finally {
+      setLiveBusy(false);
+    }
+  };
+
+  const signAndSendSnipe = async () => {
+    if (!quoteResponse) {
+      setLiveStatus("Get a quote first.");
+      return;
+    }
+    const p = getPhantomProvider();
+    if (!p?.publicKey) {
+      setLiveStatus("Connect Phantom first.");
+      return;
+    }
+    setLiveBusy(true);
+    setLiveStatus(null);
+    try {
+      const pubkey = p.publicKey.toBase58();
+      const swapRes = await fetch("/api/nova-ultimate/jupiter-swap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ quoteResponse, userPublicKey: pubkey }),
+      });
+      const swapJson = await swapRes.json().catch(() => ({}));
+      if (!swapRes.ok || !swapJson.success || !swapJson.swapTransaction) {
+        setLiveStatus(swapJson.error ?? "Could not build swap transaction.");
+        return;
+      }
+      const vtx = VersionedTransaction.deserialize(b64ToUint8Array(swapJson.swapTransaction));
+      const signed = await p.signTransaction(vtx);
+      const conn = new Connection(DEFAULT_RPC, "confirmed");
+      const sig = await conn.sendRawTransaction(signed.serialize(), {
+        skipPreflight: false,
+        maxRetries: 3,
+      });
+      setLiveStatus(`Broadcast submitted. Signature: ${sig} — track in Phantom or Solana explorer.`);
+      setQuoteResponse(null);
+    } catch (e) {
+      setLiveStatus(e instanceof Error ? e.message : "Sign or send failed. Reject in wallet is OK if you changed your mind.");
+    } finally {
+      setLiveBusy(false);
+    }
+  };
+
+  const tabHot =
+    "rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600 inline-flex items-center gap-1.5";
+
   return (
     <div className="max-w-4xl space-y-4">
       <div className="flex items-start gap-3 flex-wrap">
         <Flame className="h-8 w-8 text-amber-500 shrink-0 mt-0.5 animate-flame-flicker" aria-hidden />
         <div>
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Nova Ultimate</h3>
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 flex-wrap">
+            Nova Ultimate
+            <Badge className="bg-amber-500/90 text-white border-0">Live-ready</Badge>
+          </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Advanced NovaStaris automation workspace for meme sniping and Phantom Terminal–ready execution. Configure risk, entries, and copy logic here;
-            live routing will use your connected wallet when automation is enabled server-side.
+            Meme sniping via Jupiter with Phantom signatures, plus Phantom Terminal workflow notes and Phantom Perps watchlists. You always approve the final transaction in Phantom.
           </p>
         </div>
       </div>
 
-      <Tabs value={ultimateSub} onValueChange={(v) => setUltimateSub(v as "meme" | "terminal")} className="space-y-4">
+      <Tabs value={ultimateSub} onValueChange={(v) => setUltimateSub(v as "meme" | "terminal" | "perps")} className="space-y-4">
         <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
-          <TabsTrigger
-            value="meme"
-            className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
-          >
+          <TabsTrigger value="meme" className={tabHot}>
+            <Flame className="h-4 w-4 shrink-0 animate-flame-flicker" aria-hidden />
             NovaMeme Sniper
           </TabsTrigger>
-          <TabsTrigger
-            value="terminal"
-            className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
-          >
+          <TabsTrigger value="terminal" className={tabHot}>
             Phantom Terminal
+          </TabsTrigger>
+          <TabsTrigger value="perps" className={tabHot}>
+            <Flame className="h-4 w-4 shrink-0 animate-flame-flicker" aria-hidden />
+            Phantom Perps
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="meme" className="mt-0 space-y-4">
+          <Card className="border-zinc-200/80 dark:border-zinc-700/80 border-amber-200/60 dark:border-amber-900/40">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2 flex-wrap">
+                Live snipe (SOL → token)
+                <Badge variant="outline" className="font-normal">
+                  Jupiter + Phantom
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Uses your saved <strong>max entry (SOL)</strong> and <strong>slippage (bps)</strong> from the template below. Flow: quote → Phantom signs → broadcast to Solana mainnet (
+                {DEFAULT_RPC.slice(0, 28)}…).
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Token mint</label>
+                  <input
+                    value={snipeMint}
+                    onChange={(e) => setSnipeMint(e.target.value.trim())}
+                    placeholder="Pump / SPL mint address"
+                    className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-xs font-mono"
+                  />
+                </div>
+                <div className="flex items-end gap-2 flex-wrap">
+                  <Button type="button" size="sm" variant="secondary" onClick={connectPhantomForSnipe} disabled={liveBusy}>
+                    {phantomPk ? `Phantom: ${phantomPk.slice(0, 4)}…${phantomPk.slice(-4)}` : "Connect Phantom"}
+                  </Button>
+                  {phantomPk && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        void getPhantomProvider()?.disconnect?.();
+                        setPhantomPk(null);
+                      }}
+                    >
+                      Disconnect
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" onClick={fetchLiveQuote} disabled={liveBusy || meme.mode !== "live"}>
+                  {liveBusy ? "Working…" : "Get live quote"}
+                </Button>
+                <Button type="button" size="sm" variant="default" className="bg-amber-600 hover:bg-amber-700" onClick={signAndSendSnipe} disabled={liveBusy || !quoteResponse || meme.mode !== "live"}>
+                  Sign &amp; send snipe
+                </Button>
+              </div>
+              {meme.mode !== "live" && <p className="text-xs text-amber-800 dark:text-amber-200">Switch execution mode to <strong>Live</strong> below to enable on-chain snipe.</p>}
+              {liveStatus && <p className="text-xs text-zinc-700 dark:text-zinc-300">{liveStatus}</p>}
+              {!!quoteResponse && meme.mode === "live" && (
+                <p className="text-xs text-emerald-700 dark:text-emerald-300">Quote loaded. Approve the transaction carefully in Phantom.</p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="border-zinc-200/80 dark:border-zinc-700/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold flex items-center gap-2 flex-wrap">
                 NovaMeme Sniper
-                <Badge variant="outline" className="font-normal">Nova AI Sniper</Badge>
+                <Badge variant="outline" className="font-normal">
+                  Nova AI Sniper
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                NovaMeme Sniper is designed for disciplined entries and exits on high-volatility meme launches. Choose a risk template, then refine every parameter manually when you need full control.
+                Templates tune size, slippage, and risk for volatile launches. Manual fields override presets when you need full control.
                 <span className="block mt-2 text-amber-800 dark:text-amber-200/90">
-                  Automation does not guarantee profit. Slippage, MEV, and liquidity can cause losses. Use Demo until you understand the playbook.
+                  Live swaps spend real SOL; slippage and liquidity risk can cause partial fills or loss. Demo mode disables broadcasting.
                 </span>
               </p>
 
@@ -179,11 +382,11 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                 <div className="flex flex-wrap gap-2">
                   {(
                     [
-                      ["aggressive", "Aggressive", "Higher size & tolerance; aims for larger wins with elevated drawdown risk."],
-                      ["snipe", "Snipe mode", "Optimized for fresh launches: quick in, smaller targets, faster exit."],
-                      ["low_risk", "Conservative", "Tighter risk caps, higher liquidity gates, fewer concurrent positions."],
+                      ["aggressive", "Aggressive", "Larger size & slippage tolerance; higher reward and drawdown risk."],
+                      ["snipe", "Snipe mode", "Fresh launches: tighter time window, smaller targets, faster rotation."],
+                      ["low_risk", "Conservative", "Smaller size, stricter liquidity, fewer concurrent positions."],
                       ["medium_risk", "Balanced", "Default blend of size, slippage, and hold assumptions."],
-                      ["custom", "Custom / manual", "Your numbers only—no preset overrides after you edit fields below."],
+                      ["custom", "Custom / manual", "Your numbers only—presets stop overriding when you edit below."],
                     ] as const
                   ).map(([key, label, hint]) => (
                     <button
@@ -212,8 +415,8 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                     onChange={(e) => setMeme((m) => ({ ...m, mode: e.target.value as "demo" | "live" }))}
                     className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
                   >
-                    <option value="demo">Demo (paper / signals only)</option>
-                    <option value="live">Live (requires wallet + Phantom Terminal readiness)</option>
+                    <option value="demo">Demo (no broadcast)</option>
+                    <option value="live">Live (Phantom signs real swaps)</option>
                   </select>
                 </div>
                 <div>
@@ -288,7 +491,7 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                   onChange={(e) => setMeme((m) => ({ ...m, snipeNewLaunches: e.target.checked }))}
                   className="rounded"
                 />
-                Allow sniping newly launched pairs (within age & liquidity gates)
+                Strategy allows sniping newly launched pairs (within age & liquidity gates)
               </label>
 
               <Card className="border-dashed border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-900/30">
@@ -297,7 +500,7 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                 </CardHeader>
                 <CardContent className="space-y-3 pt-0">
                   <p className="text-xs text-muted-foreground">
-                    Mirror entries when selected wallets buy; optional exit logic aims to secure profit before an observed leader sell (subject to chain latency and your TP rules).
+                    Configure leaders here; automated mirroring still requires watcher infrastructure. Use live snipe above for immediate buys you approve manually.
                   </p>
                   <div>
                     <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Leader wallet addresses (comma or newline)</label>
@@ -316,7 +519,7 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                       onChange={(e) => setMeme((m) => ({ ...m, copyMirrorEntry: e.target.checked }))}
                       className="rounded"
                     />
-                    Mirror entries on leader buy signals
+                    Mirror entries on leader buy signals (when automation is connected)
                   </label>
                   <div>
                     <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Exit preference</label>
@@ -327,8 +530,8 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                       }
                       className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
                     >
-                      <option value="fixed_tp">Fixed take-profit % (disciplined trim)</option>
-                      <option value="before_leader_sells">Dynamic: scale out before leader sells once min profit is reached</option>
+                      <option value="fixed_tp">Fixed take-profit %</option>
+                      <option value="before_leader_sells">Take profit before leader exit (min profit gate)</option>
                     </select>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -342,7 +545,7 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Min profit % (before leader exit mode)</label>
+                      <label className="block text-xs text-muted-foreground mb-1">Min profit % (dynamic exit)</label>
                       <input
                         type="text"
                         value={meme.copyFrontRunMinProfitPct}
@@ -358,12 +561,10 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                 <Button type="button" size="sm" onClick={saveLocal}>
                   Save settings (this browser)
                 </Button>
-                {savedAt && (
-                  <span className="text-xs text-muted-foreground">Saved {new Date(savedAt).toLocaleString()}</span>
-                )}
+                {savedAt && <span className="text-xs text-muted-foreground">Saved {new Date(savedAt).toLocaleString()}</span>}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Connected NovaStaris wallet (sign-in): {solanaWalletShort ?? "—"} · Live execution will respect Phantom and RPC limits when engine support is enabled.
+                NovaStaris sign-in wallet: {solanaWalletShort ?? "—"} · Live snipe uses Phantom’s connected key for signing (can match your login wallet).
               </p>
             </CardContent>
           </Card>
@@ -376,16 +577,60 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <p>
-                Phantom Terminal is Phantom’s trading experience. Nova Ultimate is built so you can <strong className="text-zinc-800 dark:text-zinc-200">prepare strategies here</strong>, then{" "}
-                <strong className="text-zinc-800 dark:text-zinc-200">confirm swaps in Phantom</strong> when live mode is on—keeping keys in your wallet.
+                Use Phantom Terminal for charting and execution alongside NovaStaris. Strategies you save here complement manual or assisted trades—your keys stay in Phantom.
               </p>
               <ol className="list-decimal pl-5 space-y-2">
-                <li>Sign in to NovaStaris with the same <strong className="text-zinc-800 dark:text-zinc-200">Solana</strong> wallet you use in Phantom.</li>
-                <li>Open Phantom → use <strong className="text-zinc-800 dark:text-zinc-200">Terminal</strong> (or latest Phantom trading entry point) for execution.</li>
-                <li>Configure NovaMeme Sniper in <strong className="text-zinc-800 dark:text-zinc-200">Demo</strong> first; switch to <strong className="text-zinc-800 dark:text-zinc-200">Live</strong> only when you accept the risks.</li>
+                <li>Open the Phantom extension or mobile app and navigate to <strong className="text-zinc-800 dark:text-zinc-200">Terminal</strong> (or the latest trading hub from Phantom).</li>
+                <li>Prefer the same Solana wallet you use for NovaStaris so balances and risk limits stay consistent.</li>
+                <li>For meme spot snipes on-chain, use the <strong className="text-zinc-800 dark:text-zinc-200">NovaMeme Sniper</strong> live strip above; Terminal remains ideal for review and follow-up exits.</li>
               </ol>
+              <p className="text-xs text-amber-800 dark:text-amber-200/90">NovaStaris never custodies funds. Decline any transaction you do not fully understand.</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="perps" className="mt-0 space-y-4">
+          <Card className="border-zinc-200/80 dark:border-zinc-700/80 border-violet-200/50 dark:border-violet-900/40">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Flame className="h-5 w-5 text-violet-500 animate-flame-flicker" aria-hidden />
+                Phantom Perps
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              <p>
+                Phantom Perps lets you trade perpetual futures with leverage inside Phantom’s interface. Nova Ultimate keeps a <strong className="text-zinc-800 dark:text-zinc-200">personal playbook</strong> here: markets to watch, sizing discipline, and risk notes—while execution and liquidation risk are handled in Phantom.
+              </p>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Perp watchlist (comma separated)</label>
+                <input
+                  value={perps.watchlist}
+                  onChange={(e) => setPerps((p) => ({ ...p, watchlist: e.target.value }))}
+                  className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Default notional guidance (USD, not live orders)</label>
+                <input
+                  value={perps.defaultSizeUsd}
+                  onChange={(e) => setPerps((p) => ({ ...p, defaultSizeUsd: e.target.value }))}
+                  className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Risk note (shown in your plan)</label>
+                <textarea
+                  value={perps.riskNote}
+                  onChange={(e) => setPerps((p) => ({ ...p, riskNote: e.target.value }))}
+                  rows={3}
+                  className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                />
+              </div>
+              <Button type="button" size="sm" variant="secondary" onClick={saveLocal}>
+                Save Perps playbook
+              </Button>
               <p className="text-xs text-amber-800 dark:text-amber-200/90">
-                NovaStaris does not custody funds. Review every transaction in Phantom before approving.
+                Perpetual futures can liquidate positions. This tab does not place perp orders; open Phantom Perps to trade for real.
               </p>
             </CardContent>
           </Card>

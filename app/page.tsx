@@ -24,6 +24,7 @@ import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
 import TradingBotPanel from "@/components/TradingBotPanel";
 import PropFirmBotPanel from "@/components/PropFirmBotPanel";
+import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 
 type Token = {
@@ -79,6 +80,7 @@ type TabId =
   | "trading-bot"
   | "polymarket-bot"
   | "prop-firm-bot"
+  | "nova-ultimate"
   | "coach-calls"
   | "nova-forecast"
   | "nova-plus"
@@ -103,6 +105,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   "trading-bot": "page_tab_trading_bot",
   "polymarket-bot": "page_tab_trading_bot",
   "prop-firm-bot": "page_tab_trading_bot",
+  "nova-ultimate": "page_tab_trading_bot",
   ct: "page_tab_ct",
   wallets: "page_tab_wallets",
   "coach-calls": "page_tab_coach_calls",
@@ -127,6 +130,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "trading-bot",
   "polymarket-bot",
   "prop-firm-bot",
+  "nova-ultimate",
   "ct",
   "wallets",
   "coach-calls",
@@ -1157,7 +1161,7 @@ export default function Dashboard() {
       if (isPaid) fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "watchlist") {
+    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-ultimate" || tab === "watchlist") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -1929,7 +1933,7 @@ export default function Dashboard() {
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (walletTrackerView === "meme") {
@@ -2853,6 +2857,9 @@ export default function Dashboard() {
                 {isTabVisibleInGui("trading-bot") && (
                   <TabsTrigger value="prop-firm-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova Prop Firm Bot</TabsTrigger>
                 )}
+                {isTabVisibleInGui("trading-bot") && (
+                  <TabsTrigger value="nova-ultimate" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova Ultimate</TabsTrigger>
+                )}
                 {isTabVisibleInGui("ct") && (
                   <TabsTrigger value="ct" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
                 )}
@@ -3084,7 +3091,7 @@ export default function Dashboard() {
                 <span className="text-xs text-muted-foreground ml-1">5m/15m/30m estimated from 1h. Up to 80 coins.</span>
               </div>
             )}
-            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && tokensForDisplay.length === 0 ? (
+            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-ultimate" && tokensForDisplay.length === 0 ? (
               <div className="px-4 py-4">
                 <Table>
                   <TableHeader>
@@ -5414,6 +5421,67 @@ export default function Dashboard() {
                   title: "Nova Prop Firm Bot — On demand",
                   body: "You have VIP. Ask an admin to enable Nova Prop Firm Bot on your account, or contact support.",
                   ctaHref: "/support?subject=Nova%20Prop%20Firm%20Bot%20access%20request",
+                  ctaLabel: "Contact for access",
+                });
+              })()
+            ) : activeTab === "nova-ultimate" ? (
+              (() => {
+                const novaUltimateOnDemand = !!(session?.user as { novaUltimateOnDemand?: boolean } | undefined)?.novaUltimateOnDemand;
+                const canAccessNovaUltimate = isOwner || (isVip && novaUltimateOnDemand);
+                if (canAccessNovaUltimate) {
+                  return (
+                    <div className="mx-3 sm:mx-6 mt-4 mb-3">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        <Flame className="inline-block h-4 w-4 mr-1 flame-hot-tab -mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden />
+                        Nova Ultimate: Jupiter-powered live snipes with Phantom, Phantom Terminal steps, and a Phantom Perps playbook. VIP on demand.
+                      </p>
+                      <NovaUltimatePanel
+                        solanaWalletShort={
+                          session?.user?.walletAddress
+                            ? `${session.user.walletAddress.slice(0, 4)}…${session.user.walletAddress.slice(-4)}`
+                            : null
+                        }
+                      />
+                    </div>
+                  );
+                }
+                const lockedCard = (opts: { title: string; body: string; ctaHref: string; ctaLabel: string }) => (
+                  <div className="flex flex-col items-center justify-center py-20 px-6 text-center max-w-lg mx-auto">
+                    <div className="rounded-2xl border border-amber-200/80 dark:border-amber-800/80 bg-gradient-to-b from-amber-50/80 to-white dark:from-amber-950/40 dark:to-zinc-900/80 p-8 shadow-lg">
+                      <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center mb-5">
+                        <Flame className="w-7 h-7 text-amber-600 dark:text-amber-400 animate-flame-flicker" aria-hidden />
+                      </div>
+                      <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-100">{opts.title}</h2>
+                      <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">{opts.body}</p>
+                      <a
+                        href={opts.ctaHref}
+                        className="mt-6 inline-flex items-center justify-center rounded-lg bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white font-medium px-5 py-2.5 text-sm transition-colors"
+                      >
+                        {opts.ctaLabel}
+                      </a>
+                    </div>
+                  </div>
+                );
+                if (status !== "authenticated") {
+                  return lockedCard({
+                    title: "Nova Ultimate",
+                    body: "Sign in to continue. Full access is for VIP subscribers with Nova Ultimate enabled by admin.",
+                    ctaHref: "/register",
+                    ctaLabel: "Sign in / Register",
+                  });
+                }
+                if (!isVip) {
+                  return lockedCard({
+                    title: "VIP subscription required",
+                    body: "Nova Ultimate uses gated Jupiter proxy APIs and wallet workflows. Upgrade to VIP to unlock this workspace.",
+                    ctaHref: "/subscribe",
+                    ctaLabel: "Upgrade to VIP",
+                  });
+                }
+                return lockedCard({
+                  title: "Nova Ultimate — On demand",
+                  body: "You have VIP. Ask an admin to enable Nova Ultimate for your account, or contact support.",
+                  ctaHref: "/support?subject=Nova%20Ultimate%20access%20request",
                   ctaLabel: "Contact for access",
                 });
               })()
