@@ -88,7 +88,9 @@ type EthereumProvider = {
   removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
 };
 
-export default function TradingBotPanel() {
+type TradingBotPanelMode = "all" | "futures-only" | "polymarket-only";
+
+export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPanelMode }) {
   const { data: session } = useSession();
   const tier = (session?.user as { tier?: "pro" | "vip" | null } | undefined)?.tier ?? null;
   const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
@@ -142,6 +144,11 @@ export default function TradingBotPanel() {
 
   const [form, setForm] = useState<Partial<Config>>({});
   const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
+  useEffect(() => {
+    if (mode === "polymarket-only") setBotSubTab("polymarket");
+    if (mode === "futures-only" && botSubTab === "polymarket") setBotSubTab("ai");
+  }, [mode, botSubTab]);
+
   const [polyKeyword, setPolyKeyword] = useState("bitcoin");
   const [polyBankroll, setPolyBankroll] = useState("1000");
   const [polyMode, setPolyMode] = useState<"demo" | "live">("demo");
@@ -1082,32 +1089,37 @@ export default function TradingBotPanel() {
         NovaStaris AI Trading Bots
       </h2>
       <Tabs value={botSubTab} onValueChange={(v) => setBotSubTab(v as "ai" | "scalper" | "polymarket")} className="space-y-4">
-        <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
-          <TabsTrigger
-            value="ai"
-            className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
-          >
-            NovaAI Futures Bot
-          </TabsTrigger>
-          <TabsTrigger
-            value="scalper"
-            className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
-          >
-            NovaScalper
-          </TabsTrigger>
-          <TabsTrigger
-            value="polymarket"
-            className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
-          >
-            Nova Polymarket Bot
-          </TabsTrigger>
-        </TabsList>
+        {mode === "all" && (
+          <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
+            <TabsTrigger
+              value="ai"
+              className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+            >
+              NovaAI Futures Bot
+            </TabsTrigger>
+            <TabsTrigger
+              value="scalper"
+              className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+            >
+              NovaScalper
+            </TabsTrigger>
+            <TabsTrigger
+              value="polymarket"
+              className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+            >
+              Nova Polymarket Bot
+            </TabsTrigger>
+          </TabsList>
+        )}
 
-        <TabsContent value="scalper" className="mt-0 space-y-4">
+        {mode !== "polymarket-only" && (
+          <TabsContent value="scalper" className="mt-0 space-y-4">
           <NovaScalperPanel />
-        </TabsContent>
+          </TabsContent>
+        )}
 
-        <TabsContent value="polymarket" className="mt-0 space-y-4">
+        {mode !== "futures-only" && (
+          <TabsContent value="polymarket" className="mt-0 space-y-4">
           <Card className="border-zinc-200/80 dark:border-zinc-700/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold">NovaStaris Polymarket Copilot (VIP)</CardTitle>
@@ -1622,9 +1634,11 @@ export default function TradingBotPanel() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+          </TabsContent>
+        )}
 
-        <TabsContent value="ai" className="mt-0 space-y-6">
+        {mode !== "polymarket-only" && (
+          <TabsContent value="ai" className="mt-0 space-y-6">
       <p className="text-sm text-muted-foreground">
         <strong className="text-cyan-600 dark:text-cyan-400">AI bot</strong> (this tab): signals + Blofin execution. Use{" "}
         <strong>NovaScalper</strong> for fixed entry/exit price loops.
@@ -2620,7 +2634,8 @@ export default function TradingBotPanel() {
           </p>
         </CardContent>
       </Card>
-        </TabsContent>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

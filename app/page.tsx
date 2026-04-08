@@ -77,6 +77,7 @@ type TabId =
   | "perp-radar"
   | "narratives"
   | "trading-bot"
+  | "polymarket-bot"
   | "coach-calls"
   | "nova-forecast"
   | "nova-plus"
@@ -99,6 +100,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   "perp-radar": "page_tab_perp_radar",
   narratives: "page_tab_narratives",
   "trading-bot": "page_tab_trading_bot",
+  "polymarket-bot": "page_tab_trading_bot",
   ct: "page_tab_ct",
   wallets: "page_tab_wallets",
   "coach-calls": "page_tab_coach_calls",
@@ -121,6 +123,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "perp-radar",
   "narratives",
   "trading-bot",
+  "polymarket-bot",
   "ct",
   "wallets",
   "coach-calls",
@@ -1153,7 +1156,7 @@ export default function Dashboard() {
       if (isPaid) fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "trading-bot" || tab === "watchlist") {
+    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "watchlist") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -1925,7 +1928,7 @@ export default function Dashboard() {
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (walletTrackerView === "meme") {
@@ -2843,6 +2846,9 @@ export default function Dashboard() {
                 {isTabVisibleInGui("trading-bot") && (
                   <TabsTrigger value="trading-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaStaris AI Trading Bots</TabsTrigger>
                 )}
+                {isTabVisibleInGui("trading-bot") && (
+                  <TabsTrigger value="polymarket-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova Polymarket Bot</TabsTrigger>
+                )}
                 {isTabVisibleInGui("ct") && (
                   <TabsTrigger value="ct" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
                 )}
@@ -3074,7 +3080,7 @@ export default function Dashboard() {
                 <span className="text-xs text-muted-foreground ml-1">5m/15m/30m estimated from 1h. Up to 80 coins.</span>
               </div>
             )}
-            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && tokensForDisplay.length === 0 ? (
+            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && tokensForDisplay.length === 0 ? (
               <div className="px-4 py-4">
                 <Table>
                   <TableHeader>
@@ -5363,7 +5369,7 @@ export default function Dashboard() {
                   {(!isOwner || tradingBotView === "crypto") ? (
                     <>
                       <p className="text-sm text-muted-foreground mb-3">Blofin futures bot: configure symbol, leverage, TP/SL; run demo or live. VIP + On demand.</p>
-                      <TradingBotPanel />
+                      <TradingBotPanel mode="futures-only" />
                     </>
                   ) : (
                     <>
@@ -5374,6 +5380,11 @@ export default function Dashboard() {
                 </div>
                 );
               })()
+            ) : activeTab === "polymarket-bot" ? (
+              <div className="mx-3 sm:mx-6 mt-4 mb-3">
+                <p className="text-sm text-muted-foreground mb-3">Nova Polymarket Bot as a standalone workspace.</p>
+                <TradingBotPanel mode="polymarket-only" />
+              </div>
             ) : activeTab === "nova-forecast" ? (
               <div className="mx-6 py-6">
                 <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-radar")} className="space-y-4">

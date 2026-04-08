@@ -18,18 +18,18 @@ function signL2(secretB64: string, timestamp: string, method: string, requestPat
 async function canUsePolymarket() {
   const { tier, userId, session } = await getSessionAndSubscription();
   const owner = isOwnerEmail(session?.user?.email ?? null);
-  if (owner) return { allowed: true, userId };
+  if (owner) return { allowed: true, userId, owner: true };
   if (!userId || tier !== "vip") return { allowed: false, userId: null as string | null };
   const user = await (prisma as { user: { findUnique: (args: unknown) => Promise<{ polymarketBotOnDemand?: boolean } | null> } }).user.findUnique({
     where: { id: userId },
     select: { polymarketBotOnDemand: true },
   });
-  return { allowed: !!user?.polymarketBotOnDemand, userId };
+  return { allowed: !!user?.polymarketBotOnDemand, userId, owner: false };
 }
 
 export async function POST(request: Request) {
   try {
-    const { allowed, userId } = await canUsePolymarket();
+    const { allowed, userId, owner } = await canUsePolymarket();
     if (!allowed) {
       return NextResponse.json({ success: false, locked: true, error: "Nova Polymarket Bot access required." }, { status: 403 });
     }
@@ -50,6 +50,14 @@ export async function POST(request: Request) {
         passphrase = stored.passphrase;
         secret = stored.secret;
       }
+    }
+
+    // Owner fallback: if nothing provided/stored, use server env credentials.
+    if (owner && (!address || !apiKey || !passphrase || !secret)) {
+      address = address || String(process.env.POLY_ADDRESS ?? "").trim();
+      apiKey = apiKey || String(process.env.POLY_API_KEY ?? "").trim();
+      passphrase = passphrase || String(process.env.POLY_PASSPHRASE ?? "").trim();
+      secret = secret || String(process.env.POLY_SECRET ?? "").trim();
     }
 
     if (!address || !apiKey || !passphrase || !secret) {
