@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -137,6 +137,12 @@ export default function TradingBotPanel() {
   const [polyTradeAmount, setPolyTradeAmount] = useState("50");
   const [polyTradeOutcome, setPolyTradeOutcome] = useState<"yes" | "no">("yes");
   const [polyTradeUrl, setPolyTradeUrl] = useState<string | null>(null);
+  const [polyAutoCopyEnabled, setPolyAutoCopyEnabled] = useState(false);
+  const [polyAutoCopyIntervalMins, setPolyAutoCopyIntervalMins] = useState<1 | 5 | 15>(5);
+  const [polyAutoCopyRunning, setPolyAutoCopyRunning] = useState(false);
+  const [polyAutoCopyLastRunAt, setPolyAutoCopyLastRunAt] = useState<string | null>(null);
+  const [polyAutoCopyQueue, setPolyAutoCopyQueue] = useState<Array<{ key: string; title: string; outcome: "yes" | "no"; url: string; amountUsd: number; slPct: number; tpPct: number }>>([]);
+  const polySeenSignalKeysRef = useRef<Set<string>>(new Set());
   const [polyLoading, setPolyLoading] = useState(false);
   const [polyError, setPolyError] = useState<string | null>(null);
   const [polyResult, setPolyResult] = useState<{
@@ -782,6 +788,74 @@ export default function TradingBotPanel() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  const buildCopilotPayload = useCallback(() => ({
+    keyword: polyKeyword.trim(),
+    bankroll: Number(polyBankroll),
+    mode: polyMode,
+    walletConnected: polyWalletConnected || isOwner,
+    copyMode: polyCopyMode,
+    copyWallets: polyCopyWallets,
+    copyTradeAmountUsd: Number(polyCopyTradeAmountUsd),
+    copySlPct: Number(polyCopySlPct),
+    copyTpPct: Number(polyCopyTpPct),
+    copyMaxOpen: Number(polyCopyMaxOpen),
+  }), [polyKeyword, polyBankroll, polyMode, polyWalletConnected, isOwner, polyCopyMode, polyCopyWallets, polyCopyTradeAmountUsd, polyCopySlPct, polyCopyTpPct, polyCopyMaxOpen]);
+
+  const runAutoCopyScan = useCallback(async () => {
+    if (!polyAutoCopyEnabled) return;
+    const payload = buildCopilotPayload();
+    if (!payload.keyword) return;
+    try {
+      setPolyAutoCopyRunning(true);
+      const res = await fetch("/api/polymarket/copilot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!(res.ok && data.success && data.result)) return;
+      const result = data.result as {
+        copySignals: Array<{ slug: string; title: string; outcome: string; buys: number; sells: number; wallets: string[]; url: string }>;
+        copyRiskTemplate: { copyTradeAmountUsd: number; copySlPct: number; copyTpPct: number; copyMaxOpen: number };
+      };
+      const maxOpen = Math.max(1, result.copyRiskTemplate.copyMaxOpen || 3);
+      setPolyAutoCopyLastRunAt(new Date().toISOString());
+      const nextAdds: Array<{ key: string; title: string; outcome: "yes" | "no"; url: string; amountUsd: number; slPct: number; tpPct: number }> = [];
+      for (const s of result.copySignals ?? []) {
+        if (s.buys <= s.sells) continue;
+        const key = `${s.slug}::${s.outcome}::${s.buys}::${s.sells}::${s.wallets.length}`;
+        if (polySeenSignalKeysRef.current.has(key)) continue;
+        polySeenSignalKeysRef.current.add(key);
+        nextAdds.push({
+          key,
+          title: s.title,
+          outcome: /yes|up|higher|win/i.test(s.outcome) ? "yes" : "no",
+          url: s.url,
+          amountUsd: result.copyRiskTemplate.copyTradeAmountUsd,
+          slPct: result.copyRiskTemplate.copySlPct,
+          tpPct: result.copyRiskTemplate.copyTpPct,
+        });
+      }
+      if (nextAdds.length > 0) {
+        setPolyAutoCopyQueue((prev) => {
+          const merged = [...prev, ...nextAdds];
+          return merged.slice(0, maxOpen);
+        });
+      }
+    } catch {
+      // ignore loop failures
+    } finally {
+      setPolyAutoCopyRunning(false);
+    }
+  }, [polyAutoCopyEnabled, buildCopilotPayload]);
+
+  useEffect(() => {
+    if (!polyAutoCopyEnabled) return;
+    runAutoCopyScan();
+    const t = setInterval(runAutoCopyScan, polyAutoCopyIntervalMins * 60 * 1000);
+    return () => clearInterval(t);
+  }, [polyAutoCopyEnabled, polyAutoCopyIntervalMins, runAutoCopyScan]);
+
   if (loading) {
     return (
       <div className="mx-6 py-8">
@@ -1016,6 +1090,65 @@ export default function TradingBotPanel() {
                 <p className="text-xs text-muted-foreground mt-2">
                   These settings are applied to mirror suggestions from tracked wallets (similar to Maestro-style copy risk templates).
                 </p>
+              </div>
+              <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={polyAutoCopyEnabled}
+                      onChange={(e) => setPolyAutoCopyEnabled(e.target.checked)}
+                      className="rounded"
+                    />
+                    Auto-copy loop
+                  </label>
+                  <select
+                    value={polyAutoCopyIntervalMins}
+                    onChange={(e) => setPolyAutoCopyIntervalMins(Number(e.target.value) as 1 | 5 | 15)}
+                    className="h-8 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                  >
+                    <option value={1}>Every 1 min</option>
+                    <option value={5}>Every 5 min</option>
+                    <option value={15}>Every 15 min</option>
+                  </select>
+                  <Button type="button" size="sm" variant="outline" onClick={runAutoCopyScan} disabled={polyAutoCopyRunning}>
+                    {polyAutoCopyRunning ? "Scanning…" : "Scan now"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Auto-copy scans tracked wallets and queues mirror candidates (based on your amount/SL/TP template). You approve by clicking Mirror in ticket / Place Trade.
+                  {polyAutoCopyLastRunAt ? ` Last run: ${new Date(polyAutoCopyLastRunAt).toLocaleString()}.` : ""}
+                </p>
+                {polyAutoCopyQueue.length > 0 && (
+                  <div className="space-y-1">
+                    {polyAutoCopyQueue.map((q) => (
+                      <div key={q.key} className="rounded border border-zinc-200 dark:border-zinc-700 p-2 text-xs">
+                        <p className="font-medium">{q.title}</p>
+                        <p className="text-muted-foreground">Mirror: {q.outcome.toUpperCase()} · ${q.amountUsd} · SL {q.slPct}% · TP {q.tpPct}%</p>
+                        <div className="mt-1 flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPolyTradeUrl(q.url);
+                              setPolyTradeOutcome(q.outcome);
+                              setPolyTradeAmount(String(q.amountUsd));
+                            }}
+                            className="text-violet-600 dark:text-violet-400 hover:underline"
+                          >
+                            Mirror in ticket
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPolyAutoCopyQueue((prev) => prev.filter((x) => x.key !== q.key))}
+                            className="text-rose-600 dark:text-rose-400 hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               {polyError && <p className="text-sm text-rose-600 dark:text-rose-400">{polyError}</p>}
               {polyResult && (
