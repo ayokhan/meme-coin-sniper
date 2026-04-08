@@ -62,6 +62,12 @@ type PolymarketMarket = {
   direction: "bullish" | "bearish" | "mixed";
 };
 
+type EthereumProvider = {
+  request: (args: { method: string; params?: unknown[] | Record<string, unknown> }) => Promise<unknown>;
+  on?: (event: string, handler: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+};
+
 export default function TradingBotPanel() {
   const { data: session } = useSession();
   const tier = (session?.user as { tier?: "pro" | "vip" | null } | undefined)?.tier ?? null;
@@ -120,6 +126,8 @@ export default function TradingBotPanel() {
   const [polyBankroll, setPolyBankroll] = useState("1000");
   const [polyMode, setPolyMode] = useState<"demo" | "live">("demo");
   const [polyWalletConnected, setPolyWalletConnected] = useState(false);
+  const [polyWalletAddress, setPolyWalletAddress] = useState<string | null>(null);
+  const [polyWalletConnecting, setPolyWalletConnecting] = useState(false);
   const [polyCopyMode, setPolyCopyMode] = useState<"exact" | "scaled">("exact");
   const [polyCopyWallets, setPolyCopyWallets] = useState("");
   const [polyLoading, setPolyLoading] = useState(false);
@@ -141,6 +149,67 @@ export default function TradingBotPanel() {
     };
     riskNote: string;
   } | null>(null);
+
+  const getEthereumProvider = (): EthereumProvider | null => {
+    if (typeof window === "undefined") return null;
+    const w = window as unknown as { ethereum?: EthereumProvider };
+    return w.ethereum ?? null;
+  };
+
+  const refreshConnectedWallet = useCallback(async () => {
+    const provider = getEthereumProvider();
+    if (!provider) {
+      setPolyWalletConnected(false);
+      setPolyWalletAddress(null);
+      return;
+    }
+    try {
+      const accounts = (await provider.request({ method: "eth_accounts" })) as string[];
+      const addr = Array.isArray(accounts) && accounts.length > 0 ? String(accounts[0]) : null;
+      setPolyWalletConnected(!!addr);
+      setPolyWalletAddress(addr);
+    } catch {
+      setPolyWalletConnected(false);
+      setPolyWalletAddress(null);
+    }
+  }, []);
+
+  const connectPolymarketWallet = async () => {
+    const provider = getEthereumProvider();
+    if (!provider) {
+      setPolyError("MetaMask not detected. Install MetaMask (or a compatible EVM wallet) to connect.");
+      return;
+    }
+    try {
+      setPolyWalletConnecting(true);
+      const accounts = (await provider.request({ method: "eth_requestAccounts" })) as string[];
+      const addr = Array.isArray(accounts) && accounts.length > 0 ? String(accounts[0]) : null;
+      setPolyWalletConnected(!!addr);
+      setPolyWalletAddress(addr);
+      if (!addr) setPolyError("Wallet connection failed. No account returned.");
+      else setPolyError(null);
+    } catch {
+      setPolyWalletConnected(false);
+      setPolyWalletAddress(null);
+      setPolyError("Wallet connection was rejected or failed.");
+    } finally {
+      setPolyWalletConnecting(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshConnectedWallet();
+    const provider = getEthereumProvider();
+    if (!provider?.on || !provider?.removeListener) return;
+    const onAccountsChanged = (...args: unknown[]) => {
+      const first = args[0] as string[] | undefined;
+      const addr = Array.isArray(first) && first.length > 0 ? String(first[0]) : null;
+      setPolyWalletConnected(!!addr);
+      setPolyWalletAddress(addr);
+    };
+    provider.on("accountsChanged", onAccountsChanged);
+    return () => provider.removeListener?.("accountsChanged", onAccountsChanged);
+  }, [refreshConnectedWallet]);
 
   const formatLocalTime = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : null;
@@ -783,15 +852,15 @@ export default function TradingBotPanel() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={polyWalletConnected}
-                    onChange={(e) => setPolyWalletConnected(e.target.checked)}
-                    className="rounded"
-                  />
-                  Wallet logged in
-                </label>
+                <Button type="button" variant="outline" size="sm" onClick={connectPolymarketWallet} disabled={polyWalletConnecting}>
+                  {polyWalletConnecting ? "Connecting…" : (polyWalletConnected ? "Wallet connected" : "Connect wallet")}
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={refreshConnectedWallet}>
+                  Refresh wallet status
+                </Button>
+                <span className={`text-xs ${polyWalletConnected ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"}`}>
+                  {polyWalletConnected ? `Connected: ${polyWalletAddress?.slice(0, 6)}…${polyWalletAddress?.slice(-4)}` : "Not connected"}
+                </span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-zinc-600 dark:text-zinc-400">Copy mode</span>
                   <select
@@ -806,9 +875,9 @@ export default function TradingBotPanel() {
               </div>
               <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2 text-xs text-muted-foreground">
                 <p><strong className="text-zinc-700 dark:text-zinc-300">How to connect wallet:</strong></p>
-                <p>1) Open Polymarket and connect your wallet there (MetaMask/Coinbase Wallet on Polygon).</p>
-                <p>2) Sign in and keep that wallet session active in your browser.</p>
-                <p>3) In NovaStaris, tick <strong>Wallet logged in</strong> and run in <strong>Live</strong> mode.</p>
+                <p>1) Click <strong>Connect wallet</strong> above and approve in MetaMask/Coinbase Wallet.</p>
+                <p>2) Make sure the same wallet is used for Polymarket trading.</p>
+                <p>3) Set mode to <strong>Live</strong> and run the copilot.</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Copy-trader wallets (optional, comma/newline separated)</label>
