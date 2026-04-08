@@ -181,7 +181,7 @@ export default function TradingBotPanel() {
   const connectPolymarketWallet = async () => {
     const provider = getEthereumProvider();
     if (!provider) {
-      setPolyError("MetaMask not detected. Install MetaMask (or a compatible EVM wallet) to connect.");
+      setPolyError("No EVM wallet detected. Install/use Phantom (EVM), MetaMask, or Coinbase Wallet to connect.");
       return;
     }
     try {
@@ -897,7 +897,7 @@ export default function TradingBotPanel() {
               </div>
               <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2 text-xs text-muted-foreground">
                 <p><strong className="text-zinc-700 dark:text-zinc-300">How to connect wallet:</strong></p>
-                <p>1) Click <strong>Connect wallet</strong> above and approve in MetaMask/Coinbase Wallet.</p>
+                <p>1) Click <strong>Connect wallet</strong> above and approve in Phantom (EVM), MetaMask, or Coinbase Wallet.</p>
                 <p>2) Make sure the same wallet is used for Polymarket trading.</p>
                 <p>3) Set mode to <strong>Live</strong> and run the copilot.</p>
               </div>
