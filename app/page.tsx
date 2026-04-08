@@ -89,7 +89,7 @@ type TabId =
   | "chris-clayton";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-connect"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment"];
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment", "prop-firm-bot"];
 const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   new: "page_tab_new",
   trending: "page_tab_trending",
@@ -2850,8 +2850,8 @@ export default function Dashboard() {
                 {isTabVisibleInGui("trading-bot") && (
                   <TabsTrigger value="polymarket-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova Polymarket Bot</TabsTrigger>
                 )}
-                {isOwner && isTabVisibleInGui("trading-bot") && (
-                  <TabsTrigger value="prop-firm-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Prop Firm Bot (Owner)</TabsTrigger>
+                {isTabVisibleInGui("trading-bot") && isVip && (
+                  <TabsTrigger value="prop-firm-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova Prop Firm Bot</TabsTrigger>
                 )}
                 {isTabVisibleInGui("ct") && (
                   <TabsTrigger value="ct" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
@@ -5363,10 +5363,38 @@ export default function Dashboard() {
                 <TradingBotPanel mode="polymarket-only" />
               </div>
             ) : activeTab === "prop-firm-bot" ? (
-              <div className="mx-3 sm:mx-6 mt-4 mb-3">
-                <p className="text-sm text-muted-foreground mb-3">Owner-only prop-firm challenge copilot with Topstep-style guardrails powered by NovaStaris AI.</p>
-                <PropFirmBotPanel />
-              </div>
+              (() => {
+                const propFirmOnDemand = !!(session?.user as { propFirmBotOnDemand?: boolean } | undefined)?.propFirmBotOnDemand;
+                const canAccessPropFirm = isOwner || (isVip && propFirmOnDemand);
+                return !canAccessPropFirm ? (
+                  <div className="flex flex-col items-center justify-center py-20 px-6 text-center max-w-lg mx-auto">
+                    <div className="rounded-2xl border border-amber-200/80 dark:border-amber-800/80 bg-gradient-to-b from-amber-50/80 to-white dark:from-amber-950/40 dark:to-zinc-900/80 p-8 shadow-lg">
+                      <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center mb-5">
+                        <Flame className="w-7 h-7 text-amber-600 dark:text-amber-400 animate-flame-flicker" aria-hidden />
+                      </div>
+                      <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-100">Nova Prop Firm Bot — On demand</h2>
+                      <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                        Prop-firm style challenge guardrails (Topstep-like profiles) are available for <strong className="text-amber-700 dark:text-amber-400">VIP</strong> subscribers when <strong className="text-amber-700 dark:text-amber-400">Nova Prop Firm Bot</strong> is enabled on your account.
+                      </p>
+                      <p className="mt-4 text-sm text-muted-foreground">Sign in with VIP and ask your admin to turn on access, or contact us to upgrade.</p>
+                      <a
+                        href="/support?subject=Nova%20Prop%20Firm%20Bot%20access%20request"
+                        className="mt-6 inline-flex items-center justify-center rounded-lg bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white font-medium px-5 py-2.5 text-sm transition-colors"
+                      >
+                        Contact for access
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mx-3 sm:mx-6 mt-4 mb-3">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      <Flame className="inline-block h-4 w-4 mr-1 flame-hot-tab -mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden />
+                      Nova Prop Firm Bot: discipline and rule guardrails for prop-style challenges. VIP on demand.
+                    </p>
+                    <PropFirmBotPanel />
+                  </div>
+                );
+              })()
             ) : activeTab === "nova-forecast" ? (
               <div className="mx-6 py-6">
                 <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-radar")} className="space-y-4">

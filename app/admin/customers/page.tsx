@@ -23,6 +23,7 @@ type Customer = {
   experienceTradingCrypto: string | null;
   tradingBotOnDemand: boolean;
   polymarketBotOnDemand: boolean;
+  propFirmBotOnDemand: boolean;
   ctScanOnDemand: boolean;
   ctScanOnDemandExpiresAt: string | null;
   memeCoinsTraderOnDemand: boolean;
@@ -53,6 +54,7 @@ export default function AdminCustomersPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [togglingOnDemandId, setTogglingOnDemandId] = useState<string | null>(null);
   const [togglingPolymarketOnDemandId, setTogglingPolymarketOnDemandId] = useState<string | null>(null);
+  const [togglingPropFirmOnDemandId, setTogglingPropFirmOnDemandId] = useState<string | null>(null);
   const [togglingCtScanOnDemandId, setTogglingCtScanOnDemandId] = useState<string | null>(null);
   const [togglingMemeCoinsTraderOnDemandId, setTogglingMemeCoinsTraderOnDemandId] = useState<string | null>(null);
   const [ctOnDemandDurationById, setCtOnDemandDurationById] = useState<Record<string, string>>({});
@@ -220,6 +222,28 @@ export default function AdminCustomersPage() {
       setError("Failed to update");
     } finally {
       setTogglingPolymarketOnDemandId(null);
+    }
+  };
+
+  const handlePropFirmBotOnDemand = async (id: string, value: boolean) => {
+    setTogglingPropFirmOnDemandId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ propFirmBotOnDemand: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Nova Prop Firm Bot enabled." : "Nova Prop Firm Bot disabled.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setTogglingPropFirmOnDemandId(null);
     }
   };
 
@@ -583,6 +607,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Status</th>
                       <th className="pb-2 pr-4 font-semibold">Trading Bot (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Nova Polymarket Bot (On demand)</th>
+                      <th className="pb-2 pr-4 font-semibold">Nova Prop Firm Bot (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">CT Scan (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Meme Coins Trader (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Email digest</th>
@@ -635,6 +660,17 @@ export default function AdminCustomersPage() {
                             className={`text-xs font-medium px-2 py-1 rounded ${c.polymarketBotOnDemand ? "bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
                           >
                             {togglingPolymarketOnDemandId === c.id ? "…" : c.polymarketBotOnDemand ? "On" : "Off"}
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => handlePropFirmBotOnDemand(c.id, !c.propFirmBotOnDemand)}
+                            disabled={togglingPropFirmOnDemandId === c.id}
+                            className={`text-xs font-medium px-2 py-1 rounded ${c.propFirmBotOnDemand ? "bg-orange-100 dark:bg-orange-900/50 text-orange-900 dark:text-orange-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                            title="VIP: Nova Prop Firm Bot"
+                          >
+                            {togglingPropFirmOnDemandId === c.id ? "…" : c.propFirmBotOnDemand ? "On" : "Off"}
                           </button>
                         </td>
                         <td className="py-2 pr-4">

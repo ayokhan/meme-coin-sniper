@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Flame } from "lucide-react";
 
 type ChallengeProfile = "topstep_50k" | "topstep_100k" | "custom";
 
@@ -105,11 +106,12 @@ export default function PropFirmBotPanel() {
 
   return (
     <div className="mx-6 py-8 max-w-4xl space-y-5">
-      <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-violet-500 bg-clip-text text-transparent">
-        NovaStaris AI Prop Firm Bot (Owner)
+      <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-violet-500 bg-clip-text text-transparent flex items-center gap-2 flex-wrap">
+        <Flame className="h-7 w-7 text-amber-500 dark:text-amber-400 shrink-0 animate-flame-flicker" aria-hidden />
+        <span>Nova Prop Firm Bot</span>
       </h2>
       <p className="text-sm text-muted-foreground">
-        Owner-only challenge assistant for prop-firm style rules (Topstep profile included). It focuses on rule protection and disciplined execution to improve pass probability.
+        Sign in with your VIP account to use this workspace. Challenge assistant for prop-firm style rules (Topstep-like profiles included)—rule protection and disciplined execution to support pass probability.
       </p>
 
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">

@@ -19,6 +19,7 @@ declare module 'next-auth' {
       tier?: Tier | null;
       tradingBotOnDemand?: boolean;
       polymarketBotOnDemand?: boolean;
+      propFirmBotOnDemand?: boolean;
       ctScanOnDemand?: boolean;
       ctScanOnDemandExpiresAt?: Date | string | null;
       memeCoinsTraderOnDemand?: boolean;
@@ -70,6 +71,15 @@ export function canAccessTradingBot(session: { user?: { email?: string | null; w
   if (!session?.user) return false;
   if (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress)) return true;
   return session.user.tier === 'vip' && !!(session.user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
+}
+
+/** True if session can use Nova Prop Firm Bot: owner or VIP with on-demand access. */
+export function canAccessPropFirmBot(
+  session: { user?: { email?: string | null; walletAddress?: string | null; tier?: Tier | string | null; propFirmBotOnDemand?: boolean } } | null
+): boolean {
+  if (!session?.user) return false;
+  if (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress)) return true;
+  return session.user.tier === 'vip' && !!(session.user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand;
 }
 
 /** True if session can access CT Scan (Twitter tracker): owner OR VIP with on-demand enabled. */
@@ -125,11 +135,12 @@ export const authOptions: NextAuthOptions = {
         const tier = await getSubscriptionTier(user.id);
         const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
         const polymarketBotOnDemand = !!(user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand;
+        const propFirmBotOnDemand = !!(user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand;
         const ctScanOnDemand = !!(user as { ctScanOnDemand?: boolean }).ctScanOnDemand;
         const memeCoinsTraderOnDemand = !!(user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand;
         const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
         const novaConnectAllowedByAdmin = !!(user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin;
-        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier, tradingBotOnDemand, polymarketBotOnDemand, ctScanOnDemand, memeCoinsTraderOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
+        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier, tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, ctScanOnDemand, memeCoinsTraderOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
       },
     }),
     CredentialsProvider({
@@ -162,11 +173,12 @@ export const authOptions: NextAuthOptions = {
         const tier = await getSubscriptionTier(user.id);
         const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
         const polymarketBotOnDemand = !!(user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand;
+        const propFirmBotOnDemand = !!(user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand;
         const ctScanOnDemand = !!(user as { ctScanOnDemand?: boolean }).ctScanOnDemand;
         const memeCoinsTraderOnDemand = !!(user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand;
         const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
         const novaConnectAllowedByAdmin = !!(user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin;
-        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, tradingBotOnDemand, polymarketBotOnDemand, ctScanOnDemand, memeCoinsTraderOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
+        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, ctScanOnDemand, memeCoinsTraderOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
       },
     }),
   ],
@@ -182,6 +194,7 @@ export const authOptions: NextAuthOptions = {
         token.tier = (user as { tier?: Tier | null }).tier ?? null;
         token.tradingBotOnDemand = (user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand ?? false;
         token.polymarketBotOnDemand = (user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand ?? false;
+        token.propFirmBotOnDemand = (user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand ?? false;
         token.ctScanOnDemand = (user as { ctScanOnDemand?: boolean }).ctScanOnDemand ?? false;
         token.memeCoinsTraderOnDemand = (user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand ?? false;
         token.novaConnectCommunityRep = (user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep ?? false;
@@ -200,6 +213,7 @@ export const authOptions: NextAuthOptions = {
         let tier = (token.tier as Tier | null) ?? null;
         let tradingBotOnDemand = (token.tradingBotOnDemand as boolean) ?? false;
         let polymarketBotOnDemand = (token.polymarketBotOnDemand as boolean) ?? false;
+        let propFirmBotOnDemand = (token.propFirmBotOnDemand as boolean) ?? false;
         let ctScanOnDemand = (token.ctScanOnDemand as boolean) ?? false;
         let ctScanOnDemandExpiresAt: Date | string | null | undefined =
           (token as { ctScanOnDemandExpiresAt?: Date | string | null }).ctScanOnDemandExpiresAt ?? null;
@@ -214,6 +228,7 @@ export const authOptions: NextAuthOptions = {
           tier = 'vip';
           tradingBotOnDemand = true;
           polymarketBotOnDemand = true;
+          propFirmBotOnDemand = true;
           ctScanOnDemand = true;
           ctScanOnDemandExpiresAt = null;
           memeCoinsTraderOnDemand = true;
@@ -228,6 +243,7 @@ export const authOptions: NextAuthOptions = {
                     findUnique: (args: unknown) => Promise<{
                       tradingBotOnDemand: boolean;
                       polymarketBotOnDemand: boolean;
+                      propFirmBotOnDemand: boolean;
                       ctScanOnDemand: boolean;
                       ctScanOnDemandExpiresAt: Date | null;
                       memeCoinsTraderOnDemand: boolean;
@@ -242,6 +258,7 @@ export const authOptions: NextAuthOptions = {
                 select: {
                   tradingBotOnDemand: true,
                   polymarketBotOnDemand: true,
+                  propFirmBotOnDemand: true,
                   ctScanOnDemand: true,
                   ctScanOnDemandExpiresAt: true,
                   memeCoinsTraderOnDemand: true,
@@ -253,6 +270,7 @@ export const authOptions: NextAuthOptions = {
               if (fresh) {
                 tradingBotOnDemand = !!fresh.tradingBotOnDemand;
                 polymarketBotOnDemand = !!fresh.polymarketBotOnDemand;
+                propFirmBotOnDemand = !!fresh.propFirmBotOnDemand;
                 ctScanOnDemand = !!fresh.ctScanOnDemand;
                 ctScanOnDemandExpiresAt = fresh.ctScanOnDemandExpiresAt;
                 memeCoinsTraderOnDemand = !!fresh.memeCoinsTraderOnDemand;
@@ -270,6 +288,7 @@ export const authOptions: NextAuthOptions = {
         session.user.tier = tier;
         session.user.tradingBotOnDemand = tradingBotOnDemand;
         session.user.polymarketBotOnDemand = polymarketBotOnDemand;
+        session.user.propFirmBotOnDemand = propFirmBotOnDemand;
         session.user.ctScanOnDemand = ctScanOnDemand;
         session.user.ctScanOnDemandExpiresAt = ctScanOnDemandExpiresAt ?? null;
         session.user.memeCoinsTraderOnDemand = memeCoinsTraderOnDemand;

@@ -54,6 +54,7 @@ export async function GET() {
         experienceTradingCrypto: u.experienceTradingCrypto,
         tradingBotOnDemand: !!(u as { tradingBotOnDemand?: boolean }).tradingBotOnDemand,
         polymarketBotOnDemand: !!(u as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand,
+        propFirmBotOnDemand: !!(u as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand,
         ctScanOnDemand: !!(u as { ctScanOnDemand?: boolean }).ctScanOnDemand,
         ctScanOnDemandExpiresAt: (u as { ctScanOnDemandExpiresAt?: Date | null }).ctScanOnDemandExpiresAt ?? null,
         memeCoinsTraderOnDemand: !!(u as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand,
