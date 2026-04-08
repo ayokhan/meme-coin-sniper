@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import NovaScalperPanel from "@/components/NovaScalperPanel";
+import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
 import { useSession } from "next-auth/react";
 
@@ -96,6 +97,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
   const polymarketOnDemand = !!(session?.user as { polymarketBotOnDemand?: boolean } | undefined)?.polymarketBotOnDemand;
   const canAccessPolymarket = isOwner || (tier === "vip" && polymarketOnDemand);
+  const novaUltimateOnDemand = !!(session?.user as { novaUltimateOnDemand?: boolean } | undefined)?.novaUltimateOnDemand;
+  const canAccessNovaUltimate = isOwner || (tier === "vip" && novaUltimateOnDemand);
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,10 +146,10 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [clearingBlofinKeys, setClearingBlofinKeys] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
-  const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
+  const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket" | "nova-ultimate">("ai");
   useEffect(() => {
     if (mode === "polymarket-only") setBotSubTab("polymarket");
-    if (mode === "futures-only" && botSubTab === "polymarket") setBotSubTab("ai");
+    if (mode === "futures-only" && (botSubTab === "polymarket" || botSubTab === "nova-ultimate")) setBotSubTab("ai");
   }, [mode, botSubTab]);
 
   const [polyKeyword, setPolyKeyword] = useState("bitcoin");
@@ -1088,7 +1091,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
         NovaStaris AI Trading Bots
       </h2>
-      <Tabs value={botSubTab} onValueChange={(v) => setBotSubTab(v as "ai" | "scalper" | "polymarket")} className="space-y-4">
+      <Tabs value={botSubTab} onValueChange={(v) => setBotSubTab(v as "ai" | "scalper" | "polymarket" | "nova-ultimate")} className="space-y-4">
         {(mode === "all" || mode === "futures-only") && (
           <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
             <TabsTrigger
@@ -1109,6 +1112,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
               >
                 Nova Polymarket Bot
+              </TabsTrigger>
+            )}
+            {mode === "all" && (
+              <TabsTrigger
+                value="nova-ultimate"
+                className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+              >
+                Nova Ultimate
               </TabsTrigger>
             )}
           </TabsList>
@@ -1636,6 +1647,34 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
               )}
             </CardContent>
           </Card>
+          </TabsContent>
+        )}
+
+        {mode === "all" && (
+          <TabsContent value="nova-ultimate" className="mt-0 space-y-4">
+            <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold">Nova Ultimate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!canAccessNovaUltimate ? (
+                  <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-3 text-sm">
+                    <p className="font-medium text-amber-800 dark:text-amber-200">VIP on-demand access required</p>
+                    <p className="text-amber-700 dark:text-amber-300 mt-1">
+                      Ask admin to enable <strong>Nova Ultimate (On demand)</strong> for meme sniper &amp; Phantom Terminal workspace.
+                    </p>
+                  </div>
+                ) : (
+                  <NovaUltimatePanel
+                    solanaWalletShort={
+                      session?.user?.walletAddress
+                        ? `${session.user.walletAddress.slice(0, 4)}…${session.user.walletAddress.slice(-4)}`
+                        : null
+                    }
+                  />
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         )}
 

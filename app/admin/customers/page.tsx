@@ -24,6 +24,7 @@ type Customer = {
   tradingBotOnDemand: boolean;
   polymarketBotOnDemand: boolean;
   propFirmBotOnDemand: boolean;
+  novaUltimateOnDemand: boolean;
   ctScanOnDemand: boolean;
   ctScanOnDemandExpiresAt: string | null;
   memeCoinsTraderOnDemand: boolean;
@@ -55,6 +56,7 @@ export default function AdminCustomersPage() {
   const [togglingOnDemandId, setTogglingOnDemandId] = useState<string | null>(null);
   const [togglingPolymarketOnDemandId, setTogglingPolymarketOnDemandId] = useState<string | null>(null);
   const [togglingPropFirmOnDemandId, setTogglingPropFirmOnDemandId] = useState<string | null>(null);
+  const [togglingNovaUltimateOnDemandId, setTogglingNovaUltimateOnDemandId] = useState<string | null>(null);
   const [togglingCtScanOnDemandId, setTogglingCtScanOnDemandId] = useState<string | null>(null);
   const [togglingMemeCoinsTraderOnDemandId, setTogglingMemeCoinsTraderOnDemandId] = useState<string | null>(null);
   const [ctOnDemandDurationById, setCtOnDemandDurationById] = useState<Record<string, string>>({});
@@ -66,7 +68,7 @@ export default function AdminCustomersPage() {
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const [paymentsExpandedId, setPaymentsExpandedId] = useState<string | null>(null);
-  const TABLE_COL_COUNT = 21;
+  const TABLE_COL_COUNT = 22;
 
   const formatExpiryLabel = (expiresAt: string | null, subscriptionExpiresAt: string | null) => {
     if (!expiresAt) return "No custom expiry set";
@@ -244,6 +246,28 @@ export default function AdminCustomersPage() {
       setError("Failed to update");
     } finally {
       setTogglingPropFirmOnDemandId(null);
+    }
+  };
+
+  const handleNovaUltimateOnDemand = async (id: string, value: boolean) => {
+    setTogglingNovaUltimateOnDemandId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ novaUltimateOnDemand: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Nova Ultimate enabled." : "Nova Ultimate disabled.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setTogglingNovaUltimateOnDemandId(null);
     }
   };
 
@@ -608,6 +632,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Trading Bot (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Nova Polymarket Bot (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Nova Prop Firm Bot (On demand)</th>
+                      <th className="pb-2 pr-4 font-semibold">Nova Ultimate (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">CT Scan (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Meme Coins Trader (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Email digest</th>
@@ -671,6 +696,17 @@ export default function AdminCustomersPage() {
                             title="VIP: Nova Prop Firm Bot"
                           >
                             {togglingPropFirmOnDemandId === c.id ? "…" : c.propFirmBotOnDemand ? "On" : "Off"}
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => handleNovaUltimateOnDemand(c.id, !c.novaUltimateOnDemand)}
+                            disabled={togglingNovaUltimateOnDemandId === c.id}
+                            className={`text-xs font-medium px-2 py-1 rounded ${c.novaUltimateOnDemand ? "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-900 dark:text-cyan-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                            title="VIP: Nova Ultimate (NovaMeme Sniper + Phantom Terminal)"
+                          >
+                            {togglingNovaUltimateOnDemandId === c.id ? "…" : c.novaUltimateOnDemand ? "On" : "Off"}
                           </button>
                         </td>
                         <td className="py-2 pr-4">
