@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
+import { prisma } from "@/lib/db";
+import { isOwnerEmail } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
@@ -39,9 +41,20 @@ function parseOutcomeState(m: GammaMarket): { bestOutcome: string; confidencePct
 
 export async function POST(request: Request) {
   try {
-    const { tier } = await getSessionAndSubscription();
-    if (tier !== "vip") {
-      return NextResponse.json({ success: false, locked: true, error: "Polymarket bot is VIP only." }, { status: 403 });
+    const { tier, userId, session } = await getSessionAndSubscription();
+    const owner = isOwnerEmail(session?.user?.email ?? null);
+    const user = userId
+      ? await (prisma as { user: { findUnique: (args: unknown) => Promise<{ polymarketBotOnDemand?: boolean } | null> } }).user.findUnique({
+          where: { id: userId },
+          select: { polymarketBotOnDemand: true },
+        })
+      : null;
+    const polymarketEnabled = owner || (tier === "vip" && !!user?.polymarketBotOnDemand);
+    if (!polymarketEnabled) {
+      return NextResponse.json(
+        { success: false, locked: true, error: "Nova Polymarket Bot is VIP on-demand. Ask admin to enable access." },
+        { status: 403 }
+      );
     }
 
     const body = await request.json().catch(() => ({}));
@@ -121,10 +134,13 @@ export async function POST(request: Request) {
         execution: {
           mode,
           walletConnected,
-          readyForLive: mode === "live" && walletConnected,
+          ownerBypass: owner,
+          readyForLive: mode === "live" && (walletConnected || owner),
           loginHint: walletConnected
             ? "Wallet connected. You can execute from NovaStaris when trading keys/session are active."
-            : "Connect your wallet to enable live order execution from NovaStaris.",
+            : owner
+              ? "Owner bypass is enabled. Live execution can run without wallet login."
+              : "Connect your wallet to enable live order execution from NovaStaris.",
         },
         riskNote: "No bot can guarantee wins. Use strict sizing, diversify across uncorrelated events, and avoid all-in exposure.",
       },

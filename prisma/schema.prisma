@@ -90,6 +90,7 @@ model User {
   country       String?
   experienceTradingCrypto String?  // e.g. beginner | intermediate | expert
   tradingBotOnDemand     Boolean  @default(false)  // owner can enable Trading Bot access for VIP users on request
+  polymarketBotOnDemand  Boolean  @default(false)  // owner can enable Nova Polymarket Bot access for VIP users on request
   /** Owner-only toggle: allow VIP users to access CT Scan (Twitter tracker) on demand. */
   ctScanOnDemand         Boolean  @default(false)
   /** When set, CT Scan on-demand access expires at this time (null = no extra expiry beyond subscription). */

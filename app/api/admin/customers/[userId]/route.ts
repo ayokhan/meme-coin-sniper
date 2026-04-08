@@ -23,6 +23,7 @@ export async function PATCH(
     }
     const body = await request.json().catch(() => ({}));
     const tradingBotOnDemand = body.tradingBotOnDemand;
+    const polymarketBotOnDemand = body.polymarketBotOnDemand;
     const ctScanOnDemand = body.ctScanOnDemand;
     const ctScanOnDemandExpiresAt = body.ctScanOnDemandExpiresAt;
     const memeCoinsTraderOnDemand = body.memeCoinsTraderOnDemand;
@@ -34,6 +35,7 @@ export async function PATCH(
     const rulesAccepted = body.rulesAccepted;
     const updates: {
       tradingBotOnDemand?: boolean;
+      polymarketBotOnDemand?: boolean;
       ctScanOnDemand?: boolean;
       ctScanOnDemandExpiresAt?: Date | null;
       memeCoinsTraderOnDemand?: boolean;
@@ -45,6 +47,7 @@ export async function PATCH(
       novaConnectRulesAcceptedAt?: Date | null;
     } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
+    if (typeof polymarketBotOnDemand === 'boolean') updates.polymarketBotOnDemand = polymarketBotOnDemand;
     if (typeof ctScanOnDemand === 'boolean') updates.ctScanOnDemand = ctScanOnDemand;
     if (ctScanOnDemandExpiresAt !== undefined) {
       updates.ctScanOnDemandExpiresAt = ctScanOnDemandExpiresAt ? new Date(ctScanOnDemandExpiresAt) : null;
@@ -63,7 +66,7 @@ export async function PATCH(
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'Provide at least one of: tradingBotOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, rulesAccepted (boolean).',
+        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, rulesAccepted (boolean).',
       }, { status: 400 });
     }
     await (prisma as any).user.update({

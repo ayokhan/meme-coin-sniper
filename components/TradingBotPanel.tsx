@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NovaScalperPanel from "@/components/NovaScalperPanel";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
+import { useSession } from "next-auth/react";
 
 type PositionWithPnl = {
   instId: string;
@@ -62,6 +63,11 @@ type PolymarketMarket = {
 };
 
 export default function TradingBotPanel() {
+  const { data: session } = useSession();
+  const tier = (session?.user as { tier?: "pro" | "vip" | null } | undefined)?.tier ?? null;
+  const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
+  const polymarketOnDemand = !!(session?.user as { polymarketBotOnDemand?: boolean } | undefined)?.polymarketBotOnDemand;
+  const canAccessPolymarket = isOwner || (tier === "vip" && polymarketOnDemand);
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +135,7 @@ export default function TradingBotPanel() {
     execution: {
       mode: "demo" | "live";
       walletConnected: boolean;
+      ownerBypass: boolean;
       readyForLive: boolean;
       loginHint: string;
     };
@@ -655,7 +662,7 @@ export default function TradingBotPanel() {
           keyword,
           bankroll: Number(polyBankroll),
           mode: polyMode,
-          walletConnected: polyWalletConnected,
+          walletConnected: polyWalletConnected || isOwner,
           copyMode: polyCopyMode,
           copyWallets: polyCopyWallets,
         }),
@@ -720,6 +727,15 @@ export default function TradingBotPanel() {
               <CardTitle className="text-base font-semibold">NovaStaris Polymarket Copilot (VIP)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {!canAccessPolymarket ? (
+                <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-3 text-sm">
+                  <p className="font-medium text-amber-800 dark:text-amber-200">VIP on-demand access required</p>
+                  <p className="text-amber-700 dark:text-amber-300 mt-1">
+                    Ask admin to enable <strong>Nova Polymarket Bot (On demand)</strong> for your account.
+                  </p>
+                </div>
+              ) : (
+                <>
               <p className="text-sm text-muted-foreground">
                 Scan active Polymarket narratives, estimate directional bias, and build a copy-trader plan with Demo/Live mode. Live mode requires wallet login.
               </p>
@@ -760,7 +776,7 @@ export default function TradingBotPanel() {
                   </select>
                 </div>
                 <div className="flex items-end">
-                  <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full">
+                  <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full h-9">
                     {polyLoading ? "Running…" : "Run Polymarket Copilot"}
                   </Button>
                 </div>
@@ -838,6 +854,8 @@ export default function TradingBotPanel() {
                   )}
                   <p className="text-xs text-amber-700 dark:text-amber-300">{polyResult.riskNote}</p>
                 </div>
+              )}
+                </>
               )}
             </CardContent>
           </Card>

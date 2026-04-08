@@ -22,6 +22,7 @@ type Customer = {
   country: string | null;
   experienceTradingCrypto: string | null;
   tradingBotOnDemand: boolean;
+  polymarketBotOnDemand: boolean;
   ctScanOnDemand: boolean;
   ctScanOnDemandExpiresAt: string | null;
   memeCoinsTraderOnDemand: boolean;
@@ -51,6 +52,7 @@ export default function AdminCustomersPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [togglingOnDemandId, setTogglingOnDemandId] = useState<string | null>(null);
+  const [togglingPolymarketOnDemandId, setTogglingPolymarketOnDemandId] = useState<string | null>(null);
   const [togglingCtScanOnDemandId, setTogglingCtScanOnDemandId] = useState<string | null>(null);
   const [togglingMemeCoinsTraderOnDemandId, setTogglingMemeCoinsTraderOnDemandId] = useState<string | null>(null);
   const [ctOnDemandDurationById, setCtOnDemandDurationById] = useState<Record<string, string>>({});
@@ -62,7 +64,7 @@ export default function AdminCustomersPage() {
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const [paymentsExpandedId, setPaymentsExpandedId] = useState<string | null>(null);
-  const TABLE_COL_COUNT = 20;
+  const TABLE_COL_COUNT = 21;
 
   const formatExpiryLabel = (expiresAt: string | null, subscriptionExpiresAt: string | null) => {
     if (!expiresAt) return "No custom expiry set";
@@ -196,6 +198,28 @@ export default function AdminCustomersPage() {
       setError("Failed to update");
     } finally {
       setTogglingOnDemandId(null);
+    }
+  };
+
+  const handlePolymarketBotOnDemand = async (id: string, value: boolean) => {
+    setTogglingPolymarketOnDemandId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ polymarketBotOnDemand: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Nova Polymarket Bot enabled." : "Nova Polymarket Bot disabled.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setTogglingPolymarketOnDemandId(null);
     }
   };
 
@@ -558,6 +582,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Expires</th>
                       <th className="pb-2 pr-4 font-semibold">Status</th>
                       <th className="pb-2 pr-4 font-semibold">Trading Bot (On demand)</th>
+                      <th className="pb-2 pr-4 font-semibold">Nova Polymarket Bot (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">CT Scan (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Meme Coins Trader (On demand)</th>
                       <th className="pb-2 pr-4 font-semibold">Email digest</th>
@@ -600,6 +625,16 @@ export default function AdminCustomersPage() {
                             className={`text-xs font-medium px-2 py-1 rounded ${c.tradingBotOnDemand ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
                           >
                             {togglingOnDemandId === c.id ? "…" : c.tradingBotOnDemand ? "On" : "Off"}
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => handlePolymarketBotOnDemand(c.id, !c.polymarketBotOnDemand)}
+                            disabled={togglingPolymarketOnDemandId === c.id}
+                            className={`text-xs font-medium px-2 py-1 rounded ${c.polymarketBotOnDemand ? "bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                          >
+                            {togglingPolymarketOnDemandId === c.id ? "…" : c.polymarketBotOnDemand ? "On" : "Off"}
                           </button>
                         </td>
                         <td className="py-2 pr-4">
