@@ -1089,7 +1089,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         NovaStaris AI Trading Bots
       </h2>
       <Tabs value={botSubTab} onValueChange={(v) => setBotSubTab(v as "ai" | "scalper" | "polymarket")} className="space-y-4">
-        {mode === "all" && (
+        {(mode === "all" || mode === "futures-only") && (
           <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
             <TabsTrigger
               value="ai"
@@ -1103,12 +1103,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
             >
               NovaScalper
             </TabsTrigger>
-            <TabsTrigger
-              value="polymarket"
-              className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
-            >
-              Nova Polymarket Bot
-            </TabsTrigger>
+            {mode === "all" && (
+              <TabsTrigger
+                value="polymarket"
+                className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+              >
+                Nova Polymarket Bot
+              </TabsTrigger>
+            )}
           </TabsList>
         )}
 

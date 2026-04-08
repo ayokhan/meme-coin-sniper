@@ -78,6 +78,7 @@ type TabId =
   | "narratives"
   | "trading-bot"
   | "polymarket-bot"
+  | "prop-firm-bot"
   | "coach-calls"
   | "nova-forecast"
   | "nova-plus"
@@ -101,6 +102,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   narratives: "page_tab_narratives",
   "trading-bot": "page_tab_trading_bot",
   "polymarket-bot": "page_tab_trading_bot",
+  "prop-firm-bot": "page_tab_trading_bot",
   ct: "page_tab_ct",
   wallets: "page_tab_wallets",
   "coach-calls": "page_tab_coach_calls",
@@ -124,6 +126,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "narratives",
   "trading-bot",
   "polymarket-bot",
+  "prop-firm-bot",
   "ct",
   "wallets",
   "coach-calls",
@@ -405,8 +408,6 @@ export default function Dashboard() {
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
   const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
-  type TradingBotView = "crypto" | "prop-firm";
-  const [tradingBotView, setTradingBotView] = useState<TradingBotView>("crypto");
   type WalletTrackerView = "meme" | "leverage";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
   const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
@@ -1156,7 +1157,7 @@ export default function Dashboard() {
       if (isPaid) fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "watchlist") {
+    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "watchlist") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -1928,7 +1929,7 @@ export default function Dashboard() {
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (walletTrackerView === "meme") {
@@ -2849,6 +2850,9 @@ export default function Dashboard() {
                 {isTabVisibleInGui("trading-bot") && (
                   <TabsTrigger value="polymarket-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova Polymarket Bot</TabsTrigger>
                 )}
+                {isOwner && isTabVisibleInGui("trading-bot") && (
+                  <TabsTrigger value="prop-firm-bot" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Prop Firm Bot (Owner)</TabsTrigger>
+                )}
                 {isTabVisibleInGui("ct") && (
                   <TabsTrigger value="ct" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
                 )}
@@ -3080,7 +3084,7 @@ export default function Dashboard() {
                 <span className="text-xs text-muted-foreground ml-1">5m/15m/30m estimated from 1h. Up to 80 coins.</span>
               </div>
             )}
-            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && tokensForDisplay.length === 0 ? (
+            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && tokensForDisplay.length === 0 ? (
               <div className="px-4 py-4">
                 <Table>
                   <TableHeader>
@@ -5348,35 +5352,8 @@ export default function Dashboard() {
                 </div>
                 ) : (
                 <div className="mx-3 sm:mx-6 mt-4 mb-3">
-                  {isOwner && (
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setTradingBotView("crypto")}
-                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${tradingBotView === "crypto" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"}`}
-                      >
-                        Crypto Futures Bot
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTradingBotView("prop-firm")}
-                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${tradingBotView === "prop-firm" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"}`}
-                      >
-                        Prop Firm Bot (Owner)
-                      </button>
-                    </div>
-                  )}
-                  {(!isOwner || tradingBotView === "crypto") ? (
-                    <>
-                      <p className="text-sm text-muted-foreground mb-3">Blofin futures bot: configure symbol, leverage, TP/SL; run demo or live. VIP + On demand.</p>
-                      <TradingBotPanel mode="futures-only" />
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm text-muted-foreground mb-3">Owner-only prop-firm challenge copilot with Topstep-style guardrails powered by NovaStaris AI.</p>
-                      <PropFirmBotPanel />
-                    </>
-                  )}
+                  <p className="text-sm text-muted-foreground mb-3">Blofin futures bot: configure symbol, leverage, TP/SL; run demo or live. VIP + On demand.</p>
+                  <TradingBotPanel mode="futures-only" />
                 </div>
                 );
               })()
@@ -5384,6 +5361,11 @@ export default function Dashboard() {
               <div className="mx-3 sm:mx-6 mt-4 mb-3">
                 <p className="text-sm text-muted-foreground mb-3">Nova Polymarket Bot as a standalone workspace.</p>
                 <TradingBotPanel mode="polymarket-only" />
+              </div>
+            ) : activeTab === "prop-firm-bot" ? (
+              <div className="mx-3 sm:mx-6 mt-4 mb-3">
+                <p className="text-sm text-muted-foreground mb-3">Owner-only prop-firm challenge copilot with Topstep-style guardrails powered by NovaStaris AI.</p>
+                <PropFirmBotPanel />
               </div>
             ) : activeTab === "nova-forecast" ? (
               <div className="mx-6 py-6">
