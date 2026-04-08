@@ -784,7 +784,7 @@ export default function TradingBotPanel() {
   return (
     <div className="mx-6 py-8 max-w-2xl space-y-6">
       <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
-        NovaStaris Trading Bot (Crypto Futures)
+        NovaStaris AI Trading Bots
       </h2>
       <Tabs value={botSubTab} onValueChange={(v) => setBotSubTab(v as "ai" | "scalper" | "polymarket")} className="space-y-4">
         <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
