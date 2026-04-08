@@ -130,6 +130,10 @@ export default function TradingBotPanel() {
   const [polyWalletConnecting, setPolyWalletConnecting] = useState(false);
   const [polyCopyMode, setPolyCopyMode] = useState<"exact" | "scaled">("exact");
   const [polyCopyWallets, setPolyCopyWallets] = useState("");
+  const [polyCopyTradeAmountUsd, setPolyCopyTradeAmountUsd] = useState("50");
+  const [polyCopySlPct, setPolyCopySlPct] = useState("8");
+  const [polyCopyTpPct, setPolyCopyTpPct] = useState("20");
+  const [polyCopyMaxOpen, setPolyCopyMaxOpen] = useState("3");
   const [polyTradeAmount, setPolyTradeAmount] = useState("50");
   const [polyTradeOutcome, setPolyTradeOutcome] = useState<"yes" | "no">("yes");
   const [polyTradeUrl, setPolyTradeUrl] = useState<string | null>(null);
@@ -142,8 +146,9 @@ export default function TradingBotPanel() {
     summary: string;
     markets: PolymarketMarket[];
     institutionalHint: string;
-    copyPlan: { wallet: string; allocationUsd: number | null; copyMode: "exact" | "scaled"; note: string }[];
+    copyPlan: { wallet: string; allocationUsd: number | null; copyMode: "exact" | "scaled"; copyTradeAmountUsd: number; copySlPct: number; copyTpPct: number; copyMaxOpen: number; note: string }[];
     copySignals: { slug: string; title: string; outcome: string; wallets: string[]; buys: number; sells: number; score: number; url: string }[];
+    copyRiskTemplate: { copyTradeAmountUsd: number; copySlPct: number; copyTpPct: number; copyMaxOpen: number };
     execution: {
       mode: "demo" | "live";
       walletConnected: boolean;
@@ -738,6 +743,10 @@ export default function TradingBotPanel() {
           walletConnected: polyWalletConnected || isOwner,
           copyMode: polyCopyMode,
           copyWallets: polyCopyWallets,
+          copyTradeAmountUsd: Number(polyCopyTradeAmountUsd),
+          copySlPct: Number(polyCopySlPct),
+          copyTpPct: Number(polyCopyTpPct),
+          copyMaxOpen: Number(polyCopyMaxOpen),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -956,6 +965,58 @@ export default function TradingBotPanel() {
                   className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
                 />
               </div>
+              <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3">
+                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-2">Copy trader risk settings</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">Amount / trade ($)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={polyCopyTradeAmountUsd}
+                      onChange={(e) => setPolyCopyTradeAmountUsd(e.target.value)}
+                      className="h-8 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">SL %</label>
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={polyCopySlPct}
+                      onChange={(e) => setPolyCopySlPct(e.target.value)}
+                      className="h-8 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">TP %</label>
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={polyCopyTpPct}
+                      onChange={(e) => setPolyCopyTpPct(e.target.value)}
+                      className="h-8 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-zinc-600 dark:text-zinc-400 mb-1">Max open mirrors</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={polyCopyMaxOpen}
+                      onChange={(e) => setPolyCopyMaxOpen(e.target.value)}
+                      className="h-8 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  These settings are applied to mirror suggestions from tracked wallets (similar to Maestro-style copy risk templates).
+                </p>
+              </div>
               {polyError && <p className="text-sm text-rose-600 dark:text-rose-400">{polyError}</p>}
               {polyResult && (
                 <div className="space-y-3">
@@ -968,6 +1029,9 @@ export default function TradingBotPanel() {
                     </p>
                     <p className={`text-xs mt-1 ${polyResult.execution.readyForLive ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"}`}>
                       {polyResult.execution.loginHint}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Copy template: ${polyResult.copyRiskTemplate.copyTradeAmountUsd}/trade · SL {polyResult.copyRiskTemplate.copySlPct}% · TP {polyResult.copyRiskTemplate.copyTpPct}% · Max open {polyResult.copyRiskTemplate.copyMaxOpen}
                     </p>
                   </div>
                   {polyResult.markets.length > 0 && (
@@ -997,7 +1061,7 @@ export default function TradingBotPanel() {
                       <p className="text-sm font-medium mb-1">Copy-trader allocation plan</p>
                       {polyResult.copyPlan.map((c, i) => (
                         <p key={`${c.wallet}-${i}`} className="text-xs text-muted-foreground">
-                          {c.wallet}: {c.allocationUsd != null ? `$${c.allocationUsd}` : "—"} · {c.copyMode === "exact" ? "Exact" : "Scaled"} · {c.note}
+                          {c.wallet}: {c.allocationUsd != null ? `$${c.allocationUsd}` : "—"} · {c.copyMode === "exact" ? "Exact" : "Scaled"} · ${c.copyTradeAmountUsd} / SL {c.copySlPct}% / TP {c.copyTpPct}% / max {c.copyMaxOpen} · {c.note}
                         </p>
                       ))}
                     </div>
@@ -1017,6 +1081,7 @@ export default function TradingBotPanel() {
                                 onClick={() => {
                                   setPolyTradeUrl(s.url);
                                   setPolyTradeOutcome(/yes|up|higher|win/i.test(s.outcome) ? "yes" : "no");
+                                  setPolyTradeAmount(polyCopyTradeAmountUsd);
                                 }}
                                 className="text-violet-600 dark:text-violet-400 hover:underline"
                               >

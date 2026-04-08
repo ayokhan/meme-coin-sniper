@@ -74,6 +74,10 @@ export async function POST(request: Request) {
     const walletConnected = !!body.walletConnected;
     const copyMode = String(body.copyMode ?? "exact").toLowerCase() === "exact" ? "exact" : "scaled";
     const walletsRaw = String(body.copyWallets ?? "");
+    const copyTradeAmountUsd = Math.max(1, n(body.copyTradeAmountUsd || 50));
+    const copySlPct = Math.max(0.1, Math.min(90, n(body.copySlPct || 8)));
+    const copyTpPct = Math.max(0.1, Math.min(400, n(body.copyTpPct || 20)));
+    const copyMaxOpen = Math.max(1, Math.min(20, Math.floor(n(body.copyMaxOpen || 3))));
     const wallets = walletsRaw
       .split(/[\n,\s]+/)
       .map((s) => s.trim())
@@ -120,6 +124,10 @@ export async function POST(request: Request) {
           wallet: w,
           allocationUsd: bankroll > 0 ? Math.round((bankroll * (copyMode === "exact" ? 0.85 : 0.7)) / wallets.length) : null,
           copyMode,
+          copyTradeAmountUsd,
+          copySlPct,
+          copyTpPct,
+          copyMaxOpen,
           note:
             copyMode === "exact"
               ? "Exact copy requested: mirror side and market; size is capped by your risk settings."
@@ -203,6 +211,12 @@ export async function POST(request: Request) {
         institutionalHint: "Higher-liquidity markets usually reflect larger and more informed flow. Prioritize markets with deeper liquidity and tighter pricing.",
         copyPlan,
         copySignals,
+        copyRiskTemplate: {
+          copyTradeAmountUsd,
+          copySlPct,
+          copyTpPct,
+          copyMaxOpen,
+        },
         execution: {
           mode,
           walletConnected,
