@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import NovaScalperPanel from "@/components/NovaScalperPanel";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
 import { useSession } from "next-auth/react";
@@ -171,6 +172,12 @@ export default function TradingBotPanel() {
   const [polyL2ApiKey, setPolyL2ApiKey] = useState("");
   const [polyL2Passphrase, setPolyL2Passphrase] = useState("");
   const [polyL2Secret, setPolyL2Secret] = useState("");
+  const [polyUseStoredCreds, setPolyUseStoredCreds] = useState(true);
+  const [polyStoredCredsConfigured, setPolyStoredCredsConfigured] = useState<boolean | null>(null);
+  const [polyStoredCredsAddress, setPolyStoredCredsAddress] = useState<string | null>(null);
+  const [polySavingStoredCreds, setPolySavingStoredCreds] = useState(false);
+  const [polyClearingStoredCreds, setPolyClearingStoredCreds] = useState(false);
+  const [polyAutoRefreshOpenOrders, setPolyAutoRefreshOpenOrders] = useState(true);
   const [polyOpenOrdersLoading, setPolyOpenOrdersLoading] = useState(false);
   const [polyOpenOrdersError, setPolyOpenOrdersError] = useState<string | null>(null);
   const [polyOpenOrders, setPolyOpenOrders] = useState<Array<{ id?: string; market?: string; outcome?: string; side?: string; original_size?: number; price?: number; status?: string; created_at?: number }>>([]);
@@ -304,7 +311,7 @@ export default function TradingBotPanel() {
   }, [polyWalletAddress]);
 
   const loadPolymarketOpenOrders = async () => {
-    if (!polyL2Address || !polyL2ApiKey || !polyL2Passphrase || !polyL2Secret) {
+    if (!polyUseStoredCreds && (!polyL2Address || !polyL2ApiKey || !polyL2Passphrase || !polyL2Secret)) {
       setPolyOpenOrdersError("Fill address + API key + passphrase + secret first.");
       return;
     }
@@ -320,6 +327,7 @@ export default function TradingBotPanel() {
           apiKey: polyL2ApiKey,
           passphrase: polyL2Passphrase,
           secret: polyL2Secret,
+          useStored: polyUseStoredCreds,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -347,6 +355,7 @@ export default function TradingBotPanel() {
           apiKey: polyL2ApiKey,
           passphrase: polyL2Passphrase,
           secret: polyL2Secret,
+          useStored: polyUseStoredCreds,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -354,6 +363,36 @@ export default function TradingBotPanel() {
       await loadPolymarketOpenOrders();
     } catch {
       setPolyOpenOrdersError("Cancel failed.");
+    } finally {
+      setPolyOpenOrdersLoading(false);
+    }
+  };
+
+  const cancelAllPolymarketOrders = async () => {
+    try {
+      setPolyOpenOrdersLoading(true);
+      setPolyOpenOrdersError(null);
+      const res = await fetch("/api/polymarket/l2-proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "cancel_all",
+          address: polyL2Address,
+          apiKey: polyL2ApiKey,
+          passphrase: polyL2Passphrase,
+          secret: polyL2Secret,
+          useStored: polyUseStoredCreds,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!(res.ok && data.success)) {
+        setPolyOpenOrdersError(data.error ?? "Cancel all failed.");
+        return;
+      }
+      await loadPolymarketOpenOrders();
+      setSuccess(`Canceled ${Number(data.cancelled ?? 0)} of ${Number(data.total ?? 0)} open orders.`);
+    } catch {
+      setPolyOpenOrdersError("Cancel all failed.");
     } finally {
       setPolyOpenOrdersLoading(false);
     }
@@ -398,11 +437,26 @@ export default function TradingBotPanel() {
     }
   }, []);
 
+  const loadUserPolymarketConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/user/polymarket-clob-config");
+      const data = await res.json().catch(() => ({}));
+      const configured = data.success && data.configured === true;
+      setPolyStoredCredsConfigured(configured);
+      setPolyStoredCredsAddress(typeof data.address === "string" ? data.address : null);
+      if (configured) setPolyUseStoredCreds(true);
+    } catch {
+      setPolyStoredCredsConfigured(null);
+      setPolyStoredCredsAddress(null);
+    }
+  }, []);
+
   const loadConfig = async () => {
     try {
       setLoading(true);
       clearFeedback();
       loadUserBlofinConfig();
+      loadUserPolymarketConfig();
       const res = await fetch("/api/admin/trading-bot");
       const data = await res.json().catch(() => ({}));
       if (data.success && data.config) {
@@ -434,6 +488,27 @@ export default function TradingBotPanel() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (botSubTab !== "polymarket") return;
+    if (!polyAutoRefreshOpenOrders) return;
+    const hasManual = !!polyL2Address && !!polyL2ApiKey && !!polyL2Passphrase && !!polyL2Secret;
+    const hasStored = polyUseStoredCreds && polyStoredCredsConfigured === true;
+    if (!hasManual && !hasStored) return;
+    const timer = setInterval(() => {
+      void loadPolymarketOpenOrders();
+    }, 20000);
+    return () => clearInterval(timer);
+  }, [
+    botSubTab,
+    polyAutoRefreshOpenOrders,
+    polyL2Address,
+    polyL2ApiKey,
+    polyL2Passphrase,
+    polyL2Secret,
+    polyUseStoredCreds,
+    polyStoredCredsConfigured,
+  ]);
 
   useEffect(() => {
     loadConfig();
@@ -1227,8 +1302,31 @@ export default function TradingBotPanel() {
               <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
                 <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Live Open Orders (CLOB auth)</p>
                 <p className="text-xs text-muted-foreground">
-                  Paste your Polymarket API credentials (L2) to load/cancel open orders directly in NovaStaris. Credentials are used for this request only.
+                  Save your Polymarket API credentials once (encrypted at rest), or paste manually for this session.
                 </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={polyUseStoredCreds}
+                      onChange={(e) => setPolyUseStoredCreds(e.target.checked)}
+                      className="rounded"
+                    />
+                    Use saved encrypted credentials
+                  </label>
+                  <Badge variant={polyStoredCredsConfigured ? "default" : "outline"}>
+                    {polyStoredCredsConfigured ? `Saved${polyStoredCredsAddress ? ` (${polyStoredCredsAddress.slice(0, 6)}...${polyStoredCredsAddress.slice(-4)})` : ""}` : "Not saved"}
+                  </Badge>
+                  <label className="inline-flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={polyAutoRefreshOpenOrders}
+                      onChange={(e) => setPolyAutoRefreshOpenOrders(e.target.checked)}
+                      className="rounded"
+                    />
+                    Auto-refresh every 20s
+                  </label>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input type="text" value={polyL2Address} onChange={(e) => setPolyL2Address(e.target.value)} placeholder="POLY_ADDRESS (0x...)" className="h-8 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-xs" />
                   <input type="text" value={polyL2ApiKey} onChange={(e) => setPolyL2ApiKey(e.target.value)} placeholder="POLY_API_KEY" className="h-8 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-xs" />
@@ -1236,8 +1334,71 @@ export default function TradingBotPanel() {
                   <input type="password" value={polyL2Secret} onChange={(e) => setPolyL2Secret(e.target.value)} placeholder="POLY_SECRET (base64)" className="h-8 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-xs" />
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={polySavingStoredCreds || (!polyL2Address || !polyL2ApiKey || !polyL2Passphrase || !polyL2Secret)}
+                    onClick={async () => {
+                      setPolySavingStoredCreds(true);
+                      try {
+                        const res = await fetch("/api/user/polymarket-clob-config", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            address: polyL2Address,
+                            apiKey: polyL2ApiKey,
+                            passphrase: polyL2Passphrase,
+                            secret: polyL2Secret,
+                          }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok && data.success) {
+                          setPolyStoredCredsConfigured(true);
+                          setPolyStoredCredsAddress(typeof data.address === "string" ? data.address : polyL2Address);
+                          setPolyUseStoredCreds(true);
+                          setSuccess("Polymarket credentials saved (encrypted).");
+                          setPolyL2ApiKey("");
+                          setPolyL2Passphrase("");
+                          setPolyL2Secret("");
+                        } else {
+                          setPolyOpenOrdersError(data.error ?? "Could not save credentials.");
+                        }
+                      } finally {
+                        setPolySavingStoredCreds(false);
+                      }
+                    }}
+                  >
+                    {polySavingStoredCreds ? "Saving..." : "Save encrypted creds"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={polyClearingStoredCreds}
+                    onClick={async () => {
+                      setPolyClearingStoredCreds(true);
+                      try {
+                        const res = await fetch("/api/user/polymarket-clob-config", { method: "DELETE" });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok && data.success) {
+                          setPolyStoredCredsConfigured(false);
+                          setPolyStoredCredsAddress(null);
+                          setPolyUseStoredCreds(false);
+                          setSuccess("Saved Polymarket credentials cleared.");
+                        }
+                      } finally {
+                        setPolyClearingStoredCreds(false);
+                      }
+                    }}
+                  >
+                    {polyClearingStoredCreds ? "Clearing..." : "Clear saved creds"}
+                  </Button>
                   <Button type="button" size="sm" variant="outline" onClick={loadPolymarketOpenOrders} disabled={polyOpenOrdersLoading}>
                     {polyOpenOrdersLoading ? "Loading…" : "Load open orders"}
+                  </Button>
+                  <Button type="button" size="sm" variant="destructive" onClick={cancelAllPolymarketOrders} disabled={polyOpenOrdersLoading}>
+                    {polyOpenOrdersLoading ? "Working..." : "Cancel all"}
                   </Button>
                 </div>
                 {polyOpenOrdersError && <p className="text-xs text-rose-600 dark:text-rose-400">{polyOpenOrdersError}</p>}

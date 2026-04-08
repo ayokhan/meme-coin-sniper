@@ -130,6 +130,7 @@ model User {
   userLeverageWallets  UserLeverageWallet[]
   userMemeCoinWallets  UserMemeCoinWallet[]
   userBlofinConfig     UserBlofinConfig?
+  userPolymarketConfig UserPolymarketConfig?
   perpAlerts           PerpAlert[]
   /** Eligible (e.g. VIP) users can set 2–5; alert when this many tracked wallets buy same token. */
   walletTrackerMinBuyers Int?
@@ -166,6 +167,19 @@ model UserBlofinConfig {
   brokerId             String?
   updatedAt            DateTime @updatedAt
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+// Per-user Polymarket CLOB L2 API credentials (encrypted at rest).
+model UserPolymarketConfig {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  address             String   // POLY_ADDRESS (0x...)
+  encryptedApiKey     String
+  encryptedPassphrase String
+  encryptedSecret     String
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
 }
 
