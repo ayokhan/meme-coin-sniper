@@ -27,6 +27,8 @@ export type MemeSniperConfig = {
   snipeNewLaunches: boolean;
   copyLeaderWallets: string;
   copyMirrorEntry: boolean;
+  /** When copy mirroring is connected server-side: auto-submit swaps vs queue for Phantom approval. */
+  copyEntryMode: "auto_snipe" | "manual_approve";
   copyExitStrategy: "fixed_tp" | "before_leader_sells";
   copyTakeProfitPct: string;
   copyFrontRunMinProfitPct: string;
@@ -68,6 +70,7 @@ const DEFAULT_MEME: MemeSniperConfig = {
   snipeNewLaunches: true,
   copyLeaderWallets: "",
   copyMirrorEntry: true,
+  copyEntryMode: "manual_approve",
   copyExitStrategy: "before_leader_sells",
   copyTakeProfitPct: "25",
   copyFrontRunMinProfitPct: "12",
@@ -137,7 +140,7 @@ const DEFAULT_PERPS: PerpsPrefs = {
 };
 
 export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletShort?: string | null }) {
-  const [ultimateSub, setUltimateSub] = useState<"meme" | "terminal" | "perps">("meme");
+  const [ultimateSub, setUltimateSub] = useState<"meme" | "perps">("meme");
   const [meme, setMeme] = useState<MemeSniperConfig>(DEFAULT_MEME);
   const [perps, setPerps] = useState<PerpsPrefs>(DEFAULT_PERPS);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -280,19 +283,16 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
             <Badge className="bg-amber-500/90 text-white border-0">Live-ready</Badge>
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Meme sniping via Jupiter with Phantom signatures, plus Phantom Terminal workflow notes and Phantom Perps watchlists. You always approve the final transaction in Phantom.
+            Meme sniping via Jupiter with Phantom signatures and Phantom Perps playbooks. Full auto-scan (discover + buy without you pasting a mint) is not wired in this app yet—use live snipe with a mint, or copy-trading settings below for when automation is connected.
           </p>
         </div>
       </div>
 
-      <Tabs value={ultimateSub} onValueChange={(v) => setUltimateSub(v as "meme" | "terminal" | "perps")} className="space-y-4">
+      <Tabs value={ultimateSub} onValueChange={(v) => setUltimateSub(v as "meme" | "perps")} className="space-y-4">
         <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
           <TabsTrigger value="meme" className={tabHot}>
             <Flame className="h-4 w-4 shrink-0 animate-flame-flicker" aria-hidden />
             NovaMeme Sniper
-          </TabsTrigger>
-          <TabsTrigger value="terminal" className={tabHot}>
-            Phantom Terminal
           </TabsTrigger>
           <TabsTrigger value="perps" className={tabHot}>
             <Flame className="h-4 w-4 shrink-0 animate-flame-flicker" aria-hidden />
@@ -312,8 +312,11 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Uses your saved <strong>max entry (SOL)</strong> and <strong>slippage (bps)</strong> from the template below. Flow: quote → Phantom signs → broadcast to Solana mainnet (
-                {DEFAULT_RPC.slice(0, 28)}…).
+                Uses your saved <strong>max entry (SOL)</strong> and <strong>slippage (bps)</strong> from the template below. Flow: quote → Phantom signs → broadcast to RPC{" "}
+                {DEFAULT_RPC.slice(0, 28)}…
+              </p>
+              <p className="text-xs text-amber-800/90 dark:text-amber-200/85 rounded-md border border-amber-200/60 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/25 px-2 py-1.5">
+                <strong>Snipe mode</strong> in templates only adjusts risk numbers. It does <strong>not</strong> run a background scanner—NovaStaris would need a chain/indexer worker plus signing policy (Phantom popup vs custodial) to buy new launches by itself.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
@@ -491,7 +494,7 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                   onChange={(e) => setMeme((m) => ({ ...m, snipeNewLaunches: e.target.checked }))}
                   className="rounded"
                 />
-                Strategy allows sniping newly launched pairs (within age & liquidity gates)
+                Prefer newly launched pairs when rules apply (age & liquidity gates)—for future auto-watchers; does not start scanning by itself today
               </label>
 
               <Card className="border-dashed border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-900/30">
@@ -500,7 +503,7 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                 </CardHeader>
                 <CardContent className="space-y-3 pt-0">
                   <p className="text-xs text-muted-foreground">
-                    Configure leaders here; automated mirroring still requires watcher infrastructure. Use live snipe above for immediate buys you approve manually.
+                    Configure leaders here. On-chain copy execution still needs a watcher service; these flags tell that service how to behave once it exists.
                   </p>
                   <div>
                     <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Leader wallet addresses (comma or newline)</label>
@@ -521,6 +524,41 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                     />
                     Mirror entries on leader buy signals (when automation is connected)
                   </label>
+                  <div>
+                    <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">Copy entry execution</p>
+                    <div className="flex flex-col gap-2 text-sm">
+                      <label className="inline-flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="copyEntryMode"
+                          className="mt-1 rounded-full"
+                          checked={meme.copyEntryMode === "manual_approve"}
+                          onChange={() => setMeme((m) => ({ ...m, copyEntryMode: "manual_approve" }))}
+                        />
+                        <span>
+                          <span className="font-medium text-zinc-800 dark:text-zinc-200">Manual approval</span>
+                          <span className="block text-xs text-muted-foreground">
+                            Queue each copy-buy for you to confirm in Phantom (recommended). Matches today’s live snipe flow when you act on alerts.
+                          </span>
+                        </span>
+                      </label>
+                      <label className="inline-flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="copyEntryMode"
+                          className="mt-1 rounded-full"
+                          checked={meme.copyEntryMode === "auto_snipe"}
+                          onChange={() => setMeme((m) => ({ ...m, copyEntryMode: "auto_snipe" }))}
+                        />
+                        <span>
+                          <span className="font-medium text-zinc-800 dark:text-zinc-200">Automatic snipe</span>
+                          <span className="block text-xs text-muted-foreground">
+                            Attempt swap as soon as the leader buy passes your gates (requires a backend signer or pre-approved automation—not available in-browser-only Phantom flows).
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
                   <div>
                     <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Exit preference</label>
                     <select
@@ -566,25 +604,13 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
               <p className="text-[11px] text-muted-foreground">
                 NovaStaris sign-in wallet: {solanaWalletShort ?? "—"} · Live snipe uses Phantom’s connected key for signing (can match your login wallet).
               </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        <TabsContent value="terminal" className="mt-0 space-y-4">
-          <Card className="border-zinc-200/80 dark:border-zinc-700/80">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">Phantom Terminal</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                Use Phantom Terminal for charting and execution alongside NovaStaris. Strategies you save here complement manual or assisted trades—your keys stay in Phantom.
-              </p>
-              <ol className="list-decimal pl-5 space-y-2">
-                <li>Open the Phantom extension or mobile app and navigate to <strong className="text-zinc-800 dark:text-zinc-200">Terminal</strong> (or the latest trading hub from Phantom).</li>
-                <li>Prefer the same Solana wallet you use for NovaStaris so balances and risk limits stay consistent.</li>
-                <li>For meme spot snipes on-chain, use the <strong className="text-zinc-800 dark:text-zinc-200">NovaMeme Sniper</strong> live strip above; Terminal remains ideal for review and follow-up exits.</li>
-              </ol>
-              <p className="text-xs text-amber-800 dark:text-amber-200/90">NovaStaris never custodies funds. Decline any transaction you do not fully understand.</p>
+              <details className="rounded-md border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/40 dark:bg-zinc-900/30 px-3 py-2 text-xs text-muted-foreground">
+                <summary className="cursor-pointer font-medium text-zinc-700 dark:text-zinc-300">Phantom Terminal (charts in Phantom)</summary>
+                <p className="mt-2">
+                  Open Phantom’s <strong className="text-zinc-800 dark:text-zinc-200">Terminal</strong> for charts and spot/perp review; keep the same wallet as here when possible. NovaStaris does not host Terminal—it’s a pointer so you know where to manage exits after a snipe.
+                </p>
+              </details>
             </CardContent>
           </Card>
         </TabsContent>

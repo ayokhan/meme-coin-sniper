@@ -5433,7 +5433,7 @@ export default function Dashboard() {
                     <div className="mx-3 sm:mx-6 mt-4 mb-3">
                       <p className="text-sm text-muted-foreground mb-3">
                         <Flame className="inline-block h-4 w-4 mr-1 flame-hot-tab -mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden />
-                        Nova Ultimate: Jupiter-powered live snipes with Phantom, Phantom Terminal steps, and a Phantom Perps playbook. VIP on demand.
+                        Nova Ultimate: Jupiter-powered live snipes with Phantom, copy-trade prefs, and a Phantom Perps playbook. VIP on demand.
                       </p>
                       <NovaUltimatePanel
                         solanaWalletShort={
