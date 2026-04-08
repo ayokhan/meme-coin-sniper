@@ -112,6 +112,9 @@ export default function TradingBotPanel() {
   const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
   const [polyKeyword, setPolyKeyword] = useState("bitcoin");
   const [polyBankroll, setPolyBankroll] = useState("1000");
+  const [polyMode, setPolyMode] = useState<"demo" | "live">("demo");
+  const [polyWalletConnected, setPolyWalletConnected] = useState(false);
+  const [polyCopyMode, setPolyCopyMode] = useState<"exact" | "scaled">("exact");
   const [polyCopyWallets, setPolyCopyWallets] = useState("");
   const [polyLoading, setPolyLoading] = useState(false);
   const [polyError, setPolyError] = useState<string | null>(null);
@@ -122,7 +125,13 @@ export default function TradingBotPanel() {
     summary: string;
     markets: PolymarketMarket[];
     institutionalHint: string;
-    copyPlan: { wallet: string; allocationUsd: number | null; note: string }[];
+    copyPlan: { wallet: string; allocationUsd: number | null; copyMode: "exact" | "scaled"; note: string }[];
+    execution: {
+      mode: "demo" | "live";
+      walletConnected: boolean;
+      readyForLive: boolean;
+      loginHint: string;
+    };
     riskNote: string;
   } | null>(null);
 
@@ -645,6 +654,9 @@ export default function TradingBotPanel() {
         body: JSON.stringify({
           keyword,
           bankroll: Number(polyBankroll),
+          mode: polyMode,
+          walletConnected: polyWalletConnected,
+          copyMode: polyCopyMode,
           copyWallets: polyCopyWallets,
         }),
       });
@@ -694,7 +706,7 @@ export default function TradingBotPanel() {
             value="polymarket"
             className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
           >
-            Polymarket Bot (VIP)
+            Nova Polymarket Bot
           </TabsTrigger>
         </TabsList>
 
@@ -709,12 +721,12 @@ export default function TradingBotPanel() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Scan active Polymarket narratives, estimate directional bias, and build a copy-trader allocation plan. Use this as decision support and execute directly on Polymarket.
+                Scan active Polymarket narratives, estimate directional bias, and build a copy-trader plan with Demo/Live mode. Live mode requires wallet login.
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-300">
                 No AI can guarantee wins. This copilot improves process, not certainty.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Market keyword</label>
                   <input
@@ -736,10 +748,43 @@ export default function TradingBotPanel() {
                     className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Mode</label>
+                  <select
+                    value={polyMode}
+                    onChange={(e) => setPolyMode(e.target.value as "demo" | "live")}
+                    className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                  >
+                    <option value="demo">Demo</option>
+                    <option value="live">Live</option>
+                  </select>
+                </div>
                 <div className="flex items-end">
                   <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full">
                     {polyLoading ? "Running…" : "Run Polymarket Copilot"}
                   </Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={polyWalletConnected}
+                    onChange={(e) => setPolyWalletConnected(e.target.checked)}
+                    className="rounded"
+                  />
+                  Wallet logged in
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-600 dark:text-zinc-400">Copy mode</span>
+                  <select
+                    value={polyCopyMode}
+                    onChange={(e) => setPolyCopyMode(e.target.value as "exact" | "scaled")}
+                    className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm"
+                  >
+                    <option value="exact">Exact copy</option>
+                    <option value="scaled">Scaled copy</option>
+                  </select>
                 </div>
               </div>
               <div>
@@ -759,6 +804,12 @@ export default function TradingBotPanel() {
                     <p className="text-sm font-medium">Direction: <span className="capitalize">{polyResult.direction}</span> ({polyResult.confidence})</p>
                     <p className="text-xs text-muted-foreground mt-1">{polyResult.summary}</p>
                     <p className="text-xs text-muted-foreground mt-1">{polyResult.institutionalHint}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Mode: <strong className="capitalize">{polyResult.execution.mode}</strong> · Wallet: {polyResult.execution.walletConnected ? "Connected" : "Not connected"}
+                    </p>
+                    <p className={`text-xs mt-1 ${polyResult.execution.readyForLive ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"}`}>
+                      {polyResult.execution.loginHint}
+                    </p>
                   </div>
                   {polyResult.markets.length > 0 && (
                     <div className="space-y-2">
@@ -780,7 +831,7 @@ export default function TradingBotPanel() {
                       <p className="text-sm font-medium mb-1">Copy-trader allocation plan</p>
                       {polyResult.copyPlan.map((c, i) => (
                         <p key={`${c.wallet}-${i}`} className="text-xs text-muted-foreground">
-                          {c.wallet}: {c.allocationUsd != null ? `$${c.allocationUsd}` : "—"} · {c.note}
+                          {c.wallet}: {c.allocationUsd != null ? `$${c.allocationUsd}` : "—"} · {c.copyMode === "exact" ? "Exact" : "Scaled"} · {c.note}
                         </p>
                       ))}
                     </div>

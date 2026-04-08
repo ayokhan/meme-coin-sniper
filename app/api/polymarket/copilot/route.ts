@@ -47,6 +47,9 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const keyword = String(body.keyword ?? "").trim();
     const bankroll = n(body.bankroll);
+    const mode = String(body.mode ?? "demo").toLowerCase() === "live" ? "live" : "demo";
+    const walletConnected = !!body.walletConnected;
+    const copyMode = String(body.copyMode ?? "exact").toLowerCase() === "exact" ? "exact" : "scaled";
     const walletsRaw = String(body.copyWallets ?? "");
     const wallets = walletsRaw
       .split(/[\n,\s]+/)
@@ -92,8 +95,14 @@ export async function POST(request: Request) {
     const copyPlan = wallets.length > 0
       ? wallets.map((w, i) => ({
           wallet: w,
-          allocationUsd: bankroll > 0 ? Math.round((bankroll * 0.7) / wallets.length) : null,
-          note: i < 2 ? "Primary copy-trader slot" : "Secondary slot (reduced confidence)",
+          allocationUsd: bankroll > 0 ? Math.round((bankroll * (copyMode === "exact" ? 0.85 : 0.7)) / wallets.length) : null,
+          copyMode,
+          note:
+            copyMode === "exact"
+              ? "Exact copy requested: mirror side and market; size is capped by your risk settings."
+              : i < 2
+                ? "Primary copy-trader slot"
+                : "Secondary slot (reduced confidence)",
         }))
       : [];
 
@@ -109,6 +118,14 @@ export async function POST(request: Request) {
         markets,
         institutionalHint: "Higher-liquidity markets usually reflect larger and more informed flow. Prioritize markets with deeper liquidity and tighter pricing.",
         copyPlan,
+        execution: {
+          mode,
+          walletConnected,
+          readyForLive: mode === "live" && walletConnected,
+          loginHint: walletConnected
+            ? "Wallet connected. You can execute from NovaStaris when trading keys/session are active."
+            : "Connect your wallet to enable live order execution from NovaStaris.",
+        },
         riskNote: "No bot can guarantee wins. Use strict sizing, diversify across uncorrelated events, and avoid all-in exposure.",
       },
     });
