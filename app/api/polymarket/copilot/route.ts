@@ -1,0 +1,121 @@
+import { NextResponse } from "next/server";
+import { getSessionAndSubscription } from "@/lib/auth-server";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 45;
+
+type GammaMarket = {
+  question?: string;
+  volume?: number | string;
+  liquidity?: number | string;
+  endDate?: string;
+  slug?: string;
+  clobTokenIds?: string;
+  outcomes?: string;
+  outcomePrices?: string;
+};
+
+function n(v: unknown): number {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+}
+
+function parseOutcomeState(m: GammaMarket): { bestOutcome: string; confidencePct: number; direction: "bullish" | "bearish" | "mixed" } {
+  const outcomes = typeof m.outcomes === "string" ? JSON.parse(m.outcomes) as string[] : [];
+  const prices = typeof m.outcomePrices === "string" ? JSON.parse(m.outcomePrices).map((x: string) => Number(x)) as number[] : [];
+  if (!Array.isArray(outcomes) || !Array.isArray(prices) || outcomes.length === 0 || outcomes.length !== prices.length) {
+    return { bestOutcome: "Unknown", confidencePct: 0, direction: "mixed" };
+  }
+  let idx = 0;
+  for (let i = 1; i < prices.length; i++) if ((prices[i] ?? 0) > (prices[idx] ?? 0)) idx = i;
+  const best = outcomes[idx] ?? "Unknown";
+  const conf = Math.max(0, Math.min(100, Math.round((prices[idx] ?? 0) * 100)));
+  const low = best.toLowerCase();
+  let direction: "bullish" | "bearish" | "mixed" = "mixed";
+  if (/\b(yes|up|rise|higher|increase|win|approve)\b/.test(low)) direction = "bullish";
+  if (/\b(no|down|fall|lower|decrease|lose|reject)\b/.test(low)) direction = direction === "bullish" ? "mixed" : "bearish";
+  return { bestOutcome: best, confidencePct: conf, direction };
+}
+
+export async function POST(request: Request) {
+  try {
+    const { tier } = await getSessionAndSubscription();
+    if (tier !== "vip") {
+      return NextResponse.json({ success: false, locked: true, error: "Polymarket bot is VIP only." }, { status: 403 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const keyword = String(body.keyword ?? "").trim();
+    const bankroll = n(body.bankroll);
+    const walletsRaw = String(body.copyWallets ?? "");
+    const wallets = walletsRaw
+      .split(/[\n,\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 10);
+
+    if (!keyword) {
+      return NextResponse.json({ success: false, error: "Enter a market keyword (e.g. election, fed, bitcoin)." }, { status: 400 });
+    }
+
+    const url = `https://gamma-api.polymarket.com/markets?closed=false&active=true&limit=150`;
+    const res = await fetch(url, { cache: "no-store" });
+    const all = (await res.json().catch(() => [])) as GammaMarket[];
+    const k = keyword.toLowerCase();
+    const filtered = (Array.isArray(all) ? all : [])
+      .filter((m) => (m.question ?? "").toLowerCase().includes(k))
+      .sort((a, b) => (n(b.volume) + n(b.liquidity)) - (n(a.volume) + n(a.liquidity)))
+      .slice(0, 8);
+
+    const markets = filtered.map((m) => {
+      const parsed = parseOutcomeState(m);
+      return {
+        question: m.question ?? "Untitled market",
+        volume: n(m.volume),
+        liquidity: n(m.liquidity),
+        endDate: m.endDate ?? null,
+        url: m.slug ? `https://polymarket.com/event/${m.slug}` : "https://polymarket.com",
+        bestOutcome: parsed.bestOutcome,
+        confidencePct: parsed.confidencePct,
+        direction: parsed.direction,
+      };
+    });
+
+    let bullish = 0;
+    let bearish = 0;
+    for (const m of markets) {
+      if (m.direction === "bullish") bullish++;
+      if (m.direction === "bearish") bearish++;
+    }
+    const direction: "bullish" | "bearish" | "mixed" = bullish === bearish ? "mixed" : bullish > bearish ? "bullish" : "bearish";
+
+    const copyPlan = wallets.length > 0
+      ? wallets.map((w, i) => ({
+          wallet: w,
+          allocationUsd: bankroll > 0 ? Math.round((bankroll * 0.7) / wallets.length) : null,
+          note: i < 2 ? "Primary copy-trader slot" : "Secondary slot (reduced confidence)",
+        }))
+      : [];
+
+    return NextResponse.json({
+      success: true,
+      result: {
+        keyword,
+        direction,
+        confidence: markets.length === 0 ? "low" : Math.max(bullish, bearish) >= 5 ? "high" : Math.max(bullish, bearish) >= 3 ? "medium" : "low",
+        summary: markets.length === 0
+          ? "No active Polymarket matches found for this keyword."
+          : `Scanned ${markets.length} active markets for "${keyword}". Directional lean is ${direction} based on top-liquidity market pricing and Yes/No outcome skew.`,
+        markets,
+        institutionalHint: "Higher-liquidity markets usually reflect larger and more informed flow. Prioritize markets with deeper liquidity and tighter pricing.",
+        copyPlan,
+        riskNote: "No bot can guarantee wins. Use strict sizing, diversify across uncorrelated events, and avoid all-in exposure.",
+      },
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Polymarket copilot failed";
+    console.error("polymarket/copilot:", e);
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
+

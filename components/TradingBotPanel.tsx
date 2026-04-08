@@ -50,6 +50,16 @@ type Config = {
 };
 
 type SuggestedClose = { instId: string; posSide: "long" | "short" | "net"; reason: string };
+type PolymarketMarket = {
+  question: string;
+  volume: number;
+  liquidity: number;
+  endDate: string | null;
+  url: string;
+  bestOutcome: string;
+  confidencePct: number;
+  direction: "bullish" | "bearish" | "mixed";
+};
 
 export default function TradingBotPanel() {
   const [config, setConfig] = useState<Config | null>(null);
@@ -99,7 +109,22 @@ export default function TradingBotPanel() {
   const [clearingBlofinKeys, setClearingBlofinKeys] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
-  const [botSubTab, setBotSubTab] = useState<"ai" | "scalper">("ai");
+  const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
+  const [polyKeyword, setPolyKeyword] = useState("bitcoin");
+  const [polyBankroll, setPolyBankroll] = useState("1000");
+  const [polyCopyWallets, setPolyCopyWallets] = useState("");
+  const [polyLoading, setPolyLoading] = useState(false);
+  const [polyError, setPolyError] = useState<string | null>(null);
+  const [polyResult, setPolyResult] = useState<{
+    keyword: string;
+    direction: "bullish" | "bearish" | "mixed";
+    confidence: "low" | "medium" | "high";
+    summary: string;
+    markets: PolymarketMarket[];
+    institutionalHint: string;
+    copyPlan: { wallet: string; allocationUsd: number | null; note: string }[];
+    riskNote: string;
+  } | null>(null);
 
   const formatLocalTime = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : null;
@@ -605,6 +630,39 @@ export default function TradingBotPanel() {
     }
   };
 
+  const runPolymarketCopilot = async () => {
+    const keyword = polyKeyword.trim();
+    if (!keyword) {
+      setPolyError("Enter a keyword, e.g. bitcoin, fed, election.");
+      return;
+    }
+    try {
+      setPolyLoading(true);
+      setPolyError(null);
+      const res = await fetch("/api/polymarket/copilot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          keyword,
+          bankroll: Number(polyBankroll),
+          copyWallets: polyCopyWallets,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.success && data.result) {
+        setPolyResult(data.result);
+      } else {
+        setPolyResult(null);
+        setPolyError(data.error ?? "Failed to run Polymarket copilot.");
+      }
+    } catch {
+      setPolyResult(null);
+      setPolyError("Failed to run Polymarket copilot.");
+    } finally {
+      setPolyLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="mx-6 py-8">
@@ -618,7 +676,7 @@ export default function TradingBotPanel() {
       <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
         NovaStaris Trading Bot (Crypto Futures)
       </h2>
-      <Tabs value={botSubTab} onValueChange={(v) => setBotSubTab(v as "ai" | "scalper")} className="space-y-4">
+      <Tabs value={botSubTab} onValueChange={(v) => setBotSubTab(v as "ai" | "scalper" | "polymarket")} className="space-y-4">
         <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
           <TabsTrigger
             value="ai"
@@ -632,10 +690,106 @@ export default function TradingBotPanel() {
           >
             NovaScalper
           </TabsTrigger>
+          <TabsTrigger
+            value="polymarket"
+            className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+          >
+            Polymarket Bot (VIP)
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="scalper" className="mt-0 space-y-4">
           <NovaScalperPanel />
+        </TabsContent>
+
+        <TabsContent value="polymarket" className="mt-0 space-y-4">
+          <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">NovaStaris Polymarket Copilot (VIP)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Scan active Polymarket narratives, estimate directional bias, and build a copy-trader allocation plan. Use this as decision support and execute directly on Polymarket.
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                No AI can guarantee wins. This copilot improves process, not certainty.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Market keyword</label>
+                  <input
+                    type="text"
+                    value={polyKeyword}
+                    onChange={(e) => setPolyKeyword(e.target.value)}
+                    placeholder="e.g. bitcoin, election, fed"
+                    className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Bankroll ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={polyBankroll}
+                    onChange={(e) => setPolyBankroll(e.target.value)}
+                    className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full">
+                    {polyLoading ? "Running…" : "Run Polymarket Copilot"}
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Copy-trader wallets (optional, comma/newline separated)</label>
+                <textarea
+                  value={polyCopyWallets}
+                  onChange={(e) => setPolyCopyWallets(e.target.value)}
+                  placeholder="0xabc..., 0xdef..."
+                  rows={3}
+                  className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                />
+              </div>
+              {polyError && <p className="text-sm text-rose-600 dark:text-rose-400">{polyError}</p>}
+              {polyResult && (
+                <div className="space-y-3">
+                  <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-900/40">
+                    <p className="text-sm font-medium">Direction: <span className="capitalize">{polyResult.direction}</span> ({polyResult.confidence})</p>
+                    <p className="text-xs text-muted-foreground mt-1">{polyResult.summary}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{polyResult.institutionalHint}</p>
+                  </div>
+                  {polyResult.markets.length > 0 && (
+                    <div className="space-y-2">
+                      {polyResult.markets.map((m, i) => (
+                        <div key={`${m.url}-${i}`} className="rounded border border-zinc-200 dark:border-zinc-700 p-2 text-sm">
+                          <p className="font-medium">{m.question}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Outcome lead: {m.bestOutcome} ({m.confidencePct}%) · Vol ${m.volume.toLocaleString()} · Liq ${m.liquidity.toLocaleString()}
+                          </p>
+                          <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">
+                            Trade this market on Polymarket
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {polyResult.copyPlan.length > 0 && (
+                    <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-900/40">
+                      <p className="text-sm font-medium mb-1">Copy-trader allocation plan</p>
+                      {polyResult.copyPlan.map((c, i) => (
+                        <p key={`${c.wallet}-${i}`} className="text-xs text-muted-foreground">
+                          {c.wallet}: {c.allocationUsd != null ? `$${c.allocationUsd}` : "—"} · {c.note}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-amber-700 dark:text-amber-300">{polyResult.riskNote}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="ai" className="mt-0 space-y-6">
