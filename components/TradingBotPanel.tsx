@@ -181,6 +181,7 @@ export default function TradingBotPanel() {
   const [polyOpenOrdersLoading, setPolyOpenOrdersLoading] = useState(false);
   const [polyOpenOrdersError, setPolyOpenOrdersError] = useState<string | null>(null);
   const [polyOpenOrders, setPolyOpenOrders] = useState<Array<{ id?: string; market?: string; outcome?: string; side?: string; original_size?: number; price?: number; status?: string; created_at?: number }>>([]);
+  const [polyOpenOrdersLastLoadedAt, setPolyOpenOrdersLastLoadedAt] = useState<string | null>(null);
   const [polyLoading, setPolyLoading] = useState(false);
   const [polyError, setPolyError] = useState<string | null>(null);
   const [polyResult, setPolyResult] = useState<{
@@ -331,7 +332,10 @@ export default function TradingBotPanel() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) setPolyOpenOrders(Array.isArray(data.orders) ? data.orders : []);
+      if (res.ok && data.success) {
+        setPolyOpenOrders(Array.isArray(data.orders) ? data.orders : []);
+        setPolyOpenOrdersLastLoadedAt(new Date().toISOString());
+      }
       else setPolyOpenOrdersError(data.error ?? "Failed to load open orders.");
     } catch {
       setPolyOpenOrdersError("Failed to load open orders.");
@@ -1402,6 +1406,12 @@ export default function TradingBotPanel() {
                   </Button>
                 </div>
                 {polyOpenOrdersError && <p className="text-xs text-rose-600 dark:text-rose-400">{polyOpenOrdersError}</p>}
+                {polyOpenOrdersLastLoadedAt && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Last synced: {new Date(polyOpenOrdersLastLoadedAt).toLocaleString()}
+                    {polyAutoRefreshOpenOrders ? " (auto-refresh on)" : ""}
+                  </p>
+                )}
                 {polyOpenOrders.length > 0 && (
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {polyOpenOrders.map((o, i) => (
