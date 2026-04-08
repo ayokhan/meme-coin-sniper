@@ -812,8 +812,8 @@ export default function TradingBotPanel() {
                 No AI can guarantee wins. This copilot improves process, not certainty.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Market keyword</label>
+                <div className="flex flex-col">
+                  <label className="h-4 block text-xs font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Market keyword</label>
                   <input
                     type="text"
                     value={polyKeyword}
@@ -822,8 +822,8 @@ export default function TradingBotPanel() {
                     className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Bankroll ($)</label>
+                <div className="flex flex-col">
+                  <label className="h-4 block text-xs font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Bankroll ($)</label>
                   <input
                     type="number"
                     min="0"
@@ -833,8 +833,8 @@ export default function TradingBotPanel() {
                     className="h-9 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Mode</label>
+                <div className="flex flex-col">
+                  <label className="h-4 block text-xs font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Mode</label>
                   <select
                     value={polyMode}
                     onChange={(e) => setPolyMode(e.target.value as "demo" | "live")}
@@ -844,9 +844,9 @@ export default function TradingBotPanel() {
                     <option value="live">Live</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Action</label>
-                  <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full h-9 py-0">
+                <div className="flex flex-col">
+                  <label className="h-4 block text-xs font-medium leading-4 text-zinc-600 dark:text-zinc-400 mb-1">Action</label>
+                  <Button onClick={runPolymarketCopilot} disabled={polyLoading} className="bg-cyan-500 hover:bg-cyan-600 text-white w-full h-9 py-0 align-middle">
                     {polyLoading ? "Running…" : "Run Polymarket Copilot"}
                   </Button>
                 </div>
