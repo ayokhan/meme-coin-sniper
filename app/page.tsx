@@ -3535,6 +3535,7 @@ export default function Dashboard() {
                             <TableHead className="text-right text-xs">1h %</TableHead>
                             <TableHead className="text-right text-xs">4h %</TableHead>
                             <TableHead className="text-right text-xs">24h %</TableHead>
+                            <TableHead className="text-center text-xs" title="Direction bias from short-window momentum + 24h trend">Direction</TableHead>
                             <TableHead className="text-right text-xs">Price</TableHead>
                             <TableHead className="text-right text-xs" title="24h quote volume">24h Vol</TableHead>
                             <TableHead className="text-center text-xs w-20" title="On-demand NovaStaris AI signal (subscribers)">AI Signal</TableHead>
@@ -3549,22 +3550,38 @@ export default function Dashboard() {
                               const pct30m = p.pct30m ?? 0;
                               const pct1h = p.pct1h ?? 0;
                               const vol = p.quoteVolume24h ?? 0;
+                              const intradayAvailable = [p.pct5m, p.pct15m, p.pct30m, p.pct1h, p.pct4h].filter((v) => v != null).length;
                               if (perpRadarPreset === "all") return true;
                               if (perpRadarPreset === "24h_up") return p.change24hPct > 0;
                               if (perpRadarPreset === "24h_down") return p.change24hPct < 0;
                               if (perpRadarPreset === "momentum_bull") {
-                                return pct5m >= 1.2 && pct15m >= 2.2 && pct1h >= 4 && p.change24hPct > 0 && vol >= 500_000;
+                                return (
+                                  (pct1h >= 2 || pct30m >= 1.5 || pct15m >= 1 || pct5m >= 0.6) &&
+                                  p.change24hPct > 0.8 &&
+                                  vol >= 120_000 &&
+                                  intradayAvailable >= 1
+                                );
                               }
                               if (perpRadarPreset === "momentum_bear") {
-                                return pct5m <= -1.2 && pct15m <= -2.2 && pct1h <= -4 && p.change24hPct < 0 && vol >= 500_000;
+                                return (
+                                  (pct1h <= -2 || pct30m <= -1.5 || pct15m <= -1 || pct5m <= -0.6) &&
+                                  p.change24hPct < -0.8 &&
+                                  vol >= 120_000 &&
+                                  intradayAvailable >= 1
+                                );
                               }
                               // fresh_accel: recent speed-up with enough liquidity
                               return (
-                                Math.abs(pct5m) >= 1 &&
-                                Math.abs(pct15m) >= 2 &&
-                                Math.abs(pct30m) >= 3 &&
-                                Math.abs(pct5m) >= Math.abs(pct15m) * 0.35 &&
-                                vol >= 300_000
+                                (
+                                  (Math.abs(pct5m) >= 0.6 && Math.abs(pct15m) >= 1.2) ||
+                                  Math.abs(pct30m) >= 2 ||
+                                  Math.abs(pct1h) >= 3
+                                ) &&
+                                (
+                                  intradayAvailable >= 2 ||
+                                  (Math.abs(p.change24hPct) >= 10 && vol >= 400_000)
+                                ) &&
+                                vol >= 120_000
                               );
                             });
                             const key = perpRadarSortBy;
@@ -3572,7 +3589,21 @@ export default function Dashboard() {
                             const sorted = [...filtered].sort((a, b) => Math.abs(getVal(b)) - Math.abs(getVal(a)));
                             const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                             const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
-                            return sorted.map((p, i) => (
+                            return sorted.map((p, i) => {
+                              const directionScore =
+                                ((p.pct5m ?? 0) > 0 ? 2 : (p.pct5m ?? 0) < 0 ? -2 : 0) +
+                                ((p.pct15m ?? 0) > 0 ? 2 : (p.pct15m ?? 0) < 0 ? -2 : 0) +
+                                ((p.pct30m ?? 0) > 0 ? 1.5 : (p.pct30m ?? 0) < 0 ? -1.5 : 0) +
+                                ((p.pct1h ?? 0) > 0 ? 1.5 : (p.pct1h ?? 0) < 0 ? -1.5 : 0) +
+                                ((p.pct4h ?? 0) > 0 ? 1 : (p.pct4h ?? 0) < 0 ? -1 : 0) +
+                                (p.change24hPct > 0 ? 1 : p.change24hPct < 0 ? -1 : 0);
+                              const directionLabel = directionScore >= 2 ? "Long bias" : directionScore <= -2 ? "Short bias" : "Sideways";
+                              const directionClass = directionScore >= 2
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : directionScore <= -2
+                                  ? "text-rose-600 dark:text-rose-400"
+                                  : "text-zinc-500 dark:text-zinc-400";
+                              return (
                               <TableRow key={`${p.exchange}-${p.symbol}-${i}`}>
                                 <TableCell className="font-mono text-xs">{p.symbol}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
@@ -3581,6 +3612,7 @@ export default function Dashboard() {
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct1h)}`}>{fmt(p.pct1h)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct4h)}`}>{fmt(p.pct4h)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.change24hPct)}`}>{fmt(p.change24hPct)}</TableCell>
+                                <TableCell className={`text-center text-xs font-medium ${directionClass}`}>{directionLabel}</TableCell>
                                 <TableCell className="text-right font-mono text-xs">${Number(p.lastPrice).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-right font-mono text-xs text-muted-foreground">${(p.quoteVolume24h / 1_000_000).toFixed(2)}M</TableCell>
                                 <TableCell className="text-center">{renderPerpAiSignalCell(p.base)}</TableCell>
@@ -3588,7 +3620,7 @@ export default function Dashboard() {
                                   <a href={`https://www.binance.com/en/futures/${p.symbol}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
                                 </TableCell>
                               </TableRow>
-                            ));
+                            )});
                           })()}
                         </TableBody>
                       </Table>
