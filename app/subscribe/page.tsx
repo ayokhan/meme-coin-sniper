@@ -246,18 +246,18 @@ function SubscribeContent() {
       <main className="mx-auto max-w-4xl px-3 sm:px-4 py-6 sm:py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
           <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-          Pro: Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect. VIP: everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast, NovaQ (support/resistance + direction), <strong className="text-zinc-800 dark:text-zinc-200">Nova Investment Agent</strong> (Finance &amp; Investment Agent—risk/duration leverage framing; not advice), VIP-only Crypto Futures extras (<strong className="text-zinc-800 dark:text-zinc-200">Nova+</strong>, <strong className="text-zinc-800 dark:text-zinc-200">NovaScalper</strong>—headline features; subject to on-demand access where noted), and on-demand NovaStaris AI Trading Bot. Pay by card or USDC (Solana).
+          Pro: Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect. VIP: everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast (includes NovaRadar), NovaQ (support/resistance + direction), <strong className="text-zinc-800 dark:text-zinc-200">Nova Investment Agent</strong> (Finance &amp; Investment Agent—risk/duration leverage framing; not advice), VIP-only Crypto Futures extras (<strong className="text-zinc-800 dark:text-zinc-200">Nova+</strong>, <strong className="text-zinc-800 dark:text-zinc-200">NovaScalper</strong>—headline features; subject to on-demand access where noted), on-demand NovaStaris AI Trading Bot, and on-demand <strong className="text-zinc-800 dark:text-zinc-200">Nova Polymarket Bot</strong>, <strong className="text-zinc-800 dark:text-zinc-200">Nova Prop Firm Bot</strong>, and <strong className="text-zinc-800 dark:text-zinc-200">Nova Ultimate</strong>. Pay by card or USDC (Solana).
         </p>
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 mb-6">
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">What&apos;s in each plan?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <p className="font-semibold text-cyan-600 dark:text-cyan-400 mb-1">Pro ($50/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures (AI chart analysis, Institutional Workflow), BSC AI Analysis, NovaConnect (community &amp; DMs). Pay by card or USDC.</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures (AI chart analysis, Institutional Workflow), BSC AI Analysis, NovaConnect (community &amp; DMs). Pay by card or USDC.</p>
             </div>
             <div>
               <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast, NovaQ, <strong className="text-zinc-800 dark:text-zinc-200">Nova Investment Agent</strong> (Finance &amp; Investment Agent), VIP Crypto Futures add-ons (Nova+ multi-horizon framing; NovaScalper repeat-cycle tool when enabled), on-demand AI Trading Bot (Blofin). Pay by card or USDC.</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast (NovaRadar), NovaQ, <strong className="text-zinc-800 dark:text-zinc-200">Nova Investment Agent</strong> (Finance &amp; Investment Agent), VIP Crypto Futures add-ons (Nova+ multi-horizon framing; NovaScalper repeat-cycle tool when enabled), on-demand AI Trading Bot (Blofin), on-demand Nova Polymarket Bot, Nova Prop Firm Bot, and Nova Ultimate. Pay by card or USDC.</p>
             </div>
           </div>
         </div>
@@ -288,7 +288,7 @@ function SubscribeContent() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
-        {tier === "pro" ? "Pro: $50/month. Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast, NovaQ, Nova Investment Agent (Finance & Investment Agent), Nova+ and NovaScalper (Crypto Futures—eligible accounts), plus on-demand AI Trading Bot."}
+        {tier === "pro" ? "Pro: $50/month. Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast (NovaRadar), NovaQ, Nova Investment Agent (Finance & Investment Agent), Nova+ and NovaScalper (Crypto Futures—eligible accounts), on-demand AI Trading Bot, Nova Polymarket Bot, Nova Prop Firm Bot, and Nova Ultimate."}
         </p>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 space-y-1">
           {tier === "pro" ? (
@@ -297,6 +297,7 @@ function SubscribeContent() {
               <ul className="list-disc list-inside pl-1 space-y-0.5">
                 <li>Surge (volume &amp; momentum)</li>
                 <li>Transactions (live trades feed)</li>
+                <li>Crypto Narratives (themes &amp; meme-trend context)</li>
                 <li>NovaStaris AI Agent (Solana &amp; BSC token analysis)</li>
                 <li>Crypto Futures (AI chart analysis, Institutional Workflow)</li>
                 <li>BSC AI Analysis</li>
@@ -311,12 +312,15 @@ function SubscribeContent() {
                 <li>CT Scan (on-demand; request access, admin enables per user)</li>
                 <li>Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand)</li>
                 <li>Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram)</li>
-                <li>NovaForecast</li>
+                <li>NovaForecast — includes NovaRadar</li>
                 <li>NovaQ (NovaIntelligence) — support/resistance + market direction</li>
                 <li>Nova Investment Agent (Finance &amp; Investment Agent) — risk/duration leverage framing; not personalized advice</li>
                 <li>Nova+ — VIP Crypto Futures; multi-horizon context (not personalized advice)</li>
                 <li>NovaScalper — optional repeat-cycle tool for enabled accounts (headline only; see product for rules)</li>
                 <li>NovaStaris AI Trading Bot — on-demand (Crypto Futures on Blofin)</li>
+                <li>Nova Polymarket Bot — on-demand</li>
+                <li>Nova Prop Firm Bot — on-demand</li>
+                <li>Nova Ultimate — on-demand (Solana meme tooling)</li>
                 <li>Pay by credit card or USDC (Solana)</li>
               </ul>
             </>
