@@ -779,6 +779,7 @@ export default function Dashboard() {
   const [perpRadarItems, setPerpRadarItems] = useState<PerpRadarItem[]>([]);
   const [perpRadarLoading, setPerpRadarLoading] = useState(false);
   const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
+  const [perpRadarSubTab, setPerpRadarSubTab] = useState<"radar" | "signal-rubric">("radar");
   const [perpRadarView, setPerpRadarView] = useState<"all" | "macro" | "metals">("all");
   const [perpRadarPreset, setPerpRadarPreset] = useState<"all" | "24h_up" | "24h_down">("all");
   const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
@@ -3445,6 +3446,25 @@ export default function Dashboard() {
                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                     <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Perp Radar</h2>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPerpRadarSubTab("radar")}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarSubTab === "radar" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                      >
+                        Radar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPerpRadarSubTab("signal-rubric")}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarSubTab === "signal-rubric" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                      >
+                        Signal Rubric
+                      </button>
+                    </div>
+                  </div>
+                  {perpRadarSubTab === "radar" ? (
+                    <>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-muted-foreground">View:</span>
                       <button
@@ -3495,7 +3515,6 @@ export default function Dashboard() {
                         {perpRadarLoading ? "Loading…" : "Refresh"}
                       </Button>
                     </div>
-                  </div>
                   <p className="text-xs text-muted-foreground mb-3">
                     {perpRadarView === "macro"
                       ? "Macro perps from Binance USDT-M: energy, metals, and indices (e.g. XAU, XAG, SPX, BRENT). We pin XAU/XAG/SPX so they show even when they are not top 24h movers."
@@ -3568,6 +3587,46 @@ export default function Dashboard() {
                       </Table>
                     </div>
                   ) : null}
+                  </>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        High-conviction perp calls usually come from momentum + participation + risk structure, not one metric.
+                        Use this rubric as a quick filter before taking a trade.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                          <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 mb-1">1) Expansion trigger</p>
+                          <p className="text-xs text-muted-foreground">Prioritize pairs with strong short-window expansion (5m/15m/1h) and visible continuation, not stale 24h moves.</p>
+                        </div>
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                          <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 mb-1">2) Participation check</p>
+                          <p className="text-xs text-muted-foreground">Require meaningful 24h quote volume and rising activity; skip low-liquidity spikes that cannot absorb exits.</p>
+                        </div>
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                          <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 mb-1">3) Positioning context</p>
+                          <p className="text-xs text-muted-foreground">Use funding/flow context to avoid crowded late entries. Extreme one-sided positioning often precedes violent reversals.</p>
+                        </div>
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                          <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 mb-1">4) Entry discipline</p>
+                          <p className="text-xs text-muted-foreground">Enter on pullback/retest or clean continuation confirmation. Chasing vertical candles usually destroys RR.</p>
+                        </div>
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                          <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 mb-1">5) Risk framing</p>
+                          <p className="text-xs text-muted-foreground">Define invalidation first (hard stop), then size from risk. Scale partial take-profit into strength.</p>
+                        </div>
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                          <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 mb-1">6) Fail-fast rule</p>
+                          <p className="text-xs text-muted-foreground">If momentum and volume decouple after entry, cut quickly and rotate. Protecting downside keeps you in the game.</p>
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 p-3">
+                        <p className="text-xs text-amber-800 dark:text-amber-200">
+                          Screenshot winners are highlights, not full distribution. Treat this as a process checklist, not certainty.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : activeTab === "trending-perps" ? (
