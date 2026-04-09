@@ -41,7 +41,7 @@ export default function AboutPage() {
               {" "}
               <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Crypto Narratives</strong> ties price action to what is driving attention—macro, regional, and meme-cycle context—so you are not trading names in a vacuum.
               {" "}
-              <strong className="text-violet-500 dark:text-violet-400">VIP</strong> subscribers also get <strong className="text-violet-500 dark:text-violet-400">NovaRadar</strong> next to NovaForecast for an extra read on conditions, plus—when an admin turns it on—dedicated dashboard tabs for{" "}
+              <strong className="text-violet-500 dark:text-violet-400">VIP</strong> subscribers also get <strong className="text-violet-500 dark:text-violet-400">NovaRadar</strong> next to NovaForecast for an extra read on conditions, and on-demand tabs for{" "}
               <strong className="text-cyan-600 dark:text-cyan-400">Nova Polymarket Bot</strong> (prediction markets),{" "}
               <strong className="text-cyan-600 dark:text-cyan-400">Nova Prop Firm Bot</strong> (prop-style rules), and{" "}
               <strong className="text-cyan-600 dark:text-cyan-400">Nova Ultimate</strong> (Solana meme tooling).
