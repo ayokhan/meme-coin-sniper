@@ -28,21 +28,25 @@ export default function AboutPage() {
             <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
               NovaStaris pairs real-time discovery with agentic analysis:{" "}
               <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">NovaStaris AI Agent</strong> turns any contract into a structured view in seconds.
-              Extend into <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Crypto Futures</strong> with{" "}
+              In <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Crypto Futures</strong>, layer in{" "}
               <strong className="text-violet-500 dark:text-violet-400">NovaForecast Agent</strong>,{" "}
               <strong className="text-violet-500 dark:text-violet-400">NovaQ (NovaIntelligence)</strong>,{" "}
               <strong className="text-violet-500 dark:text-violet-400">Nova Investment Agent</strong>{" "}
               <span className="text-zinc-500 dark:text-zinc-400 text-base">(Finance &amp; Investment Agent)</span>, the{" "}
               <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Trading Bot</strong>,{" "}
               <strong className="text-cyan-600 dark:text-cyan-400">Nova+</strong>, and{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">NovaScalper</strong>; stay social on{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">NovaConnect</strong>;{" "}
-              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Crypto Narratives</strong> for theme-level context;{" "}
-              <strong className="text-violet-500 dark:text-violet-400">NovaRadar</strong> inside NovaForecast for VIP; and standalone{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">Nova Polymarket Bot</strong>,{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">Nova Prop Firm Bot</strong>, and{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">Nova Ultimate</strong> for eligible VIP accounts; track{" "}
-              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Solana</strong> &amp;{" "}
+              <strong className="text-cyan-600 dark:text-cyan-400">NovaScalper</strong>.
+              {" "}
+              <strong className="text-cyan-600 dark:text-cyan-400">NovaConnect</strong> is the in-app social layer for traders.
+              {" "}
+              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Crypto Narratives</strong> ties price action to what is driving attention—macro, regional, and meme-cycle context—so you are not trading names in a vacuum.
+              {" "}
+              <strong className="text-violet-500 dark:text-violet-400">VIP</strong> subscribers also get <strong className="text-violet-500 dark:text-violet-400">NovaRadar</strong> next to NovaForecast for an extra read on conditions, plus—when an admin turns it on—dedicated dashboard tabs for{" "}
+              <strong className="text-cyan-600 dark:text-cyan-400">Nova Polymarket Bot</strong> (prediction markets),{" "}
+              <strong className="text-cyan-600 dark:text-cyan-400">Nova Prop Firm Bot</strong> (prop-style rules), and{" "}
+              <strong className="text-cyan-600 dark:text-cyan-400">Nova Ultimate</strong> (Solana meme tooling).
+              {" "}
+              Track <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Solana</strong> and{" "}
               <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">BSC</strong> from the same dashboard.
             </p>
         </div>
