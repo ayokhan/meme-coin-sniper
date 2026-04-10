@@ -26,6 +26,7 @@ import TradingBotPanel from "@/components/TradingBotPanel";
 import PropFirmBotPanel from "@/components/PropFirmBotPanel";
 import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
+import { useDashboardScreenAnalytics } from "@/components/DashboardScreenContext";
 
 type Token = {
   id: string;
@@ -960,6 +961,31 @@ export default function Dashboard() {
   const [onlineBossFeedbackNote, setOnlineBossFeedbackNote] = useState("");
   /** Owner-only Online Boss sub-tab */
   const [onlineBossSubTab, setOnlineBossSubTab] = useState<"chart" | "demandFib">("chart");
+  const { setHomeAnalyticsPath } = useDashboardScreenAnalytics();
+
+  /** Register synthetic path for `/` so admin insights show dashboard tab (and key sub-views), not only `/`. */
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set("tab", activeTab);
+    if (activeTab === "new") params.set("goHunting", goHuntingView);
+    if (activeTab === "bsc") params.set("bsc", bscGoHuntingView);
+    if (activeTab === "wallets") params.set("wallet", walletTrackerView);
+    if (activeTab === "futures") params.set("futures", futuresView);
+    if (activeTab === "nova-forecast") params.set("forecast", novaForecastSubTab);
+    if (activeTab === "chris-clayton") params.set("boss", onlineBossSubTab);
+    setHomeAnalyticsPath(`/?${params.toString()}`);
+    return () => setHomeAnalyticsPath(null);
+  }, [
+    activeTab,
+    goHuntingView,
+    bscGoHuntingView,
+    walletTrackerView,
+    futuresView,
+    novaForecastSubTab,
+    onlineBossSubTab,
+    setHomeAnalyticsPath,
+  ]);
+
   const [novaConnectEnabled, setNovaConnectEnabled] = useState(true);
   const [novaConnectRulesAccepted, setNovaConnectRulesAccepted] = useState(false);
   const novaConnectRulesRef = useRef<HTMLDivElement | null>(null);

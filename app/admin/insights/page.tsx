@@ -264,6 +264,10 @@ export default function AdminInsightsPage() {
                   <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
                     <FileText className="h-4 w-4" /> By page (path)
                   </h3>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Main dashboard views are recorded as <span className="font-mono">/?tab=…</span> (plus optional sub-keys like{" "}
+                    <span className="font-mono">futures</span>, <span className="font-mono">wallet</span>, <span className="font-mono">forecast</span>) so you can see which screen users opened—not only <span className="font-mono">/</span>.
+                  </p>
                   <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
                     <table className="w-full text-sm">
                       <thead>
