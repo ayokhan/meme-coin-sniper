@@ -803,7 +803,15 @@ export default function Dashboard() {
   const [novaSmartLoading, setNovaSmartLoading] = useState(false);
   const [novaSmartError, setNovaSmartError] = useState<string | null>(null);
   const [novaSmartFeedbackSent, setNovaSmartFeedbackSent] = useState<Set<string>>(new Set());
-  type NovaQTfResult = { id: string; label: string; support: number; resistance: number; direction: "bullish" | "bearish" | "sideways" };
+  type NovaQTfResult = {
+    id: string;
+    label: string;
+    support: number;
+    resistance: number;
+    direction: "bullish" | "bearish" | "sideways";
+    supportTouches: number;
+    resistanceTouches: number;
+  };
   type NovaQResult = { symbol: string; currentPrice: number | null; marketDirection: "bullish" | "bearish" | "sideways"; timeframes: NovaQTfResult[] };
   const [novaQTimeframes, setNovaQTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
   const [novaQSymbol, setNovaQSymbol] = useState("BTC");
@@ -5793,7 +5801,10 @@ export default function Dashboard() {
                   <TabsContent value="nova-q" className="mt-0">
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaQ (NovaIntelligence)</h2>
-                      <p className="text-xs text-muted-foreground mb-4">Select timeframe(s), enter a contract symbol (for example BTC), then run NovaQ to get support/resistance levels and current market direction from market structure.</p>
+                      <p className="text-xs text-muted-foreground mb-4">
+                        Select timeframe(s), enter a contract symbol (for example BTC), then run NovaQ to get support/resistance levels and current market direction from market structure.{" "}
+                        <strong className="text-zinc-700 dark:text-zinc-300">S/R touches</strong> count how many candles in that window wicked near the period low (support) or period high (resistance)—handy for gauging how often those edges traded.
+                      </p>
                       <div className="flex flex-wrap items-center gap-4 mb-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
@@ -5867,7 +5878,13 @@ export default function Dashboard() {
                                   <TableRow>
                                     <TableHead className="text-xs">Timeframe</TableHead>
                                     <TableHead className="text-right text-xs">Support</TableHead>
+                                    <TableHead className="text-right text-xs" title="Bars in window with low near period support">
+                                      S touches
+                                    </TableHead>
                                     <TableHead className="text-right text-xs">Resistance</TableHead>
+                                    <TableHead className="text-right text-xs" title="Bars in window with high near period resistance">
+                                      R touches
+                                    </TableHead>
                                     <TableHead className="text-left text-xs">Direction</TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -5876,7 +5893,13 @@ export default function Dashboard() {
                                     <TableRow key={`nova-q-row-${tf.id}`}>
                                       <TableCell className="text-xs font-medium">{tf.label}</TableCell>
                                       <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">${tf.support.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
+                                        {typeof tf.supportTouches === "number" ? tf.supportTouches : "—"}
+                                      </TableCell>
                                       <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">${tf.resistance.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
+                                        {typeof tf.resistanceTouches === "number" ? tf.resistanceTouches : "—"}
+                                      </TableCell>
                                       <TableCell className="text-xs">
                                         <Badge variant="outline" className={tf.direction === "bullish" ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300" : tf.direction === "bearish" ? "border-rose-500/60 text-rose-700 dark:text-rose-300" : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"}>
                                           {tf.direction}

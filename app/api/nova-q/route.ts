@@ -36,6 +36,10 @@ type NovaQTfResult = {
   support: number;
   resistance: number;
   direction: "bullish" | "bearish" | "sideways";
+  /** Candles in the window whose low traded within tolerance of period support (min low). */
+  supportTouches: number;
+  /** Candles in the window whose high traded within tolerance of period resistance (max high). */
+  resistanceTouches: number;
 };
 
 function highLowFromCandles(candles: CandleTuple[]): { high: number; low: number } | null {
@@ -44,6 +48,31 @@ function highLowFromCandles(candles: CandleTuple[]): { high: number; low: number
   const lows = candles.map((c) => Number(c[3])).filter((n) => Number.isFinite(n));
   if (highs.length === 0 || lows.length === 0) return null;
   return { high: Math.max(...highs), low: Math.min(...lows) };
+}
+
+/** Count candles that trade near period support (min low) / resistance (max high)—useful for scalping frequency. */
+function countSupportResistanceTouches(
+  candles: CandleTuple[],
+  support: number,
+  resistance: number
+): { supportTouches: number; resistanceTouches: number } {
+  if (!candles.length || !Number.isFinite(support) || !Number.isFinite(resistance)) {
+    return { supportTouches: 0, resistanceTouches: 0 };
+  }
+  const range = resistance - support;
+  const mid = (resistance + support) / 2;
+  // Band: ~0.08% of mid or ~1.2% of range (whichever is larger), capped so huge ranges do not swallow everything.
+  const tol = Math.min(Math.max(mid * 0.0008, range * 0.012, 1e-12), Math.max(range * 0.2, mid * 0.002));
+  let supportTouches = 0;
+  let resistanceTouches = 0;
+  for (const c of candles) {
+    const hi = Number(c[2]);
+    const lo = Number(c[3]);
+    if (!Number.isFinite(hi) || !Number.isFinite(lo)) continue;
+    if (lo <= support + tol) supportTouches += 1;
+    if (hi >= resistance - tol) resistanceTouches += 1;
+  }
+  return { supportTouches, resistanceTouches };
 }
 
 function getTfDirection(candles: CandleTuple[]): "bullish" | "bearish" | "sideways" {
@@ -112,12 +141,19 @@ export async function POST(request: Request) {
         const candles = await getCandles(symbol, tf.interval, tf.limit);
         const hl = highLowFromCandles(candles as CandleTuple[]);
         if (!hl) continue;
+        const { supportTouches, resistanceTouches } = countSupportResistanceTouches(
+          candles as CandleTuple[],
+          hl.low,
+          hl.high
+        );
         tfResults.push({
           id: tf.id,
           label: tf.label,
           support: hl.low,
           resistance: hl.high,
           direction: getTfDirection(candles as CandleTuple[]),
+          supportTouches,
+          resistanceTouches,
         });
       } catch {
         // Ignore a failed timeframe and continue with others.
