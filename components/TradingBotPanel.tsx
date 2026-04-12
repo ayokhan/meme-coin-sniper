@@ -49,9 +49,54 @@ type Config = {
   lastDecisionReason: string | null;
   monitorSymbols?: string[];
   aiMonitorAutopilot?: boolean;
+  monitorTpTargets?: Record<string, number>;
+  monitorDeepTimeframes?: [string, string];
+  aiMonitorRunDeepEachCycle?: boolean;
+  aiMonitorDeepCheckAutopilot?: boolean;
 };
 
 type SuggestedClose = { instId: string; posSide: "long" | "short" | "net"; reason: string };
+
+const DEEP_CHECK_TF_OPTIONS: { bar: string; label: string }[] = [
+  { bar: "15m", label: "15m" },
+  { bar: "30m", label: "30m" },
+  { bar: "1H", label: "1 Hour" },
+  { bar: "2H", label: "2 Hour" },
+  { bar: "4H", label: "4 Hour" },
+  { bar: "6H", label: "6 Hour" },
+  { bar: "8H", label: "8 Hour" },
+  { bar: "12H", label: "12 Hour" },
+  { bar: "1D", label: "1 Day" },
+  { bar: "3D", label: "3 Day" },
+  { bar: "1W", label: "1 Week" },
+  { bar: "1M", label: "1 Month" },
+];
+
+function tpMapFromLines(text: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const line of text.split(/\n/)) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const m = t.match(/^([\w.-]+)\s*[:=]\s*([\d.]+)\s*$/i);
+    if (m) {
+      const k = m[1].trim().toUpperCase().replace(/\//g, "-");
+      const n = parseFloat(m[2]);
+      if (k && Number.isFinite(n) && n > 0) out[k] = n;
+    }
+  }
+  return out;
+}
+
+function monitorTpForRow(instIdNorm: string, targets?: Record<string, number>): number | undefined {
+  if (!targets) return undefined;
+  const id = instIdNorm.trim().toUpperCase().replace(/\//g, "-");
+  if (targets[id] != null) return targets[id];
+  const compact = id.replace(/-/g, "");
+  for (const [k, v] of Object.entries(targets)) {
+    if (k.replace(/-/g, "") === compact) return v;
+  }
+  return undefined;
+}
 type PolymarketMarket = {
   question: string;
   volume: number;
@@ -136,6 +181,16 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [monitorBoardSymbols, setMonitorBoardSymbols] = useState<string[]>([]);
   const [monitorBoardInput, setMonitorBoardInput] = useState("");
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
+  const [deepTpText, setDeepTpText] = useState("");
+  const [savingDeepTp, setSavingDeepTp] = useState(false);
+  const [savingDeepTfs, setSavingDeepTfs] = useState(false);
+  const [deepTfPrimary, setDeepTfPrimary] = useState("4H");
+  const [deepTfSecondary, setDeepTfSecondary] = useState("1D");
+  const [deepMonitoring, setDeepMonitoring] = useState(false);
+  const [lastDeepReasons, setLastDeepReasons] = useState<string[]>([]);
+  const [lastDeepSuggested, setLastDeepSuggested] = useState<SuggestedClose[]>([]);
+  const [lastDeepRunAt, setLastDeepRunAt] = useState<string | null>(null);
+  const [lastDeepMessage, setLastDeepMessage] = useState<string | null>(null);
   const [cancelingAll, setCancelingAll] = useState(false);
   const [userBlofinConfigured, setUserBlofinConfigured] = useState<boolean | null>(null);
   const [blofinKeysForm, setBlofinKeysForm] = useState({ apiKey: "", secretKey: "", passphrase: "", demoMode: true, brokerId: "" });
@@ -473,6 +528,21 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       if (data.success && data.config) {
         setConfig(data.config);
         setMonitorBoardSymbols(Array.isArray(data.config.monitorSymbols) ? data.config.monitorSymbols : []);
+        const mtp = data.config.monitorTpTargets;
+        if (mtp && typeof mtp === "object") {
+          const entries = Object.entries(mtp as Record<string, number>).filter(([, v]) => typeof v === "number" && Number.isFinite(v) && v > 0);
+          setDeepTpText(entries.length ? entries.map(([k, v]) => `${k}: ${v}`).join("\n") : "");
+        } else {
+          setDeepTpText("");
+        }
+        const dtf = data.config.monitorDeepTimeframes;
+        if (Array.isArray(dtf) && dtf.length >= 2 && typeof dtf[0] === "string" && typeof dtf[1] === "string") {
+          setDeepTfPrimary(dtf[0]);
+          setDeepTfSecondary(dtf[1]);
+        } else {
+          setDeepTfPrimary("4H");
+          setDeepTfSecondary("1D");
+        }
         setForm({
           provider: "blofin",
           symbol: data.config.symbol,
@@ -578,6 +648,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         setLastMonitorResult(msg);
         setLastMonitorReasons(data.success && Array.isArray(data.reasons) ? data.reasons : []);
         setSuggestedCloses(data.success && Array.isArray(data.suggestedCloses) ? data.suggestedCloses : []);
+        setLastDeepReasons(data.success && Array.isArray(data.deepReasons) ? data.deepReasons : []);
+        setLastDeepSuggested(data.success && Array.isArray(data.deepSuggestedCloses) ? data.deepSuggestedCloses : []);
         if (data.success && (data.closed ?? 0) > 0) fetchPositions();
       } catch {
         setLastMonitorResult("Failed.");
@@ -609,6 +681,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         setLastBoardMonitorResult(msg);
         setLastBoardMonitorReasons(data.success && Array.isArray(data.reasons) ? data.reasons : []);
         setSuggestedClosesBoard(data.success && Array.isArray(data.suggestedCloses) ? data.suggestedCloses : []);
+        setLastDeepReasons(data.success && Array.isArray(data.deepReasons) ? data.deepReasons : []);
+        setLastDeepSuggested(data.success && Array.isArray(data.deepSuggestedCloses) ? data.deepSuggestedCloses : []);
         if (data.success && (data.closed ?? 0) > 0) fetchPositions();
       } catch {
         setLastBoardMonitorResult("Failed.");
@@ -804,6 +878,12 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         setLastMonitorResult(msg);
         setLastMonitorReasons(Array.isArray(data.reasons) ? data.reasons : []);
         setSuggestedCloses(Array.isArray(data.suggestedCloses) ? data.suggestedCloses : []);
+        setLastDeepReasons(Array.isArray(data.deepReasons) ? data.deepReasons : []);
+        setLastDeepSuggested(Array.isArray(data.deepSuggestedCloses) ? data.deepSuggestedCloses : []);
+        if (Array.isArray(data.deepReasons) && data.deepReasons.length > 0) {
+          setLastDeepRunAt(new Date().toISOString());
+          setLastDeepMessage(data.message ?? null);
+        }
         fetchPositions();
       } else {
         setError(data.error ?? "Monitor failed.");
@@ -811,6 +891,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         setLastMonitorResult(null);
         setLastMonitorReasons([]);
         setSuggestedCloses([]);
+        setLastDeepReasons([]);
+        setLastDeepSuggested([]);
       }
     } catch {
       setError("Monitor failed.");
@@ -818,6 +900,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       setLastMonitorResult(null);
       setLastMonitorReasons([]);
       setSuggestedCloses([]);
+      setLastDeepReasons([]);
+      setLastDeepSuggested([]);
     } finally {
       setMonitoring(false);
     }
@@ -842,6 +926,12 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         setLastBoardMonitorResult(msg);
         setLastBoardMonitorReasons(Array.isArray(data.reasons) ? data.reasons : []);
         setSuggestedClosesBoard(Array.isArray(data.suggestedCloses) ? data.suggestedCloses : []);
+        setLastDeepReasons(Array.isArray(data.deepReasons) ? data.deepReasons : []);
+        setLastDeepSuggested(Array.isArray(data.deepSuggestedCloses) ? data.deepSuggestedCloses : []);
+        if (Array.isArray(data.deepReasons) && data.deepReasons.length > 0) {
+          setLastDeepRunAt(new Date().toISOString());
+          setLastDeepMessage(data.message ?? null);
+        }
         fetchPositions();
       } else {
         setError(data.error ?? "Monitor failed.");
@@ -849,6 +939,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         setLastBoardMonitorResult(null);
         setLastBoardMonitorReasons([]);
         setSuggestedClosesBoard([]);
+        setLastDeepReasons([]);
+        setLastDeepSuggested([]);
       }
     } catch {
       setError("Monitor failed.");
@@ -856,8 +948,106 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       setLastBoardMonitorResult(null);
       setLastBoardMonitorReasons([]);
       setSuggestedClosesBoard([]);
+      setLastDeepReasons([]);
+      setLastDeepSuggested([]);
     } finally {
       setBoardMonitoring(false);
+    }
+  };
+
+  const saveDeepTpTargets = async () => {
+    try {
+      setSavingDeepTp(true);
+      clearFeedback();
+      const map = tpMapFromLines(deepTpText);
+      const res = await fetch("/api/admin/trading-bot", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ monitorTpTargetsJson: JSON.stringify(map) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.success && data.config) {
+        setConfig(data.config);
+        setSuccess("Take-profit targets saved for Deep check.");
+        setError(null);
+      } else {
+        setError(data.error ?? "Failed to save TP targets.");
+        setSuccess(null);
+      }
+    } catch {
+      setError("Failed to save TP targets.");
+      setSuccess(null);
+    } finally {
+      setSavingDeepTp(false);
+    }
+  };
+
+  const saveDeepTimeframes = async () => {
+    try {
+      setSavingDeepTfs(true);
+      clearFeedback();
+      const res = await fetch("/api/admin/trading-bot", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ monitorDeepTimeframes: [deepTfPrimary, deepTfSecondary] }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.success && data.config) {
+        setConfig(data.config);
+        const dtf = data.config.monitorDeepTimeframes;
+        if (Array.isArray(dtf) && dtf.length >= 2) {
+          setDeepTfPrimary(dtf[0]);
+          setDeepTfSecondary(dtf[1]);
+        }
+        setSuccess("Deep check timeframes saved.");
+        setError(null);
+      } else {
+        setError(data.error ?? "Failed to save timeframes.");
+        setSuccess(null);
+      }
+    } catch {
+      setError("Failed to save timeframes.");
+      setSuccess(null);
+    } finally {
+      setSavingDeepTfs(false);
+    }
+  };
+
+  const runDeepCheckNow = async () => {
+    try {
+      setDeepMonitoring(true);
+      clearFeedback();
+      setLastDeepRunAt(new Date().toISOString());
+      const map = tpMapFromLines(deepTpText);
+      const body: Record<string, unknown> = { deepOnly: true, pinnedOnly: false };
+      if (Object.keys(map).length > 0) body.tpTargets = map;
+      const res = await fetch("/api/admin/trading-bot/monitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        setLastDeepMessage(data.message ?? "Deep check complete.");
+        setLastDeepReasons(Array.isArray(data.deepReasons) ? data.deepReasons : Array.isArray(data.reasons) ? data.reasons : []);
+        setLastDeepSuggested(Array.isArray(data.deepSuggestedCloses) ? data.deepSuggestedCloses : []);
+        setSuccess(data.message ?? "Deep check complete.");
+        setError(null);
+      } else {
+        setLastDeepMessage(null);
+        setLastDeepReasons([]);
+        setLastDeepSuggested([]);
+        setError(data.error ?? "Deep check failed.");
+        setSuccess(null);
+      }
+    } catch {
+      setLastDeepMessage(null);
+      setLastDeepReasons([]);
+      setLastDeepSuggested([]);
+      setError("Deep check failed.");
+      setSuccess(null);
+    } finally {
+      setDeepMonitoring(false);
     }
   };
 
@@ -1090,19 +1280,19 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       </h2>
       <Tabs value={botSubTab} onValueChange={(v) => setBotSubTab(v as "ai" | "scalper" | "polymarket")} className="space-y-4">
         {(mode === "all" || mode === "futures-only") && (
-          <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
-            <TabsTrigger
-              value="ai"
-              className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
-            >
+        <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
+          <TabsTrigger
+            value="ai"
+            className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+          >
               NovaAI Futures Bot
-            </TabsTrigger>
-            <TabsTrigger
-              value="scalper"
-              className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
-            >
-              NovaScalper
-            </TabsTrigger>
+          </TabsTrigger>
+          <TabsTrigger
+            value="scalper"
+            className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+          >
+            NovaScalper
+          </TabsTrigger>
             {mode === "all" && (
               <TabsTrigger
                 value="polymarket"
@@ -1111,13 +1301,13 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 Nova Polymarket Bot
               </TabsTrigger>
             )}
-          </TabsList>
+        </TabsList>
         )}
 
         {mode !== "polymarket-only" && (
-          <TabsContent value="scalper" className="mt-0 space-y-4">
+        <TabsContent value="scalper" className="mt-0 space-y-4">
           <NovaScalperPanel />
-          </TabsContent>
+        </TabsContent>
         )}
 
         {mode !== "futures-only" && (
@@ -1640,7 +1830,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         )}
 
         {mode !== "polymarket-only" && (
-          <TabsContent value="ai" className="mt-0 space-y-6">
+        <TabsContent value="ai" className="mt-0 space-y-6">
       <p className="text-sm text-muted-foreground">
         <strong className="text-cyan-600 dark:text-cyan-400">AI bot</strong> (this tab): signals + Blofin execution. Use{" "}
         <strong>NovaScalper</strong> for fixed entry/exit price loops.
@@ -2216,6 +2406,129 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
               </button>
               <span className="text-xs text-muted-foreground">{(config?.aiMonitorAutopilot ?? false) ? "On — AI closes automatically" : "Off — suggestions only"}</span>
             </div>
+            <details className="rounded-md border border-violet-200/80 dark:border-violet-800/60 bg-violet-50/40 dark:bg-violet-950/20 px-2 py-2 space-y-2">
+              <summary className="text-xs font-semibold cursor-pointer text-violet-900 dark:text-violet-200 select-none">Deep check — longer horizon &amp; your TP</summary>
+              <p className="text-xs text-muted-foreground">
+                Uses <strong>two Blofin candle series</strong> you choose (default 4 Hour + 1 Day; you can pick longer frames like 1 Week / 1 Month). Enter take-profit prices Blofin may not show — one line per symbol (e.g.{" "}
+                <code className="text-[11px]">ETH-USDT:2100</code>). ETAs are rough and uncertain; not financial advice.
+              </p>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-0.5">Primary series</label>
+                  <select
+                    value={deepTfPrimary}
+                    onChange={(e) => setDeepTfPrimary(e.target.value)}
+                    className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1 text-xs min-w-[7.5rem]"
+                  >
+                    {DEEP_CHECK_TF_OPTIONS.map((o) => (
+                      <option key={`p-${o.bar}`} value={o.bar}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-0.5">Secondary series</label>
+                  <select
+                    value={deepTfSecondary}
+                    onChange={(e) => setDeepTfSecondary(e.target.value)}
+                    className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1 text-xs min-w-[7.5rem]"
+                  >
+                    {DEEP_CHECK_TF_OPTIONS.map((o) => (
+                      <option key={`s-${o.bar}`} value={o.bar}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button type="button" size="sm" variant="secondary" onClick={saveDeepTimeframes} disabled={savingDeepTfs || config == null}>
+                  {savingDeepTfs ? "Saving…" : "Save timeframes"}
+                </Button>
+              </div>
+              {config?.monitorDeepTimeframes && (
+                <p className="text-[11px] text-muted-foreground">
+                  Saved: {config.monitorDeepTimeframes[0]} + {config.monitorDeepTimeframes[1]}
+                </p>
+              )}
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">TP targets (save before monitor runs)</label>
+              <textarea
+                value={deepTpText}
+                onChange={(e) => setDeepTpText(e.target.value)}
+                rows={3}
+                placeholder={"ETH-USDT:2100\nBTC-USDT:98500"}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" variant="secondary" onClick={saveDeepTpTargets} disabled={savingDeepTp || config == null}>
+                  {savingDeepTp ? "Saving…" : "Save TP targets"}
+                </Button>
+                <Button type="button" size="sm" variant="outline" className="border-violet-500 text-violet-800 dark:text-violet-300" onClick={runDeepCheckNow} disabled={deepMonitoring}>
+                  {deepMonitoring ? "Running deep…" : "Run deep check now"}
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-violet-200/60 dark:border-violet-800/40">
+                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Deep on each run</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={config?.aiMonitorRunDeepEachCycle ?? false}
+                  onClick={async () => {
+                    const next = !(config?.aiMonitorRunDeepEachCycle ?? false);
+                    try {
+                      const res = await fetch("/api/admin/trading-bot", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ aiMonitorRunDeepEachCycle: next }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (data.success && data.config) {
+                        setConfig(data.config);
+                        setSuccess(next ? "Deep check will run on each monitor / auto-refresh." : "Deep check only when you use Run deep check now.");
+                      }
+                    } catch {
+                      setError("Failed to update Deep check setting.");
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 ${(config?.aiMonitorRunDeepEachCycle ?? false) ? "bg-violet-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${(config?.aiMonitorRunDeepEachCycle ?? false) ? "translate-x-5" : "translate-x-1"}`} />
+                </button>
+                <span className="text-xs text-muted-foreground">Adds your saved series pair whenever you run or auto-refresh the monitor.</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Deep autopilot</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={config?.aiMonitorDeepCheckAutopilot ?? false}
+                  onClick={async () => {
+                    const next = !(config?.aiMonitorDeepCheckAutopilot ?? false);
+                    try {
+                      const res = await fetch("/api/admin/trading-bot", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ aiMonitorDeepCheckAutopilot: next }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (data.success && data.config) {
+                        setConfig(data.config);
+                        setSuccess(
+                          next
+                            ? "Deep autopilot on: if Deep check recommends exit during a monitor run, the position can be closed automatically (separate from short-term Autopilot)."
+                            : "Deep autopilot off: Deep check never auto-closes."
+                        );
+                      }
+                    } catch {
+                      setError("Failed to update Deep autopilot.");
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 ${(config?.aiMonitorDeepCheckAutopilot ?? false) ? "bg-violet-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${(config?.aiMonitorDeepCheckAutopilot ?? false) ? "translate-x-5" : "translate-x-1"}`} />
+                </button>
+                <span className="text-xs text-muted-foreground">Only when Deep recommends closing — independent of short-term Autopilot above.</span>
+              </div>
+            </details>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Auto-refresh:</span>
               <select
@@ -2270,6 +2583,45 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 )}
                 {suggestedCloses.length === 0 && lastMonitorReasons.length === 0 && lastMonitorResult != null && (lastMonitorResult.includes("No positions") || lastMonitorResult.includes("evaluate")) && (
                   <span className="block mt-0.5 text-muted-foreground/90">Your position(s) were evaluated; none met the exit criteria.</span>
+                )}
+              </div>
+            )}
+            {(lastDeepReasons.length > 0 || lastDeepSuggested.length > 0 || lastDeepMessage) && (
+              <div className="text-xs space-y-1.5 mt-2 pt-2 border-t border-violet-200/60 dark:border-violet-800/40">
+                <p className="font-medium text-violet-900 dark:text-violet-200">
+                  Deep check results
+                  {lastDeepRunAt && (
+                    <>
+                      {" · "}
+                      <span className="text-muted-foreground font-normal" title={new Date(lastDeepRunAt).toLocaleString()}>
+                        {formatLocalTime(lastDeepRunAt)}
+                      </span>
+                    </>
+                  )}
+                </p>
+                {lastDeepMessage && <p className="text-muted-foreground">{lastDeepMessage}</p>}
+                {lastDeepSuggested.length > 0 && (
+                  <div className="rounded border border-violet-200 dark:border-violet-800 bg-violet-50/80 dark:bg-violet-950/30 p-2 space-y-1">
+                    <p className="font-medium text-violet-900 dark:text-violet-200">Deep suggests closing ({lastDeepSuggested.length})</p>
+                    <ul className="space-y-0.5">
+                      {lastDeepSuggested.map((s, i) => (
+                        <li key={i} className="text-violet-800 dark:text-violet-300">
+                          {s.instId} {s.posSide.toUpperCase()} — {s.reason}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-[11px] text-violet-800/90 dark:text-violet-300/90">Turn on Deep autopilot inside Deep check to allow auto-close when Deep recommends exit (separate from short-term Autopilot).</p>
+                  </div>
+                )}
+                {lastDeepReasons.length > 0 && (
+                  <div className="rounded border border-zinc-200 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-900/40 p-2 space-y-0.5">
+                    <p className="font-medium text-zinc-700 dark:text-zinc-300">Deep lines:</p>
+                    {lastDeepReasons.map((r, i) => (
+                      <p key={i} className="pl-0 text-muted-foreground">
+                        {r}
+                      </p>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -2391,6 +2743,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                             <span className={p.posSide === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{p.posSide.toUpperCase()}</span>
                             <span className="text-muted-foreground">Entry: {p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             {(p.markPrice ?? positionsData.markPrice) != null && <span className="text-muted-foreground">Mark: {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                            {(() => {
+                              const tpSaved = monitorTpForRow(instIdNorm, config?.monitorTpTargets);
+                              return tpSaved != null ? (
+                                <span className="text-muted-foreground" title="Saved under AI Monitor → Deep check (Blofin often does not show TP here).">
+                                  TP (saved): {tpSaved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              ) : null;
+                            })()}
                             {p.liqPrice != null && Number.isFinite(p.liqPrice) && <span className="text-muted-foreground">Liq: {p.liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {p.margin != null && Number.isFinite(p.margin) && <span className="text-muted-foreground">Margin: {p.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</span>}
                             {p.marginRatioBlofin != null && Number.isFinite(p.marginRatioBlofin) ? (
@@ -2636,7 +2996,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           </p>
         </CardContent>
       </Card>
-          </TabsContent>
+        </TabsContent>
         )}
       </Tabs>
     </div>

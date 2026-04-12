@@ -539,6 +539,12 @@ model TradingBot {
   lastDecisionReason String?   // e.g. AI reason: "Long: strong support at 95k, RSI oversold"
   monitorSymbols       String?   // comma-separated instIds e.g. "ETH-USDT,BTC-USDT"; when set, AI monitor only evaluates these
   aiMonitorAutopilot   Boolean   @default(false)  // when true, user can confirm and close from AI Monitor; when false, monitor only suggests (no close)
+  /** JSON map instId → take-profit price (user-entered; Blofin often does not surface TP in API). */
+  monitorTpTargetsJson String?
+  /** JSON `["4H","1D"]` Blofin bar strings for Deep check primary/secondary series. */
+  monitorDeepTimeframesJson String?
+  aiMonitorRunDeepEachCycle Boolean @default(false)
+  aiMonitorDeepCheckAutopilot Boolean @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   @@index([enabled])

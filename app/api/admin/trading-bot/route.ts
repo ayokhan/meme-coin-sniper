@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions, canAccessTradingBot } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { isBlofinConfigured } from '@/lib/blofin';
+import { parseMonitorTpTargetsJson, parseMonitorDeepTimeframesJson, serializeMonitorDeepTimeframes } from '@/lib/trading-bot-run';
 
 export const dynamic = 'force-dynamic';
 
@@ -91,6 +92,12 @@ export async function GET() {
           ? String((bot as { monitorSymbols: string }).monitorSymbols).split(',').map((s: string) => s.trim()).filter(Boolean)
           : [],
         aiMonitorAutopilot: (bot as { aiMonitorAutopilot?: boolean }).aiMonitorAutopilot ?? false,
+        monitorTpTargets: parseMonitorTpTargetsJson((bot as { monitorTpTargetsJson?: string | null }).monitorTpTargetsJson),
+        monitorDeepTimeframes: parseMonitorDeepTimeframesJson(
+          (bot as { monitorDeepTimeframesJson?: string | null }).monitorDeepTimeframesJson
+        ),
+        aiMonitorRunDeepEachCycle: (bot as { aiMonitorRunDeepEachCycle?: boolean }).aiMonitorRunDeepEachCycle ?? false,
+        aiMonitorDeepCheckAutopilot: (bot as { aiMonitorDeepCheckAutopilot?: boolean }).aiMonitorDeepCheckAutopilot ?? false,
       },
     });
   } catch (e) {
@@ -163,6 +170,64 @@ export async function PATCH(request: Request) {
       updates.monitorSymbols = String(body.monitorSymbols).trim() || null;
     }
     if (typeof body.aiMonitorAutopilot === 'boolean') updates.aiMonitorAutopilot = body.aiMonitorAutopilot;
+    if (typeof body.aiMonitorRunDeepEachCycle === 'boolean') updates.aiMonitorRunDeepEachCycle = body.aiMonitorRunDeepEachCycle;
+    if (typeof body.aiMonitorDeepCheckAutopilot === 'boolean') updates.aiMonitorDeepCheckAutopilot = body.aiMonitorDeepCheckAutopilot;
+    if (body.monitorTpTargetsJson !== undefined && body.monitorTpTargetsJson !== null) {
+      if (typeof body.monitorTpTargetsJson === 'string') {
+        const s = body.monitorTpTargetsJson.trim();
+        if (s.length > 8000) {
+          return NextResponse.json({ success: false, error: 'TP targets JSON is too long.' }, { status: 400 });
+        }
+        if (s.length === 0) {
+          updates.monitorTpTargetsJson = null;
+        } else {
+          try {
+            JSON.parse(s);
+          } catch {
+            return NextResponse.json({ success: false, error: 'monitorTpTargetsJson must be valid JSON.' }, { status: 400 });
+          }
+          updates.monitorTpTargetsJson = s;
+        }
+      } else if (typeof body.monitorTpTargetsJson === 'object') {
+        updates.monitorTpTargetsJson = JSON.stringify(body.monitorTpTargetsJson);
+      }
+    }
+    if (body.monitorDeepTimeframesJson !== undefined && body.monitorDeepTimeframesJson !== null) {
+      if (typeof body.monitorDeepTimeframesJson === 'string') {
+        const s = body.monitorDeepTimeframesJson.trim();
+        if (s.length > 200) {
+          return NextResponse.json({ success: false, error: 'Deep timeframes JSON is too long.' }, { status: 400 });
+        }
+        try {
+          JSON.parse(s);
+        } catch {
+          return NextResponse.json({ success: false, error: 'monitorDeepTimeframesJson must be valid JSON.' }, { status: 400 });
+        }
+        updates.monitorDeepTimeframesJson = s.length ? s : null;
+      } else if (Array.isArray(body.monitorDeepTimeframesJson) && body.monitorDeepTimeframesJson.length >= 2) {
+        const ser = serializeMonitorDeepTimeframes(
+          String(body.monitorDeepTimeframesJson[0]),
+          String(body.monitorDeepTimeframesJson[1])
+        );
+        if (!ser) {
+          return NextResponse.json(
+            { success: false, error: 'Invalid deep check timeframes. Use two values from 15m through 1M.' },
+            { status: 400 }
+          );
+        }
+        updates.monitorDeepTimeframesJson = ser;
+      }
+    }
+    if (Array.isArray(body.monitorDeepTimeframes) && body.monitorDeepTimeframes.length >= 2) {
+      const ser = serializeMonitorDeepTimeframes(String(body.monitorDeepTimeframes[0]), String(body.monitorDeepTimeframes[1]));
+      if (!ser) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid deep check timeframes. Use two values from 15m through 1M.' },
+          { status: 400 }
+        );
+      }
+      updates.monitorDeepTimeframesJson = ser;
+    }
     const updated = await db.tradingBot.update({
       where: { id: bot.id },
       data: updates,
@@ -195,6 +260,12 @@ export async function PATCH(request: Request) {
           ? (updated as { monitorSymbols: string }).monitorSymbols.split(',').map((s: string) => s.trim()).filter(Boolean)
           : [],
         aiMonitorAutopilot: (updated as { aiMonitorAutopilot?: boolean }).aiMonitorAutopilot ?? false,
+        monitorTpTargets: parseMonitorTpTargetsJson((updated as { monitorTpTargetsJson?: string | null }).monitorTpTargetsJson),
+        monitorDeepTimeframes: parseMonitorDeepTimeframesJson(
+          (updated as { monitorDeepTimeframesJson?: string | null }).monitorDeepTimeframesJson
+        ),
+        aiMonitorRunDeepEachCycle: (updated as { aiMonitorRunDeepEachCycle?: boolean }).aiMonitorRunDeepEachCycle ?? false,
+        aiMonitorDeepCheckAutopilot: (updated as { aiMonitorDeepCheckAutopilot?: boolean }).aiMonitorDeepCheckAutopilot ?? false,
       },
     });
   } catch (e) {

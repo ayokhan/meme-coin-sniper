@@ -22,7 +22,7 @@ import {
 } from "@/lib/blofin";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
 import { indicatorsSignal, maCrossoverSignal, candlePatternSignal, findSupportResistance, ema, rsi } from "@/lib/trading-bot-ta";
-import { getAITradingSignal } from "@/lib/ai-trading-signal";
+import { getAITradingSignal, getAIDeepPositionReview } from "@/lib/ai-trading-signal";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -450,26 +450,178 @@ export async function placeLimitOrderTradingBot(options: {
 
 export type SuggestedClose = { instId: string; posSide: "long" | "short" | "net"; reason: string };
 
+/** Blofin bars allowed for Deep check (multi-hour and longer). */
+const DEEP_ALLOWED_BLOFIN_BARS = new Set(["15m", "30m", "1H", "2H", "4H", "6H", "8H", "12H", "1D", "3D", "1W", "1M"]);
+
+function normalizeDeepBar(raw: string): string | null {
+  const b = toBlofinBar(raw.trim());
+  return DEEP_ALLOWED_BLOFIN_BARS.has(b) ? b : null;
+}
+
+/** Default 4H + 1D; persisted JSON is `["4H","1D"]` Blofin bar strings. */
+export function parseMonitorDeepTimeframesJson(json: string | null | undefined): [string, string] {
+  const fallback: [string, string] = ["4H", "1D"];
+  if (!json?.trim()) return fallback;
+  try {
+    const arr = JSON.parse(json) as unknown;
+    if (!Array.isArray(arr) || arr.length < 2) return fallback;
+    const a = normalizeDeepBar(String(arr[0]));
+    const b = normalizeDeepBar(String(arr[1]));
+    if (!a || !b) return fallback;
+    return [a, b];
+  } catch {
+    return fallback;
+  }
+}
+
+/** Persist two UI timeframe picks as JSON; returns null if either is not allowed for Deep check. */
+export function serializeMonitorDeepTimeframes(first: string, second: string): string | null {
+  const a = normalizeDeepBar(first);
+  const b = normalizeDeepBar(second);
+  if (!a || !b) return null;
+  return JSON.stringify([a, b]);
+}
+
+function candleLimitForDeepBar(bar: string): number {
+  if (bar === "1M") return 36;
+  if (bar === "1W") return 52;
+  if (bar === "3D") return 60;
+  if (bar === "1D") return 90;
+  if (bar === "12H" || bar === "8H" || bar === "6H") return 90;
+  if (bar === "4H" || bar === "2H") return 120;
+  if (bar === "1H") return 150;
+  if (bar === "30m" || bar === "15m") return 180;
+  return 120;
+}
+
+/** Parse saved JSON map instId → TP price (quote). */
+export function parseMonitorTpTargetsJson(json: string | null | undefined): Record<string, number> {
+  if (!json || typeof json !== "string" || !json.trim()) return {};
+  try {
+    const o = JSON.parse(json) as Record<string, unknown>;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(o)) {
+      const key = k.trim().toUpperCase().replace(/\//g, "-");
+      const n = typeof v === "number" ? v : parseFloat(String(v));
+      if (key && Number.isFinite(n) && n > 0) out[key] = n;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function mergeTpTargets(
+  dbJson: string | null | undefined,
+  override?: Record<string, number | string> | null
+): Record<string, number> {
+  const base = parseMonitorTpTargetsJson(dbJson);
+  if (!override) return base;
+  const merged = { ...base };
+  for (const [k, v] of Object.entries(override)) {
+    const key = k.trim().toUpperCase().replace(/\//g, "-");
+    const n = typeof v === "number" ? v : parseFloat(String(v));
+    if (key && Number.isFinite(n) && n > 0) merged[key] = n;
+  }
+  return merged;
+}
+
+function lookupTpForInst(instId: string, map: Record<string, number>): number | undefined {
+  const id = instId.trim().toUpperCase().replace(/\//g, "-");
+  if (map[id] != null) return map[id];
+  const compact = id.replace(/-/g, "");
+  for (const [k, v] of Object.entries(map)) {
+    if (k.replace(/-/g, "") === compact) return v;
+  }
+  return undefined;
+}
+
+async function runDeepCheckForPosition(params: {
+  instId: string;
+  posSide: string;
+  isLongPos: boolean;
+  entryPx: number;
+  markPx: number;
+  userTp?: number;
+  isDemo: boolean;
+  blofinConfig: BlofinConfig;
+  barPrimary: string;
+  barSecondary: string;
+}): Promise<{ line: string; action: "hold" | "close"; detailReason: string }> {
+  const { instId, isLongPos, isDemo, blofinConfig, barPrimary, barSecondary } = params;
+  const limA = candleLimitForDeepBar(barPrimary);
+  const limB = candleLimitForDeepBar(barSecondary);
+  const candlesA = await getCandlesBlofin(instId, barPrimary, limA, isDemo, { config: blofinConfig });
+  const candlesB = await getCandlesBlofin(instId, barSecondary, limB, isDemo, { config: blofinConfig });
+  const minA = barPrimary === "1M" || barPrimary === "1W" ? 8 : 20;
+  const minB = barSecondary === "1M" || barSecondary === "1W" ? 4 : 10;
+  if (candlesA.length < minA || candlesB.length < minB) {
+    return {
+      line: `${instId} ${params.posSide.toUpperCase()}: [Deep] skipped — insufficient ${barPrimary}/${barSecondary} data.`,
+      action: "hold",
+      detailReason: "Insufficient candles.",
+    };
+  }
+  const closesA = candlesA.map((c) => parseFloatSafe(c[4])).filter((c) => c > 0);
+  const closesB = candlesB.map((c) => parseFloatSafe(c[4])).filter((c) => c > 0);
+  const { support, resistance } = findSupportResistance(candlesA, 10);
+  const rsiPrimary = rsi(closesA, 14);
+  const side = isLongPos ? "long" : "short";
+  const ai = await getAIDeepPositionReview({
+    instId,
+    positionSide: side,
+    entryPrice: params.entryPx,
+    markPrice: params.markPx,
+    userTakeProfit: params.userTp,
+    seriesA: { label: barPrimary, closes: closesA },
+    seriesB: { label: barSecondary, closes: closesB },
+    supportPrimary: support,
+    resistancePrimary: resistance,
+    rsiPrimary,
+  });
+  const sideLabel = isLongPos ? "LONG" : "SHORT";
+  const tpPart = params.userTp != null ? ` TP@${params.userTp}` : "";
+  const tfNote = `[${barPrimary}/${barSecondary}]`;
+  const line = `${instId} ${sideLabel}${tpPart}: [Deep] ${tfNote} ${ai.action.toUpperCase()} — TP feasibility: ${ai.tpFeasible}. ETA (uncertain): ${ai.etaHint}. ${ai.reason}`;
+  return { line, action: ai.action, detailReason: ai.reason };
+}
+
 /** Run AI monitor: evaluate open positions. When dryRun is true, returns suggested closes only (no auto-close). When dryRun is false, closes positions (used only after user confirmation). pinnedOnly: true = only pinned (monitoring board) symbols; false/omit = all open positions. */
-export async function runAIMonitorCycle(options?: { dryRun?: boolean; pinnedOnly?: boolean; blofinConfig: BlofinConfig }): Promise<{
+export async function runAIMonitorCycle(options?: {
+  dryRun?: boolean;
+  deepCloseDryRun?: boolean;
+  pinnedOnly?: boolean;
+  blofinConfig: BlofinConfig;
+  deepOnly?: boolean;
+  runDeepEachCycle?: boolean;
+  tpTargets?: Record<string, number | string> | null;
+}): Promise<{
   ok: boolean;
   closed: number;
   message?: string;
   error?: string;
   reasons?: string[];
   suggestedCloses?: SuggestedClose[];
+  deepReasons?: string[];
+  deepSuggestedCloses?: SuggestedClose[];
 }> {
-  const dryRun = options?.dryRun !== false; // default true: require user confirmation, never auto-close
   const blofinConfig = options?.blofinConfig;
   if (!blofinConfig) return { ok: false, closed: 0, error: "Blofin config missing." };
+  const deepOnly = options?.deepOnly === true;
+  const dryRun = options?.dryRun !== false;
+  const deepCloseDryRun = options?.deepCloseDryRun !== false;
+  const runDeepEachCycle = options?.runDeepEachCycle === true;
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) return { ok: false, closed: 0, error: "No bot config." };
   const isDemo = blofinConfig.demo;
   const blofinOpts = { demo: isDemo, config: blofinConfig };
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
   const strategy = (bot as { strategy?: string }).strategy ?? "simple";
+  const tpMap = mergeTpTargets((bot as { monitorTpTargetsJson?: string | null }).monitorTpTargetsJson, options?.tpTargets ?? null);
+  const [barPrimary, barSecondary] = parseMonitorDeepTimeframesJson(
+    (bot as { monitorDeepTimeframesJson?: string | null }).monitorDeepTimeframesJson
+  );
   const allPositions = await getPositionsBlofin(undefined, blofinOpts);
-  // pinnedOnly === false → all open positions (AI Monitor). pinnedOnly === true → only pinned symbols (empty list = none). undefined → use saved monitorSymbols if set, else all.
   const monitorSymbolsRaw =
     options?.pinnedOnly === false ? null : (bot as { monitorSymbols?: string | null }).monitorSymbols;
   const monitorSet =
@@ -513,11 +665,66 @@ export async function runAIMonitorCycle(options?: { dryRun?: boolean; pinnedOnly
       message: `No open positions to monitor. (AI monitor uses ${modeLabel} account—same as Positions above.)`,
     };
   }
+
+  if (deepOnly) {
+    const deepReasons: string[] = [];
+    const deepSuggestedCloses: SuggestedClose[] = [];
+    for (const pos of positions) {
+      const rawSize = String(pos.pos ?? "0").trim();
+      if (Math.abs(parseFloat(rawSize)) <= 0) continue;
+      const instId = (pos.instId ?? "").trim();
+      if (!instId) continue;
+      const posSide = (pos.posSide ?? "").toLowerCase();
+      const isLongPos = posSide === "long";
+      const ticker = await getTickerBlofin(instId, isDemo, { config: blofinConfig });
+      const lastPrice = ticker?.last ? parseFloatSafe(ticker.last) : 0;
+      const entryPx = parseFloatSafe(pos.avgPx);
+      const markPx = pos.markPx ? parseFloatSafe(pos.markPx) : lastPrice;
+      if (entryPx <= 0 || markPx <= 0) {
+        deepReasons.push(`${instId} ${posSide.toUpperCase()}: [Deep] skipped — missing entry or mark.`);
+        continue;
+      }
+      const userTp = lookupTpForInst(instId, tpMap);
+      const deep = await runDeepCheckForPosition({
+        instId,
+        posSide,
+        isLongPos,
+        entryPx,
+        markPx,
+        userTp,
+        isDemo,
+        blofinConfig,
+        barPrimary,
+        barSecondary,
+      });
+      deepReasons.push(deep.line);
+      if (deep.action === "close") {
+        const rawPosSide = (pos as { rawPositionSide?: string }).rawPositionSide?.toLowerCase();
+        const positionSide = (rawPosSide === "net" ? "net" : (posSide === "long" || posSide === "short" ? posSide : "net")) as "long" | "short" | "net";
+        deepSuggestedCloses.push({ instId, posSide: positionSide, reason: deep.detailReason });
+      }
+    }
+    return {
+      ok: true,
+      closed: 0,
+      message:
+        deepSuggestedCloses.length > 0
+          ? `Deep check (${barPrimary}/${barSecondary}): ${deepSuggestedCloses.length} position(s) lean toward exit (review below; not auto-closed from this run).`
+          : `Deep check (${barPrimary}/${barSecondary}) complete.`,
+      reasons: deepReasons.length > 0 ? deepReasons : undefined,
+      deepReasons: deepReasons.length > 0 ? deepReasons : undefined,
+      deepSuggestedCloses: deepSuggestedCloses.length > 0 ? deepSuggestedCloses : undefined,
+    };
+  }
+
   const bar = toBlofinBar(bot.timeframe);
   const candleLimit = 100;
   let closed = 0;
   const reasons: string[] = [];
   const suggestedCloses: SuggestedClose[] = [];
+  const deepReasons: string[] = [];
+  const deepSuggestedCloses: SuggestedClose[] = [];
+
   for (const pos of positions) {
     const rawSize = String(pos.pos ?? "0").trim();
     if (Math.abs(parseFloat(rawSize)) <= 0) continue;
@@ -553,32 +760,85 @@ export async function runAIMonitorCycle(options?: { dryRun?: boolean; pinnedOnly
       (isLongPos && !signal && bearish) ||
       (!isLongPos && signal === "long") ||
       (!isLongPos && !signal && bullish);
-    if (!shouldClose) {
-      reasons.push(`${instId} ${posSide.toUpperCase()}: held — ${analysisMsg}`);
-      continue;
-    }
     const rawPosSide = (pos as { rawPositionSide?: string }).rawPositionSide?.toLowerCase();
     const positionSide = (rawPosSide === "net" ? "net" : (posSide === "long" || posSide === "short" ? posSide : "net")) as "long" | "short" | "net";
-    if (dryRun) {
+
+    let shortCloseSucceeded = false;
+    if (!shouldClose) {
+      reasons.push(`${instId} ${posSide.toUpperCase()}: held — ${analysisMsg}`);
+    } else if (dryRun) {
       suggestedCloses.push({ instId, posSide: positionSide, reason: analysisMsg });
       reasons.push(`${instId} ${positionSide.toUpperCase()}: suggested close — ${analysisMsg}`);
-      continue;
-    }
-    const result = await closePositionViaApiBlofin(instId, marginMode, positionSide, blofinOpts);
-    if (result.ok) {
-      closed++;
-      reasons.push(`${instId} ${posSide.toUpperCase()}: closed — ${analysisMsg}`);
     } else {
-      reasons.push(`${instId} ${posSide.toUpperCase()}: close failed — ${result.error ?? "unknown error"}`);
+      const result = await closePositionViaApiBlofin(instId, marginMode, positionSide, blofinOpts);
+      if (result.ok) {
+        closed++;
+        shortCloseSucceeded = true;
+        reasons.push(`${instId} ${posSide.toUpperCase()}: closed — ${analysisMsg}`);
+      } else {
+        reasons.push(`${instId} ${posSide.toUpperCase()}: close failed — ${result.error ?? "unknown error"}`);
+      }
+    }
+
+    if (shortCloseSucceeded) continue;
+
+    if (runDeepEachCycle) {
+      const entryPx = parseFloatSafe(pos.avgPx);
+      const markPx = pos.markPx ? parseFloatSafe(pos.markPx) : lastPrice;
+      const userTp = lookupTpForInst(instId, tpMap);
+      if (entryPx > 0 && markPx > 0) {
+        const deep = await runDeepCheckForPosition({
+          instId,
+          posSide,
+          isLongPos,
+          entryPx,
+          markPx,
+          userTp,
+          isDemo,
+          blofinConfig,
+          barPrimary,
+          barSecondary,
+        });
+        deepReasons.push(deep.line);
+        if (deep.action === "close") {
+          if (deepCloseDryRun) {
+            deepSuggestedCloses.push({ instId, posSide: positionSide, reason: deep.detailReason });
+          } else {
+            const result = await closePositionViaApiBlofin(instId, marginMode, positionSide, blofinOpts);
+            if (result.ok) {
+              closed++;
+              deepReasons[deepReasons.length - 1] = `${instId} ${posSide.toUpperCase()}: [Deep] closed — ${deep.detailReason}`;
+            } else {
+              deepReasons[deepReasons.length - 1] = `${instId} ${posSide.toUpperCase()}: [Deep] close failed — ${result.error ?? "unknown"}`;
+            }
+          }
+        }
+      }
     }
   }
+
+  const shortMsg = dryRun
+    ? suggestedCloses.length > 0
+      ? `Short-term: suggests closing ${suggestedCloses.length} position(s).`
+      : "Short-term: no exit signal."
+    : closed > 0
+      ? `Closed ${closed} position(s) (short-term and/or deep).`
+      : "Short-term: no positions closed.";
+
+  const deepMsg =
+    runDeepEachCycle && deepSuggestedCloses.length > 0
+      ? ` Deep check suggests closing ${deepSuggestedCloses.length} (enable Deep autopilot to auto-close on deep exit).`
+      : runDeepEachCycle && deepReasons.length > 0
+        ? " Deep check lines added below."
+        : "";
+
   return {
     ok: true,
     closed,
-    message: dryRun
-      ? (suggestedCloses.length > 0 ? `AI suggests closing ${suggestedCloses.length} position(s). Confirm in the UI to close.` : "No positions suggested for close.")
-      : closed > 0 ? `AI monitor closed ${closed} position(s).` : "No positions closed.",
+    message: `${shortMsg}${deepMsg}`.trim(),
     reasons: reasons.length > 0 ? reasons : undefined,
     suggestedCloses: suggestedCloses.length > 0 ? suggestedCloses : undefined,
+    deepReasons: deepReasons.length > 0 ? deepReasons : undefined,
+    deepSuggestedCloses: deepSuggestedCloses.length > 0 ? deepSuggestedCloses : undefined,
   };
 }
