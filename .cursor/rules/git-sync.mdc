@@ -11,5 +11,6 @@ When you make code changes in this project:
 2. **Workflow**: `git add .` → `git commit -m "Short description of changes"` → `git push`.
 3. **Commit message**: Use a clear, short message (e.g. "Add Crypto Futures tab", "Fix AI analysis type", "Update NovaStaris heading").
 4. **When deploying** (`npx vercel --prod`): Commit and push first or immediately after, so Git and production stay in sync.
+5. **Full deployment (when the user wants production updated end-to-end)**: After schema or Prisma migration changes, run `npx prisma migrate deploy` using the same `DATABASE_URL` the live app uses (local `.env` / CI secret aligned with Vercel). Then run `npx vercel --prod --yes` from the repo root so the build ships and aliases update (e.g. novastaris.ai). Do not stop after push alone if they asked to run deployment completely.
 
 Only run git commands when the user has requested changes or deploy; do not commit without meaningful changes.
