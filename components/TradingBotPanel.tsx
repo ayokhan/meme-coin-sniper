@@ -1010,7 +1010,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       const data = await res.json().catch(() => ({}));
       if (data.success && data.config) {
         setConfig(data.config);
-        setSuccess("TP price and optional USDT profit targets saved for AI monitor / Deep check.");
+        setSuccess("TP prices and USDT profit targets saved (AI Monitor + Deep check).");
         setError(null);
       } else {
         setError(data.error ?? "Failed to save TP targets.");
@@ -2450,11 +2450,36 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
               </button>
               <span className="text-xs text-muted-foreground">{(config?.aiMonitorAutopilot ?? false) ? "On — AI closes automatically" : "Off — suggestions only"}</span>
             </div>
+            <div className="rounded-md border border-cyan-200/80 dark:border-cyan-800/50 bg-cyan-50/35 dark:bg-cyan-950/20 px-2 py-2 space-y-2">
+              <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">TP &amp; profit targets (save before Run now / auto-refresh)</p>
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                Optional — USDT profit target per symbol (same line format as below). Used by the <strong>short-term</strong> AI Monitor and your <strong>[Tactical]</strong> line; also passed to Deep when it runs. Does not place orders on the exchange.
+              </label>
+              <textarea
+                value={deepTpAmountText}
+                onChange={(e) => setDeepTpAmountText(e.target.value)}
+                rows={2}
+                placeholder={"ETH-USDT: 400\nBTC-USDT - 250"}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono"
+              />
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mt-1">
+                TP <strong>price</strong> per symbol (mainly for Deep check distance / TP feasibility)
+              </label>
+              <textarea
+                value={deepTpText}
+                onChange={(e) => setDeepTpText(e.target.value)}
+                rows={3}
+                placeholder={"ETH-USDT:2100 or ETH-USDT - 2100\nBTC-USDT=98500"}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono"
+              />
+              <Button type="button" size="sm" variant="secondary" onClick={saveDeepTpTargets} disabled={savingDeepTp || config == null}>
+                {savingDeepTp ? "Saving…" : "Save TP & amounts"}
+              </Button>
+            </div>
             <details className="rounded-md border border-violet-200/80 dark:border-violet-800/60 bg-violet-50/40 dark:bg-violet-950/20 px-2 py-2 space-y-2">
-              <summary className="text-xs font-semibold cursor-pointer text-violet-900 dark:text-violet-200 select-none">Deep check — longer horizon &amp; your TP</summary>
+              <summary className="text-xs font-semibold cursor-pointer text-violet-900 dark:text-violet-200 select-none">Deep check — longer horizon (two candle series)</summary>
               <p className="text-xs text-muted-foreground">
-                Uses <strong>two Blofin candle series</strong> you choose (default 4 Hour + 1 Day; you can pick longer frames like 1 Week / 1 Month). Enter take-profit prices Blofin may not show — one line per symbol (e.g.{" "}
-                <code className="text-[11px]">ETH-USDT:2100</code>). ETAs are rough and uncertain; not financial advice.
+                Uses <strong>two Blofin candle series</strong> you choose (default 4 Hour + 1 Day; you can pick longer frames like 1 Week / 1 Month). TP <strong>prices</strong> you saved above are used here for feasibility; ETAs are rough and uncertain; not financial advice.
               </p>
               <div className="flex flex-wrap items-end gap-2">
                 <div>
@@ -2494,28 +2519,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   Saved: {config.monitorDeepTimeframes[0]} + {config.monitorDeepTimeframes[1]}
                 </p>
               )}
-              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">TP price targets (save before monitor runs)</label>
-              <textarea
-                value={deepTpText}
-                onChange={(e) => setDeepTpText(e.target.value)}
-                rows={3}
-                placeholder={"ETH-USDT:2100 or ETH-USDT - 2100\nBTC-USDT=98500"}
-                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono"
-              />
-              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mt-2">
-                Optional: TP profit amount in USDT (same line format — for AI context only; does not place orders)
-              </label>
-              <textarea
-                value={deepTpAmountText}
-                onChange={(e) => setDeepTpAmountText(e.target.value)}
-                rows={2}
-                placeholder={"ETH-USDT: 400\nBTC-USDT - 250"}
-                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono"
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" size="sm" variant="secondary" onClick={saveDeepTpTargets} disabled={savingDeepTp || config == null}>
-                  {savingDeepTp ? "Saving…" : "Save TP & amounts"}
-                </Button>
+              <div className="flex flex-wrap gap-2 pt-1">
                 <Button type="button" size="sm" variant="outline" className="border-violet-500 text-violet-800 dark:text-violet-300" onClick={runDeepCheckNow} disabled={deepMonitoring}>
                   {deepMonitoring ? "Running deep…" : "Run deep check now"}
                 </Button>
