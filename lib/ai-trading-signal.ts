@@ -88,6 +88,8 @@ export type DeepPositionInput = {
   entryPrice: number;
   markPrice: number;
   userTakeProfit?: number | null;
+  /** Optional target unrealized PnL in quote (e.g. USDT) — user-defined take-profit *amount*. */
+  userTakeProfitAmountQuote?: number | null;
   /** Unrealized PnL in quote (e.g. USDT) when exchange provides it. */
   unrealizedPnlQuote?: number | null;
   seriesA: DeepSeries;
@@ -112,6 +114,8 @@ export type OpenPositionTacticInput = {
   entryPrice: number;
   markPrice: number;
   unrealizedPnlQuote: number | null;
+  /** Optional USDT (quote) profit target the user saved for this symbol. */
+  userTakeProfitAmountQuote?: number | null;
   strategy: string;
   botTimeframe: string;
   taSignal: "long" | "short" | null;
@@ -136,6 +140,10 @@ export async function getAIOpenPositionTactic(input: OpenPositionTacticInput): P
     input.unrealizedPnlQuote != null && Number.isFinite(input.unrealizedPnlQuote)
       ? `Unrealized PnL (quote): ${input.unrealizedPnlQuote >= 0 ? "+" : ""}${input.unrealizedPnlQuote.toFixed(2)}`
       : "Unrealized PnL: not provided — infer only from entry vs mark.";
+  const tpAmtLine =
+    input.userTakeProfitAmountQuote != null && Number.isFinite(input.userTakeProfitAmountQuote) && input.userTakeProfitAmountQuote > 0
+      ? `User target profit (quote, e.g. USDT): +${input.userTakeProfitAmountQuote.toFixed(2)} — compare to current unrealized PnL; suggest banking profit, holding for more, or adjusting if structure conflicts.`
+      : "";
 
   const prompt = `You are an experienced crypto perpetual futures analyst. The trader has an OPEN ${input.positionSide.toUpperCase()} on ${input.instId}. This is educational only — not personalized financial advice.
 
@@ -143,6 +151,7 @@ Position:
 - Entry (avg): ${input.entryPrice}
 - Mark: ${input.markPrice}
 - ${pnlLine}
+${tpAmtLine ? `- ${tpAmtLine}` : ""}
 - Bot timeframe: ${input.botTimeframe}; strategy mode: ${input.strategy}
 - TA overlay signal (if any): ${input.taSignal ?? "none"}
 - Prior model summary: ${input.analysisSnippet.slice(0, 400)}
@@ -200,6 +209,11 @@ export async function getAIDeepPositionReview(input: DeepPositionInput): Promise
       ? `User-entered take-profit price: ${input.userTakeProfit} (Blofin may not show TP in the app.) You MUST set TP_FEASIBLE to high, medium, or low (not unknown) based on distance, structure, and whether that target still makes sense for this ${input.positionSide}.`
       : "No explicit user TP price was passed to this model. You may use TP_FEASIBLE **unknown** only if major targets are genuinely ambiguous; otherwise rate feasibility of a typical profit-taking zone vs structure (high/medium/low) and explain briefly.";
 
+  const tpAmtLine =
+    input.userTakeProfitAmountQuote != null && Number.isFinite(input.userTakeProfitAmountQuote) && input.userTakeProfitAmountQuote > 0
+      ? `User-entered **profit target in quote** (e.g. USDT): +${input.userTakeProfitAmountQuote.toFixed(2)} unrealized PnL — weigh vs current PnL and structure (bank at target, stretch, or invalidation).`
+      : "";
+
   const pnlLine =
     input.unrealizedPnlQuote != null && Number.isFinite(input.unrealizedPnlQuote)
       ? `Unrealized PnL (quote): ${input.unrealizedPnlQuote >= 0 ? "+" : ""}${input.unrealizedPnlQuote.toFixed(2)} — use this with structure: large favorable PnL may warrant de-risk, exit, or planning a flip if the trend/regime is shifting.`
@@ -213,6 +227,7 @@ Position:
 - Entry (avg): ${input.entryPrice}
 - Mark / current: ${input.markPrice}
 - ${tpLine}
+${tpAmtLine ? `- ${tpAmtLine}` : ""}
 ${pnlLine ? `- ${pnlLine}` : ""}
 
 Context series (newest first):

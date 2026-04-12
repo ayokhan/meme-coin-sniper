@@ -494,21 +494,72 @@ function candleLimitForDeepBar(bar: string): number {
   return 120;
 }
 
-/** Parse saved JSON map instId → TP price (quote). */
+function normalizeInstIdToKey(raw: string): string {
+  return raw.trim().toUpperCase().replace(/\//g, "-");
+}
+
+/** Parse inner object instId → positive number (TP price or USDT profit target). */
+function parseSymbolNumberMap(obj: Record<string, unknown> | null | undefined): Record<string, number> {
+  if (!obj || typeof obj !== "object") return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const key = normalizeInstIdToKey(k);
+    const n = typeof v === "number" ? v : parseFloat(String(v));
+    if (key && Number.isFinite(n) && n > 0) out[key] = n;
+  }
+  return out;
+}
+
+/**
+ * Parse saved JSON: legacy flat `{ "ETH-USDT": 2080 }` or bundle
+ * `{ "prices": { ... }, "amountsQuote": { ... } }` (optional USDT profit targets for AI).
+ */
 export function parseMonitorTpTargetsJson(json: string | null | undefined): Record<string, number> {
   if (!json || typeof json !== "string" || !json.trim()) return {};
   try {
     const o = JSON.parse(json) as Record<string, unknown>;
-    const out: Record<string, number> = {};
-    for (const [k, v] of Object.entries(o)) {
-      const key = k.trim().toUpperCase().replace(/\//g, "-");
-      const n = typeof v === "number" ? v : parseFloat(String(v));
-      if (key && Number.isFinite(n) && n > 0) out[key] = n;
+    if (o && typeof o === "object" && !Array.isArray(o) && o.prices != null && typeof o.prices === "object" && !Array.isArray(o.prices)) {
+      return parseSymbolNumberMap(o.prices as Record<string, unknown>);
     }
-    return out;
+    return parseSymbolNumberMap(o);
   } catch {
     return {};
   }
+}
+
+/** Optional per-symbol unrealized-PnL targets in quote (e.g. USDT) for AI monitor / Deep. */
+export function parseMonitorTpAmountsJson(json: string | null | undefined): Record<string, number> {
+  if (!json || typeof json !== "string" || !json.trim()) return {};
+  try {
+    const o = JSON.parse(json) as Record<string, unknown>;
+    if (!o || typeof o !== "object" || Array.isArray(o)) return {};
+    const raw =
+      o.amountsQuote != null && typeof o.amountsQuote === "object" && !Array.isArray(o.amountsQuote)
+        ? (o.amountsQuote as Record<string, unknown>)
+        : o.amounts != null && typeof o.amounts === "object" && !Array.isArray(o.amounts)
+          ? (o.amounts as Record<string, unknown>)
+          : null;
+    return raw ? parseSymbolNumberMap(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Serialize price map and optional USDT profit targets into one DB field. */
+export function serializeMonitorTpBundle(prices: Record<string, number>, amountsQuote: Record<string, number>): string {
+  const p: Record<string, number> = {};
+  for (const [k, v] of Object.entries(prices)) {
+    const key = normalizeInstIdToKey(k);
+    if (key && typeof v === "number" && Number.isFinite(v) && v > 0) p[key] = v;
+  }
+  const a: Record<string, number> = {};
+  for (const [k, v] of Object.entries(amountsQuote)) {
+    const key = normalizeInstIdToKey(k);
+    if (key && typeof v === "number" && Number.isFinite(v) && v > 0) a[key] = v;
+  }
+  if (Object.keys(a).length > 0) return JSON.stringify({ prices: p, amountsQuote: a });
+  if (Object.keys(p).length > 0) return JSON.stringify(p);
+  return "";
 }
 
 export function mergeTpTargets(
@@ -519,7 +570,22 @@ export function mergeTpTargets(
   if (!override) return base;
   const merged = { ...base };
   for (const [k, v] of Object.entries(override)) {
-    const key = k.trim().toUpperCase().replace(/\//g, "-");
+    const key = normalizeInstIdToKey(k);
+    const n = typeof v === "number" ? v : parseFloat(String(v));
+    if (key && Number.isFinite(n) && n > 0) merged[key] = n;
+  }
+  return merged;
+}
+
+export function mergeTpAmounts(
+  dbJson: string | null | undefined,
+  override?: Record<string, number | string> | null
+): Record<string, number> {
+  const base = parseMonitorTpAmountsJson(dbJson);
+  if (!override) return base;
+  const merged = { ...base };
+  for (const [k, v] of Object.entries(override)) {
+    const key = normalizeInstIdToKey(k);
     const n = typeof v === "number" ? v : parseFloat(String(v));
     if (key && Number.isFinite(n) && n > 0) merged[key] = n;
   }
@@ -543,6 +609,8 @@ async function runDeepCheckForPosition(params: {
   entryPx: number;
   markPx: number;
   userTp?: number;
+  /** Optional user target for unrealized PnL in quote (e.g. USDT), same symbol row as TP price. */
+  userTpAmountQuote?: number;
   uplQuote?: number | null;
   isDemo: boolean;
   blofinConfig: BlofinConfig;
@@ -575,6 +643,10 @@ async function runDeepCheckForPosition(params: {
     entryPrice: params.entryPx,
     markPrice: params.markPx,
     userTakeProfit: params.userTp,
+    userTakeProfitAmountQuote:
+      params.userTpAmountQuote != null && Number.isFinite(params.userTpAmountQuote) && params.userTpAmountQuote > 0
+        ? params.userTpAmountQuote
+        : null,
     unrealizedPnlQuote: uplNum,
     seriesA: { label: barPrimary, closes: closesA },
     seriesB: { label: barSecondary, closes: closesB },
@@ -583,7 +655,15 @@ async function runDeepCheckForPosition(params: {
     rsiPrimary,
   });
   const sideLabel = isLongPos ? "LONG" : "SHORT";
-  const tpPart = params.userTp != null ? ` TP@${params.userTp}` : "";
+  const amt = params.userTpAmountQuote;
+  const tpPart =
+    params.userTp != null && amt != null && Number.isFinite(amt)
+      ? ` TP@${params.userTp} (+${amt.toFixed(0)} USDT PnL target)`
+      : params.userTp != null
+        ? ` TP@${params.userTp}`
+        : amt != null && Number.isFinite(amt)
+          ? ` PnL target +${amt.toFixed(0)} USDT`
+          : "";
   const tfNote = `[${barPrimary}/${barSecondary}]`;
   const tacticPart = ai.tacticHint ? ` | Tactical: ${ai.tacticHint}` : "";
   const line = `${instId} ${sideLabel}${tpPart}: [Deep] ${tfNote} ${ai.action.toUpperCase()} — TP feasibility: ${ai.tpFeasible}. ETA (uncertain): ${ai.etaHint}. ${ai.reason}${tacticPart}`;
@@ -599,6 +679,8 @@ export async function runAIMonitorCycle(options?: {
   deepOnly?: boolean;
   runDeepEachCycle?: boolean;
   tpTargets?: Record<string, number | string> | null;
+  /** Per instId: target unrealized PnL in quote (USDT) for AI coaching (optional). */
+  tpAmountsQuote?: Record<string, number | string> | null;
 }): Promise<{
   ok: boolean;
   closed: number;
@@ -621,7 +703,9 @@ export async function runAIMonitorCycle(options?: {
   const blofinOpts = { demo: isDemo, config: blofinConfig };
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
   const strategy = (bot as { strategy?: string }).strategy ?? "simple";
-  const tpMap = mergeTpTargets((bot as { monitorTpTargetsJson?: string | null }).monitorTpTargetsJson, options?.tpTargets ?? null);
+  const tpJson = (bot as { monitorTpTargetsJson?: string | null }).monitorTpTargetsJson;
+  const tpMap = mergeTpTargets(tpJson, options?.tpTargets ?? null);
+  const tpAmountMap = mergeTpAmounts(tpJson, options?.tpAmountsQuote ?? null);
   const [barPrimary, barSecondary] = parseMonitorDeepTimeframesJson(
     (bot as { monitorDeepTimeframesJson?: string | null }).monitorDeepTimeframesJson
   );
@@ -689,6 +773,7 @@ export async function runAIMonitorCycle(options?: {
         continue;
       }
       const userTp = lookupTpForInst(instId, tpMap);
+      const userTpAmt = lookupTpForInst(instId, tpAmountMap);
       const uplRaw = (pos as { upl?: string | null }).upl;
       const uplNum = uplRaw != null && String(uplRaw).trim() !== "" ? parseFloatSafe(String(uplRaw)) : null;
       const deep = await runDeepCheckForPosition({
@@ -698,6 +783,7 @@ export async function runAIMonitorCycle(options?: {
         entryPx,
         markPx,
         userTp,
+        userTpAmountQuote: userTpAmt,
         uplQuote: uplNum,
         isDemo,
         blofinConfig,
@@ -775,12 +861,14 @@ export async function runAIMonitorCycle(options?: {
     const rsiMon = rsi(closesMon, 14);
     const uplRawMon = (pos as { upl?: string | null }).upl;
     const uplMon = uplRawMon != null && String(uplRawMon).trim() !== "" ? parseFloatSafe(String(uplRawMon)) : null;
+    const userTpAmtMon = lookupTpForInst(instId, tpAmountMap);
     const tacticLine = await getAIOpenPositionTactic({
       instId,
       positionSide: isLongPos ? "long" : "short",
       entryPrice: parseFloatSafe(pos.avgPx),
       markPrice: lastPrice,
       unrealizedPnlQuote: Number.isFinite(uplMon) ? uplMon : null,
+      userTakeProfitAmountQuote: userTpAmtMon != null && Number.isFinite(userTpAmtMon) ? userTpAmtMon : null,
       strategy,
       botTimeframe: String(bot.timeframe ?? "15m"),
       taSignal: signal,
@@ -817,6 +905,7 @@ export async function runAIMonitorCycle(options?: {
       const entryPx = parseFloatSafe(pos.avgPx);
       const markPx = pos.markPx ? parseFloatSafe(pos.markPx) : lastPrice;
       const userTp = lookupTpForInst(instId, tpMap);
+      const userTpAmtDeep = lookupTpForInst(instId, tpAmountMap);
       const uplDeep = (pos as { upl?: string | null }).upl;
       const uplDeepNum = uplDeep != null && String(uplDeep).trim() !== "" ? parseFloatSafe(String(uplDeep)) : null;
       if (entryPx > 0 && markPx > 0) {
@@ -827,6 +916,7 @@ export async function runAIMonitorCycle(options?: {
           entryPx,
           markPx,
           userTp,
+          userTpAmountQuote: userTpAmtDeep,
           uplQuote: uplDeepNum,
           isDemo,
           blofinConfig,

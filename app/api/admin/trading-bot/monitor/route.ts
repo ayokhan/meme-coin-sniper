@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { mergeTpTargets, runAIMonitorCycle } from "@/lib/trading-bot-run";
+import { mergeTpTargets, mergeTpAmounts, runAIMonitorCycle } from "@/lib/trading-bot-run";
 import { resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
-/** POST - Run AI monitor. Body: { pinnedOnly?: boolean, deepOnly?: boolean, tpTargets?: object }. */
+/** POST - Run AI monitor. Body: { pinnedOnly?, deepOnly?, tpTargets?, tpAmountsQuote? }. */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,12 +21,16 @@ export async function POST(req: Request) {
     let pinnedOnly: boolean | undefined;
     let deepOnly = false;
     let tpTargetsBody: Record<string, number | string> | null = null;
+    let tpAmountsBody: Record<string, number | string> | null = null;
     try {
       const body = await req.json().catch(() => ({}));
       pinnedOnly = body.pinnedOnly === true ? true : body.pinnedOnly === false ? false : undefined;
       deepOnly = body.deepOnly === true;
       if (body.tpTargets && typeof body.tpTargets === "object" && body.tpTargets !== null) {
         tpTargetsBody = body.tpTargets as Record<string, number | string>;
+      }
+      if (body.tpAmountsQuote && typeof body.tpAmountsQuote === "object" && body.tpAmountsQuote !== null) {
+        tpAmountsBody = body.tpAmountsQuote as Record<string, number | string>;
       }
     } catch {
       pinnedOnly = undefined;
@@ -37,6 +41,7 @@ export async function POST(req: Request) {
     const runDeepEach = (bot as { aiMonitorRunDeepEachCycle?: boolean } | null)?.aiMonitorRunDeepEachCycle ?? false;
     const dbTpJson = (bot as { monitorTpTargetsJson?: string | null } | null)?.monitorTpTargetsJson;
     const tpTargets = mergeTpTargets(dbTpJson, tpTargetsBody);
+    const tpAmountsQuote = mergeTpAmounts(dbTpJson, tpAmountsBody);
 
     if (deepOnly) {
       const result = await runAIMonitorCycle({
@@ -44,6 +49,7 @@ export async function POST(req: Request) {
         deepOnly: true,
         pinnedOnly,
         tpTargets: Object.keys(tpTargets).length ? tpTargets : null,
+        tpAmountsQuote: Object.keys(tpAmountsQuote).length ? tpAmountsQuote : null,
       });
       if (!result.ok) {
         return NextResponse.json({ success: false, error: result.error ?? "Deep check failed." }, { status: 400 });
@@ -66,6 +72,7 @@ export async function POST(req: Request) {
       pinnedOnly,
       blofinConfig: resolved.config,
       tpTargets: Object.keys(tpTargets).length ? tpTargets : null,
+      tpAmountsQuote: Object.keys(tpAmountsQuote).length ? tpAmountsQuote : null,
     });
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error ?? "Monitor failed." }, { status: 400 });

@@ -3,7 +3,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions, canAccessTradingBot } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { isBlofinConfigured } from '@/lib/blofin';
-import { parseMonitorTpTargetsJson, parseMonitorDeepTimeframesJson, serializeMonitorDeepTimeframes } from '@/lib/trading-bot-run';
+import {
+  parseMonitorTpTargetsJson,
+  parseMonitorTpAmountsJson,
+  parseMonitorDeepTimeframesJson,
+  serializeMonitorDeepTimeframes,
+} from '@/lib/trading-bot-run';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,6 +98,7 @@ export async function GET() {
           : [],
         aiMonitorAutopilot: (bot as { aiMonitorAutopilot?: boolean }).aiMonitorAutopilot ?? false,
         monitorTpTargets: parseMonitorTpTargetsJson((bot as { monitorTpTargetsJson?: string | null }).monitorTpTargetsJson),
+        monitorTpAmountsQuote: parseMonitorTpAmountsJson((bot as { monitorTpTargetsJson?: string | null }).monitorTpTargetsJson),
         monitorDeepTimeframes: parseMonitorDeepTimeframesJson(
           (bot as { monitorDeepTimeframesJson?: string | null }).monitorDeepTimeframesJson
         ),
@@ -261,6 +267,7 @@ export async function PATCH(request: Request) {
           : [],
         aiMonitorAutopilot: (updated as { aiMonitorAutopilot?: boolean }).aiMonitorAutopilot ?? false,
         monitorTpTargets: parseMonitorTpTargetsJson((updated as { monitorTpTargetsJson?: string | null }).monitorTpTargetsJson),
+        monitorTpAmountsQuote: parseMonitorTpAmountsJson((updated as { monitorTpTargetsJson?: string | null }).monitorTpTargetsJson),
         monitorDeepTimeframes: parseMonitorDeepTimeframesJson(
           (updated as { monitorDeepTimeframesJson?: string | null }).monitorDeepTimeframesJson
         ),

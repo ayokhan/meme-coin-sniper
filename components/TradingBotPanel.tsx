@@ -50,6 +50,8 @@ type Config = {
   monitorSymbols?: string[];
   aiMonitorAutopilot?: boolean;
   monitorTpTargets?: Record<string, number>;
+  /** Optional per-symbol unrealized PnL target in quote (USDT) for AI monitor / Deep. */
+  monitorTpAmountsQuote?: Record<string, number>;
   monitorDeepTimeframes?: [string, string];
   aiMonitorRunDeepEachCycle?: boolean;
   aiMonitorDeepCheckAutopilot?: boolean;
@@ -98,6 +100,23 @@ function tpMapFromLines(text: string): Record<string, number> {
     if (parsed) out[parsed.key] = parsed.price;
   }
   return out;
+}
+
+/** Matches server `serializeMonitorTpBundle` — keeps client bundle free of `trading-bot-run`. */
+function buildMonitorTpTargetsJsonForApi(prices: Record<string, number>, amountsQuote: Record<string, number>): string | null {
+  const norm = (m: Record<string, number>) => {
+    const o: Record<string, number> = {};
+    for (const [k, v] of Object.entries(m)) {
+      const key = k.trim().toUpperCase().replace(/\//g, "-");
+      if (key && Number.isFinite(v) && v > 0) o[key] = v;
+    }
+    return o;
+  };
+  const p = norm(prices);
+  const a = norm(amountsQuote);
+  if (Object.keys(a).length > 0) return JSON.stringify({ prices: p, amountsQuote: a });
+  if (Object.keys(p).length > 0) return JSON.stringify(p);
+  return null;
 }
 
 function monitorTpForRow(instIdNorm: string, targets?: Record<string, number>): number | undefined {
@@ -195,6 +214,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [monitorBoardInput, setMonitorBoardInput] = useState("");
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
   const [deepTpText, setDeepTpText] = useState("");
+  const [deepTpAmountText, setDeepTpAmountText] = useState("");
   const [savingDeepTp, setSavingDeepTp] = useState(false);
   const [savingDeepTfs, setSavingDeepTfs] = useState(false);
   const [deepTfPrimary, setDeepTfPrimary] = useState("4H");
@@ -547,6 +567,13 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           setDeepTpText(entries.length ? entries.map(([k, v]) => `${k}: ${v}`).join("\n") : "");
         } else {
           setDeepTpText("");
+        }
+        const mta = data.config.monitorTpAmountsQuote;
+        if (mta && typeof mta === "object") {
+          const entA = Object.entries(mta as Record<string, number>).filter(([, v]) => typeof v === "number" && Number.isFinite(v) && v > 0);
+          setDeepTpAmountText(entA.length ? entA.map(([k, v]) => `${k}: ${v}`).join("\n") : "");
+        } else {
+          setDeepTpAmountText("");
         }
         const dtf = data.config.monitorDeepTimeframes;
         if (Array.isArray(dtf) && dtf.length >= 2 && typeof dtf[0] === "string" && typeof dtf[1] === "string") {
@@ -972,16 +999,18 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     try {
       setSavingDeepTp(true);
       clearFeedback();
-      const map = tpMapFromLines(deepTpText);
+      const priceMap = tpMapFromLines(deepTpText);
+      const amountMap = tpMapFromLines(deepTpAmountText);
+      const json = buildMonitorTpTargetsJsonForApi(priceMap, amountMap);
       const res = await fetch("/api/admin/trading-bot", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ monitorTpTargetsJson: JSON.stringify(map) }),
+        body: JSON.stringify({ monitorTpTargetsJson: json ?? "" }),
       });
       const data = await res.json().catch(() => ({}));
       if (data.success && data.config) {
         setConfig(data.config);
-        setSuccess("Take-profit targets saved for Deep check.");
+        setSuccess("TP price and optional USDT profit targets saved for AI monitor / Deep check.");
         setError(null);
       } else {
         setError(data.error ?? "Failed to save TP targets.");
@@ -1032,8 +1061,10 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       clearFeedback();
       setLastDeepRunAt(new Date().toISOString());
       const map = tpMapFromLines(deepTpText);
+      const amtMap = tpMapFromLines(deepTpAmountText);
       const body: Record<string, unknown> = { deepOnly: true, pinnedOnly: false };
       if (Object.keys(map).length > 0) body.tpTargets = map;
+      if (Object.keys(amtMap).length > 0) body.tpAmountsQuote = amtMap;
       const res = await fetch("/api/admin/trading-bot/monitor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2463,7 +2494,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   Saved: {config.monitorDeepTimeframes[0]} + {config.monitorDeepTimeframes[1]}
                 </p>
               )}
-              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">TP targets (save before monitor runs)</label>
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">TP price targets (save before monitor runs)</label>
               <textarea
                 value={deepTpText}
                 onChange={(e) => setDeepTpText(e.target.value)}
@@ -2471,9 +2502,19 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 placeholder={"ETH-USDT:2100 or ETH-USDT - 2100\nBTC-USDT=98500"}
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono"
               />
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mt-2">
+                Optional: TP profit amount in USDT (same line format — for AI context only; does not place orders)
+              </label>
+              <textarea
+                value={deepTpAmountText}
+                onChange={(e) => setDeepTpAmountText(e.target.value)}
+                rows={2}
+                placeholder={"ETH-USDT: 400\nBTC-USDT - 250"}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono"
+              />
               <div className="flex flex-wrap gap-2">
                 <Button type="button" size="sm" variant="secondary" onClick={saveDeepTpTargets} disabled={savingDeepTp || config == null}>
-                  {savingDeepTp ? "Saving…" : "Save TP targets"}
+                  {savingDeepTp ? "Saving…" : "Save TP & amounts"}
                 </Button>
                 <Button type="button" size="sm" variant="outline" className="border-violet-500 text-violet-800 dark:text-violet-300" onClick={runDeepCheckNow} disabled={deepMonitoring}>
                   {deepMonitoring ? "Running deep…" : "Run deep check now"}
@@ -2758,11 +2799,21 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                             {(p.markPrice ?? positionsData.markPrice) != null && <span className="text-muted-foreground">Mark: {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {(() => {
                               const tpSaved = monitorTpForRow(instIdNorm, config?.monitorTpTargets);
-                              return tpSaved != null ? (
-                                <span className="text-muted-foreground" title="Saved under AI Monitor → Deep check (Blofin often does not show TP here).">
-                                  TP (saved): {tpSaved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                              ) : null;
+                              const tpAmtSaved = monitorTpForRow(instIdNorm, config?.monitorTpAmountsQuote);
+                              return (
+                                <>
+                                  {tpSaved != null && (
+                                    <span className="text-muted-foreground" title="Saved under AI Monitor → Deep check (Blofin often does not show TP here).">
+                                      TP price (saved): {tpSaved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  )}
+                                  {tpAmtSaved != null && (
+                                    <span className="text-muted-foreground" title="Target unrealized PnL in USDT for AI coaching.">
+                                      PnL target (saved): +{tpAmtSaved.toLocaleString(undefined, { maximumFractionDigits: 0 })} USDT
+                                    </span>
+                                  )}
+                                </>
+                              );
                             })()}
                             {p.liqPrice != null && Number.isFinite(p.liqPrice) && <span className="text-muted-foreground">Liq: {p.liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {p.margin != null && Number.isFinite(p.margin) && <span className="text-muted-foreground">Margin: {p.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</span>}
