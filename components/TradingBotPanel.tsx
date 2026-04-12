@@ -995,12 +995,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     }
   };
 
-  const saveDeepTpTargets = async () => {
+  const persistMonitorTpBundle = async (
+    priceMap: Record<string, number>,
+    amountMap: Record<string, number>,
+    successMsg: string
+  ) => {
     try {
       setSavingDeepTp(true);
       clearFeedback();
-      const priceMap = tpMapFromLines(deepTpText);
-      const amountMap = tpMapFromLines(deepTpAmountText);
       const json = buildMonitorTpTargetsJsonForApi(priceMap, amountMap);
       const res = await fetch("/api/admin/trading-bot", {
         method: "PATCH",
@@ -1010,7 +1012,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       const data = await res.json().catch(() => ({}));
       if (data.success && data.config) {
         setConfig(data.config);
-        setSuccess("TP prices and USDT profit targets saved (AI Monitor + Deep check).");
+        setSuccess(successMsg);
         setError(null);
       } else {
         setError(data.error ?? "Failed to save TP targets.");
@@ -1022,6 +1024,22 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     } finally {
       setSavingDeepTp(false);
     }
+  };
+
+  /** USDT targets for short-term AI Monitor — keeps existing TP prices from server if the price textarea was left blank. */
+  const saveMonitorUsdtTargets = async () => {
+    const priceFromText = tpMapFromLines(deepTpText);
+    const priceMap = Object.keys(priceFromText).length > 0 ? priceFromText : { ...(config?.monitorTpTargets ?? {}) };
+    const amountMap = tpMapFromLines(deepTpAmountText);
+    await persistMonitorTpBundle(priceMap, amountMap, "USDT profit targets saved for the short-term AI Monitor.");
+  };
+
+  /** TP prices for Deep check — keeps existing USDT targets from server if the USDT textarea was left blank. */
+  const saveDeepTpPrices = async () => {
+    const priceMap = tpMapFromLines(deepTpText);
+    const amountFromText = tpMapFromLines(deepTpAmountText);
+    const amountMap = Object.keys(amountFromText).length > 0 ? amountFromText : { ...(config?.monitorTpAmountsQuote ?? {}) };
+    await persistMonitorTpBundle(priceMap, amountMap, "TP prices saved for Deep check.");
   };
 
   const saveDeepTimeframes = async () => {
@@ -2450,11 +2468,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
               </button>
               <span className="text-xs text-muted-foreground">{(config?.aiMonitorAutopilot ?? false) ? "On — AI closes automatically" : "Off — suggestions only"}</span>
             </div>
-            <div className="rounded-md border border-cyan-200/80 dark:border-cyan-800/50 bg-cyan-50/35 dark:bg-cyan-950/20 px-2 py-2 space-y-2">
-              <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">TP &amp; profit targets (save before Run now / auto-refresh)</p>
-              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                Optional — USDT profit target per symbol (same line format as below). Used by the <strong>short-term</strong> AI Monitor and your <strong>[Tactical]</strong> line; also passed to Deep when it runs. Does not place orders on the exchange.
-              </label>
+            <div className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-100/50 dark:bg-zinc-800/50 px-2 py-2 space-y-2">
+              <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">Short-term AI Monitor (optional)</p>
+              <p className="text-[11px] text-muted-foreground">
+                USDT <strong>profit target</strong> per symbol (one line per symbol, e.g. <code className="text-[10px]">ETH-USDT: 400</code>). Used when you <strong>Run now</strong> or auto-refresh — feeds the <strong>[Tactical]</strong> coaching line. Also available to Deep when it runs. Does not place exchange orders.
+              </p>
               <textarea
                 value={deepTpAmountText}
                 onChange={(e) => setDeepTpAmountText(e.target.value)}
@@ -2462,9 +2480,16 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 placeholder={"ETH-USDT: 400\nBTC-USDT - 250"}
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono"
               />
-              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mt-1">
-                TP <strong>price</strong> per symbol (mainly for Deep check distance / TP feasibility)
-              </label>
+              <Button type="button" size="sm" variant="secondary" onClick={saveMonitorUsdtTargets} disabled={savingDeepTp || config == null}>
+                {savingDeepTp ? "Saving…" : "Save USDT targets"}
+              </Button>
+            </div>
+            <details className="rounded-md border border-violet-200/80 dark:border-violet-800/60 bg-violet-50/40 dark:bg-violet-950/20 px-2 py-2 space-y-2">
+              <summary className="text-xs font-semibold cursor-pointer text-violet-900 dark:text-violet-200 select-none">Deep check — longer horizon (two candle series)</summary>
+              <p className="text-xs text-muted-foreground">
+                Set <strong>TP prices</strong> here for Deep distance / feasibility, then pick the <strong>two candle series</strong> (default 4 Hour + 1 Day; optional longer frames). ETAs are rough and uncertain; not financial advice. Optional USDT profit targets for the short-term AI Monitor live only in the <strong>Short-term AI Monitor</strong> box above — not in this collapsible.
+              </p>
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">TP price per symbol (for Deep feasibility)</label>
               <textarea
                 value={deepTpText}
                 onChange={(e) => setDeepTpText(e.target.value)}
@@ -2472,16 +2497,10 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 placeholder={"ETH-USDT:2100 or ETH-USDT - 2100\nBTC-USDT=98500"}
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono"
               />
-              <Button type="button" size="sm" variant="secondary" onClick={saveDeepTpTargets} disabled={savingDeepTp || config == null}>
-                {savingDeepTp ? "Saving…" : "Save TP & amounts"}
+              <Button type="button" size="sm" variant="secondary" onClick={saveDeepTpPrices} disabled={savingDeepTp || config == null}>
+                {savingDeepTp ? "Saving…" : "Save TP prices"}
               </Button>
-            </div>
-            <details className="rounded-md border border-violet-200/80 dark:border-violet-800/60 bg-violet-50/40 dark:bg-violet-950/20 px-2 py-2 space-y-2">
-              <summary className="text-xs font-semibold cursor-pointer text-violet-900 dark:text-violet-200 select-none">Deep check — longer horizon (two candle series)</summary>
-              <p className="text-xs text-muted-foreground">
-                Uses <strong>two Blofin candle series</strong> you choose (default 4 Hour + 1 Day; you can pick longer frames like 1 Week / 1 Month). TP <strong>prices</strong> you saved above are used here for feasibility; ETAs are rough and uncertain; not financial advice.
-              </p>
-              <div className="flex flex-wrap items-end gap-2">
+              <div className="flex flex-wrap items-end gap-2 pt-1 border-t border-violet-200/60 dark:border-violet-800/40">
                 <div>
                   <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-0.5">Primary series</label>
                   <select
