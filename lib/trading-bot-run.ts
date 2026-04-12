@@ -22,7 +22,7 @@ import {
 } from "@/lib/blofin";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
 import { indicatorsSignal, maCrossoverSignal, candlePatternSignal, findSupportResistance, ema, rsi } from "@/lib/trading-bot-ta";
-import { getAITradingSignal, getAIDeepPositionReview } from "@/lib/ai-trading-signal";
+import { getAITradingSignal, getAIDeepPositionReview, getAIOpenPositionTactic } from "@/lib/ai-trading-signal";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -543,6 +543,7 @@ async function runDeepCheckForPosition(params: {
   entryPx: number;
   markPx: number;
   userTp?: number;
+  uplQuote?: number | null;
   isDemo: boolean;
   blofinConfig: BlofinConfig;
   barPrimary: string;
@@ -567,12 +568,14 @@ async function runDeepCheckForPosition(params: {
   const { support, resistance } = findSupportResistance(candlesA, 10);
   const rsiPrimary = rsi(closesA, 14);
   const side = isLongPos ? "long" : "short";
+  const uplNum = params.uplQuote != null && Number.isFinite(params.uplQuote) ? params.uplQuote : null;
   const ai = await getAIDeepPositionReview({
     instId,
     positionSide: side,
     entryPrice: params.entryPx,
     markPrice: params.markPx,
     userTakeProfit: params.userTp,
+    unrealizedPnlQuote: uplNum,
     seriesA: { label: barPrimary, closes: closesA },
     seriesB: { label: barSecondary, closes: closesB },
     supportPrimary: support,
@@ -582,7 +585,8 @@ async function runDeepCheckForPosition(params: {
   const sideLabel = isLongPos ? "LONG" : "SHORT";
   const tpPart = params.userTp != null ? ` TP@${params.userTp}` : "";
   const tfNote = `[${barPrimary}/${barSecondary}]`;
-  const line = `${instId} ${sideLabel}${tpPart}: [Deep] ${tfNote} ${ai.action.toUpperCase()} — TP feasibility: ${ai.tpFeasible}. ETA (uncertain): ${ai.etaHint}. ${ai.reason}`;
+  const tacticPart = ai.tacticHint ? ` | Tactical: ${ai.tacticHint}` : "";
+  const line = `${instId} ${sideLabel}${tpPart}: [Deep] ${tfNote} ${ai.action.toUpperCase()} — TP feasibility: ${ai.tpFeasible}. ETA (uncertain): ${ai.etaHint}. ${ai.reason}${tacticPart}`;
   return { line, action: ai.action, detailReason: ai.reason };
 }
 
@@ -685,6 +689,8 @@ export async function runAIMonitorCycle(options?: {
         continue;
       }
       const userTp = lookupTpForInst(instId, tpMap);
+      const uplRaw = (pos as { upl?: string | null }).upl;
+      const uplNum = uplRaw != null && String(uplRaw).trim() !== "" ? parseFloatSafe(String(uplRaw)) : null;
       const deep = await runDeepCheckForPosition({
         instId,
         posSide,
@@ -692,6 +698,7 @@ export async function runAIMonitorCycle(options?: {
         entryPx,
         markPx,
         userTp,
+        uplQuote: uplNum,
         isDemo,
         blofinConfig,
         barPrimary,
@@ -763,12 +770,35 @@ export async function runAIMonitorCycle(options?: {
     const rawPosSide = (pos as { rawPositionSide?: string }).rawPositionSide?.toLowerCase();
     const positionSide = (rawPosSide === "net" ? "net" : (posSide === "long" || posSide === "short" ? posSide : "net")) as "long" | "short" | "net";
 
+    const closesMon = candles.map((c) => parseFloatSafe(c[4])).filter((c) => c > 0);
+    const { support: supM, resistance: resM } = findSupportResistance(candles, 8);
+    const rsiMon = rsi(closesMon, 14);
+    const uplRawMon = (pos as { upl?: string | null }).upl;
+    const uplMon = uplRawMon != null && String(uplRawMon).trim() !== "" ? parseFloatSafe(String(uplRawMon)) : null;
+    const tacticLine = await getAIOpenPositionTactic({
+      instId,
+      positionSide: isLongPos ? "long" : "short",
+      entryPrice: parseFloatSafe(pos.avgPx),
+      markPrice: lastPrice,
+      unrealizedPnlQuote: Number.isFinite(uplMon) ? uplMon : null,
+      strategy,
+      botTimeframe: String(bot.timeframe ?? "15m"),
+      taSignal: signal,
+      analysisSnippet: analysisMsg,
+      lastCloses: closesMon,
+      supportLevels: supM,
+      resistanceLevels: resM,
+      rsi: rsiMon,
+    });
+
     let shortCloseSucceeded = false;
     if (!shouldClose) {
       reasons.push(`${instId} ${posSide.toUpperCase()}: held — ${analysisMsg}`);
+      if (tacticLine) reasons.push(tacticLine);
     } else if (dryRun) {
       suggestedCloses.push({ instId, posSide: positionSide, reason: analysisMsg });
       reasons.push(`${instId} ${positionSide.toUpperCase()}: suggested close — ${analysisMsg}`);
+      if (tacticLine) reasons.push(tacticLine);
     } else {
       const result = await closePositionViaApiBlofin(instId, marginMode, positionSide, blofinOpts);
       if (result.ok) {
@@ -778,6 +808,7 @@ export async function runAIMonitorCycle(options?: {
       } else {
         reasons.push(`${instId} ${posSide.toUpperCase()}: close failed — ${result.error ?? "unknown error"}`);
       }
+      if (tacticLine) reasons.push(tacticLine);
     }
 
     if (shortCloseSucceeded) continue;
@@ -786,6 +817,8 @@ export async function runAIMonitorCycle(options?: {
       const entryPx = parseFloatSafe(pos.avgPx);
       const markPx = pos.markPx ? parseFloatSafe(pos.markPx) : lastPrice;
       const userTp = lookupTpForInst(instId, tpMap);
+      const uplDeep = (pos as { upl?: string | null }).upl;
+      const uplDeepNum = uplDeep != null && String(uplDeep).trim() !== "" ? parseFloatSafe(String(uplDeep)) : null;
       if (entryPx > 0 && markPx > 0) {
         const deep = await runDeepCheckForPosition({
           instId,
@@ -794,6 +827,7 @@ export async function runAIMonitorCycle(options?: {
           entryPx,
           markPx,
           userTp,
+          uplQuote: uplDeepNum,
           isDemo,
           blofinConfig,
           barPrimary,

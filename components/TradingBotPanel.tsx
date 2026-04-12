@@ -72,17 +72,30 @@ const DEEP_CHECK_TF_OPTIONS: { bar: string; label: string }[] = [
   { bar: "1M", label: "1 Month" },
 ];
 
+function parseOneTpLine(t: string): { key: string; price: number } | null {
+    const patterns = [
+      /^(.+?)\s*:\s*([\d,.\s]+)\s*$/i,
+      /^(.+?)\s*=\s*([\d,.\s]+)\s*$/i,
+      /^(.+?)\s+[-–]\s*([\d,.\s]+)\s*$/i,
+    ];
+    for (const re of patterns) {
+      const m = t.match(re);
+      if (m) {
+        const key = m[1].trim().toUpperCase().replace(/\//g, "-");
+        const price = parseFloat(m[2].replace(/,/g, "").replace(/\s/g, ""));
+        if (key && Number.isFinite(price) && price > 0) return { key, price };
+      }
+    }
+    return null;
+}
+
 function tpMapFromLines(text: string): Record<string, number> {
   const out: Record<string, number> = {};
   for (const line of text.split(/\n/)) {
     const t = line.trim();
     if (!t || t.startsWith("#")) continue;
-    const m = t.match(/^([\w.-]+)\s*[:=]\s*([\d.]+)\s*$/i);
-    if (m) {
-      const k = m[1].trim().toUpperCase().replace(/\//g, "-");
-      const n = parseFloat(m[2]);
-      if (k && Number.isFinite(n) && n > 0) out[k] = n;
-    }
+    const parsed = parseOneTpLine(t);
+    if (parsed) out[parsed.key] = parsed.price;
   }
   return out;
 }
@@ -2455,7 +2468,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 value={deepTpText}
                 onChange={(e) => setDeepTpText(e.target.value)}
                 rows={3}
-                placeholder={"ETH-USDT:2100\nBTC-USDT:98500"}
+                placeholder={"ETH-USDT:2100 or ETH-USDT - 2100\nBTC-USDT=98500"}
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono"
               />
               <div className="flex flex-wrap gap-2">

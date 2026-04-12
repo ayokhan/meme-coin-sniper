@@ -88,6 +88,8 @@ export type DeepPositionInput = {
   entryPrice: number;
   markPrice: number;
   userTakeProfit?: number | null;
+  /** Unrealized PnL in quote (e.g. USDT) when exchange provides it. */
+  unrealizedPnlQuote?: number | null;
   seriesA: DeepSeries;
   seriesB: DeepSeries;
   supportPrimary: number[];
@@ -100,7 +102,77 @@ export type DeepPositionResult = {
   tpFeasible: "high" | "medium" | "low" | "unknown";
   etaHint: string;
   reason: string;
+  /** Actionable coaching: trim, exit, consider flip, etc. */
+  tacticHint: string;
 };
+
+export type OpenPositionTacticInput = {
+  instId: string;
+  positionSide: "long" | "short";
+  entryPrice: number;
+  markPrice: number;
+  unrealizedPnlQuote: number | null;
+  strategy: string;
+  botTimeframe: string;
+  taSignal: "long" | "short" | null;
+  analysisSnippet: string;
+  lastCloses: number[];
+  supportLevels: number[];
+  resistanceLevels: number[];
+  rsi?: number | null;
+};
+
+/**
+ * Short-term tactical coaching for an open position (AI Monitor add-on).
+ * Not financial advice; does not place orders.
+ */
+export async function getAIOpenPositionTactic(input: OpenPositionTacticInput): Promise<string | null> {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+
+  const closes = input.lastCloses.slice(0, 45).join(", ");
+  const s = input.supportLevels.slice(0, 5).join(", ") || "none";
+  const r = input.resistanceLevels.slice(0, 5).join(", ") || "none";
+  const pnlLine =
+    input.unrealizedPnlQuote != null && Number.isFinite(input.unrealizedPnlQuote)
+      ? `Unrealized PnL (quote): ${input.unrealizedPnlQuote >= 0 ? "+" : ""}${input.unrealizedPnlQuote.toFixed(2)}`
+      : "Unrealized PnL: not provided — infer only from entry vs mark.";
+
+  const prompt = `You are an experienced crypto perpetual futures analyst. The trader has an OPEN ${input.positionSide.toUpperCase()} on ${input.instId}. This is educational only — not personalized financial advice.
+
+Position:
+- Entry (avg): ${input.entryPrice}
+- Mark: ${input.markPrice}
+- ${pnlLine}
+- Bot timeframe: ${input.botTimeframe}; strategy mode: ${input.strategy}
+- TA overlay signal (if any): ${input.taSignal ?? "none"}
+- Prior model summary: ${input.analysisSnippet.slice(0, 400)}
+
+Market (newest first):
+- Last closes: ${closes}
+${input.rsi != null ? `- RSI(14): ${input.rsi.toFixed(1)}` : ""}
+- Support: ${s}
+- Resistance: ${r}
+
+Task: Using structure (swings, trend, S/R), RSI, and **meaningful PnL vs entry**, give ONE concise tactical line the trader can act on manually. Examples of ideas (pick one when justified): hold; bank some profit / de-risk; full exit; structure favors **closing and looking for a new long**; favors **closing and looking for a new short**; wait for pullback to add same side — only if evidence is clear. If the run has delivered a large favorable move and structure shows exhaustion or a regime shift against the open, say so explicitly.
+
+Output exactly one line (no other lines):
+TACTIC_ONE_LINER: max 260 characters, plain text.`;
+
+  const msg = await anthropic.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 200,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const text =
+    msg.content?.find((b) => b.type === "text")?.type === "text"
+      ? (msg.content.find((b) => b.type === "text") as { type: "text"; text: string }).text
+      : "";
+  const m = text.match(/TACTIC_ONE_LINER:\s*(.+)/i);
+  const line = m ? m[1].trim().slice(0, 320) : "";
+  if (!line) return null;
+  return `${input.instId} ${input.positionSide.toUpperCase()}: [Tactical] ${line}`;
+}
 
 /**
  * Longer-horizon read for an open position using two user-chosen candle series (Blofin bars).
@@ -113,6 +185,7 @@ export async function getAIDeepPositionReview(input: DeepPositionInput): Promise
       tpFeasible: "unknown",
       etaHint: "n/a",
       reason: "AI not configured (set ANTHROPIC_API_KEY).",
+      tacticHint: "",
     };
   }
 
@@ -124,8 +197,13 @@ export async function getAIDeepPositionReview(input: DeepPositionInput): Promise
   const r = input.resistancePrimary.slice(0, 5).join(", ") || "none";
   const tpLine =
     input.userTakeProfit != null && Number.isFinite(input.userTakeProfit) && input.userTakeProfit > 0
-      ? `User-entered take-profit price: ${input.userTakeProfit} (Blofin may not show TP in the app.)`
-      : "No user take-profit price; judge holding vs exit using structure in line with the open direction.";
+      ? `User-entered take-profit price: ${input.userTakeProfit} (Blofin may not show TP in the app.) You MUST set TP_FEASIBLE to high, medium, or low (not unknown) based on distance, structure, and whether that target still makes sense for this ${input.positionSide}.`
+      : "No explicit user TP price was passed to this model. You may use TP_FEASIBLE **unknown** only if major targets are genuinely ambiguous; otherwise rate feasibility of a typical profit-taking zone vs structure (high/medium/low) and explain briefly.";
+
+  const pnlLine =
+    input.unrealizedPnlQuote != null && Number.isFinite(input.unrealizedPnlQuote)
+      ? `Unrealized PnL (quote): ${input.unrealizedPnlQuote >= 0 ? "+" : ""}${input.unrealizedPnlQuote.toFixed(2)} — use this with structure: large favorable PnL may warrant de-risk, exit, or planning a flip if the trend/regime is shifting.`
+      : "";
 
   const prompt = `You are an expert crypto futures analyst. The user has an OPEN ${input.positionSide.toUpperCase()} position and wants a LONGER-HORIZON read (not scalping), using two timeframe contexts below.
 
@@ -135,6 +213,7 @@ Position:
 - Entry (avg): ${input.entryPrice}
 - Mark / current: ${input.markPrice}
 - ${tpLine}
+${pnlLine ? `- ${pnlLine}` : ""}
 
 Context series (newest first):
 - Series A (${input.seriesA.label}) last ${sliceA} closes: ${cA}
@@ -146,18 +225,19 @@ ${input.rsiPrimary != null ? `- RSI(14) on Series A closes: ${input.rsiPrimary.t
 Rules:
 - Not personalized financial advice; be cautious.
 - ETA_HINT: rough band (e.g. "unlikely within 24h", "several days if structure holds", "weeks+") and state uncertainty — never imply certainty.
-- ACTION "close" only if structure across these horizons clearly contradicts holding the ${input.positionSide} OR user TP looks effectively unreachable without invalidating the trade. Otherwise "hold".
-- If no user TP, TP_FEASIBLE may be "unknown".
+- ACTION "close" only if structure across these horizons clearly contradicts holding the ${input.positionSide} OR the trade thesis is broken. Otherwise "hold".
+- TACTIC_HINT: one sentence (max 220 chars) with **actionable** coaching: e.g. hold; trim/take profit; full exit; **close short and watch for long re-entry** if structure clearly flipped bullish; **close long and watch for short** if flipped bearish — tie to S/R, swings/trend, RSI, and PnL context when relevant.
 
 Respond with exactly this format (one line each):
 ACTION: hold|close
 TP_FEASIBLE: high|medium|low|unknown
 ETA_HINT: one short phrase
+TACTIC_HINT: one sentence (max 220 chars)
 REASON: 2-4 sentences`;
 
   const msg = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 400,
+    max_tokens: 500,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -181,9 +261,13 @@ REASON: 2-4 sentences`;
   const etaMatch = text.match(/ETA_HINT:\s*(.+)/i);
   if (etaMatch) etaHint = etaMatch[1].trim();
 
+  let tacticHint = "";
+  const tactMatch = text.match(/TACTIC_HINT:\s*(.+)/i);
+  if (tactMatch) tacticHint = tactMatch[1].trim().slice(0, 240);
+
   let reason = "No response";
   const reasonMatch = text.match(/REASON:\s*([\s\S]+)/i);
   if (reasonMatch) reason = reasonMatch[1].trim().split(/\n\nACTION:/i)[0]?.trim() || reasonMatch[1].trim();
 
-  return { action, tpFeasible, etaHint: etaHint || "uncertain", reason };
+  return { action, tpFeasible, etaHint: etaHint || "uncertain", reason, tacticHint };
 }
