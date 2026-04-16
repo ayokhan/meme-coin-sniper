@@ -3545,7 +3545,7 @@ export default function Dashboard() {
                     </div>
                   <p className="text-xs text-muted-foreground mb-3">
                     {perpRadarView === "hyperliquid"
-                      ? "Hyperliquid (ApexLiquid) perp universe — useful for finding these BASED/USD, ORDI/USD-style contracts even when they are not listed on Binance."
+                      ? "Hyperliquid (ApexLiquid) perp universe — same style of contracts as ApexLiquid/Blofin listings. Top rows get 5m–4h % from Hyperliquid candles so you can sort by 1h/15m (early push) instead of only chasing the 24h print."
                       : perpRadarView === "macro"
                       ? "Macro perps from Binance USDT-M: energy, metals, and indices (e.g. XAU, XAG, SPX, BRENT). We pin XAU/XAG/SPX so they show even when they are not top 24h movers."
                       : perpRadarView === "metals"

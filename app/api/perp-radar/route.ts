@@ -15,29 +15,46 @@ function hlCandlePct(candles: Array<[string, string, string, string, string, ...
   return open && open > 0 ? ((close - open) / open) * 100 : null;
 }
 
+async function enrichOneItemFromHl(item: PerpRadarItem): Promise<PerpRadarItem> {
+  const [c5, c15, c30, c1h, c4h] = await Promise.all([
+    getCandles(item.base, "5m", 1),
+    getCandles(item.base, "15m", 1),
+    getCandles(item.base, "30m", 1),
+    getCandles(item.base, "1h", 1),
+    getCandles(item.base, "4h", 1),
+  ]);
+  return {
+    ...item,
+    pct5m: hlCandlePct(c5) ?? item.pct5m,
+    pct15m: hlCandlePct(c15) ?? item.pct15m,
+    pct30m: hlCandlePct(c30) ?? item.pct30m,
+    pct1h: hlCandlePct(c1h) ?? item.pct1h,
+    pct4h: hlCandlePct(c4h) ?? item.pct4h,
+  };
+}
+
 /** Fallback when Binance klines are blocked (e.g. 451): fill 5m–4h from Hyperliquid where the coin exists. */
 async function enrichPerpRadarWithHyperliquid(items: PerpRadarItem[], maxItems: number): Promise<PerpRadarItem[]> {
   const toEnrich = items.slice(0, maxItems);
-  const enriched = await Promise.all(
-    toEnrich.map(async (item) => {
-      const [c5, c15, c30, c1h, c4h] = await Promise.all([
-        getCandles(item.base, "5m", 1),
-        getCandles(item.base, "15m", 1),
-        getCandles(item.base, "30m", 1),
-        getCandles(item.base, "1h", 1),
-        getCandles(item.base, "4h", 1),
-      ]);
-      return {
-        ...item,
-        pct5m: hlCandlePct(c5) ?? item.pct5m,
-        pct15m: hlCandlePct(c15) ?? item.pct15m,
-        pct30m: hlCandlePct(c30) ?? item.pct30m,
-        pct1h: hlCandlePct(c1h) ?? item.pct1h,
-        pct4h: hlCandlePct(c4h) ?? item.pct4h,
-      };
-    })
-  );
+  const enriched = await Promise.all(toEnrich.map((item) => enrichOneItemFromHl(item)));
   return [...enriched, ...items.slice(maxItems)];
+}
+
+/** Same as enrichPerpRadarWithHyperliquid but in small batches to avoid hammering Hyperliquid when many rows load at once. */
+async function enrichPerpRadarWithHyperliquidBatched(
+  items: PerpRadarItem[],
+  maxItems: number,
+  batchSize: number
+): Promise<PerpRadarItem[]> {
+  const head = items.slice(0, maxItems);
+  const tail = items.slice(maxItems);
+  const out: PerpRadarItem[] = [];
+  for (let i = 0; i < head.length; i += batchSize) {
+    const batch = head.slice(i, i + batchSize);
+    const part = await Promise.all(batch.map((item) => enrichOneItemFromHl(item)));
+    out.push(...part);
+  }
+  return [...out, ...tail];
 }
 
 /** GET - Perp Radar: extreme movers across supported exchanges (Binance USDT futures first). */
@@ -76,9 +93,15 @@ export async function GET(request: Request) {
         pct1h: undefined,
         pct4h: undefined,
       }));
+      let enriched = items;
+      try {
+        enriched = await enrichPerpRadarWithHyperliquidBatched(items, Math.min(72, items.length), 10);
+      } catch {
+        /* keep 24h-only rows if HL klines fail */
+      }
       return NextResponse.json({
         success: true,
-        items,
+        items: enriched,
         exchanges: ["hyperliquid"],
       });
     }
