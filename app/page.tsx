@@ -5998,7 +5998,7 @@ export default function Dashboard() {
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaQ (NovaIntelligence)</h2>
                       <p className="text-xs text-muted-foreground mb-4">
-                        Select timeframe(s), enter a contract symbol (for example BTC), then run NovaQ to get support/resistance levels and current market direction from market structure.{" "}
+                        Select timeframe(s), enter a contract symbol (for example BTC). Use <strong className="text-zinc-700 dark:text-zinc-300">XAU</strong> for Blofin gold perp (<span className="font-mono">XAU-USDT</span>); other symbols use Hyperliquid (gold there: <span className="font-mono">PAXG</span>). Then run NovaQ for support/resistance and direction from market structure.{" "}
                         <strong className="text-zinc-700 dark:text-zinc-300">S/R touches</strong> count how many candles in that window wicked near the period low (support) or period high (resistance)—handy for gauging how often those edges traded.
                       </p>
                       <div className="flex flex-wrap items-center gap-4 mb-4">

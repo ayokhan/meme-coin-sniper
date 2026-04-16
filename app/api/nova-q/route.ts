@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
-import { getCandles, getPerpSpecFromMeta, getTicker, type HyperliquidPerpSpec } from "@/lib/hyperliquid";
+import { getCandles as getHlCandles, getPerpSpecFromMeta, getTicker as getHlTicker, type HyperliquidPerpSpec } from "@/lib/hyperliquid";
+import { getCandles as getBlofinCandles, getTicker as getBlofinTicker, toBlofinBar } from "@/lib/blofin";
+
+/** Blofin lists gold as XAU-USDT; Hyperliquid has no XAU perp. */
+const BLOFIN_XAU_INST = "XAU-USDT";
 
 /** Optional one-liner for symbols users often confuse with other venues. */
 const NOVA_Q_KNOWN_ASSET_NOTES: Record<string, string> = {
@@ -108,7 +112,7 @@ function normalizeSymbol(raw: string): string {
 
 function buildContractDescription(symbol: string, spec: HyperliquidPerpSpec | null): string {
   if (!spec) {
-    return `${symbol} is not listed as a USDC-margined perpetual in Hyperliquid’s meta. NovaQ only analyzes Hyperliquid markets—try the exact HL coin name (for gold on HL, use PAXG).`;
+    return `${symbol} is not listed as a USDC-margined perpetual in Hyperliquid’s meta. NovaQ uses Hyperliquid for most symbols—try the exact HL coin name (for gold on HL, use PAXG), or enter XAU for Blofin gold (XAU-USDT).`;
   }
   const minStep = Math.pow(10, -spec.szDecimals);
   const base = `${spec.name}: Hyperliquid USDC-margined perpetual, max leverage ${spec.maxLeverage}x, minimum size step about ${minStep} ${spec.name}.`;
@@ -151,18 +155,26 @@ export async function POST(request: Request) {
     const selected = NOVA_Q_TIMEFRAMES.filter((t) => requestedTf.includes(t.id));
     const effectiveTf = selected.length > 0 ? selected : [NOVA_Q_TIMEFRAMES[1], NOVA_Q_TIMEFRAMES[3], NOVA_Q_TIMEFRAMES[8]]; // 15m, 1h, 1w
 
+    const useBlofinXau = symbol === "XAU";
+
     let contractDescription = "";
-    try {
-      const spec = await getPerpSpecFromMeta(symbol);
-      contractDescription = buildContractDescription(symbol, spec);
-    } catch {
-      contractDescription = `${symbol}: contract details temporarily unavailable (Hyperliquid meta).`;
+    if (useBlofinXau) {
+      contractDescription = `XAU: Blofin USDT-margined gold perpetual (${BLOFIN_XAU_INST}). Candles and last price use Blofin’s public market API. Other NovaQ symbols use Hyperliquid.`;
+    } else {
+      try {
+        const spec = await getPerpSpecFromMeta(symbol);
+        contractDescription = buildContractDescription(symbol, spec);
+      } catch {
+        contractDescription = `${symbol}: contract details temporarily unavailable (Hyperliquid meta).`;
+      }
     }
 
     const tfResults: NovaQTfResult[] = [];
     for (const tf of effectiveTf) {
       try {
-        const candles = await getCandles(symbol, tf.interval, tf.limit);
+        const candles = useBlofinXau
+          ? await getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar(tf.interval), tf.limit)
+          : await getHlCandles(symbol, tf.interval, tf.limit);
         const hl = highLowFromCandles(candles as CandleTuple[]);
         if (!hl) continue;
         const { supportTouches, resistanceTouches } = countSupportResistanceTouches(
@@ -184,7 +196,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const ticker = await getTicker(symbol);
+    const ticker = useBlofinXau ? await getBlofinTicker(BLOFIN_XAU_INST) : await getHlTicker(symbol);
     const currentPrice = ticker?.last ? Number(ticker.last) : null;
     const marketDirection = getOverallDirection(tfResults);
 
