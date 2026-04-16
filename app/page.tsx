@@ -783,6 +783,7 @@ export default function Dashboard() {
   const [perpRadarView, setPerpRadarView] = useState<"all" | "macro" | "metals" | "hyperliquid">("all");
   const [perpRadarPreset, setPerpRadarPreset] = useState<"all" | "24h_up" | "24h_down" | "momentum_bull" | "momentum_bear" | "fresh_accel">("fresh_accel");
   const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
+  const [perpRadarOnlySurge, setPerpRadarOnlySurge] = useState(false);
   const [perpAlertAddType, setPerpAlertAddType] = useState<"new_listing" | "5m_pct_above" | "5m_pct_below">("new_listing");
   const [perpAlertAddSymbol, setPerpAlertAddSymbol] = useState("");
   const [perpAlertAddThreshold, setPerpAlertAddThreshold] = useState("");
@@ -3539,6 +3540,14 @@ export default function Dashboard() {
                         <option value="4h">4h %</option>
                         <option value="24h">24h %</option>
                       </select>
+                      <button
+                        type="button"
+                        onClick={() => setPerpRadarOnlySurge((v) => !v)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarOnlySurge ? "bg-emerald-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                        title="Show only rows with short-term surge highlight"
+                      >
+                        {perpRadarOnlySurge ? "Only surge: On" : "Only surge: Off"}
+                      </button>
                       <Button variant="outline" size="sm" onClick={() => fetchPerpRadar()} disabled={perpRadarLoading}>
                         {perpRadarLoading ? "Loading…" : "Refresh"}
                       </Button>
@@ -3590,6 +3599,22 @@ export default function Dashboard() {
                         </TableHeader>
                         <TableBody>
                           {(() => {
+                            const isSurge = (p: PerpRadarItem): { up: boolean; down: boolean } => {
+                              const pct5m = p.pct5m ?? 0;
+                              const pct15m = p.pct15m ?? 0;
+                              const pct30m = p.pct30m ?? 0;
+                              const pct1h = p.pct1h ?? 0;
+                              const intradayAvailable = [p.pct5m, p.pct15m, p.pct30m, p.pct1h, p.pct4h].filter((v) => v != null).length;
+                              const up =
+                                p.quoteVolume24h >= 120_000 &&
+                                intradayAvailable >= 2 &&
+                                ((pct5m >= 0.8 && pct15m >= 1.4) || pct30m >= 2.2 || pct1h >= 3.2);
+                              const down =
+                                p.quoteVolume24h >= 120_000 &&
+                                intradayAvailable >= 2 &&
+                                ((pct5m <= -0.8 && pct15m <= -1.4) || pct30m <= -2.2 || pct1h <= -3.2);
+                              return { up, down };
+                            };
                             const filtered = perpRadarItems.filter((p) => {
                               const pct5m = p.pct5m ?? 0;
                               const pct15m = p.pct15m ?? 0;
@@ -3630,33 +3655,19 @@ export default function Dashboard() {
                                 vol >= 120_000
                               );
                             });
+                            const surgeFiltered = perpRadarOnlySurge ? filtered.filter((p) => {
+                              const s = isSurge(p);
+                              return s.up || s.down;
+                            }) : filtered;
                             const key = perpRadarSortBy;
                             const getVal = (p: PerpRadarItem) => key === "24h" ? p.change24hPct : key === "5m" ? (p.pct5m ?? 0) : key === "15m" ? (p.pct15m ?? 0) : key === "30m" ? (p.pct30m ?? 0) : key === "1h" ? (p.pct1h ?? 0) : (p.pct4h ?? 0);
-                            const sorted = [...filtered].sort((a, b) => Math.abs(getVal(b)) - Math.abs(getVal(a)));
+                            const sorted = [...surgeFiltered].sort((a, b) => Math.abs(getVal(b)) - Math.abs(getVal(a)));
                             const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                             const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
                             return sorted.map((p, i) => {
-                              const pct5m = p.pct5m ?? 0;
-                              const pct15m = p.pct15m ?? 0;
-                              const pct30m = p.pct30m ?? 0;
-                              const pct1h = p.pct1h ?? 0;
-                              const intradayAvailable = [p.pct5m, p.pct15m, p.pct30m, p.pct1h, p.pct4h].filter((v) => v != null).length;
-                              const surgeBull =
-                                p.quoteVolume24h >= 120_000 &&
-                                intradayAvailable >= 2 &&
-                                (
-                                  (pct5m >= 0.8 && pct15m >= 1.4) ||
-                                  pct30m >= 2.2 ||
-                                  pct1h >= 3.2
-                                );
-                              const surgeBear =
-                                p.quoteVolume24h >= 120_000 &&
-                                intradayAvailable >= 2 &&
-                                (
-                                  (pct5m <= -0.8 && pct15m <= -1.4) ||
-                                  pct30m <= -2.2 ||
-                                  pct1h <= -3.2
-                                );
+                              const surge = isSurge(p);
+                              const surgeBull = surge.up;
+                              const surgeBear = surge.down;
                               const directionScore =
                                 ((p.pct5m ?? 0) > 0 ? 2 : (p.pct5m ?? 0) < 0 ? -2 : 0) +
                                 ((p.pct15m ?? 0) > 0 ? 2 : (p.pct15m ?? 0) < 0 ? -2 : 0) +
