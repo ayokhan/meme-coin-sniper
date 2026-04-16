@@ -686,10 +686,12 @@ export default function Dashboard() {
   const [topAltcoins, setTopAltcoins] = useState<TrendingPerpRow[]>([]);
   const [topAltcoinsLoading, setTopAltcoinsLoading] = useState(false);
   const [topAltcoinsSortBy, setTopAltcoinsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h" | "48h" | "72h" | "1w" | "2w" | "3w" | "4w">("24h");
+  const [topAltcoinsOnlySurge, setTopAltcoinsOnlySurge] = useState(false);
   const [hotPerps, setHotPerps] = useState<TrendingPerpRow[]>([]);
   const [hotPerpsLoading, setHotPerpsLoading] = useState(false);
   const [hotPerpsNewOnly, setHotPerpsNewOnly] = useState(false);
   const [hotPerpsSortBy, setHotPerpsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h" | "48h" | "72h" | "1w" | "2w" | "3w" | "4w">("5m");
+  const [hotPerpsOnlySurge, setHotPerpsOnlySurge] = useState(false);
   const [futuresAnalysisCopied, setFuturesAnalysisCopied] = useState(false);
   type PerpAiSignal = { signal: "long" | "short" | "no_buy"; score: number; reason: string };
   const [perpAiSignals, setPerpAiSignals] = useState<Record<string, PerpAiSignal | "loading">>({});
@@ -747,6 +749,7 @@ export default function Dashboard() {
   const [trendingPerpsLoading, setTrendingPerpsLoading] = useState(false);
   const [trendingPerpsTimeframe, setTrendingPerpsTimeframe] = useState<"24h" | "1h" | "30m" | "15m" | "5m">("24h");
   const [trendingPerpsSortBy, setTrendingPerpsSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
+  const [trendingPerpsOnlySurge, setTrendingPerpsOnlySurge] = useState(false);
   type PerpPreset =
     | "all"
     | "short_positive_funding"
@@ -755,6 +758,18 @@ export default function Dashboard() {
     | "exploders_1h_50"
     | "microcap_exploders";
   const [perpPreset, setPerpPreset] = useState<PerpPreset>("all");
+  const surgeFlags = (input: { pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number; pct4h?: number; quoteVolume24h: number }) => {
+    const pct5m = input.pct5m ?? 0;
+    const pct15m = input.pct15m ?? 0;
+    const pct30m = input.pct30m ?? 0;
+    const pct1h = input.pct1h ?? 0;
+    const intradayAvailable = [input.pct5m, input.pct15m, input.pct30m, input.pct1h, input.pct4h].filter((v) => v != null).length;
+    const liquid = input.quoteVolume24h >= 120_000;
+    const hasData = intradayAvailable >= 2;
+    const up = liquid && hasData && ((pct5m >= 0.8 && pct15m >= 1.4) || pct30m >= 2.2 || pct1h >= 3.2);
+    const down = liquid && hasData && ((pct5m <= -0.8 && pct15m <= -1.4) || pct30m <= -2.2 || pct1h <= -3.2);
+    return { up, down, liquid, hasData };
+  };
   function filterPerpsByPreset<T extends { dayPct: number; funding?: string; pct5m?: number; pct1h?: number; dayNtlVlm?: string }>(
     rows: T[]
   ): T[] {
@@ -3763,6 +3778,14 @@ export default function Dashboard() {
                         <option value="1h">1h %</option>
                         <option value="24h">24h %</option>
                       </select>
+                      <button
+                        type="button"
+                        onClick={() => setTrendingPerpsOnlySurge((v) => !v)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${trendingPerpsOnlySurge ? "bg-emerald-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                        title="Show only rows with short-term SURGE highlight"
+                      >
+                        {trendingPerpsOnlySurge ? "Only surge: On" : "Only surge: Off"}
+                      </button>
                       <Button variant="outline" size="sm" onClick={() => fetchTrendingPerps(undefined, true)} disabled={trendingPerpsLoading}>
                         {trendingPerpsLoading ? "Loading…" : "Refresh"}
                       </Button>
@@ -3832,7 +3855,17 @@ export default function Dashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filterPerpsByPreset([...trendingPerps])
+                          {(() => {
+                            const base = filterPerpsByPreset([...trendingPerps]);
+                            const surgeFiltered = trendingPerpsOnlySurge
+                              ? base.filter((p) => {
+                                  const vol = Number(p.dayNtlVlm);
+                                  const s = surgeFlags({ pct5m: p.pct5m, pct15m: p.pct15m, pct30m: p.pct30m, pct1h: p.pct1h, pct4h: p.pct4h, quoteVolume24h: Number.isFinite(vol) ? vol : 0 });
+                                  return s.up || s.down;
+                                })
+                              : base;
+                            return surgeFiltered;
+                          })()
                             .sort((a, b) => {
                               const key = trendingPerpsSortBy;
                               const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : (a.pct4h ?? 0);
@@ -3846,9 +3879,26 @@ export default function Dashboard() {
                             const direction = dirPct > 0 ? "Long" : dirPct < 0 ? "Short" : "—";
                             const fundingNum = p.funding != null && p.funding !== "" ? Number(p.funding) * 100 : null;
                             const fundingStr = fundingNum == null ? "—" : (fundingNum >= 0 ? "+" : "") + fundingNum.toFixed(4) + "%";
+                            const vol = Number(p.dayNtlVlm);
+                            const surge = surgeFlags({ pct5m: p.pct5m, pct15m: p.pct15m, pct30m: p.pct30m, pct1h: p.pct1h, pct4h: p.pct4h, quoteVolume24h: Number.isFinite(vol) ? vol : 0 });
+                            const rowClass = surge.up ? "bg-emerald-50/70 dark:bg-emerald-950/25" : surge.down ? "bg-rose-50/70 dark:bg-rose-950/25" : "";
                             return (
-                              <TableRow key={p.coin}>
-                                <TableCell className="font-mono text-xs">{p.coin}</TableCell>
+                              <TableRow key={p.coin} className={rowClass}>
+                                <TableCell className="font-mono text-xs">
+                                  <span>{p.coin}</span>
+                                  {(surge.up || surge.down) && (
+                                    <span
+                                      className={`ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                                        surge.up
+                                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                                          : "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
+                                      }`}
+                                      title={surge.up ? "Short-term upside surge detected" : "Short-term downside surge detected"}
+                                    >
+                                      {surge.up ? "SURGE UP" : "SURGE DOWN"}
+                                    </span>
+                                  )}
+                                </TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct30m)}`}>{fmt(p.pct30m)}</TableCell>
@@ -3953,6 +4003,14 @@ export default function Dashboard() {
                           <option value="3w">3w %</option>
                           <option value="4w">4w %</option>
                         </select>
+                        <button
+                          type="button"
+                          onClick={() => setTopAltcoinsOnlySurge((v) => !v)}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium ${topAltcoinsOnlySurge ? "bg-emerald-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                          title="Show only rows with short-term SURGE highlight"
+                        >
+                          {topAltcoinsOnlySurge ? "Only surge: On" : "Only surge: Off"}
+                        </button>
                         <Button variant="outline" size="sm" onClick={fetchTopAltcoins} disabled={topAltcoinsLoading}>
                           {topAltcoinsLoading ? "Loading…" : "Refresh"}
                         </Button>
@@ -3984,7 +4042,17 @@ export default function Dashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filterPerpsByPreset([...topAltcoins])
+                            {(() => {
+                              const base = filterPerpsByPreset([...topAltcoins]);
+                              const surgeFiltered = topAltcoinsOnlySurge
+                                ? base.filter((p) => {
+                                    const vol = Number(p.dayNtlVlm);
+                                    const s = surgeFlags({ pct5m: p.pct5m, pct15m: p.pct15m, pct30m: p.pct30m, pct1h: p.pct1h, pct4h: p.pct4h, quoteVolume24h: Number.isFinite(vol) ? vol : 0 });
+                                    return s.up || s.down;
+                                  })
+                                : base;
+                              return surgeFiltered;
+                            })()
                               .sort((a, b) => {
                                 const key = topAltcoinsSortBy;
                                 const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : key === "4h" ? (a.pct4h ?? 0) : key === "48h" ? (a.pct48h ?? 0) : key === "72h" ? (a.pct72h ?? 0) : key === "1w" ? (a.pct1w ?? 0) : key === "2w" ? (a.pct2w ?? 0) : key === "3w" ? (a.pct3w ?? 0) : (a.pct4w ?? 0);
@@ -3998,9 +4066,26 @@ export default function Dashboard() {
                                 const direction = dirPct > 0 ? "Long" : dirPct < 0 ? "Short" : "—";
                                 const fundingNum = p.funding != null && p.funding !== "" ? Number(p.funding) * 100 : null;
                                 const fundingStr = fundingNum == null ? "—" : (fundingNum >= 0 ? "+" : "") + fundingNum.toFixed(4) + "%";
+                                const vol = Number(p.dayNtlVlm);
+                                const surge = surgeFlags({ pct5m: p.pct5m, pct15m: p.pct15m, pct30m: p.pct30m, pct1h: p.pct1h, pct4h: p.pct4h, quoteVolume24h: Number.isFinite(vol) ? vol : 0 });
+                                const rowClass = surge.up ? "bg-emerald-50/70 dark:bg-emerald-950/25" : surge.down ? "bg-rose-50/70 dark:bg-rose-950/25" : "";
                                 return (
-                                  <TableRow key={p.coin}>
-                                    <TableCell className="font-mono text-xs">{p.coin}</TableCell>
+                                  <TableRow key={p.coin} className={rowClass}>
+                                    <TableCell className="font-mono text-xs">
+                                      <span>{p.coin}</span>
+                                      {(surge.up || surge.down) && (
+                                        <span
+                                          className={`ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                                            surge.up
+                                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                                              : "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
+                                          }`}
+                                          title={surge.up ? "Short-term upside surge detected" : "Short-term downside surge detected"}
+                                        >
+                                          {surge.up ? "SURGE UP" : "SURGE DOWN"}
+                                        </span>
+                                      )}
+                                    </TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct30m)}`}>{fmt(p.pct30m)}</TableCell>
@@ -4058,6 +4143,14 @@ export default function Dashboard() {
                           <option value="3w">3w %</option>
                           <option value="4w">4w %</option>
                         </select>
+                        <button
+                          type="button"
+                          onClick={() => setHotPerpsOnlySurge((v) => !v)}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium ${hotPerpsOnlySurge ? "bg-emerald-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                          title="Show only rows with short-term SURGE highlight"
+                        >
+                          {hotPerpsOnlySurge ? "Only surge: On" : "Only surge: Off"}
+                        </button>
                         <Button variant="outline" size="sm" onClick={fetchHotPerps} disabled={hotPerpsLoading}>
                           {hotPerpsLoading ? "Loading…" : "Refresh"}
                         </Button>
@@ -4094,7 +4187,17 @@ export default function Dashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filterPerpsByPreset([...hotPerps])
+                            {(() => {
+                              const base = filterPerpsByPreset([...hotPerps]);
+                              const surgeFiltered = hotPerpsOnlySurge
+                                ? base.filter((p) => {
+                                    const vol = Number(p.dayNtlVlm);
+                                    const s = surgeFlags({ pct5m: p.pct5m, pct15m: p.pct15m, pct30m: p.pct30m, pct1h: p.pct1h, pct4h: p.pct4h, quoteVolume24h: Number.isFinite(vol) ? vol : 0 });
+                                    return s.up || s.down;
+                                  })
+                                : base;
+                              return surgeFiltered;
+                            })()
                               .sort((a, b) => {
                                 const key = hotPerpsSortBy;
                                 const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : key === "4h" ? (a.pct4h ?? 0) : key === "48h" ? (a.pct48h ?? 0) : key === "72h" ? (a.pct72h ?? 0) : key === "1w" ? (a.pct1w ?? 0) : key === "2w" ? (a.pct2w ?? 0) : key === "3w" ? (a.pct3w ?? 0) : (a.pct4w ?? 0);
@@ -4108,9 +4211,26 @@ export default function Dashboard() {
                                 const direction = dirPct > 0 ? "Long" : dirPct < 0 ? "Short" : "—";
                                 const fundingNum = p.funding != null && p.funding !== "" ? Number(p.funding) * 100 : null;
                                 const fundingStr = fundingNum == null ? "—" : (fundingNum >= 0 ? "+" : "") + fundingNum.toFixed(4) + "%";
+                                const vol = Number(p.dayNtlVlm);
+                                const surge = surgeFlags({ pct5m: p.pct5m, pct15m: p.pct15m, pct30m: p.pct30m, pct1h: p.pct1h, pct4h: p.pct4h, quoteVolume24h: Number.isFinite(vol) ? vol : 0 });
+                                const rowClass = surge.up ? "bg-emerald-50/70 dark:bg-emerald-950/25" : surge.down ? "bg-rose-50/70 dark:bg-rose-950/25" : "";
                                 return (
-                                  <TableRow key={p.coin}>
-                                    <TableCell className="font-mono text-xs">{p.coin}</TableCell>
+                                  <TableRow key={p.coin} className={rowClass}>
+                                    <TableCell className="font-mono text-xs">
+                                      <span>{p.coin}</span>
+                                      {(surge.up || surge.down) && (
+                                        <span
+                                          className={`ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                                            surge.up
+                                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                                              : "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
+                                          }`}
+                                          title={surge.up ? "Short-term upside surge detected" : "Short-term downside surge detected"}
+                                        >
+                                          {surge.up ? "SURGE UP" : "SURGE DOWN"}
+                                        </span>
+                                      )}
+                                    </TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct30m)}`}>{fmt(p.pct30m)}</TableCell>
