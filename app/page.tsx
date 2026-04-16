@@ -780,7 +780,7 @@ export default function Dashboard() {
   const [perpRadarItems, setPerpRadarItems] = useState<PerpRadarItem[]>([]);
   const [perpRadarLoading, setPerpRadarLoading] = useState(false);
   const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
-  const [perpRadarView, setPerpRadarView] = useState<"all" | "macro" | "metals">("all");
+  const [perpRadarView, setPerpRadarView] = useState<"all" | "macro" | "metals" | "hyperliquid">("all");
   const [perpRadarPreset, setPerpRadarPreset] = useState<"all" | "24h_up" | "24h_down" | "momentum_bull" | "momentum_bear" | "fresh_accel">("fresh_accel");
   const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
   const [perpAlertAddType, setPerpAlertAddType] = useState<"new_listing" | "5m_pct_above" | "5m_pct_below">("new_listing");
@@ -1498,13 +1498,16 @@ export default function Dashboard() {
     }
   };
 
-  const fetchPerpRadar = async (view?: "all" | "macro" | "metals") => {
+  const fetchPerpRadar = async (view?: "all" | "macro" | "metals" | "hyperliquid") => {
     const v = view ?? perpRadarView;
     setPerpRadarLoading(true);
     setPerpRadarError(null);
     try {
       const params = new URLSearchParams();
-      if (v === "macro" || v === "metals") {
+      if (v === "hyperliquid") {
+        params.set("category", "hyperliquid");
+        params.set("limit", "200");
+      } else if (v === "macro" || v === "metals") {
         params.set("category", v);
         params.set("limit", "50");
       } else {
@@ -3503,6 +3506,13 @@ export default function Dashboard() {
                       >
                         Metals only
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => { setPerpRadarView("hyperliquid"); fetchPerpRadar("hyperliquid"); }}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarView === "hyperliquid" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                      >
+                        Apex/Hype perps
+                      </button>
                       <span className="text-xs text-muted-foreground ml-1">Preset:</span>
                       <select
                         value={perpRadarPreset}
@@ -3534,7 +3544,9 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   <p className="text-xs text-muted-foreground mb-3">
-                    {perpRadarView === "macro"
+                    {perpRadarView === "hyperliquid"
+                      ? "Hyperliquid (ApexLiquid) perp universe — useful for finding these BASED/USD, ORDI/USD-style contracts even when they are not listed on Binance."
+                      : perpRadarView === "macro"
                       ? "Macro perps from Binance USDT-M: energy, metals, and indices (e.g. XAU, XAG, SPX, BRENT). We pin XAU/XAG/SPX so they show even when they are not top 24h movers."
                       : perpRadarView === "metals"
                       ? "Metals-only view (XAU/XAG aliases). We pin XAU/XAG so they always show when listed."
@@ -3651,7 +3663,14 @@ export default function Dashboard() {
                                 <TableCell className="text-right font-mono text-xs text-muted-foreground">${(p.quoteVolume24h / 1_000_000).toFixed(2)}M</TableCell>
                                 <TableCell className="text-center">{renderPerpAiSignalCell(p.base)}</TableCell>
                                 <TableCell className="text-right">
-                                  <a href={`https://www.binance.com/en/futures/${p.symbol}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
+                                  <a
+                                    href={p.exchange === "hyperliquid" ? `https://app.hyperliquid.xyz/trade/${p.base}` : `https://www.binance.com/en/futures/${p.symbol}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline"
+                                  >
+                                    Trade
+                                  </a>
                                 </TableCell>
                               </TableRow>
                             )});

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getBinancePerpRadar, enrichPerpRadarWithKlines, type PerpRadarItem } from "@/lib/api-clients/binance-perps";
+import { getTrendingPerps } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,32 @@ export async function GET(request: Request) {
     const minQuoteVolume = Number(searchParams.get("minQuoteVolume") ?? "100000");
     const limit = Math.min(Number(searchParams.get("limit") ?? "150"), 200);
     const categoryParam = searchParams.get("category");
-    const category = categoryParam === "macro" || categoryParam === "metals" ? categoryParam : undefined;
+    const category =
+      categoryParam === "macro" || categoryParam === "metals" ? categoryParam : categoryParam === "hyperliquid" ? "hyperliquid" : undefined;
+
+    if (category === "hyperliquid") {
+      const perps = await getTrendingPerps(Math.min(200, Math.max(20, limit)));
+      const items: PerpRadarItem[] = perps.map((p) => ({
+        exchange: "hyperliquid",
+        symbol: `${p.coin}/USD`,
+        base: p.coin,
+        quote: "USD",
+        change24hPct: p.dayPct,
+        lastPrice: Number(p.markPx),
+        volume24h: 0,
+        quoteVolume24h: Number(p.dayNtlVlm),
+        pct5m: undefined,
+        pct15m: undefined,
+        pct30m: undefined,
+        pct1h: undefined,
+        pct4h: undefined,
+      }));
+      return NextResponse.json({
+        success: true,
+        items,
+        exchanges: ["hyperliquid"],
+      });
+    }
 
     let binance = await getBinancePerpRadar({
       minChangePct: Number.isFinite(minChangePct) ? minChangePct : 3,
