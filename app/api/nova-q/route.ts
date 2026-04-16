@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
-import { getCandles, getTicker } from "@/lib/hyperliquid";
+import { getCandles, getPerpSpecFromMeta, getTicker, type HyperliquidPerpSpec } from "@/lib/hyperliquid";
+
+/** Optional one-liner for symbols users often confuse with other venues. */
+const NOVA_Q_KNOWN_ASSET_NOTES: Record<string, string> = {
+  PAXG:
+    "Paxos Gold (tokenized gold exposure). It is not the same instrument or ticker as classic metals XAU/USD or another venue’s XAU-USDT; NovaQ uses Hyperliquid’s perp candles and mid, which can differ from global spot references.",
+};
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
@@ -100,6 +106,16 @@ function normalizeSymbol(raw: string): string {
   return base || "BTC";
 }
 
+function buildContractDescription(symbol: string, spec: HyperliquidPerpSpec | null): string {
+  if (!spec) {
+    return `${symbol} is not listed as a USDC-margined perpetual in Hyperliquid’s meta. NovaQ only analyzes Hyperliquid markets—try the exact HL coin name (for gold on HL, use PAXG).`;
+  }
+  const minStep = Math.pow(10, -spec.szDecimals);
+  const base = `${spec.name}: Hyperliquid USDC-margined perpetual, max leverage ${spec.maxLeverage}x, minimum size step about ${minStep} ${spec.name}.`;
+  const extra = NOVA_Q_KNOWN_ASSET_NOTES[spec.name];
+  return extra ? `${base} ${extra}` : base;
+}
+
 function getOverallDirection(timeframes: NovaQTfResult[]): "bullish" | "bearish" | "sideways" {
   if (timeframes.length === 0) return "sideways";
   let score = 0;
@@ -134,6 +150,14 @@ export async function POST(request: Request) {
 
     const selected = NOVA_Q_TIMEFRAMES.filter((t) => requestedTf.includes(t.id));
     const effectiveTf = selected.length > 0 ? selected : [NOVA_Q_TIMEFRAMES[1], NOVA_Q_TIMEFRAMES[3], NOVA_Q_TIMEFRAMES[8]]; // 15m, 1h, 1w
+
+    let contractDescription = "";
+    try {
+      const spec = await getPerpSpecFromMeta(symbol);
+      contractDescription = buildContractDescription(symbol, spec);
+    } catch {
+      contractDescription = `${symbol}: contract details temporarily unavailable (Hyperliquid meta).`;
+    }
 
     const tfResults: NovaQTfResult[] = [];
     for (const tf of effectiveTf) {
@@ -170,6 +194,7 @@ export async function POST(request: Request) {
         symbol,
         currentPrice,
         marketDirection,
+        contractDescription,
         timeframes: tfResults,
       },
     });

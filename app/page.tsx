@@ -828,7 +828,13 @@ export default function Dashboard() {
     supportTouches: number;
     resistanceTouches: number;
   };
-  type NovaQResult = { symbol: string; currentPrice: number | null; marketDirection: "bullish" | "bearish" | "sideways"; timeframes: NovaQTfResult[] };
+  type NovaQResult = {
+    symbol: string;
+    currentPrice: number | null;
+    marketDirection: "bullish" | "bearish" | "sideways";
+    contractDescription?: string;
+    timeframes: NovaQTfResult[];
+  };
   const [novaQTimeframes, setNovaQTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
   const [novaQSymbol, setNovaQSymbol] = useState("BTC");
   const [novaQResult, setNovaQResult] = useState<NovaQResult | null>(null);
@@ -6055,6 +6061,9 @@ export default function Dashboard() {
                                 Market direction: {novaQResult.marketDirection}
                               </Badge>
                             </div>
+                            {novaQResult.contractDescription?.trim() ? (
+                              <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{novaQResult.contractDescription}</p>
+                            ) : null}
                             <p className="mt-2 text-xs text-muted-foreground">
                               Direction guide: <span className="text-emerald-600 dark:text-emerald-400">bullish</span> means closes trend higher across selected timeframes, <span className="text-rose-600 dark:text-rose-400">bearish</span> means closes trend lower, and <span className="text-zinc-600 dark:text-zinc-300">sideways</span> means mixed or flat structure.
                             </p>

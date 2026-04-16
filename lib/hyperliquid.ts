@@ -106,8 +106,16 @@ export async function getTicker(instId: string): Promise<{ last: string } | null
   return last != null ? { last: String(last) } : null;
 }
 
-/** Min size, contract value (1 for perps in units of coin), settle currency. */
-export async function getInstrument(instId: string): Promise<{ minSize: string; contractValue: string; settleCurrency: string } | null> {
+/** Perp row from Hyperliquid `meta` (public /info). */
+export type HyperliquidPerpSpec = {
+  name: string;
+  szDecimals: number;
+  maxLeverage: number;
+  marginTableId?: number;
+};
+
+/** Resolve a coin's Hyperliquid perp listing from `meta` (no auth). */
+export async function getPerpSpecFromMeta(instId: string): Promise<HyperliquidPerpSpec | null> {
   const coin = instIdToCoin(instId);
   const res = await fetch(HL_INFO_BASE, {
     method: "POST",
@@ -116,9 +124,21 @@ export async function getInstrument(instId: string): Promise<{ minSize: string; 
     cache: "no-store",
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as { universe?: Array<{ name: string; szDecimals: number }> };
+  const data = (await res.json()) as { universe?: HyperliquidPerpSpec[] };
   const universe = data?.universe ?? [];
   const spec = universe.find((u) => u.name === coin || u.name === `${coin}-PERP`);
+  if (!spec) return null;
+  return {
+    name: spec.name,
+    szDecimals: spec.szDecimals ?? 3,
+    maxLeverage: spec.maxLeverage ?? 1,
+    marginTableId: spec.marginTableId,
+  };
+}
+
+/** Min size, contract value (1 for perps in units of coin), settle currency. */
+export async function getInstrument(instId: string): Promise<{ minSize: string; contractValue: string; settleCurrency: string } | null> {
+  const spec = await getPerpSpecFromMeta(instId);
   if (!spec) return null;
   const szDecimals = spec.szDecimals ?? 3;
   const minSize = Math.pow(10, -szDecimals);
