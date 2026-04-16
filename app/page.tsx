@@ -3636,6 +3636,27 @@ export default function Dashboard() {
                             const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                             const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
                             return sorted.map((p, i) => {
+                              const pct5m = p.pct5m ?? 0;
+                              const pct15m = p.pct15m ?? 0;
+                              const pct30m = p.pct30m ?? 0;
+                              const pct1h = p.pct1h ?? 0;
+                              const intradayAvailable = [p.pct5m, p.pct15m, p.pct30m, p.pct1h, p.pct4h].filter((v) => v != null).length;
+                              const surgeBull =
+                                p.quoteVolume24h >= 120_000 &&
+                                intradayAvailable >= 2 &&
+                                (
+                                  (pct5m >= 0.8 && pct15m >= 1.4) ||
+                                  pct30m >= 2.2 ||
+                                  pct1h >= 3.2
+                                );
+                              const surgeBear =
+                                p.quoteVolume24h >= 120_000 &&
+                                intradayAvailable >= 2 &&
+                                (
+                                  (pct5m <= -0.8 && pct15m <= -1.4) ||
+                                  pct30m <= -2.2 ||
+                                  pct1h <= -3.2
+                                );
                               const directionScore =
                                 ((p.pct5m ?? 0) > 0 ? 2 : (p.pct5m ?? 0) < 0 ? -2 : 0) +
                                 ((p.pct15m ?? 0) > 0 ? 2 : (p.pct15m ?? 0) < 0 ? -2 : 0) +
@@ -3649,9 +3670,28 @@ export default function Dashboard() {
                                 : directionScore <= -2
                                   ? "text-rose-600 dark:text-rose-400"
                                   : "text-zinc-500 dark:text-zinc-400";
+                              const rowClass = surgeBull
+                                ? "bg-emerald-50/70 dark:bg-emerald-950/25"
+                                : surgeBear
+                                  ? "bg-rose-50/70 dark:bg-rose-950/25"
+                                  : "";
                               return (
-                              <TableRow key={`${p.exchange}-${p.symbol}-${i}`}>
-                                <TableCell className="font-mono text-xs">{p.symbol}</TableCell>
+                              <TableRow key={`${p.exchange}-${p.symbol}-${i}`} className={rowClass}>
+                                <TableCell className="font-mono text-xs">
+                                  <span>{p.symbol}</span>
+                                  {(surgeBull || surgeBear) && (
+                                    <span
+                                      className={`ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                                        surgeBull
+                                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                                          : "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
+                                      }`}
+                                      title={surgeBull ? "Short-term upside surge detected" : "Short-term downside surge detected"}
+                                    >
+                                      {surgeBull ? "SURGE UP" : "SURGE DOWN"}
+                                    </span>
+                                  )}
+                                </TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct30m)}`}>{fmt(p.pct30m)}</TableCell>
