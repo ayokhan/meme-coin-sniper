@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,6 +68,7 @@ export default function AdminCustomersPage() {
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const [paymentsExpandedId, setPaymentsExpandedId] = useState<string | null>(null);
+  const customersTableScrollRef = useRef<HTMLDivElement>(null);
   const TABLE_COL_COUNT = 22;
 
   const formatExpiryLabel = (expiresAt: string | null, subscriptionExpiresAt: string | null) => {
@@ -116,6 +117,55 @@ export default function AdminCustomersPage() {
         tag === "textarea" ||
         tag === "select" ||
         target.isContentEditable;
+
+      const scrollEl = customersTableScrollRef.current;
+      const insideTableScroll = !!(scrollEl && scrollEl.contains(target));
+
+      /** Arrow keys pan the wide customers table when focus is inside it (not in search/select/input). */
+      if (insideTableScroll && !isTypingElement) {
+        const step = e.shiftKey ? 120 : 48;
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          scrollEl.scrollBy({ left: -step, behavior: "smooth" });
+          return;
+        }
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          scrollEl.scrollBy({ left: step, behavior: "smooth" });
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          scrollEl.scrollBy({ top: -step, behavior: "smooth" });
+          return;
+        }
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          scrollEl.scrollBy({ top: step, behavior: "smooth" });
+          return;
+        }
+        if (e.key === "PageUp") {
+          e.preventDefault();
+          scrollEl.scrollBy({ top: -Math.round(scrollEl.clientHeight * 0.85), behavior: "smooth" });
+          return;
+        }
+        if (e.key === "PageDown") {
+          e.preventDefault();
+          scrollEl.scrollBy({ top: Math.round(scrollEl.clientHeight * 0.85), behavior: "smooth" });
+          return;
+        }
+        if (e.key === "Home") {
+          e.preventDefault();
+          scrollEl.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+        if (e.key === "End") {
+          e.preventDefault();
+          scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: "smooth" });
+          return;
+        }
+      }
+
       if (isTypingElement) return;
 
       if (e.key === "ArrowDown") {
@@ -138,8 +188,8 @@ export default function AdminCustomersPage() {
         window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, []);
 
   const metrics = useMemo(() => {
@@ -617,8 +667,14 @@ export default function AdminCustomersPage() {
             {loading ? (
               <p className="text-muted-foreground">Loading…</p>
             ) : (
-              <div className="overflow-auto max-h-[72vh] rounded-md border border-zinc-200 dark:border-zinc-800">
-                <table className="w-full text-sm">
+              <div
+                ref={customersTableScrollRef}
+                className="overflow-auto max-h-[72vh] scroll-smooth rounded-md border border-zinc-200 dark:border-zinc-800 outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-100 dark:focus-visible:ring-offset-zinc-950"
+                tabIndex={0}
+                role="region"
+                aria-label="Customers table: when focus is inside this area (click a row or tab here), arrow keys scroll the table; Shift for larger steps. Page Up and Page Down move by one viewport."
+              >
+                <table className="w-full min-w-[1100px] text-sm">
                   <thead className="sticky top-0 z-10 bg-zinc-100/95 dark:bg-zinc-900/95 backdrop-blur">
                     <tr className="border-b border-zinc-200 dark:border-zinc-700 text-left">
                       <th className="pb-2 pr-4 font-semibold">Name</th>
