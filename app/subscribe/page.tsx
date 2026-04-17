@@ -246,7 +246,12 @@ function SubscribeContent() {
       <main className="mx-auto max-w-4xl px-3 sm:px-4 py-6 sm:py-10">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
           <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-          Pro: Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect. VIP: everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast (includes NovaRadar), NovaQ (support/resistance + direction), <strong className="text-zinc-800 dark:text-zinc-200">Nova Investment Agent</strong> (Finance &amp; Investment Agent—risk/duration leverage framing; not advice), VIP-only Crypto Futures extras (<strong className="text-zinc-800 dark:text-zinc-200">Nova+</strong>, <strong className="text-zinc-800 dark:text-zinc-200">NovaScalper</strong>—headline features; subject to on-demand access where noted), on-demand NovaStaris AI Trading Bot, and on-demand <strong className="text-zinc-800 dark:text-zinc-200">Nova Polymarket Bot</strong>, <strong className="text-zinc-800 dark:text-zinc-200">Nova Prop Firm Bot</strong>, and <strong className="text-zinc-800 dark:text-zinc-200">Nova Ultimate</strong>. Pay by card or USDC (Solana).
+          NovaStaris gives you one platform to discover, analyze, and execute across meme coins, futures, and prediction markets.
+          <strong className="text-zinc-800 dark:text-zinc-200"> Pro</strong> is your high-speed analysis stack for Solana/BSC
+          plus futures context. <strong className="text-zinc-800 dark:text-zinc-200">VIP</strong> unlocks advanced
+          workflows including on-demand tools such as <strong className="text-zinc-800 dark:text-zinc-200">Nova Polymarket Pro</strong>,
+          <strong className="text-zinc-800 dark:text-zinc-200"> Nova Prop Firm Bot</strong>, and{" "}
+          <strong className="text-zinc-800 dark:text-zinc-200">Nova Ultimate</strong>. Pay by card or USDC (Solana).
         </p>
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 mb-6">
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">What&apos;s in each plan?</p>
@@ -257,7 +262,7 @@ function SubscribeContent() {
             </div>
             <div>
               <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast (NovaRadar), NovaQ, <strong className="text-zinc-800 dark:text-zinc-200">Nova Investment Agent</strong> (Finance &amp; Investment Agent), VIP Crypto Futures add-ons (Nova+ multi-horizon framing; NovaScalper repeat-cycle tool when enabled), on-demand AI Trading Bot (Blofin), on-demand Nova Polymarket Bot, Nova Prop Firm Bot, and Nova Ultimate. Pay by card or USDC.</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast (NovaRadar), NovaQ, <strong className="text-zinc-800 dark:text-zinc-200">Nova Investment Agent</strong> (Finance &amp; Investment Agent), VIP Crypto Futures add-ons (Nova+ multi-horizon framing; NovaScalper repeat-cycle tool when enabled), on-demand AI Trading Bot (Blofin), on-demand Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate. Pay by card or USDC.</p>
             </div>
           </div>
         </div>
@@ -288,7 +293,7 @@ function SubscribeContent() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
-        {tier === "pro" ? "Pro: $50/month. Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast (NovaRadar), NovaQ, Nova Investment Agent (Finance & Investment Agent), Nova+ and NovaScalper (Crypto Futures—eligible accounts), on-demand AI Trading Bot, Nova Polymarket Bot, Nova Prop Firm Bot, and Nova Ultimate."}
+        {tier === "pro" ? "Pro: $50/month. Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast (NovaRadar), NovaQ, Nova Investment Agent (Finance & Investment Agent), Nova+ and NovaScalper (Crypto Futures—eligible accounts), on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate."}
         </p>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 space-y-1">
           {tier === "pro" ? (
@@ -318,7 +323,7 @@ function SubscribeContent() {
                 <li>Nova+ — VIP Crypto Futures; multi-horizon context (not personalized advice)</li>
                 <li>NovaScalper — optional repeat-cycle tool for enabled accounts (headline only; see product for rules)</li>
                 <li>NovaStaris AI Trading Bot — on-demand (Crypto Futures on Blofin)</li>
-                <li>Nova Polymarket Bot — on-demand</li>
+                <li>Nova Polymarket Pro — on-demand</li>
                 <li>Nova Prop Firm Bot — on-demand</li>
                 <li>Nova Ultimate — on-demand (Solana meme tooling)</li>
                 <li>Pay by credit card or USDC (Solana)</li>

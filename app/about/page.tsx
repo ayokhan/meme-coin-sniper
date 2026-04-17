@@ -26,40 +26,38 @@ export default function AboutPage() {
             About NovaStaris
           </h1>
             <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-              NovaStaris pairs real-time discovery with agentic analysis:{" "}
-              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">NovaStaris AI Agent</strong> turns any contract into a structured view in seconds.
-              In <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Crypto Futures</strong>, layer in{" "}
-              <strong className="text-violet-500 dark:text-violet-400">NovaForecast Agent</strong>,{" "}
-              <strong className="text-violet-500 dark:text-violet-400">NovaQ (NovaIntelligence)</strong>,{" "}
-              <strong className="text-violet-500 dark:text-violet-400">Nova Investment Agent</strong>{" "}
-              <span className="text-zinc-500 dark:text-zinc-400 text-base">(Finance &amp; Investment Agent)</span>, the{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Trading Bot</strong>,{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">Nova+</strong>, and{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">NovaScalper</strong>.
-              {" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">NovaConnect</strong> is the in-app social layer for traders.
-              {" "}
-              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Crypto Narratives</strong> ties price action to what is driving attention—macro, regional, and meme-cycle context—so you are not trading names in a vacuum.
-              {" "}
-              <strong className="text-violet-500 dark:text-violet-400">VIP</strong> subscribers also get <strong className="text-violet-500 dark:text-violet-400">NovaRadar</strong> next to NovaForecast for an extra read on conditions, and on-demand tabs for{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">Nova Polymarket Bot</strong> (prediction markets),{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">Nova Prop Firm Bot</strong> (prop-style rules), and{" "}
-              <strong className="text-cyan-600 dark:text-cyan-400">Nova Ultimate</strong> (Solana meme tooling).
-              {" "}
-              Track <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Solana</strong> and{" "}
-              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">BSC</strong> from the same dashboard.
+              NovaStaris started as a meme coin intelligence engine. Today it is a full{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">multi-market decision platform</strong>{" "}
+              for <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Solana + BSC meme coins</strong>,{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Crypto Futures</strong>, and{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">prediction markets</strong>. Use{" "}
+              <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Agent</strong> for fast contract
+              analysis, <strong className="text-cyan-600 dark:text-cyan-400">Crypto Futures</strong> tooling for
+              execution framing, and <strong className="text-cyan-600 dark:text-cyan-400">Nova Polymarket Pro</strong>{" "}
+              for wallet intelligence and radar-driven market context. One dashboard. One workflow. Faster conviction.
             </p>
         </div>
 
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg overflow-hidden mb-8">
           <CardContent className="p-6 space-y-6 text-zinc-700 dark:text-zinc-300">
               <p className="text-base leading-relaxed">
-                <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris</strong> brings AI-powered discovery and analysis to <strong className="text-zinc-900 dark:text-zinc-100">Solana</strong> and <strong className="text-zinc-900 dark:text-zinc-100">BSC</strong> meme coins, plus <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong>. We combine real-time on-chain data, social signals, and NovaStaris AI Agentic analysis so you can discover and evaluate viral tokens before the crowd—and decide with confidence. VIP-facing tools such as <strong className="text-zinc-900 dark:text-zinc-100">Nova Investment Agent</strong>{" "}
-                <span className="text-zinc-600 dark:text-zinc-500">(Finance &amp; Investment Agent)</span> sit alongside forecast and Q in the same futures workflow.
+                <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris</strong> is built for serious traders
+                who need signal, speed, and structure. We combine real-time market discovery, agentic AI analysis, and
+                actionable workflows so you can move from idea to execution with clarity instead of noise.
               </p>
               <p className="text-base leading-relaxed">
-                Our system surfaces new pairs, trending volume, and surge activity on Solana and BSC (BSC tab includes <strong className="text-zinc-900 dark:text-zinc-100">Go Hunting</strong>: New pairs, Final Stretch, Migrated, and Trending—all users can access the BSC tab). We layer on <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Agent</strong>: paste any Solana or BSC token contract address to get a 0–100 score, a clear buy/no-buy signal, and a concise explanation (BSC AI Agent is <strong className="text-zinc-900 dark:text-zinc-100">for Pro and VIP only</strong>). <strong className="text-zinc-900 dark:text-zinc-100">Pro</strong> subscribers get Surge, Transactions, <strong className="text-zinc-900 dark:text-zinc-100">Crypto Narratives</strong>, NovaStaris AI Agent (Solana and BSC), and Crypto Futures. <strong className="text-zinc-900 dark:text-zinc-100">VIP</strong> adds CT Scan <strong className="text-zinc-900 dark:text-zinc-100">(on-demand)</strong> and Wallet Tracker <strong className="text-zinc-900 dark:text-zinc-100">(Meme Coins Traders on-demand)</strong> plus Top Leverage Traders for all VIP users, Coach Calls + Telegram Signals, <strong className="text-zinc-900 dark:text-zinc-100">NovaForecast Agent</strong> (entry levels for top alts) with <strong className="text-zinc-900 dark:text-zinc-100">NovaRadar</strong>, <strong className="text-zinc-900 dark:text-zinc-100">NovaQ</strong> (support/resistance + direction), and <strong className="text-zinc-900 dark:text-zinc-100">Nova Investment Agent</strong>{" "}
-                (Finance &amp; Investment Agent—risk/duration leverage strategy; not personalized advice). Under Crypto Futures, VIP also includes <strong className="text-zinc-900 dark:text-zinc-100">Nova+</strong> (structured multi-horizon context—educational, not advice), <strong className="text-zinc-900 dark:text-zinc-100">NovaScalper</strong> (optional repeat-cycle tool when access is enabled, <strong className="text-zinc-900 dark:text-zinc-100">on-demand</strong>), and the <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Trading Bot</strong> on Blofin—automate long/short with AI monitor and optional autopilot. Separate VIP workspaces—<strong className="text-zinc-900 dark:text-zinc-100">Nova Polymarket Bot</strong>, <strong className="text-zinc-900 dark:text-zinc-100">Nova Prop Firm Bot</strong>, and <strong className="text-zinc-900 dark:text-zinc-100">Nova Ultimate</strong>—open on demand for prediction markets, prop-style guardrails, and Solana meme tooling. Add your own meme coin wallets (max 5) or leverage wallets (unlimited). Coach Calls: exclusive CA in-app and via our Telegram Call channel; add your Telegram ID to get signals there.
+                From meme coin momentum to futures structure and prediction-market edge, NovaStaris gives you a complete
+                stack: <strong className="text-zinc-900 dark:text-zinc-100">Surge</strong>,{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">Transactions</strong>,{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">Crypto Narratives</strong>,{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">NovaForecast + NovaRadar</strong>,{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">NovaQ</strong>,{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">Nova Investment Agent</strong>,{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Trading Bot</strong>, and{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">Nova Polymarket Pro</strong>. VIP on-demand
+                workspaces also include <strong className="text-zinc-900 dark:text-zinc-100">Nova Prop Firm Bot</strong>{" "}
+                and <strong className="text-zinc-900 dark:text-zinc-100">Nova Ultimate</strong>. This is no longer just
+                a coin scanner - it is an integrated growth and execution suite.
               </p>
               <p className="text-base leading-relaxed">
                 <strong className="text-zinc-900 dark:text-zinc-100">Trending perps</strong>—one feed, all the heat. See what’s pumping or dumping across 5m, 15m, 30m, 1h, and 24h so you catch momentum before the crowd.{" "}
@@ -156,7 +154,7 @@ export default function AboutPage() {
                       <strong className="text-zinc-900 dark:text-zinc-100">Nova Investment Agent</strong>{" "}
                       <span className="text-zinc-600 dark:text-zinc-500">(Finance &amp; Investment Agent)</span>,{" "}
                       <strong className="text-zinc-900 dark:text-zinc-100">Nova+</strong> (analysis framing), and a separate tab,{" "}
-                      <strong className="text-zinc-900 dark:text-zinc-100">NovaScalper</strong>, for a different style of automation when enabled—details are product-only. Wallet tracking lives under the Wallet Tracker tab. Other dashboard tabs cover <strong className="text-zinc-900 dark:text-zinc-100">Crypto Narratives</strong>, <strong className="text-zinc-900 dark:text-zinc-100">NovaRadar</strong> (NovaForecast), <strong className="text-zinc-900 dark:text-zinc-100">Nova Polymarket Bot</strong>, <strong className="text-zinc-900 dark:text-zinc-100">Nova Prop Firm Bot</strong>, and <strong className="text-zinc-900 dark:text-zinc-100">Nova Ultimate</strong> where your plan and on-demand flags apply.
+                      <strong className="text-zinc-900 dark:text-zinc-100">NovaScalper</strong>, for a different style of automation when enabled—details are product-only. Wallet tracking lives under the Wallet Tracker tab. Other dashboard tabs cover <strong className="text-zinc-900 dark:text-zinc-100">Crypto Narratives</strong>, <strong className="text-zinc-900 dark:text-zinc-100">NovaRadar</strong> (NovaForecast), <strong className="text-zinc-900 dark:text-zinc-100">Nova Polymarket Pro</strong>, <strong className="text-zinc-900 dark:text-zinc-100">Nova Prop Firm Bot</strong>, and <strong className="text-zinc-900 dark:text-zinc-100">Nova Ultimate</strong> where your plan and on-demand flags apply.
                     </p>
                   </div>
                 </div>
