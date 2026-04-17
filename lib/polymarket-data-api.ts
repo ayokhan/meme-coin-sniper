@@ -27,6 +27,9 @@ export type PolymarketPositionRow = {
   currentValue?: number;
   initialValue?: number;
   cashPnl?: number;
+  /** Market resolution target time when API returns it (ISO string). */
+  endDate?: string;
+  conditionId?: string;
 };
 
 /** Settled / closed markets (historical PnL) from Polymarket data API. */

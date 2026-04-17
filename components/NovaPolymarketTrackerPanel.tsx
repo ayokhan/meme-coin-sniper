@@ -34,9 +34,18 @@ type TradeRow = {
   size?: number;
   price?: number;
   timestamp?: number;
+  slug?: string;
 };
 
-type PositionRow = { title?: string; outcome?: string; size?: number; currentValue?: number; cashPnl?: number };
+type PositionRow = {
+  title?: string;
+  slug?: string;
+  outcome?: string;
+  endDate?: string;
+  size?: number;
+  currentValue?: number;
+  cashPnl?: number;
+};
 type ClosedRow = {
   title?: string;
   outcome?: string;
@@ -117,6 +126,41 @@ function formatLocalDateTime(ms: number | null): string {
     dateStyle: "short",
     timeStyle: "medium",
   });
+}
+
+/** Polymarket position rows sometimes include market `endDate` as ISO text. */
+function formatEndDateLocal(iso: string | undefined): string | null {
+  if (!iso?.trim()) return null;
+  const d = new Date(iso.trim());
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+}
+
+/**
+ * Earliest BUY in the loaded trade tape that matches this position (slug preferred, else exact title + outcome).
+ * Approximate: older fills may be missing until you use "Load older fills".
+ */
+function approxFirstBuyFromTape(p: PositionRow, tape: TradeRow[]): number | null {
+  const pSlug = typeof p.slug === "string" ? p.slug.trim() : "";
+  const pTitle = (p.title ?? "").trim().toLowerCase();
+  const pOut = (p.outcome ?? "").trim().toLowerCase();
+  const buys = tape.filter((t) => {
+    if (String(t.side ?? "").toUpperCase() !== "BUY") return false;
+    const tOut = (t.outcome ?? "").trim().toLowerCase();
+    if (pOut && tOut && tOut !== pOut) return false;
+    if (pSlug) {
+      const ts = typeof t.slug === "string" ? t.slug.trim() : "";
+      if (ts && ts === pSlug) return true;
+      if (ts) return false;
+    }
+    const tTitle = (t.title ?? "").trim().toLowerCase();
+    return !!pTitle && !!tTitle && tTitle === pTitle;
+  });
+  const times = buys
+    .map((t) => tradeTimestampToMs(t.timestamp))
+    .filter((x): x is number => x != null && x > 0);
+  if (!times.length) return null;
+  return Math.min(...times);
 }
 
 export default function NovaPolymarketTrackerPanel() {
@@ -593,24 +637,55 @@ export default function NovaPolymarketTrackerPanel() {
                                     ))}
                                   </div>
                                   {activityTab === "positions" && (
-                                    <ul className="space-y-1 max-h-72 overflow-y-auto text-left">
-                                      {positions.length === 0 ? (
-                                        <li className="text-muted-foreground">No open positions (or below API size threshold).</li>
-                                      ) : (
-                                        positions.map((p, i) => (
-                                          <li key={i} className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-2">
-                                            <span className="text-zinc-800 dark:text-zinc-200 font-medium">{p.title ?? "—"}</span>
-                                            {p.outcome != null && <span className="text-muted-foreground"> — {p.outcome}</span>}
-                                            <span className="block text-muted-foreground tabular-nums mt-0.5">
-                                              Size {fmtNum(p.size ?? null, 4)} · Mark value {fmtUsd(p.currentValue ?? null, 2)}
-                                              {p.cashPnl != null && Number.isFinite(p.cashPnl) && (
-                                                <span> · Unrealized {fmtUsd(p.cashPnl, 2)}</span>
-                                              )}
-                                            </span>
-                                          </li>
-                                        ))
-                                      )}
-                                    </ul>
+                                    <div className="space-y-2">
+                                      <p className="text-[10px] text-muted-foreground leading-snug">
+                                        Polymarket&apos;s <span className="font-mono">/positions</span> feed does not include a dedicated
+                                        &quot;opened at&quot; time. We show <strong className="text-zinc-700 dark:text-zinc-300">market end</strong> when
+                                        the API sends it, and an <strong className="text-zinc-700 dark:text-zinc-300">earliest matching BUY</strong>{" "}
+                                        from the trade tape you have loaded (use <strong className="text-zinc-700 dark:text-zinc-300">Load older fills</strong>{" "}
+                                        for deeper history).
+                                      </p>
+                                      <ul className="space-y-1 max-h-72 overflow-y-auto text-left">
+                                        {positions.length === 0 ? (
+                                          <li className="text-muted-foreground">No open positions (or below API size threshold).</li>
+                                        ) : (
+                                          positions.map((p, i) => {
+                                            const marketEnd = formatEndDateLocal(p.endDate);
+                                            const firstBuyMs = approxFirstBuyFromTape(p, trades);
+                                            return (
+                                              <li key={i} className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-2">
+                                                <span className="text-zinc-800 dark:text-zinc-200 font-medium">{p.title ?? "—"}</span>
+                                                {p.outcome != null && <span className="text-muted-foreground"> — {p.outcome}</span>}
+                                                <span className="block text-muted-foreground tabular-nums mt-0.5">
+                                                  Size {fmtNum(p.size ?? null, 4)} · Mark value {fmtUsd(p.currentValue ?? null, 2)}
+                                                  {p.cashPnl != null && Number.isFinite(p.cashPnl) && (
+                                                    <span> · Unrealized {fmtUsd(p.cashPnl, 2)}</span>
+                                                  )}
+                                                </span>
+                                                <span className="block text-[11px] text-muted-foreground mt-1 space-y-0.5">
+                                                  {marketEnd && (
+                                                    <span className="block">
+                                                      Market end (local): <span className="tabular-nums text-zinc-700 dark:text-zinc-300">{marketEnd}</span>
+                                                    </span>
+                                                  )}
+                                                  {firstBuyMs != null && (
+                                                    <span className="block">
+                                                      Earliest BUY in loaded tape (local):{" "}
+                                                      <span className="tabular-nums text-zinc-700 dark:text-zinc-300">{formatLocalDateTime(firstBuyMs)}</span>
+                                                    </span>
+                                                  )}
+                                                  {!marketEnd && firstBuyMs == null && (
+                                                    <span className="block text-amber-800/90 dark:text-amber-200/90">
+                                                      No timing match in the current tape—open Trade tape or load older fills.
+                                                    </span>
+                                                  )}
+                                                </span>
+                                              </li>
+                                            );
+                                          })
+                                        )}
+                                      </ul>
+                                    </div>
                                   )}
                                   {activityTab === "closed" && (
                                     <ul className="space-y-1 max-h-72 overflow-y-auto text-left">
