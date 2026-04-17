@@ -188,7 +188,7 @@ export default function NovaPolymarketFiveMinsPanel() {
               disabled={loading}
               onClick={() => void runAnalyze()}
             >
-              {loading ? "Analyzing…" : "Run AI analysis"}
+              {loading ? "Analyzing…" : "Run Nova AI Analysis"}
             </Button>
             <Button type="button" variant="outline" size="sm" className="h-9" asChild>
               <a href="https://polymarket.com/crypto" target="_blank" rel="noreferrer">

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { runNovaFiveMinsAnalysis } from "@/lib/ai-nova-five-mins";
 import {
-  fetchBinance1mKlines,
+  fetchBinance1mKlinesWithMeta,
   inferTapeRegimeFromBars,
   resolveBinanceSpotPair,
   summarizeBarsForPrompt,
@@ -45,15 +45,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const bars = await fetchBinance1mKlines(pair, 48);
+    const { bars, meta } = await fetchBinance1mKlinesWithMeta(pair, 48);
     if (!bars.length) {
       return NextResponse.json(
-        { success: false, error: "No candle data returned from Binance for this pair." },
+        {
+          success: false,
+          error:
+            "Could not load 1m candles from Binance (spot mirrors and futures fallback all failed). This is often a temporary network or regional block — try again in a moment.",
+        },
         { status: 502 }
       );
     }
 
-    const facts = summarizeBarsForPrompt(bars, pair);
+    const feed = meta?.feed ?? "binance_spot";
+    const facts = summarizeBarsForPrompt(bars, pair, feed);
     const ai = await runNovaFiveMinsAnalysis(facts, pair.replace("USDT", ""));
 
     const lastClose = bars[bars.length - 1]?.close ?? null;
@@ -80,7 +85,9 @@ export async function POST(request: Request) {
       benchmarkOpen5m,
       alignedWithSignal,
       dataSourceNote:
-        "Context uses Binance spot 1m candles. Polymarket 5m crypto markets (e.g. Bitcoin Up or Down) typically resolve on Chainlink streams — prices can differ from Binance.",
+        feed === "binance_futures"
+          ? "Context uses Binance USDT-M futures 1m candles (spot API was unreachable). Polymarket 5m markets typically resolve on Chainlink — prices can differ."
+          : "Context uses Binance spot 1m candles. Polymarket 5m crypto markets (e.g. Bitcoin Up or Down) typically resolve on Chainlink streams — prices can differ from Binance.",
       polymarketStyleUrl: "https://polymarket.com/crypto",
       ...ai,
       tapeRegime,
