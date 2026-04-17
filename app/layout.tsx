@@ -21,8 +21,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "NovaStaris — Your Advanced AI Lightning Crypto Sniper and Futures Intelligence",
-  description: "NovaStaris: Your Advanced AI Lightning Crypto Sniper and Futures Intelligence. Discover, analyze, and snipe viral Solana tokens with AI.",
+  title: "NovaStaris — Your Advanced AI Lightning Crypto Sniper, Futures and Prediction Market Intelligence",
+  description:
+    "NovaStaris: Your Advanced AI Lightning Crypto Sniper, Futures and Prediction Market Intelligence. Discover, analyze, and execute across Solana, BSC, futures, and prediction markets with AI.",
 };
 
 export default function RootLayout({
