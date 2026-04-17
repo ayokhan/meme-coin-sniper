@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import NovaScalperPanel from "@/components/NovaScalperPanel";
 import NovaPolymarketTrackerPanel from "@/components/NovaPolymarketTrackerPanel";
 import NovaPolymarketCopyBotPanel from "@/components/NovaPolymarketCopyBotPanel";
+import NovaPolymarketLeaderboardPanel from "@/components/NovaPolymarketLeaderboardPanel";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
 import { useSession } from "next-auth/react";
 
@@ -234,7 +235,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
 
   const [form, setForm] = useState<Partial<Config>>({});
   const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
-  const [polyInnerTab, setPolyInnerTab] = useState<"copilot" | "tracker" | "radar">("copilot");
+  const [polyInnerTab, setPolyInnerTab] = useState<"copilot" | "tracker" | "radar" | "leaderboard">("copilot");
+  const [polyLeaderboardEnabled, setPolyLeaderboardEnabled] = useState(false);
   useEffect(() => {
     if (mode === "polymarket-only") setBotSubTab("polymarket");
     if (mode === "futures-only" && botSubTab === "polymarket") setBotSubTab("ai");
@@ -243,6 +245,29 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   useEffect(() => {
     if (polyInnerTab === "radar" && !canAccessPolymarket) setPolyInnerTab("copilot");
   }, [polyInnerTab, canAccessPolymarket]);
+
+  useEffect(() => {
+    if (polyInnerTab === "leaderboard" && !polyLeaderboardEnabled) setPolyInnerTab("copilot");
+  }, [polyInnerTab, polyLeaderboardEnabled]);
+
+  useEffect(() => {
+    if (!canAccessPolymarket) {
+      setPolyLeaderboardEnabled(false);
+      return;
+    }
+    let cancel = false;
+    fetch("/api/polymarket-leaderboard/bootstrap")
+      .then((r) => r.json())
+      .then((d: { leaderboardEnabled?: boolean }) => {
+        if (!cancel) setPolyLeaderboardEnabled(!!d.leaderboardEnabled);
+      })
+      .catch(() => {
+        if (!cancel) setPolyLeaderboardEnabled(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [canAccessPolymarket]);
 
   const [polyKeyword, setPolyKeyword] = useState("bitcoin");
   const [polyBankroll, setPolyBankroll] = useState("1000");
@@ -1414,7 +1439,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 </CardContent>
               </Card>
             ) : (
-              <Tabs value={polyInnerTab} onValueChange={(v) => setPolyInnerTab(v as "copilot" | "tracker" | "radar")} className="space-y-4">
+              <Tabs value={polyInnerTab} onValueChange={(v) => setPolyInnerTab(v as "copilot" | "tracker" | "radar" | "leaderboard")} className="space-y-4">
                 <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
                   <TabsTrigger
                     value="copilot"
@@ -1434,6 +1459,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   >
                     Polymarket Radar
                   </TabsTrigger>
+                  {polyLeaderboardEnabled && (
+                    <TabsTrigger
+                      value="leaderboard"
+                      className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600"
+                    >
+                      Leaderboard
+                    </TabsTrigger>
+                  )}
                 </TabsList>
                 <TabsContent value="copilot" className="mt-0 space-y-4">
                   <Card className="border-zinc-200/80 dark:border-zinc-700/80">
@@ -1946,6 +1979,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 <TabsContent value="radar" className="mt-0 space-y-4">
                   <NovaPolymarketCopyBotPanel />
                 </TabsContent>
+                {polyLeaderboardEnabled && (
+                  <TabsContent value="leaderboard" className="mt-0 space-y-4">
+                    <NovaPolymarketLeaderboardPanel />
+                  </TabsContent>
+                )}
               </Tabs>
             )}
           </TabsContent>

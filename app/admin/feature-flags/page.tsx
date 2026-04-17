@@ -144,6 +144,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, eligible VIP users see the Copy trading bot subtab under Nova Polymarket Pro (analyze any proxy wallet, wire into Copilot). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
   },
+  nova_polymarket_leaderboard: {
+    label: "Nova Polymarket Leaderboard",
+    description:
+      "When ON, eligible VIP users see the Leaderboard subtab under Nova Polymarket Pro (trader rankings + biggest wins from Polymarket’s public data API). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {

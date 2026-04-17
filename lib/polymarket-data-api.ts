@@ -103,6 +103,83 @@ export async function fetchPolymarketClosedPositions(
   return Array.isArray(raw) ? (raw as PolymarketClosedPositionRow[]).slice(0, capped) : [];
 }
 
+/** Polymarket `/closed-positions` supports sort (see Data API OpenAPI). Max limit 50 per spec. */
+export async function fetchPolymarketClosedPositionsSorted(
+  userAddress: string,
+  opts?: {
+    limit?: number;
+    offset?: number;
+    sortBy?: "REALIZEDPNL" | "TIMESTAMP" | "TITLE" | "PRICE" | "AVGPRICE";
+    sortDirection?: "ASC" | "DESC";
+  }
+): Promise<PolymarketClosedPositionRow[]> {
+  const limit = Math.min(50, Math.max(1, opts?.limit ?? 50));
+  const offset = Math.min(100000, Math.max(0, opts?.offset ?? 0));
+  const sortBy = opts?.sortBy ?? "REALIZEDPNL";
+  const sortDirection = opts?.sortDirection ?? "DESC";
+  const q = new URLSearchParams({
+    user: userAddress,
+    limit: String(limit),
+    offset: String(offset),
+    sortBy,
+    sortDirection,
+  });
+  const res = await fetch(`${DATA_API}/closed-positions?${q.toString()}`, { cache: "no-store" });
+  if (!res.ok) return [];
+  const raw = (await res.json().catch(() => [])) as unknown;
+  return Array.isArray(raw) ? (raw as PolymarketClosedPositionRow[]).slice(0, limit) : [];
+}
+
+export type PolymarketLeaderboardCategory =
+  | "OVERALL"
+  | "POLITICS"
+  | "SPORTS"
+  | "CRYPTO"
+  | "CULTURE"
+  | "MENTIONS"
+  | "WEATHER"
+  | "ECONOMICS"
+  | "TECH"
+  | "FINANCE";
+
+export type PolymarketLeaderboardTimePeriod = "DAY" | "WEEK" | "MONTH" | "ALL";
+
+export type PolymarketLeaderboardEntry = {
+  rank?: string;
+  proxyWallet?: string;
+  userName?: string;
+  vol?: number;
+  pnl?: number;
+  profileImage?: string;
+  xUsername?: string;
+  verifiedBadge?: boolean;
+};
+
+export async function fetchPolymarketTraderLeaderboard(params: {
+  category?: PolymarketLeaderboardCategory | string;
+  timePeriod?: PolymarketLeaderboardTimePeriod | string;
+  orderBy?: "PNL" | "VOL";
+  limit?: number;
+  offset?: number;
+  userName?: string;
+}): Promise<PolymarketLeaderboardEntry[]> {
+  const limit = Math.min(50, Math.max(1, params.limit ?? 25));
+  const offset = Math.min(1000, Math.max(0, params.offset ?? 0));
+  const q = new URLSearchParams({
+    category: (params.category ?? "OVERALL").toUpperCase(),
+    timePeriod: (params.timePeriod ?? "MONTH").toUpperCase(),
+    orderBy: params.orderBy ?? "PNL",
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const un = params.userName?.trim();
+  if (un) q.set("userName", un);
+  const res = await fetch(`${DATA_API}/v1/leaderboard?${q.toString()}`, { cache: "no-store" });
+  if (!res.ok) return [];
+  const raw = (await res.json().catch(() => [])) as unknown;
+  return Array.isArray(raw) ? (raw as PolymarketLeaderboardEntry[]).slice(0, limit) : [];
+}
+
 /** Polymarket timestamps are Unix seconds; return epoch ms for JS Date (local timezone when formatted in browser). */
 export function tradeTimestampToMs(ts: number | undefined): number | null {
   if (ts == null || !Number.isFinite(ts) || ts <= 0) return null;

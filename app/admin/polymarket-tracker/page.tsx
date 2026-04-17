@@ -138,7 +138,8 @@ export default function AdminPolymarketTrackerPage() {
                 Feature flags
               </Link>{" "}
               (<span className="font-mono text-xs">nova_polymarket_tracker</span>). The separate{" "}
-              <span className="font-mono text-xs">nova_polymarket_copy_bot</span> flag controls the VIP Copy trading bot subtab.
+              <span className="font-mono text-xs">nova_polymarket_copy_bot</span> flag controls the VIP Copy trading bot subtab;{" "}
+              <span className="font-mono text-xs">nova_polymarket_leaderboard</span> controls the Leaderboard subtab.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">

@@ -55,6 +55,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_POLYMARKET_TRACKER: 'nova_polymarket_tracker',
   /** VIP: Polymarket Copy Trading Bot subtab + analyze APIs. Requires tracker access. Default OFF until admin enables. */
   NOVA_POLYMARKET_COPY_BOT: 'nova_polymarket_copy_bot',
+  /** VIP: Polymarket Pro Leaderboard subtab + proxy API. Requires tracker access. Default OFF until admin enables. */
+  NOVA_POLYMARKET_LEADERBOARD: 'nova_polymarket_leaderboard',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -64,6 +66,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.DIGEST_TO_NEWSLETTER_SUBSCRIBERS,
   FEATURE_FLAG_KEYS.NOVA_SCALPER_CRON,
   FEATURE_FLAG_KEYS.NOVA_POLYMARKET_COPY_BOT,
+  FEATURE_FLAG_KEYS.NOVA_POLYMARKET_LEADERBOARD,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {
