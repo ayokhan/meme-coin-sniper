@@ -1,12 +1,13 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, BarChart3, Activity, MessageCircle } from "lucide-react";
 
-export default function AboutPage() {
+function AboutContent() {
   const searchParams = useSearchParams();
   const copy = (searchParams.get("copy") ?? "a").toLowerCase();
   const isVariantB = copy === "b";
@@ -210,5 +211,13 @@ export default function AboutPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function AboutPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-zinc-500">Loading…</div>}>
+      <AboutContent />
+    </Suspense>
   );
 }
