@@ -36,6 +36,9 @@ export default function AboutPage() {
               execution framing, and <strong className="text-cyan-600 dark:text-cyan-400">Nova Polymarket Pro</strong>{" "}
               for wallet intelligence and radar-driven market context. One dashboard. One workflow. Faster conviction.
             </p>
+            <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto">
+              Built for traders who want to act before the crowd, not react after the move.
+            </p>
         </div>
 
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg overflow-hidden mb-8">
@@ -44,6 +47,10 @@ export default function AboutPage() {
                 <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris</strong> is built for serious traders
                 who need signal, speed, and structure. We combine real-time market discovery, agentic AI analysis, and
                 actionable workflows so you can move from idea to execution with clarity instead of noise.
+              </p>
+              <p className="text-base leading-relaxed">
+                Marketing promise, operational reality: faster research loops, cleaner entries, and stronger discipline.
+                You get fewer random bets and more repeatable decision-making across volatile markets.
               </p>
               <p className="text-base leading-relaxed">
                 From meme coin momentum to futures structure and prediction-market edge, NovaStaris gives you a complete
@@ -157,6 +164,22 @@ export default function AboutPage() {
                       <strong className="text-zinc-900 dark:text-zinc-100">NovaScalper</strong>, for a different style of automation when enabled—details are product-only. Wallet tracking lives under the Wallet Tracker tab. Other dashboard tabs cover <strong className="text-zinc-900 dark:text-zinc-100">Crypto Narratives</strong>, <strong className="text-zinc-900 dark:text-zinc-100">NovaRadar</strong> (NovaForecast), <strong className="text-zinc-900 dark:text-zinc-100">Nova Polymarket Pro</strong>, <strong className="text-zinc-900 dark:text-zinc-100">Nova Prop Firm Bot</strong>, and <strong className="text-zinc-900 dark:text-zinc-100">Nova Ultimate</strong> where your plan and on-demand flags apply.
                     </p>
                   </div>
+                </div>
+              </div>
+              <div className="rounded-xl border-2 border-cyan-200/80 dark:border-cyan-700/80 bg-cyan-50/60 dark:bg-cyan-950/30 p-4">
+                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  Ready to trade with a system, not emotion?
+                </p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                  Start with Pro for daily edge. Upgrade to VIP when you want Nova Polymarket Pro, on-demand bot workspaces, and advanced tactical workflows.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button asChild size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white">
+                    <Link href="/subscribe">Start your plan</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/">Open dashboard</Link>
+                  </Button>
                 </div>
               </div>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 pt-2">

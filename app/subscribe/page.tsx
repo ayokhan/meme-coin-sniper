@@ -253,6 +253,14 @@ function SubscribeContent() {
           <strong className="text-zinc-800 dark:text-zinc-200"> Nova Prop Firm Bot</strong>, and{" "}
           <strong className="text-zinc-800 dark:text-zinc-200">Nova Ultimate</strong>. Pay by card or USDC (Solana).
         </p>
+        <div className="rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50/60 dark:bg-cyan-950/30 p-4 mb-6">
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Why traders upgrade</p>
+          <ul className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 list-disc list-inside space-y-1">
+            <li>Faster idea-to-trade workflow across meme coins, futures, and prediction markets</li>
+            <li>Higher quality setups with AI-assisted structure, context, and risk framing</li>
+            <li>VIP adds Nova Polymarket Pro and on-demand workspaces for deeper edge</li>
+          </ul>
+        </div>
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 mb-6">
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">What&apos;s in each plan?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -294,6 +302,9 @@ function SubscribeContent() {
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
         {tier === "pro" ? "Pro: $50/month. Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast (NovaRadar), NovaQ, Nova Investment Agent (Finance & Investment Agent), Nova+ and NovaScalper (Crypto Futures—eligible accounts), on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate."}
+        </p>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+          Pick the tier that matches your current pace: Pro for daily execution edge, VIP for maximum market coverage and on-demand premium workflows.
         </p>
         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 space-y-1">
           {tier === "pro" ? (
