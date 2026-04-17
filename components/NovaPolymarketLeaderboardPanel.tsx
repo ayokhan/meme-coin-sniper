@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { ExternalLink, ListPlus, Radar, RefreshCw, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,6 @@ function displayUser(row: PolymarketLeaderboardEntry): string {
   const u = row.userName?.trim();
   if (u) return u;
   const w = row.proxyWallet?.trim();
-  if (w && w.length > 12) return `${w.slice(0, 6)}…${w.slice(-4)}`;
   return w || "—";
 }
 
@@ -85,6 +84,15 @@ function rankMedal(rank: number): string | null {
 
 function isValidProxyAddr(a: string | undefined | null): a is string {
   return !!a && /^0x[a-fA-F0-9]{40}$/.test(a.trim());
+}
+
+function horizontalTableKeyScroll(e: KeyboardEvent<HTMLDivElement>) {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const el = e.currentTarget;
+  if (el.scrollWidth <= el.clientWidth + 1) return;
+  const step = e.shiftKey ? 120 : 48;
+  el.scrollBy({ left: e.key === "ArrowLeft" ? -step : step, behavior: "smooth" });
+  e.preventDefault();
 }
 
 export default function NovaPolymarketLeaderboardPanel() {
@@ -229,22 +237,6 @@ export default function NovaPolymarketLeaderboardPanel() {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Leaderboard</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Rankings from{" "}
-            <a
-              href="https://data-api.polymarket.com"
-              className="text-cyan-600 dark:text-cyan-400 hover:underline"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Polymarket&apos;s public data API
-            </a>{" "}
-            (same sources as{" "}
-            <a href={polyUrl} className="text-cyan-600 dark:text-cyan-400 hover:underline" target="_blank" rel="noreferrer">
-              polymarket.com/leaderboard
-            </a>
-            ).
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => reload()} disabled={loading}>
@@ -283,7 +275,7 @@ export default function NovaPolymarketLeaderboardPanel() {
         </div>
       )}
 
-      <div className="min-w-0 grid grid-cols-1 min-[1280px]:grid-cols-[minmax(0,1fr)_24rem] gap-4 items-start">
+      <div className="min-w-0 grid grid-cols-1 min-[1180px]:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] gap-4 items-start">
         <Card className="min-w-0 border-zinc-200/80 dark:border-zinc-700/80">
           <CardHeader className="pb-3 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -330,15 +322,21 @@ export default function NovaPolymarketLeaderboardPanel() {
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : (
-              <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-700">
-                <table className="w-full text-sm">
+              <div
+                className="overflow-x-auto overflow-y-visible rounded-md border border-zinc-200 dark:border-zinc-700 scroll-smooth outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                tabIndex={0}
+                role="region"
+                aria-label="Traders leaderboard table. When this area is focused, use Left and Right arrow keys to scroll horizontally."
+                onKeyDown={horizontalTableKeyScroll}
+              >
+                <table className="w-max min-w-full text-sm">
                   <thead className="bg-zinc-50 dark:bg-zinc-900/80 text-left text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     <tr>
-                      <th className="p-2 w-12">#</th>
-                      <th className="p-2">User</th>
-                      <th className="p-2 text-right">P/L</th>
-                      <th className="p-2 text-right">Volume</th>
-                      <th className="p-2 text-right whitespace-nowrap">Actions</th>
+                      <th className="p-2 w-12 whitespace-nowrap">#</th>
+                      <th className="p-2 min-w-[22rem] sm:min-w-[26rem]">User</th>
+                      <th className="p-2 text-right whitespace-nowrap min-w-[7.5rem]">P/L</th>
+                      <th className="p-2 text-right whitespace-nowrap min-w-[7.5rem]">Volume</th>
+                      <th className="p-2 text-right whitespace-nowrap min-w-[11.5rem]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -352,26 +350,28 @@ export default function NovaPolymarketLeaderboardPanel() {
                       return (
                         <tr key={`${r.proxyWallet ?? i}-${rankNum}`} className="border-t border-zinc-100 dark:border-zinc-800">
                           <td className="p-2 text-zinc-500 tabular-nums">{rankNum}</td>
-                          <td className="p-2">
-                            <div className="flex items-center gap-2 min-w-0">
+                          <td className="p-2 align-top">
+                            <div className="flex items-start gap-2 min-w-0">
                               {r.profileImage ? (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={r.profileImage} alt="" className="h-8 w-8 rounded-full shrink-0 object-cover" />
+                                <img src={r.profileImage} alt="" className="h-8 w-8 rounded-full shrink-0 object-cover mt-0.5" />
                               ) : (
-                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-400 to-cyan-400 shrink-0" />
+                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-400 to-cyan-400 shrink-0 mt-0.5" />
                               )}
-                              <div className="min-w-0">
-                                <div className="font-medium text-zinc-900 dark:text-zinc-100 truncate flex items-center gap-1">
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium text-zinc-900 dark:text-zinc-100 flex flex-wrap items-center gap-x-1 gap-y-0.5 break-words">
                                   {medal && <span className="shrink-0">{medal}</span>}
-                                  <span className="truncate">{displayUser(r)}</span>
+                                  <span>{displayUser(r)}</span>
                                   {r.verifiedBadge && (
                                     <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0">
                                       ✓
                                     </Badge>
                                   )}
                                 </div>
-                                {r.proxyWallet && (
-                                  <div className="text-[11px] text-zinc-500 font-mono truncate">{r.proxyWallet}</div>
+                                {r.proxyWallet && r.userName?.trim() && (
+                                  <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono break-all leading-snug mt-0.5">
+                                    {r.proxyWallet}
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -437,7 +437,7 @@ export default function NovaPolymarketLeaderboardPanel() {
           </CardContent>
         </Card>
 
-        <Card className="min-w-0 w-full max-w-full border-zinc-200/80 dark:border-zinc-700/80 min-[1280px]:sticky min-[1280px]:top-4 overflow-hidden">
+        <Card className="min-w-0 w-full max-w-full border-zinc-200/80 dark:border-zinc-700/80 min-[1180px]:sticky min-[1180px]:top-4 overflow-hidden">
           <CardHeader className="pb-2 min-w-0 space-y-1">
             <div className="flex items-start gap-2 min-w-0">
               <Trophy className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" aria-hidden />
