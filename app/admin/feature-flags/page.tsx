@@ -139,6 +139,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users with Nova Polymarket Bot (on demand) see the Nova Polymarket Tracker subtab and APIs work. When OFF, the tracker is hidden and list/activity routes return disabled. Admin wallet list: Nova Admin → Polymarket Tracker.",
   },
+  nova_polymarket_copy_bot: {
+    label: "Nova Polymarket Copy Trading Bot",
+    description:
+      "When ON, eligible VIP users see the Copy trading bot subtab under Nova Polymarket Bot (analyze any proxy wallet, wire into Copilot). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {

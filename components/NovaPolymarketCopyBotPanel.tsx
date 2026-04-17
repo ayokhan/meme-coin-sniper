@@ -1,0 +1,384 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { ExternalLink, Copy, ListPlus, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  aggregateTradesStats,
+  tradeTimestampToMs,
+  type PolymarketTradeRow,
+} from "@/lib/polymarket-data-api";
+
+const PREFILL_EVENT = "novastaris-poly-prefill-copy-wallet";
+
+function isValidAddr(a: string) {
+  return /^0x[a-fA-F0-9]{40}$/.test(a.trim());
+}
+
+function formatLocal(ms: number | null) {
+  if (ms == null || !Number.isFinite(ms)) return "—";
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString(undefined, { dateStyle: "short", timeStyle: "medium" });
+}
+
+function fmtUsd(n: number | null, maxFrac = 2) {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return `$${n.toLocaleString(undefined, { maximumFractionDigits: maxFrac, minimumFractionDigits: 0 })}`;
+}
+
+function fmtNum(n: number | null, maxFrac = 4) {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return n.toLocaleString(undefined, { maximumFractionDigits: maxFrac });
+}
+
+type AnalyzeJson = {
+  success?: boolean;
+  error?: string;
+  address?: string;
+  valueUsd?: number | null;
+  positionCount?: number;
+  closedPositionCount?: number;
+  positions?: Array<{ title?: string; outcome?: string; size?: number; currentValue?: number; cashPnl?: number }>;
+  closedPositions?: Array<{
+    title?: string;
+    outcome?: string;
+    avgPrice?: number;
+    realizedPnl?: number;
+    timestamp?: number;
+  }>;
+  trades?: PolymarketTradeRow[];
+  tradeStats?: { tradeCount: number; volumeUsd: number; totalShares: number; netFlowUsd: number };
+  tradeStatsNote?: string;
+  tradesHasMore?: boolean;
+  nextTradeOffset?: number;
+  polymarketProfileUrl?: string;
+};
+
+export default function NovaPolymarketCopyBotPanel() {
+  const [addrInput, setAddrInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copyBotOff, setCopyBotOff] = useState(false);
+
+  const [analyzed, setAnalyzed] = useState<AnalyzeJson | null>(null);
+  const [allTrades, setAllTrades] = useState<PolymarketTradeRow[]>([]);
+  const [nextTradeOffset, setNextTradeOffset] = useState(0);
+  const [tradesHasMore, setTradesHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [mergedStats, setMergedStats] = useState<ReturnType<typeof aggregateTradesStats> | null>(null);
+
+  const [addingTracker, setAddingTracker] = useState(false);
+  const [trackerMsg, setTrackerMsg] = useState<string | null>(null);
+
+  const runAnalyze = useCallback(async (reset = true) => {
+    const raw = addrInput.trim();
+    if (!isValidAddr(raw)) {
+      setError("Enter a valid Polymarket proxy wallet (0x + 40 hex chars).");
+      return;
+    }
+    const address = raw.toLowerCase();
+    setLoading(true);
+    setError(null);
+    setCopyBotOff(false);
+    setTrackerMsg(null);
+    try {
+      const res = await fetch(
+        `/api/polymarket-copy/analyze?address=${encodeURIComponent(address)}&tradeLimit=100&tradeOffset=0`,
+        { cache: "no-store" }
+      );
+      const data = (await res.json()) as AnalyzeJson & { copyBotDisabled?: boolean };
+      if (!res.ok) {
+        if (data?.copyBotDisabled) setCopyBotOff(true);
+        setError(data?.error ?? `Error ${res.status}`);
+        if (reset) setAnalyzed(null);
+        return;
+      }
+      if (!data.success) {
+        setError(data.error ?? "Analyze failed");
+        if (reset) setAnalyzed(null);
+        return;
+      }
+      const trades = Array.isArray(data.trades) ? data.trades : [];
+      setAnalyzed(data);
+      setAllTrades(trades);
+      setNextTradeOffset(typeof data.nextTradeOffset === "number" ? data.nextTradeOffset : trades.length);
+      setTradesHasMore(!!data.tradesHasMore);
+      setMergedStats(aggregateTradesStats(trades));
+    } catch {
+      setError("Network error.");
+      if (reset) setAnalyzed(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [addrInput]);
+
+  const loadMoreTrades = useCallback(async () => {
+    const address = analyzed?.address;
+    if (!address || !tradesHasMore || loadingMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/polymarket-copy/analyze?address=${encodeURIComponent(address)}&tradeLimit=100&tradeOffset=${nextTradeOffset}&fields=trades`,
+        { cache: "no-store" }
+      );
+      const data = (await res.json()) as AnalyzeJson;
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "Could not load more trades.");
+        return;
+      }
+      const newT = Array.isArray(data.trades) ? data.trades : [];
+      setAllTrades((prev) => {
+        const merged = [...prev, ...newT];
+        setMergedStats(aggregateTradesStats(merged));
+        return merged;
+      });
+      setNextTradeOffset(typeof data.nextTradeOffset === "number" ? data.nextTradeOffset : nextTradeOffset + newT.length);
+      setTradesHasMore(!!data.tradesHasMore);
+    } catch {
+      setError("Could not load more trades.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [analyzed?.address, tradesHasMore, loadingMore, nextTradeOffset]);
+
+  const copyAddress = async () => {
+    const a = analyzed?.address ?? (isValidAddr(addrInput) ? addrInput.trim() : "");
+    if (!a) return;
+    try {
+      await navigator.clipboard.writeText(a);
+      setTrackerMsg("Address copied to clipboard.");
+    } catch {
+      setTrackerMsg("Could not copy (clipboard permission).");
+    }
+  };
+
+  const sendToCopilot = () => {
+    const a = analyzed?.address ?? (isValidAddr(addrInput) ? addrInput.trim().toLowerCase() : "");
+    if (!a || !isValidAddr(a)) return;
+    window.dispatchEvent(new CustomEvent(PREFILL_EVENT, { detail: { address: a.toLowerCase() } }));
+    setTrackerMsg("Opened Polymarket Copilot tab with this wallet added to copy-trader list.");
+  };
+
+  const addToMyTracker = async () => {
+    const a = analyzed?.address ?? (isValidAddr(addrInput) ? addrInput.trim().toLowerCase() : "");
+    if (!a || !isValidAddr(a)) return;
+    setAddingTracker(true);
+    setTrackerMsg(null);
+    try {
+      const res = await fetch("/api/user/polymarket-tracker-wallets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: a, nickname: "Copy bot" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) setTrackerMsg("Wallet added to My tracked wallets (Nova Polymarket Tracker).");
+      else setTrackerMsg(data.error ?? "Could not add wallet.");
+    } catch {
+      setTrackerMsg("Could not add wallet.");
+    } finally {
+      setAddingTracker(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-zinc-200/80 dark:border-zinc-700/80 border-emerald-200/50 dark:border-emerald-900/40">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+            Copy Trading Bot (VIP)
+          </CardTitle>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <strong>Why Polymarket data, not Telegram:</strong> NovaStaris reads{" "}
+            <span className="font-mono">data-api.polymarket.com</span>—the same public fills and positions the chain
+            exposes. Third-party Telegram bots (for example Polygun) are useful for alerts, but they are closed
+            products without a stable API we can rely on for audits, pagination, and compliance. If a vendor later
+            offers webhooks or OAuth, we can add them as an optional channel; the source of truth for execution remains
+            Polymarket and your own wallet.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3 text-xs text-muted-foreground">
+            <p>
+              <strong className="text-zinc-800 dark:text-zinc-200">Not automated brokerage.</strong> This workspace helps
+              you research a wallet, then wire it into Polymarket Copilot (manual / semi-auto flows you already have).
+              Placing orders still requires your wallet and Polymarket; we do not custody funds or guarantee fills.
+            </p>
+          </div>
+
+          {copyBotOff && (
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              Copy Trading Bot is turned off in Admin → Feature flags (<span className="font-mono text-xs">nova_polymarket_copy_bot</span>).
+            </p>
+          )}
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Target proxy wallet</label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={addrInput}
+                onChange={(e) => setAddrInput(e.target.value)}
+                placeholder="0x…"
+                className="min-w-[220px] flex-1 h-9 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm font-mono"
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={loading}
+                onClick={() => void runAnalyze(true)}
+              >
+                {loading ? "Analyzing…" : "Analyze wallet"}
+              </Button>
+            </div>
+          </div>
+
+          {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
+          {trackerMsg && <p className="text-xs text-emerald-700 dark:text-emerald-300">{trackerMsg}</p>}
+
+          {analyzed && analyzed.address && (
+            <div className="space-y-4 border-t border-zinc-200 dark:border-zinc-700 pt-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="font-mono text-xs">
+                  {analyzed.address}
+                </Badge>
+                {analyzed.polymarketProfileUrl && (
+                  <Button type="button" size="sm" variant="outline" asChild>
+                    <a href={analyzed.polymarketProfileUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                      Polymarket profile
+                    </a>
+                  </Button>
+                )}
+                <Button type="button" size="sm" variant="outline" onClick={() => void copyAddress()}>
+                  <Copy className="h-3.5 w-3.5 mr-1" />
+                  Copy address
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
+                  <p className="text-[10px] text-muted-foreground uppercase">Portfolio</p>
+                  <p className="text-sm font-semibold tabular-nums">{fmtUsd(analyzed.valueUsd ?? null)}</p>
+                </div>
+                <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
+                  <p className="text-[10px] text-muted-foreground uppercase">Open positions</p>
+                  <p className="text-sm font-semibold tabular-nums">{analyzed.positionCount ?? "—"}</p>
+                </div>
+                <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
+                  <p className="text-[10px] text-muted-foreground uppercase">Closed (batch)</p>
+                  <p className="text-sm font-semibold tabular-nums">{analyzed.closedPositionCount ?? "—"}</p>
+                </div>
+                <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
+                  <p className="text-[10px] text-muted-foreground uppercase">Tape fills (loaded)</p>
+                  <p className="text-sm font-semibold tabular-nums">{mergedStats?.tradeCount ?? "—"}</p>
+                </div>
+              </div>
+
+              {mergedStats && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
+                    <p className="text-[10px] text-muted-foreground uppercase">Volume (Σ |size×price|)</p>
+                    <p className="text-sm font-semibold tabular-nums">{fmtUsd(mergedStats.volumeUsd)}</p>
+                  </div>
+                  <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
+                    <p className="text-[10px] text-muted-foreground uppercase">Amount (Σ |size|)</p>
+                    <p className="text-sm font-semibold tabular-nums">{fmtNum(mergedStats.totalShares)}</p>
+                  </div>
+                  <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
+                    <p className="text-[10px] text-muted-foreground uppercase">Net buy flow</p>
+                    <p className="text-sm font-semibold tabular-nums">{fmtUsd(mergedStats.netFlowUsd)}</p>
+                  </div>
+                </div>
+              )}
+              {analyzed.tradeStatsNote && <p className="text-[10px] text-muted-foreground">{analyzed.tradeStatsNote}</p>}
+
+              <div>
+                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Copy this trader from NovaStaris</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="default" className="bg-violet-600 hover:bg-violet-700" onClick={sendToCopilot}>
+                    Add to Polymarket Copilot
+                  </Button>
+                  <Button type="button" size="sm" variant="secondary" disabled={addingTracker} onClick={() => void addToMyTracker()}>
+                    <ListPlus className="h-3.5 w-3.5 mr-1" />
+                    {addingTracker ? "Adding…" : "Add to My Tracker"}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  Copilot: we switch you to the Polymarket Copilot tab and append this wallet to <strong>Copy-trader wallets</strong> so
+                  Run Copilot / auto-copy scan can use it. Tracker: merges this address into your personal watch list.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2 max-h-64 overflow-y-auto">
+                  <p className="text-xs font-medium mb-2">Current positions (sample)</p>
+                  <ul className="space-y-1 text-xs">
+                    {(analyzed.positions ?? []).length === 0 ? (
+                      <li className="text-muted-foreground">None returned.</li>
+                    ) : (
+                      analyzed.positions!.map((p, i) => (
+                        <li key={i} className="border-b border-zinc-100 dark:border-zinc-800 pb-1">
+                          <span className="font-medium text-zinc-800 dark:text-zinc-200">{p.title ?? "—"}</span>
+                          {p.outcome != null && <span className="text-muted-foreground"> — {p.outcome}</span>}
+                          <span className="block text-muted-foreground tabular-nums">
+                            Size {fmtNum(p.size ?? null)} · {fmtUsd(p.currentValue ?? null)}
+                          </span>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+                <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2 max-h-64 overflow-y-auto">
+                  <p className="text-xs font-medium mb-2">Trade tape (local time)</p>
+                  <ul className="space-y-1 text-xs">
+                    {allTrades.length === 0 ? (
+                      <li className="text-muted-foreground">No fills in loaded pages.</li>
+                    ) : (
+                      allTrades.map((tr, i) => {
+                        const tms = tradeTimestampToMs(tr.timestamp);
+                        const slug = typeof tr.slug === "string" ? tr.slug : "";
+                        const href = slug ? `https://polymarket.com/event/${encodeURIComponent(slug)}` : analyzed.polymarketProfileUrl;
+                        return (
+                          <li key={`${i}-${tr.transactionHash ?? i}`} className="border-b border-zinc-100 dark:border-zinc-800 pb-1">
+                            <div className="flex justify-between gap-2">
+                              <span
+                                className={
+                                  String(tr.side).toUpperCase() === "BUY"
+                                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                                    : "text-rose-600 dark:text-rose-400 font-medium"
+                                }
+                              >
+                                {tr.side ?? "—"}
+                              </span>
+                              <span className="text-muted-foreground shrink-0">{formatLocal(tms)}</span>
+                            </div>
+                            <p className="text-zinc-800 dark:text-zinc-200">{tr.title ?? "—"}</p>
+                            {href && (
+                              <a href={href} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 text-[11px] hover:underline">
+                                Open market / profile
+                              </a>
+                            )}
+                          </li>
+                        );
+                      })
+                    )}
+                  </ul>
+                  {tradesHasMore && (
+                    <Button type="button" size="sm" variant="outline" className="mt-2 w-full" disabled={loadingMore} onClick={() => void loadMoreTrades()}>
+                      {loadingMore ? "Loading…" : "Load older fills"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

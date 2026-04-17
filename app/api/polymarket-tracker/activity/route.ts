@@ -46,10 +46,12 @@ export async function GET(request: Request) {
     const address = searchParams.get("address")?.trim()?.toLowerCase() ?? "";
     const type = (searchParams.get("type") ?? "all").toLowerCase();
     const limitRaw = parseInt(searchParams.get("limit") ?? "400", 10) || 400;
+    const tradeOffsetRaw = parseInt(searchParams.get("offset") ?? "0", 10) || 0;
     const wantTrades = type === "all" || type === "trades";
     const wantPositions = type === "all" || type === "positions";
     const wantClosed = type === "all" || type === "closed";
     const tradeLimit = wantTrades ? Math.min(500, Math.max(1, limitRaw)) : 0;
+    const tradeOffset = wantTrades ? Math.min(10000, Math.max(0, tradeOffsetRaw)) : 0;
     const posLimit = Math.min(250, Math.max(1, parseInt(searchParams.get("positionsLimit") ?? "200", 10) || 200));
     const closedLimit = Math.min(250, Math.max(1, parseInt(searchParams.get("closedLimit") ?? "150", 10) || 150));
     if (!isValidEvmAddress(address)) {
@@ -62,12 +64,14 @@ export async function GET(request: Request) {
     }
 
     const [trades, positions, closedPositions] = await Promise.all([
-      wantTrades ? fetchPolymarketTrades(address, tradeLimit) : Promise.resolve([]),
+      wantTrades ? fetchPolymarketTrades(address, tradeLimit, tradeOffset) : Promise.resolve([]),
       wantPositions ? fetchPolymarketPositions(address, posLimit) : Promise.resolve([]),
       wantClosed ? fetchPolymarketClosedPositions(address, closedLimit) : Promise.resolve([]),
     ]);
 
     const stats = aggregateTradesStats(trades);
+    const tradesHasMore = wantTrades && trades.length === tradeLimit && tradeOffset + tradeLimit < 10000;
+    const nextTradeOffset = wantTrades ? tradeOffset + trades.length : 0;
 
     return NextResponse.json({
       success: true,
@@ -76,9 +80,12 @@ export async function GET(request: Request) {
       positions: wantPositions ? positions : [],
       closedPositions: wantClosed ? closedPositions : [],
       tradeStats: stats,
+      tradeOffset,
+      nextTradeOffset,
+      tradesHasMore,
       /** Trades list is capped; volume is sum of size×price over returned fills only. */
       tradeStatsNote:
-        "Volume and counts are computed from the returned trade fills only (not full account lifetime unless the API returns every fill).",
+        "Volume and counts are computed from the returned trade fills only (not full account lifetime unless the API returns every fill). Use offset + Load more for older fills (Polymarket data API, up to offset 10,000).",
     });
   } catch (e) {
     console.error("polymarket-tracker/activity:", e);

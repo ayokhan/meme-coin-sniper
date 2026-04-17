@@ -53,6 +53,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_SCALPER_CRON: 'nova_scalper_cron',
   /** VIP (Polymarket on-demand): Nova Polymarket Tracker subtab + APIs + admin wallet list. When OFF, tracker is hidden and routes return disabled. */
   NOVA_POLYMARKET_TRACKER: 'nova_polymarket_tracker',
+  /** VIP: Polymarket Copy Trading Bot subtab + analyze APIs. Requires tracker access. Default OFF until admin enables. */
+  NOVA_POLYMARKET_COPY_BOT: 'nova_polymarket_copy_bot',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -61,6 +63,7 @@ const DEFAULT_ENABLED = true;
 const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.DIGEST_TO_NEWSLETTER_SUBSCRIBERS,
   FEATURE_FLAG_KEYS.NOVA_SCALPER_CRON,
+  FEATURE_FLAG_KEYS.NOVA_POLYMARKET_COPY_BOT,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {

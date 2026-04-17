@@ -13,6 +13,7 @@ export type PolymarketTradeRow = {
   price?: number;
   /** Unix seconds from Polymarket data API */
   timestamp?: number;
+  /** Market slug when API returns it (used for deep links). */
   slug?: string;
   transactionHash?: string;
 };
@@ -59,9 +60,25 @@ export async function fetchPolymarketPositions(userAddress: string, limit = 50):
   return Array.isArray(raw) ? (raw as PolymarketPositionRow[]).slice(0, limit) : [];
 }
 
-export async function fetchPolymarketTrades(userAddress: string, limit = 50): Promise<PolymarketTradeRow[]> {
-  const capped = Math.min(2000, Math.max(1, limit));
-  const res = await fetch(`${DATA_API}/trades?user=${encodeURIComponent(userAddress)}&limit=${capped}`, {
+/**
+ * @param offset Polymarket data API supports offset 0–10000 (see OpenAPI).
+ * @param takerOnly When false, includes maker fills (larger tape).
+ */
+export async function fetchPolymarketTrades(
+  userAddress: string,
+  limit = 50,
+  offset = 0,
+  takerOnly = true
+): Promise<PolymarketTradeRow[]> {
+  const capped = Math.min(1000, Math.max(1, limit));
+  const off = Math.min(10000, Math.max(0, offset));
+  const q = new URLSearchParams({
+    user: userAddress,
+    limit: String(capped),
+    offset: String(off),
+    takerOnly: String(takerOnly),
+  });
+  const res = await fetch(`${DATA_API}/trades?${q.toString()}`, {
     cache: "no-store",
   });
   if (!res.ok) return [];

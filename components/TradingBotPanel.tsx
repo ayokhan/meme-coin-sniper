@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import NovaScalperPanel from "@/components/NovaScalperPanel";
 import NovaPolymarketTrackerPanel from "@/components/NovaPolymarketTrackerPanel";
+import NovaPolymarketCopyBotPanel from "@/components/NovaPolymarketCopyBotPanel";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
 import { useSession } from "next-auth/react";
 
@@ -233,11 +234,37 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
 
   const [form, setForm] = useState<Partial<Config>>({});
   const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
-  const [polyInnerTab, setPolyInnerTab] = useState<"copilot" | "tracker">("copilot");
+  const [polyInnerTab, setPolyInnerTab] = useState<"copilot" | "tracker" | "copy_bot">("copilot");
+  const [copyTradingEnabled, setCopyTradingEnabled] = useState<boolean | null>(null);
   useEffect(() => {
     if (mode === "polymarket-only") setBotSubTab("polymarket");
     if (mode === "futures-only" && botSubTab === "polymarket") setBotSubTab("ai");
   }, [mode, botSubTab]);
+
+  useEffect(() => {
+    if (!canAccessPolymarket) {
+      setCopyTradingEnabled(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/polymarket-copy/bootstrap", { cache: "no-store" });
+        const data = (await res.json().catch(() => ({}))) as { success?: boolean; copyTradingEnabled?: boolean };
+        if (!cancelled && res.ok && data.success) setCopyTradingEnabled(!!data.copyTradingEnabled);
+        else if (!cancelled) setCopyTradingEnabled(false);
+      } catch {
+        if (!cancelled) setCopyTradingEnabled(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canAccessPolymarket]);
+
+  useEffect(() => {
+    if (copyTradingEnabled === false && polyInnerTab === "copy_bot") setPolyInnerTab("copilot");
+  }, [copyTradingEnabled, polyInnerTab]);
 
   const [polyKeyword, setPolyKeyword] = useState("bitcoin");
   const [polyBankroll, setPolyBankroll] = useState("1000");
@@ -300,6 +327,27 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     };
     riskNote: string;
   } | null>(null);
+
+  useEffect(() => {
+    const onPrefill = (e: Event) => {
+      const ce = e as CustomEvent<{ address?: string }>;
+      const addr = typeof ce.detail?.address === "string" ? ce.detail.address.trim().toLowerCase() : "";
+      if (!/^0x[a-f0-9]{40}$/i.test(addr)) return;
+      setPolyCopyWallets((prev) => {
+        const parts = prev
+          .split(/[\s,;\n]+/)
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
+        if (parts.includes(addr)) return prev;
+        const next = prev.trim() ? `${prev.trim()}\n${addr}` : addr;
+        return next;
+      });
+      setPolyInnerTab("copilot");
+      setSuccess("Target wallet added to Polymarket Copilot copy-trader list.");
+    };
+    window.addEventListener("novastaris-poly-prefill-copy-wallet", onPrefill as EventListener);
+    return () => window.removeEventListener("novastaris-poly-prefill-copy-wallet", onPrefill as EventListener);
+  }, []);
 
   const getEthereumProvider = (): EthereumProvider | null => {
     if (typeof window === "undefined") return null;
@@ -1391,7 +1439,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 </CardContent>
               </Card>
             ) : (
-              <Tabs value={polyInnerTab} onValueChange={(v) => setPolyInnerTab(v as "copilot" | "tracker")} className="space-y-4">
+              <Tabs value={polyInnerTab} onValueChange={(v) => setPolyInnerTab(v as "copilot" | "tracker" | "copy_bot")} className="space-y-4">
                 <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
                   <TabsTrigger
                     value="copilot"
@@ -1405,6 +1453,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   >
                     Nova Polymarket Tracker
                   </TabsTrigger>
+                  {copyTradingEnabled && (
+                    <TabsTrigger
+                      value="copy_bot"
+                      className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600"
+                    >
+                      Copy trading bot
+                    </TabsTrigger>
+                  )}
                 </TabsList>
                 <TabsContent value="copilot" className="mt-0 space-y-4">
                   <Card className="border-zinc-200/80 dark:border-zinc-700/80">
@@ -1914,6 +1970,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 <TabsContent value="tracker" className="mt-0 space-y-4">
                   <NovaPolymarketTrackerPanel />
                 </TabsContent>
+                {copyTradingEnabled && (
+                  <TabsContent value="copy_bot" className="mt-0 space-y-4">
+                    <NovaPolymarketCopyBotPanel />
+                  </TabsContent>
+                )}
               </Tabs>
             )}
           </TabsContent>

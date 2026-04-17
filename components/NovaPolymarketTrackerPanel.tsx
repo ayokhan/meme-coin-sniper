@@ -7,7 +7,7 @@ import { Star, RefreshCw, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { tradeTimestampToMs } from "@/lib/polymarket-data-api";
+import { aggregateTradesStats, tradeTimestampToMs } from "@/lib/polymarket-data-api";
 
 const FAVORITES_LS_KEY = "novastaris-polymarket-tracker-favorites";
 const AUTO_REFRESH_LS_KEY = "novastaris-polymarket-tracker-auto-refresh-ms";
@@ -146,6 +146,9 @@ export default function NovaPolymarketTrackerPanel() {
   const [closedPositions, setClosedPositions] = useState<ClosedRow[]>([]);
   const [tradeStats, setTradeStats] = useState<TradeStats | null>(null);
   const [tradeStatsNote, setTradeStatsNote] = useState<string | null>(null);
+  const [nextTradeOffset, setNextTradeOffset] = useState(0);
+  const [tradesHasMore, setTradesHasMore] = useState(false);
+  const [tradeTapeLoadingMore, setTradeTapeLoadingMore] = useState(false);
 
   const [myWallets, setMyWallets] = useState<{ id: string; address: string; nickname: string | null }[]>([]);
   const [newAddr, setNewAddr] = useState("");
@@ -201,7 +204,7 @@ export default function NovaPolymarketTrackerPanel() {
     }
     try {
       const res = await fetch(
-        `/api/polymarket-tracker/activity?address=${encodeURIComponent(address)}&type=all&limit=450&positionsLimit=220&closedLimit=180`,
+        `/api/polymarket-tracker/activity?address=${encodeURIComponent(address)}&type=all&limit=150&offset=0&positionsLimit=220&closedLimit=180`,
         { cache: "no-store" }
       );
       const data = await res.json();
@@ -209,15 +212,14 @@ export default function NovaPolymarketTrackerPanel() {
         if (!silent) setActivityError(data?.error ?? `Error ${res.status}`);
         return;
       }
-      setTrades(Array.isArray(data.trades) ? data.trades : []);
+      const t = Array.isArray(data.trades) ? data.trades : [];
+      setTrades(t);
       setPositions(Array.isArray(data.positions) ? data.positions : []);
       setClosedPositions(Array.isArray(data.closedPositions) ? data.closedPositions : []);
-      setTradeStats(
-        data.tradeStats && typeof data.tradeStats === "object"
-          ? (data.tradeStats as TradeStats)
-          : null
-      );
+      setTradeStats(t.length ? aggregateTradesStats(t) : null);
       setTradeStatsNote(typeof data.tradeStatsNote === "string" ? data.tradeStatsNote : null);
+      setNextTradeOffset(typeof data.nextTradeOffset === "number" ? data.nextTradeOffset : t.length);
+      setTradesHasMore(!!data.tradesHasMore);
     } catch {
       if (!silent) setActivityError("Failed to load positions and trade history.");
     } finally {
@@ -286,7 +288,38 @@ export default function NovaPolymarketTrackerPanel() {
     setClosedPositions([]);
     setTradeStats(null);
     setTradeStatsNote(null);
+    setNextTradeOffset(0);
+    setTradesHasMore(false);
     await loadActivityForAddress(address, false);
+  };
+
+  const loadMoreTradeTape = async () => {
+    const address = expanded;
+    if (!address || !tradesHasMore || tradeTapeLoadingMore) return;
+    setTradeTapeLoadingMore(true);
+    try {
+      const res = await fetch(
+        `/api/polymarket-tracker/activity?address=${encodeURIComponent(address)}&type=trades&limit=150&offset=${nextTradeOffset}`,
+        { cache: "no-store" }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setActivityError(data?.error ?? "Could not load older fills.");
+        return;
+      }
+      const newT = Array.isArray(data.trades) ? data.trades : [];
+      setTrades((prev) => {
+        const merged = [...prev, ...newT];
+        setTradeStats(aggregateTradesStats(merged));
+        return merged;
+      });
+      setNextTradeOffset(typeof data.nextTradeOffset === "number" ? data.nextTradeOffset : nextTradeOffset + newT.length);
+      setTradesHasMore(!!data.tradesHasMore);
+    } catch {
+      setActivityError("Could not load older fills.");
+    } finally {
+      setTradeTapeLoadingMore(false);
+    }
   };
 
   const handleAddMyWallet = async () => {
@@ -390,7 +423,7 @@ export default function NovaPolymarketTrackerPanel() {
           </div>
           <p className="text-xs text-muted-foreground">
             <strong>Last trade</strong> times use your browser&apos;s locale and timezone. Table metrics for trades/volume
-            are computed from the latest batch of fills returned by Polymarket (up to 250 per wallet in the list view).
+            are computed from loaded fills (first page 150; use <strong>Load older fills</strong> in the trade tape for more, up to API offset limits).
           </p>
           {listError && <p className="text-sm text-rose-600 dark:text-rose-400">{listError}</p>}
 
@@ -404,10 +437,24 @@ export default function NovaPolymarketTrackerPanel() {
                   <th className="text-right p-2">Portfolio</th>
                   <th className="text-right p-2">Open</th>
                   <th className="text-right p-2">History</th>
-                  <th className="text-right p-2">Trades</th>
-                  <th className="text-right p-2">Volume</th>
-                  <th className="text-right p-2">Amount</th>
-                  <th className="text-right p-2">Net flow</th>
+                  <th className="text-right p-2" title="Number of fills in the tracker summary batch (not necessarily lifetime count).">
+                    Trades
+                  </th>
+                  <th
+                    className="text-right p-2"
+                    title="Sum of absolute notional per fill (|size × price|) in USD for the batch Polymarket returned—approximate traded dollar volume on those fills."
+                  >
+                    Volume
+                  </th>
+                  <th className="text-right p-2" title="Sum of absolute share size (|size|) across fills in the batch.">
+                    Amount
+                  </th>
+                  <th
+                    className="text-right p-2"
+                    title="Signed sum of size × price: buys add, sells subtract—directional pressure on the batch, not profit."
+                  >
+                    Net flow
+                  </th>
                   <th className="text-left p-2">Last trade</th>
                   <th className="text-left p-2">Source</th>
                   <th className="text-left p-2">Detail</th>
@@ -584,43 +631,57 @@ export default function NovaPolymarketTrackerPanel() {
                                     </ul>
                                   )}
                                   {activityTab === "trades" && (
-                                    <ul className="space-y-1 max-h-72 overflow-y-auto text-left">
-                                      {trades.length === 0 ? (
-                                        <li className="text-muted-foreground">No trades in this batch.</li>
-                                      ) : (
-                                        trades.map((tr, i) => {
-                                          const tms = tradeTimestampToMs(tr.timestamp);
-                                          const notional =
-                                            Number.isFinite(Number(tr.size)) && Number.isFinite(Number(tr.price))
-                                              ? Math.abs(Number(tr.size) * Number(tr.price))
-                                              : null;
-                                          return (
-                                            <li key={i} className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-2">
-                                              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                                <span
-                                                  className={`font-semibold ${
-                                                    String(tr.side).toUpperCase() === "BUY"
-                                                      ? "text-emerald-600 dark:text-emerald-400"
-                                                      : "text-rose-600 dark:text-rose-400"
-                                                  }`}
-                                                >
-                                                  {tr.side ?? "—"}
-                                                </span>
-                                                <span className="text-muted-foreground tabular-nums text-[11px]">
-                                                  {formatLocalDateTime(tms)}
-                                                </span>
-                                              </div>
-                                              <p className="text-zinc-800 dark:text-zinc-200 mt-0.5">{tr.title ?? "—"}</p>
-                                              {tr.outcome != null && <p className="text-muted-foreground">Outcome: {tr.outcome}</p>}
-                                              <p className="text-muted-foreground tabular-nums mt-0.5">
-                                                Size {fmtNum(tr.size ?? null, 4)} @ {fmtNum(tr.price ?? null, 4)}
-                                                {notional != null && <span> · ≈ {fmtUsd(notional, 2)}</span>}
-                                              </p>
-                                            </li>
-                                          );
-                                        })
+                                    <div className="space-y-2">
+                                      <ul className="space-y-1 max-h-72 overflow-y-auto text-left">
+                                        {trades.length === 0 ? (
+                                          <li className="text-muted-foreground">No trades in this batch.</li>
+                                        ) : (
+                                          trades.map((tr, i) => {
+                                            const tms = tradeTimestampToMs(tr.timestamp);
+                                            const notional =
+                                              Number.isFinite(Number(tr.size)) && Number.isFinite(Number(tr.price))
+                                                ? Math.abs(Number(tr.size) * Number(tr.price))
+                                                : null;
+                                            return (
+                                              <li key={i} className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-2">
+                                                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                                  <span
+                                                    className={`font-semibold ${
+                                                      String(tr.side).toUpperCase() === "BUY"
+                                                        ? "text-emerald-600 dark:text-emerald-400"
+                                                        : "text-rose-600 dark:text-rose-400"
+                                                    }`}
+                                                  >
+                                                    {tr.side ?? "—"}
+                                                  </span>
+                                                  <span className="text-muted-foreground tabular-nums text-[11px]">
+                                                    {formatLocalDateTime(tms)}
+                                                  </span>
+                                                </div>
+                                                <p className="text-zinc-800 dark:text-zinc-200 mt-0.5">{tr.title ?? "—"}</p>
+                                                {tr.outcome != null && <p className="text-muted-foreground">Outcome: {tr.outcome}</p>}
+                                                <p className="text-muted-foreground tabular-nums mt-0.5">
+                                                  Size {fmtNum(tr.size ?? null, 4)} @ {fmtNum(tr.price ?? null, 4)}
+                                                  {notional != null && <span> · ≈ {fmtUsd(notional, 2)}</span>}
+                                                </p>
+                                              </li>
+                                            );
+                                          })
+                                        )}
+                                      </ul>
+                                      {tradesHasMore && (
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="w-full sm:w-auto"
+                                          disabled={tradeTapeLoadingMore}
+                                          onClick={() => void loadMoreTradeTape()}
+                                        >
+                                          {tradeTapeLoadingMore ? "Loading…" : "Load older fills"}
+                                        </Button>
                                       )}
-                                    </ul>
+                                    </div>
                                   )}
                                 </div>
                               )}
