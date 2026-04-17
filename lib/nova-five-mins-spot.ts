@@ -22,6 +22,28 @@ const ALIAS: Record<string, string> = {
 
 export type MinuteBar = { openTime: number; open: number; high: number; low: number; close: number; volume: number };
 
+/** Coarse tape label from recent closes/range (used when AI omits REGIME or returns mixed). */
+export type SpotTapeRegimeHint = "up_slope" | "down_slope" | "sideways" | "mixed";
+
+export function inferTapeRegimeFromBars(bars: MinuteBar[]): SpotTapeRegimeHint {
+  if (bars.length < 15) return "mixed";
+  const closes = bars.map((b) => b.close);
+  const start = closes[closes.length - 15]!;
+  const end = closes[closes.length - 1]!;
+  if (!(start > 0)) return "mixed";
+  const driftPct = ((end - start) / start) * 100;
+  if (driftPct > 0.12) return "up_slope";
+  if (driftPct < -0.12) return "down_slope";
+  const slice = bars.slice(-12);
+  const hi = Math.max(...slice.map((b) => b.high));
+  const lo = Math.min(...slice.map((b) => b.low));
+  const mid = (hi + lo) / 2;
+  const rangePct = mid > 0 ? ((hi - lo) / mid) * 100 : 0;
+  if (Math.abs(driftPct) < 0.06 && rangePct < 0.18) return "sideways";
+  if (Math.abs(driftPct) < 0.04) return "sideways";
+  return "mixed";
+}
+
 export function resolveBinanceSpotPair(raw: string): string | null {
   const t = raw.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
   if (!t) return null;

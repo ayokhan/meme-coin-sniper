@@ -5,6 +5,9 @@ import { Activity, Bell, BellOff, ExternalLink, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+type TapeRegime = "up_slope" | "down_slope" | "sideways" | "mixed";
 
 type AnalyzeJson = {
   success?: boolean;
@@ -13,6 +16,9 @@ type AnalyzeJson = {
   pair?: string;
   symbolInput?: string;
   lastClose?: number | null;
+  benchmarkOpen5m?: number | null;
+  alignedWithSignal?: boolean;
+  tapeRegime?: TapeRegime;
   dataSourceNote?: string;
   polymarketStyleUrl?: string;
   direction?: "Up" | "Down" | "Unclear";
@@ -21,6 +27,19 @@ type AnalyzeJson = {
   factors?: string[];
   riskNote?: string;
 };
+
+const TAPE_REGIME_LABEL: Record<TapeRegime, string> = {
+  up_slope: "Tape: trending up",
+  down_slope: "Tape: trending down",
+  sideways: "Tape: sideways / range",
+  mixed: "Tape: mixed — two-way",
+};
+
+function leanLabel(direction: string | undefined): string {
+  if (direction === "Up") return "Up";
+  if (direction === "Down") return "Down";
+  return "Neutral — chop / no edge";
+}
 
 const MONITOR_MS_OPTIONS = [
   { ms: 10_000, label: "Every 10 sec" },
@@ -41,7 +60,8 @@ export default function NovaPolymarketFiveMinsPanel() {
 
   const [monitorOn, setMonitorOn] = useState(false);
   const [monitorMs, setMonitorMs] = useState<(typeof MONITOR_MS_OPTIONS)[number]["ms"]>(30_000);
-  const [monitorNote, setMonitorNote] = useState<string | null>(null);
+  const [monitorInfo, setMonitorInfo] = useState<string | null>(null);
+  const [monitorAlert, setMonitorAlert] = useState<string | null>(null);
   const lastDirectionalRef = useRef<{ direction: "Up" | "Down"; confidencePct: number } | null>(null);
 
   const runAnalyze = useCallback(async (): Promise<AnalyzeJson | null> => {
@@ -92,13 +112,19 @@ export default function NovaPolymarketFiveMinsPanel() {
       const prev = lastDirectionalRef.current;
       if (isDirectional(dir)) {
         if (prev && isDirectional(prev.direction) && prev.direction !== dir) {
-          const msg = `${data.pair ?? symbol}: model flipped from ${prev.direction} to ${dir} (confidence ${conf}%).`;
-          setMonitorNote(msg);
+          const fromW = prev.direction === "Up" ? "upside" : "downside";
+          const toW = dir === "Up" ? "upside" : "downside";
+          const msg = `${data.pair ?? symbol}: the model’s bias just switched from ${fromW} to ${toW} (spot context only — not a trade signal).`;
+          setMonitorAlert(msg);
           if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-            new Notification("Nova 5 mins — signal change", { body: msg });
+            new Notification("Nova 5 mins — bias reversed", {
+              body: `${data.pair ?? symbol}: switched from ${fromW} to ${toW}.`,
+            });
           }
         }
         lastDirectionalRef.current = { direction: dir, confidencePct: conf };
+      } else {
+        lastDirectionalRef.current = null;
       }
     };
 
@@ -112,11 +138,11 @@ export default function NovaPolymarketFiveMinsPanel() {
 
   const requestNotifyPermission = async () => {
     if (typeof window === "undefined" || !("Notification" in window)) {
-      setMonitorNote("Browser notifications are not available here.");
+      setMonitorInfo("Browser notifications are not available here.");
       return;
     }
     const p = await Notification.requestPermission();
-    setMonitorNote(p === "granted" ? "Notifications enabled for monitor alerts." : `Notification permission: ${p}`);
+    setMonitorInfo(p === "granted" ? "Browser alerts are on for monitor reversals." : `Notification permission: ${p}`);
   };
 
   return (
@@ -183,11 +209,14 @@ export default function NovaPolymarketFiveMinsPanel() {
                   onChange={(e) => {
                     setMonitorOn(e.target.checked);
                     if (e.target.checked) lastDirectionalRef.current = null;
-                    if (!e.target.checked) setMonitorNote(null);
+                    if (!e.target.checked) {
+                      setMonitorInfo(null);
+                      setMonitorAlert(null);
+                    }
                   }}
                   className="rounded border-zinc-400"
                 />
-                Run on an interval and alert when the model flips between Up and Down
+                Run on an interval and flag when the model’s directional bias flips (upside ↔ downside)
               </label>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -213,17 +242,42 @@ export default function NovaPolymarketFiveMinsPanel() {
                 Browser alerts…
               </Button>
             </div>
-            {monitorNote && <p className="text-[11px] text-emerald-700 dark:text-emerald-300">{monitorNote}</p>}
+            {monitorAlert && (
+              <div
+                role="alert"
+                className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-red-600/70 bg-red-600/15 dark:bg-red-950/50 dark:border-red-500/60 px-2.5 py-2 text-[11px] text-red-950 dark:text-red-100"
+              >
+                <span className="font-medium pr-2">{monitorAlert}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 text-red-900 dark:text-red-100 hover:bg-red-600/20"
+                  onClick={() => setMonitorAlert(null)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            )}
+            {monitorInfo && <p className="text-[11px] text-muted-foreground">{monitorInfo}</p>}
             <p className="text-[10px] text-muted-foreground">
-              Monitor calls the same analyze endpoint each tick. Alerts fire when two consecutive <strong>directional</strong> results disagree
-              (Up vs Down). &quot;Unclear&quot; steps reset the flip detector.
+              Each tick re-runs analysis. A <strong className="text-red-700 dark:text-red-300">red flag</strong> appears when two consecutive{" "}
+              <strong>directional</strong> reads disagree (upside vs downside). A neutral / chop read clears the prior side so the next directional
+              read starts fresh.
             </p>
           </div>
 
           {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
 
           {result?.success && (
-            <div className="space-y-2 rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
+            <div
+              className={cn(
+                "space-y-2 rounded-md border p-3 transition-colors",
+                result.alignedWithSignal && (result.direction === "Up" || result.direction === "Down")
+                  ? "border-emerald-600/55 bg-emerald-500/10 dark:border-emerald-500/50 dark:bg-emerald-950/35"
+                  : "border-zinc-200 dark:border-zinc-700 bg-transparent"
+              )}
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="font-mono text-xs">
                   {result.pair}
@@ -231,7 +285,33 @@ export default function NovaPolymarketFiveMinsPanel() {
                 {result.lastClose != null && Number.isFinite(result.lastClose) && (
                   <span className="text-xs text-muted-foreground">Spot last close ≈ {result.lastClose.toLocaleString()}</span>
                 )}
+                {result.alignedWithSignal && (result.direction === "Up" || result.direction === "Down") && (
+                  <span className="text-[10px] font-medium text-emerald-800 dark:text-emerald-200">Spot vs ~5m open: on track with lean</span>
+                )}
               </div>
+              {result.tapeRegime && (
+                <p className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">{TAPE_REGIME_LABEL[result.tapeRegime]}</p>
+              )}
+              {result.tapeRegime === "sideways" && (
+                <p className="text-[11px] leading-snug rounded border border-amber-600/45 bg-amber-500/10 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 px-2 py-1.5">
+                  Sideways / range tape: expect chop; the lean below is easy to invalidate on the next few prints.
+                </p>
+              )}
+              {result.tapeRegime === "down_slope" && result.direction === "Up" && (
+                <p className="text-[11px] leading-snug rounded border border-amber-600/45 bg-amber-500/10 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 px-2 py-1.5">
+                  Recent drift is still leaning down while the model favors upside — treat as a tension, not confirmation.
+                </p>
+              )}
+              {result.tapeRegime === "up_slope" && result.direction === "Down" && (
+                <p className="text-[11px] leading-snug rounded border border-amber-600/45 bg-amber-500/10 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 px-2 py-1.5">
+                  Recent drift is still leaning up while the model favors downside — treat as a tension, not confirmation.
+                </p>
+              )}
+              {result.benchmarkOpen5m != null && Number.isFinite(result.benchmarkOpen5m) && (
+                <p className="text-[10px] text-muted-foreground">
+                  ~5m reference (open ≈ five 1m bars back): {result.benchmarkOpen5m.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted-foreground">Lean</span>
                 <Badge
@@ -243,10 +323,10 @@ export default function NovaPolymarketFiveMinsPanel() {
                         : "bg-zinc-500 text-white"
                   }
                 >
-                  {result.direction ?? "—"}
+                  {leanLabel(result.direction)}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  Confidence {typeof result.confidencePct === "number" ? `${result.confidencePct}%` : "—"}
+                  Conviction {typeof result.confidencePct === "number" ? `${result.confidencePct}%` : "—"}
                 </span>
               </div>
               <p className="text-sm text-zinc-800 dark:text-zinc-200">{result.summary}</p>

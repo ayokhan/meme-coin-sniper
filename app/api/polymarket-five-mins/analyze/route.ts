@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { runNovaFiveMinsAnalysis } from "@/lib/ai-nova-five-mins";
 import {
   fetchBinance1mKlines,
+  inferTapeRegimeFromBars,
   resolveBinanceSpotPair,
   summarizeBarsForPrompt,
 } from "@/lib/nova-five-mins-spot";
@@ -56,16 +57,33 @@ export async function POST(request: Request) {
     const ai = await runNovaFiveMinsAnalysis(facts, pair.replace("USDT", ""));
 
     const lastClose = bars[bars.length - 1]?.close ?? null;
+    const benchmarkOpen5m = bars.length >= 5 ? bars[bars.length - 5]!.open : bars[0]!.open;
+    const heuristicRegime = inferTapeRegimeFromBars(bars);
+    const tapeRegime = ai.tapeRegime === "mixed" ? heuristicRegime : ai.tapeRegime;
+
+    let alignedWithSignal = false;
+    if (
+      lastClose != null &&
+      Number.isFinite(lastClose) &&
+      Number.isFinite(benchmarkOpen5m) &&
+      (ai.direction === "Up" || ai.direction === "Down")
+    ) {
+      if (ai.direction === "Up") alignedWithSignal = lastClose >= benchmarkOpen5m;
+      else alignedWithSignal = lastClose <= benchmarkOpen5m;
+    }
 
     return NextResponse.json({
       success: true,
       pair,
       symbolInput: raw,
       lastClose,
+      benchmarkOpen5m,
+      alignedWithSignal,
       dataSourceNote:
         "Context uses Binance spot 1m candles. Polymarket 5m crypto markets (e.g. Bitcoin Up or Down) typically resolve on Chainlink streams — prices can differ from Binance.",
       polymarketStyleUrl: "https://polymarket.com/crypto",
       ...ai,
+      tapeRegime,
     });
   } catch (e) {
     console.error("polymarket-five-mins/analyze:", e);
