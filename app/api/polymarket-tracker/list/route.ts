@@ -93,7 +93,16 @@ export async function GET() {
     }
 
     const traders: Array<
-      ListRow & { valueUsd: number | null; positionCount: number; lastTradeTimeMs: number | null }
+      ListRow & {
+        valueUsd: number | null;
+        positionCount: number;
+        lastTradeTimeMs: number | null;
+        tradeCount: number;
+        volumeUsd: number;
+        totalShares: number;
+        netFlowUsd: number;
+        closedPositionCount: number;
+      }
     > = [];
     const chunk = 4;
     for (let i = 0; i < rows.length; i += chunk) {
@@ -104,6 +113,11 @@ export async function GET() {
             valueUsd: null as number | null,
             positionCount: 0,
             lastTradeTimeMs: null as number | null,
+            tradeCount: 0,
+            volumeUsd: 0,
+            totalShares: 0,
+            netFlowUsd: 0,
+            closedPositionCount: 0,
           }));
           return { ...row, ...s };
         })

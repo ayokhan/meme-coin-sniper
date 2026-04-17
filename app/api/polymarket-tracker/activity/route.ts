@@ -3,7 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getPolymarketTrackerAccess } from "@/lib/polymarket-tracker-access";
-import { fetchPolymarketPositions, fetchPolymarketTrades } from "@/lib/polymarket-data-api";
+import {
+  aggregateTradesStats,
+  fetchPolymarketClosedPositions,
+  fetchPolymarketPositions,
+  fetchPolymarketTrades,
+} from "@/lib/polymarket-data-api";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,7 +31,7 @@ async function isAddressAllowedForUser(userId: string, isOwner: boolean, address
   return !!(globalAdmin || own);
 }
 
-/** GET — ?address=0x&type=trades|positions|all&limit=50 */
+/** GET — ?address=0x&type=trades|positions|closed|all&limit=… (limit capped at 500 for trades; positions/closed up to 250) */
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -40,7 +45,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const address = searchParams.get("address")?.trim()?.toLowerCase() ?? "";
     const type = (searchParams.get("type") ?? "all").toLowerCase();
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "40", 10) || 40));
+    const limitRaw = parseInt(searchParams.get("limit") ?? "400", 10) || 400;
+    const wantTrades = type === "all" || type === "trades";
+    const wantPositions = type === "all" || type === "positions";
+    const wantClosed = type === "all" || type === "closed";
+    const tradeLimit = wantTrades ? Math.min(500, Math.max(1, limitRaw)) : 0;
+    const posLimit = Math.min(250, Math.max(1, parseInt(searchParams.get("positionsLimit") ?? "200", 10) || 200));
+    const closedLimit = Math.min(250, Math.max(1, parseInt(searchParams.get("closedLimit") ?? "150", 10) || 150));
     if (!isValidEvmAddress(address)) {
       return NextResponse.json({ success: false, error: "Valid 0x address required." }, { status: 400 });
     }
@@ -50,16 +61,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: "You can only view activity for tracked wallets." }, { status: 403 });
     }
 
-    const [trades, positions] = await Promise.all([
-      type === "positions" ? Promise.resolve([]) : fetchPolymarketTrades(address, limit),
-      type === "trades" ? Promise.resolve([]) : fetchPolymarketPositions(address, limit),
+    const [trades, positions, closedPositions] = await Promise.all([
+      wantTrades ? fetchPolymarketTrades(address, tradeLimit) : Promise.resolve([]),
+      wantPositions ? fetchPolymarketPositions(address, posLimit) : Promise.resolve([]),
+      wantClosed ? fetchPolymarketClosedPositions(address, closedLimit) : Promise.resolve([]),
     ]);
+
+    const stats = aggregateTradesStats(trades);
 
     return NextResponse.json({
       success: true,
       address,
-      trades: type === "positions" ? [] : trades,
-      positions: type === "trades" ? [] : positions,
+      trades: wantTrades ? trades : [],
+      positions: wantPositions ? positions : [],
+      closedPositions: wantClosed ? closedPositions : [],
+      tradeStats: stats,
+      /** Trades list is capped; volume is sum of size×price over returned fills only. */
+      tradeStatsNote:
+        "Volume and counts are computed from the returned trade fills only (not full account lifetime unless the API returns every fill).",
     });
   } catch (e) {
     console.error("polymarket-tracker/activity:", e);

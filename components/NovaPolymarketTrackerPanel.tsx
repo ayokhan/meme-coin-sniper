@@ -1,14 +1,16 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Star, RefreshCw, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { tradeTimestampToMs } from "@/lib/polymarket-data-api";
 
 const FAVORITES_LS_KEY = "novastaris-polymarket-tracker-favorites";
+const AUTO_REFRESH_LS_KEY = "novastaris-polymarket-tracker-auto-refresh-ms";
 
 type TraderRow = {
   address: string;
@@ -18,7 +20,41 @@ type TraderRow = {
   valueUsd: number | null;
   positionCount: number;
   lastTradeTimeMs: number | null;
+  tradeCount: number;
+  volumeUsd: number;
+  totalShares: number;
+  netFlowUsd: number;
+  closedPositionCount: number;
 };
+
+type TradeRow = {
+  side?: string;
+  title?: string;
+  outcome?: string;
+  size?: number;
+  price?: number;
+  timestamp?: number;
+};
+
+type PositionRow = { title?: string; outcome?: string; size?: number; currentValue?: number; cashPnl?: number };
+type ClosedRow = {
+  title?: string;
+  outcome?: string;
+  avgPrice?: number;
+  totalBought?: number;
+  realizedPnl?: number;
+  timestamp?: number;
+};
+
+type TradeStats = { tradeCount: number; volumeUsd: number; totalShares: number; netFlowUsd: number };
+
+const AUTO_REFRESH_OPTIONS: { ms: number; label: string }[] = [
+  { ms: 0, label: "Off" },
+  { ms: 5000, label: "Every 5 sec" },
+  { ms: 10000, label: "Every 10 sec" },
+  { ms: 120000, label: "Every 2 min" },
+  { ms: 300000, label: "Every 5 min" },
+];
 
 function loadFavoriteSet(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -39,21 +75,48 @@ function saveFavoriteSet(s: Set<string>) {
   }
 }
 
+function loadAutoRefreshMs(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const v = parseInt(localStorage.getItem(AUTO_REFRESH_LS_KEY) ?? "0", 10);
+    return AUTO_REFRESH_OPTIONS.some((o) => o.ms === v) ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveAutoRefreshMs(ms: number) {
+  try {
+    localStorage.setItem(AUTO_REFRESH_LS_KEY, String(ms));
+  } catch {
+    /* ignore */
+  }
+}
+
 function shortAddr(a: string) {
   if (a.length < 12) return a;
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 
-function fmtUsd(n: number | null) {
+function fmtUsd(n: number | null, maxFrac = 0) {
   if (n == null || !Number.isFinite(n)) return "—";
-  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  return `$${n.toLocaleString(undefined, { maximumFractionDigits: maxFrac, minimumFractionDigits: 0 })}`;
 }
 
-function fmtTime(ms: number | null) {
+function fmtNum(n: number | null, maxFrac = 2) {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return n.toLocaleString(undefined, { maximumFractionDigits: maxFrac });
+}
+
+/** Renders in the viewer's local timezone (browser). */
+function formatLocalDateTime(ms: number | null): string {
   if (ms == null || !Number.isFinite(ms)) return "—";
   const d = new Date(ms);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString();
+  return d.toLocaleString(undefined, {
+    dateStyle: "short",
+    timeStyle: "medium",
+  });
 }
 
 export default function NovaPolymarketTrackerPanel() {
@@ -66,16 +129,23 @@ export default function NovaPolymarketTrackerPanel() {
   const [disabledByFlag, setDisabledByFlag] = useState(false);
 
   const [favorites, setFavorites] = useState<Set<string>>(() => loadFavoriteSet());
+  const [autoRefreshMs, setAutoRefreshMs] = useState(0);
 
   const [expanded, setExpanded] = useState<string | null>(null);
+  const expandedRef = useRef<string | null>(null);
+  useEffect(() => {
+    expandedRef.current = expanded;
+  }, [expanded]);
+
   const [activityLoading, setActivityLoading] = useState(false);
+  const [activitySilentRefresh, setActivitySilentRefresh] = useState(false);
   const [activityError, setActivityError] = useState<string | null>(null);
-  const [trades, setTrades] = useState<
-    Array<{ side?: string; title?: string; outcome?: string; size?: number; price?: number; timestamp?: number }>
-  >([]);
-  const [positions, setPositions] = useState<
-    Array<{ title?: string; outcome?: string; size?: number; currentValue?: number; cashPnl?: number }>
-  >([]);
+  const [activityTab, setActivityTab] = useState<"positions" | "closed" | "trades">("positions");
+  const [trades, setTrades] = useState<TradeRow[]>([]);
+  const [positions, setPositions] = useState<PositionRow[]>([]);
+  const [closedPositions, setClosedPositions] = useState<ClosedRow[]>([]);
+  const [tradeStats, setTradeStats] = useState<TradeStats | null>(null);
+  const [tradeStatsNote, setTradeStatsNote] = useState<string | null>(null);
 
   const [myWallets, setMyWallets] = useState<{ id: string; address: string; nickname: string | null }[]>([]);
   const [newAddr, setNewAddr] = useState("");
@@ -122,14 +192,59 @@ export default function NovaPolymarketTrackerPanel() {
     }
   }, []);
 
+  const loadActivityForAddress = useCallback(async (address: string, silent: boolean) => {
+    if (!silent) {
+      setActivityLoading(true);
+      setActivityError(null);
+    } else {
+      setActivitySilentRefresh(true);
+    }
+    try {
+      const res = await fetch(
+        `/api/polymarket-tracker/activity?address=${encodeURIComponent(address)}&type=all&limit=450&positionsLimit=220&closedLimit=180`,
+        { cache: "no-store" }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        if (!silent) setActivityError(data?.error ?? `Error ${res.status}`);
+        return;
+      }
+      setTrades(Array.isArray(data.trades) ? data.trades : []);
+      setPositions(Array.isArray(data.positions) ? data.positions : []);
+      setClosedPositions(Array.isArray(data.closedPositions) ? data.closedPositions : []);
+      setTradeStats(
+        data.tradeStats && typeof data.tradeStats === "object"
+          ? (data.tradeStats as TradeStats)
+          : null
+      );
+      setTradeStatsNote(typeof data.tradeStatsNote === "string" ? data.tradeStatsNote : null);
+    } catch {
+      if (!silent) setActivityError("Failed to load positions and trade history.");
+    } finally {
+      if (!silent) setActivityLoading(false);
+      setActivitySilentRefresh(false);
+    }
+  }, []);
+
   useEffect(() => {
     void fetchList();
     void fetchMyWallets();
+    setAutoRefreshMs(loadAutoRefreshMs());
   }, [fetchList, fetchMyWallets]);
 
   useEffect(() => {
     setFavorites(loadFavoriteSet());
   }, []);
+
+  useEffect(() => {
+    if (autoRefreshMs <= 0) return;
+    const id = window.setInterval(() => {
+      void fetchList();
+      const addr = expandedRef.current;
+      if (addr) void loadActivityForAddress(addr, true);
+    }, autoRefreshMs);
+    return () => window.clearInterval(id);
+  }, [autoRefreshMs, fetchList, loadActivityForAddress]);
 
   const sortedTraders = useMemo(() => {
     const fav = favorites;
@@ -154,33 +269,24 @@ export default function NovaPolymarketTrackerPanel() {
     });
   };
 
+  const onAutoRefreshChange = (ms: number) => {
+    setAutoRefreshMs(ms);
+    saveAutoRefreshMs(ms);
+  };
+
   const openActivity = async (address: string) => {
     if (expanded === address) {
       setExpanded(null);
       return;
     }
     setExpanded(address);
-    setActivityLoading(true);
-    setActivityError(null);
+    setActivityTab("positions");
     setTrades([]);
     setPositions([]);
-    try {
-      const res = await fetch(
-        `/api/polymarket-tracker/activity?address=${encodeURIComponent(address)}&type=all&limit=40`,
-        { cache: "no-store" }
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        setActivityError(data?.error ?? `Error ${res.status}`);
-        return;
-      }
-      setTrades(Array.isArray(data.trades) ? data.trades : []);
-      setPositions(Array.isArray(data.positions) ? data.positions : []);
-    } catch {
-      setActivityError("Failed to load trades/positions.");
-    } finally {
-      setActivityLoading(false);
-    }
+    setClosedPositions([]);
+    setTradeStats(null);
+    setTradeStatsNote(null);
+    await loadActivityForAddress(address, false);
   };
 
   const handleAddMyWallet = async () => {
@@ -220,6 +326,8 @@ export default function NovaPolymarketTrackerPanel() {
     }
   };
 
+  const tableColSpan = 13;
+
   if (disabledByFlag) {
     return (
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
@@ -257,32 +365,58 @@ export default function NovaPolymarketTrackerPanel() {
               <RefreshCw className={`h-4 w-4 mr-1.5 ${listLoading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
+            <div className="flex items-center gap-2 text-sm">
+              <label htmlFor="poly-auto-refresh" className="text-muted-foreground whitespace-nowrap">
+                Auto-refresh
+              </label>
+              <select
+                id="poly-auto-refresh"
+                className="h-9 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                value={autoRefreshMs}
+                onChange={(e) => onAutoRefreshChange(Number(e.target.value))}
+              >
+                {AUTO_REFRESH_OPTIONS.map((o) => (
+                  <option key={o.ms} value={o.ms}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             {isOwner && (
               <Button type="button" size="sm" variant="secondary" asChild>
                 <Link href="/admin/polymarket-tracker">Admin: manage wallets</Link>
               </Button>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            <strong>Last trade</strong> times use your browser&apos;s locale and timezone. Table metrics for trades/volume
+            are computed from the latest batch of fills returned by Polymarket (up to 250 per wallet in the list view).
+          </p>
           {listError && <p className="text-sm text-rose-600 dark:text-rose-400">{listError}</p>}
 
           <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-700">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[920px]">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50">
                   <th className="text-left p-2 w-10" aria-label="Favorite" />
                   <th className="text-left p-2">Label</th>
                   <th className="text-left p-2">Address</th>
                   <th className="text-right p-2">Portfolio</th>
-                  <th className="text-right p-2">Positions</th>
+                  <th className="text-right p-2">Open</th>
+                  <th className="text-right p-2">History</th>
+                  <th className="text-right p-2">Trades</th>
+                  <th className="text-right p-2">Volume</th>
+                  <th className="text-right p-2">Amount</th>
+                  <th className="text-right p-2">Net flow</th>
                   <th className="text-left p-2">Last trade</th>
                   <th className="text-left p-2">Source</th>
-                  <th className="text-left p-2">Activity</th>
+                  <th className="text-left p-2">Detail</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedTraders.length === 0 && !listLoading ? (
                   <tr>
-                    <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                    <td colSpan={tableColSpan} className="p-6 text-center text-muted-foreground">
                       No tracked wallets yet. {isOwner ? "Add wallets in Admin → Polymarket Tracker." : "Ask admin to add global traders, or add your own below."}
                     </td>
                   </tr>
@@ -317,7 +451,24 @@ export default function NovaPolymarketTrackerPanel() {
                           </td>
                           <td className="p-2 text-right tabular-nums">{fmtUsd(t.valueUsd)}</td>
                           <td className="p-2 text-right tabular-nums">{t.positionCount}</td>
-                          <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">{fmtTime(t.lastTradeTimeMs)}</td>
+                          <td className="p-2 text-right tabular-nums">{t.closedPositionCount}</td>
+                          <td className="p-2 text-right tabular-nums">{t.tradeCount}</td>
+                          <td className="p-2 text-right tabular-nums">{fmtUsd(t.volumeUsd, 2)}</td>
+                          <td className="p-2 text-right tabular-nums text-xs">{fmtNum(t.totalShares, 2)}</td>
+                          <td
+                            className={`p-2 text-right tabular-nums text-xs ${
+                              t.netFlowUsd > 0
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : t.netFlowUsd < 0
+                                  ? "text-rose-600 dark:text-rose-400"
+                                  : "text-zinc-600 dark:text-zinc-400"
+                            }`}
+                          >
+                            {fmtUsd(t.netFlowUsd, 2)}
+                          </td>
+                          <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">
+                            {formatLocalDateTime(t.lastTradeTimeMs)}
+                          </td>
                           <td className="p-2">
                             <Badge variant="outline" className="text-xs">
                               {t.source === "admin" ? (t.isGlobal ? "Global" : "Admin") : "My list"}
@@ -325,61 +476,152 @@ export default function NovaPolymarketTrackerPanel() {
                           </td>
                           <td className="p-2">
                             <Button type="button" size="sm" variant="ghost" className="h-8" onClick={() => void openActivity(t.address)}>
-                              {expanded === t.address ? "Hide" : "Trades"}
+                              {expanded === t.address ? "Hide" : "View"}
                             </Button>
                           </td>
                         </tr>
                         {expanded === t.address && (
                           <tr className="bg-zinc-50/50 dark:bg-zinc-900/40">
-                            <td colSpan={8} className="p-3 text-xs">
-                              {activityLoading && <p className="text-muted-foreground">Loading activity…</p>}
+                            <td colSpan={tableColSpan} className="p-3 text-xs align-top">
+                              {activityLoading && !activitySilentRefresh && (
+                                <p className="text-muted-foreground">Loading positions and history…</p>
+                              )}
+                              {activitySilentRefresh && (
+                                <p className="text-[10px] text-muted-foreground mb-2">Refreshing…</p>
+                              )}
                               {activityError && <p className="text-rose-600 dark:text-rose-400">{activityError}</p>}
                               {!activityLoading && !activityError && (
-                                <div className="grid gap-4 md:grid-cols-2">
-                                  <div>
-                                    <p className="font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Recent trades</p>
-                                    <ul className="space-y-1 max-h-56 overflow-y-auto">
-                                      {trades.length === 0 ? (
-                                        <li className="text-muted-foreground">No recent trades returned.</li>
-                                      ) : (
-                                        trades.map((tr, i) => (
-                                          <li key={i} className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-1">
-                                            <span className="font-medium">{tr.side ?? "?"}</span>{" "}
-                                            <span className="text-zinc-700 dark:text-zinc-300">{tr.title ?? "—"}</span>
-                                            {tr.outcome != null && (
-                                              <span className="text-muted-foreground"> ({tr.outcome})</span>
-                                            )}
-                                            <span className="block text-muted-foreground tabular-nums">
-                                              size {tr.size ?? "—"} @ {tr.price ?? "—"}
-                                            </span>
-                                          </li>
-                                        ))
-                                      )}
-                                    </ul>
+                                <div className="space-y-3">
+                                  {tradeStats && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                      <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2 bg-white/50 dark:bg-zinc-950/40">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Trades (batch)</p>
+                                        <p className="text-sm font-semibold tabular-nums">{tradeStats.tradeCount}</p>
+                                      </div>
+                                      <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2 bg-white/50 dark:bg-zinc-950/40">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Volume (Σ size×price)</p>
+                                        <p className="text-sm font-semibold tabular-nums">{fmtUsd(tradeStats.volumeUsd, 2)}</p>
+                                      </div>
+                                      <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2 bg-white/50 dark:bg-zinc-950/40">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Amount (Σ size)</p>
+                                        <p className="text-sm font-semibold tabular-nums">{fmtNum(tradeStats.totalShares, 2)}</p>
+                                      </div>
+                                      <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2 bg-white/50 dark:bg-zinc-950/40">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Net buy flow</p>
+                                        <p
+                                          className={`text-sm font-semibold tabular-nums ${
+                                            tradeStats.netFlowUsd > 0
+                                              ? "text-emerald-600 dark:text-emerald-400"
+                                              : tradeStats.netFlowUsd < 0
+                                                ? "text-rose-600 dark:text-rose-400"
+                                                : ""
+                                          }`}
+                                        >
+                                          {fmtUsd(tradeStats.netFlowUsd, 2)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {tradeStatsNote && <p className="text-[10px] text-muted-foreground">{tradeStatsNote}</p>}
+                                  <div className="flex flex-wrap gap-1 border-b border-zinc-200 dark:border-zinc-700 pb-2">
+                                    {(
+                                      [
+                                        ["positions", "Current positions"],
+                                        ["closed", "History (closed)"],
+                                        ["trades", "Trade tape"],
+                                      ] as const
+                                    ).map(([id, label]) => (
+                                      <button
+                                        key={id}
+                                        type="button"
+                                        onClick={() => setActivityTab(id)}
+                                        className={`rounded-md px-3 py-1 text-xs font-medium ${
+                                          activityTab === id
+                                            ? "bg-violet-500 text-white dark:bg-violet-600"
+                                            : "bg-zinc-200/80 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                                        }`}
+                                      >
+                                        {label}
+                                      </button>
+                                    ))}
                                   </div>
-                                  <div>
-                                    <p className="font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Open positions</p>
-                                    <ul className="space-y-1 max-h-56 overflow-y-auto">
+                                  {activityTab === "positions" && (
+                                    <ul className="space-y-1 max-h-72 overflow-y-auto text-left">
                                       {positions.length === 0 ? (
-                                        <li className="text-muted-foreground">No open positions (or below threshold).</li>
+                                        <li className="text-muted-foreground">No open positions (or below API size threshold).</li>
                                       ) : (
                                         positions.map((p, i) => (
-                                          <li key={i} className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-1">
-                                            <span className="text-zinc-800 dark:text-zinc-200">{p.title ?? "—"}</span>
-                                            {p.outcome != null && (
-                                              <span className="text-muted-foreground"> — {p.outcome}</span>
-                                            )}
-                                            <span className="block text-muted-foreground tabular-nums">
-                                              size {p.size ?? "—"} · value {fmtUsd(p.currentValue ?? null)}
+                                          <li key={i} className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-2">
+                                            <span className="text-zinc-800 dark:text-zinc-200 font-medium">{p.title ?? "—"}</span>
+                                            {p.outcome != null && <span className="text-muted-foreground"> — {p.outcome}</span>}
+                                            <span className="block text-muted-foreground tabular-nums mt-0.5">
+                                              Size {fmtNum(p.size ?? null, 4)} · Mark value {fmtUsd(p.currentValue ?? null, 2)}
                                               {p.cashPnl != null && Number.isFinite(p.cashPnl) && (
-                                                <span> · PnL {fmtUsd(p.cashPnl)}</span>
+                                                <span> · Unrealized {fmtUsd(p.cashPnl, 2)}</span>
                                               )}
                                             </span>
                                           </li>
                                         ))
                                       )}
                                     </ul>
-                                  </div>
+                                  )}
+                                  {activityTab === "closed" && (
+                                    <ul className="space-y-1 max-h-72 overflow-y-auto text-left">
+                                      {closedPositions.length === 0 ? (
+                                        <li className="text-muted-foreground">No closed positions returned for this wallet.</li>
+                                      ) : (
+                                        closedPositions.map((c, i) => (
+                                          <li key={i} className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-2">
+                                            <span className="text-zinc-800 dark:text-zinc-200 font-medium">{c.title ?? "—"}</span>
+                                            {c.outcome != null && <span className="text-muted-foreground"> — {c.outcome}</span>}
+                                            <span className="block text-muted-foreground tabular-nums mt-0.5">
+                                              Settled {formatLocalDateTime(tradeTimestampToMs(c.timestamp))} · Avg {fmtNum(c.avgPrice ?? null, 4)} ·
+                                              Realized PnL {fmtUsd(c.realizedPnl ?? null, 2)}
+                                            </span>
+                                          </li>
+                                        ))
+                                      )}
+                                    </ul>
+                                  )}
+                                  {activityTab === "trades" && (
+                                    <ul className="space-y-1 max-h-72 overflow-y-auto text-left">
+                                      {trades.length === 0 ? (
+                                        <li className="text-muted-foreground">No trades in this batch.</li>
+                                      ) : (
+                                        trades.map((tr, i) => {
+                                          const tms = tradeTimestampToMs(tr.timestamp);
+                                          const notional =
+                                            Number.isFinite(Number(tr.size)) && Number.isFinite(Number(tr.price))
+                                              ? Math.abs(Number(tr.size) * Number(tr.price))
+                                              : null;
+                                          return (
+                                            <li key={i} className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-2">
+                                              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                                <span
+                                                  className={`font-semibold ${
+                                                    String(tr.side).toUpperCase() === "BUY"
+                                                      ? "text-emerald-600 dark:text-emerald-400"
+                                                      : "text-rose-600 dark:text-rose-400"
+                                                  }`}
+                                                >
+                                                  {tr.side ?? "—"}
+                                                </span>
+                                                <span className="text-muted-foreground tabular-nums text-[11px]">
+                                                  {formatLocalDateTime(tms)}
+                                                </span>
+                                              </div>
+                                              <p className="text-zinc-800 dark:text-zinc-200 mt-0.5">{tr.title ?? "—"}</p>
+                                              {tr.outcome != null && <p className="text-muted-foreground">Outcome: {tr.outcome}</p>}
+                                              <p className="text-muted-foreground tabular-nums mt-0.5">
+                                                Size {fmtNum(tr.size ?? null, 4)} @ {fmtNum(tr.price ?? null, 4)}
+                                                {notional != null && <span> · ≈ {fmtUsd(notional, 2)}</span>}
+                                              </p>
+                                            </li>
+                                          );
+                                        })
+                                      )}
+                                    </ul>
+                                  )}
                                 </div>
                               )}
                             </td>
