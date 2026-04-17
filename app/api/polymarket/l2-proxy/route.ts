@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   try {
     const { allowed, userId, owner } = await canUsePolymarket();
     if (!allowed) {
-      return NextResponse.json({ success: false, locked: true, error: "Nova Polymarket Bot access required." }, { status: 403 });
+      return NextResponse.json({ success: false, locked: true, error: "Nova Polymarket Pro access required." }, { status: 403 });
     }
 
     const body = await request.json().catch(() => ({}));

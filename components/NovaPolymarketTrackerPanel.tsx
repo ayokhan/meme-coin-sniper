@@ -422,18 +422,8 @@ export default function NovaPolymarketTrackerPanel() {
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-semibold">Nova Polymarket Tracker</CardTitle>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Top Polymarket proxy wallets curated by admin, plus your own addresses. Data comes from Polymarket&apos;s
-            public <span className="font-mono">data-api.polymarket.com</span>. To discover addresses, use independent
-            leaderboards or research tools (for example community sites like{" "}
-            <a
-              href="https://polymonit.com/leaderboard/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-cyan-600 dark:text-cyan-400 underline"
-            >
-              Polymonit
-            </a>
-            )—verify each wallet before trusting; we do not scrape or endorse third parties.
+            Live Polymarket portfolio radar for curated traders and your own watchlist. Track open positions, closed
+            history, trade tape, volume/amount flow, and local-time activity to compare behavior fast.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">

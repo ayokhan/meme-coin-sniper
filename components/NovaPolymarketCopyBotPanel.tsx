@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { ExternalLink, Copy, ListPlus, Sparkles } from "lucide-react";
+import { ExternalLink, Copy, ListPlus, Radar, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,11 +57,33 @@ type AnalyzeJson = {
   polymarketProfileUrl?: string;
 };
 
+type RadarTopicJson = {
+  success?: boolean;
+  error?: string;
+  topic?: string;
+  scannedWallets?: number;
+  predictedWinRate?: number;
+  recommendation?: string;
+  topTraderSignal?: "bullish" | "bearish" | "mixed";
+  bullishCount?: number;
+  bearishCount?: number;
+  neutralCount?: number;
+  note?: string;
+  topWallets?: Array<{
+    address: string;
+    nickname: string | null;
+    topicTradeCount: number;
+    buyCount: number;
+    sellCount: number;
+    topicWinRate: number | null;
+    topicNetFlowUsd: number;
+  }>;
+};
+
 export default function NovaPolymarketCopyBotPanel() {
   const [addrInput, setAddrInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copyBotOff, setCopyBotOff] = useState(false);
 
   const [analyzed, setAnalyzed] = useState<AnalyzeJson | null>(null);
   const [allTrades, setAllTrades] = useState<PolymarketTradeRow[]>([]);
@@ -72,6 +94,9 @@ export default function NovaPolymarketCopyBotPanel() {
 
   const [addingTracker, setAddingTracker] = useState(false);
   const [trackerMsg, setTrackerMsg] = useState<string | null>(null);
+  const [topic, setTopic] = useState("");
+  const [topicLoading, setTopicLoading] = useState(false);
+  const [topicResult, setTopicResult] = useState<RadarTopicJson | null>(null);
 
   const runAnalyze = useCallback(async (reset = true) => {
     const raw = addrInput.trim();
@@ -82,16 +107,14 @@ export default function NovaPolymarketCopyBotPanel() {
     const address = raw.toLowerCase();
     setLoading(true);
     setError(null);
-    setCopyBotOff(false);
     setTrackerMsg(null);
     try {
       const res = await fetch(
         `/api/polymarket-copy/analyze?address=${encodeURIComponent(address)}&tradeLimit=100&tradeOffset=0`,
         { cache: "no-store" }
       );
-      const data = (await res.json()) as AnalyzeJson & { copyBotDisabled?: boolean };
+      const data = (await res.json()) as AnalyzeJson;
       if (!res.ok) {
-        if (data?.copyBotDisabled) setCopyBotOff(true);
         setError(data?.error ?? `Error ${res.status}`);
         if (reset) setAnalyzed(null);
         return;
@@ -184,37 +207,62 @@ export default function NovaPolymarketCopyBotPanel() {
     }
   };
 
+  const runTopicRadar = useCallback(async () => {
+    const q = topic.trim();
+    if (q.length < 2) {
+      setError("Topic must be at least 2 characters.");
+      return;
+    }
+    setTopicLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/polymarket-radar/topic?topic=${encodeURIComponent(q)}`, { cache: "no-store" });
+      const data = (await res.json()) as RadarTopicJson;
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "Topic radar failed.");
+        return;
+      }
+      setTopicResult(data);
+    } catch {
+      setError("Topic radar failed.");
+    } finally {
+      setTopicLoading(false);
+    }
+  }, [topic]);
+
+  const closed = analyzed?.closedPositions ?? [];
+  const wins = closed.filter((c) => Number(c.realizedPnl ?? 0) > 0).length;
+  const losses = closed.filter((c) => Number(c.realizedPnl ?? 0) < 0).length;
+  const closedCount = closed.length;
+  const winRate = closedCount > 0 ? (wins / closedCount) * 100 : null;
+  const totalRealizedPnl =
+    closed.reduce((acc, c) => acc + (Number.isFinite(Number(c.realizedPnl)) ? Number(c.realizedPnl) : 0), 0) || 0;
+  const avgRealizedPnl = closedCount > 0 ? totalRealizedPnl / closedCount : null;
+
   return (
     <div className="space-y-4">
       <Card className="border-zinc-200/80 dark:border-zinc-700/80 border-emerald-200/50 dark:border-emerald-900/40">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
-            Copy Trading Bot (VIP)
+            <Radar className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+            Polymarket Radar (VIP)
           </CardTitle>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            <strong>Why Polymarket data, not Telegram:</strong> NovaStaris reads{" "}
-            <span className="font-mono">data-api.polymarket.com</span>—the same public fills and positions the chain
-            exposes. Third-party Telegram bots (for example Polygun) are useful for alerts, but they are closed
-            products without a stable API we can rely on for audits, pagination, and compliance. If a vendor later
-            offers webhooks or OAuth, we can add them as an optional channel; the source of truth for execution remains
-            Polymarket and your own wallet.
+            Paste a wallet to analyze position quality, realized outcomes, and execution style. Then run topic radar to
+            estimate directional edge from what tracked top traders are doing around that topic.
           </p>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3 text-xs text-muted-foreground">
+          <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3 text-xs text-muted-foreground space-y-1">
             <p>
-              <strong className="text-zinc-800 dark:text-zinc-200">Not automated brokerage.</strong> This workspace helps
-              you research a wallet, then wire it into Polymarket Copilot (manual / semi-auto flows you already have).
-              Placing orders still requires your wallet and Polymarket; we do not custody funds or guarantee fills.
+              <strong className="text-zinc-800 dark:text-zinc-200">Decision support, not financial advice.</strong>{" "}
+              Radar reads public Polymarket data to rank behavior patterns and topic bias.
+            </p>
+            <p>
+              You can copy-trade workflow from here by sending the wallet to Copilot, but final execution still happens
+              on Polymarket with your wallet confirmation.
             </p>
           </div>
-
-          {copyBotOff && (
-            <p className="text-sm text-amber-700 dark:text-amber-300">
-              Copy Trading Bot is turned off in Admin → Feature flags (<span className="font-mono text-xs">nova_polymarket_copy_bot</span>).
-            </p>
-          )}
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Target proxy wallet</label>
@@ -235,6 +283,51 @@ export default function NovaPolymarketCopyBotPanel() {
                 {loading ? "Analyzing…" : "Analyze wallet"}
               </Button>
             </div>
+          </div>
+
+          <div className="space-y-2 border-t border-zinc-200 dark:border-zinc-700 pt-4">
+            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Polymarket Radar topic</label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="e.g. bitcoin, fed, election, tariffs"
+                className="min-w-[220px] flex-1 h-9 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+              />
+              <Button type="button" size="sm" variant="outline" disabled={topicLoading} onClick={() => void runTopicRadar()}>
+                <Search className="h-3.5 w-3.5 mr-1" />
+                {topicLoading ? "Scanning..." : "Run topic radar"}
+              </Button>
+            </div>
+            {topicResult && (
+              <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/70 dark:bg-zinc-900/40 space-y-2">
+                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                  Topic signal: {topicResult.topic} · {topicResult.topTraderSignal ?? "mixed"} ·{" "}
+                  Predicted win rate {fmtNum(topicResult.predictedWinRate ?? null, 1)}%
+                </p>
+                <p className="text-xs text-muted-foreground">{topicResult.recommendation}</p>
+                <p className="text-xs text-muted-foreground">
+                  Trader votes: Bullish {topicResult.bullishCount ?? 0} · Bearish {topicResult.bearishCount ?? 0} · Mixed{" "}
+                  {topicResult.neutralCount ?? 0} · Wallets scanned {topicResult.scannedWallets ?? 0}
+                </p>
+                {(topicResult.topWallets ?? []).length > 0 && (
+                  <div className="space-y-1 pt-1">
+                    {(topicResult.topWallets ?? []).map((w) => (
+                      <div key={w.address} className="text-xs rounded border border-zinc-200 dark:border-zinc-700 p-2">
+                        <p className="font-medium text-zinc-800 dark:text-zinc-200">
+                          {w.nickname ?? w.address} · Trades {w.topicTradeCount}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Buys {w.buyCount} / Sells {w.sellCount} · Topic win rate{" "}
+                          {w.topicWinRate == null ? "—" : `${fmtNum(w.topicWinRate, 1)}%`} · Net flow {fmtUsd(w.topicNetFlowUsd, 2)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {topicResult.note && <p className="text-[11px] text-muted-foreground">{topicResult.note}</p>}
+              </div>
+            )}
           </div>
 
           {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
@@ -274,13 +367,13 @@ export default function NovaPolymarketCopyBotPanel() {
                   <p className="text-sm font-semibold tabular-nums">{analyzed.closedPositionCount ?? "—"}</p>
                 </div>
                 <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
-                  <p className="text-[10px] text-muted-foreground uppercase">Tape fills (loaded)</p>
-                  <p className="text-sm font-semibold tabular-nums">{mergedStats?.tradeCount ?? "—"}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">Win rate (closed batch)</p>
+                  <p className="text-sm font-semibold tabular-nums">{winRate == null ? "—" : `${fmtNum(winRate, 1)}%`}</p>
                 </div>
               </div>
 
               {mergedStats && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
                     <p className="text-[10px] text-muted-foreground uppercase">Volume (Σ |size×price|)</p>
                     <p className="text-sm font-semibold tabular-nums">{fmtUsd(mergedStats.volumeUsd)}</p>
@@ -293,12 +386,20 @@ export default function NovaPolymarketCopyBotPanel() {
                     <p className="text-[10px] text-muted-foreground uppercase">Net buy flow</p>
                     <p className="text-sm font-semibold tabular-nums">{fmtUsd(mergedStats.netFlowUsd)}</p>
                   </div>
+                  <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
+                    <p className="text-[10px] text-muted-foreground uppercase">Avg realized PnL</p>
+                    <p className="text-sm font-semibold tabular-nums">{fmtUsd(avgRealizedPnl, 2)}</p>
+                  </div>
                 </div>
               )}
               {analyzed.tradeStatsNote && <p className="text-[10px] text-muted-foreground">{analyzed.tradeStatsNote}</p>}
+              <p className="text-[10px] text-muted-foreground">
+                Closed outcomes: Wins {wins} · Losses {losses} · Total {closedCount}. Win rate depends on the closed
+                positions batch returned by Polymarket.
+              </p>
 
               <div>
-                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Copy this trader from NovaStaris</p>
+                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Use this wallet in Nova Polymarket Pro</p>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" size="sm" variant="default" className="bg-violet-600 hover:bg-violet-700" onClick={sendToCopilot}>
                     Add to Polymarket Copilot
@@ -309,8 +410,7 @@ export default function NovaPolymarketCopyBotPanel() {
                   </Button>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-2">
-                  Copilot: we switch you to the Polymarket Copilot tab and append this wallet to <strong>Copy-trader wallets</strong> so
-                  Run Copilot / auto-copy scan can use it. Tracker: merges this address into your personal watch list.
+                  Copilot appends this wallet to your copy-trader list; Tracker saves it in your personal list for ongoing monitoring.
                 </p>
               </div>
 
