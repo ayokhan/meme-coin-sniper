@@ -134,6 +134,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, the server’s daily maintenance job also advances NovaScalper for every user who has it enabled (one batch per day on typical hosting). When OFF, that pass is skipped—users still get ticks when they use Check price or leave the tab open with auto tick. Advanced: on Pro hosting you can add more frequent scheduled calls to /api/cron/nova-scalper if needed.",
   },
+  nova_polymarket_tracker: {
+    label: "Nova Polymarket Tracker",
+    description:
+      "When ON, VIP users with Nova Polymarket Bot (on demand) see the Nova Polymarket Tracker subtab and APIs work. When OFF, the tracker is hidden and list/activity routes return disabled. Admin wallet list: Nova Admin → Polymarket Tracker.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {
@@ -239,6 +244,10 @@ export default function AdminFeatureFlagsPage() {
           {" · "}
           <Link href="/admin/leverage-wallet-tracker" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline">
             Leverage Wallet Tracker
+          </Link>
+          <span className="text-muted-foreground">·</span>
+          <Link href="/admin/polymarket-tracker" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline">
+            Polymarket Tracker
           </Link>
           <span className="text-muted-foreground">·</span>
           <span className="text-sm font-medium">Nova Admin — Feature flags</span>

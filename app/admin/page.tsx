@@ -75,6 +75,7 @@ export default function AdminHubPage() {
     { href: "/admin/nova-scalper", label: "NovaScalper", icon: Activity },
     { href: "/admin/wallet-tracker", label: "Wallet Tracker", icon: Wallet },
     { href: "/admin/leverage-wallet-tracker", label: "Leverage Wallet Tracker", icon: Wallet },
+    { href: "/admin/polymarket-tracker", label: "Polymarket Tracker", icon: Wallet },
     { href: "/admin/feature-flags", label: "Feature flags", icon: Flag },
     { href: "/admin/support", label: "Support", icon: Headphones },
     { href: "/admin/chat", label: "Chat", icon: MessageCircle },

@@ -130,6 +130,7 @@ model User {
   novaSmartFeedbacks  NovaSmartFeedback[]
   passwordResets PasswordResetToken[]
   userLeverageWallets  UserLeverageWallet[]
+  userPolymarketTrackedWallets UserPolymarketTrackedWallet[]
   userMemeCoinWallets  UserMemeCoinWallet[]
   userBlofinConfig     UserBlofinConfig?
   userPolymarketConfig UserPolymarketConfig?
@@ -260,6 +261,29 @@ model WalletAlertSent {
   sentAt          DateTime @default(now())
   @@index([contractAddress])
   @@index([sentAt])
+}
+
+// Polymarket Tracker: Polygon proxy wallets (0x) trading on Polymarket. Admin-curated list + per-user adds (VIP).
+model PolymarketTrackedWallet {
+  id        String   @id @default(cuid())
+  address   String   @unique
+  nickname  String?
+  active    Boolean  @default(true)
+  global    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  @@index([active])
+  @@index([global])
+}
+
+model UserPolymarketTrackedWallet {
+  id        String   @id @default(cuid())
+  userId    String
+  address   String
+  nickname  String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, address])
+  @@index([userId])
 }
 
 // Leverage Wallet Tracker: Hyperliquid/EVM wallets (Top Leverage Traders). Admin can add, nickname, activate, alert.

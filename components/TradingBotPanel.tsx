@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import NovaScalperPanel from "@/components/NovaScalperPanel";
+import NovaPolymarketTrackerPanel from "@/components/NovaPolymarketTrackerPanel";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
 import { useSession } from "next-auth/react";
 
@@ -232,6 +233,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
 
   const [form, setForm] = useState<Partial<Config>>({});
   const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
+  const [polyInnerTab, setPolyInnerTab] = useState<"copilot" | "tracker">("copilot");
   useEffect(() => {
     if (mode === "polymarket-only") setBotSubTab("polymarket");
     if (mode === "futures-only" && botSubTab === "polymarket") setBotSubTab("ai");
@@ -1336,7 +1338,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   }
 
   return (
-    <div className="mx-6 py-8 max-w-2xl space-y-6">
+    <div className="mx-6 py-8 max-w-4xl space-y-6">
       <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
         NovaStaris AI Trading Bots
       </h2>
@@ -1374,20 +1376,42 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
 
         {mode !== "futures-only" && (
           <TabsContent value="polymarket" className="mt-0 space-y-4">
-          <Card className="border-zinc-200/80 dark:border-zinc-700/80">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">NovaStaris Polymarket Copilot (VIP)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!canAccessPolymarket ? (
-                <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-3 text-sm">
-                  <p className="font-medium text-amber-800 dark:text-amber-200">VIP on-demand access required</p>
-                  <p className="text-amber-700 dark:text-amber-300 mt-1">
-                    Ask admin to enable <strong>Nova Polymarket Bot (On demand)</strong> for your account.
-                  </p>
-                </div>
-              ) : (
-                <>
+            {!canAccessPolymarket ? (
+              <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold">Nova Polymarket Bot</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-3 text-sm">
+                    <p className="font-medium text-amber-800 dark:text-amber-200">VIP on-demand access required</p>
+                    <p className="text-amber-700 dark:text-amber-300 mt-1">
+                      Ask admin to enable <strong>Nova Polymarket Bot (On demand)</strong> for your account.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Tabs value={polyInnerTab} onValueChange={(v) => setPolyInnerTab(v as "copilot" | "tracker")} className="space-y-4">
+                <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
+                  <TabsTrigger
+                    value="copilot"
+                    className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
+                  >
+                    Polymarket Copilot
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="tracker"
+                    className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"
+                  >
+                    Nova Polymarket Tracker
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="copilot" className="mt-0 space-y-4">
+                  <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold">NovaStaris Polymarket Copilot (VIP)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Scan active Polymarket narratives, estimate directional bias, and build a copy-trader plan with Demo/Live mode. Live mode requires wallet login.
               </p>
@@ -1884,10 +1908,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   <p className="text-xs text-amber-700 dark:text-amber-300">{polyResult.riskNote}</p>
                 </div>
               )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                <TabsContent value="tracker" className="mt-0 space-y-4">
+                  <NovaPolymarketTrackerPanel />
+                </TabsContent>
+              </Tabs>
+            )}
           </TabsContent>
         )}
 

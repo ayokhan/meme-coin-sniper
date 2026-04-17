@@ -111,5 +111,28 @@ declare module '@prisma/client' {
       count: (args: { where: { userId: string; createdAt: { gte: Date } } }) => Promise<number>;
       groupBy: (args: { by: ["userId"]; where?: { createdAt: { gte: Date }; userId?: { not: null } }; _count: { id: true } }) => Promise<Array<{ userId: string | null; _count: { id: number } }>>;
     };
+    polymarketTrackedWallet: {
+      findMany: (args?: unknown) => Promise<
+        Array<{
+          id: string;
+          address: string;
+          nickname: string | null;
+          active: boolean;
+          global: boolean;
+          createdAt: Date;
+        }>
+      >;
+      findFirst: (args: unknown) => Promise<{ id: string; address: string; nickname: string | null; active: boolean; global: boolean } | null>;
+      findUnique: (args: { where: { address: string } }) => Promise<{ id: string; address: string } | null>;
+      create: (args: { data: { address: string; nickname?: string | null; active?: boolean; global?: boolean } }) => Promise<unknown>;
+      updateMany: (args: { where: { address: string }; data: unknown }) => Promise<unknown>;
+      deleteMany: (args: { where: { address: string } }) => Promise<unknown>;
+    };
+    userPolymarketTrackedWallet: {
+      findMany: (args?: unknown) => Promise<Array<{ id: string; userId: string; address: string; nickname: string | null; createdAt: Date }>>;
+      findUnique: (args: { where: { userId_address: { userId: string; address: string } } }) => Promise<{ id: string } | null>;
+      upsert: (args: unknown) => Promise<unknown>;
+      deleteMany: (args: { where: { userId: string; address: string } }) => Promise<unknown>;
+    };
   }
 }

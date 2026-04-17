@@ -51,6 +51,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_CONNECT: 'nova_connect',
   /** Server batch job /api/cron/nova-scalper: run NovaScalper ticks for enabled users. Default OFF; Admin → Feature flags → NovaScalper overnight automation. */
   NOVA_SCALPER_CRON: 'nova_scalper_cron',
+  /** VIP (Polymarket on-demand): Nova Polymarket Tracker subtab + APIs + admin wallet list. When OFF, tracker is hidden and routes return disabled. */
+  NOVA_POLYMARKET_TRACKER: 'nova_polymarket_tracker',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
