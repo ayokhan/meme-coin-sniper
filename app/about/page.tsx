@@ -38,9 +38,6 @@ function AboutContent() {
 
       <main className="mx-auto max-w-4xl px-3 sm:px-4 py-8 sm:py-12">
         <div className="text-center mb-12">
-          <p className="inline-flex items-center rounded-full border border-cyan-200/70 dark:border-cyan-800/70 bg-cyan-50/70 dark:bg-cyan-950/40 px-3 py-1 text-[11px] font-medium text-cyan-700 dark:text-cyan-300 mb-4">
-            NovaStaris Positioning {isVariantB ? "B" : "A"}
-          </p>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-cyan-400 via-violet-400 to-blue-500 bg-clip-text text-transparent">
             About NovaStaris
           </h1>
