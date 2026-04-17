@@ -49,6 +49,13 @@ export function klineLimitForTradeCycle(): number {
   return Math.min(1000, 360);
 }
 
+const FIVE_MIN_MS = 5 * 60 * 1000;
+
+/** Next 5-minute instant aligned to Unix epoch (…:00, :05, :10 UTC). Used for Nova Deep “next slot” hints. */
+export function nextEpochFiveMinuteUtcMs(fromMs: number): number {
+  return Math.ceil(fromMs / FIVE_MIN_MS) * FIVE_MIN_MS;
+}
+
 const ONE_MIN_MS = 60_000;
 
 /** Open of the 1m candle that contains `atMs` (Polymarket-style "price to beat" on this feed). */

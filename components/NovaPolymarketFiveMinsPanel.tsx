@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, Bell, BellOff, Clock, ExternalLink, Sparkles } from "lucide-react";
+import { Activity, Bell, BellOff, Clock, ExternalLink, Sparkles, Telescope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,25 @@ type AnalyzeJson = {
     secondsRemaining: number;
     active: boolean;
   } | null;
+};
+
+type DeepInsightJson = {
+  success?: boolean;
+  error?: string;
+  source?: string;
+  pair?: string;
+  nextCycleEntryUtcIso?: string;
+  secondsUntilNextSlot?: number;
+  timingRecommendation?: string;
+  timingLabel?: string;
+  nextSlotNote?: string;
+  directionLean?: string;
+  confidenceScore?: number;
+  summary?: string;
+  factors?: string[];
+  riskNote?: string;
+  tapeRegime?: TapeRegime;
+  dataSourceNote?: string;
 };
 
 const TAPE_REGIME_LABEL: Record<TapeRegime, string> = {
@@ -95,10 +114,59 @@ export default function NovaPolymarketFiveMinsPanel() {
   const [cycleAutoRefresh, setCycleAutoRefresh] = useState(true);
   const [nowTick, setNowTick] = useState(() => Date.now());
 
+  const [timingInsight, setTimingInsight] = useState<DeepInsightJson | null>(null);
+  const [timingTriggeredBy, setTimingTriggeredBy] = useState<"post_cycle" | "nova_deep" | null>(null);
+  const [deepLoading, setDeepLoading] = useState(false);
+  const [deepError, setDeepError] = useState<string | null>(null);
+
+  const symbolRef = useRef(symbol);
+  const cycleEndRef = useRef<number | null>(null);
+  const skipPostDeepRef = useRef(false);
+  const postDeepFiredForEndRef = useRef<number | null>(null);
+  symbolRef.current = symbol.trim();
+  cycleEndRef.current = cycleEndMs;
+
   const clearTradeCycle = useCallback(() => {
+    skipPostDeepRef.current = true;
     setCycleStartMs(null);
     setCycleEndMs(null);
   }, []);
+
+  const fetchNovaDeep = useCallback(
+    async (source: "nova_deep" | "post_cycle", cycleEndedAtMs?: number) => {
+      const sym = symbolRef.current.trim();
+      if (!sym) return;
+      setDeepLoading(true);
+      setDeepError(null);
+      try {
+        const res = await fetch("/api/polymarket-five-mins/deep", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symbol: sym,
+            source,
+            ...(source === "post_cycle" && cycleEndedAtMs != null
+              ? { cycleEndedAt: new Date(cycleEndedAtMs).toISOString() }
+              : {}),
+          }),
+        });
+        const data = (await res.json()) as DeepInsightJson;
+        if (!res.ok || !data.success) {
+          setDeepError(data?.error ?? `Nova Deep failed (${res.status})`);
+          if (source === "nova_deep") setTimingInsight(null);
+          return;
+        }
+        setTimingInsight(data);
+        setTimingTriggeredBy(source);
+      } catch {
+        setDeepError("Network error.");
+        if (source === "nova_deep") setTimingInsight(null);
+      } finally {
+        setDeepLoading(false);
+      }
+    },
+    []
+  );
 
   const runAnalyze = useCallback(
     async (explicitTradeCycle?: { startedAt: string; endsAt: string }): Promise<AnalyzeJson | null> => {
@@ -153,6 +221,11 @@ export default function NovaPolymarketFiveMinsPanel() {
   [symbol, horizonMinutes, cycleStartMs, cycleEndMs]);
 
   const startTradeCycle = useCallback(async () => {
+    skipPostDeepRef.current = false;
+    postDeepFiredForEndRef.current = null;
+    setTimingInsight(null);
+    setTimingTriggeredBy(null);
+    setDeepError(null);
     const start = Date.now();
     const end = start + 5 * 60 * 1000;
     setCycleStartMs(start);
@@ -165,17 +238,22 @@ export default function NovaPolymarketFiveMinsPanel() {
   }, [runAnalyze]);
 
   useEffect(() => {
-    if (cycleEndMs == null) return;
     const id = window.setInterval(() => {
       const t = Date.now();
       setNowTick(t);
-      if (t >= cycleEndMs) {
+      const end = cycleEndRef.current;
+      if (end != null && t >= end) {
+        if (!skipPostDeepRef.current && postDeepFiredForEndRef.current !== end) {
+          postDeepFiredForEndRef.current = end;
+          void fetchNovaDeep("post_cycle", end);
+        }
+        skipPostDeepRef.current = false;
         setCycleStartMs(null);
         setCycleEndMs(null);
       }
     }, 1000);
     return () => window.clearInterval(id);
-  }, [cycleEndMs]);
+  }, [fetchNovaDeep]);
 
   useEffect(() => {
     if (!cycleAutoRefresh || monitorOn) return;
@@ -293,7 +371,8 @@ export default function NovaPolymarketFiveMinsPanel() {
             </a>{" "}
             style markets. Pick a <strong className="text-zinc-700 dark:text-zinc-300">horizon</strong> (5m / 15m / 60m) so the benchmark and AI
             prompt match that window; AI still reads <strong className="text-zinc-700 dark:text-zinc-300">1m candles</strong> (Binance) — not the
-            Chainlink stream Polymarket uses to resolve.
+            Chainlink stream Polymarket uses to resolve. When a trade cycle finishes naturally, <strong className="text-zinc-200">Nova Deep</strong> can
+            suggest when to start the next one; use the <strong className="text-zinc-200">Nova Deep</strong> button anytime for the same timing read.
           </p>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
@@ -334,6 +413,22 @@ export default function NovaPolymarketFiveMinsPanel() {
             >
               {loading ? "Analyzing…" : "Run Nova AI Analysis"}
             </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-9 inline-flex items-center gap-1.5 bg-violet-900/80 hover:bg-violet-800 text-violet-50 border border-violet-600/50"
+              disabled={loading || deepLoading}
+              onClick={() => void fetchNovaDeep("nova_deep")}
+            >
+              {deepLoading ? (
+                "Nova Deep…"
+              ) : (
+                <>
+                  <Telescope className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Nova Deep
+                </>
+              )}
+            </Button>
             <Button type="button" variant="outline" size="sm" className="h-9" asChild>
               <a href="https://polymarket.com/crypto" target="_blank" rel="noreferrer">
                 <ExternalLink className="h-3.5 w-3.5 mr-1" />
@@ -353,7 +448,8 @@ export default function NovaPolymarketFiveMinsPanel() {
             <p className="text-[10px] text-cyan-100/85 leading-relaxed">
               Tap <strong>Start</strong> right after you enter a trade. Nova fixes a <strong>5:00</strong> clock, anchors &quot;price to beat&quot; to
               the 1m candle open at that moment on the Binance feed, and sends <strong>deeper</strong> path + anchor stats to the model (still not
-              Polymarket&apos;s Chainlink clock). Optional auto-refresh keeps you updated without turning on the AI monitor.
+              Polymarket&apos;s Chainlink clock).               Optional auto-refresh keeps you updated without turning on the AI monitor. When the timer hits <strong>0:00</strong> (full 5 minutes, not
+              &quot;End early&quot;), Nova runs <strong>Nova Deep</strong> once and suggests when to tap <strong>Start</strong> for the next cycle.
             </p>
             {cycleEndMs != null && (
               <div className="flex flex-wrap items-center gap-3">
@@ -391,6 +487,101 @@ export default function NovaPolymarketFiveMinsPanel() {
               )}
             </div>
           </div>
+
+          {(timingInsight?.success || deepError) && (
+            <div
+              className={cn(
+                "rounded-md border p-3 space-y-2 text-sm",
+                timingTriggeredBy === "post_cycle"
+                  ? "border-violet-500/50 bg-violet-950/35"
+                  : "border-violet-700/40 bg-violet-950/25"
+              )}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Telescope className="h-4 w-4 text-violet-300 shrink-0" aria-hidden />
+                <span className="text-xs font-semibold text-violet-100">
+                  {timingTriggeredBy === "post_cycle" ? "Cycle ended — Nova Deep (next entry)" : "Nova Deep — entry timing"}
+                </span>
+                {timingInsight?.timingRecommendation && (
+                  <Badge className="bg-violet-700 text-white text-[10px]">{timingInsight.timingRecommendation}</Badge>
+                )}
+              </div>
+              {deepError && <p className="text-xs text-red-400">{deepError}</p>}
+              {timingInsight?.success && (
+                <>
+                  {timingInsight.nextCycleEntryUtcIso && (
+                    <p className="text-[11px] text-violet-100/95">
+                      <strong>Next UTC 5m slot:</strong>{" "}
+                      {new Date(timingInsight.nextCycleEntryUtcIso).toLocaleString(undefined, {
+                        weekday: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        timeZoneName: "short",
+                      })}{" "}
+                      <span className="text-violet-200/80">
+                        (
+                        {formatCountdownMs(
+                          Math.max(
+                            0,
+                            new Date(timingInsight.nextCycleEntryUtcIso).getTime() - nowTick
+                          )
+                        )}{" "}
+                        from your clock)
+                      </span>
+                    </p>
+                  )}
+                  {timingInsight.timingLabel && (
+                    <p className="text-xs font-medium text-violet-50">{timingInsight.timingLabel}</p>
+                  )}
+                  {timingInsight.nextSlotNote && (
+                    <p className="text-[11px] text-violet-100/90 leading-snug">{timingInsight.nextSlotNote}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2 text-[11px] text-violet-200/90">
+                    {timingInsight.directionLean && (
+                      <span>
+                        Lean (next window): <strong>{leanLabel(timingInsight.directionLean)}</strong>
+                      </span>
+                    )}
+                    {typeof timingInsight.confidenceScore === "number" && (
+                      <span className="border-l border-violet-600 pl-2">
+                        Confidence score: <strong>{timingInsight.confidenceScore}/100</strong>
+                      </span>
+                    )}
+                  </div>
+                  {timingInsight.summary && (
+                    <p className="text-xs text-zinc-100 leading-relaxed">{timingInsight.summary}</p>
+                  )}
+                  {timingInsight.factors && timingInsight.factors.length > 0 && (
+                    <ul className="text-[11px] text-violet-100/80 list-disc pl-4 space-y-0.5">
+                      {timingInsight.factors.map((f, i) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {timingInsight.dataSourceNote && (
+                    <p className="text-[10px] text-violet-300/80">{timingInsight.dataSourceNote}</p>
+                  )}
+                  {timingInsight.riskNote && (
+                    <p className="text-[10px] text-amber-200/90">{timingInsight.riskNote}</p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[11px] text-violet-200 hover:text-white"
+                    onClick={() => {
+                      setTimingInsight(null);
+                      setTimingTriggeredBy(null);
+                      setDeepError(null);
+                    }}
+                  >
+                    Dismiss insight
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 space-y-2 bg-zinc-50/50 dark:bg-zinc-900/40">
             <div className="flex flex-wrap items-center gap-2">
