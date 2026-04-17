@@ -2551,6 +2551,9 @@ export default function Dashboard() {
                   <Zap className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0 animate-[nova-zap-pulse_2s_ease-in-out_infinite]" aria-hidden />
                   Your Advanced AI Lightning Crypto Sniper, Futures and Prediction Market Intelligence
                 </span>
+                <span className="sm:hidden text-[10px] font-semibold mt-0.5 text-zinc-600 dark:text-zinc-300 truncate">
+                  AI Crypto Sniper for Meme Coins, Futures &amp; Prediction Markets.
+                </span>
               </h1>
             </div>
             <div className="flex items-center gap-2 shrink-0 md:hidden">
