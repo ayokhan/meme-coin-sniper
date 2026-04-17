@@ -94,6 +94,25 @@ declare module '@prisma/client' {
       create: (args: { data: { contractAddress: string; outcome: string; note?: string | null; score?: number | null; signal?: string | null; userId?: string | null } }) => Promise<unknown>;
       findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<unknown[]>;
     };
+    novaFiveMinsOwnerFeedback: {
+      create: (args: {
+        data: {
+          userId: string;
+          symbolInput: string;
+          pair: string;
+          horizonMinutes: number;
+          direction: string;
+          convictionPct?: number | null;
+          tapeRegime?: string | null;
+          lastClose?: number | null;
+          benchmarkOpen?: number | null;
+          feed?: string | null;
+          outcome: string;
+          notes?: string | null;
+          analysisSummary?: string | null;
+        };
+      }) => Promise<unknown>;
+    };
     usageThisMonth: {
       findUnique: (args: { where: { userId_monthKey: { userId: string; monthKey: string } }; select?: { aiAnalyses: true } }) => Promise<{ aiAnalyses: number } | null>;
       findMany: (args?: { where?: { monthKey?: string }; select?: { userId: true; aiAnalyses: true; user: { select: { email: true; name: true } } } }) => Promise<Array<{ userId: string; aiAnalyses: number; user: { email: string | null; name: string | null } }>>;

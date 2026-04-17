@@ -128,6 +128,7 @@ model User {
   userTelegram  UserTelegram?
   aiAnalysisFeedbacks AiAnalysisFeedback[]
   novaSmartFeedbacks  NovaSmartFeedback[]
+  novaFiveMinsOwnerFeedbacks NovaFiveMinsOwnerFeedback[]
   passwordResets PasswordResetToken[]
   userLeverageWallets  UserLeverageWallet[]
   userPolymarketTrackedWallets UserPolymarketTrackedWallet[]
@@ -642,6 +643,29 @@ model NovaSmartFeedback {
   @@index([symbol])
   @@index([worked])
   @@index([createdAt])
+}
+
+/** Owner-only: Nova 5 mins / Polymarket-style lean outcome for model training labels. */
+model NovaFiveMinsOwnerFeedback {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbolInput     String
+  pair            String
+  horizonMinutes  Int
+  direction       String
+  convictionPct   Int?
+  tapeRegime      String?
+  lastClose       Float?
+  benchmarkOpen   Float?
+  feed            String?
+  outcome         String
+  notes           String?
+  analysisSummary String?
+  @@index([userId])
+  @@index([createdAt])
+  @@index([outcome])
 }
 
 // VIP: Nova Investment Agent portfolio pins + owner feedback (worked/did not work + reason)

@@ -30,19 +30,43 @@ const ALIAS: Record<string, string> = {
 
 export type MinuteBar = { openTime: number; open: number; high: number; low: number; close: number; volume: number };
 
+/** Polymarket-style windows we support (minutes); AI + benchmark use this many 1m bars back. */
+export const NOVA_FIVE_MINS_HORIZONS = [5, 15, 60] as const;
+export type NovaFiveMinsHorizonMinutes = (typeof NOVA_FIVE_MINS_HORIZONS)[number];
+
+export function normalizeNovaFiveMinsHorizon(n: unknown): NovaFiveMinsHorizonMinutes {
+  const x = typeof n === "string" ? parseInt(n, 10) : Number(n);
+  if (x === 15 || x === 60) return x;
+  return 5;
+}
+
+export function klineLimitForHorizon(horizonMinutes: NovaFiveMinsHorizonMinutes): number {
+  return Math.min(1000, Math.max(horizonMinutes + 50, 64));
+}
+
+/** Open of the 1m candle that started ~`horizonMinutes` before the latest bar (window reference). */
+export function benchmarkOpenForHorizon(bars: MinuteBar[], horizonMinutes: number): number | null {
+  if (!bars.length || horizonMinutes < 1) return null;
+  const idx = bars.length - horizonMinutes;
+  if (idx < 0) return null;
+  const o = bars[idx]!.open;
+  return Number.isFinite(o) ? o : null;
+}
+
 /** Coarse tape label from recent closes/range (used when AI omits REGIME or returns mixed). */
 export type SpotTapeRegimeHint = "up_slope" | "down_slope" | "sideways" | "mixed";
 
-export function inferTapeRegimeFromBars(bars: MinuteBar[]): SpotTapeRegimeHint {
-  if (bars.length < 15) return "mixed";
+export function inferTapeRegimeFromBars(bars: MinuteBar[], lookbackBars = 15): SpotTapeRegimeHint {
+  if (bars.length < 12) return "mixed";
+  const n = Math.min(bars.length, Math.max(12, lookbackBars));
   const closes = bars.map((b) => b.close);
-  const start = closes[closes.length - 15]!;
+  const start = closes[closes.length - n]!;
   const end = closes[closes.length - 1]!;
   if (!(start > 0)) return "mixed";
   const driftPct = ((end - start) / start) * 100;
   if (driftPct > 0.12) return "up_slope";
   if (driftPct < -0.12) return "down_slope";
-  const slice = bars.slice(-12);
+  const slice = bars.slice(-Math.min(12, n));
   const hi = Math.max(...slice.map((b) => b.high));
   const lo = Math.min(...slice.map((b) => b.low));
   const mid = (hi + lo) / 2;
@@ -140,29 +164,39 @@ export async function fetchBinance1mKlinesWithMeta(
   return { bars: [], meta: null };
 }
 
-export function summarizeBarsForPrompt(bars: MinuteBar[], pair: string, feed: KlineFetchMeta["feed"] = "binance_spot"): string {
+export function summarizeBarsForPrompt(
+  bars: MinuteBar[],
+  pair: string,
+  feed: KlineFetchMeta["feed"] = "binance_spot",
+  horizonMinutes: NovaFiveMinsHorizonMinutes = 5
+): string {
   if (!bars.length) return `${pair}: no data`;
   const last = bars[bars.length - 1]!;
   const prev = bars.length > 1 ? bars[bars.length - 2]! : last;
   const closes = bars.map((b) => b.close);
-  const last5 = closes.slice(-5);
-  const change5m =
-    last5.length >= 2 && last5[0]! > 0 ? ((last.close - last5[0]!) / last5[0]!) * 100 : null;
-  const hi10 = Math.max(...bars.slice(-10).map((b) => b.high));
-  const lo10 = Math.min(...bars.slice(-10).map((b) => b.low));
+  const win = closes.slice(-horizonMinutes);
+  const changeWindow =
+    win.length >= 2 && win[0]! > 0 ? ((last.close - win[0]!) / win[0]!) * 100 : null;
+  const rangeLookback = Math.min(30, Math.max(10, horizonMinutes));
+  const hiR = Math.max(...bars.slice(-rangeLookback).map((b) => b.high));
+  const loR = Math.min(...bars.slice(-rangeLookback).map((b) => b.low));
   const body = last.close - last.open;
   const range = last.high - last.low;
   const lastCandleBias = range > 0 ? (body / range > 0.25 ? "bullish" : body / range < -0.25 ? "bearish" : "neutral") : "neutral";
   const feedLabel =
     feed === "binance_futures" ? `Binance USDT-M futures ${pair} (1m bars)` : `Binance spot ${pair} (1m bars)`;
+  const tail = Math.min(24, bars.length);
   return [
     feedLabel,
+    `User-selected horizon for this run: ${horizonMinutes} minutes (align mentally with Polymarket ${horizonMinutes}m Up/Down windows, not exact contract times).`,
     `Latest close: ${last.close.toFixed(2)} (1m bar ending ${new Date(last.openTime).toISOString()})`,
     `Prior close: ${prev.close.toFixed(2)}`,
-    change5m != null && Number.isFinite(change5m) ? `Approx last-5m return on closes: ${change5m.toFixed(3)}%` : "",
-    `Last ~10m range high/low: ${hi10.toFixed(2)} / ${lo10.toFixed(2)}`,
+    changeWindow != null && Number.isFinite(changeWindow)
+      ? `Approx last-${horizonMinutes}m return on closes: ${changeWindow.toFixed(3)}%`
+      : "",
+    `Last ~${rangeLookback}m range high/low: ${hiR.toFixed(2)} / ${loR.toFixed(2)}`,
     `Last 1m candle shape: ${lastCandleBias} (O ${last.open.toFixed(2)} H ${last.high.toFixed(2)} L ${last.low.toFixed(2)} C ${last.close.toFixed(2)})`,
-    `Last 12 closes (oldest→newest): ${closes.slice(-12).map((c) => c.toFixed(2)).join(", ")}`,
+    `Last ${tail} closes (oldest→newest): ${closes.slice(-tail).map((c) => c.toFixed(2)).join(", ")}`,
   ]
     .filter(Boolean)
     .join("\n");

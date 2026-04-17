@@ -52,10 +52,14 @@ function parseAiLines(text: string): NovaFiveMinsAiResult {
 }
 
 /**
- * Claude reads compact OHLC context and returns a directional lean for a *hypothetical* next few minutes,
+ * Claude reads compact OHLC context and returns a directional lean for a *hypothetical* window,
  * aligned with Polymarket-style Up/Down framing (not a guarantee).
  */
-export async function runNovaFiveMinsAnalysis(marketFacts: string, symbolLabel: string): Promise<NovaFiveMinsAiResult> {
+export async function runNovaFiveMinsAnalysis(
+  marketFacts: string,
+  symbolLabel: string,
+  horizonMinutes: 5 | 15 | 60 = 5
+): Promise<NovaFiveMinsAiResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
       direction: "Unclear",
@@ -67,14 +71,16 @@ export async function runNovaFiveMinsAnalysis(marketFacts: string, symbolLabel: 
     };
   }
 
-  const prompt = `You are a disciplined crypto microstructure analyst helping VIP users think about VERY short-horizon (roughly 1–5 minute) direction, similar in spirit to Polymarket "Up or Down in 5 minutes" style markets.
+  const prompt = `You are a disciplined crypto microstructure analyst helping VIP users think about short-horizon direction, similar in spirit to Polymarket "Up or Down" crypto markets (5m, 15m, etc.).
 
-Context (spot 1m candles — NOT the same oracle Polymarket uses; Polymarket often resolves on Chainlink BTC/USD streams):
+The user chose an analysis horizon of **${horizonMinutes} minutes**. Interpret "Up" as: spot (this feed) more likely to finish that horizon **at or above** the opening reference (approx. open from ${horizonMinutes} 1m bars ago on this feed). "Down" means likely **below** that reference. This is NOT the same as Polymarket settlement (Chainlink oracle, exact window times).
+
+Context (1m candles — NOT Polymarket's oracle):
 ${marketFacts}
 
 Asset label: ${symbolLabel}
 
-Task: Based ONLY on the numbers above (momentum, micro-range, last candle bias), lean Up or Down for the *next few minutes* of spot movement, or Unclear if noise dominates.
+Task: Based ONLY on the numbers above (momentum, micro-range, last candle bias), lean Up or Down for how spot may resolve over roughly the **next ${horizonMinutes} minutes** vs the window reference, or Unclear if noise dominates.
 
 Rules:
 - Prefer DIRECTION Unclear unless there is a modest edge from the tape (tight chop → Unclear).

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { NOVA_FIVE_MINS_HORIZONS, type NovaFiveMinsHorizonMinutes } from "@/lib/nova-five-mins-spot";
 
 type TapeRegime = "up_slope" | "down_slope" | "sideways" | "mixed";
 
@@ -15,10 +16,15 @@ type AnalyzeJson = {
   fiveMinsDisabled?: boolean;
   pair?: string;
   symbolInput?: string;
+  horizonMinutes?: number;
   lastClose?: number | null;
+  benchmarkOpen?: number | null;
+  /** @deprecated use benchmarkOpen */
   benchmarkOpen5m?: number | null;
   alignedWithSignal?: boolean;
   tapeRegime?: TapeRegime;
+  feed?: string;
+  canSubmitOwnerFeedback?: boolean;
   dataSourceNote?: string;
   polymarketStyleUrl?: string;
   direction?: "Up" | "Down" | "Unclear";
@@ -54,9 +60,14 @@ function isDirectional(d: string | undefined): d is "Up" | "Down" {
 
 export default function NovaPolymarketFiveMinsPanel() {
   const [symbol, setSymbol] = useState("BTC");
+  const [horizonMinutes, setHorizonMinutes] = useState<NovaFiveMinsHorizonMinutes>(5);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeJson | null>(null);
+  const [feedbackNotes, setFeedbackNotes] = useState("");
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [feedbackDone, setFeedbackDone] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
   const [monitorOn, setMonitorOn] = useState(false);
   const [monitorMs, setMonitorMs] = useState<(typeof MONITOR_MS_OPTIONS)[number]["ms"]>(30_000);
@@ -76,7 +87,7 @@ export default function NovaPolymarketFiveMinsPanel() {
       const res = await fetch("/api/polymarket-five-mins/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol: s }),
+        body: JSON.stringify({ symbol: s, horizonMinutes }),
       });
       const data = (await res.json()) as AnalyzeJson;
       if (!res.ok) {
@@ -90,6 +101,9 @@ export default function NovaPolymarketFiveMinsPanel() {
         return null;
       }
       setResult(data);
+      setFeedbackDone(false);
+      setFeedbackNotes("");
+      setFeedbackError(null);
       return data;
     } catch {
       setError("Network error.");
@@ -98,7 +112,44 @@ export default function NovaPolymarketFiveMinsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [symbol]);
+  }, [symbol, horizonMinutes]);
+
+  const submitOwnerFeedback = async (outcome: "matched" | "missed" | "n_a") => {
+    if (!result?.success || !result.canSubmitOwnerFeedback || !result.pair) return;
+    setFeedbackBusy(true);
+    setFeedbackError(null);
+    try {
+      const bench = result.benchmarkOpen ?? result.benchmarkOpen5m;
+      const res = await fetch("/api/polymarket-five-mins/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outcome,
+          notes: feedbackNotes.trim() || undefined,
+          symbolInput: result.symbolInput ?? symbol.trim(),
+          pair: result.pair,
+          horizonMinutes: result.horizonMinutes ?? horizonMinutes,
+          direction: result.direction ?? "Unclear",
+          convictionPct: result.confidencePct,
+          tapeRegime: result.tapeRegime,
+          lastClose: result.lastClose,
+          benchmarkOpen: bench,
+          feed: result.feed,
+          analysisSummary: result.summary,
+        }),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !data.success) {
+        setFeedbackError(data?.error ?? `Save failed (${res.status})`);
+        return;
+      }
+      setFeedbackDone(true);
+    } catch {
+      setFeedbackError("Network error saving feedback.");
+    } finally {
+      setFeedbackBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!monitorOn) return;
@@ -163,8 +214,9 @@ export default function NovaPolymarketFiveMinsPanel() {
             >
               5-minute Up / Down
             </a>{" "}
-            style markets. AI reads recent <strong className="text-zinc-700 dark:text-zinc-300">1m spot candles</strong> (Binance) plus simple
-            structure cues — not the Chainlink stream Polymarket uses to resolve.
+            style markets. Pick a <strong className="text-zinc-700 dark:text-zinc-300">horizon</strong> (5m / 15m / 60m) so the benchmark and AI
+            prompt match that window; AI still reads <strong className="text-zinc-700 dark:text-zinc-300">1m candles</strong> (Binance) — not the
+            Chainlink stream Polymarket uses to resolve.
           </p>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
@@ -181,6 +233,20 @@ export default function NovaPolymarketFiveMinsPanel() {
                 placeholder="BTC, ETH, SOL…"
                 className="h-9 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
               />
+            </div>
+            <div className="flex flex-col min-w-[120px]">
+              <label className="text-[11px] font-medium text-muted-foreground mb-1">Horizon</label>
+              <select
+                value={horizonMinutes}
+                onChange={(e) => setHorizonMinutes(Number(e.target.value) as NovaFiveMinsHorizonMinutes)}
+                className="h-9 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+              >
+                {NOVA_FIVE_MINS_HORIZONS.map((m) => (
+                  <option key={m} value={m}>
+                    {m} min (Polymarket-style)
+                  </option>
+                ))}
+              </select>
             </div>
             <Button
               type="button"
@@ -269,7 +335,10 @@ export default function NovaPolymarketFiveMinsPanel() {
 
           {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
 
-          {result?.success && (
+          {result?.success && (() => {
+            const bench = result.benchmarkOpen ?? result.benchmarkOpen5m;
+            const hz = result.horizonMinutes ?? 5;
+            return (
             <div
               className={cn(
                 "space-y-2 rounded-md border p-3 transition-colors",
@@ -282,11 +351,16 @@ export default function NovaPolymarketFiveMinsPanel() {
                 <Badge variant="outline" className="font-mono text-xs">
                   {result.pair}
                 </Badge>
+                <Badge variant="secondary" className="text-[10px]">
+                  {hz}m horizon
+                </Badge>
                 {result.lastClose != null && Number.isFinite(result.lastClose) && (
                   <span className="text-xs text-muted-foreground">Spot last close ≈ {result.lastClose.toLocaleString()}</span>
                 )}
                 {result.alignedWithSignal && (result.direction === "Up" || result.direction === "Down") && (
-                  <span className="text-[10px] font-medium text-emerald-800 dark:text-emerald-200">Spot vs ~5m open: on track with lean</span>
+                  <span className="text-[10px] font-medium text-emerald-800 dark:text-emerald-200">
+                    Spot vs ~{hz}m reference: on track with lean
+                  </span>
                 )}
               </div>
               {result.tapeRegime && (
@@ -307,10 +381,40 @@ export default function NovaPolymarketFiveMinsPanel() {
                   Recent drift is still leaning up while the model favors downside — treat as a tension, not confirmation.
                 </p>
               )}
-              {result.benchmarkOpen5m != null && Number.isFinite(result.benchmarkOpen5m) && (
+              {bench != null && Number.isFinite(bench) && (
                 <p className="text-[10px] text-muted-foreground">
-                  ~5m reference (open ≈ five 1m bars back): {result.benchmarkOpen5m.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                  ~{hz}m reference (open of the 1m bar from ~{hz} minutes ago on this feed):{" "}
+                  {bench.toLocaleString(undefined, { maximumFractionDigits: 6 })}
                 </p>
+              )}
+              {result.direction === "Down" && (
+                <div className="rounded-md border border-sky-700/35 bg-sky-950/30 dark:bg-sky-950/40 px-2.5 py-2 space-y-1">
+                  <p className="text-[11px] font-semibold text-sky-100">Polymarket: does &quot;Down&quot; mean buy Down?</p>
+                  <p className="text-[11px] text-sky-50/95 leading-snug">
+                    <strong>Yes — same side.</strong> On Polymarket Up/Down markets, a <strong>Down</strong> lean here is talking about the same
+                    outcome as choosing <strong>Down</strong> on the contract: you are lined up with the market resolving <strong>lower</strong>{" "}
+                    than that window&apos;s reference (per that market&apos;s official rules — usually Chainlink vs the window open). This is{" "}
+                    <strong>not</strong> a recommendation to trade; Binance can disagree from the oracle.
+                  </p>
+                </div>
+              )}
+              {result.direction === "Up" && (
+                <div className="rounded-md border border-sky-700/35 bg-sky-950/30 dark:bg-sky-950/40 px-2.5 py-2 space-y-1">
+                  <p className="text-[11px] font-semibold text-sky-100">Polymarket: does &quot;Up&quot; mean buy Up?</p>
+                  <p className="text-[11px] text-sky-50/95 leading-snug">
+                    <strong>Yes — same side.</strong> An <strong>Up</strong> lean matches buying <strong>Up</strong> on the contract: you are lined
+                    up with resolve <strong>at or above</strong> the reference for that window (per market rules / oracle).{" "}
+                    <strong>Not</strong> trading advice.
+                  </p>
+                </div>
+              )}
+              {result.direction === "Unclear" && (
+                <div className="rounded-md border border-zinc-600/40 bg-zinc-900/50 px-2.5 py-2">
+                  <p className="text-[11px] text-zinc-200 leading-snug">
+                    <strong>Neutral / chop:</strong> there isn&apos;t a clean single-sided match to &quot;buy Up&quot; or &quot;buy Down&quot; from
+                    this read — Polymarket tickets are binary, so consider waiting or very small size if you still play.
+                  </p>
+                </div>
               )}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted-foreground">Lean</span>
@@ -339,8 +443,63 @@ export default function NovaPolymarketFiveMinsPanel() {
               )}
               {result.dataSourceNote && <p className="text-[10px] text-muted-foreground">{result.dataSourceNote}</p>}
               {result.riskNote && <p className="text-[10px] text-amber-800/90 dark:text-amber-200/90">{result.riskNote}</p>}
+
+              {result.canSubmitOwnerFeedback && (
+                <div className="mt-3 pt-3 border-t border-zinc-600/40 space-y-2">
+                  <p className="text-[11px] font-medium text-zinc-200">Owner — outcome for training</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    After the window plays out vs this lean, log whether it helped. Stored for future model tuning (not shown to VIPs).
+                  </p>
+                  <textarea
+                    value={feedbackNotes}
+                    onChange={(e) => setFeedbackNotes(e.target.value)}
+                    placeholder="Optional note (e.g. oracle vs Binance, news print, …)"
+                    rows={2}
+                    disabled={feedbackBusy || feedbackDone}
+                    className="w-full max-w-lg text-xs rounded border border-zinc-600 bg-zinc-950/40 px-2 py-1.5 text-zinc-100 placeholder:text-zinc-500"
+                  />
+                  {feedbackError && <p className="text-xs text-red-400">{feedbackError}</p>}
+                  {feedbackDone ? (
+                    <p className="text-xs text-emerald-400">Saved. Thank you.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        disabled={feedbackBusy}
+                        onClick={() => void submitOwnerFeedback("matched")}
+                      >
+                        Lean matched reality
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs border-rose-700/50 text-rose-200 hover:bg-rose-950/50"
+                        disabled={feedbackBusy}
+                        onClick={() => void submitOwnerFeedback("missed")}
+                      >
+                        Lean did not match
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 text-xs"
+                        disabled={feedbackBusy}
+                        onClick={() => void submitOwnerFeedback("n_a")}
+                      >
+                        N/A (no trade / skip)
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
     </div>

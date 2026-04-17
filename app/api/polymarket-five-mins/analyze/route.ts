@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, isOwnerSession } from "@/lib/auth";
 import { runNovaFiveMinsAnalysis } from "@/lib/ai-nova-five-mins";
 import {
+  benchmarkOpenForHorizon,
   fetchBinance1mKlinesWithMeta,
   inferTapeRegimeFromBars,
+  klineLimitForHorizon,
+  normalizeNovaFiveMinsHorizon,
   resolveBinanceSpotPair,
   summarizeBarsForPrompt,
 } from "@/lib/nova-five-mins-spot";
@@ -14,7 +17,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const maxDuration = 60;
 
-/** POST — AI lean Up/Down for short horizon (Binance spot context; not Polymarket oracle). */
+/** POST — AI lean Up/Down for selected horizon (Binance context; not Polymarket oracle). */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -37,6 +40,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Enter a symbol (e.g. BTC, ETH, SOL)." }, { status: 400 });
     }
 
+    const horizonMinutes = normalizeNovaFiveMinsHorizon(body.horizonMinutes ?? body.timeframeMinutes);
+
     const pair = resolveBinanceSpotPair(raw);
     if (!pair) {
       return NextResponse.json(
@@ -45,7 +50,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const { bars, meta } = await fetchBinance1mKlinesWithMeta(pair, 48);
+    const kLimit = klineLimitForHorizon(horizonMinutes);
+    const { bars, meta } = await fetchBinance1mKlinesWithMeta(pair, kLimit);
     if (!bars.length) {
       return NextResponse.json(
         {
@@ -57,37 +63,51 @@ export async function POST(request: Request) {
       );
     }
 
+    const benchmarkOpen = benchmarkOpenForHorizon(bars, horizonMinutes);
+    if (benchmarkOpen == null) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Not enough candle history for a ${horizonMinutes}-minute window yet. Pick a shorter horizon or retry in a minute.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const feed = meta?.feed ?? "binance_spot";
-    const facts = summarizeBarsForPrompt(bars, pair, feed);
-    const ai = await runNovaFiveMinsAnalysis(facts, pair.replace("USDT", ""));
+    const facts = summarizeBarsForPrompt(bars, pair, feed, horizonMinutes);
+    const ai = await runNovaFiveMinsAnalysis(facts, pair.replace("USDT", ""), horizonMinutes);
 
     const lastClose = bars[bars.length - 1]?.close ?? null;
-    const benchmarkOpen5m = bars.length >= 5 ? bars[bars.length - 5]!.open : bars[0]!.open;
-    const heuristicRegime = inferTapeRegimeFromBars(bars);
+    const lookback = Math.min(60, Math.max(15, horizonMinutes));
+    const heuristicRegime = inferTapeRegimeFromBars(bars, lookback);
     const tapeRegime = ai.tapeRegime === "mixed" ? heuristicRegime : ai.tapeRegime;
 
     let alignedWithSignal = false;
     if (
       lastClose != null &&
       Number.isFinite(lastClose) &&
-      Number.isFinite(benchmarkOpen5m) &&
+      Number.isFinite(benchmarkOpen) &&
       (ai.direction === "Up" || ai.direction === "Down")
     ) {
-      if (ai.direction === "Up") alignedWithSignal = lastClose >= benchmarkOpen5m;
-      else alignedWithSignal = lastClose <= benchmarkOpen5m;
+      if (ai.direction === "Up") alignedWithSignal = lastClose >= benchmarkOpen;
+      else alignedWithSignal = lastClose <= benchmarkOpen;
     }
 
     return NextResponse.json({
       success: true,
       pair,
       symbolInput: raw,
+      horizonMinutes,
       lastClose,
-      benchmarkOpen5m,
+      benchmarkOpen,
       alignedWithSignal,
+      feed,
+      canSubmitOwnerFeedback: isOwnerSession(session),
       dataSourceNote:
         feed === "binance_futures"
-          ? "Context uses Binance USDT-M futures 1m candles (spot API was unreachable). Polymarket 5m markets typically resolve on Chainlink — prices can differ."
-          : "Context uses Binance spot 1m candles. Polymarket 5m crypto markets (e.g. Bitcoin Up or Down) typically resolve on Chainlink streams — prices can differ from Binance.",
+          ? "Context uses Binance USDT-M futures 1m candles (spot API was unreachable). Polymarket Up/Down markets typically resolve on Chainlink — prices and window times can differ."
+          : "Context uses Binance spot 1m candles. Polymarket Up/Down markets typically resolve on Chainlink streams — prices and exact window opens can differ from Binance.",
       polymarketStyleUrl: "https://polymarket.com/crypto",
       ...ai,
       tapeRegime,
