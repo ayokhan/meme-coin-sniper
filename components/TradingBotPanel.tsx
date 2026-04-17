@@ -10,6 +10,7 @@ import NovaPolymarketTrackerPanel from "@/components/NovaPolymarketTrackerPanel"
 import NovaPolymarketCopyBotPanel from "@/components/NovaPolymarketCopyBotPanel";
 import NovaPolymarketLeaderboardPanel from "@/components/NovaPolymarketLeaderboardPanel";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
+import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
 
 type PositionWithPnl = {
@@ -237,6 +238,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
   const [polyInnerTab, setPolyInnerTab] = useState<"copilot" | "tracker" | "radar" | "leaderboard">("copilot");
   const [polyLeaderboardEnabled, setPolyLeaderboardEnabled] = useState(false);
+  /** When opening Polymarket Radar with “Analyze” from Leaderboard, stash wallet until Radar content mounts. */
+  const pendingRadarAnalyzeRef = useRef<string | null>(null);
   useEffect(() => {
     if (mode === "polymarket-only") setBotSubTab("polymarket");
     if (mode === "futures-only" && botSubTab === "polymarket") setBotSubTab("ai");
@@ -268,6 +271,31 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       cancel = true;
     };
   }, [canAccessPolymarket]);
+
+  useEffect(() => {
+    const onOpenRadarAnalyze = (e: Event) => {
+      const ce = e as CustomEvent<{ address?: string }>;
+      const raw = ce.detail?.address?.trim() ?? "";
+      if (!/^0x[a-fA-F0-9]{40}$/.test(raw)) return;
+      pendingRadarAnalyzeRef.current = raw.toLowerCase();
+      setPolyInnerTab("radar");
+    };
+    window.addEventListener(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, onOpenRadarAnalyze as EventListener);
+    return () => window.removeEventListener(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, onOpenRadarAnalyze as EventListener);
+  }, []);
+
+  useEffect(() => {
+    if (polyInnerTab !== "radar") return;
+    const addr = pendingRadarAnalyzeRef.current;
+    if (!addr) return;
+    pendingRadarAnalyzeRef.current = null;
+    const id = window.requestAnimationFrame(() => {
+      window.dispatchEvent(
+        new CustomEvent(NOVASTARIS_POLY_RADAR_ANALYZE_WALLET, { detail: { address: addr, autoRun: true } })
+      );
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [polyInnerTab]);
 
   const [polyKeyword, setPolyKeyword] = useState("bitcoin");
   const [polyBankroll, setPolyBankroll] = useState("1000");

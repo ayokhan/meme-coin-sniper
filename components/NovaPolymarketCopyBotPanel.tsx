@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, Copy, ListPlus, Radar, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import {
   tradeTimestampToMs,
   type PolymarketTradeRow,
 } from "@/lib/polymarket-data-api";
+import { NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 
 const PREFILL_EVENT = "novastaris-poly-prefill-copy-wallet";
 
@@ -98,8 +99,8 @@ export default function NovaPolymarketCopyBotPanel() {
   const [topicLoading, setTopicLoading] = useState(false);
   const [topicResult, setTopicResult] = useState<RadarTopicJson | null>(null);
 
-  const runAnalyze = useCallback(async (reset = true) => {
-    const raw = addrInput.trim();
+  const runAnalyzeForAddress = useCallback(async (rawInput: string, reset = true) => {
+    const raw = rawInput.trim();
     if (!isValidAddr(raw)) {
       setError("Enter a valid Polymarket proxy wallet (0x + 40 hex chars).");
       return;
@@ -136,7 +137,27 @@ export default function NovaPolymarketCopyBotPanel() {
     } finally {
       setLoading(false);
     }
-  }, [addrInput]);
+  }, []);
+
+  const runAnalyze = useCallback(
+    async (reset = true) => {
+      await runAnalyzeForAddress(addrInput, reset);
+    },
+    [addrInput, runAnalyzeForAddress]
+  );
+
+  useEffect(() => {
+    const onExternalAnalyze = (e: Event) => {
+      const ce = e as CustomEvent<{ address?: string; autoRun?: boolean }>;
+      const addr = ce.detail?.address?.trim() ?? "";
+      if (!isValidAddr(addr)) return;
+      const lower = addr.toLowerCase();
+      setAddrInput(lower);
+      if (ce.detail?.autoRun) void runAnalyzeForAddress(lower, true);
+    };
+    window.addEventListener(NOVASTARIS_POLY_RADAR_ANALYZE_WALLET, onExternalAnalyze as EventListener);
+    return () => window.removeEventListener(NOVASTARIS_POLY_RADAR_ANALYZE_WALLET, onExternalAnalyze as EventListener);
+  }, [runAnalyzeForAddress]);
 
   const loadMoreTrades = useCallback(async () => {
     const address = analyzed?.address;

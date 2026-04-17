@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, RefreshCw, Trophy } from "lucide-react";
+import { ExternalLink, ListPlus, Radar, RefreshCw, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { PolymarketLeaderboardCategory, PolymarketLeaderboardEntry } from "@/lib/polymarket-data-api";
+import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE } from "@/lib/novastaris-polymarket-events";
 
 type TimeUi = "DAY" | "WEEK" | "MONTH" | "ALL";
 
@@ -23,6 +24,7 @@ type LeaderboardJson = {
   leaderboard?: PolymarketLeaderboardEntry[];
   biggestWins?: Array<{
     rank: number;
+    proxyWallet: string;
     displayName: string;
     marketTitle: string;
     slug?: string;
@@ -81,6 +83,10 @@ function rankMedal(rank: number): string | null {
   return null;
 }
 
+function isValidProxyAddr(a: string | undefined | null): a is string {
+  return !!a && /^0x[a-fA-F0-9]{40}$/.test(a.trim());
+}
+
 export default function NovaPolymarketLeaderboardPanel() {
   const [timePeriod, setTimePeriod] = useState<TimeUi>("MONTH");
   const [category, setCategory] = useState<PolymarketLeaderboardCategory>("OVERALL");
@@ -96,8 +102,53 @@ export default function NovaPolymarketLeaderboardPanel() {
   const [biggestWins, setBiggestWins] = useState<LeaderboardJson["biggestWins"]>([]);
   const [winsNote, setWinsNote] = useState<string | null>(null);
   const [polyUrl, setPolyUrl] = useState("https://polymarket.com/leaderboard/overall/monthly/profit");
+  const [trackingAddr, setTrackingAddr] = useState<string | null>(null);
+  const [actionToast, setActionToast] = useState<string | null>(null);
 
   const q = search.trim().toLowerCase();
+
+  useEffect(() => {
+    if (!actionToast) return;
+    const t = window.setTimeout(() => setActionToast(null), 5000);
+    return () => window.clearTimeout(t);
+  }, [actionToast]);
+
+  const addToTracker = useCallback(async (address: string, nickname?: string | null) => {
+    const a = address.trim().toLowerCase();
+    if (!isValidProxyAddr(a)) {
+      setActionToast("Invalid wallet address.");
+      return;
+    }
+    setTrackingAddr(a);
+    setActionToast(null);
+    try {
+      const res = await fetch("/api/user/polymarket-tracker-wallets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: a,
+          nickname: nickname?.trim() ? nickname.trim().slice(0, 120) : "Leaderboard",
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (res.ok && data.success) setActionToast("Added to Nova Polymarket Tracker.");
+      else setActionToast(data.error ?? "Could not add wallet.");
+    } catch {
+      setActionToast("Could not add wallet.");
+    } finally {
+      setTrackingAddr(null);
+    }
+  }, []);
+
+  const openRadarAnalyze = useCallback((address: string) => {
+    const a = address.trim().toLowerCase();
+    if (!isValidProxyAddr(a)) {
+      setActionToast("Invalid wallet for analyze.");
+      return;
+    }
+    window.dispatchEvent(new CustomEvent(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, { detail: { address: a } }));
+    setActionToast("Opening Polymarket Radar…");
+  }, []);
 
   const filteredRows = useMemo(() => {
     if (!q) return rows;
@@ -164,11 +215,17 @@ export default function NovaPolymarketLeaderboardPanel() {
     void load(true);
   };
 
-  const periodLabel =
-    timePeriod === "DAY" ? "today" : timePeriod === "WEEK" ? "this week" : timePeriod === "MONTH" ? "this month" : "all time";
+  const periodHeading =
+    timePeriod === "DAY"
+      ? "Today (UTC calendar day)"
+      : timePeriod === "WEEK"
+        ? "This week (UTC week, Mon–Sun)"
+        : timePeriod === "MONTH"
+          ? "This month (UTC calendar month)"
+          : "All time";
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Leaderboard</h3>
@@ -220,8 +277,14 @@ export default function NovaPolymarketLeaderboardPanel() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 items-start">
-        <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+      {actionToast && (
+        <div className="rounded-md border border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/30 px-3 py-2 text-sm text-emerald-900 dark:text-emerald-100 break-words">
+          {actionToast}
+        </div>
+      )}
+
+      <div className="min-w-0 grid grid-cols-1 min-[1280px]:grid-cols-[minmax(0,1fr)_24rem] gap-4 items-start">
+        <Card className="min-w-0 border-zinc-200/80 dark:border-zinc-700/80">
           <CardHeader className="pb-3 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <CardTitle className="text-base font-semibold">Traders</CardTitle>
@@ -275,6 +338,7 @@ export default function NovaPolymarketLeaderboardPanel() {
                       <th className="p-2">User</th>
                       <th className="p-2 text-right">P/L</th>
                       <th className="p-2 text-right">Volume</th>
+                      <th className="p-2 text-right whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -283,6 +347,8 @@ export default function NovaPolymarketLeaderboardPanel() {
                       const medal = rankMedal(rankNum);
                       const pnl = Number(r.pnl);
                       const vol = Number(r.vol);
+                      const wallet = r.proxyWallet?.trim() ?? "";
+                      const nick = r.userName?.trim() || null;
                       return (
                         <tr key={`${r.proxyWallet ?? i}-${rankNum}`} className="border-t border-zinc-100 dark:border-zinc-800">
                           <td className="p-2 text-zinc-500 tabular-nums">{rankNum}</td>
@@ -324,6 +390,35 @@ export default function NovaPolymarketLeaderboardPanel() {
                           <td className="p-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
                             {Number.isFinite(vol) && vol > 0 ? fmtUsd(vol) : "—"}
                           </td>
+                          <td className="p-2 text-right">
+                            {isValidProxyAddr(wallet) ? (
+                              <div className="flex flex-wrap justify-end gap-1">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-[11px]"
+                                  disabled={trackingAddr === wallet.toLowerCase()}
+                                  onClick={() => void addToTracker(wallet, nick)}
+                                >
+                                  <ListPlus className="h-3 w-3 mr-0.5 shrink-0" />
+                                  Track
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-7 px-2 text-[11px] bg-emerald-700/90 hover:bg-emerald-800 text-white"
+                                  onClick={() => openRadarAnalyze(wallet)}
+                                >
+                                  <Radar className="h-3 w-3 mr-0.5 shrink-0" />
+                                  Analyze
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground">—</span>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
@@ -342,40 +437,72 @@ export default function NovaPolymarketLeaderboardPanel() {
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-200/80 dark:border-zinc-700/80 xl:sticky xl:top-4">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
-              Biggest wins ({periodLabel})
-            </CardTitle>
+        <Card className="min-w-0 w-full max-w-full border-zinc-200/80 dark:border-zinc-700/80 min-[1280px]:sticky min-[1280px]:top-4 overflow-hidden">
+          <CardHeader className="pb-2 min-w-0 space-y-1">
+            <div className="flex items-start gap-2 min-w-0">
+              <Trophy className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-base font-semibold whitespace-normal break-words leading-snug">
+                  Biggest wins
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1 break-words">{periodHeading}</p>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {winsNote && <p className="text-[11px] text-muted-foreground leading-snug">{winsNote}</p>}
-            <ul className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+          <CardContent className="space-y-3 min-w-0 overflow-x-hidden">
+            {winsNote && (
+              <p className="text-[11px] text-muted-foreground leading-snug break-words">{winsNote}</p>
+            )}
+            <ul className="space-y-3 max-h-[70vh] overflow-y-auto overflow-x-hidden pr-1 min-w-0">
               {(biggestWins ?? []).map((w) => (
-                <li key={`${w.rank}-${w.displayName}-${w.marketTitle}`} className="flex gap-2 text-sm">
+                <li key={`${w.rank}-${w.proxyWallet}-${w.marketTitle}`} className="flex gap-2 text-sm min-w-0">
                   <span className="text-zinc-400 tabular-nums w-5 shrink-0">{w.rank}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{w.displayName}</p>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="font-medium text-zinc-900 dark:text-zinc-100 break-words">{w.displayName}</p>
                     {w.slug ? (
                       <Link
                         href={`https://polymarket.com/event/${w.slug}`}
-                        className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline line-clamp-2"
+                        className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline break-words inline-block max-w-full"
                         target="_blank"
                         rel="noreferrer"
                       >
                         {w.marketTitle}
                       </Link>
                     ) : (
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">{w.marketTitle}</p>
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400 break-words">{w.marketTitle}</p>
                     )}
-                    <p className="text-xs mt-1">
-                      <span className="text-zinc-500">{w.stakeUsd != null ? fmtUsd(w.stakeUsd) : "—"}</span>
-                      <span className="text-zinc-400 mx-1">→</span>
+                    <p className="text-xs mt-1 flex flex-wrap items-baseline gap-x-1 gap-y-0.5 break-all">
+                      <span className="text-zinc-500 shrink-0">{w.stakeUsd != null ? fmtUsd(w.stakeUsd) : "—"}</span>
+                      <span className="text-zinc-400">→</span>
                       <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                         {w.payoutUsd != null ? fmtUsd(w.payoutUsd) : fmtUsd(w.realizedPnl)}
                       </span>
                     </p>
+                    {isValidProxyAddr(w.proxyWallet) && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-1.5 text-[10px]"
+                          disabled={trackingAddr === w.proxyWallet.toLowerCase()}
+                          onClick={() => void addToTracker(w.proxyWallet, w.displayName)}
+                        >
+                          <ListPlus className="h-3 w-3 mr-0.5" />
+                          Track
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-6 px-1.5 text-[10px] bg-emerald-700/90 hover:bg-emerald-800 text-white"
+                          onClick={() => openRadarAnalyze(w.proxyWallet)}
+                        >
+                          <Radar className="h-3 w-3 mr-0.5" />
+                          Analyze
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </li>
               ))}
