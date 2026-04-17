@@ -13,6 +13,14 @@ export type NovaFiveMinsAiResult = {
   riskNote: string;
 };
 
+/** User started a 5m trade clock after entering a position (this feed only). */
+export type NovaFiveMinsTradeCycleContext = {
+  startedAtIso: string;
+  endsAtIso: string;
+  secondsRemaining: number;
+  anchorOpen: number;
+};
+
 function parseTapeRegime(raw: string | undefined): NovaFiveMinsTapeRegime {
   const t = (raw ?? "").toLowerCase().replace(/[^a-z_]/g, "");
   if (t === "up_slope" || t === "upslope") return "up_slope";
@@ -58,7 +66,8 @@ function parseAiLines(text: string): NovaFiveMinsAiResult {
 export async function runNovaFiveMinsAnalysis(
   marketFacts: string,
   symbolLabel: string,
-  horizonMinutes: 5 | 15 | 60 = 5
+  horizonMinutes: 5 | 15 | 60 = 5,
+  tradeCycle: NovaFiveMinsTradeCycleContext | null = null
 ): Promise<NovaFiveMinsAiResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
@@ -71,16 +80,31 @@ export async function runNovaFiveMinsAnalysis(
     };
   }
 
-  const prompt = `You are a disciplined crypto microstructure analyst helping VIP users think about short-horizon direction, similar in spirit to Polymarket "Up or Down" crypto markets (5m, 15m, etc.).
+  const cycleBlock = tradeCycle
+    ? `
+LIVE TRADE CYCLE (user entered a position and started a personal 5-minute clock on THIS feed — not Polymarket's official window):
+- Cycle start (ISO): ${tradeCycle.startedAtIso}
+- Cycle end (ISO): ${tradeCycle.endsAtIso}
+- ~Seconds remaining in their clock: ${tradeCycle.secondsRemaining}
+- Anchor "price to beat" ON THIS FEED at cycle start: ${tradeCycle.anchorOpen.toFixed(6)}
 
-The user chose an analysis horizon of **${horizonMinutes} minutes**. Interpret "Up" as: spot (this feed) more likely to finish that horizon **at or above** the opening reference (approx. open from ${horizonMinutes} 1m bars ago on this feed). "Down" means likely **below** that reference. This is NOT the same as Polymarket settlement (Chainlink oracle, exact window times).
+Give a **deeper** read than a casual snapshot: path since entry, how close price is to the anchor, what would **invalidate** an Up vs Down resolve before the bell, micro-aggression (offers vs bids), and late-cycle mean-reversion risk. Still use ONLY the numbers in the context block; do not invent fills or order flow you cannot see.
+
+`
+    : "";
+
+  const taskHorizon = tradeCycle ? 5 : horizonMinutes;
+
+  const prompt = `You are a disciplined crypto microstructure analyst helping VIP users think about short-horizon direction, similar in spirit to Polymarket "Up or Down" crypto markets (5m, 15m, etc.).
+${cycleBlock}
+The user chose an analysis horizon of **${horizonMinutes} minutes**${tradeCycle ? " (trade cycle mode locks the window to **5 minutes** from their start click)" : ""}. Interpret "Up" as: spot (this feed) more likely to finish that horizon **at or above** the opening reference (approx. open from ${taskHorizon} 1m bars ago on this feed, OR the TRADE_CYCLE anchor when provided). "Down" means likely **below** that reference. This is NOT the same as Polymarket settlement (Chainlink oracle, exact window times).
 
 Context (1m candles — NOT Polymarket's oracle):
 ${marketFacts}
 
 Asset label: ${symbolLabel}
 
-Task: Based ONLY on the numbers above (momentum, micro-range, last candle bias), lean Up or Down for how spot may resolve over roughly the **next ${horizonMinutes} minutes** vs the window reference, or Unclear if noise dominates.
+Task: Based ONLY on the numbers above (momentum, micro-range, last candle bias${tradeCycle ? ", path since cycle start vs anchor" : ""}), lean Up or Down for how spot may resolve over the **remaining time** vs the correct reference (rolling window OR trade-cycle anchor), or Unclear if noise dominates.
 
 Rules:
 - Prefer DIRECTION Unclear unless there is a modest edge from the tape (tight chop → Unclear).
@@ -97,7 +121,7 @@ RISK: one sentence on oracle mismatch / noise / not advice`;
 
   const msg = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 400,
+    max_tokens: tradeCycle ? 650 : 400,
     messages: [{ role: "user", content: prompt }],
   });
 

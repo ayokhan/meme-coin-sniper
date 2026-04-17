@@ -44,6 +44,65 @@ export function klineLimitForHorizon(horizonMinutes: NovaFiveMinsHorizonMinutes)
   return Math.min(1000, Math.max(horizonMinutes + 50, 64));
 }
 
+/** Extra 1m history when user runs a live 5m trade cycle (path + anchor context). */
+export function klineLimitForTradeCycle(): number {
+  return Math.min(1000, 360);
+}
+
+const ONE_MIN_MS = 60_000;
+
+/** Open of the 1m candle that contains `atMs` (Polymarket-style "price to beat" on this feed). */
+export function anchorOpenForTimestamp(bars: MinuteBar[], atMs: number): number | null {
+  if (!bars.length || !Number.isFinite(atMs)) return null;
+  for (let i = bars.length - 1; i >= 0; i--) {
+    const b = bars[i]!;
+    if (atMs >= b.openTime && atMs < b.openTime + ONE_MIN_MS) return Number.isFinite(b.open) ? b.open : null;
+  }
+  if (atMs < bars[0]!.openTime) return Number.isFinite(bars[0]!.open) ? bars[0]!.open : null;
+  let best: MinuteBar | null = null;
+  for (const b of bars) {
+    if (b.openTime <= atMs) best = b;
+    else break;
+  }
+  const o = best?.open ?? bars[bars.length - 1]!.open;
+  return Number.isFinite(o) ? o : null;
+}
+
+/** Rich path stats from cycle start → latest bar (for AI "deep" read). */
+export function buildTradeCycleDeepStats(
+  bars: MinuteBar[],
+  cycleStartMs: number,
+  anchorOpen: number,
+  nowMs: number
+): string {
+  if (!bars.length || !Number.isFinite(anchorOpen) || anchorOpen <= 0) return "";
+  const inWindow = bars.filter((b) => b.openTime >= cycleStartMs && b.openTime <= nowMs + ONE_MIN_MS);
+  const last = bars[bars.length - 1]!;
+  const vsPct = ((last.close - anchorOpen) / anchorOpen) * 100;
+  const lines = [
+    `--- USER_TRADE_CYCLE (entered position; 5m clock on this feed only) ---`,
+    `Anchor open at cycle start (1m bar containing start click): ${anchorOpen.toFixed(6)}`,
+    `Current last close vs anchor: ${vsPct >= 0 ? "+" : ""}${vsPct.toFixed(3)}%`,
+  ];
+  if (inWindow.length) {
+    const hi = Math.max(...inWindow.map((b) => b.high));
+    const lo = Math.min(...inWindow.map((b) => b.low));
+    const upExc = ((hi - anchorOpen) / anchorOpen) * 100;
+    const dnExc = ((anchorOpen - lo) / anchorOpen) * 100;
+    lines.push(
+      `Completed 1m bars since cycle start: ${inWindow.length}`,
+      `Session range since cycle start (high/low): ${hi.toFixed(2)} / ${lo.toFixed(2)}`,
+      `Max excursion vs anchor (approx): +${upExc.toFixed(3)}% above, -${dnExc.toFixed(3)}% below`
+    );
+  } else {
+    lines.push("No full 1m bars closed inside the cycle window yet; lean on latest micro + anchor distance.");
+  }
+  const tail = Math.min(60, bars.length);
+  const closes = bars.map((b) => b.close).slice(-tail);
+  lines.push(`Last ${tail} closes (oldest→newest) for micro-path: ${closes.map((c) => c.toFixed(2)).join(", ")}`);
+  return lines.join("\n");
+}
+
 /** Open of the 1m candle that started ~`horizonMinutes` before the latest bar (window reference). */
 export function benchmarkOpenForHorizon(bars: MinuteBar[], horizonMinutes: number): number | null {
   if (!bars.length || horizonMinutes < 1) return null;

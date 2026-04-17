@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, Bell, BellOff, ExternalLink, Sparkles } from "lucide-react";
+import { Activity, Bell, BellOff, Clock, ExternalLink, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,9 +29,17 @@ type AnalyzeJson = {
   polymarketStyleUrl?: string;
   direction?: "Up" | "Down" | "Unclear";
   confidencePct?: number;
+  confidenceScore?: number;
   summary?: string;
   factors?: string[];
   riskNote?: string;
+  tradeCycle?: {
+    startedAt: string;
+    endsAt: string;
+    anchorOpen: number | null;
+    secondsRemaining: number;
+    active: boolean;
+  } | null;
 };
 
 const TAPE_REGIME_LABEL: Record<TapeRegime, string> = {
@@ -58,6 +66,13 @@ function isDirectional(d: string | undefined): d is "Up" | "Down" {
   return d === "Up" || d === "Down";
 }
 
+function formatCountdownMs(remainingMs: number): string {
+  const sec = Math.max(0, Math.ceil(remainingMs / 1000));
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 export default function NovaPolymarketFiveMinsPanel() {
   const [symbol, setSymbol] = useState("BTC");
   const [horizonMinutes, setHorizonMinutes] = useState<NovaFiveMinsHorizonMinutes>(5);
@@ -75,7 +90,18 @@ export default function NovaPolymarketFiveMinsPanel() {
   const [monitorAlert, setMonitorAlert] = useState<string | null>(null);
   const lastDirectionalRef = useRef<{ direction: "Up" | "Down"; confidencePct: number } | null>(null);
 
-  const runAnalyze = useCallback(async (): Promise<AnalyzeJson | null> => {
+  const [cycleStartMs, setCycleStartMs] = useState<number | null>(null);
+  const [cycleEndMs, setCycleEndMs] = useState<number | null>(null);
+  const [cycleAutoRefresh, setCycleAutoRefresh] = useState(true);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  const clearTradeCycle = useCallback(() => {
+    setCycleStartMs(null);
+    setCycleEndMs(null);
+  }, []);
+
+  const runAnalyze = useCallback(
+    async (explicitTradeCycle?: { startedAt: string; endsAt: string }): Promise<AnalyzeJson | null> => {
     const s = symbol.trim();
     if (!s) {
       setError("Enter a symbol (e.g. BTC).");
@@ -84,10 +110,21 @@ export default function NovaPolymarketFiveMinsPanel() {
     setLoading(true);
     setError(null);
     try {
+      const now = Date.now();
+      const fromState =
+        cycleStartMs != null && cycleEndMs != null && now < cycleEndMs + 60_000
+          ? { startedAt: new Date(cycleStartMs).toISOString(), endsAt: new Date(cycleEndMs).toISOString() }
+          : undefined;
+      const tradeCyclePayload = explicitTradeCycle ?? fromState;
+
       const res = await fetch("/api/polymarket-five-mins/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol: s, horizonMinutes }),
+        body: JSON.stringify({
+          symbol: s,
+          horizonMinutes,
+          ...(tradeCyclePayload ? { tradeCycle: tradeCyclePayload } : {}),
+        }),
       });
       const data = (await res.json()) as AnalyzeJson;
       if (!res.ok) {
@@ -112,7 +149,47 @@ export default function NovaPolymarketFiveMinsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [symbol, horizonMinutes]);
+  },
+  [symbol, horizonMinutes, cycleStartMs, cycleEndMs]);
+
+  const startTradeCycle = useCallback(async () => {
+    const start = Date.now();
+    const end = start + 5 * 60 * 1000;
+    setCycleStartMs(start);
+    setCycleEndMs(end);
+    setHorizonMinutes(5);
+    await runAnalyze({
+      startedAt: new Date(start).toISOString(),
+      endsAt: new Date(end).toISOString(),
+    });
+  }, [runAnalyze]);
+
+  useEffect(() => {
+    if (cycleEndMs == null) return;
+    const id = window.setInterval(() => {
+      const t = Date.now();
+      setNowTick(t);
+      if (t >= cycleEndMs) {
+        setCycleStartMs(null);
+        setCycleEndMs(null);
+      }
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [cycleEndMs]);
+
+  useEffect(() => {
+    if (!cycleAutoRefresh || monitorOn) return;
+    if (cycleStartMs == null || cycleEndMs == null) return;
+    const id = window.setInterval(() => {
+      if (Date.now() >= cycleEndMs + 30_000) return;
+      void runAnalyze();
+    }, 25_000);
+    return () => window.clearInterval(id);
+  }, [cycleAutoRefresh, cycleStartMs, cycleEndMs, monitorOn, runAnalyze]);
+
+  useEffect(() => {
+    clearTradeCycle();
+  }, [symbol, clearTradeCycle]);
 
   const submitOwnerFeedback = async (outcome: "matched" | "missed" | "n_a") => {
     if (!result?.success || !result.canSubmitOwnerFeedback || !result.pair) return;
@@ -239,7 +316,8 @@ export default function NovaPolymarketFiveMinsPanel() {
               <select
                 value={horizonMinutes}
                 onChange={(e) => setHorizonMinutes(Number(e.target.value) as NovaFiveMinsHorizonMinutes)}
-                className="h-9 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                disabled={cycleEndMs != null && nowTick < cycleEndMs}
+                className="h-9 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm disabled:opacity-60"
               >
                 {NOVA_FIVE_MINS_HORIZONS.map((m) => (
                   <option key={m} value={m}>
@@ -262,6 +340,56 @@ export default function NovaPolymarketFiveMinsPanel() {
                 Polymarket crypto
               </a>
             </Button>
+          </div>
+
+          <div className="rounded-md border border-cyan-800/35 bg-cyan-950/20 dark:bg-cyan-950/30 p-3 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Clock className="h-4 w-4 text-cyan-400 shrink-0" aria-hidden />
+              <span className="text-xs font-semibold text-cyan-100">My 5 min trade cycle</span>
+              {cycleEndMs != null && nowTick < cycleEndMs && (
+                <Badge className="bg-cyan-600 text-white text-[10px]">Live</Badge>
+              )}
+            </div>
+            <p className="text-[10px] text-cyan-100/85 leading-relaxed">
+              Tap <strong>Start</strong> right after you enter a trade. Nova fixes a <strong>5:00</strong> clock, anchors &quot;price to beat&quot; to
+              the 1m candle open at that moment on the Binance feed, and sends <strong>deeper</strong> path + anchor stats to the model (still not
+              Polymarket&apos;s Chainlink clock). Optional auto-refresh keeps you updated without turning on the AI monitor.
+            </p>
+            {cycleEndMs != null && (
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-mono text-lg font-semibold text-cyan-50 tabular-nums">
+                  {nowTick < cycleEndMs ? formatCountdownMs(cycleEndMs - nowTick) : "0:00"}
+                </span>
+                {cycleEndMs != null && nowTick < cycleEndMs && (
+                  <label className="inline-flex items-center gap-2 text-[11px] text-cyan-100/90 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={cycleAutoRefresh}
+                      onChange={(e) => setCycleAutoRefresh(e.target.checked)}
+                      className="rounded border-cyan-600"
+                    />
+                    Auto-refresh Nova (~25s)
+                  </label>
+                )}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {cycleEndMs == null || nowTick >= cycleEndMs ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-9 bg-cyan-700 hover:bg-cyan-600 text-white"
+                  disabled={loading}
+                  onClick={() => void startTradeCycle()}
+                >
+                  Start 5 min cycle
+                </Button>
+              ) : (
+                <Button type="button" size="sm" variant="outline" className="h-9 border-cyan-600 text-cyan-100" onClick={clearTradeCycle}>
+                  End cycle early
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 space-y-2 bg-zinc-50/50 dark:bg-zinc-900/40">
@@ -354,6 +482,9 @@ export default function NovaPolymarketFiveMinsPanel() {
                 <Badge variant="secondary" className="text-[10px]">
                   {hz}m horizon
                 </Badge>
+                {result.tradeCycle && (
+                  <Badge className="bg-cyan-800/80 text-white text-[10px]">Trade cycle — deep read</Badge>
+                )}
                 {result.lastClose != null && Number.isFinite(result.lastClose) && (
                   <span className="text-xs text-muted-foreground">Spot last close ≈ {result.lastClose.toLocaleString()}</span>
                 )}
@@ -383,8 +514,10 @@ export default function NovaPolymarketFiveMinsPanel() {
               )}
               {bench != null && Number.isFinite(bench) && (
                 <p className="text-[10px] text-muted-foreground">
-                  ~{hz}m reference (open of the 1m bar from ~{hz} minutes ago on this feed):{" "}
-                  {bench.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                  {result.tradeCycle
+                    ? "Your trade cycle anchor (1m open when you tapped Start, this feed only)"
+                    : `~${hz}m reference (open of the 1m bar from ~${hz} minutes ago on this feed)`}
+                  : {bench.toLocaleString(undefined, { maximumFractionDigits: 6 })}
                 </p>
               )}
               {result.direction === "Down" && (
@@ -431,6 +564,14 @@ export default function NovaPolymarketFiveMinsPanel() {
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   Conviction {typeof result.confidencePct === "number" ? `${result.confidencePct}%` : "—"}
+                </span>
+                <span className="text-xs text-muted-foreground border-l border-zinc-600 pl-2 ml-1">
+                  Confidence score (model):{" "}
+                  <strong className="text-zinc-200 tabular-nums">
+                    {typeof (result.confidenceScore ?? result.confidencePct) === "number"
+                      ? `${Math.round(result.confidenceScore ?? result.confidencePct ?? 0)}/100`
+                      : "—"}
+                  </strong>
                 </span>
               </div>
               <p className="text-sm text-zinc-800 dark:text-zinc-200">{result.summary}</p>
