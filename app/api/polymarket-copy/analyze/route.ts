@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getPolymarketCopyBotAccess } from "@/lib/polymarket-copy-access";
+import { getPolymarketTrackerAccess } from "@/lib/polymarket-tracker-access";
 import {
   aggregateTradesStats,
   fetchPolymarketClosedPositions,
@@ -17,18 +17,14 @@ function isValidEvmAddress(addr: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(addr.trim());
 }
 
-/** GET — analyze any proxy wallet (read-only public API). VIP + copy-bot flag. */
+/** GET — analyze any proxy wallet (read-only public API). VIP Polymarket Pro access required. */
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const access = await getPolymarketCopyBotAccess(session);
+    const access = await getPolymarketTrackerAccess(session);
     if (!access.ok) {
       return NextResponse.json(
-        {
-          success: false,
-          error: access.error,
-          ...(access.copyBotDisabled ? { copyBotDisabled: true as const } : {}),
-        },
+        { success: false, error: access.error, disabled: access.disabled },
         { status: access.status }
       );
     }
