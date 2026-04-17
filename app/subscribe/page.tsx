@@ -14,6 +14,8 @@ function SubscribeContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const copy = (searchParams.get("copy") ?? "a").toLowerCase();
+  const isVariantB = copy === "b";
   const [loading, setLoading] = useState(true);
   const [paid, setPaid] = useState(false);
   const [subscriptionTier, setSubscriptionTier] = useState<"pro" | "vip" | null>(null);
@@ -244,14 +246,26 @@ function SubscribeContent() {
       </header>
 
       <main className="mx-auto max-w-4xl px-3 sm:px-4 py-6 sm:py-10">
+        <p className="inline-flex items-center rounded-full border border-cyan-200/70 dark:border-cyan-800/70 bg-cyan-50/70 dark:bg-cyan-950/40 px-3 py-1 text-[11px] font-medium text-cyan-700 dark:text-cyan-300 mb-3">
+          Conversion Copy {isVariantB ? "B" : "A"}
+        </p>
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Choose your plan</h1>
           <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-          NovaStaris gives you one platform to discover, analyze, and execute across meme coins, futures, and prediction markets.
-          <strong className="text-zinc-800 dark:text-zinc-200"> Pro</strong> is your high-speed analysis stack for Solana/BSC
-          plus futures context. <strong className="text-zinc-800 dark:text-zinc-200">VIP</strong> unlocks advanced
-          workflows including on-demand tools such as <strong className="text-zinc-800 dark:text-zinc-200">Nova Polymarket Pro</strong>,
-          <strong className="text-zinc-800 dark:text-zinc-200"> Nova Prop Firm Bot</strong>, and{" "}
-          <strong className="text-zinc-800 dark:text-zinc-200">Nova Ultimate</strong>. Pay by card or USDC (Solana).
+          {isVariantB ? (
+            <>
+              Build your edge with a plan that matches your speed. <strong className="text-zinc-800 dark:text-zinc-200">Pro</strong> gives you daily signal and execution structure;{" "}
+              <strong className="text-zinc-800 dark:text-zinc-200">VIP</strong> adds Nova Polymarket Pro and premium on-demand workflows for traders scaling into bigger opportunities.
+            </>
+          ) : (
+            <>
+              NovaStaris gives you one platform to discover, analyze, and execute across meme coins, futures, and prediction markets.
+              <strong className="text-zinc-800 dark:text-zinc-200"> Pro</strong> is your high-speed analysis stack for Solana/BSC
+              plus futures context. <strong className="text-zinc-800 dark:text-zinc-200">VIP</strong> unlocks advanced
+              workflows including on-demand tools such as <strong className="text-zinc-800 dark:text-zinc-200">Nova Polymarket Pro</strong>,
+              <strong className="text-zinc-800 dark:text-zinc-200"> Nova Prop Firm Bot</strong>, and{" "}
+              <strong className="text-zinc-800 dark:text-zinc-200">Nova Ultimate</strong>. Pay by card or USDC (Solana).
+            </>
+          )}
         </p>
         <div className="rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50/60 dark:bg-cyan-950/30 p-4 mb-6">
           <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Why traders upgrade</p>

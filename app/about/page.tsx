@@ -1,11 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, BarChart3, Activity, MessageCircle } from "lucide-react";
 
 export default function AboutPage() {
+  const searchParams = useSearchParams();
+  const copy = (searchParams.get("copy") ?? "a").toLowerCase();
+  const isVariantB = copy === "b";
+
+  const heroTitle = isVariantB
+    ? "Trade With Clarity. Execute With Conviction."
+    : "From Meme Coin Edge to Multi-Market Execution.";
+  const heroBody = isVariantB
+    ? "NovaStaris unifies Solana/BSC meme coin intelligence, futures workflow, and prediction-market radar so you can make faster, better-structured decisions under pressure."
+    : "NovaStaris started as a meme coin intelligence engine. Today it is a full multi-market decision platform for Solana + BSC meme coins, Crypto Futures, and prediction markets.";
+  const heroTail = isVariantB
+    ? "One platform for signal, structure, and speed."
+    : "One dashboard. One workflow. Faster conviction.";
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <header className="sticky top-0 z-10 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl">
@@ -22,19 +37,19 @@ export default function AboutPage() {
 
       <main className="mx-auto max-w-4xl px-3 sm:px-4 py-8 sm:py-12">
         <div className="text-center mb-12">
+          <p className="inline-flex items-center rounded-full border border-cyan-200/70 dark:border-cyan-800/70 bg-cyan-50/70 dark:bg-cyan-950/40 px-3 py-1 text-[11px] font-medium text-cyan-700 dark:text-cyan-300 mb-4">
+            NovaStaris Positioning {isVariantB ? "B" : "A"}
+          </p>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-cyan-400 via-violet-400 to-blue-500 bg-clip-text text-transparent">
             About NovaStaris
           </h1>
             <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-              NovaStaris started as a meme coin intelligence engine. Today it is a full{" "}
-              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">multi-market decision platform</strong>{" "}
-              for <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Solana + BSC meme coins</strong>,{" "}
-              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">Crypto Futures</strong>, and{" "}
-              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">prediction markets</strong>. Use{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">{heroTitle}</strong>{" "}
+              {heroBody} Use{" "}
               <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Agent</strong> for fast contract
               analysis, <strong className="text-cyan-600 dark:text-cyan-400">Crypto Futures</strong> tooling for
               execution framing, and <strong className="text-cyan-600 dark:text-cyan-400">Nova Polymarket Pro</strong>{" "}
-              for wallet intelligence and radar-driven market context. One dashboard. One workflow. Faster conviction.
+              for wallet intelligence and radar-driven market context. {heroTail}
             </p>
             <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto">
               Built for traders who want to act before the crowd, not react after the move.
