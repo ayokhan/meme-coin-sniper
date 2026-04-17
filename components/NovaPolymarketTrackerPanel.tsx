@@ -136,31 +136,61 @@ function formatEndDateLocal(iso: string | undefined): string | null {
   return d.toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
 }
 
+/** Whether a trade row plausibly refers to the same market/outcome as an open position row. */
+function tapeMatchesPosition(p: PositionRow, t: TradeRow): boolean {
+  const pSlug = typeof p.slug === "string" ? p.slug.trim() : "";
+  const pTitle = (p.title ?? "").trim().toLowerCase();
+  const pOut = (p.outcome ?? "").trim().toLowerCase();
+  const tOut = (t.outcome ?? "").trim().toLowerCase();
+  if (pOut && tOut && tOut !== pOut) return false;
+  if (pSlug) {
+    const ts = typeof t.slug === "string" ? t.slug.trim() : "";
+    if (ts && ts === pSlug) return true;
+    if (ts) return false;
+  }
+  const tTitle = (t.title ?? "").trim().toLowerCase();
+  return !!pTitle && !!tTitle && tTitle === pTitle;
+}
+
 /**
  * Earliest BUY in the loaded trade tape that matches this position (slug preferred, else exact title + outcome).
  * Approximate: older fills may be missing until you use "Load older fills".
  */
 function approxFirstBuyFromTape(p: PositionRow, tape: TradeRow[]): number | null {
-  const pSlug = typeof p.slug === "string" ? p.slug.trim() : "";
-  const pTitle = (p.title ?? "").trim().toLowerCase();
-  const pOut = (p.outcome ?? "").trim().toLowerCase();
-  const buys = tape.filter((t) => {
-    if (String(t.side ?? "").toUpperCase() !== "BUY") return false;
-    const tOut = (t.outcome ?? "").trim().toLowerCase();
-    if (pOut && tOut && tOut !== pOut) return false;
-    if (pSlug) {
-      const ts = typeof t.slug === "string" ? t.slug.trim() : "";
-      if (ts && ts === pSlug) return true;
-      if (ts) return false;
-    }
-    const tTitle = (t.title ?? "").trim().toLowerCase();
-    return !!pTitle && !!tTitle && tTitle === pTitle;
-  });
-  const times = buys
+  const times = tape
+    .filter((t) => tapeMatchesPosition(p, t) && String(t.side ?? "").toUpperCase() === "BUY")
     .map((t) => tradeTimestampToMs(t.timestamp))
     .filter((x): x is number => x != null && x > 0);
   if (!times.length) return null;
   return Math.min(...times);
+}
+
+/** Latest BUY or SELL in the loaded tape for this market (best proxy for “most recently traded” here). */
+function approxLastTapeActivityMs(p: PositionRow, tape: TradeRow[]): number | null {
+  const times = tape
+    .filter((t) => tapeMatchesPosition(p, t))
+    .map((t) => tradeTimestampToMs(t.timestamp))
+    .filter((x): x is number => x != null && x > 0);
+  if (!times.length) return null;
+  return Math.max(...times);
+}
+
+function endDateMs(iso: string | undefined): number | null {
+  if (!iso?.trim()) return null;
+  const t = new Date(iso.trim()).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+function startOfLocalDayMs(d = new Date()): number {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x.getTime();
+}
+
+function endOfLocalDayMs(d = new Date()): number {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x.getTime();
 }
 
 export default function NovaPolymarketTrackerPanel() {
@@ -185,6 +215,8 @@ export default function NovaPolymarketTrackerPanel() {
   const [activitySilentRefresh, setActivitySilentRefresh] = useState(false);
   const [activityError, setActivityError] = useState<string | null>(null);
   const [activityTab, setActivityTab] = useState<"positions" | "closed" | "trades">("positions");
+  const [positionSortMode, setPositionSortMode] = useState<"api" | "recent_tape" | "end_soon" | "end_late">("api");
+  const [positionsTodayOnly, setPositionsTodayOnly] = useState(false);
   const [trades, setTrades] = useState<TradeRow[]>([]);
   const [positions, setPositions] = useState<PositionRow[]>([]);
   const [closedPositions, setClosedPositions] = useState<ClosedRow[]>([]);
@@ -291,6 +323,46 @@ export default function NovaPolymarketTrackerPanel() {
     }, autoRefreshMs);
     return () => window.clearInterval(id);
   }, [autoRefreshMs, fetchList, loadActivityForAddress]);
+
+  const sortedPositions = useMemo(() => {
+    let list = [...positions];
+    if (positionSortMode === "recent_tape") {
+      list.sort((a, b) => {
+        const ta = approxLastTapeActivityMs(a, trades) ?? -1;
+        const tb = approxLastTapeActivityMs(b, trades) ?? -1;
+        return tb - ta;
+      });
+    } else if (positionSortMode === "end_soon") {
+      list.sort((a, b) => {
+        const ea = endDateMs(a.endDate);
+        const eb = endDateMs(b.endDate);
+        if (ea == null && eb == null) return 0;
+        if (ea == null) return 1;
+        if (eb == null) return -1;
+        return ea - eb;
+      });
+    } else if (positionSortMode === "end_late") {
+      list.sort((a, b) => {
+        const ea = endDateMs(a.endDate);
+        const eb = endDateMs(b.endDate);
+        if (ea == null && eb == null) return 0;
+        if (ea == null) return 1;
+        if (eb == null) return -1;
+        return eb - ea;
+      });
+    }
+
+    if (positionsTodayOnly) {
+      const day0 = startOfLocalDayMs();
+      const day1 = endOfLocalDayMs();
+      list = list.filter((p) => {
+        const t = approxLastTapeActivityMs(p, trades);
+        return t != null && t >= day0 && t <= day1;
+      });
+    }
+
+    return list;
+  }, [positions, trades, positionSortMode, positionsTodayOnly]);
 
   const sortedTraders = useMemo(() => {
     const fav = favorites;
@@ -635,15 +707,53 @@ export default function NovaPolymarketTrackerPanel() {
                                         from the trade tape you have loaded (use <strong className="text-zinc-700 dark:text-zinc-300">Load older fills</strong>{" "}
                                         for deeper history).
                                       </p>
+                                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                                        <label className="text-muted-foreground shrink-0">Sort positions</label>
+                                        <select
+                                          value={positionSortMode}
+                                          onChange={(e) =>
+                                            setPositionSortMode(e.target.value as "api" | "recent_tape" | "end_soon" | "end_late")
+                                          }
+                                          className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-zinc-900 dark:text-zinc-100 max-w-[min(100%,16rem)]"
+                                        >
+                                          <option value="api">API order</option>
+                                          <option value="recent_tape">Most recent in trade tape</option>
+                                          <option value="end_soon">Market end (soonest first)</option>
+                                          <option value="end_late">Market end (latest first)</option>
+                                        </select>
+                                        <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                          <input
+                                            type="checkbox"
+                                            checked={positionsTodayOnly}
+                                            onChange={(e) => setPositionsTodayOnly(e.target.checked)}
+                                            className="rounded border-zinc-400"
+                                          />
+                                          <span className="text-muted-foreground">Tape activity today (local)</span>
+                                        </label>
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground leading-snug">
+                                        &quot;Most recent&quot; and &quot;Tape activity today&quot; use the latest BUY or SELL time in the{" "}
+                                        <strong className="text-zinc-700 dark:text-zinc-300">currently loaded</strong> tape (up to your fetch limit). Load
+                                        older fills if something is missing.
+                                      </p>
                                       <ul className="space-y-1 max-h-72 overflow-y-auto text-left">
                                         {positions.length === 0 ? (
                                           <li className="text-muted-foreground">No open positions (or below API size threshold).</li>
+                                        ) : sortedPositions.length === 0 ? (
+                                          <li className="text-muted-foreground">
+                                            No positions match &quot;Tape activity today&quot; in the loaded history—try turning the filter off or load
+                                            older fills.
+                                          </li>
                                         ) : (
-                                          positions.map((p, i) => {
+                                          sortedPositions.map((p, i) => {
                                             const marketEnd = formatEndDateLocal(p.endDate);
                                             const firstBuyMs = approxFirstBuyFromTape(p, trades);
+                                            const lastTapeMs = approxLastTapeActivityMs(p, trades);
                                             return (
-                                              <li key={i} className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-2">
+                                              <li
+                                                key={`${p.slug ?? "s"}-${(p.outcome ?? "").slice(0, 48)}-${i}`}
+                                                className="border-b border-zinc-200/60 dark:border-zinc-700/60 pb-2"
+                                              >
                                                 <span className="text-zinc-800 dark:text-zinc-200 font-medium">{p.title ?? "—"}</span>
                                                 {p.outcome != null && <span className="text-muted-foreground"> — {p.outcome}</span>}
                                                 <span className="block text-muted-foreground tabular-nums mt-0.5">
@@ -662,6 +772,12 @@ export default function NovaPolymarketTrackerPanel() {
                                                     <span className="block">
                                                       Earliest BUY in loaded tape (local):{" "}
                                                       <span className="tabular-nums text-zinc-700 dark:text-zinc-300">{formatLocalDateTime(firstBuyMs)}</span>
+                                                    </span>
+                                                  )}
+                                                  {lastTapeMs != null && lastTapeMs !== firstBuyMs && (
+                                                    <span className="block">
+                                                      Latest fill in loaded tape (local):{" "}
+                                                      <span className="tabular-nums text-zinc-700 dark:text-zinc-300">{formatLocalDateTime(lastTapeMs)}</span>
                                                     </span>
                                                   )}
                                                   {!marketEnd && firstBuyMs == null && (
