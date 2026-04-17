@@ -149,6 +149,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, eligible VIP users see the Leaderboard subtab under Nova Polymarket Pro (trader rankings + biggest wins from Polymarket’s public data API). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
   },
+  nova_polymarket_five_mins: {
+    label: "Nova 5 mins (Polymarket Pro)",
+    description:
+      "When ON, eligible VIP users see the Nova 5 mins subtab under Nova Polymarket Pro (short-horizon Up/Down-style AI context from spot candles + optional browser alerts on signal flips). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {

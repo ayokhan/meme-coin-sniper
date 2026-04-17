@@ -1,0 +1,25 @@
+import type { Session } from "next-auth";
+import { getPolymarketTrackerAccess } from "@/lib/polymarket-tracker-access";
+import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
+
+export type PolymarketFiveMinsAccessResult =
+  | { ok: true; userId: string; isOwner: boolean }
+  | { ok: false; status: number; error: string; disabled?: boolean; fiveMinsDisabled?: boolean };
+
+/**
+ * Same as Nova Polymarket Tracker access, plus admin flag {@link FEATURE_FLAG_KEYS.NOVA_POLYMARKET_FIVE_MINS}.
+ */
+export async function getPolymarketFiveMinsAccess(session: Session | null): Promise<PolymarketFiveMinsAccessResult> {
+  const base = await getPolymarketTrackerAccess(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_POLYMARKET_FIVE_MINS);
+  if (!on) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Nova 5 mins is disabled by admin.",
+      fiveMinsDisabled: true,
+    };
+  }
+  return { ok: true, userId: base.userId, isOwner: base.isOwner };
+}
