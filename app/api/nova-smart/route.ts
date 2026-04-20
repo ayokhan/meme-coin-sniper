@@ -151,6 +151,57 @@ function applyTrendlineFilter(
   return base;
 }
 
+function suggestTrendlineEntry(
+  smartShort: number,
+  smartLong: number,
+  currentPrice: number | null,
+  tfData: Array<{
+    id: string;
+    direction: "bullish" | "bearish" | "sideways";
+    trendlineBias: "up" | "down" | "flat";
+  }>
+): {
+  trendlineEntryLong: number | null;
+  trendlineEntryShort: number | null;
+  trendlineEntryNote: string;
+} {
+  const validPrice = currentPrice != null && Number.isFinite(currentPrice) && currentPrice > 0 ? currentPrice : null;
+  const bulls = tfData.filter((t) => t.direction === "bullish").length;
+  const bears = tfData.filter((t) => t.direction === "bearish").length;
+  const pref = tfData.find((t) => t.id === "1h") ?? tfData[0];
+  const prefBias = pref?.trendlineBias ?? "flat";
+  const lean = bulls > bears ? "bullish" : bears > bulls ? "bearish" : "mixed";
+  const anchor = validPrice ?? (smartShort + smartLong) / 2;
+
+  if (lean === "bullish" || prefBias === "up") {
+    const trendlineEntryLong = Math.max(smartLong, anchor * 0.9965);
+    const trendlineEntryShort = smartShort;
+    return {
+      trendlineEntryLong,
+      trendlineEntryShort,
+      trendlineEntryNote:
+        `Trendline entry bias: long. Prefer pullback entries near $${trendlineEntryLong.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}; treat shorts near $${trendlineEntryShort.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })} as counter-trend scalps unless momentum flips.`,
+    };
+  }
+  if (lean === "bearish" || prefBias === "down") {
+    const trendlineEntryShort = Math.min(smartShort, anchor * 1.0035);
+    const trendlineEntryLong = smartLong;
+    return {
+      trendlineEntryLong,
+      trendlineEntryShort,
+      trendlineEntryNote:
+        `Trendline entry bias: short. Prefer rally/retest entries near $${trendlineEntryShort.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}; treat longs near $${trendlineEntryLong.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })} as counter-trend bounces unless structure turns up.`,
+    };
+  }
+
+  return {
+    trendlineEntryLong: null,
+    trendlineEntryShort: null,
+    trendlineEntryNote:
+      `Trendline entry bias: mixed/flat. Wait for reclaim above ~$${smartShort.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })} (long trigger) or breakdown below ~$${smartLong.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })} (short trigger).`,
+  };
+}
+
 /** Suggest entry/exit levels from strategy and smart levels. */
 function suggestEntryExit(
   smartShort: number,
@@ -216,6 +267,9 @@ export type NovaSmartResult = {
   suggestedShortEntry: number;
   suggestedShortExit: number;
   entryExitNote: string;
+  trendlineEntryLong: number | null;
+  trendlineEntryShort: number | null;
+  trendlineEntryNote: string;
   recommendedDirection: "long" | "short" | "neutral";
   recommendationNote: string;
 };
@@ -319,6 +373,9 @@ export async function POST(request: Request) {
             suggestedShortEntry: 0,
             suggestedShortExit: 0,
             entryExitNote: "",
+            trendlineEntryLong: null,
+            trendlineEntryShort: null,
+            trendlineEntryNote: "No trendline entry read—insufficient candle data.",
             recommendedDirection: "neutral",
             recommendationNote: "No candle data—run again with different timeframes or symbol.",
           });
@@ -329,6 +386,7 @@ export async function POST(request: Request) {
         const smartLongEntry = Math.min(...tfData.map((t) => t.low));
         const { strategy, note } = deriveStrategy(tfData, currentPrice);
         const entryExit = suggestEntryExit(smartShortEntry, smartLongEntry, currentPrice, strategy);
+        const trendlineEntry = suggestTrendlineEntry(smartShortEntry, smartLongEntry, currentPrice, tfData);
         const { direction: recommendedDirection, recommendationNote } = getRecommendedDirection(
           smartShortEntry,
           smartLongEntry,
@@ -354,6 +412,7 @@ export async function POST(request: Request) {
           strategy,
           strategyNote: note,
           ...entryExit,
+          ...trendlineEntry,
           recommendedDirection,
           recommendationNote,
         });
@@ -371,6 +430,9 @@ export async function POST(request: Request) {
           suggestedShortEntry: 0,
           suggestedShortExit: 0,
           entryExitNote: "",
+          trendlineEntryLong: null,
+          trendlineEntryShort: null,
+          trendlineEntryNote: "No trendline entry read available.",
           recommendedDirection: "neutral",
           recommendationNote: "Could not load data for this symbol.",
         });

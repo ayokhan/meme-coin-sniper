@@ -891,8 +891,35 @@ export default function Dashboard() {
   const [novaForecastRange, setNovaForecastRange] = useState<string>("2w");
   const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
   const [novaForecastSubTab, setNovaForecastSubTab] = useState<"agent" | "nova-smart" | "nova-q" | "nova-radar">("agent");
-  type NovaSmartTfResult = { id: string; label: string; high: number; low: number };
-  type NovaSmartResult = { symbol: string; timeframes: NovaSmartTfResult[]; smartShortEntry: number; smartLongEntry: number; currentPrice: number | null; strategy: "scalp" | "swing" | "mixed"; strategyNote: string; suggestedLongEntry: number; suggestedLongExit: number; suggestedShortEntry: number; suggestedShortExit: number; entryExitNote: string; recommendedDirection: "long" | "short" | "neutral"; recommendationNote: string };
+  type NovaSmartTfResult = {
+    id: string;
+    label: string;
+    high: number;
+    low: number;
+    structureDirection: "bullish" | "bearish" | "sideways";
+    trendlineBias: "up" | "down" | "flat";
+    direction: "bullish" | "bearish" | "sideways";
+    trendlineRead: string;
+  };
+  type NovaSmartResult = {
+    symbol: string;
+    timeframes: NovaSmartTfResult[];
+    smartShortEntry: number;
+    smartLongEntry: number;
+    currentPrice: number | null;
+    strategy: "scalp" | "swing" | "mixed";
+    strategyNote: string;
+    suggestedLongEntry: number;
+    suggestedLongExit: number;
+    suggestedShortEntry: number;
+    suggestedShortExit: number;
+    entryExitNote: string;
+    trendlineEntryLong: number | null;
+    trendlineEntryShort: number | null;
+    trendlineEntryNote: string;
+    recommendedDirection: "long" | "short" | "neutral";
+    recommendationNote: string;
+  };
   const [novaSmartTimeframes, setNovaSmartTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
   const [novaSmartCustomSymbol, setNovaSmartCustomSymbol] = useState("");
   const [novaSmartResults, setNovaSmartResults] = useState<NovaSmartResult[]>([]);
@@ -6273,6 +6300,16 @@ export default function Dashboard() {
                                     <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
                                       <div><span className="text-muted-foreground">Long:</span> entry ${r.suggestedLongEntry > 0 ? r.suggestedLongEntry.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"} → exit ${r.suggestedLongExit > 0 ? r.suggestedLongExit.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"}</div>
                                       <div><span className="text-muted-foreground">Short:</span> entry ${r.suggestedShortEntry > 0 ? r.suggestedShortEntry.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"} → exit ${r.suggestedShortExit > 0 ? r.suggestedShortExit.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—"}</div>
+                                    </div>
+                                  </div>
+                                )}
+                                {r.trendlineEntryNote && (
+                                  <div className="rounded-md bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 p-2">
+                                    <span className="text-xs font-medium text-cyan-800 dark:text-cyan-200 block mb-1">Trendline entry guide</span>
+                                    <p className="text-xs text-cyan-700 dark:text-cyan-300">{r.trendlineEntryNote}</p>
+                                    <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                                      <div><span className="text-muted-foreground">Trendline long entry:</span> {r.trendlineEntryLong != null ? `$${r.trendlineEntryLong.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}` : "—"}</div>
+                                      <div><span className="text-muted-foreground">Trendline short entry:</span> {r.trendlineEntryShort != null ? `$${r.trendlineEntryShort.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}` : "—"}</div>
                                     </div>
                                   </div>
                                 )}
