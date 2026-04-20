@@ -6262,6 +6262,9 @@ export default function Dashboard() {
                       {novaSmartResults.length > 0 && (
                         <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                           {novaSmartResults.map((r, idx) => {
+                            const bulls = r.timeframes.filter((t) => t.direction === "bullish").length;
+                            const bears = r.timeframes.filter((t) => t.direction === "bearish").length;
+                            const blendedDirection = bulls > bears ? "bullish" : bears > bulls ? "bearish" : "mixed";
                             const confidenceClass =
                               r.trendlineConfidence === "high"
                                 ? "border-emerald-300/70 dark:border-emerald-800/70"
@@ -6291,6 +6294,24 @@ export default function Dashboard() {
                                     <span className="text-muted-foreground">Strategy</span>
                                     <p><Badge variant={r.strategy === "scalp" ? "default" : r.strategy === "swing" ? "secondary" : "outline"} className="capitalize">{r.strategy}</Badge></p>
                                   </div>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-xs text-muted-foreground">Direction:</span>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      blendedDirection === "bullish"
+                                        ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
+                                        : blendedDirection === "bearish"
+                                          ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
+                                          : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
+                                    }
+                                  >
+                                    {blendedDirection}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    ({bulls} bullish / {bears} bearish across {r.timeframes.length} timeframe{r.timeframes.length === 1 ? "" : "s"})
+                                  </span>
                                 </div>
                                 {r.timeframes.length > 0 && (
                                   <div>
