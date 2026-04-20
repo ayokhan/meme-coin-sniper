@@ -926,6 +926,48 @@ export default function Dashboard() {
   const [novaQResult, setNovaQResult] = useState<NovaQResult | null>(null);
   const [novaQLoading, setNovaQLoading] = useState(false);
   const [novaQError, setNovaQError] = useState<string | null>(null);
+  const novaQAlignment = useMemo(() => {
+    if (!novaQResult || !Array.isArray(novaQResult.timeframes) || novaQResult.timeframes.length === 0) return null;
+    const rows = novaQResult.timeframes;
+    const bull = rows.filter((r) => r.direction === "bullish").length;
+    const bear = rows.filter((r) => r.direction === "bearish").length;
+    const side = rows.length - bull - bear;
+    const tf1h = rows.find((r) => r.id === "1h")?.direction;
+    const tf4h = rows.find((r) => r.id === "4h")?.direction;
+    const directConflict =
+      tf1h != null &&
+      tf4h != null &&
+      ((tf1h === "bullish" && tf4h === "bearish") || (tf1h === "bearish" && tf4h === "bullish"));
+    if (directConflict || (bull > 0 && bear > 0)) {
+      return {
+        label: "Conflict (pullback zone)",
+        tone: "amber" as const,
+        note:
+          directConflict
+            ? "1h and 4h disagree, so this is likely a pullback/chop zone. Prefer smaller size or wait for alignment."
+            : `Mixed blended rows (${bull} bullish / ${bear} bearish / ${side} sideways). Prefer confirmation before committing size.`,
+      };
+    }
+    if (bull > 0 && bear === 0) {
+      return {
+        label: "Aligned bullish",
+        tone: "green" as const,
+        note: `Blended rows are aligned bullish (${bull} bullish / ${side} sideways). Long setups are higher quality while this holds.`,
+      };
+    }
+    if (bear > 0 && bull === 0) {
+      return {
+        label: "Aligned bearish",
+        tone: "red" as const,
+        note: `Blended rows are aligned bearish (${bear} bearish / ${side} sideways). Short setups are higher quality while this holds.`,
+      };
+    }
+    return {
+      label: "Range / wait",
+      tone: "zinc" as const,
+      note: "Most rows are sideways; wait for a cleaner break or timeframe alignment.",
+    };
+  }, [novaQResult]);
   type NovaRadarTf = { id: string; label: string; support: number; resistance: number; direction: "bullish" | "bearish" | "sideways" };
   type NovaRadarResult = {
     symbol: string;
@@ -6272,6 +6314,23 @@ export default function Dashboard() {
                               >
                                 Blended (vote): {novaQResult.marketDirection}
                               </Badge>
+                              {novaQAlignment ? (
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    novaQAlignment.tone === "green"
+                                      ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
+                                      : novaQAlignment.tone === "red"
+                                        ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
+                                        : novaQAlignment.tone === "amber"
+                                          ? "border-amber-500/60 text-amber-700 dark:text-amber-300"
+                                          : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
+                                  }
+                                  title={novaQAlignment.note}
+                                >
+                                  {novaQAlignment.label}
+                                </Badge>
+                              ) : null}
                             </div>
                             {novaQResult.overallTrendlineSummary?.trim() ? (
                               <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{novaQResult.overallTrendlineSummary}</p>
@@ -6282,6 +6341,9 @@ export default function Dashboard() {
                             <p className="mt-2 text-xs text-muted-foreground">
                               <span className="font-medium text-zinc-600 dark:text-zinc-400">Blended direction</span> votes structure+trendline per row, then aggregates. <span className="text-emerald-600 dark:text-emerald-400">Bullish</span> / <span className="text-rose-600 dark:text-rose-400">bearish</span> / <span className="text-zinc-600 dark:text-zinc-300">sideways</span> follow that combined read; hover trendline cells for the full regression sentence.
                             </p>
+                            {novaQAlignment?.note ? (
+                              <p className="mt-1 text-xs text-muted-foreground">{novaQAlignment.note}</p>
+                            ) : null}
                           </div>
                           {novaQResult.timeframes.length === 0 ? (
                             <p className="text-xs text-muted-foreground">No timeframe data returned. Try another symbol or timeframe mix.</p>
