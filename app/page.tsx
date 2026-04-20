@@ -860,6 +860,11 @@ export default function Dashboard() {
     label: string;
     support: number;
     resistance: number;
+    structureDirection: "bullish" | "bearish" | "sideways";
+    trendlineBias: "up" | "down" | "flat";
+    trendlineSlopePctWindow: number;
+    trendlineRead: string;
+    demandSupplyRead: string;
     direction: "bullish" | "bearish" | "sideways";
     supportTouches: number;
     resistanceTouches: number;
@@ -868,6 +873,7 @@ export default function Dashboard() {
     symbol: string;
     currentPrice: number | null;
     marketDirection: "bullish" | "bearish" | "sideways";
+    overallTrendlineSummary?: string;
     contractDescription?: string;
     timeframes: NovaQTfResult[];
   };
@@ -6094,8 +6100,8 @@ export default function Dashboard() {
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaQ (NovaIntelligence)</h2>
                       <p className="text-xs text-muted-foreground mb-4">
-                        Select timeframe(s), enter a contract symbol (for example BTC). Use <strong className="text-zinc-700 dark:text-zinc-300">XAU</strong> for Blofin gold perp (<span className="font-mono">XAU-USDT</span>); other symbols use Hyperliquid (gold there: <span className="font-mono">PAXG</span>). Then run NovaQ for support/resistance and direction from market structure.{" "}
-                        <strong className="text-zinc-700 dark:text-zinc-300">S/R touches</strong> count how many candles in that window wicked near the period low (support) or period high (resistance)—handy for gauging how often those edges traded.
+                        Select timeframe(s), enter a contract symbol (for example BTC). Use <strong className="text-zinc-700 dark:text-zinc-300">XAU</strong> for Blofin gold perp (<span className="font-mono">XAU-USDT</span>); other symbols use Hyperliquid (gold there: <span className="font-mono">PAXG</span>). NovaQ reports support/resistance, a half-window <strong className="text-zinc-700 dark:text-zinc-300">structure</strong> read from closes, a least-squares <strong className="text-zinc-700 dark:text-zinc-300">close regression</strong> as a trendline-style bias (not hand-drawn chart lines), retest counts as a demand/supply proxy, and a <strong className="text-zinc-700 dark:text-zinc-300">blended direction</strong> when structure and trendline agree (chop when they fight).{" "}
+                        <strong className="text-zinc-700 dark:text-zinc-300">S/R touches</strong> count how many candles in that window wicked near the period low (support) or period high (resistance).
                       </p>
                       <div className="flex flex-wrap items-center gap-4 mb-4">
                         <div className="flex flex-wrap items-center gap-2">
@@ -6154,14 +6160,17 @@ export default function Dashboard() {
                                       : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
                                 }
                               >
-                                Market direction: {novaQResult.marketDirection}
+                                Blended (vote): {novaQResult.marketDirection}
                               </Badge>
                             </div>
+                            {novaQResult.overallTrendlineSummary?.trim() ? (
+                              <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{novaQResult.overallTrendlineSummary}</p>
+                            ) : null}
                             {novaQResult.contractDescription?.trim() ? (
                               <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{novaQResult.contractDescription}</p>
                             ) : null}
                             <p className="mt-2 text-xs text-muted-foreground">
-                              Direction guide: <span className="text-emerald-600 dark:text-emerald-400">bullish</span> means closes trend higher across selected timeframes, <span className="text-rose-600 dark:text-rose-400">bearish</span> means closes trend lower, and <span className="text-zinc-600 dark:text-zinc-300">sideways</span> means mixed or flat structure.
+                              <span className="font-medium text-zinc-600 dark:text-zinc-400">Blended direction</span> votes structure+trendline per row, then aggregates. <span className="text-emerald-600 dark:text-emerald-400">Bullish</span> / <span className="text-rose-600 dark:text-rose-400">bearish</span> / <span className="text-zinc-600 dark:text-zinc-300">sideways</span> follow that combined read; hover trendline cells for the full regression sentence.
                             </p>
                           </div>
                           {novaQResult.timeframes.length === 0 ? (
@@ -6180,11 +6189,28 @@ export default function Dashboard() {
                                     <TableHead className="text-right text-xs" title="Bars in window with high near period resistance">
                                       R touches
                                     </TableHead>
-                                    <TableHead className="text-left text-xs">Direction</TableHead>
+                                    <TableHead className="text-left text-xs" title="Half-window average close drift">
+                                      Structure
+                                    </TableHead>
+                                    <TableHead className="text-left text-xs" title="Least-squares line through closes in window (trendline-style proxy)">
+                                      Trendline
+                                    </TableHead>
+                                    <TableHead className="text-left text-xs max-w-[200px]" title="Retest frequency near window low / high">
+                                      Demand / supply
+                                    </TableHead>
+                                    <TableHead className="text-left text-xs" title="Structure + trendline; disagreement → sideways">
+                                      Blended
+                                    </TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {novaQResult.timeframes.map((tf) => (
+                                  {novaQResult.timeframes.map((tf) => {
+                                    const struct = tf.structureDirection ?? tf.direction;
+                                    const tlBias = tf.trendlineBias ?? "flat";
+                                    const tlSlope = typeof tf.trendlineSlopePctWindow === "number" ? tf.trendlineSlopePctWindow : null;
+                                    const tlRead = tf.trendlineRead ?? "";
+                                    const ds = tf.demandSupplyRead ?? "";
+                                    return (
                                     <TableRow key={`nova-q-row-${tf.id}`}>
                                       <TableCell className="text-xs font-medium">{tf.label}</TableCell>
                                       <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">${tf.support.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
@@ -6196,12 +6222,38 @@ export default function Dashboard() {
                                         {typeof tf.resistanceTouches === "number" ? tf.resistanceTouches : "—"}
                                       </TableCell>
                                       <TableCell className="text-xs">
+                                        <Badge variant="outline" className={struct === "bullish" ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300" : struct === "bearish" ? "border-rose-500/60 text-rose-700 dark:text-rose-300" : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"}>
+                                          {struct}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="text-xs align-top" title={tlRead || undefined}>
+                                        <div className="flex flex-col gap-0.5">
+                                          <Badge
+                                            variant="outline"
+                                            className={
+                                              tlBias === "up"
+                                                ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300 w-fit"
+                                                : tlBias === "down"
+                                                  ? "border-rose-500/60 text-rose-700 dark:text-rose-300 w-fit"
+                                                  : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300 w-fit"
+                                            }
+                                          >
+                                            {tlBias === "up" ? "up" : tlBias === "down" ? "down" : "flat"}
+                                            {tlSlope != null ? ` · ${tlSlope >= 0 ? "+" : ""}${tlSlope.toFixed(2)}%` : ""}
+                                          </Badge>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-xs text-zinc-600 dark:text-zinc-400 max-w-[220px] truncate align-top" title={ds || undefined}>
+                                        {ds || "—"}
+                                      </TableCell>
+                                      <TableCell className="text-xs">
                                         <Badge variant="outline" className={tf.direction === "bullish" ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300" : tf.direction === "bearish" ? "border-rose-500/60 text-rose-700 dark:text-rose-300" : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"}>
                                           {tf.direction}
                                         </Badge>
                                       </TableCell>
                                     </TableRow>
-                                  ))}
+                                    );
+                                  })}
                                 </TableBody>
                               </Table>
                             </div>

@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles as getHlCandles, getPerpSpecFromMeta, getTicker as getHlTicker, type HyperliquidPerpSpec } from "@/lib/hyperliquid";
 import { getCandles as getBlofinCandles, getTicker as getBlofinTicker, toBlofinBar } from "@/lib/blofin";
+import {
+  type CandleTuple,
+  combineStructureAndTrendline,
+  countSupportResistanceTouches,
+  demandSupplyRead,
+  highLowFromCandles,
+  overallTrendlineSummary,
+  structureDirectionFromCloses,
+  trendlineRegressionFromCloses,
+} from "@/lib/nova-q-analytics";
 
 /** Blofin lists gold as XAU-USDT; Hyperliquid has no XAU perp. */
 const BLOFIN_XAU_INST = "XAU-USDT";
@@ -38,71 +48,26 @@ const NOVA_Q_TIMEFRAMES = [
   { id: "104w", label: "104 weeks", interval: "1d", limit: 728 },
 ] as const;
 
-type CandleTuple = [string, string, string, string, string, ...string[]];
-
 type NovaQTfResult = {
   id: string;
   label: string;
   support: number;
   resistance: number;
+  /** Half-window average close drift (legacy NovaQ structure read). */
+  structureDirection: "bullish" | "bearish" | "sideways";
+  /** Least-squares regression through closes in the window (trendline-style proxy). */
+  trendlineBias: "up" | "down" | "flat";
+  trendlineSlopePctWindow: number;
+  trendlineRead: string;
+  /** Retest frequency near window low / high — demand/supply proxy. */
+  demandSupplyRead: string;
+  /** Structure + trendline combined; conflicts resolve to sideways. */
   direction: "bullish" | "bearish" | "sideways";
   /** Candles in the window whose low traded within tolerance of period support (min low). */
   supportTouches: number;
   /** Candles in the window whose high traded within tolerance of period resistance (max high). */
   resistanceTouches: number;
 };
-
-function highLowFromCandles(candles: CandleTuple[]): { high: number; low: number } | null {
-  if (!candles.length) return null;
-  const highs = candles.map((c) => Number(c[2])).filter((n) => Number.isFinite(n));
-  const lows = candles.map((c) => Number(c[3])).filter((n) => Number.isFinite(n));
-  if (highs.length === 0 || lows.length === 0) return null;
-  return { high: Math.max(...highs), low: Math.min(...lows) };
-}
-
-/** Count candles that trade near period support (min low) / resistance (max high)—useful for scalping frequency. */
-function countSupportResistanceTouches(
-  candles: CandleTuple[],
-  support: number,
-  resistance: number
-): { supportTouches: number; resistanceTouches: number } {
-  if (!candles.length || !Number.isFinite(support) || !Number.isFinite(resistance)) {
-    return { supportTouches: 0, resistanceTouches: 0 };
-  }
-  const range = resistance - support;
-  const mid = (resistance + support) / 2;
-  // Band: ~0.08% of mid or ~1.2% of range (whichever is larger), capped so huge ranges do not swallow everything.
-  const tol = Math.min(Math.max(mid * 0.0008, range * 0.012, 1e-12), Math.max(range * 0.2, mid * 0.002));
-  let supportTouches = 0;
-  let resistanceTouches = 0;
-  for (const c of candles) {
-    const hi = Number(c[2]);
-    const lo = Number(c[3]);
-    if (!Number.isFinite(hi) || !Number.isFinite(lo)) continue;
-    if (lo <= support + tol) supportTouches += 1;
-    if (hi >= resistance - tol) resistanceTouches += 1;
-  }
-  return { supportTouches, resistanceTouches };
-}
-
-function getTfDirection(candles: CandleTuple[]): "bullish" | "bearish" | "sideways" {
-  if (candles.length < 3) return "sideways";
-  const closesNewestFirst = candles.map((c) => Number(c[4])).filter((n) => Number.isFinite(n));
-  if (closesNewestFirst.length < 3) return "sideways";
-  const closes = [...closesNewestFirst].reverse();
-  const mid = Math.floor(closes.length / 2);
-  const first = closes.slice(0, mid);
-  const second = closes.slice(mid);
-  if (first.length === 0 || second.length === 0) return "sideways";
-  const avg = (arr: number[]) => arr.reduce((sum, n) => sum + n, 0) / arr.length;
-  const firstAvg = avg(first);
-  const secondAvg = avg(second);
-  if (!Number.isFinite(firstAvg) || !Number.isFinite(secondAvg) || firstAvg <= 0) return "sideways";
-  const pct = (secondAvg - firstAvg) / firstAvg;
-  if (pct > 0.0025) return "bullish";
-  if (pct < -0.0025) return "bearish";
-  return "sideways";
-}
 
 function normalizeSymbol(raw: string): string {
   const upper = raw.trim().toUpperCase();
@@ -175,19 +140,31 @@ export async function POST(request: Request) {
         const candles = useBlofinXau
           ? await getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar(tf.interval), tf.limit)
           : await getHlCandles(symbol, tf.interval, tf.limit);
-        const hl = highLowFromCandles(candles as CandleTuple[]);
+        const candleRows = candles as CandleTuple[];
+        const hl = highLowFromCandles(candleRows);
         if (!hl) continue;
-        const { supportTouches, resistanceTouches } = countSupportResistanceTouches(
-          candles as CandleTuple[],
-          hl.low,
-          hl.high
-        );
+        const { supportTouches, resistanceTouches } = countSupportResistanceTouches(candleRows, hl.low, hl.high);
+        const structureDirection = structureDirectionFromCloses(candleRows);
+        const tl =
+          trendlineRegressionFromCloses(candleRows) ?? {
+            bias: "flat" as const,
+            slopePctWindow: 0,
+            closeVsLinePct: 0,
+            read: "Too few candles in this window for regression trendline—pick a wider timeframe.",
+          };
+        const demand = demandSupplyRead(hl.low, hl.high, supportTouches, resistanceTouches);
+        const direction = combineStructureAndTrendline(structureDirection, tl.bias);
         tfResults.push({
           id: tf.id,
           label: tf.label,
           support: hl.low,
           resistance: hl.high,
-          direction: getTfDirection(candles as CandleTuple[]),
+          structureDirection,
+          trendlineBias: tl.bias,
+          trendlineSlopePctWindow: tl.slopePctWindow,
+          trendlineRead: tl.read,
+          demandSupplyRead: demand,
+          direction,
           supportTouches,
           resistanceTouches,
         });
@@ -199,6 +176,7 @@ export async function POST(request: Request) {
     const ticker = useBlofinXau ? await getBlofinTicker(BLOFIN_XAU_INST) : await getHlTicker(symbol);
     const currentPrice = ticker?.last ? Number(ticker.last) : null;
     const marketDirection = getOverallDirection(tfResults);
+    const overallTrendlineSummaryText = overallTrendlineSummary(tfResults);
 
     return NextResponse.json({
       success: true,
@@ -206,6 +184,7 @@ export async function POST(request: Request) {
         symbol,
         currentPrice,
         marketDirection,
+        overallTrendlineSummary: overallTrendlineSummaryText,
         contractDescription,
         timeframes: tfResults,
       },
