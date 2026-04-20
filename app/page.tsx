@@ -780,7 +780,32 @@ export default function Dashboard() {
       return bf - af;
     });
   }, [leverageFilteredTraders, leverageTraderFavoriteAddresses]);
-  type TrendingPerpRow = { coin: string; markPx: string; prevDayPx: string; dayPct: number; dayNtlVlm: string; openInterest: string; funding?: string; timeframePct?: number; pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number; pct4h?: number; pct48h?: number; pct72h?: number; pct1w?: number; pct2w?: number; pct3w?: number; pct4w?: number };
+  type TrendingPerpRow = {
+    coin: string;
+    markPx: string;
+    prevDayPx: string;
+    dayPct: number;
+    dayNtlVlm: string;
+    openInterest: string;
+    funding?: string;
+    timeframePct?: number;
+    pct5m?: number;
+    pct15m?: number;
+    pct30m?: number;
+    pct1h?: number;
+    pct4h?: number;
+    pct48h?: number;
+    pct72h?: number;
+    pct1w?: number;
+    pct2w?: number;
+    pct3w?: number;
+    pct4w?: number;
+    structureDirection?: "bullish" | "bearish" | "sideways";
+    trendlineBias?: "up" | "down" | "flat";
+    trendlineSlopePctWindow?: number;
+    trendlineRead?: string;
+    blendedDirection?: "bullish" | "bearish" | "sideways";
+  };
   const [trendingPerps, setTrendingPerps] = useState<TrendingPerpRow[]>([]);
   const [trendingPerpsLoading, setTrendingPerpsLoading] = useState(false);
   const [trendingPerpsTimeframe, setTrendingPerpsTimeframe] = useState<"24h" | "1h" | "30m" | "15m" | "5m">("24h");
@@ -827,7 +852,26 @@ export default function Dashboard() {
   type PerpAlertRow = { id: string; symbol: string | null; alertType: string; threshold: number | null; lastTriggeredAt: string | null; createdAt: string };
   const [perpAlertsList, setPerpAlertsList] = useState<PerpAlertRow[]>([]);
   const [perpAlertsLoading, setPerpAlertsLoading] = useState(false);
-  type PerpRadarItem = { exchange: string; symbol: string; base: string; quote: string; change24hPct: number; lastPrice: number; volume24h: number; quoteVolume24h: number; pct5m?: number; pct15m?: number; pct30m?: number; pct1h?: number; pct4h?: number };
+  type PerpRadarItem = {
+    exchange: string;
+    symbol: string;
+    base: string;
+    quote: string;
+    change24hPct: number;
+    lastPrice: number;
+    volume24h: number;
+    quoteVolume24h: number;
+    pct5m?: number;
+    pct15m?: number;
+    pct30m?: number;
+    pct1h?: number;
+    pct4h?: number;
+    structureDirection?: "bullish" | "bearish" | "sideways";
+    trendlineBias?: "up" | "down" | "flat";
+    trendlineSlopePctWindow?: number;
+    trendlineRead?: string;
+    blendedDirection?: "bullish" | "bearish" | "sideways";
+  };
   const [perpRadarItems, setPerpRadarItems] = useState<PerpRadarItem[]>([]);
   const [perpRadarLoading, setPerpRadarLoading] = useState(false);
   const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
@@ -1650,7 +1694,21 @@ export default function Dashboard() {
           const resEnrich = await fetch(`/api/perp-radar/enrich?bases=${encodeURIComponent(bases.join(","))}`, { cache: "no-store", credentials: "include" });
           const jsonEnrich = await resEnrich.json();
           if (jsonEnrich.success && jsonEnrich.data && typeof jsonEnrich.data === "object") {
-            const data = jsonEnrich.data as Record<string, { pct5m?: number | null; pct15m?: number | null; pct30m?: number | null; pct1h?: number | null; pct4h?: number | null }>;
+            const data = jsonEnrich.data as Record<
+              string,
+              {
+                pct5m?: number | null;
+                pct15m?: number | null;
+                pct30m?: number | null;
+                pct1h?: number | null;
+                pct4h?: number | null;
+                structureDirection?: "bullish" | "bearish" | "sideways";
+                trendlineBias?: "up" | "down" | "flat";
+                trendlineSlopePctWindow?: number;
+                trendlineRead?: string;
+                blendedDirection?: "bullish" | "bearish" | "sideways";
+              }
+            >;
             const merged = list.map((item) => {
               const d = data[item.base];
               if (!d) return item;
@@ -1661,6 +1719,11 @@ export default function Dashboard() {
                 pct30m: d.pct30m ?? undefined,
                 pct1h: d.pct1h ?? undefined,
                 pct4h: d.pct4h ?? undefined,
+                structureDirection: d.structureDirection,
+                trendlineBias: d.trendlineBias,
+                trendlineSlopePctWindow: d.trendlineSlopePctWindow,
+                trendlineRead: d.trendlineRead,
+                blendedDirection: d.blendedDirection,
               };
             });
             setPerpRadarItems(merged);
@@ -3690,6 +3753,7 @@ export default function Dashboard() {
                             <TableHead className="text-right text-xs">1h %</TableHead>
                             <TableHead className="text-right text-xs">4h %</TableHead>
                             <TableHead className="text-right text-xs">24h %</TableHead>
+                            <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">Trend</TableHead>
                             <TableHead className="text-center text-xs" title="Direction bias from short-window momentum + 24h trend">Direction</TableHead>
                             <TableHead className="text-right text-xs">Price</TableHead>
                             <TableHead className="text-right text-xs" title="24h quote volume">24h Vol</TableHead>
@@ -3775,10 +3839,13 @@ export default function Dashboard() {
                                 ((p.pct1h ?? 0) > 0 ? 1.5 : (p.pct1h ?? 0) < 0 ? -1.5 : 0) +
                                 ((p.pct4h ?? 0) > 0 ? 1 : (p.pct4h ?? 0) < 0 ? -1 : 0) +
                                 (p.change24hPct > 0 ? 1 : p.change24hPct < 0 ? -1 : 0);
-                              const directionLabel = directionScore >= 2 ? "Long bias" : directionScore <= -2 ? "Short bias" : "Sideways";
-                              const directionClass = directionScore >= 2
+                              const fallbackDirection = directionScore >= 2 ? "Long bias" : directionScore <= -2 ? "Short bias" : "Sideways";
+                              const blended = p.blendedDirection;
+                              const directionLabel =
+                                blended === "bullish" ? "Long bias" : blended === "bearish" ? "Short bias" : blended === "sideways" ? "Sideways" : fallbackDirection;
+                              const directionClass = (blended === "bullish" ? 1 : blended === "bearish" ? -1 : blended === "sideways" ? 0 : directionScore >= 2 ? 1 : directionScore <= -2 ? -1 : 0) > 0
                                 ? "text-emerald-600 dark:text-emerald-400"
-                                : directionScore <= -2
+                                : (blended === "bullish" ? 1 : blended === "bearish" ? -1 : blended === "sideways" ? 0 : directionScore >= 2 ? 1 : directionScore <= -2 ? -1 : 0) < 0
                                   ? "text-rose-600 dark:text-rose-400"
                                   : "text-zinc-500 dark:text-zinc-400";
                               const rowClass = surgeBull
@@ -3809,6 +3876,23 @@ export default function Dashboard() {
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct1h)}`}>{fmt(p.pct1h)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct4h)}`}>{fmt(p.pct4h)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.change24hPct)}`}>{fmt(p.change24hPct)}</TableCell>
+                                <TableCell className="text-center text-xs" title={p.trendlineRead || undefined}>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      p.trendlineBias === "up"
+                                        ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
+                                        : p.trendlineBias === "down"
+                                          ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
+                                          : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
+                                    }
+                                  >
+                                    {p.trendlineBias ?? "—"}
+                                    {typeof p.trendlineSlopePctWindow === "number"
+                                      ? ` ${p.trendlineSlopePctWindow >= 0 ? "+" : ""}${p.trendlineSlopePctWindow.toFixed(2)}%`
+                                      : ""}
+                                  </Badge>
+                                </TableCell>
                                 <TableCell className={`text-center text-xs font-medium ${directionClass}`}>{directionLabel}</TableCell>
                                 <TableCell className="text-right font-mono text-xs">${Number(p.lastPrice).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-right font-mono text-xs text-muted-foreground">${(p.quoteVolume24h / 1_000_000).toFixed(2)}M</TableCell>
@@ -3931,7 +4015,8 @@ export default function Dashboard() {
                             <TableHead className="text-right text-xs">1h %</TableHead>
                             <TableHead className="text-right text-xs">4h %</TableHead>
                             <TableHead className="text-right text-xs">24h %</TableHead>
-                            <TableHead className="text-center text-xs" title="Based on 24h % change: Long = price up over 24h, Short = price down. Past move, not a forecast.">Direction <span className="text-muted-foreground/70" title="Based on 24h % change. Past move, not a forecast.">ⓘ</span></TableHead>
+                            <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">Trend</TableHead>
+                            <TableHead className="text-center text-xs" title="Direction (blended when available, else 24h move): Long = price up, Short = price down.">Direction <span className="text-muted-foreground/70" title="Blended trend+structure when available; fallback uses 24h move.">ⓘ</span></TableHead>
                             <TableHead className="text-right text-xs" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">Funding <span className="text-muted-foreground/70" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">ⓘ</span></TableHead>
                             <TableHead className="text-right text-xs">Price</TableHead>
                             <TableHead className="text-right text-xs" title="Total notional volume (buys + sells) over 24h">24h Vol <span className="text-muted-foreground/70" title="Total notional volume (buys + sells)">ⓘ</span></TableHead>
@@ -3961,7 +4046,15 @@ export default function Dashboard() {
                             const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                             const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
                             const dirPct = p.dayPct;
-                            const direction = dirPct > 0 ? "Long" : dirPct < 0 ? "Short" : "—";
+                            const fallbackDirection = dirPct > 0 ? "Long" : dirPct < 0 ? "Short" : "—";
+                            const direction =
+                              p.blendedDirection === "bullish"
+                                ? "Long"
+                                : p.blendedDirection === "bearish"
+                                  ? "Short"
+                                  : p.blendedDirection === "sideways"
+                                    ? "Sideways"
+                                    : fallbackDirection;
                             const fundingNum = p.funding != null && p.funding !== "" ? Number(p.funding) * 100 : null;
                             const fundingStr = fundingNum == null ? "—" : (fundingNum >= 0 ? "+" : "") + fundingNum.toFixed(4) + "%";
                             const vol = Number(p.dayNtlVlm);
@@ -3990,7 +4083,24 @@ export default function Dashboard() {
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct1h)}`}>{fmt(p.pct1h)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct4h)}`}>{fmt(p.pct4h)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.dayPct)}`}>{fmt(p.dayPct)}</TableCell>
-                                <TableCell className={`text-center text-xs font-medium ${dirPct > 0 ? "text-emerald-600 dark:text-emerald-400" : dirPct < 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}>{direction}</TableCell>
+                                <TableCell className="text-center text-xs" title={p.trendlineRead || undefined}>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      p.trendlineBias === "up"
+                                        ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
+                                        : p.trendlineBias === "down"
+                                          ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
+                                          : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
+                                    }
+                                  >
+                                    {p.trendlineBias ?? "—"}
+                                    {typeof p.trendlineSlopePctWindow === "number"
+                                      ? ` ${p.trendlineSlopePctWindow >= 0 ? "+" : ""}${p.trendlineSlopePctWindow.toFixed(2)}%`
+                                      : ""}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className={`text-center text-xs font-medium ${direction === "Long" ? "text-emerald-600 dark:text-emerald-400" : direction === "Short" ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}>{direction}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs ${fundingNum != null ? (fundingNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400") : "text-muted-foreground"}`} title="Positive = long-heavy (longs pay shorts). Negative = short-heavy (shorts pay longs).">{fundingStr}</TableCell>
                                 <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-right font-mono text-xs text-muted-foreground" title="Total notional volume (buys + sells)">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>

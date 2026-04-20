@@ -3,6 +3,12 @@ import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getBinancePerpRadar, enrichPerpRadarWithKlines, type PerpRadarItem } from "@/lib/api-clients/binance-perps";
 import { getTrendingPerps } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
+import {
+  type CandleTuple,
+  combineStructureAndTrendline,
+  structureDirectionFromCloses,
+  trendlineRegressionFromCloses,
+} from "@/lib/nova-q-analytics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -31,6 +37,42 @@ async function enrichOneItemFromHl(item: PerpRadarItem): Promise<PerpRadarItem> 
     pct1h: hlCandlePct(c1h) ?? item.pct1h,
     pct4h: hlCandlePct(c4h) ?? item.pct4h,
   };
+}
+
+async function enrichTrendlineOne(item: PerpRadarItem): Promise<PerpRadarItem> {
+  try {
+    const trendCandles = (await getCandles(item.base, "15m", 8)) as CandleTuple[];
+    const struct = structureDirectionFromCloses(trendCandles);
+    const tl =
+      trendlineRegressionFromCloses(trendCandles) ?? {
+        bias: "flat" as const,
+        slopePctWindow: 0,
+        closeVsLinePct: 0,
+        read: "Too few candles for regression trendline.",
+      };
+    return {
+      ...item,
+      structureDirection: struct,
+      trendlineBias: tl.bias,
+      trendlineSlopePctWindow: tl.slopePctWindow,
+      trendlineRead: tl.read,
+      blendedDirection: combineStructureAndTrendline(struct, tl.bias),
+    };
+  } catch {
+    return item;
+  }
+}
+
+async function enrichPerpRadarTrendlineBatched(items: PerpRadarItem[], maxItems: number, batchSize: number): Promise<PerpRadarItem[]> {
+  const head = items.slice(0, maxItems);
+  const tail = items.slice(maxItems);
+  const out: PerpRadarItem[] = [];
+  for (let i = 0; i < head.length; i += batchSize) {
+    const batch = head.slice(i, i + batchSize);
+    const part = await Promise.all(batch.map((item) => enrichTrendlineOne(item)));
+    out.push(...part);
+  }
+  return [...out, ...tail];
 }
 
 /** Fallback when Binance klines are blocked (e.g. 451): fill 5m–4h from Hyperliquid where the coin exists. */
@@ -99,6 +141,11 @@ export async function GET(request: Request) {
       } catch {
         /* keep 24h-only rows if HL klines fail */
       }
+      try {
+        enriched = await enrichPerpRadarTrendlineBatched(enriched, Math.min(60, enriched.length), 10);
+      } catch {
+        /* keep rows without trendline if trend enrichment fails */
+      }
       return NextResponse.json({
         success: true,
         items: enriched,
@@ -123,6 +170,11 @@ export async function GET(request: Request) {
       } catch {
         /* keep as-is if HL fallback fails */
       }
+    }
+    try {
+      binance = await enrichPerpRadarTrendlineBatched(binance, Math.min(50, binance.length), 10);
+    } catch {
+      /* keep rows without trendline if trend enrichment fails */
     }
 
     return NextResponse.json({

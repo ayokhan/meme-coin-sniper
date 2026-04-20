@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles } from "@/lib/hyperliquid";
+import {
+  type CandleTuple,
+  combineStructureAndTrendline,
+  structureDirectionFromCloses,
+  trendlineRegressionFromCloses,
+} from "@/lib/nova-q-analytics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -32,22 +38,51 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: {} });
     }
 
-    const data: Record<string, { pct5m: number | null; pct15m: number | null; pct30m: number | null; pct1h: number | null; pct4h: number | null }> = {};
+    const data: Record<
+      string,
+      {
+        pct5m: number | null;
+        pct15m: number | null;
+        pct30m: number | null;
+        pct1h: number | null;
+        pct4h: number | null;
+        structureDirection?: "bullish" | "bearish" | "sideways";
+        trendlineBias?: "up" | "down" | "flat";
+        trendlineSlopePctWindow?: number;
+        trendlineRead?: string;
+        blendedDirection?: "bullish" | "bearish" | "sideways";
+      }
+    > = {};
     await Promise.all(
       bases.map(async (base) => {
-        const [c5, c15, c30, c1h, c4h] = await Promise.all([
+        const [c5, c15, c30, c1h, c4h, cTrend] = await Promise.all([
           getCandles(base, "5m", 1),
           getCandles(base, "15m", 1),
           getCandles(base, "30m", 1),
           getCandles(base, "1h", 1),
           getCandles(base, "4h", 1),
+          getCandles(base, "15m", 8),
         ]);
+        const trendRows = cTrend as CandleTuple[];
+        const struct = structureDirectionFromCloses(trendRows);
+        const tl =
+          trendlineRegressionFromCloses(trendRows) ?? {
+            bias: "flat" as const,
+            slopePctWindow: 0,
+            closeVsLinePct: 0,
+            read: "Too few candles for regression trendline.",
+          };
         data[base] = {
           pct5m: hlCandlePct(c5),
           pct15m: hlCandlePct(c15),
           pct30m: hlCandlePct(c30),
           pct1h: hlCandlePct(c1h),
           pct4h: hlCandlePct(c4h),
+          structureDirection: struct,
+          trendlineBias: tl.bias,
+          trendlineSlopePctWindow: tl.slopePctWindow,
+          trendlineRead: tl.read,
+          blendedDirection: combineStructureAndTrendline(struct, tl.bias),
         };
       })
     );

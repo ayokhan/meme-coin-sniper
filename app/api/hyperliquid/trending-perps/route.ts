@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getTrendingPerps, type TrendingPerp } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
+import {
+  type CandleTuple,
+  combineStructureAndTrendline,
+  structureDirectionFromCloses,
+  trendlineRegressionFromCloses,
+} from "@/lib/nova-q-analytics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,6 +25,31 @@ function candlePct(candles: Array<[string, string, string, string, string, ...st
   const open = Number(c[1]);
   const close = Number(c[4]);
   return open && open > 0 ? ((close - open) / open) * 100 : fallback;
+}
+
+async function trendSnapshot(coin: string): Promise<{
+  structureDirection: "bullish" | "bearish" | "sideways";
+  trendlineBias: "up" | "down" | "flat";
+  trendlineSlopePctWindow: number;
+  trendlineRead: string;
+  blendedDirection: "bullish" | "bearish" | "sideways";
+}> {
+  const trendCandles = (await getCandles(coin, "15m", 8)) as CandleTuple[];
+  const structureDirection = structureDirectionFromCloses(trendCandles);
+  const tl =
+    trendlineRegressionFromCloses(trendCandles) ?? {
+      bias: "flat" as const,
+      slopePctWindow: 0,
+      closeVsLinePct: 0,
+      read: "Too few candles for regression trendline.",
+    };
+  return {
+    structureDirection,
+    trendlineBias: tl.bias,
+    trendlineSlopePctWindow: tl.slopePctWindow,
+    trendlineRead: tl.read,
+    blendedDirection: combineStructureAndTrendline(structureDirection, tl.bias),
+  };
 }
 
 /** GET - Top perp markets by % move. Subscribers only. Query: limit=50, timeframe=24h|1h|30m|15m|5m, allTimeframes=1 for 5m/15m/30m/1h/24h in one response */
@@ -40,14 +71,23 @@ export async function GET(request: Request) {
     if (allTimeframes) {
       const perps = await getTrendingPerps(50);
       const slice = perps.slice(0, Math.min(25, limitParam));
-      const enriched: TrendingPerp[] = await Promise.all(
+      const enriched: Array<
+        TrendingPerp & {
+          structureDirection?: "bullish" | "bearish" | "sideways";
+          trendlineBias?: "up" | "down" | "flat";
+          trendlineSlopePctWindow?: number;
+          trendlineRead?: string;
+          blendedDirection?: "bullish" | "bearish" | "sideways";
+        }
+      > = await Promise.all(
         slice.map(async (p) => {
-          const [c5, c15, c30, c1h, c4h] = await Promise.all([
+          const [c5, c15, c30, c1h, c4h, trend] = await Promise.all([
             getCandles(p.coin, "5m", 1),
             getCandles(p.coin, "15m", 1),
             getCandles(p.coin, "30m", 1),
             getCandles(p.coin, "1h", 1),
             getCandles(p.coin, "4h", 1),
+            trendSnapshot(p.coin).catch(() => null),
           ]);
           return {
             ...p,
@@ -56,6 +96,11 @@ export async function GET(request: Request) {
             pct30m: candlePct(c30, p.dayPct),
             pct1h: candlePct(c1h, p.dayPct),
             pct4h: candlePct(c4h, p.dayPct),
+            structureDirection: trend?.structureDirection,
+            trendlineBias: trend?.trendlineBias,
+            trendlineSlopePctWindow: trend?.trendlineSlopePctWindow,
+            trendlineRead: trend?.trendlineRead,
+            blendedDirection: trend?.blendedDirection,
           };
         })
       );
@@ -71,13 +116,32 @@ export async function GET(request: Request) {
     const limit = Math.min(25, limitParam);
     const perps = await getTrendingPerps(50);
     const slice = perps.slice(0, limit);
-    const withPct: TrendingPerp[] = await Promise.all(
+    const withPct: Array<
+      TrendingPerp & {
+        structureDirection?: "bullish" | "bearish" | "sideways";
+        trendlineBias?: "up" | "down" | "flat";
+        trendlineSlopePctWindow?: number;
+        trendlineRead?: string;
+        blendedDirection?: "bullish" | "bearish" | "sideways";
+      }
+    > = await Promise.all(
       slice.map(async (p) => {
-        const candles = await getCandles(p.coin, interval, 1);
+        const [candles, trend] = await Promise.all([
+          getCandles(p.coin, interval, 1),
+          trendSnapshot(p.coin).catch(() => null),
+        ]);
         const open = candles[0]?.[1] ? Number(candles[0][1]) : 0;
         const close = candles[0]?.[4] ? Number(candles[0][4]) : Number(p.markPx);
         const timeframePct = open && open > 0 ? ((close - open) / open) * 100 : p.dayPct;
-        return { ...p, timeframePct };
+        return {
+          ...p,
+          timeframePct,
+          structureDirection: trend?.structureDirection,
+          trendlineBias: trend?.trendlineBias,
+          trendlineSlopePctWindow: trend?.trendlineSlopePctWindow,
+          trendlineRead: trend?.trendlineRead,
+          blendedDirection: trend?.blendedDirection,
+        };
       })
     );
     withPct.sort((a, b) => Math.abs(b.timeframePct ?? 0) - Math.abs(a.timeframePct ?? 0));

@@ -23,6 +23,11 @@ export type PerpRadarItem = {
   pct30m?: number;
   pct1h?: number;
   pct4h?: number;
+  structureDirection?: "bullish" | "bearish" | "sideways";
+  trendlineBias?: "up" | "down" | "flat";
+  trendlineSlopePctWindow?: number;
+  trendlineRead?: string;
+  blendedDirection?: "bullish" | "bearish" | "sideways";
 };
 
 /** Fetch one kline and return % change (open to close). Returns null on error or 451. */
