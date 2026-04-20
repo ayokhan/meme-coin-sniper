@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles } from "@/lib/hyperliquid";
 import { getTicker } from "@/lib/hyperliquid";
+import {
+  type CandleTuple,
+  combineStructureAndTrendline,
+  highLowFromCandles,
+  structureDirectionFromCloses,
+  trendlineRegressionFromCloses,
+} from "@/lib/nova-q-analytics";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -37,17 +44,11 @@ export type NovaForecastItem = {
   shortEntry: number;
   longEntry: number;
   currentPrice: number | null;
+  structureDirection?: "bullish" | "bearish" | "sideways";
+  trendlineBias?: "up" | "down" | "flat";
+  direction?: "bullish" | "bearish" | "sideways";
   insight: string;
 };
-
-/** Compute 2-week high/low from 1d candles (newest first). */
-function highLowFromCandles(candles: Array<[string, string, string, string, string, ...string[]]>): { high: number; low: number } | null {
-  if (!candles.length) return null;
-  const highs = candles.map((c) => Number(c[2])).filter((n) => Number.isFinite(n));
-  const lows = candles.map((c) => Number(c[3])).filter((n) => Number.isFinite(n));
-  if (highs.length === 0 || lows.length === 0) return null;
-  return { high: Math.max(...highs), low: Math.min(...lows) };
-}
 
 /** GET - NovaForecast Agent: high/low and short/long entry for selected time range. VIP only. */
 export async function GET(request: Request) {
@@ -81,7 +82,8 @@ export async function GET(request: Request) {
           getCandles(symbol, interval, candleLimit),
           getTicker(symbol),
         ]);
-        const hl = highLowFromCandles(candles);
+        const rows = candles as CandleTuple[];
+        const hl = highLowFromCandles(rows);
         const currentPrice = ticker?.last ? Number(ticker.last) : null;
         if (!hl) {
           forecasts.push({
@@ -98,6 +100,10 @@ export async function GET(request: Request) {
         const { high, low } = hl;
         const shortEntry = high;
         const longEntry = low;
+        const structureDirection = structureDirectionFromCloses(rows);
+        const tl = trendlineRegressionFromCloses(rows);
+        const trendlineBias = tl?.bias ?? "flat";
+        const blendedDirection = combineStructureAndTrendline(structureDirection, trendlineBias);
         const rangeLabel = rangeConfig.label.toLowerCase();
         let insight = "";
         if (currentPrice != null) {
@@ -108,6 +114,7 @@ export async function GET(request: Request) {
         } else {
           insight = `Short entry at ${rangeLabel} high; long entry at ${rangeLabel} low.`;
         }
+        insight += ` Structure ${structureDirection}, trendline ${trendlineBias}, blended ${blendedDirection}.`;
         forecasts.push({
           symbol,
           high,
@@ -115,6 +122,9 @@ export async function GET(request: Request) {
           shortEntry,
           longEntry,
           currentPrice,
+          structureDirection,
+          trendlineBias,
+          direction: blendedDirection,
           insight,
         });
       } catch {

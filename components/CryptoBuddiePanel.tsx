@@ -222,7 +222,12 @@ export default function CryptoBuddiePanel() {
                     <TableCell className={`text-right font-mono text-xs ${cls(p.pct4h)}`}>{fmt(p.pct4h)}</TableCell>
                     <TableCell className={`text-right font-mono text-xs ${cls(p.dayPct)}`}>{fmt(p.dayPct)}</TableCell>
                     <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[200px]">{p.directionHint}</TableCell>
+                    <TableCell
+                      className="text-xs text-muted-foreground min-w-[240px] max-w-[420px] whitespace-normal break-words leading-relaxed"
+                      title={p.directionHint}
+                    >
+                      {p.directionHint}
+                    </TableCell>
                     <TableCell className="text-right">
                       <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">
                         Trade

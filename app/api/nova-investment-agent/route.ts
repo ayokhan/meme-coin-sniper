@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
+import {
+  type CandleTuple,
+  combineStructureAndTrendline,
+  highLowFromCandles,
+  structureDirectionFromCloses,
+  trendlineRegressionFromCloses,
+} from "@/lib/nova-q-analytics";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
@@ -73,8 +80,6 @@ const SWING_WINDOWS: CandleWindow[] = [
 
 const ALL_WINDOWS: CandleWindow[] = [...LONG_WINDOWS, ...SHORT_WINDOWS, ...SCALP_WINDOWS, ...SWING_WINDOWS];
 
-type CandleTuple = [string, string, string, string, string, ...string[]];
-
 type StrategyLegCoin = {
   symbol: string;
   allocationPct: number;
@@ -145,37 +150,6 @@ function parseFocusSymbols(body: Record<string, unknown>): string[] {
     return [...new Set(out)].slice(0, 12);
   }
   return [];
-}
-
-function highLowFromCandles(candles: CandleTuple[]): { high: number; low: number } | null {
-  if (!candles.length) return null;
-  const highs = candles.map((c) => Number(c[2])).filter((n) => Number.isFinite(n));
-  const lows = candles.map((c) => Number(c[3])).filter((n) => Number.isFinite(n));
-  if (highs.length === 0 || lows.length === 0) return null;
-  return { high: Math.max(...highs), low: Math.min(...lows) };
-}
-
-function getTfDirection(candles: CandleTuple[]): "bullish" | "bearish" | "sideways" {
-  if (candles.length < 5) return "sideways";
-  const closesNewestFirst = candles.map((c) => Number(c[4])).filter((n) => Number.isFinite(n));
-  if (closesNewestFirst.length < 5) return "sideways";
-
-  // candles are newest first in this codebase convention
-  const closes = [...closesNewestFirst].reverse(); // oldest -> newest
-  const mid = Math.floor(closes.length / 2);
-  const first = closes.slice(0, mid);
-  const second = closes.slice(mid);
-  if (first.length === 0 || second.length === 0) return "sideways";
-
-  const avg = (arr: number[]) => arr.reduce((sum, n) => sum + n, 0) / arr.length;
-  const firstAvg = avg(first);
-  const secondAvg = avg(second);
-  if (!Number.isFinite(firstAvg) || !Number.isFinite(secondAvg) || firstAvg <= 0) return "sideways";
-
-  const pct = (secondAvg - firstAvg) / firstAvg;
-  if (pct > 0.0025) return "bullish";
-  if (pct < -0.0025) return "bearish";
-  return "sideways";
 }
 
 function getAtrPct(candles: CandleTuple[], price: number): number {
@@ -281,7 +255,9 @@ function buildLegCoins(params: {
     const ticker = tickerPerCoin[sym];
     const currentPrice = ticker?.last != null && Number.isFinite(Number(ticker.last)) ? Number(ticker.last) : null;
     if (!candles || !hl || currentPrice == null) continue;
-    const tfDir = getTfDirection(candles);
+    const struct = structureDirectionFromCloses(candles);
+    const trend = trendlineRegressionFromCloses(candles)?.bias ?? "flat";
+    const tfDir = combineStructureAndTrendline(struct, trend);
     const dir = chooseDirectionFromMarketStructure(tfDir, currentPrice, hl.low, hl.high);
     coinDirections[sym] = { dir, support: hl.low, resistance: hl.high, currentPrice };
   }
@@ -477,7 +453,10 @@ export async function POST(request: Request) {
         } satisfies StrategyLeg;
       }
 
-      const tfDir = getTfDirection(candlesBase as CandleTuple[]);
+      const tfRows = candlesBase as CandleTuple[];
+      const struct = structureDirectionFromCloses(tfRows);
+      const trend = trendlineRegressionFromCloses(tfRows)?.bias ?? "flat";
+      const tfDir = combineStructureAndTrendline(struct, trend);
       const legDirection = chooseDirectionFromMarketStructure(tfDir, currentPrice, hl.low, hl.high);
       const { strongestBidWall, strongestAskWall } = await fetchOrderBookWalls(anchorSymbol);
       const atrPct = getAtrPct(candlesBase as CandleTuple[], currentPrice);

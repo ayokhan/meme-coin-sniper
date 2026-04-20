@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
+import {
+  type CandleTuple,
+  combineStructureAndTrendline,
+  highLowFromCandles,
+  structureDirectionFromCloses,
+  trendlineRegressionFromCloses,
+} from "@/lib/nova-q-analytics";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
@@ -29,19 +36,9 @@ const NOVA_SMART_TIMEFRAMES = [
   { id: "104w", label: "104 weeks", interval: "1d", limit: 728 },
 ] as const;
 
-type CandleTuple = [string, string, string, string, string, ...string[]];
-
-function highLowFromCandles(candles: CandleTuple[]): { high: number; low: number } | null {
-  if (!candles.length) return null;
-  const highs = candles.map((c) => Number(c[2])).filter((n) => Number.isFinite(n));
-  const lows = candles.map((c) => Number(c[3])).filter((n) => Number.isFinite(n));
-  if (highs.length === 0 || lows.length === 0) return null;
-  return { high: Math.max(...highs), low: Math.min(...lows) };
-}
-
 /** Derive strategy: scalp (quick in/out), swing (hold for bigger move), or mixed. */
 function deriveStrategy(
-  tfData: { id: string; high: number; low: number }[],
+  tfData: { id: string; high: number; low: number; direction: "bullish" | "bearish" | "sideways" }[],
   currentPrice: number | null
 ): { strategy: "scalp" | "swing" | "mixed"; note: string } {
   if (tfData.length === 0) return { strategy: "swing", note: "Insufficient data." };
@@ -76,6 +73,11 @@ function deriveStrategy(
     else if (currentPrice > (smartHigh + smartLow) / 2) note += " Above range mid—bias short.";
     else note += " Below range mid—bias long.";
   }
+  const bulls = tfData.filter((t) => t.direction === "bullish").length;
+  const bears = tfData.filter((t) => t.direction === "bearish").length;
+  if (bulls > bears) note += ` Blended direction tilts bullish (${bulls}/${tfData.length}).`;
+  else if (bears > bulls) note += ` Blended direction tilts bearish (${bears}/${tfData.length}).`;
+  else note += " Blended direction is mixed.";
 
   return { strategy, note };
 }
@@ -84,7 +86,8 @@ function deriveStrategy(
 function getRecommendedDirection(
   smartHigh: number,
   smartLow: number,
-  currentPrice: number | null
+  currentPrice: number | null,
+  tfData: { direction: "bullish" | "bearish" | "sideways" }[]
 ): { direction: "long" | "short" | "neutral"; recommendationNote: string } {
   if (currentPrice == null || smartHigh <= smartLow) {
     return { direction: "neutral", recommendationNote: "No price data—enter when price reaches a smart level." };
@@ -92,33 +95,60 @@ function getRecommendedDirection(
   const mid = (smartHigh + smartLow) / 2;
   const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
   if (currentPrice >= smartHigh * 0.995) {
-    return {
+    const base: { direction: "long" | "short" | "neutral"; recommendationNote: string } = {
       direction: "short",
       recommendationNote: `Best entry: Short. Price at resistance (near $${fmt(smartHigh)}). Consider short on confirmation or small pullback.`,
     };
+    return applyTrendlineFilter(base, tfData);
   }
   if (currentPrice <= smartLow * 1.005) {
-    return {
+    const base: { direction: "long" | "short" | "neutral"; recommendationNote: string } = {
       direction: "long",
       recommendationNote: `Best entry: Long. Price at support (near $${fmt(smartLow)}). Consider long on confirmation or bounce.`,
     };
+    return applyTrendlineFilter(base, tfData);
   }
   if (currentPrice > mid * 1.005) {
-    return {
+    const base: { direction: "long" | "short" | "neutral"; recommendationNote: string } = {
       direction: "short",
       recommendationNote: `Best entry: Short (bias). Price above range mid—prefer short on rally to $${fmt(smartHigh)} or scalp short. Long only on dip to $${fmt(smartLow)}.`,
     };
+    return applyTrendlineFilter(base, tfData);
   }
   if (currentPrice < mid * 0.995) {
-    return {
+    const base: { direction: "long" | "short" | "neutral"; recommendationNote: string } = {
       direction: "long",
       recommendationNote: `Best entry: Long (bias). Price below range mid—prefer long on pullback to $${fmt(smartLow)} or scalp long. Short only on rally to $${fmt(smartHigh)}.`,
     };
+    return applyTrendlineFilter(base, tfData);
   }
-  return {
+  const base: { direction: "long" | "short" | "neutral"; recommendationNote: string } = {
     direction: "neutral",
     recommendationNote: `Neutral—price near range mid. Wait for test of $${fmt(smartLow)} (long) or $${fmt(smartHigh)} (short) for clearer entry.`,
   };
+  return applyTrendlineFilter(base, tfData);
+}
+
+function applyTrendlineFilter(
+  base: { direction: "long" | "short" | "neutral"; recommendationNote: string },
+  tfData: { direction: "bullish" | "bearish" | "sideways" }[]
+): { direction: "long" | "short" | "neutral"; recommendationNote: string } {
+  if (!tfData.length || base.direction === "neutral") return base;
+  const bulls = tfData.filter((t) => t.direction === "bullish").length;
+  const bears = tfData.filter((t) => t.direction === "bearish").length;
+  if (base.direction === "long" && bears > bulls) {
+    return {
+      direction: "neutral",
+      recommendationNote: `${base.recommendationNote} Trendline+structure blend leans bearish, so confidence is reduced to neutral until momentum confirms.`,
+    };
+  }
+  if (base.direction === "short" && bulls > bears) {
+    return {
+      direction: "neutral",
+      recommendationNote: `${base.recommendationNote} Trendline+structure blend leans bullish, so confidence is reduced to neutral until momentum confirms.`,
+    };
+  }
+  return base;
 }
 
 /** Suggest entry/exit levels from strategy and smart levels. */
@@ -167,6 +197,10 @@ export type NovaSmartTfResult = {
   label: string;
   high: number;
   low: number;
+  structureDirection: "bullish" | "bearish" | "sideways";
+  trendlineBias: "up" | "down" | "flat";
+  direction: "bullish" | "bearish" | "sideways";
+  trendlineRead: string;
 };
 
 export type NovaSmartResult = {
@@ -232,11 +266,40 @@ export async function POST(request: Request) {
 
     for (const symbol of symbols.slice(0, limit)) {
       try {
-        const tfData: { id: string; label: string; high: number; low: number }[] = [];
+        const tfData: {
+          id: string;
+          label: string;
+          high: number;
+          low: number;
+          structureDirection: "bullish" | "bearish" | "sideways";
+          trendlineBias: "up" | "down" | "flat";
+          direction: "bullish" | "bearish" | "sideways";
+          trendlineRead: string;
+        }[] = [];
         for (const tf of effectiveTf) {
           const candles = await getCandles(symbol, tf.interval, tf.limit);
           const hl = highLowFromCandles(candles as CandleTuple[]);
-          if (hl) tfData.push({ id: tf.id, label: tf.label, high: hl.high, low: hl.low });
+          if (!hl) continue;
+          const rows = candles as CandleTuple[];
+          const structureDirection = structureDirectionFromCloses(rows);
+          const tl =
+            trendlineRegressionFromCloses(rows) ?? {
+              bias: "flat" as const,
+              slopePctWindow: 0,
+              closeVsLinePct: 0,
+              read: "Too few candles for regression trendline.",
+            };
+          const direction = combineStructureAndTrendline(structureDirection, tl.bias);
+          tfData.push({
+            id: tf.id,
+            label: tf.label,
+            high: hl.high,
+            low: hl.low,
+            structureDirection,
+            trendlineBias: tl.bias,
+            direction,
+            trendlineRead: tl.read,
+          });
         }
 
         const ticker = await getTicker(symbol);
@@ -266,11 +329,25 @@ export async function POST(request: Request) {
         const smartLongEntry = Math.min(...tfData.map((t) => t.low));
         const { strategy, note } = deriveStrategy(tfData, currentPrice);
         const entryExit = suggestEntryExit(smartShortEntry, smartLongEntry, currentPrice, strategy);
-        const { direction: recommendedDirection, recommendationNote } = getRecommendedDirection(smartShortEntry, smartLongEntry, currentPrice);
+        const { direction: recommendedDirection, recommendationNote } = getRecommendedDirection(
+          smartShortEntry,
+          smartLongEntry,
+          currentPrice,
+          tfData
+        );
 
         results.push({
           symbol,
-          timeframes: tfData.map((t) => ({ id: t.id, label: t.label, high: t.high, low: t.low })),
+          timeframes: tfData.map((t) => ({
+            id: t.id,
+            label: t.label,
+            high: t.high,
+            low: t.low,
+            structureDirection: t.structureDirection,
+            trendlineBias: t.trendlineBias,
+            direction: t.direction,
+            trendlineRead: t.trendlineRead,
+          })),
           smartShortEntry,
           smartLongEntry,
           currentPrice,

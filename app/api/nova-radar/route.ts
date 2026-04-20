@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
+import {
+  type CandleTuple,
+  combineStructureAndTrendline,
+  highLowFromCandles,
+  overallTrendlineSummary,
+  structureDirectionFromCloses,
+  trendlineRegressionFromCloses,
+} from "@/lib/nova-q-analytics";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
-
-type CandleTuple = [string, string, string, string, string, ...string[]];
 
 const STRUCTURE_TFS = [
   { id: "15m", label: "15 mins", interval: "1m", limit: 15 },
@@ -19,6 +25,9 @@ type TfRow = {
   label: string;
   support: number;
   resistance: number;
+  structureDirection: "bullish" | "bearish" | "sideways";
+  trendlineBias: "up" | "down" | "flat";
+  trendlineRead: string;
   direction: "bullish" | "bearish" | "sideways";
 };
 
@@ -35,33 +44,6 @@ function parseTargetPrice(raw: unknown): number | null {
   const n = Number(s);
   if (!Number.isFinite(n) || n <= 0) return null;
   return n;
-}
-
-function highLowFromCandles(candles: CandleTuple[]): { high: number; low: number } | null {
-  if (!candles.length) return null;
-  const highs = candles.map((c) => Number(c[2])).filter((n) => Number.isFinite(n));
-  const lows = candles.map((c) => Number(c[3])).filter((n) => Number.isFinite(n));
-  if (highs.length === 0 || lows.length === 0) return null;
-  return { high: Math.max(...highs), low: Math.min(...lows) };
-}
-
-function getTfDirection(candles: CandleTuple[]): "bullish" | "bearish" | "sideways" {
-  if (candles.length < 3) return "sideways";
-  const closesNewestFirst = candles.map((c) => Number(c[4])).filter((n) => Number.isFinite(n));
-  if (closesNewestFirst.length < 3) return "sideways";
-  const closes = [...closesNewestFirst].reverse();
-  const mid = Math.floor(closes.length / 2);
-  const first = closes.slice(0, mid);
-  const second = closes.slice(mid);
-  if (first.length === 0 || second.length === 0) return "sideways";
-  const avg = (arr: number[]) => arr.reduce((sum, n) => sum + n, 0) / arr.length;
-  const firstAvg = avg(first);
-  const secondAvg = avg(second);
-  if (!Number.isFinite(firstAvg) || !Number.isFinite(secondAvg) || firstAvg <= 0) return "sideways";
-  const pct = (secondAvg - firstAvg) / firstAvg;
-  if (pct > 0.0025) return "bullish";
-  if (pct < -0.0025) return "bearish";
-  return "sideways";
 }
 
 function getOverallDirection(rows: TfRow[]): "bullish" | "bearish" | "sideways" {
@@ -172,12 +154,23 @@ export async function POST(request: Request) {
         const candles = (await getCandles(symbol, tf.interval, tf.limit)) as CandleTuple[];
         const hl = highLowFromCandles(candles);
         if (!hl) continue;
+        const structureDirection = structureDirectionFromCloses(candles);
+        const tl =
+          trendlineRegressionFromCloses(candles) ?? {
+            bias: "flat" as const,
+            slopePctWindow: 0,
+            closeVsLinePct: 0,
+            read: "Too few candles for regression trendline.",
+          };
         tfRows.push({
           id: tf.id,
           label: tf.label,
           support: hl.low,
           resistance: hl.high,
-          direction: getTfDirection(candles),
+          structureDirection,
+          trendlineBias: tl.bias,
+          trendlineRead: tl.read,
+          direction: combineStructureAndTrendline(structureDirection, tl.bias),
         });
       } catch {
         /* skip tf */
@@ -192,6 +185,7 @@ export async function POST(request: Request) {
     }
 
     const marketDirection = getOverallDirection(tfRows);
+    const trendlineSummary = overallTrendlineSummary(tfRows);
     const pricePath = pathFromSpot(targetPrice, currentPrice);
     const alignment = structureAlignment(pricePath, marketDirection);
 
@@ -286,6 +280,7 @@ export async function POST(request: Request) {
     const summaryParts = [
       `${symbol}: spot $${fmtMoney(currentPrice)}, ${side} limit $${fmtMoney(targetPrice)} (${((targetPrice - currentPrice) / currentPrice * 100).toFixed(2)}% vs spot).`,
       `Market structure (sampled TFs): ${marketDirection}. Price path to fill: ${pricePath === "at_target" ? "already near limit" : pricePath === "up" ? "needs higher prices" : "needs lower prices"}.`,
+      trendlineSummary,
       orderNotes,
       alignmentNote,
     ];
@@ -310,6 +305,7 @@ export async function POST(request: Request) {
         targetPrice,
         currentPrice,
         marketDirection,
+        overallTrendlineSummary: trendlineSummary,
         pricePath,
         pctMoveFromSpot: pctMove * 100,
         structureAlignment: alignment,
