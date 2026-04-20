@@ -917,6 +917,8 @@ export default function Dashboard() {
     trendlineEntryLong: number | null;
     trendlineEntryShort: number | null;
     trendlineEntryNote: string;
+    trendlineConfidence: "high" | "medium" | "low";
+    trendlineConfidenceNote: string;
     recommendedDirection: "long" | "short" | "neutral";
     recommendationNote: string;
   };
@@ -6305,8 +6307,26 @@ export default function Dashboard() {
                                 )}
                                 {r.trendlineEntryNote && (
                                   <div className="rounded-md bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 p-2">
-                                    <span className="text-xs font-medium text-cyan-800 dark:text-cyan-200 block mb-1">Trendline entry guide</span>
+                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                      <span className="text-xs font-medium text-cyan-800 dark:text-cyan-200">Trendline entry guide</span>
+                                      <Badge
+                                        variant="outline"
+                                        className={
+                                          r.trendlineConfidence === "high"
+                                            ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
+                                            : r.trendlineConfidence === "medium"
+                                              ? "border-amber-500/60 text-amber-700 dark:text-amber-300"
+                                              : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
+                                        }
+                                        title={r.trendlineConfidenceNote || undefined}
+                                      >
+                                        {r.trendlineConfidence === "high" ? "Confidence: High" : r.trendlineConfidence === "medium" ? "Confidence: Medium" : "Confidence: Low"}
+                                      </Badge>
+                                    </div>
                                     <p className="text-xs text-cyan-700 dark:text-cyan-300">{r.trendlineEntryNote}</p>
+                                    {r.trendlineConfidenceNote ? (
+                                      <p className="text-[11px] text-cyan-700/80 dark:text-cyan-300/80 mt-1">{r.trendlineConfidenceNote}</p>
+                                    ) : null}
                                     <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
                                       <div><span className="text-muted-foreground">Trendline long entry:</span> {r.trendlineEntryLong != null ? `$${r.trendlineEntryLong.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}` : "—"}</div>
                                       <div><span className="text-muted-foreground">Trendline short entry:</span> {r.trendlineEntryShort != null ? `$${r.trendlineEntryShort.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}` : "—"}</div>

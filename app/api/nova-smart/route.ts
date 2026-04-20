@@ -164,10 +164,26 @@ function suggestTrendlineEntry(
   trendlineEntryLong: number | null;
   trendlineEntryShort: number | null;
   trendlineEntryNote: string;
+  trendlineConfidence: "high" | "medium" | "low";
+  trendlineConfidenceNote: string;
 } {
   const validPrice = currentPrice != null && Number.isFinite(currentPrice) && currentPrice > 0 ? currentPrice : null;
   const bulls = tfData.filter((t) => t.direction === "bullish").length;
   const bears = tfData.filter((t) => t.direction === "bearish").length;
+  const nonSide = bulls + bears;
+  const lead = Math.max(bulls, bears);
+  const confidence: "high" | "medium" | "low" =
+    nonSide >= 3 && lead / Math.max(nonSide, 1) >= 0.75
+      ? "high"
+      : nonSide >= 2 && lead / Math.max(nonSide, 1) >= 0.6
+        ? "medium"
+        : "low";
+  const confidenceNote =
+    confidence === "high"
+      ? `High confidence (${bulls} bullish / ${bears} bearish across ${tfData.length} selected frames).`
+      : confidence === "medium"
+        ? `Medium confidence (${bulls} bullish / ${bears} bearish across ${tfData.length} selected frames).`
+        : `Low confidence (${bulls} bullish / ${bears} bearish across ${tfData.length} selected frames) — mixed structure.`;
   const pref = tfData.find((t) => t.id === "1h") ?? tfData[0];
   const prefBias = pref?.trendlineBias ?? "flat";
   const lean = bulls > bears ? "bullish" : bears > bulls ? "bearish" : "mixed";
@@ -181,6 +197,8 @@ function suggestTrendlineEntry(
       trendlineEntryShort,
       trendlineEntryNote:
         `Trendline entry bias: long. Prefer pullback entries near $${trendlineEntryLong.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}; treat shorts near $${trendlineEntryShort.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })} as counter-trend scalps unless momentum flips.`,
+      trendlineConfidence: confidence,
+      trendlineConfidenceNote: confidenceNote,
     };
   }
   if (lean === "bearish" || prefBias === "down") {
@@ -191,6 +209,8 @@ function suggestTrendlineEntry(
       trendlineEntryShort,
       trendlineEntryNote:
         `Trendline entry bias: short. Prefer rally/retest entries near $${trendlineEntryShort.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}; treat longs near $${trendlineEntryLong.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })} as counter-trend bounces unless structure turns up.`,
+      trendlineConfidence: confidence,
+      trendlineConfidenceNote: confidenceNote,
     };
   }
 
@@ -199,6 +219,8 @@ function suggestTrendlineEntry(
     trendlineEntryShort: null,
     trendlineEntryNote:
       `Trendline entry bias: mixed/flat. Wait for reclaim above ~$${smartShort.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })} (long trigger) or breakdown below ~$${smartLong.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })} (short trigger).`,
+    trendlineConfidence: confidence,
+    trendlineConfidenceNote: confidenceNote,
   };
 }
 
@@ -270,6 +292,8 @@ export type NovaSmartResult = {
   trendlineEntryLong: number | null;
   trendlineEntryShort: number | null;
   trendlineEntryNote: string;
+  trendlineConfidence: "high" | "medium" | "low";
+  trendlineConfidenceNote: string;
   recommendedDirection: "long" | "short" | "neutral";
   recommendationNote: string;
 };
@@ -376,6 +400,8 @@ export async function POST(request: Request) {
             trendlineEntryLong: null,
             trendlineEntryShort: null,
             trendlineEntryNote: "No trendline entry read—insufficient candle data.",
+            trendlineConfidence: "low",
+            trendlineConfidenceNote: "Low confidence — no timeframe trendline data available.",
             recommendedDirection: "neutral",
             recommendationNote: "No candle data—run again with different timeframes or symbol.",
           });
@@ -433,6 +459,8 @@ export async function POST(request: Request) {
           trendlineEntryLong: null,
           trendlineEntryShort: null,
           trendlineEntryNote: "No trendline entry read available.",
+          trendlineConfidence: "low",
+          trendlineConfidenceNote: "Low confidence — symbol data unavailable.",
           recommendedDirection: "neutral",
           recommendationNote: "Could not load data for this symbol.",
         });
