@@ -16,11 +16,13 @@ type WhaleRow = {
 };
 
 type Agg = { coin: string; longUsd: number; shortUsd: number; whaleCount: number };
+type NovaEagleMode = "tracked" | "global";
 
 export default function NovaEaglePanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [minUsd, setMinUsd] = useState(500_000);
+  const [mode, setMode] = useState<NovaEagleMode>("global");
   const [withAi, setWithAi] = useState(false);
   const [whales, setWhales] = useState<WhaleRow[]>([]);
   const [aggregates, setAggregates] = useState<Agg[]>([]);
@@ -33,7 +35,7 @@ export default function NovaEaglePanel() {
     setLoading(true);
     setError(null);
     try {
-      const qs = new URLSearchParams({ minUsd: String(minUsd), ai: withAi ? "1" : "0" });
+      const qs = new URLSearchParams({ minUsd: String(minUsd), ai: withAi ? "1" : "0", mode });
       const res = await fetch(`/api/futures/nova-eagle?${qs}`, { cache: "no-store", credentials: "include" });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -54,7 +56,7 @@ export default function NovaEaglePanel() {
     } finally {
       setLoading(false);
     }
-  }, [minUsd, withAi]);
+  }, [minUsd, withAi, mode]);
 
   useEffect(() => {
     void load();
@@ -76,11 +78,20 @@ export default function NovaEaglePanel() {
         <div>
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Eagle</h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
-            Surfaces large open perp positions from the same wallets as <strong className="text-zinc-700 dark:text-zinc-300">Top Leverage Traders</strong> (global list + yours). Copy an address into{" "}
-            <strong className="text-zinc-700 dark:text-zinc-300">Wallet Tracker</strong> if you want alerts. This is aggregated public data—not every whale and not insider information.
+            Surfaces large open perp positions from a sampled top-wallet set. Use <strong className="text-zinc-700 dark:text-zinc-300">Global</strong> for broader Apex/Hyperliquid leaderboard wallets, or{" "}
+            <strong className="text-zinc-700 dark:text-zinc-300">Tracked</strong> for your Top Leverage Traders list. Copy an address into <strong className="text-zinc-700 dark:text-zinc-300">Wallet Tracker</strong> if you want alerts.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <label className="text-xs text-muted-foreground">Source</label>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value === "tracked" ? "tracked" : "global")}
+            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+          >
+            <option value="global">Global top wallets (beta)</option>
+            <option value="tracked">My tracked wallets</option>
+          </select>
           <label className="text-xs text-muted-foreground">Min position (USD)</label>
           <select
             value={minUsd}
@@ -132,7 +143,9 @@ export default function NovaEaglePanel() {
 
       {aggregates.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">By contract (tracked large size)</p>
+          <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+            By contract ({mode === "global" ? "sampled global" : "tracked"} large size). BTC and ETH are always included.
+          </p>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -146,7 +159,14 @@ export default function NovaEaglePanel() {
               <TableBody>
                 {aggregates.map((a) => (
                   <TableRow key={a.coin}>
-                    <TableCell className="font-mono text-xs">{a.coin}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {a.coin}
+                      {(a.coin === "BTC" || a.coin === "ETH") && (
+                        <Badge variant="outline" className="ml-2 text-[10px]">
+                          focus
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">
                       ${Math.round(a.longUsd).toLocaleString()}
                     </TableCell>

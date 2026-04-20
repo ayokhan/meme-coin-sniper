@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { fetchTopTradersForSession } from "@/lib/hyperliquid-top-traders-session";
+import { fetchTopTradersForSession, fetchTopTradersFromAddresses } from "@/lib/hyperliquid-top-traders-session";
 import { getNovaEagleAccess } from "@/lib/vip-futures-addon-access";
 import { summarizeNovaEagleForAi } from "@/lib/ai-nova-eagle";
+import { APEXLIQUID_TOP_TRADERS } from "@/lib/config/apexliquid-top-traders";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const DISCLAIMER =
-  "Nova Eagle shows aggregated open positions from wallets on your Top Leverage Traders list (plus inferred xyz markets). It is not a complete picture of all whales, not real-time order flow, and not insider information. Not financial advice.";
+const DISCLAIMER_TRACKED =
+  "Nova Eagle (Tracked mode) shows aggregated open positions from wallets on your Top Leverage Traders list (plus inferred xyz markets). This is not a complete picture of all whales, not real-time order flow, and not insider information. Not financial advice.";
+const DISCLAIMER_GLOBAL =
+  "Nova Eagle (Global mode) scans a broader public top-trader wallet set from Apex/Hyperliquid-style leaderboards (plus inferred xyz markets). It is still a sample, not all wallets in the world, not real-time order flow, and not insider information. Not financial advice.";
 
 type WhaleRow = {
   address: string;
@@ -38,11 +41,11 @@ function buildHeuristics(aggs: CoinAgg[]): string[] {
     const longShare = a.longUsd / (t + 1e-9);
     if (shortShare >= 0.58 && a.whaleCount >= 1) {
       out.push(
-        `${a.coin}: among large tracked positions, about ${(shortShare * 100).toFixed(0)}% of notional is short (${a.whaleCount} wallet(s)). Consider how that fits your own read of price action and risk.`
+        `${a.coin}: among large sampled positions, about ${(shortShare * 100).toFixed(0)}% of notional is short (${a.whaleCount} wallet(s)). Consider how that fits your own read of price action and risk.`
       );
     } else if (longShare >= 0.58 && a.whaleCount >= 1) {
       out.push(
-        `${a.coin}: among large tracked positions, about ${(longShare * 100).toFixed(0)}% of notional is long (${a.whaleCount} wallet(s)).`
+        `${a.coin}: among large sampled positions, about ${(longShare * 100).toFixed(0)}% of notional is long (${a.whaleCount} wallet(s)).`
       );
     }
   }
@@ -67,15 +70,31 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const minUsd = Math.max(50_000, Math.min(50_000_000, Number(searchParams.get("minUsd") ?? "500000") || 500_000));
     const withAi = searchParams.get("ai") === "1";
+    const mode = searchParams.get("mode") === "global" ? "global" : "tracked";
 
-    const traders = await fetchTopTradersForSession(session!);
+    const traders =
+      mode === "global"
+        ? await fetchTopTradersFromAddresses(APEXLIQUID_TOP_TRADERS.map((t) => t.address))
+        : await fetchTopTradersForSession(session!);
     const whales: WhaleRow[] = [];
     const byCoin = new Map<string, { longUsd: number; shortUsd: number; addrs: Set<string> }>();
+    const btcEthAll = new Map<string, { longUsd: number; shortUsd: number; addrs: Set<string> }>([
+      ["BTC", { longUsd: 0, shortUsd: 0, addrs: new Set<string>() }],
+      ["ETH", { longUsd: 0, shortUsd: 0, addrs: new Set<string>() }],
+    ]);
 
     for (const t of traders) {
       for (const p of t.positions ?? []) {
         const v = Number(p.positionValue ?? 0);
-        if (!Number.isFinite(v) || v < minUsd) continue;
+        if (!Number.isFinite(v) || v <= 0) continue;
+        const coin = p.coin.toUpperCase();
+        if (coin === "BTC" || coin === "ETH") {
+          const row = btcEthAll.get(coin)!;
+          row.addrs.add(t.address.toLowerCase());
+          if (p.side === "long") row.longUsd += v;
+          else row.shortUsd += v;
+        }
+        if (v < minUsd) continue;
         whales.push({
           address: t.address,
           nickname: t.nickname ?? null,
@@ -85,11 +104,11 @@ export async function GET(request: Request) {
           apexLiquidUrl: t.apexLiquidUrl,
           isGlobal: t.isGlobal,
         });
-        const row = byCoin.get(p.coin) ?? { longUsd: 0, shortUsd: 0, addrs: new Set<string>() };
+        const row = byCoin.get(coin) ?? { longUsd: 0, shortUsd: 0, addrs: new Set<string>() };
         row.addrs.add(t.address.toLowerCase());
         if (p.side === "long") row.longUsd += v;
         else row.shortUsd += v;
-        byCoin.set(p.coin, row);
+        byCoin.set(coin, row);
       }
     }
 
@@ -101,6 +120,16 @@ export async function GET(request: Request) {
       shortUsd: v.shortUsd,
       whaleCount: v.addrs.size,
     }));
+    for (const focusCoin of ["BTC", "ETH"] as const) {
+      if (aggregates.some((a) => a.coin === focusCoin)) continue;
+      const row = btcEthAll.get(focusCoin)!;
+      aggregates.push({
+        coin: focusCoin,
+        longUsd: row.longUsd,
+        shortUsd: row.shortUsd,
+        whaleCount: row.addrs.size,
+      });
+    }
 
     const heuristics = buildHeuristics(aggregates);
 
@@ -111,8 +140,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
+      mode,
       minUsd,
-      disclaimer: DISCLAIMER,
+      disclaimer: mode === "global" ? DISCLAIMER_GLOBAL : DISCLAIMER_TRACKED,
       whales,
       aggregates: aggregates.sort((a, b) => b.longUsd + b.shortUsd - (a.longUsd + a.shortUsd)),
       heuristics,

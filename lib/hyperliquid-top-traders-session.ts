@@ -68,13 +68,60 @@ export type TopTraderSessionRow = TopTraderState & {
   isGlobal: boolean;
 };
 
+type TraderSeedRow = { address: string; nickname: string | null };
+
+async function hydrateTopTraders(rows: TraderSeedRow[], globalAddressesForResponse: Set<string> | null): Promise<TopTraderSessionRow[]> {
+  if (rows.length === 0) return [];
+
+  const tradersInput = rows.map((r) => ({
+    address: r.address,
+    label: r.nickname ?? undefined,
+    nickname: r.nickname,
+    alertEnabled: true,
+  }));
+  const traders = await getTopTradersPositions(tradersInput);
+  const withTime = await Promise.all(
+    traders.map(async (t) => {
+      const fills = await getUserFills(t.address).catch(() => []);
+      const inferredXyzPositions = inferOpenXyzPositionsFromFills(fills);
+      const inferredHl: HyperliquidPosition[] = inferredXyzPositions.map((p) => ({
+        coin: p.coin,
+        side: p.side,
+        szi: p.szi,
+        entryPx: p.entryPx,
+        positionValue: p.positionValue,
+        unrealizedPnl: p.unrealizedPnl,
+      }));
+      const existingCoins = new Set((t.positions ?? []).map((x) => x.coin.toLowerCase()));
+      const mergedPositions: HyperliquidPosition[] = [
+        ...(t.positions ?? []),
+        ...inferredHl.filter((p) => !existingCoins.has(p.coin.toLowerCase())),
+      ];
+
+      const lastTradeTimeMs =
+        fills.length > 0
+          ? Math.max(...fills.map((f) => (typeof f.time === "number" ? f.time : 0)).filter((n) => n > 0))
+          : await getLastFillTimeMs(t.address).catch(() => undefined);
+      const isGlobal = globalAddressesForResponse === null ? true : globalAddressesForResponse.has(t.address.toLowerCase());
+      return {
+        ...t,
+        positions: mergedPositions,
+        lastTradeTimeMs: lastTradeTimeMs ?? null,
+        apexLiquidUrl: `${APEXLIQUID_DETAIL_URL}?address=${encodeURIComponent(t.address)}`,
+        isGlobal,
+      };
+    })
+  );
+  return withTime;
+}
+
 /**
  * Same wallet list + Hyperliquid merge as GET /api/hyperliquid/top-traders (for reuse by Nova Eagle, etc.).
  */
 export async function fetchTopTradersForSession(session: Session): Promise<TopTraderSessionRow[]> {
   if (!session?.user?.id) return [];
 
-  let rows: { address: string; nickname: string | null }[];
+  let rows: TraderSeedRow[];
   let globalAddressesForResponse: Set<string> | null = null;
   if (isOwnerSession(session)) {
     let adminRows = await leverageDb.leverageWallet.findMany({
@@ -113,46 +160,18 @@ export async function fetchTopTradersForSession(session: Session): Promise<TopTr
     rows = Array.from(byAddr.entries()).map(([address, nickname]) => ({ address, nickname }));
   }
 
-  if (rows.length === 0) return [];
+  return hydrateTopTraders(rows, globalAddressesForResponse);
+}
 
-  const tradersInput = rows.map((r) => ({
-    address: r.address,
-    label: r.nickname ?? undefined,
-    nickname: r.nickname,
-    alertEnabled: true,
-  }));
-  const traders = await getTopTradersPositions(tradersInput);
-  const withTime = await Promise.all(
-    traders.map(async (t) => {
-      const fills = await getUserFills(t.address).catch(() => []);
-        const inferredXyzPositions = inferOpenXyzPositionsFromFills(fills);
-        const inferredHl: HyperliquidPosition[] = inferredXyzPositions.map((p) => ({
-          coin: p.coin,
-          side: p.side,
-          szi: p.szi,
-          entryPx: p.entryPx,
-          positionValue: p.positionValue,
-          unrealizedPnl: p.unrealizedPnl,
-        }));
-        const existingCoins = new Set((t.positions ?? []).map((x) => x.coin.toLowerCase()));
-        const mergedPositions: HyperliquidPosition[] = [
-          ...(t.positions ?? []),
-          ...inferredHl.filter((p) => !existingCoins.has(p.coin.toLowerCase())),
-        ];
-
-      const lastTradeTimeMs =
-        fills.length > 0
-          ? Math.max(...fills.map((f) => (typeof f.time === "number" ? f.time : 0)).filter((n) => n > 0))
-          : await getLastFillTimeMs(t.address).catch(() => undefined);
-      const isGlobal = globalAddressesForResponse === null ? true : globalAddressesForResponse.has(t.address.toLowerCase());
-      return {
-        ...t,
-        positions: mergedPositions,
-        lastTradeTimeMs: lastTradeTimeMs ?? null,
-        apexLiquidUrl: `${APEXLIQUID_DETAIL_URL}?address=${encodeURIComponent(t.address)}`,
-        isGlobal,
-      };
-    })
-  );
-  return withTime;
+/** Fetch top-trader positions from an explicit wallet set (used by Nova Eagle global mode). */
+export async function fetchTopTradersFromAddresses(addresses: string[]): Promise<TopTraderSessionRow[]> {
+  const dedup = new Set<string>();
+  for (const raw of addresses) {
+    const addr = String(raw ?? "").trim().toLowerCase();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) continue;
+    dedup.add(addr);
+  }
+  const rows: TraderSeedRow[] = Array.from(dedup).map((address) => ({ address, nickname: null }));
+  const globalSet = new Set(rows.map((r) => r.address.toLowerCase()));
+  return hydrateTopTraders(rows, globalSet);
 }
