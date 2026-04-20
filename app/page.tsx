@@ -21,6 +21,7 @@ import { Zap, Copy, Send, Star, Flame, ChevronDown, Menu, X } from "lucide-react
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import NovaEaglePanel from "@/components/NovaEaglePanel";
 import CryptoBuddiePanel from "@/components/CryptoBuddiePanel";
+import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
@@ -3311,6 +3312,9 @@ export default function Dashboard() {
                     {aiAnalysisLoading ? "Analyzing…" : "Analyze"}
                   </Button>
                 </div>
+                {isPaid && (
+                  <AiAgentMonitorPanel isPaid={isPaid} syncChain={aiAnalysisChain} syncContract={aiAnalysisCa} syncAmountUsd={aiAnalysisAmountUsd} />
+                )}
                 {aiAnalysisError && (
                   <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{aiAnalysisError}</p>
                 )}

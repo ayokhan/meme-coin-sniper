@@ -1,17 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { CryptoBuddieRow } from "@/lib/crypto-buddie-score";
-
-const INTERVALS_MS = [
-  { label: "30 sec", ms: 30_000 },
-  { label: "1 min", ms: 60_000 },
-  { label: "2 min", ms: 120_000 },
-  { label: "5 min", ms: 300_000 },
-] as const;
 
 export default function CryptoBuddiePanel() {
   const [loading, setLoading] = useState(false);
@@ -21,16 +14,6 @@ export default function CryptoBuddiePanel() {
   const [search, setSearch] = useState("");
   const [focus, setFocus] = useState<CryptoBuddieRow | null>(null);
   const [focusLoading, setFocusLoading] = useState(false);
-
-  const [monitorChain, setMonitorChain] = useState<"solana" | "bsc">("solana");
-  const [monitorContract, setMonitorContract] = useState("");
-  const [monitorOn, setMonitorOn] = useState(false);
-  const [intervalMs, setIntervalMs] = useState(60_000);
-  const [monitorLoading, setMonitorLoading] = useState(false);
-  const [monitorError, setMonitorError] = useState<string | null>(null);
-  const [monitorMessage, setMonitorMessage] = useState<string | null>(null);
-  const [lastFingerprint, setLastFingerprint] = useState<string | null>(null);
-  const fpRef = useRef<string | null>(null);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -85,44 +68,6 @@ export default function CryptoBuddiePanel() {
     }
   };
 
-  const pollMonitor = useCallback(async () => {
-    const c = monitorContract.trim();
-    if (!c) return;
-    setMonitorLoading(true);
-    setMonitorError(null);
-    try {
-      const res = await fetch("/api/futures/crypto-buddie/monitor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          chain: monitorChain,
-          contract: c,
-          previousFingerprint: fpRef.current,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setMonitorError(data?.error ?? `Monitor failed (${res.status})`);
-        return;
-      }
-      fpRef.current = data.fingerprint;
-      setLastFingerprint(data.fingerprint);
-      setMonitorMessage(data.message ?? null);
-    } catch (e) {
-      setMonitorError(e instanceof Error ? e.message : "Monitor failed");
-    } finally {
-      setMonitorLoading(false);
-    }
-  }, [monitorChain, monitorContract]);
-
-  useEffect(() => {
-    if (!monitorOn || !monitorContract.trim()) return;
-    void pollMonitor();
-    const id = window.setInterval(() => void pollMonitor(), intervalMs);
-    return () => window.clearInterval(id);
-  }, [monitorOn, intervalMs, monitorChain, monitorContract, pollMonitor]);
-
   const topSyms = new Set(rows.slice(0, 3).map((r) => r.coin));
 
   const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
@@ -135,7 +80,8 @@ export default function CryptoBuddiePanel() {
         <div>
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Crypto Buddie</h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
-            Same universe as <strong className="text-zinc-700 dark:text-zinc-300">Top Altcoins</strong> (major HL perps), ranked for tighter recent 15m ranges and short-term alignment—highlighting names that may be more “range-friendly” for quick plans. Search any HL symbol for detail. Solana/BSC monitor reuses the NovaStaris token AI (not perp order flow).
+            Same universe as <strong className="text-zinc-700 dark:text-zinc-300">Top Altcoins</strong> (major HL perps), ranked for tighter recent 15m ranges and short-term alignment—highlighting names that may be more “range-friendly” for quick plans. Search any HL symbol for detail. For Solana/BSC token auto-refresh monitoring, use{" "}
+            <strong className="text-zinc-700 dark:text-zinc-300">NovaStaris AI Agent → AI monitor</strong>.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void loadRows()} disabled={loading}>
@@ -145,75 +91,6 @@ export default function CryptoBuddiePanel() {
 
       {disclaimer && <p className="text-[11px] text-muted-foreground leading-relaxed">{disclaimer}</p>}
       {error && !focusLoading && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
-
-      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 space-y-3 bg-zinc-50/50 dark:bg-zinc-900/30">
-        <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">AI monitor (Solana / BSC contract)</p>
-        <p className="text-[11px] text-muted-foreground">
-          Turn on to poll the same AI snapshot as the AI Agent. If the fingerprint changes between polls, we suggest reassessing or exiting; if unchanged, you might stay with your plan.
-        </p>
-        <div className="flex flex-wrap items-end gap-2">
-          <div>
-            <label className="text-[11px] text-muted-foreground block mb-0.5">Chain</label>
-            <select
-              value={monitorChain}
-              onChange={(e) => setMonitorChain(e.target.value === "bsc" ? "bsc" : "solana")}
-              className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-            >
-              <option value="solana">Solana</option>
-              <option value="bsc">BSC</option>
-            </select>
-          </div>
-          <div className="min-w-[200px] flex-1">
-            <label className="text-[11px] text-muted-foreground block mb-0.5">Contract</label>
-            <input
-              value={monitorContract}
-              onChange={(e) => setMonitorContract(e.target.value.trim())}
-              placeholder={monitorChain === "bsc" ? "0x…" : "Mint address"}
-              className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 font-mono"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] text-muted-foreground block mb-0.5">Interval</label>
-            <select
-              value={intervalMs}
-              onChange={(e) => setIntervalMs(Number(e.target.value))}
-              className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-            >
-              {INTERVALS_MS.map((o) => (
-                <option key={o.ms} value={o.ms}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            variant={monitorOn ? "destructive" : "default"}
-            className={!monitorOn ? "bg-cyan-500 hover:bg-cyan-600 text-white" : ""}
-            onClick={() => {
-              if (!monitorOn) {
-                fpRef.current = null;
-                setLastFingerprint(null);
-              }
-              setMonitorOn((v) => !v);
-            }}
-            disabled={!monitorContract.trim()}
-          >
-            {monitorOn ? "Stop monitor" : "Start AI monitor"}
-          </Button>
-        </div>
-        {monitorError && <p className="text-xs text-rose-600 dark:text-rose-400">{monitorError}</p>}
-        {monitorOn && (
-          <div className="text-xs space-y-1">
-            {monitorLoading && <p className="text-muted-foreground">Fetching snapshot…</p>}
-            {lastFingerprint && (
-              <p className="font-mono text-[10px] text-muted-foreground break-all">Fingerprint: {lastFingerprint}</p>
-            )}
-            {monitorMessage && <p className="text-zinc-800 dark:text-zinc-200">{monitorMessage}</p>}
-          </div>
-        )}
-      </div>
 
       <div className="flex flex-wrap items-end gap-2">
         <div>
