@@ -2405,6 +2405,14 @@ export default function Dashboard() {
         ? v.toExponential(2)
         : v.toFixed(6)
       : "—";
+  const normalizeDirectionBias = (value?: string): "long" | "short" | "neutral" | null => {
+    const t = (value ?? "").toLowerCase();
+    if (!t) return null;
+    if (t.includes("short")) return "short";
+    if (t.includes("long")) return "long";
+    if (t.includes("neutral") || t.includes("mixed") || t.includes("unclear")) return "neutral";
+    return null;
+  };
   const formatAge = (launchedAt: string) => {
     if (!launchedAt) return "—";
     const ms = Date.now() - new Date(launchedAt).getTime();
@@ -3351,6 +3359,22 @@ export default function Dashboard() {
                       >
                         {aiAnalysisResult.signal === "buy" ? "BUY" : "NO BUY"}
                       </Badge>
+                      {(() => {
+                        const biasRaw = aiAnalysisResult.recommendations?.directionBias;
+                        const bias = normalizeDirectionBias(biasRaw);
+                        if (!bias) return null;
+                        const cls =
+                          bias === "long"
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-300/60"
+                            : bias === "short"
+                              ? "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border-rose-300/60"
+                              : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-300/60";
+                        return (
+                          <Badge variant="outline" className={`text-sm font-semibold px-3 py-1 ${cls}`} title={biasRaw}>
+                            Bias: {bias === "long" ? "Long" : bias === "short" ? "Short" : "Neutral"}
+                          </Badge>
+                        );
+                      })()}
                     </div>
                     <details className="mt-3 text-sm text-muted-foreground">
                       <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">Why 0–100?</summary>
