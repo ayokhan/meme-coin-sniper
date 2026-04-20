@@ -18,7 +18,7 @@ function candlePct(candles: Array<[string, string, string, string, string, ...st
 }
 
 const DISCLAIMER =
-  "Crypto Buddie ranks Hyperliquid perps using heuristics (liquidity, short-term alignment, recent 15m range tightness). It is not a promise that support/resistance will hold for 1–4 hours. Memecoin monitor uses the same AI token scan as NovaStaris AI Agent—not financial advice.";
+  "Crypto Buddie ranks Hyperliquid perps using heuristics (liquidity, short-term momentum alignment, recent 15m range tightness, and net direction of recent 15m closes — not hand-drawn trendlines). It is not a promise that support/resistance will hold for the next 1–4 hours. Not financial advice.";
 
 /** VIP + flag: Top-altcoins-style table with scalp-style scores; optional ?focus=BTC for one row. */
 export async function GET(request: Request) {
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
           pct4w: candlePct(c4w, p.dayPct),
         };
         const rangePct = meanRangePct(c15series);
-        const meta = rankBuddy(enriched, rangePct);
+        const meta = rankBuddy(enriched, rangePct, c15series);
         return {
           ...enriched,
           buddyScore: meta.buddyScore,
@@ -75,6 +75,10 @@ export async function GET(request: Request) {
           stabilityNote: meta.stabilityNote,
           directionHint: meta.directionHint,
           rangePct15m: rangePct,
+          bias: meta.bias,
+          trend15m: meta.trend15m,
+          trend15mNetPct: meta.trend15mNetPct,
+          trendContext: meta.trendContext,
         };
       })
     );
@@ -117,7 +121,7 @@ export async function GET(request: Request) {
             pct4w: candlePct(c4w, p.dayPct),
           };
           const rangePct = meanRangePct(c15series);
-          const meta = rankBuddy(enriched, rangePct);
+          const meta = rankBuddy(enriched, rangePct, c15series);
           focus = {
             ...enriched,
             buddyScore: meta.buddyScore,
@@ -125,6 +129,10 @@ export async function GET(request: Request) {
             stabilityNote: meta.stabilityNote,
             directionHint: meta.directionHint,
             rangePct15m: rangePct,
+            bias: meta.bias,
+            trend15m: meta.trend15m,
+            trend15mNetPct: meta.trend15mNetPct,
+            trendContext: meta.trendContext,
           };
         }
       }

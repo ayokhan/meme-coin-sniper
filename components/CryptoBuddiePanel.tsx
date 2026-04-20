@@ -80,8 +80,12 @@ export default function CryptoBuddiePanel() {
         <div>
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Crypto Buddie</h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
-            Same universe as <strong className="text-zinc-700 dark:text-zinc-300">Top Altcoins</strong> (major HL perps), ranked for tighter recent 15m ranges and short-term alignment—highlighting names that may be more “range-friendly” for quick plans. Search any HL symbol for detail. For Solana/BSC token auto-refresh monitoring, use{" "}
+            Same universe as <strong className="text-zinc-700 dark:text-zinc-300">Top Altcoins</strong> (major HL perps), ranked for tighter recent 15m ranges, short-term momentum, and net direction of recent 15m closes (a simple “close path” read — not drawn trendlines). Search any HL symbol for detail. For Solana/BSC token auto-refresh monitoring, use{" "}
             <strong className="text-zinc-700 dark:text-zinc-300">NovaStaris AI Agent → AI monitor</strong>.
+          </p>
+          <p className="text-xs text-amber-800/90 dark:text-amber-200/90 mt-2 max-w-2xl rounded-md border border-amber-200/60 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/25 px-2 py-1.5">
+            <strong className="text-zinc-800 dark:text-zinc-200">Buddie pick</strong> means the row scored highest for this screen’s heuristics (liquidity + tight ranges + alignment). It is{" "}
+            <strong className="text-zinc-800 dark:text-zinc-200">not</strong> an automatic “open long.” Use the <strong className="text-zinc-800 dark:text-zinc-200">Bias</strong> column for a simple long / short / neutral read from 5m–1h momentum; use <strong className="text-zinc-800 dark:text-zinc-200">15m trend</strong> for whether recent closes drifted up or down across ~2h. Always confirm on your own chart and risk rules.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void loadRows()} disabled={loading}>
@@ -123,6 +127,20 @@ export default function CryptoBuddiePanel() {
           </div>
           <p className="text-xs text-muted-foreground">{focus.stabilityNote}</p>
           <p className="text-xs">{focus.directionHint}</p>
+          <p className="text-xs">
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">Bias:</span>{" "}
+            <span className={focus.bias === "long" ? "text-emerald-600 dark:text-emerald-400" : focus.bias === "short" ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}>
+              {focus.bias === "long" ? "Long" : focus.bias === "short" ? "Short" : "Neutral"}
+            </span>
+            {" · "}
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">15m trend:</span>{" "}
+            {focus.trend15m === "up" ? "Up" : focus.trend15m === "down" ? "Down" : "Sideways"}{" "}
+            <span className="font-mono text-muted-foreground">
+              ({focus.trend15mNetPct >= 0 ? "+" : ""}
+              {focus.trend15mNetPct.toFixed(2)}%)
+            </span>
+          </p>
+          <p className="text-[11px] text-muted-foreground">{focus.trendContext}</p>
           <p className="text-xs font-mono">
             5m {fmt(focus.pct5m)} · 1h {fmt(focus.pct1h)} · 4h {fmt(focus.pct4h)} · 24h {fmt(focus.dayPct)}
           </p>
@@ -148,6 +166,10 @@ export default function CryptoBuddiePanel() {
               <TableRow>
                 <TableHead className="text-xs">Symbol</TableHead>
                 <TableHead className="text-right text-xs">Buddy</TableHead>
+                <TableHead className="text-xs">Bias</TableHead>
+                <TableHead className="text-xs" title="Net change of 15m closes over the loaded window (~2h), not drawn trendlines">
+                  15m trend
+                </TableHead>
                 <TableHead className="text-xs">Stability</TableHead>
                 <TableHead className="text-right text-xs">5m</TableHead>
                 <TableHead className="text-right text-xs">1h</TableHead>
@@ -172,11 +194,34 @@ export default function CryptoBuddiePanel() {
                       )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs font-semibold">{p.buddyScore}</TableCell>
+                    <TableCell className="text-xs font-medium">
+                      <span
+                        className={
+                          p.bias === "long"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : p.bias === "short"
+                              ? "text-rose-600 dark:text-rose-400"
+                              : "text-muted-foreground"
+                        }
+                      >
+                        {p.bias === "long" ? "Long" : p.bias === "short" ? "Short" : "Neutral"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs font-mono">
+                      <span className={p.trend15m === "up" ? "text-emerald-600 dark:text-emerald-400" : p.trend15m === "down" ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}>
+                        {p.trend15m === "up" ? "Up" : p.trend15m === "down" ? "Down" : "Flat"}
+                      </span>{" "}
+                      <span className="text-muted-foreground text-[10px]">
+                        ({p.trend15mNetPct >= 0 ? "+" : ""}
+                        {p.trend15mNetPct.toFixed(2)}%)
+                      </span>
+                    </TableCell>
                     <TableCell className="text-xs capitalize">{p.stability}</TableCell>
                     <TableCell className={`text-right font-mono text-xs ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
                     <TableCell className={`text-right font-mono text-xs ${cls(p.pct1h)}`}>{fmt(p.pct1h)}</TableCell>
                     <TableCell className={`text-right font-mono text-xs ${cls(p.pct4h)}`}>{fmt(p.pct4h)}</TableCell>
                     <TableCell className={`text-right font-mono text-xs ${cls(p.dayPct)}`}>{fmt(p.dayPct)}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-[200px]">{p.directionHint}</TableCell>
                     <TableCell className="text-right">
                       <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">
