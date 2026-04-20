@@ -611,6 +611,9 @@ export default function Dashboard() {
     recommendations?: {
       supportResistance?: string;
       marketStructure?: string;
+      directionBias?: string;
+      trendlineRead?: string;
+      demandSupplyZones?: string;
       buyZoneMcap?: string;
       takeProfitPct?: string;
       stopLossPct?: string;
@@ -2433,10 +2436,13 @@ export default function Dashboard() {
     }
     lines.push("");
     const rec = r.recommendations;
-    if (rec && (rec.supportResistance || rec.marketStructure || rec.buyZoneMcap || rec.takeProfitPct || rec.stopLossPct)) {
+    if (rec && (rec.supportResistance || rec.marketStructure || rec.directionBias || rec.trendlineRead || rec.demandSupplyZones || rec.buyZoneMcap || rec.takeProfitPct || rec.stopLossPct)) {
       lines.push("📐 Trading levels (meme coins are volatile — use risk management)");
       if (rec.supportResistance) lines.push(`  📍 Support / Resistance: ${rec.supportResistance}`);
       if (rec.marketStructure) lines.push(`  📈 Market structure: ${rec.marketStructure}`);
+      if (rec.directionBias) lines.push(`  🧭 Direction bias: ${rec.directionBias}`);
+      if (rec.trendlineRead) lines.push(`  📉 Trendline read: ${rec.trendlineRead}`);
+      if (rec.demandSupplyZones) lines.push(`  🧱 Demand / Supply zones: ${rec.demandSupplyZones}`);
       if (rec.buyZoneMcap) lines.push(`  🎯 Buy zone (mcap): ${rec.buyZoneMcap}`);
       if (rec.takeProfitPct) lines.push(`  ✅ Take profit: ${rec.takeProfitPct}`);
       if (rec.stopLossPct) lines.push(`  🛑 Stop loss: ${rec.stopLossPct}`);
@@ -3373,11 +3379,14 @@ export default function Dashboard() {
                         <p className="text-amber-700 dark:text-amber-300">{aiAnalysisResult.amountRiskNote}</p>
                       </div>
                     )}
-                    {aiAnalysisResult.recommendations && (aiAnalysisResult.recommendations.supportResistance || aiAnalysisResult.recommendations.marketStructure || aiAnalysisResult.recommendations.buyZoneMcap || aiAnalysisResult.recommendations.takeProfitPct || aiAnalysisResult.recommendations.stopLossPct) && (
+                    {aiAnalysisResult.recommendations && (aiAnalysisResult.recommendations.supportResistance || aiAnalysisResult.recommendations.marketStructure || aiAnalysisResult.recommendations.directionBias || aiAnalysisResult.recommendations.trendlineRead || aiAnalysisResult.recommendations.demandSupplyZones || aiAnalysisResult.recommendations.buyZoneMcap || aiAnalysisResult.recommendations.takeProfitPct || aiAnalysisResult.recommendations.stopLossPct) && (
                       <div className="mt-4 rounded-lg border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/50 dark:bg-cyan-950/30 p-4 space-y-2 text-sm">
                         <p className="font-semibold text-cyan-800 dark:text-cyan-200">Trading levels (meme coins are volatile — use risk management)</p>
                         {aiAnalysisResult.recommendations.supportResistance && <p><span className="text-muted-foreground">Support / Resistance:</span> {aiAnalysisResult.recommendations.supportResistance}</p>}
                         {aiAnalysisResult.recommendations.marketStructure && <p><span className="text-muted-foreground">Market structure:</span> {aiAnalysisResult.recommendations.marketStructure}</p>}
+                        {aiAnalysisResult.recommendations.directionBias && <p><span className="text-muted-foreground">Direction bias:</span> {aiAnalysisResult.recommendations.directionBias}</p>}
+                        {aiAnalysisResult.recommendations.trendlineRead && <p><span className="text-muted-foreground">Trendline read:</span> {aiAnalysisResult.recommendations.trendlineRead}</p>}
+                        {aiAnalysisResult.recommendations.demandSupplyZones && <p><span className="text-muted-foreground">Demand / Supply zones:</span> {aiAnalysisResult.recommendations.demandSupplyZones}</p>}
                         {aiAnalysisResult.recommendations.buyZoneMcap && <p><span className="text-muted-foreground">Buy zone (mcap):</span> {aiAnalysisResult.recommendations.buyZoneMcap}</p>}
                         {aiAnalysisResult.recommendations.takeProfitPct && <p><span className="text-emerald-600 dark:text-emerald-400">Take profit:</span> {aiAnalysisResult.recommendations.takeProfitPct}</p>}
                         {aiAnalysisResult.recommendations.stopLossPct && <p><span className="text-rose-600 dark:text-rose-400">Stop loss:</span> {aiAnalysisResult.recommendations.stopLossPct}</p>}

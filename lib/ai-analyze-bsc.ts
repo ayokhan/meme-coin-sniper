@@ -15,6 +15,9 @@ export type AnalysisResult = {
   recommendations?: {
     supportResistance?: string;
     marketStructure?: string;
+    directionBias?: string;
+    trendlineRead?: string;
+    demandSupplyZones?: string;
     buyZoneMcap?: string;
     takeProfitPct?: string;
     stopLossPct?: string;
@@ -110,6 +113,9 @@ You MUST include:
 Also provide trading levels (infer from current price/mcap and volatility when no chart data):
 - supportResistance: brief note on likely support and resistance (e.g. "Support near $X mcap; resistance at $Y" or "No clear levels; treat as speculative").
 - marketStructure: one line on structure (e.g. "Consolidation", "Uptrend", "Distribution", "Unknown - too new").
+- directionBias: one line with directional call and confidence (e.g. "Long bias, moderate confidence" / "Short bias, low confidence" / "Neutral").
+- trendlineRead: one line on trendline-style read using swing highs/lows in available data (e.g. "Rising trendline intact", "Trendline break risk", "No clear trendline").
+- demandSupplyZones: one line naming nearest demand/supply zones inferred from recent structure (or "No clear zones / too noisy").
 - buyZoneMcap: recommended market cap zone to consider buying (e.g. "Under $500k" or "Pullback to $200k-$300k"), or "Not recommended" if no_buy.
 - takeProfitPct: suggested take-profit as % from entry (e.g. "50-100%" or "2x-3x").
 - stopLossPct: suggested stop-loss as % from entry (e.g. "-30%" or "Tight -20% for memes").
@@ -124,6 +130,9 @@ Respond ONLY with valid JSON (no markdown, no code block):
   "recommendations": {
     "supportResistance": "<one line>",
     "marketStructure": "<one line>",
+    "directionBias": "<one line>",
+    "trendlineRead": "<one line>",
+    "demandSupplyZones": "<one line>",
     "buyZoneMcap": "<one line>",
     "takeProfitPct": "<one line>",
     "stopLossPct": "<one line>"
@@ -148,6 +157,9 @@ Keep reasons short. Include at least one reason that references narrative/viral 
     recommendations?: {
       supportResistance?: string;
       marketStructure?: string;
+      directionBias?: string;
+      trendlineRead?: string;
+      demandSupplyZones?: string;
       buyZoneMcap?: string;
       takeProfitPct?: string;
       stopLossPct?: string;
