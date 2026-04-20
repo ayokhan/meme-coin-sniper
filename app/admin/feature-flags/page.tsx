@@ -154,6 +154,16 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, eligible VIP users see the Nova 5 mins subtab under Nova Polymarket Pro (short-horizon Up/Down-style AI context from spot candles + optional browser alerts on signal flips). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
   },
+  nova_eagle: {
+    label: "Nova Eagle (Crypto Futures)",
+    description:
+      "When ON, VIP users see the Nova Eagle subtab under Crypto Futures: large positions from Top Leverage Traders wallets, wallet copy for tracker, and skew heuristics (optional AI summary). Default OFF until you enable it.",
+  },
+  nova_crypto_buddie: {
+    label: "Crypto Buddie (Crypto Futures)",
+    description:
+      "When ON, VIP users see the Crypto Buddie subtab: ranked perps for short-horizon style reads plus optional Sol/BSC AI monitor polling. Default OFF until you enable it.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {

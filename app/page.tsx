@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Zap, Copy, Send, Star, Flame, ChevronDown, Menu, X } from "lucide-react";
 import FuturesWorkflow from "@/components/FuturesWorkflow";
+import NovaEaglePanel from "@/components/NovaEaglePanel";
+import CryptoBuddiePanel from "@/components/CryptoBuddiePanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
@@ -653,7 +655,37 @@ export default function Dashboard() {
   } | null>(null);
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
-  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "nova-crypto-narratives">("ai");
+  const [futuresView, setFuturesView] = useState<
+    "ai" | "workflow" | "altcoins" | "hot-perps" | "nova-crypto-narratives" | "nova-eagle" | "crypto-buddie"
+  >("ai");
+  const [vipFuturesAddons, setVipFuturesAddons] = useState<{ novaEagle: boolean; cryptoBuddie: boolean } | null>(null);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !isVip) {
+      setVipFuturesAddons(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/futures/vip-addon-flags", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || !d?.success) return;
+        setVipFuturesAddons({ novaEagle: !!d.novaEagle, cryptoBuddie: !!d.cryptoBuddie });
+      })
+      .catch(() => {
+        if (!cancelled) setVipFuturesAddons({ novaEagle: false, cryptoBuddie: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, isVip]);
+
+  useEffect(() => {
+    if (activeTab !== "futures" || !isVip || !vipFuturesAddons) return;
+    if (futuresView === "nova-eagle" && !vipFuturesAddons.novaEagle) setFuturesView("ai");
+    if (futuresView === "crypto-buddie" && !vipFuturesAddons.cryptoBuddie) setFuturesView("ai");
+  }, [activeTab, futuresView, isVip, vipFuturesAddons]);
+
   type NovaCryptoNarrativesHeadline = { title: string; link: string; pubDate?: string };
   type NovaCryptoNarrativesCot = {
     marketName: string;
@@ -3975,6 +4007,26 @@ export default function Dashboard() {
                   >
                     Nova Crypto Narratives
                   </Button>
+                  {isVip && vipFuturesAddons?.novaEagle && (
+                    <Button
+                      variant={futuresView === "nova-eagle" ? "default" : "outline"}
+                      size="sm"
+                      className={futuresView === "nova-eagle" ? "bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white" : ""}
+                      onClick={() => setFuturesView("nova-eagle")}
+                    >
+                      Nova Eagle
+                    </Button>
+                  )}
+                  {isVip && vipFuturesAddons?.cryptoBuddie && (
+                    <Button
+                      variant={futuresView === "crypto-buddie" ? "default" : "outline"}
+                      size="sm"
+                      className={futuresView === "crypto-buddie" ? "bg-violet-500 hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-700 text-white" : ""}
+                      onClick={() => setFuturesView("crypto-buddie")}
+                    >
+                      Crypto Buddie
+                    </Button>
+                  )}
                 </div>
                 {futuresView === "workflow" ? (
                   <FuturesWorkflow />
@@ -4368,6 +4420,10 @@ export default function Dashboard() {
                       </div>
                     )}
                   </div>
+                ) : futuresView === "nova-eagle" ? (
+                  <NovaEaglePanel />
+                ) : futuresView === "crypto-buddie" ? (
+                  <CryptoBuddiePanel />
                 ) : (
                 <div className="max-w-2xl">
                 <h2 className="text-xl sm:text-2xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
