@@ -7,6 +7,12 @@ import {
   type TrendingPerp,
 } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
+import {
+  type CandleTuple,
+  combineStructureAndTrendline,
+  structureDirectionFromCloses,
+  trendlineRegressionFromCloses,
+} from "@/lib/nova-q-analytics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -40,11 +46,16 @@ async function enrichWithTimeframes(
     pct2w?: number;
     pct3w?: number;
     pct4w?: number;
+    structureDirection?: "bullish" | "bearish" | "sideways";
+    trendlineBias?: "up" | "down" | "flat";
+    trendlineSlopePctWindow?: number;
+    trendlineRead?: string;
+    blendedDirection?: "bullish" | "bearish" | "sideways";
   })[]
 > {
   return Promise.all(
     perps.map(async (p) => {
-      const [c5, c15, c30, c1h, c4h, c48h, c72h, c1w, c2w, c3w, c4w] = await Promise.all([
+      const [c5, c15, c30, c1h, c4h, c48h, c72h, c1w, c2w, c3w, c4w, cTrend] = await Promise.all([
         getCandles(p.coin, "5m", 1),
         getCandles(p.coin, "15m", 1),
         getCandles(p.coin, "30m", 1),
@@ -56,7 +67,17 @@ async function enrichWithTimeframes(
         getCandles(p.coin, "1d", 14),
         getCandles(p.coin, "1d", 21),
         getCandles(p.coin, "1d", 28),
+        getCandles(p.coin, "15m", 8),
       ]);
+      const trendRows = cTrend as CandleTuple[];
+      const struct = structureDirectionFromCloses(trendRows);
+      const tl =
+        trendlineRegressionFromCloses(trendRows) ?? {
+          bias: "flat" as const,
+          slopePctWindow: 0,
+          closeVsLinePct: 0,
+          read: "Too few candles for regression trendline.",
+        };
       return {
         ...p,
         pct5m: candlePct(c5, p.dayPct),
@@ -70,6 +91,11 @@ async function enrichWithTimeframes(
         pct2w: candlePct(c2w, p.dayPct),
         pct3w: candlePct(c3w, p.dayPct),
         pct4w: candlePct(c4w, p.dayPct),
+        structureDirection: struct,
+        trendlineBias: tl.bias,
+        trendlineSlopePctWindow: tl.slopePctWindow,
+        trendlineRead: tl.read,
+        blendedDirection: combineStructureAndTrendline(struct, tl.bias),
       };
     })
   );

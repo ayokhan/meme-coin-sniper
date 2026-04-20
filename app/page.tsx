@@ -4443,7 +4443,7 @@ export default function Dashboard() {
                       {hotPerpsNewOnly
                         ? "New listings in the last 7 days with strong short-term momentum—sorted by 5m by default. When new perps are listed we show them here first."
                         : "No new listings in the last 7 days—showing top momentum perps instead. When new perps appear, we’ll show them here first."}
-                      {" "}Columns: 5m–4h, 24h %, Direction, Funding. Use AI Chart Analysis or Institutional Workflow to analyze and trade.
+                      {" "}Columns: 5m–4h, 24h %, Trend, Direction, Funding. Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use AI Chart Analysis or Institutional Workflow to analyze and trade.
                     </p>
                     {hotPerpsLoading && hotPerps.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Loading…</p>
@@ -4461,7 +4461,8 @@ export default function Dashboard() {
                               <TableHead className="text-right text-xs">1h %</TableHead>
                               <TableHead className="text-right text-xs">4h %</TableHead>
                               <TableHead className="text-right text-xs">24h %</TableHead>
-                              <TableHead className="text-center text-xs" title="Based on 24h % change. Past move, not a forecast.">Direction</TableHead>
+                              <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">Trend</TableHead>
+                              <TableHead className="text-center text-xs" title="Direction (blended when available, else 24h move).">Direction</TableHead>
                               <TableHead className="text-right text-xs" title="Positive = long-heavy, negative = short-heavy.">Funding</TableHead>
                               <TableHead className="text-right text-xs">Price</TableHead>
                               <TableHead className="text-right text-xs" title="Total notional volume (buys + sells)">24h Vol</TableHead>
@@ -4491,7 +4492,15 @@ export default function Dashboard() {
                                 const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                                 const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
                                 const dirPct = p.dayPct;
-                                const direction = dirPct > 0 ? "Long" : dirPct < 0 ? "Short" : "—";
+                                const fallbackDirection = dirPct > 0 ? "Long" : dirPct < 0 ? "Short" : "—";
+                                const direction =
+                                  p.blendedDirection === "bullish"
+                                    ? "Long"
+                                    : p.blendedDirection === "bearish"
+                                      ? "Short"
+                                      : p.blendedDirection === "sideways"
+                                        ? "Sideways"
+                                        : fallbackDirection;
                                 const fundingNum = p.funding != null && p.funding !== "" ? Number(p.funding) * 100 : null;
                                 const fundingStr = fundingNum == null ? "—" : (fundingNum >= 0 ? "+" : "") + fundingNum.toFixed(4) + "%";
                                 const vol = Number(p.dayNtlVlm);
@@ -4520,7 +4529,24 @@ export default function Dashboard() {
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct1h)}`}>{fmt(p.pct1h)}</TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct4h)}`}>{fmt(p.pct4h)}</TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.dayPct)}`}>{fmt(p.dayPct)}</TableCell>
-                                    <TableCell className={`text-center text-xs font-medium ${dirPct > 0 ? "text-emerald-600 dark:text-emerald-400" : dirPct < 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}>{direction}</TableCell>
+                                    <TableCell className="text-center text-xs" title={p.trendlineRead || undefined}>
+                                      <Badge
+                                        variant="outline"
+                                        className={
+                                          p.trendlineBias === "up"
+                                            ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
+                                            : p.trendlineBias === "down"
+                                              ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
+                                              : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
+                                        }
+                                      >
+                                        {p.trendlineBias ?? "—"}
+                                        {typeof p.trendlineSlopePctWindow === "number"
+                                          ? ` ${p.trendlineSlopePctWindow >= 0 ? "+" : ""}${p.trendlineSlopePctWindow.toFixed(2)}%`
+                                          : ""}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className={`text-center text-xs font-medium ${direction === "Long" ? "text-emerald-600 dark:text-emerald-400" : direction === "Short" ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}>{direction}</TableCell>
                                     <TableCell className={`text-right font-mono text-xs ${fundingNum != null ? (fundingNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400") : "text-muted-foreground"}`}>{fundingStr}</TableCell>
                                     <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right font-mono text-xs text-muted-foreground">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
