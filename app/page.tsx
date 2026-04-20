@@ -6261,8 +6261,15 @@ export default function Dashboard() {
                       )}
                       {novaSmartResults.length > 0 && (
                         <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-                          {novaSmartResults.map((r, idx) => (
-                            <Card key={`${r.symbol}-${idx}`} className="border-zinc-200 dark:border-zinc-700">
+                          {novaSmartResults.map((r, idx) => {
+                            const confidenceClass =
+                              r.trendlineConfidence === "high"
+                                ? "border-emerald-300/70 dark:border-emerald-800/70"
+                                : r.trendlineConfidence === "medium"
+                                  ? "border-amber-300/70 dark:border-amber-800/70"
+                                  : "border-zinc-200 dark:border-zinc-700";
+                            return (
+                            <Card key={`${r.symbol}-${idx}`} className={confidenceClass}>
                               <CardHeader className="py-3">
                                 <CardTitle className="text-base font-mono">{r.symbol}</CardTitle>
                               </CardHeader>
@@ -6352,7 +6359,7 @@ export default function Dashboard() {
                                 )}
                               </CardContent>
                             </Card>
-                          ))}
+                          )})}
                         </div>
                       )}
                     </div>
