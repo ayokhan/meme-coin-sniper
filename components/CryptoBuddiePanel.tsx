@@ -73,6 +73,18 @@ export default function CryptoBuddiePanel() {
   const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
   const cls = (v: number | undefined) =>
     v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
+  const horizonTrend = (pct: number | undefined, flatThreshold = 0.08): "up" | "down" | "flat" => {
+    if (pct == null || !Number.isFinite(pct)) return "flat";
+    if (pct > flatThreshold) return "up";
+    if (pct < -flatThreshold) return "down";
+    return "flat";
+  };
+  const trendBadgeClass = (t: "up" | "down" | "flat") =>
+    t === "up"
+      ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
+      : t === "down"
+        ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
+        : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300";
 
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 max-w-full space-y-5">
@@ -82,6 +94,9 @@ export default function CryptoBuddiePanel() {
           <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
             Same universe as <strong className="text-zinc-700 dark:text-zinc-300">Top Altcoins</strong> (major HL perps), ranked for tighter recent 15m ranges, short-term momentum, and net direction of recent 15m closes (a simple “close path” read — not drawn trendlines). Search any HL symbol for detail. For Solana/BSC token auto-refresh monitoring, use{" "}
             <strong className="text-zinc-700 dark:text-zinc-300">NovaStaris AI Agent → AI monitor</strong>.
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-1 max-w-2xl">
+            Trend stack reads: <strong className="text-zinc-700 dark:text-zinc-300">micro = 15m</strong>, <strong className="text-zinc-700 dark:text-zinc-300">intraday = 1h</strong>, <strong className="text-zinc-700 dark:text-zinc-300">regime = 4h</strong>. Best quality setups usually align micro + intraday with regime.
           </p>
           <p className="text-xs text-amber-800/90 dark:text-amber-200/90 mt-2 max-w-2xl rounded-md border border-amber-200/60 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/25 px-2 py-1.5">
             <strong className="text-zinc-800 dark:text-zinc-200">Buddie pick</strong> means the row scored highest for this screen’s heuristics (liquidity + tight ranges + alignment). It is{" "}
@@ -170,6 +185,9 @@ export default function CryptoBuddiePanel() {
                 <TableHead className="text-xs" title="Net change of 15m closes over the loaded window (~2h), not drawn trendlines">
                   15m trend
                 </TableHead>
+                <TableHead className="text-xs" title="Micro/intraday/regime trend stack from 15m/1h/4h momentum snapshots">
+                  Trend stack
+                </TableHead>
                 <TableHead className="text-xs">Stability</TableHead>
                 <TableHead className="text-right text-xs">5m</TableHead>
                 <TableHead className="text-right text-xs">1h</TableHead>
@@ -183,6 +201,8 @@ export default function CryptoBuddiePanel() {
             <TableBody>
               {rows.map((p) => {
                 const isTop = topSyms.has(p.coin);
+                const t1h = horizonTrend(p.pct1h);
+                const t4h = horizonTrend(p.pct4h, 0.15);
                 return (
                   <TableRow key={p.coin} className={isTop ? "bg-emerald-50/80 dark:bg-emerald-950/30 ring-1 ring-emerald-200/60 dark:ring-emerald-900/50" : ""}>
                     <TableCell className="font-mono text-xs">
@@ -215,6 +235,19 @@ export default function CryptoBuddiePanel() {
                         ({p.trend15mNetPct >= 0 ? "+" : ""}
                         {p.trend15mNetPct.toFixed(2)}%)
                       </span>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className={trendBadgeClass(p.trend15m === "up" ? "up" : p.trend15m === "down" ? "down" : "flat")}>
+                          15m {p.trend15m === "up" ? "up" : p.trend15m === "down" ? "down" : "flat"}
+                        </Badge>
+                        <Badge variant="outline" className={trendBadgeClass(t1h)}>
+                          1h {t1h}
+                        </Badge>
+                        <Badge variant="outline" className={trendBadgeClass(t4h)}>
+                          4h {t4h}
+                        </Badge>
+                      </div>
                     </TableCell>
                     <TableCell className="text-xs capitalize">{p.stability}</TableCell>
                     <TableCell className={`text-right font-mono text-xs ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
