@@ -6217,7 +6217,7 @@ export default function Dashboard() {
                   <TabsContent value="nova-smart" className="mt-0">
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaSmart Analysis</h2>
-                      <p className="text-xs text-muted-foreground mb-4">Compare timeframes to see high/low per period, smart short/long entries, and whether to scalp (quick profit) or swing (hold for bigger move). Enter any symbol(s)—BTC, BTC/USDT, ETH all work (pairs are normalized to base symbol). For gold, use <strong className="text-zinc-700 dark:text-zinc-300">XAU</strong> (Blofin <span className="font-mono">XAU-USDT</span> feed).</p>
+                      <p className="text-xs text-muted-foreground mb-4">Compare timeframes to see high/low per period, smart short/long entries, and whether to scalp (quick profit) or swing (hold for bigger move). Enter any symbol(s)—BTC, BTC/USDT, ETH all work (pairs are normalized to base symbol). For gold, use <strong className="text-zinc-700 dark:text-zinc-300">XAU</strong> or <strong className="text-zinc-700 dark:text-zinc-300">GOLD</strong> (Blofin <span className="font-mono">XAU-USDT</span> feed).</p>
                       <div className="flex flex-wrap items-center gap-4 mb-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>

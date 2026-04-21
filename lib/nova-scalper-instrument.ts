@@ -6,10 +6,11 @@ export type ParsedInstrument = { base: string; quote: "USDT" | "USDC"; instId: s
 
 /** Parse user input: "BTC/USDT", "BTC-USDT", "BTC" + separate quote, or stored base only. */
 export function parseScalperInstrument(symbolField: string, marginCurrencyFallback: string): ParsedInstrument {
-  const raw = String(symbolField ?? "")
+  let raw = String(symbolField ?? "")
     .trim()
     .toUpperCase()
     .replace(/-/g, "/");
+  if (raw === "GOLD") raw = "XAU";
   if (!raw) {
     const quote = marginCurrencyFallback === "USDC" ? "USDC" : "USDT";
     return { base: "", quote, instId: "" };
@@ -18,7 +19,7 @@ export function parseScalperInstrument(symbolField: string, marginCurrencyFallba
     const parts = raw.split("/").map((p) => p.trim()).filter(Boolean);
     if (parts.length >= 2) {
       const base = parts[0]!;
-      if (base === "XAU") {
+      if (base === "XAU" || base === "GOLD") {
         return { base: "XAU", quote: "USDT", instId: "XAU-USDT" };
       }
       const quoteRaw = parts[1]!;

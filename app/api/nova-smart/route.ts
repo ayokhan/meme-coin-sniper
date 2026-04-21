@@ -42,7 +42,9 @@ const BLOFIN_XAU_INST = "XAU-USDT";
 function normalizeSymbol(raw: string): string {
   const upper = String(raw ?? "").trim().toUpperCase();
   if (!upper) return "BTC";
+  if (upper === "GOLD") return "XAU";
   const base = upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim();
+  if (base === "GOLD") return "XAU";
   return base || "BTC";
 }
 
