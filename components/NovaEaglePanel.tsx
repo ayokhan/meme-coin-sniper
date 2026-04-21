@@ -78,8 +78,8 @@ export default function NovaEaglePanel() {
         <div>
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Eagle</h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
-            Surfaces large open perp positions from a sampled top-wallet set. Use <strong className="text-zinc-700 dark:text-zinc-300">Global</strong> for broader Apex/Hyperliquid leaderboard wallets, or{" "}
-            <strong className="text-zinc-700 dark:text-zinc-300">Tracked</strong> for your Top Leverage Traders list. Copy an address into <strong className="text-zinc-700 dark:text-zinc-300">Wallet Tracker</strong> if you want alerts.
+            Surfaces large open perp positions from a sampled top-wallet set. Use <strong className="text-zinc-700 dark:text-zinc-300">Global</strong> for the Apex seed set plus your Top Leverage Traders (and platform global wallets) in one pass, or{" "}
+            <strong className="text-zinc-700 dark:text-zinc-300">Tracked</strong> for that list only. Copy an address into <strong className="text-zinc-700 dark:text-zinc-300">Wallet Tracker</strong> if you want alerts.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -89,7 +89,7 @@ export default function NovaEaglePanel() {
             onChange={(e) => setMode(e.target.value === "tracked" ? "tracked" : "global")}
             className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
           >
-            <option value="global">Global top wallets (beta)</option>
+            <option value="global">Global + my tracked (beta)</option>
             <option value="tracked">My tracked wallets</option>
           </select>
           <label className="text-xs text-muted-foreground">Min position (USD)</label>
@@ -144,7 +144,7 @@ export default function NovaEaglePanel() {
       {aggregates.length > 0 && (
         <div>
           <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-            By contract ({mode === "global" ? "sampled global" : "tracked"} large size). BTC and ETH are always included.
+            By contract ({mode === "global" ? "global + tracked sample" : "tracked"} large size). BTC and ETH are always included.
           </p>
           <div className="overflow-x-auto">
             <Table>

@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { fetchTopTradersForSession, fetchTopTradersFromAddresses } from "@/lib/hyperliquid-top-traders-session";
+import { fetchTopTradersForSession, fetchTopTradersForNovaEagleGlobal } from "@/lib/hyperliquid-top-traders-session";
 import { getNovaEagleAccess } from "@/lib/vip-futures-addon-access";
 import { summarizeNovaEagleForAi } from "@/lib/ai-nova-eagle";
-import { APEXLIQUID_TOP_TRADERS } from "@/lib/config/apexliquid-top-traders";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -12,7 +11,7 @@ export const maxDuration = 60;
 const DISCLAIMER_TRACKED =
   "Nova Eagle (Tracked mode) shows aggregated open positions from wallets on your Top Leverage Traders list (plus inferred xyz markets). This is not a complete picture of all whales, not real-time order flow, and not insider information. Not financial advice.";
 const DISCLAIMER_GLOBAL =
-  "Nova Eagle (Global mode) scans a broader public top-trader wallet set from Apex/Hyperliquid-style leaderboards (plus inferred xyz markets). It is still a sample, not all wallets in the world, not real-time order flow, and not insider information. Not financial advice.";
+  "Nova Eagle (Global mode) combines the Apex seed top-trader set with your Top Leverage Traders wallets (and platform global wallets, if any) in one view (plus inferred xyz markets). It is still a sample, not all wallets in the world, not real-time order flow, and not insider information. Not financial advice.";
 
 type WhaleRow = {
   address: string;
@@ -73,9 +72,7 @@ export async function GET(request: Request) {
     const mode = searchParams.get("mode") === "global" ? "global" : "tracked";
 
     const traders =
-      mode === "global"
-        ? await fetchTopTradersFromAddresses(APEXLIQUID_TOP_TRADERS.map((t) => t.address))
-        : await fetchTopTradersForSession(session!);
+      mode === "global" ? await fetchTopTradersForNovaEagleGlobal(session!) : await fetchTopTradersForSession(session!);
     const whales: WhaleRow[] = [];
     const byCoin = new Map<string, { longUsd: number; shortUsd: number; addrs: Set<string> }>();
     const btcEthAll = new Map<string, { longUsd: number; shortUsd: number; addrs: Set<string> }>([

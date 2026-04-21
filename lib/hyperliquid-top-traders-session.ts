@@ -70,6 +70,55 @@ export type TopTraderSessionRow = TopTraderState & {
 
 type TraderSeedRow = { address: string; nickname: string | null };
 
+type TopTraderSeeds = {
+  rows: TraderSeedRow[];
+  /** `null` means every hydrated row is treated as global sample (owner session). */
+  globalAddressesForResponse: Set<string> | null;
+};
+
+async function getTopTraderSeedsForSession(session: Session): Promise<TopTraderSeeds> {
+  let rows: TraderSeedRow[];
+  let globalAddressesForResponse: Set<string> | null = null;
+  if (isOwnerSession(session)) {
+    let adminRows = await leverageDb.leverageWallet.findMany({
+      where: { active: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (adminRows.length === 0) {
+      const { APEXLIQUID_TOP_TRADERS } = await import("@/lib/config/apexliquid-top-traders");
+      for (const { address } of APEXLIQUID_TOP_TRADERS) {
+        const addr = address.trim().toLowerCase();
+        if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) continue;
+        await leverageDb.leverageWallet.upsert({
+          where: { address: addr },
+          create: { address: addr, active: true, alertEnabled: false },
+          update: {},
+        });
+      }
+      adminRows = await leverageDb.leverageWallet.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } });
+    }
+    rows = adminRows.map((r) => ({ address: r.address, nickname: r.nickname }));
+    globalAddressesForResponse = null;
+  } else {
+    const [globalAdminRows, userRows] = await Promise.all([
+      leverageDb.leverageWallet.findMany({ where: { active: true, global: true }, orderBy: { createdAt: "asc" } }),
+      (prisma as any).userLeverageWallet.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
+    globalAddressesForResponse = new Set(globalAdminRows.map((r) => r.address.toLowerCase()));
+    const byAddr = new Map<string, string | null>();
+    for (const r of globalAdminRows) byAddr.set(r.address.toLowerCase(), r.nickname);
+    for (const r of userRows) {
+      const addr = r.address.toLowerCase();
+      if (!byAddr.has(addr)) byAddr.set(addr, r.nickname);
+    }
+    rows = Array.from(byAddr.entries()).map(([address, nickname]) => ({ address, nickname }));
+  }
+  return { rows, globalAddressesForResponse };
+}
+
 async function hydrateTopTraders(rows: TraderSeedRow[], globalAddressesForResponse: Set<string> | null): Promise<TopTraderSessionRow[]> {
   if (rows.length === 0) return [];
 
@@ -120,47 +169,51 @@ async function hydrateTopTraders(rows: TraderSeedRow[], globalAddressesForRespon
  */
 export async function fetchTopTradersForSession(session: Session): Promise<TopTraderSessionRow[]> {
   if (!session?.user?.id) return [];
+  const { rows, globalAddressesForResponse } = await getTopTraderSeedsForSession(session);
+  return hydrateTopTraders(rows, globalAddressesForResponse);
+}
 
-  let rows: TraderSeedRow[];
-  let globalAddressesForResponse: Set<string> | null = null;
-  if (isOwnerSession(session)) {
-    let adminRows = await leverageDb.leverageWallet.findMany({
-      where: { active: true },
-      orderBy: { createdAt: "asc" },
-    });
-    if (adminRows.length === 0) {
-      const { APEXLIQUID_TOP_TRADERS } = await import("@/lib/config/apexliquid-top-traders");
-      for (const { address } of APEXLIQUID_TOP_TRADERS) {
-        const addr = address.trim().toLowerCase();
-        if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) continue;
-        await leverageDb.leverageWallet.upsert({
-          where: { address: addr },
-          create: { address: addr, active: true, alertEnabled: false },
-          update: {},
-        });
-      }
-      adminRows = await leverageDb.leverageWallet.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } });
+/**
+ * Nova Eagle "Global" mode: Apex seed list ∪ same wallets as tracked (admin global + user's Top Leverage),
+ * one Hyperliquid pass. Broader coverage than the seed list alone without dropping curated addresses.
+ */
+export async function fetchTopTradersForNovaEagleGlobal(session: Session): Promise<TopTraderSessionRow[]> {
+  if (!session?.user?.id) {
+    const { APEXLIQUID_TOP_TRADERS } = await import("@/lib/config/apexliquid-top-traders");
+    return fetchTopTradersFromAddresses(APEXLIQUID_TOP_TRADERS.map((t) => t.address));
+  }
+  const { APEXLIQUID_TOP_TRADERS } = await import("@/lib/config/apexliquid-top-traders");
+  const seeds = await getTopTraderSeedsForSession(session);
+
+  const byAddr = new Map<string, string | null>();
+  for (const r of seeds.rows) {
+    byAddr.set(r.address.toLowerCase(), r.nickname?.trim() || null);
+  }
+  for (const t of APEXLIQUID_TOP_TRADERS) {
+    const addr = t.address.trim().toLowerCase();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) continue;
+    const label = t.label?.trim() || null;
+    if (!byAddr.has(addr)) byAddr.set(addr, label);
+    else {
+      const cur = byAddr.get(addr);
+      if ((cur == null || cur === "") && label) byAddr.set(addr, label);
     }
-    rows = adminRows.map((r) => ({ address: r.address, nickname: r.nickname }));
-  } else {
-    const [globalAdminRows, userRows] = await Promise.all([
-      leverageDb.leverageWallet.findMany({ where: { active: true, global: true }, orderBy: { createdAt: "asc" } }),
-      (prisma as any).userLeverageWallet.findMany({
-        where: { userId: session.user.id },
-        orderBy: { createdAt: "asc" },
-      }),
-    ]);
-    globalAddressesForResponse = new Set(globalAdminRows.map((r) => r.address.toLowerCase()));
-    const byAddr = new Map<string, string | null>();
-    for (const r of globalAdminRows) byAddr.set(r.address.toLowerCase(), r.nickname);
-    for (const r of userRows) {
-      const addr = r.address.toLowerCase();
-      if (!byAddr.has(addr)) byAddr.set(addr, r.nickname);
-    }
-    rows = Array.from(byAddr.entries()).map(([address, nickname]) => ({ address, nickname }));
   }
 
-  return hydrateTopTraders(rows, globalAddressesForResponse);
+  const mergedRows: TraderSeedRow[] = Array.from(byAddr.entries()).map(([address, nickname]) => ({ address, nickname }));
+
+  let globalSet: Set<string> | null;
+  if (seeds.globalAddressesForResponse === null) {
+    globalSet = null;
+  } else {
+    globalSet = new Set(seeds.globalAddressesForResponse);
+    for (const t of APEXLIQUID_TOP_TRADERS) {
+      const addr = t.address.trim().toLowerCase();
+      if (/^0x[a-fA-F0-9]{40}$/.test(addr)) globalSet.add(addr);
+    }
+  }
+
+  return hydrateTopTraders(mergedRows, globalSet);
 }
 
 /** Fetch top-trader positions from an explicit wallet set (used by Nova Eagle global mode). */
