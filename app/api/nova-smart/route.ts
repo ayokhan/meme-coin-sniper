@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
+import { getCandles as getBlofinCandles, getTicker as getBlofinTicker, toBlofinBar } from "@/lib/blofin";
 import {
   type CandleTuple,
   combineStructureAndTrendline,
@@ -35,6 +36,15 @@ const NOVA_SMART_TIMEFRAMES = [
   { id: "52w", label: "52 weeks", interval: "1d", limit: 364 },
   { id: "104w", label: "104 weeks", interval: "1d", limit: 728 },
 ] as const;
+
+const BLOFIN_XAU_INST = "XAU-USDT";
+
+function normalizeSymbol(raw: string): string {
+  const upper = String(raw ?? "").trim().toUpperCase();
+  if (!upper) return "BTC";
+  const base = upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim();
+  return base || "BTC";
+}
 
 /** Derive strategy: scalp (quick in/out), swing (hold for bigger move), or mixed. */
 function deriveStrategy(
@@ -319,11 +329,7 @@ export async function POST(request: Request) {
         ? symbolsParam.map((s) => String(s).trim()).filter(Boolean)
         : [];
     // Normalize so BTC/USDT, BTC-USDT, BTC.USDT all become BTC (Hyperliquid uses base symbol)
-    const symbols = rawSymbols.map((s) => {
-      const upper = s.toUpperCase();
-      const base = upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim();
-      return (base || upper).toUpperCase();
-    }).filter(Boolean);
+    const symbols = rawSymbols.map((s) => normalizeSymbol(s)).filter(Boolean);
 
     if (symbols.length === 0) {
       return NextResponse.json(
@@ -354,8 +360,11 @@ export async function POST(request: Request) {
           direction: "bullish" | "bearish" | "sideways";
           trendlineRead: string;
         }[] = [];
+        const useBlofinXau = symbol === "XAU";
         for (const tf of effectiveTf) {
-          const candles = await getCandles(symbol, tf.interval, tf.limit);
+          const candles = useBlofinXau
+            ? await getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar(tf.interval), tf.limit)
+            : await getCandles(symbol, tf.interval, tf.limit);
           const hl = highLowFromCandles(candles as CandleTuple[]);
           if (!hl) continue;
           const rows = candles as CandleTuple[];
@@ -380,7 +389,7 @@ export async function POST(request: Request) {
           });
         }
 
-        const ticker = await getTicker(symbol);
+        const ticker = useBlofinXau ? await getBlofinTicker(BLOFIN_XAU_INST) : await getTicker(symbol);
         const currentPrice = ticker?.last ? Number(ticker.last) : null;
 
         if (tfData.length === 0) {

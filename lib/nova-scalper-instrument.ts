@@ -18,12 +18,16 @@ export function parseScalperInstrument(symbolField: string, marginCurrencyFallba
     const parts = raw.split("/").map((p) => p.trim()).filter(Boolean);
     if (parts.length >= 2) {
       const base = parts[0]!;
+      if (base === "XAU") {
+        return { base: "XAU", quote: "USDT", instId: "XAU-USDT" };
+      }
       const quoteRaw = parts[1]!;
       const quote = quoteRaw === "USDC" ? "USDC" : "USDT";
       return { base, quote, instId: `${base}-${quote}` };
     }
   }
   const base = raw || "BTC";
+  if (base === "XAU") return { base: "XAU", quote: "USDT", instId: "XAU-USDT" };
   const quote = marginCurrencyFallback === "USDC" ? "USDC" : "USDT";
   return { base, quote, instId: `${base}-${quote}` };
 }
