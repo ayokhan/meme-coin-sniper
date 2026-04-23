@@ -164,6 +164,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users see the Crypto Buddie subtab: ranked perps for short-horizon style reads plus optional Sol/BSC AI monitor polling. Default OFF until you enable it.",
   },
+  nova_perp_wallet_analyst: {
+    label: "Nova Perp Wallet Analyst Agent (Wallet Tracker)",
+    description:
+      "When ON, UVIP users (VIP + Nova Ultimate enabled) and owner see this Wallet Tracker subtab to analyze a pasted perp wallet, review open positions and win/loss profile, and add wallets to personal/global lists.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {

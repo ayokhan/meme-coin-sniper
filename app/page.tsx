@@ -21,6 +21,7 @@ import { Zap, Copy, Send, Star, Flame, ChevronDown, Menu, X } from "lucide-react
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import NovaEaglePanel from "@/components/NovaEaglePanel";
 import CryptoBuddiePanel from "@/components/CryptoBuddiePanel";
+import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
@@ -416,7 +417,7 @@ export default function Dashboard() {
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
   const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
-  type WalletTrackerView = "meme" | "leverage";
+  type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
   const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
 
@@ -663,6 +664,7 @@ export default function Dashboard() {
     "ai" | "workflow" | "altcoins" | "hot-perps" | "nova-crypto-narratives" | "nova-eagle" | "crypto-buddie"
   >("ai");
   const [vipFuturesAddons, setVipFuturesAddons] = useState<{ novaEagle: boolean; cryptoBuddie: boolean } | null>(null);
+  const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated" || !isVip) {
@@ -689,6 +691,35 @@ export default function Dashboard() {
     if (futuresView === "nova-eagle" && !vipFuturesAddons.novaEagle) setFuturesView("ai");
     if (futuresView === "crypto-buddie" && !vipFuturesAddons.cryptoBuddie) setFuturesView("ai");
   }, [activeTab, futuresView, isVip, vipFuturesAddons]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || (!isVip && !isOwner)) {
+      setShowNovaPerpWalletAnalyst(false);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/wallet-tracker/nova-perp-wallet-analyst/access", { credentials: "include", cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) return { success: false };
+        return r.json();
+      })
+      .then((d) => {
+        if (cancelled) return;
+        setShowNovaPerpWalletAnalyst(!!d?.success);
+      })
+      .catch(() => {
+        if (!cancelled) setShowNovaPerpWalletAnalyst(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, isVip, isOwner]);
+
+  useEffect(() => {
+    if (walletTrackerView === "nova-perp-wallet-analyst" && !showNovaPerpWalletAnalyst) {
+      setWalletTrackerView("leverage");
+    }
+  }, [walletTrackerView, showNovaPerpWalletAnalyst]);
 
   type NovaCryptoNarrativesHeadline = { title: string; link: string; pubDate?: string };
   type NovaCryptoNarrativesCot = {
@@ -7104,6 +7135,11 @@ export default function Dashboard() {
                       <TabsTrigger value="leverage" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
                         Top Leverage Traders
                       </TabsTrigger>
+                      {showNovaPerpWalletAnalyst && (
+                        <TabsTrigger value="nova-perp-wallet-analyst" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                          Nova Perp Wallet Analyst Agent
+                        </TabsTrigger>
+                      )}
                     </TabsList>
                     <span className="text-xs text-muted-foreground">
                       {walletTrackerView === "meme" && "When 3+ tracked wallets buy same token → alert. First-buy alerts (owner)."}
@@ -7735,6 +7771,9 @@ export default function Dashboard() {
                       </Table>
                     </div>
                   </div>
+                  </TabsContent>
+                  <TabsContent value="nova-perp-wallet-analyst" className="mt-0 space-y-4">
+                    <NovaPerpWalletAnalystPanel />
                   </TabsContent>
                 </Tabs>
               </div>

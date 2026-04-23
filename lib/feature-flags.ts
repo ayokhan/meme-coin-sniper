@@ -63,6 +63,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_EAGLE: 'nova_eagle',
   /** VIP: Crypto Buddie subtab under Crypto Futures (scalp-style ranking + optional Sol/BSC AI monitor). Default OFF until admin enables. */
   NOVA_CRYPTO_BUDDIE: 'nova_crypto_buddie',
+  /** UVIP: Nova Perp Wallet Analyst Agent subtab under Wallet Tracker. Default OFF until admin enables. */
+  NOVA_PERP_WALLET_ANALYST: 'nova_perp_wallet_analyst',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -76,6 +78,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_POLYMARKET_FIVE_MINS,
   FEATURE_FLAG_KEYS.NOVA_EAGLE,
   FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE,
+  FEATURE_FLAG_KEYS.NOVA_PERP_WALLET_ANALYST,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {
