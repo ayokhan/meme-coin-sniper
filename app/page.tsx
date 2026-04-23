@@ -157,7 +157,11 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "nova-connect",
   "chris-clayton",
 ];
-const NEW_TOP_TAB_IDS: ReadonlySet<TabId> = new Set(["nova-futures-narratives", "nova-eagle", "crypto-buddie"]);
+const NEW_TOP_TAB_EXPIRY_ISO: Partial<Record<TabId, string>> = {
+  "nova-futures-narratives": "2026-05-31T23:59:59.999Z",
+  "nova-eagle": "2026-05-31T23:59:59.999Z",
+  "crypto-buddie": "2026-05-31T23:59:59.999Z",
+};
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
 type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc"; symbol?: string; name?: string };
 
@@ -304,7 +308,13 @@ export default function Dashboard() {
   };
 
   const showTopTab = (tab: TabId) => isTabVisibleInGui(tab) && matchesTopTabFilter(tab);
-  const isNewTopTab = (tab: TabId) => NEW_TOP_TAB_IDS.has(tab);
+  const isNewTopTab = (tab: TabId) => {
+    const expiryIso = NEW_TOP_TAB_EXPIRY_ISO[tab];
+    if (!expiryIso) return false;
+    const expiryMs = Date.parse(expiryIso);
+    if (!Number.isFinite(expiryMs)) return false;
+    return Date.now() <= expiryMs;
+  };
 
   const fetchSubscription = useCallback(() => {
     if (status !== "authenticated") return;
