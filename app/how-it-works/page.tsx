@@ -47,7 +47,7 @@ export default function HowItWorksPage() {
               <strong>Wallet Tracker:</strong> monitor tracked wallet behavior and convert insights into watchlists.
             </p>
             <p>
-              <strong>VIP/UVIP workspaces:</strong> advanced decision and execution tools managed via feature flags.
+              <strong>VIP/UVIP workspaces:</strong> advanced decision and execution tools for specialized strategies.
             </p>
           </CardContent>
         </Card>

@@ -157,6 +157,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "nova-connect",
   "chris-clayton",
 ];
+const NEW_TOP_TAB_IDS: ReadonlySet<TabId> = new Set(["nova-futures-narratives", "nova-eagle", "crypto-buddie"]);
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
 type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc"; symbol?: string; name?: string };
 
@@ -303,6 +304,7 @@ export default function Dashboard() {
   };
 
   const showTopTab = (tab: TabId) => isTabVisibleInGui(tab) && matchesTopTabFilter(tab);
+  const isNewTopTab = (tab: TabId) => NEW_TOP_TAB_IDS.has(tab);
 
   const fetchSubscription = useCallback(() => {
     if (status !== "authenticated") return;
@@ -3104,7 +3106,7 @@ export default function Dashboard() {
               Multi-Market AI Trading Workspace
             </CardTitle>
             <p className="text-muted-foreground text-sm mt-1 leading-relaxed">
-              NovaStaris now covers meme discovery, futures decision support, wallet intelligence, and VIP agent tools in one workflow.
+              NovaStaris brings meme coin discovery, futures decision support, wallet intelligence, prediction market intelligence, and VIP agent tools into one workflow.
               <Link href="/how-it-works" className="ml-1 text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
                 See how it works.
               </Link>
@@ -3153,17 +3155,35 @@ export default function Dashboard() {
                 )}
                 {showTopTab("nova-futures-narratives") && (isVip || isOwner) && vipFuturesAddons?.novaFuturesNarratives && (
                   <TabsTrigger value="nova-futures-narratives" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
+                    <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
                     Nova Futures Narratives
+                    {isNewTopTab("nova-futures-narratives") && (
+                      <span className="ml-2 inline-flex rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold">
+                        NEW
+                      </span>
+                    )}
                   </TabsTrigger>
                 )}
                 {showTopTab("nova-eagle") && (isVip || isOwner) && vipFuturesAddons?.novaEagle && (
                   <TabsTrigger value="nova-eagle" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
+                    <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
                     Nova Eagle
+                    {isNewTopTab("nova-eagle") && (
+                      <span className="ml-2 inline-flex rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold">
+                        NEW
+                      </span>
+                    )}
                   </TabsTrigger>
                 )}
                 {showTopTab("crypto-buddie") && (isVip || isOwner) && vipFuturesAddons?.cryptoBuddie && (
                   <TabsTrigger value="crypto-buddie" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                    <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
                     Crypto Buddie
+                    {isNewTopTab("crypto-buddie") && (
+                      <span className="ml-2 inline-flex rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold">
+                        NEW
+                      </span>
+                    )}
                   </TabsTrigger>
                 )}
                 {showTopTab("trending-perps") && (
