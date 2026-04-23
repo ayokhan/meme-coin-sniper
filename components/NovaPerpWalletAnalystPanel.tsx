@@ -156,14 +156,14 @@ export default function NovaPerpWalletAnalystPanel() {
         <p className="text-xs text-muted-foreground">
           Paste a perp wallet, analyze win/loss profile and open positions, then decide to copy, monitor, or ignore.
         </p>
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
           <input
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="0x... wallet address"
-            className="font-mono text-sm border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1.5 bg-white dark:bg-zinc-800 w-80 max-w-full"
+            className="font-mono text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg px-3 py-2 bg-white dark:bg-zinc-800 w-full sm:w-80 max-w-full"
           />
-          <Button onClick={() => void analyze()} disabled={loading}>
+          <Button onClick={() => void analyze()} disabled={loading} className="w-full sm:w-auto min-h-[40px] sm:min-h-0">
             {loading ? "Analyzing..." : "Analyze wallet"}
           </Button>
         </div>
@@ -208,12 +208,12 @@ export default function NovaPerpWalletAnalystPanel() {
               <p>Account value: {formatMoney(result.accountValueUsd)}</p>
               <p>Sampled fills: {result.metrics.fillsSampled}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={() => void addToTracker()} disabled={!canAct || actionBusy === "tracker"}>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => void addToTracker()} disabled={!canAct || actionBusy === "tracker"} className="w-full sm:w-auto min-h-[38px] sm:min-h-0">
                 {actionBusy === "tracker" ? "Adding..." : "Add to list"}
               </Button>
               {result.isOwner && (
-                <Button variant="outline" size="sm" onClick={() => void addToGlobal()} disabled={!canAct || actionBusy === "global"}>
+                <Button variant="outline" size="sm" onClick={() => void addToGlobal()} disabled={!canAct || actionBusy === "global"} className="w-full sm:w-auto min-h-[38px] sm:min-h-0">
                   {actionBusy === "global" ? "Adding..." : "Add to global list"}
                 </Button>
               )}
