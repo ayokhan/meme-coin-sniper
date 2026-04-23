@@ -11,12 +11,26 @@ type WhaleRow = {
   coin: string;
   side: "long" | "short";
   positionUsd: number;
+  openedAtMs?: number;
   apexLiquidUrl: string;
   isGlobal: boolean;
 };
 
 type Agg = { coin: string; longUsd: number; shortUsd: number; whaleCount: number };
 type NovaEagleMode = "tracked" | "global";
+type WalletAnalysis = {
+  summary: string;
+  metrics: {
+    winRate: number;
+    wins: number;
+    losses: number;
+    closedTrades: number;
+    openPositions: number;
+    totalRealizedPnlUsd: number;
+    avgRealizedPnlUsd: number;
+    fillsSampled: number;
+  };
+};
 
 export default function NovaEaglePanel() {
   const [loading, setLoading] = useState(false);
@@ -30,6 +44,12 @@ export default function NovaEaglePanel() {
   const [aiBrief, setAiBrief] = useState<{ text: string; aiGenerated: boolean } | null>(null);
   const [disclaimer, setDisclaimer] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [analysisByAddress, setAnalysisByAddress] = useState<Record<string, WalletAnalysis>>({});
+  const [analysisOpenAddress, setAnalysisOpenAddress] = useState<string | null>(null);
+  const [analysisLoadingAddress, setAnalysisLoadingAddress] = useState<string | null>(null);
+  const [actionBusyKey, setActionBusyKey] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,6 +71,7 @@ export default function NovaEaglePanel() {
       setAggregates(data.aggregates ?? []);
       setHeuristics(data.heuristics ?? []);
       setAiBrief(data.aiBrief ?? null);
+      setIsOwner(!!data.isOwner);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -69,6 +90,91 @@ export default function NovaEaglePanel() {
       setTimeout(() => setCopied(null), 2000);
     } catch {
       /* ignore */
+    }
+  };
+
+  const formatLocalDateTime = (ms?: number) => {
+    if (!ms || !Number.isFinite(ms) || ms <= 0) return "—";
+    return new Date(ms).toLocaleString();
+  };
+
+  const analyzeWallet = async (address: string) => {
+    setAnalysisLoadingAddress(address);
+    setActionMessage(null);
+    try {
+      const res = await fetch(`/api/futures/nova-eagle/analyze-wallet?address=${encodeURIComponent(address)}`, {
+        cache: "no-store",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setActionMessage(data?.error ?? "Failed to analyze wallet.");
+        return;
+      }
+      setAnalysisByAddress((prev) => ({ ...prev, [address.toLowerCase()]: { summary: data.summary, metrics: data.metrics } }));
+      setAnalysisOpenAddress(address.toLowerCase());
+    } catch (e) {
+      setActionMessage(e instanceof Error ? e.message : "Failed to analyze wallet.");
+    } finally {
+      setAnalysisLoadingAddress(null);
+    }
+  };
+
+  const addToTracker = async (address: string, nickname?: string | null) => {
+    const key = `tracker:${address.toLowerCase()}`;
+    setActionBusyKey(key);
+    setActionMessage(null);
+    try {
+      const res = await fetch("/api/user/leverage-wallets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ address, nickname: nickname ?? undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setActionMessage(data?.error ?? "Failed to add wallet to tracker.");
+        return;
+      }
+      setActionMessage("Wallet added to your Top Leverage Traders tracker.");
+    } catch (e) {
+      setActionMessage(e instanceof Error ? e.message : "Failed to add wallet to tracker.");
+    } finally {
+      setActionBusyKey(null);
+    }
+  };
+
+  const addToGlobal = async (address: string, nickname?: string | null) => {
+    const key = `global:${address.toLowerCase()}`;
+    setActionBusyKey(key);
+    setActionMessage(null);
+    try {
+      const res = await fetch("/api/admin/leverage-wallet-tracker/wallets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ address, nickname: nickname ?? undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        // If wallet already exists, ensure it's global + active.
+        const patch = await fetch("/api/admin/leverage-wallet-tracker/wallets", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ address, global: true, active: true }),
+        });
+        const patchData = await patch.json().catch(() => ({}));
+        if (!patch.ok || !patchData.success) {
+          setActionMessage(data?.error ?? patchData?.error ?? "Failed to add wallet to global tracker.");
+          return;
+        }
+      }
+      setActionMessage("Wallet added to global tracker list.");
+    } catch (e) {
+      setActionMessage(e instanceof Error ? e.message : "Failed to add wallet to global tracker.");
+    } finally {
+      setActionBusyKey(null);
     }
   };
 
@@ -114,6 +220,7 @@ export default function NovaEaglePanel() {
       </div>
 
       {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
+      {actionMessage && <p className="text-xs text-zinc-600 dark:text-zinc-300">{actionMessage}</p>}
       {disclaimer && <p className="text-[11px] text-muted-foreground leading-relaxed">{disclaimer}</p>}
 
       {heuristics.length > 0 && (
@@ -198,6 +305,10 @@ export default function NovaEaglePanel() {
                   <TableHead className="text-xs">Coin</TableHead>
                   <TableHead className="text-xs">Side</TableHead>
                   <TableHead className="text-right text-xs">Notional</TableHead>
+                  <TableHead className="text-xs">Opened (local)</TableHead>
+                  <TableHead className="text-xs">Analyze</TableHead>
+                  <TableHead className="text-xs">Add to tracker</TableHead>
+                  {isOwner && <TableHead className="text-xs">Admin global</TableHead>}
                   <TableHead className="text-xs w-24">Copy</TableHead>
                   <TableHead className="text-xs">Apex</TableHead>
                 </TableRow>
@@ -212,6 +323,42 @@ export default function NovaEaglePanel() {
                     <TableCell className="font-mono text-xs">{w.coin}</TableCell>
                     <TableCell className="text-xs">{w.side === "long" ? <span className="text-emerald-600">Long</span> : <span className="text-rose-600">Short</span>}</TableCell>
                     <TableCell className="text-right font-mono text-xs">${Math.round(w.positionUsd).toLocaleString()}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">{formatLocalDateTime(w.openedAtMs)}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => void analyzeWallet(w.address)}
+                        disabled={analysisLoadingAddress === w.address}
+                      >
+                        {analysisLoadingAddress === w.address ? "Loading…" : "Analyze"}
+                      </Button>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => void addToTracker(w.address, w.nickname)}
+                        disabled={actionBusyKey === `tracker:${w.address.toLowerCase()}`}
+                      >
+                        {actionBusyKey === `tracker:${w.address.toLowerCase()}` ? "Adding…" : "Add"}
+                      </Button>
+                    </TableCell>
+                    {isOwner && (
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => void addToGlobal(w.address, w.nickname)}
+                          disabled={actionBusyKey === `global:${w.address.toLowerCase()}`}
+                        >
+                          {actionBusyKey === `global:${w.address.toLowerCase()}` ? "Adding…" : "Add global"}
+                        </Button>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => void copyAddr(w.address)}>
                         {copied === w.address ? "Copied" : "Copy"}
@@ -229,6 +376,20 @@ export default function NovaEaglePanel() {
           </div>
         )}
       </div>
+
+      {analysisOpenAddress && analysisByAddress[analysisOpenAddress] && (
+        <div className="rounded-md border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1.5">
+          <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
+            Wallet analysis: <span className="font-mono">{analysisOpenAddress}</span>
+          </p>
+          <p className="text-sm text-amber-950/90 dark:text-amber-100/90">{analysisByAddress[analysisOpenAddress].summary}</p>
+          <p className="text-xs text-amber-950/80 dark:text-amber-100/80">
+            Win rate: {analysisByAddress[analysisOpenAddress].metrics.winRate.toFixed(1)}% ({analysisByAddress[analysisOpenAddress].metrics.wins}W / {analysisByAddress[analysisOpenAddress].metrics.losses}L) | Open positions:{" "}
+            {analysisByAddress[analysisOpenAddress].metrics.openPositions} | Closed positions: {analysisByAddress[analysisOpenAddress].metrics.closedTrades} | Total realized PnL: $
+            {Math.round(analysisByAddress[analysisOpenAddress].metrics.totalRealizedPnlUsd).toLocaleString()}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

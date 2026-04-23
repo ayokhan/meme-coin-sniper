@@ -28,6 +28,7 @@ export type HyperliquidPosition = {
   szi: string;
   entryPx: string;
   positionValue: string;
+  openedAtMs?: number;
   marginUsed?: string;  // margin invested for this position
   unrealizedPnl: string;
   leverage?: number;

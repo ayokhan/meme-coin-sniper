@@ -15,6 +15,7 @@ type InferredPosition = {
   entryPx: string;
   positionValue: string;
   unrealizedPnl: string;
+  openedAtMs?: number;
 };
 
 /**
@@ -155,6 +156,7 @@ async function hydrateTopTraders(rows: TraderSeedRow[], globalAddressesForRespon
   const withTime = await Promise.all(
     traders.map(async (t) => {
       const fills = await getUserFills(t.address).catch(() => []);
+      const openedAtByCoinSide = inferOpenPositionOpenedAtFromFills(fills);
       const inferredXyzPositions = inferOpenXyzPositionsFromFills(fills);
       const inferredHl: HyperliquidPosition[] = inferredXyzPositions.map((p) => ({
         coin: p.coin,
@@ -163,10 +165,14 @@ async function hydrateTopTraders(rows: TraderSeedRow[], globalAddressesForRespon
         entryPx: p.entryPx,
         positionValue: p.positionValue,
         unrealizedPnl: p.unrealizedPnl,
+        openedAtMs: p.openedAtMs,
       }));
       const existingCoins = new Set((t.positions ?? []).map((x) => x.coin.toLowerCase()));
       const mergedPositions: HyperliquidPosition[] = [
-        ...(t.positions ?? []),
+        ...(t.positions ?? []).map((p) => ({
+          ...p,
+          openedAtMs: openedAtByCoinSide.get(`${p.coin.toLowerCase()}|${p.side}`),
+        })),
         ...inferredHl.filter((p) => !existingCoins.has(p.coin.toLowerCase())),
       ];
 
@@ -185,6 +191,62 @@ async function hydrateTopTraders(rows: TraderSeedRow[], globalAddressesForRespon
     })
   );
   return withTime;
+}
+
+function inferOpenPositionOpenedAtFromFills(
+  fills: Array<{ coin?: string; dir?: string; sz?: string; time?: number }>
+): Map<string, number> {
+  type CoinState = { net: number; openedAtMs: number | null };
+  const byCoin = new Map<string, CoinState>();
+  const asc = [...fills]
+    .filter((f) => Number.isFinite(Number(f?.time ?? 0)) && Number(f?.time ?? 0) > 0)
+    .sort((a, b) => Number(a.time ?? 0) - Number(b.time ?? 0));
+
+  for (const f of asc) {
+    const coin = String(f.coin ?? "").trim().toLowerCase();
+    if (!coin) continue;
+    const dir = String(f.dir ?? "").toLowerCase();
+    const sz = Number(f.sz ?? "0");
+    if (!Number.isFinite(sz) || sz <= 0) continue;
+    const ts = Number(f.time ?? 0);
+    if (!Number.isFinite(ts) || ts <= 0) continue;
+
+    let delta = 0;
+    if (dir.startsWith("open long") || dir.startsWith("add long")) delta = sz;
+    else if (dir.startsWith("close long") || dir.startsWith("reduce long")) delta = -sz;
+    else if (dir.startsWith("open short") || dir.startsWith("add short")) delta = -sz;
+    else if (dir.startsWith("close short") || dir.startsWith("reduce short")) delta = sz;
+    else continue;
+
+    const cur = byCoin.get(coin) ?? { net: 0, openedAtMs: null };
+    const before = cur.net;
+    const after = before + delta;
+    let openedAtMs = cur.openedAtMs;
+
+    if (Math.abs(after) <= 1e-12) {
+      byCoin.set(coin, { net: 0, openedAtMs: null });
+      continue;
+    }
+
+    if (Math.abs(before) <= 1e-12) {
+      openedAtMs = ts;
+    } else if (before * after < 0) {
+      // Position flipped side in one trade, treat this fill time as the new open time.
+      openedAtMs = ts;
+    } else if (openedAtMs == null) {
+      openedAtMs = ts;
+    }
+
+    byCoin.set(coin, { net: after, openedAtMs });
+  }
+
+  const out = new Map<string, number>();
+  for (const [coin, state] of byCoin.entries()) {
+    if (!state.openedAtMs || Math.abs(state.net) <= 1e-12) continue;
+    const side = state.net > 0 ? "long" : "short";
+    out.set(`${coin}|${side}`, state.openedAtMs);
+  }
+  return out;
 }
 
 /**

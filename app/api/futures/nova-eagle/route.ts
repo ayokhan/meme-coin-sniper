@@ -19,6 +19,7 @@ type WhaleRow = {
   coin: string;
   side: "long" | "short";
   positionUsd: number;
+  openedAtMs?: number;
   apexLiquidUrl: string;
   isGlobal: boolean;
 };
@@ -98,6 +99,7 @@ export async function GET(request: Request) {
           coin: p.coin,
           side: p.side,
           positionUsd: v,
+          openedAtMs: p.openedAtMs,
           apexLiquidUrl: t.apexLiquidUrl,
           isGlobal: t.isGlobal,
         });
@@ -138,6 +140,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       mode,
+      isOwner: !!session?.user?.isOwner,
       minUsd,
       disclaimer: mode === "global" ? DISCLAIMER_GLOBAL : DISCLAIMER_TRACKED,
       whales,
