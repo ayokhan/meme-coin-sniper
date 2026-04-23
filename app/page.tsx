@@ -686,9 +686,7 @@ export default function Dashboard() {
   } | null>(null);
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
-  const [futuresView, setFuturesView] = useState<
-    "ai" | "workflow" | "altcoins" | "hot-perps" | "nova-crypto-narratives" | "nova-eagle" | "crypto-buddie"
-  >("ai");
+  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps">("ai");
   const [vipFuturesAddons, setVipFuturesAddons] = useState<{ novaEagle: boolean; cryptoBuddie: boolean; novaFuturesNarratives: boolean } | null>(null);
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
 
@@ -711,12 +709,6 @@ export default function Dashboard() {
       cancelled = true;
     };
   }, [status, isVip, isOwner]);
-
-  useEffect(() => {
-    if (activeTab !== "futures" || !isVip || !vipFuturesAddons) return;
-    if (futuresView === "nova-eagle" && !vipFuturesAddons.novaEagle) setFuturesView("ai");
-    if (futuresView === "crypto-buddie" && !vipFuturesAddons.cryptoBuddie) setFuturesView("ai");
-  }, [activeTab, futuresView, isVip, vipFuturesAddons]);
 
   useEffect(() => {
     if (status !== "authenticated" || (!isVip && !isOwner)) {
@@ -3109,23 +3101,14 @@ export default function Dashboard() {
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg dark:shadow-none dark:shadow-[0_0_0_1px_rgba(34,211,238,0.06)] overflow-hidden">
           <CardHeader className="pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80">
             <CardTitle className="text-lg font-bold bg-gradient-to-r from-zinc-900 to-zinc-700 dark:from-zinc-100 dark:to-zinc-300 bg-clip-text text-transparent">
-              Tokens by viral score
+              Multi-Market AI Trading Workspace
             </CardTitle>
             <p className="text-muted-foreground text-sm mt-1 leading-relaxed">
-              Higher score = better liquidity, security & socials. <strong className="text-cyan-600 dark:text-cyan-400">40+</strong> = high confidence · <strong>30–39</strong> = watch · <strong>20–29</strong> = risky · <strong>15–19</strong> = very new (Pump.fun).
+              NovaStaris now covers meme discovery, futures decision support, wallet intelligence, and VIP agent tools in one workflow.
+              <Link href="/how-it-works" className="ml-1 text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+                See how it works.
+              </Link>
             </p>
-            <details className="mt-3 text-xs text-muted-foreground">
-              <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">How it works</summary>
-              <ul className="mt-2 list-inside list-disc space-y-1 pl-1">
-                <li><strong>Go Hunting</strong> = Newest pairs (last 2h, or newest available) / Final Stretch / Migrated from DexScreener + Birdeye. Each refresh shuffles order for variety. <strong>Trending</strong> = live by 24h volume + price change. <strong>Surge</strong> = high volume in 5m–24h window. <strong>Transactions</strong> = buys vs sells (24h), sorted by activity.</li>
-                <li><strong>CT Scan</strong>: Spot coins going viral from smart money and influencer buzz before the crowd.</li>
-                <li><strong>NovaStaris AI Agent</strong>: Paste a token contract address; NovaStaris AI scores it 0–100, gives a buy/no-buy signal, and explains why.</li>
-                <li><strong>Crypto Futures</strong>: <strong>NovaStaris AI Chart Analysis</strong> — upload a chart, set margin, leverage & timeframes; get AI support/resistance, entry zone, take profit & stop loss. <strong>Institutional Workflow</strong> — 4-phase system (macro bias, daily flow, pre-trade, execution) with free tools and rules for leverage trading.</li>
-                <li><strong>Narratives</strong> (Pro/VIP): Global trends, US trends, trending memes, and trending meme coins—with links to sources and a checklist to spot narrative-driven plays (e.g. when a story like “aliens” breaks, coins follow).</li>
-                <li><strong>Wallet Tracker</strong>: Get alerted when tracked wallets pile into the same token—so you can move with the flow.</li>
-                <li><strong>Coach Calls + Telegram Signals</strong> (VIP): Exclusive CA from the team, displayed in-app and sent to our Telegram Call channel. VIP members add their Telegram ID (one per user) to get signals there.</li>
-              </ul>
-            </details>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4">
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
                 {([
@@ -4775,115 +4758,6 @@ export default function Dashboard() {
                       </div>
                     )}
                   </div>
-                ) : futuresView === "nova-crypto-narratives" ? (
-                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 max-w-3xl space-y-4">
-                    <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Futures Narratives</h2>
-                    <p className="text-xs text-muted-foreground">
-                      VIP. Pulls recent headlines (via public news search), summarizes narrative noise, and pairs it with{" "}
-                      <strong className="text-zinc-700 dark:text-zinc-300">CFTC Traders in Financial Futures (TFF)</strong> positioning where we map your symbol to a listed contract. The same data is viewable on{" "}
-                      <a href="https://www.tradingster.com/cot/futures/fin/133741" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
-                        Tradingster
-                      </a>{" "}
-                      (example: CME Bitcoin 133741). Reports are weekly—always check the as-of date.
-                    </p>
-                    <div className="flex flex-wrap items-end gap-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground block mb-1">Contract</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. BTC, ETH, SOL"
-                          value={novaCryptoNarrativesSymbol}
-                          onChange={(e) => setNovaCryptoNarrativesSymbol(e.target.value.toUpperCase())}
-                          className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-40 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
-                        />
-                      </div>
-                      <Button
-                        onClick={fetchNovaCryptoNarratives}
-                        disabled={novaCryptoNarrativesLoading || !novaCryptoNarrativesSymbol.trim()}
-                        className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700"
-                      >
-                        {novaCryptoNarrativesLoading ? "Loading…" : "See Narratives"}
-                      </Button>
-                    </div>
-                    {novaCryptoNarrativesError && (
-                      <p className="text-sm text-rose-600 dark:text-rose-400">{novaCryptoNarrativesError}</p>
-                    )}
-                    {novaCryptoNarrativesResult && (
-                      <div className="space-y-4 pt-2 border-t border-zinc-200 dark:border-zinc-700">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">{novaCryptoNarrativesResult.symbol}</span>
-                          <Badge
-                            variant="outline"
-                            className={
-                              novaCryptoNarrativesResult.narrativeDirection === "bullish"
-                                ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
-                                : novaCryptoNarrativesResult.narrativeDirection === "bearish"
-                                  ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
-                                  : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
-                            }
-                          >
-                            Narrative: {novaCryptoNarrativesResult.narrativeDirection}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs capitalize">
-                            Confidence: {novaCryptoNarrativesResult.directionConfidence}
-                          </Badge>
-                          {novaCryptoNarrativesResult.aiGenerated && (
-                            <Badge variant="outline" className="text-xs border-violet-400/60 text-violet-700 dark:text-violet-300">
-                              AI summary
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="rounded-md bg-cyan-50/60 dark:bg-cyan-950/25 border border-cyan-200/80 dark:border-cyan-900/50 p-3">
-                          <p className="text-xs font-medium text-cyan-900 dark:text-cyan-200 mb-1">Noise &amp; headline read</p>
-                          <p className="text-sm text-cyan-900/90 dark:text-cyan-100/90">{novaCryptoNarrativesResult.noiseSummary}</p>
-                        </div>
-                        <div className="rounded-md bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 p-3">
-                          <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200 mb-1">Institutional positioning (CFTC TFF)</p>
-                          <p className="text-sm text-zinc-700 dark:text-zinc-300">{novaCryptoNarrativesResult.institutionalNarrative}</p>
-                          {novaCryptoNarrativesResult.cot && (
-                            <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                              <a
-                                href={novaCryptoNarrativesResult.cot.tradingsterUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
-                              >
-                                Open Tradingster breakdown
-                              </a>
-                              <a
-                                href="https://publicreporting.cftc.gov/dataset/gpe5-46if"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
-                              >
-                                CFTC dataset (TFF futures only)
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                        {novaCryptoNarrativesResult.newsHeadlines.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Sources (headlines)</p>
-                            <ul className="space-y-2 max-h-60 overflow-y-auto text-sm">
-                              {novaCryptoNarrativesResult.newsHeadlines.map((h, i) => (
-                                <li key={`${h.link}-${i}`}>
-                                  <a href={h.link} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
-                                    {h.title}
-                                  </a>
-                                  {h.pubDate && <span className="text-xs text-muted-foreground ml-2">{h.pubDate}</span>}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">{novaCryptoNarrativesResult.disclaimer}</p>
-                      </div>
-                    )}
-                  </div>
-                ) : futuresView === "nova-eagle" ? (
-                  <NovaEaglePanel />
-                ) : futuresView === "crypto-buddie" ? (
-                  <CryptoBuddiePanel />
                 ) : (
                 <div className="max-w-2xl">
                 <h2 className="text-xl sm:text-2xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
