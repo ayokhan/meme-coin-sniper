@@ -25,6 +25,15 @@ type AnalyzeResponse = {
     avgRealizedPnlUsd: number;
     fillsSampled: number;
   };
+  recommendationDetails?: {
+    confidenceScore: number;
+    reasons: string[];
+    thresholds: {
+      minClosedTradesForStrongSignal: number;
+      copyWinRatePct: number;
+      monitorWinRatePct: number;
+    };
+  };
   openPositions?: Array<{
     coin: string;
     side: "long" | "short";
@@ -172,6 +181,23 @@ export default function NovaPerpWalletAnalystPanel() {
               {recommendationBadge}
             </div>
             <p className="text-sm text-zinc-700 dark:text-zinc-300">{result.summary}</p>
+            {result.recommendationDetails && (
+              <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-800/40 p-2 space-y-1">
+                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  Recommendation confidence: {result.recommendationDetails.confidenceScore}/100
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Thresholds: copy {"\u2265"} {result.recommendationDetails.thresholds.copyWinRatePct}% win rate with {"\u2265"}{" "}
+                  {result.recommendationDetails.thresholds.minClosedTradesForStrongSignal} closed positions and positive realized PnL; monitor {"\u2265"}{" "}
+                  {result.recommendationDetails.thresholds.monitorWinRatePct}%.
+                </p>
+                <ul className="list-disc pl-4 text-[11px] text-zinc-700 dark:text-zinc-300 space-y-0.5">
+                  {result.recommendationDetails.reasons.map((r, idx) => (
+                    <li key={idx}>{r}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs text-zinc-700 dark:text-zinc-300">
               <p>Win rate: {result.metrics.winRate.toFixed(1)}%</p>
               <p>Wins/Losses: {result.metrics.wins}/{result.metrics.losses}</p>

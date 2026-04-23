@@ -62,6 +62,43 @@ function recommendAction(winRate: number, closedTrades: number, totalRealizedPnl
   return "ignore";
 }
 
+function buildRecommendationDetails(winRate: number, closedTrades: number, totalRealizedPnlUsd: number): {
+  confidenceScore: number;
+  reasons: string[];
+  thresholds: { minClosedTradesForStrongSignal: number; copyWinRatePct: number; monitorWinRatePct: number };
+} {
+  const thresholds = {
+    minClosedTradesForStrongSignal: 10,
+    copyWinRatePct: 60,
+    monitorWinRatePct: 45,
+  };
+  const reasons: string[] = [];
+
+  if (closedTrades < thresholds.minClosedTradesForStrongSignal) {
+    reasons.push(`Only ${closedTrades} closed positions sampled (< ${thresholds.minClosedTradesForStrongSignal}); confidence is reduced.`);
+  } else {
+    reasons.push(`Sample size is ${closedTrades} closed positions (meets baseline).`);
+  }
+  reasons.push(`Win rate is ${winRate.toFixed(1)}%.`);
+  reasons.push(
+    `Total realized PnL is ${totalRealizedPnlUsd >= 0 ? "+" : ""}${Math.round(totalRealizedPnlUsd).toLocaleString()} USD.`
+  );
+
+  let score = 0;
+  if (closedTrades >= thresholds.minClosedTradesForStrongSignal) score += 30;
+  else score += Math.max(0, Math.round((closedTrades / thresholds.minClosedTradesForStrongSignal) * 30));
+
+  if (winRate >= thresholds.copyWinRatePct) score += 45;
+  else if (winRate >= thresholds.monitorWinRatePct) score += 25;
+  else score += 5;
+
+  if (totalRealizedPnlUsd > 0) score += 25;
+  else if (totalRealizedPnlUsd > -2_000) score += 10;
+  else score += 0;
+
+  return { confidenceScore: Math.max(0, Math.min(100, score)), reasons, thresholds };
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -113,6 +150,7 @@ export async function POST(request: Request) {
     const totalRealizedPnlUsd = withPnl.reduce((sum, f) => sum + Number(f.closedPnl ?? "0"), 0);
     const avgRealizedPnlUsd = closedTrades > 0 ? totalRealizedPnlUsd / closedTrades : 0;
     const recommendation = recommendAction(winRate, closedTrades, totalRealizedPnlUsd);
+    const recommendationDetails = buildRecommendationDetails(winRate, closedTrades, totalRealizedPnlUsd);
 
     return NextResponse.json({
       success: true,
@@ -136,6 +174,7 @@ export async function POST(request: Request) {
         avgRealizedPnlUsd,
         fillsSampled: fills.length,
       },
+      recommendationDetails,
       openPositions,
     });
   } catch (e) {
