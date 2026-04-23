@@ -703,10 +703,6 @@ export default function Dashboard() {
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
 
   useEffect(() => {
-    if (status !== "authenticated" || (!isVip && !isOwner)) {
-      setVipFuturesAddons(null);
-      return;
-    }
     let cancelled = false;
     fetch("/api/futures/vip-addon-flags", { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
@@ -720,7 +716,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [status, isVip, isOwner]);
+  }, [status]);
 
   useEffect(() => {
     if (status !== "authenticated" || (!isVip && !isOwner)) {
@@ -3163,7 +3159,7 @@ export default function Dashboard() {
                 {showTopTab("futures") && (
                   <TabsTrigger value="futures" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Crypto Futures</TabsTrigger>
                 )}
-                {showTopTab("nova-futures-narratives") && (isVip || isOwner) && vipFuturesAddons?.novaFuturesNarratives && (
+                {showTopTab("nova-futures-narratives") && vipFuturesAddons?.novaFuturesNarratives && (
                   <TabsTrigger value="nova-futures-narratives" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
                     Nova Futures Narratives
@@ -3174,7 +3170,7 @@ export default function Dashboard() {
                     )}
                   </TabsTrigger>
                 )}
-                {showTopTab("nova-eagle") && (isVip || isOwner) && vipFuturesAddons?.novaEagle && (
+                {showTopTab("nova-eagle") && vipFuturesAddons?.novaEagle && (
                   <TabsTrigger value="nova-eagle" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
                     Nova Eagle
@@ -3185,7 +3181,7 @@ export default function Dashboard() {
                     )}
                   </TabsTrigger>
                 )}
-                {showTopTab("crypto-buddie") && (isVip || isOwner) && vipFuturesAddons?.cryptoBuddie && (
+                {showTopTab("crypto-buddie") && vipFuturesAddons?.cryptoBuddie && (
                   <TabsTrigger value="crypto-buddie" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
                     Crypto Buddie

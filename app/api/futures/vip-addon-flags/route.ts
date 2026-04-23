@@ -1,26 +1,15 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, isOwnerSession } from "@/lib/auth";
-import { getSubscriptionTier } from "@/lib/subscription";
+import { authOptions } from "@/lib/auth";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
 
-/** Authenticated: whether VIP futures add-on flags are on (non-VIP always gets false). */
+/** Public-safe: whether VIP futures add-on tabs are enabled by admin flags. */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: true, novaEagle: false, cryptoBuddie: false, novaFuturesNarratives: false });
-    }
-    let vip = isOwnerSession(session);
-    if (!vip) {
-      const tier = await getSubscriptionTier(session.user.id);
-      vip = tier === "vip";
-    }
-    if (!vip) {
-      return NextResponse.json({ success: true, novaEagle: false, cryptoBuddie: false, novaFuturesNarratives: false });
-    }
+    // Session read kept for parity/auditing, but visibility is flag-driven for all users.
+    await getServerSession(authOptions);
     const [novaEagle, cryptoBuddie, novaFuturesNarratives] = await Promise.all([
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_EAGLE),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE),
