@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -50,6 +50,14 @@ export default function NovaEaglePanel() {
   const [analysisLoadingAddress, setAnalysisLoadingAddress] = useState<string | null>(null);
   const [actionBusyKey, setActionBusyKey] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const walletRowSpanMap = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const w of whales) {
+      const addr = w.address.toLowerCase();
+      counts.set(addr, (counts.get(addr) ?? 0) + 1);
+    }
+    return counts;
+  }, [whales]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -314,63 +322,83 @@ export default function NovaEaglePanel() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {whales.map((w) => (
-                  <TableRow key={`${w.address}-${w.coin}-${w.side}`}>
-                    <TableCell className="font-mono text-[11px] max-w-[140px] truncate" title={w.address}>
-                      {w.address}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{w.nickname ?? "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">{w.coin}</TableCell>
-                    <TableCell className="text-xs">{w.side === "long" ? <span className="text-emerald-600">Long</span> : <span className="text-rose-600">Short</span>}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">${Math.round(w.positionUsd).toLocaleString()}</TableCell>
-                    <TableCell className="text-xs whitespace-nowrap">{formatLocalDateTime(w.openedAtMs)}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => void analyzeWallet(w.address)}
-                        disabled={analysisLoadingAddress === w.address}
-                      >
-                        {analysisLoadingAddress === w.address ? "Loading…" : "Analyze"}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => void addToTracker(w.address, w.nickname)}
-                        disabled={actionBusyKey === `tracker:${w.address.toLowerCase()}`}
-                      >
-                        {actionBusyKey === `tracker:${w.address.toLowerCase()}` ? "Adding…" : "Add"}
-                      </Button>
-                    </TableCell>
-                    {isOwner && (
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => void addToGlobal(w.address, w.nickname)}
-                          disabled={actionBusyKey === `global:${w.address.toLowerCase()}`}
-                        >
-                          {actionBusyKey === `global:${w.address.toLowerCase()}` ? "Adding…" : "Add global"}
-                        </Button>
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => void copyAddr(w.address)}>
-                        {copied === w.address ? "Copied" : "Copy"}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <a href={w.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">
-                        View
-                      </a>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {(() => {
+                  const renderedCounts = new Map<string, number>();
+                  return whales.map((w, idx) => {
+                    const addr = w.address.toLowerCase();
+                    const seen = (renderedCounts.get(addr) ?? 0) + 1;
+                    renderedCounts.set(addr, seen);
+                    const isFirstForWallet = seen === 1;
+                    const rowSpan = walletRowSpanMap.get(addr) ?? 1;
+                    return (
+                      <TableRow key={`${w.address}-${w.coin}-${w.side}-${idx}`}>
+                        {isFirstForWallet && (
+                          <TableCell rowSpan={rowSpan} className="font-mono text-[11px] max-w-[140px] truncate align-top" title={w.address}>
+                            {w.address}
+                          </TableCell>
+                        )}
+                        {isFirstForWallet && <TableCell rowSpan={rowSpan} className="text-xs text-muted-foreground align-top">{w.nickname ?? "—"}</TableCell>}
+                        <TableCell className="font-mono text-xs">{w.coin}</TableCell>
+                        <TableCell className="text-xs">{w.side === "long" ? <span className="text-emerald-600">Long</span> : <span className="text-rose-600">Short</span>}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">${Math.round(w.positionUsd).toLocaleString()}</TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">{formatLocalDateTime(w.openedAtMs)}</TableCell>
+                        {isFirstForWallet && (
+                          <TableCell rowSpan={rowSpan} className="align-top">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => void analyzeWallet(w.address)}
+                              disabled={analysisLoadingAddress === w.address}
+                            >
+                              {analysisLoadingAddress === w.address ? "Loading…" : "Analyze"}
+                            </Button>
+                          </TableCell>
+                        )}
+                        {isFirstForWallet && (
+                          <TableCell rowSpan={rowSpan} className="align-top">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => void addToTracker(w.address, w.nickname)}
+                              disabled={actionBusyKey === `tracker:${w.address.toLowerCase()}`}
+                            >
+                              {actionBusyKey === `tracker:${w.address.toLowerCase()}` ? "Adding…" : "Add"}
+                            </Button>
+                          </TableCell>
+                        )}
+                        {isOwner && isFirstForWallet && (
+                          <TableCell rowSpan={rowSpan} className="align-top">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => void addToGlobal(w.address, w.nickname)}
+                              disabled={actionBusyKey === `global:${w.address.toLowerCase()}`}
+                            >
+                              {actionBusyKey === `global:${w.address.toLowerCase()}` ? "Adding…" : "Add global"}
+                            </Button>
+                          </TableCell>
+                        )}
+                        {isFirstForWallet && (
+                          <TableCell rowSpan={rowSpan} className="align-top">
+                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => void copyAddr(w.address)}>
+                              {copied === w.address ? "Copied" : "Copy"}
+                            </Button>
+                          </TableCell>
+                        )}
+                        {isFirstForWallet && (
+                          <TableCell rowSpan={rowSpan} className="align-top">
+                            <a href={w.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">
+                              View
+                            </a>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  });
+                })()}
               </TableBody>
             </Table>
           </div>
@@ -378,16 +406,25 @@ export default function NovaEaglePanel() {
       </div>
 
       {analysisOpenAddress && analysisByAddress[analysisOpenAddress] && (
-        <div className="rounded-md border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1.5">
-          <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
-            Wallet analysis: <span className="font-mono">{analysisOpenAddress}</span>
-          </p>
-          <p className="text-sm text-amber-950/90 dark:text-amber-100/90">{analysisByAddress[analysisOpenAddress].summary}</p>
-          <p className="text-xs text-amber-950/80 dark:text-amber-100/80">
-            Win rate: {analysisByAddress[analysisOpenAddress].metrics.winRate.toFixed(1)}% ({analysisByAddress[analysisOpenAddress].metrics.wins}W / {analysisByAddress[analysisOpenAddress].metrics.losses}L) | Open positions:{" "}
-            {analysisByAddress[analysisOpenAddress].metrics.openPositions} | Closed positions: {analysisByAddress[analysisOpenAddress].metrics.closedTrades} | Total realized PnL: $
-            {Math.round(analysisByAddress[analysisOpenAddress].metrics.totalRealizedPnlUsd).toLocaleString()}
-          </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl rounded-lg border border-amber-300/70 dark:border-amber-900/70 bg-white dark:bg-zinc-900 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Wallet analysis: <span className="font-mono text-xs">{analysisOpenAddress}</span>
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setAnalysisOpenAddress(null)}>Close</Button>
+            </div>
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">{analysisByAddress[analysisOpenAddress].summary}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-700 dark:text-zinc-300">
+              <p>Win rate: {analysisByAddress[analysisOpenAddress].metrics.winRate.toFixed(1)}%</p>
+              <p>Wins / losses: {analysisByAddress[analysisOpenAddress].metrics.wins} / {analysisByAddress[analysisOpenAddress].metrics.losses}</p>
+              <p>Open positions: {analysisByAddress[analysisOpenAddress].metrics.openPositions}</p>
+              <p>Closed positions: {analysisByAddress[analysisOpenAddress].metrics.closedTrades}</p>
+              <p>Total realized PnL: ${Math.round(analysisByAddress[analysisOpenAddress].metrics.totalRealizedPnlUsd).toLocaleString()}</p>
+              <p>Avg realized PnL: ${Math.round(analysisByAddress[analysisOpenAddress].metrics.avgRealizedPnlUsd).toLocaleString()}</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Sampled fills: {analysisByAddress[analysisOpenAddress].metrics.fillsSampled}</p>
+          </div>
         </div>
       )}
     </div>
