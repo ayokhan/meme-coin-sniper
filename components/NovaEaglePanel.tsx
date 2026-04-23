@@ -78,7 +78,7 @@ export default function NovaEaglePanel() {
         <div>
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Eagle</h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
-            Surfaces large open perp positions from a sampled top-wallet set. Use <strong className="text-zinc-700 dark:text-zinc-300">Global</strong> for the Apex seed set plus your Top Leverage Traders (and platform global wallets) in one pass, or{" "}
+            Surfaces large open perp positions from a sampled top-wallet set. Use <strong className="text-zinc-700 dark:text-zinc-300">Global</strong> for live Apex top wallets (with fallback seed) plus your Top Leverage Traders (and platform global wallets) in one pass, or{" "}
             <strong className="text-zinc-700 dark:text-zinc-300">Tracked</strong> for that list only. Copy an address into <strong className="text-zinc-700 dark:text-zinc-300">Wallet Tracker</strong> if you want alerts.
           </p>
         </div>

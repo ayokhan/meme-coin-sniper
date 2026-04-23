@@ -11,7 +11,7 @@ export const maxDuration = 60;
 const DISCLAIMER_TRACKED =
   "Nova Eagle (Tracked mode) shows aggregated open positions from wallets on your Top Leverage Traders list (plus inferred xyz markets). This is not a complete picture of all whales, not real-time order flow, and not insider information. Not financial advice.";
 const DISCLAIMER_GLOBAL =
-  "Nova Eagle (Global mode) combines the Apex seed top-trader set with your Top Leverage Traders wallets (and platform global wallets, if any) in one view (plus inferred xyz markets). It is still a sample, not all wallets in the world, not real-time order flow, and not insider information. Not financial advice.";
+  "Nova Eagle (Global mode) combines live Apex top-trader wallets (with static fallback seed) plus your Top Leverage Traders wallets (and platform global wallets, if any) in one view (plus inferred xyz markets). It is still a sample, not all wallets in the world, not real-time order flow, and not insider information. Not financial advice.";
 
 type WhaleRow = {
   address: string;

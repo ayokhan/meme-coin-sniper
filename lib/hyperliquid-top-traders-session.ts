@@ -6,6 +6,7 @@ import { leverageDb } from "@/lib/leverage-db";
 import { prisma } from "@/lib/db";
 
 const APEXLIQUID_DETAIL_URL = "https://apexliquid.bot/trade/detail";
+const APEXLIQUID_TOP_TRADES_API = "https://apexliquid.bot/v1/web/top_trades";
 
 type InferredPosition = {
   coin: string;
@@ -75,6 +76,28 @@ type TopTraderSeeds = {
   /** `null` means every hydrated row is treated as global sample (owner session). */
   globalAddressesForResponse: Set<string> | null;
 };
+
+async function fetchLiveApexLiquidTopTraderAddresses(): Promise<string[]> {
+  try {
+    const res = await fetch(APEXLIQUID_TOP_TRADES_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const raw = await res.json();
+    const trades = Array.isArray(raw?.data?.trades) ? raw.data.trades : [];
+    const dedup = new Set<string>();
+    for (const trade of trades) {
+      const addr = String(trade?.address ?? "").trim().toLowerCase();
+      if (/^0x[a-fA-F0-9]{40}$/.test(addr)) dedup.add(addr);
+    }
+    return Array.from(dedup);
+  } catch {
+    return [];
+  }
+}
 
 async function getTopTraderSeedsForSession(session: Session): Promise<TopTraderSeeds> {
   let rows: TraderSeedRow[];
@@ -178,7 +201,9 @@ export async function fetchTopTradersForSession(session: Session): Promise<TopTr
  * one Hyperliquid pass. Broader coverage than the seed list alone without dropping curated addresses.
  */
 export async function fetchTopTradersForNovaEagleGlobal(session: Session): Promise<TopTraderSessionRow[]> {
+  const liveApexAddresses = await fetchLiveApexLiquidTopTraderAddresses();
   if (!session?.user?.id) {
+    if (liveApexAddresses.length > 0) return fetchTopTradersFromAddresses(liveApexAddresses);
     const { APEXLIQUID_TOP_TRADERS } = await import("@/lib/config/apexliquid-top-traders");
     return fetchTopTradersFromAddresses(APEXLIQUID_TOP_TRADERS.map((t) => t.address));
   }
@@ -189,10 +214,13 @@ export async function fetchTopTradersForNovaEagleGlobal(session: Session): Promi
   for (const r of seeds.rows) {
     byAddr.set(r.address.toLowerCase(), r.nickname?.trim() || null);
   }
-  for (const t of APEXLIQUID_TOP_TRADERS) {
-    const addr = t.address.trim().toLowerCase();
+  const apexAddresses =
+    liveApexAddresses.length > 0 ? liveApexAddresses : APEXLIQUID_TOP_TRADERS.map((t) => t.address);
+  for (const rawAddress of apexAddresses) {
+    const addr = rawAddress.trim().toLowerCase();
     if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) continue;
-    const label = t.label?.trim() || null;
+    const staticSeed = APEXLIQUID_TOP_TRADERS.find((t) => t.address.toLowerCase() === addr);
+    const label = staticSeed?.label?.trim() || null;
     if (!byAddr.has(addr)) byAddr.set(addr, label);
     else {
       const cur = byAddr.get(addr);
@@ -207,8 +235,8 @@ export async function fetchTopTradersForNovaEagleGlobal(session: Session): Promi
     globalSet = null;
   } else {
     globalSet = new Set(seeds.globalAddressesForResponse);
-    for (const t of APEXLIQUID_TOP_TRADERS) {
-      const addr = t.address.trim().toLowerCase();
+    for (const rawAddress of apexAddresses) {
+      const addr = rawAddress.trim().toLowerCase();
       if (/^0x[a-fA-F0-9]{40}$/.test(addr)) globalSet.add(addr);
     }
   }
