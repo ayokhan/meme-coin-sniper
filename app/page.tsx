@@ -92,12 +92,15 @@ type TabId =
   | "nova-investment"
   | "bsc"
   | "watchlist"
+  | "nova-futures-narratives"
+  | "nova-eagle"
+  | "crypto-buddie"
   | "nova-connect"
   | "chris-clayton";
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-connect"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment"];
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie"];
 const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   new: "page_tab_new",
   trending: "page_tab_trending",
@@ -120,6 +123,9 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   "nova-investment": "page_tab_nova_investment_agent",
   bsc: "page_tab_bsc",
   watchlist: "page_tab_watchlist",
+  "nova-futures-narratives": "page_tab_futures",
+  "nova-eagle": "page_tab_futures",
+  "crypto-buddie": "page_tab_futures",
   "nova-connect": "page_tab_nova_connect",
   "chris-clayton": "page_tab_chris_clayton",
 };
@@ -145,6 +151,9 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "nova-investment",
   "bsc",
   "watchlist",
+  "nova-futures-narratives",
+  "nova-eagle",
+  "crypto-buddie",
   "nova-connect",
   "chris-clayton",
 ];
@@ -284,7 +293,7 @@ export default function Dashboard() {
     if (topTabFilter === "all") return true;
     const coreTabs: TabId[] = ["new", "trending", "bsc", "watchlist"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
-    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment"];
+    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie"];
     const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-ultimate"];
     if (topTabFilter === "core") return coreTabs.includes(tab);
     if (topTabFilter === "pro") return proTabs.includes(tab);
@@ -680,11 +689,11 @@ export default function Dashboard() {
   const [futuresView, setFuturesView] = useState<
     "ai" | "workflow" | "altcoins" | "hot-perps" | "nova-crypto-narratives" | "nova-eagle" | "crypto-buddie"
   >("ai");
-  const [vipFuturesAddons, setVipFuturesAddons] = useState<{ novaEagle: boolean; cryptoBuddie: boolean } | null>(null);
+  const [vipFuturesAddons, setVipFuturesAddons] = useState<{ novaEagle: boolean; cryptoBuddie: boolean; novaFuturesNarratives: boolean } | null>(null);
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
 
   useEffect(() => {
-    if (status !== "authenticated" || !isVip) {
+    if (status !== "authenticated" || (!isVip && !isOwner)) {
       setVipFuturesAddons(null);
       return;
     }
@@ -693,15 +702,15 @@ export default function Dashboard() {
       .then((r) => r.json())
       .then((d) => {
         if (cancelled || !d?.success) return;
-        setVipFuturesAddons({ novaEagle: !!d.novaEagle, cryptoBuddie: !!d.cryptoBuddie });
+        setVipFuturesAddons({ novaEagle: !!d.novaEagle, cryptoBuddie: !!d.cryptoBuddie, novaFuturesNarratives: !!d.novaFuturesNarratives });
       })
       .catch(() => {
-        if (!cancelled) setVipFuturesAddons({ novaEagle: false, cryptoBuddie: false });
+        if (!cancelled) setVipFuturesAddons({ novaEagle: false, cryptoBuddie: false, novaFuturesNarratives: false });
       });
     return () => {
       cancelled = true;
     };
-  }, [status, isVip]);
+  }, [status, isVip, isOwner]);
 
   useEffect(() => {
     if (activeTab !== "futures" || !isVip || !vipFuturesAddons) return;
@@ -2216,7 +2225,7 @@ export default function Dashboard() {
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (walletTrackerView === "meme") {
@@ -2458,7 +2467,7 @@ export default function Dashboard() {
       } else {
         setNovaCryptoNarrativesResult(null);
         setNovaCryptoNarrativesError(
-          data?.locked ? "Nova Crypto Narratives is for Pro and VIP subscribers." : (data?.error ?? `Error ${res.status}`)
+          data?.locked ? "Nova Futures Narratives is for VIP subscribers." : (data?.error ?? `Error ${res.status}`)
         );
       }
     } catch (e) {
@@ -3159,6 +3168,21 @@ export default function Dashboard() {
                 {showTopTab("futures") && (
                   <TabsTrigger value="futures" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Crypto Futures</TabsTrigger>
                 )}
+                {showTopTab("nova-futures-narratives") && (isVip || isOwner) && vipFuturesAddons?.novaFuturesNarratives && (
+                  <TabsTrigger value="nova-futures-narratives" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
+                    Nova Futures Narratives
+                  </TabsTrigger>
+                )}
+                {showTopTab("nova-eagle") && (isVip || isOwner) && vipFuturesAddons?.novaEagle && (
+                  <TabsTrigger value="nova-eagle" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
+                    Nova Eagle
+                  </TabsTrigger>
+                )}
+                {showTopTab("crypto-buddie") && (isVip || isOwner) && vipFuturesAddons?.cryptoBuddie && (
+                  <TabsTrigger value="crypto-buddie" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                    Crypto Buddie
+                  </TabsTrigger>
+                )}
                 {showTopTab("trending-perps") && (
                   <TabsTrigger value="trending-perps" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Trending perps</TabsTrigger>
                 )}
@@ -3222,16 +3246,19 @@ export default function Dashboard() {
             </Tabs>
           </CardHeader>
           <CardContent className="p-0">
-            {(onDemandLocked || ((VIP_ONLY_TABS.includes(activeTab) && !isVip) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid)))) ? (
+            {(onDemandLocked || ((VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid)))) ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                  {onDemandLocked ? "On-demand access required" : VIP_ONLY_TABS.includes(activeTab) && !isVip ? "VIP required" : "Subscribe for access"}
+                  {onDemandLocked ? "On-demand access required" : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner ? "VIP required" : "Subscribe for access"}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground max-w-md">
                   {activeTab === "surge" && "Surge shows tokens with high volume in 5m–24h windows."}
                   {activeTab === "transactions" && "Transactions shows buys vs sells (24h) and activity."}
                   {activeTab === "ai-analysis" && "NovaStaris AI Agent scores any token 0–100 and gives a buy/no-buy signal."}
                   {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
+                  {activeTab === "nova-futures-narratives" && "Nova Futures Narratives combines headline noise with CFTC institutional positioning. VIP only."}
+                  {activeTab === "nova-eagle" && "Nova Eagle surfaces sampled large perp positions and skew heuristics. VIP only."}
+                  {activeTab === "crypto-buddie" && "Crypto Buddie gives ranked short-horizon perp reads plus optional monitor workflow. VIP only."}
                   {activeTab === "trending-perps" && "See the biggest perp movers in one place—5m, 15m, 30m, 1h, and 24h—so you can spot what’s moving fast."}
                   {activeTab === "perp-radar" && "Spot the biggest perp movers across exchanges—before they peak."}
                   {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
@@ -3250,7 +3277,7 @@ export default function Dashboard() {
                   {" "}
                   {onDemandLocked
                     ? "Contact support to request access (enabled manually by admin)."
-                    : VIP_ONLY_TABS.includes(activeTab) && !isVip
+                    : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner
                       ? "Upgrade to VIP to use this feature."
                       : activeTab === "nova-connect"
                         ? "Upgrade to Pro or VIP, or ask an admin to allow NovaConnect for you."
@@ -3266,7 +3293,7 @@ export default function Dashboard() {
                         : "/subscribe"
                     }
                   >
-                    {onDemandLocked ? "Contact for access" : VIP_ONLY_TABS.includes(activeTab) && !isVip ? "Upgrade to VIP" : "Subscribe to Pro"}
+                    {onDemandLocked ? "Contact for access" : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner ? "Upgrade to VIP" : "Subscribe to Pro"}
                   </Link>
                 </Button>
               </div>
@@ -4258,6 +4285,121 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
+            ) : activeTab === "nova-futures-narratives" ? (
+              <div className="mx-3 sm:mx-6 py-6 sm:py-8">
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 max-w-3xl space-y-4">
+                  <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Futures Narratives</h2>
+                  <p className="text-xs text-muted-foreground">
+                    VIP. Pulls recent headlines (via public news search), summarizes narrative noise, and pairs it with{" "}
+                    <strong className="text-zinc-700 dark:text-zinc-300">CFTC Traders in Financial Futures (TFF)</strong> positioning where we map your symbol to a listed contract. The same data is viewable on{" "}
+                    <a href="https://www.tradingster.com/cot/futures/fin/133741" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+                      Tradingster
+                    </a>{" "}
+                    (example: CME Bitcoin 133741). Reports are weekly-always check the as-of date.
+                  </p>
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Contract</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. BTC, ETH, SOL"
+                        value={novaCryptoNarrativesSymbol}
+                        onChange={(e) => setNovaCryptoNarrativesSymbol(e.target.value.toUpperCase())}
+                        className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-40 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                      />
+                    </div>
+                    <Button
+                      onClick={fetchNovaCryptoNarratives}
+                      disabled={novaCryptoNarrativesLoading || !novaCryptoNarrativesSymbol.trim()}
+                      className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700"
+                    >
+                      {novaCryptoNarrativesLoading ? "Loading..." : "See Narratives"}
+                    </Button>
+                  </div>
+                  {novaCryptoNarrativesError && (
+                    <p className="text-sm text-rose-600 dark:text-rose-400">{novaCryptoNarrativesError}</p>
+                  )}
+                  {novaCryptoNarrativesResult && (
+                    <div className="space-y-4 pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">{novaCryptoNarrativesResult.symbol}</span>
+                        <Badge
+                          variant="outline"
+                          className={
+                            novaCryptoNarrativesResult.narrativeDirection === "bullish"
+                              ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
+                              : novaCryptoNarrativesResult.narrativeDirection === "bearish"
+                                ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
+                                : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
+                          }
+                        >
+                          Narrative: {novaCryptoNarrativesResult.narrativeDirection}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs capitalize">
+                          Confidence: {novaCryptoNarrativesResult.directionConfidence}
+                        </Badge>
+                        {novaCryptoNarrativesResult.aiGenerated && (
+                          <Badge variant="outline" className="text-xs border-violet-400/60 text-violet-700 dark:text-violet-300">
+                            AI summary
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="rounded-md bg-cyan-50/60 dark:bg-cyan-950/25 border border-cyan-200/80 dark:border-cyan-900/50 p-3">
+                        <p className="text-xs font-medium text-cyan-900 dark:text-cyan-200 mb-1">Noise &amp; headline read</p>
+                        <p className="text-sm text-cyan-900/90 dark:text-cyan-100/90">{novaCryptoNarrativesResult.noiseSummary}</p>
+                      </div>
+                      <div className="rounded-md bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 p-3">
+                        <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200 mb-1">Institutional positioning (CFTC TFF)</p>
+                        <p className="text-sm text-zinc-700 dark:text-zinc-300">{novaCryptoNarrativesResult.institutionalNarrative}</p>
+                        {novaCryptoNarrativesResult.cot && (
+                          <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                            <a
+                              href={novaCryptoNarrativesResult.cot.tradingsterUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+                            >
+                              Open Tradingster breakdown
+                            </a>
+                            <a
+                              href="https://publicreporting.cftc.gov/dataset/gpe5-46if"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+                            >
+                              CFTC dataset (TFF futures only)
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                      {novaCryptoNarrativesResult.newsHeadlines.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Sources (headlines)</p>
+                          <ul className="space-y-2 max-h-60 overflow-y-auto text-sm">
+                            {novaCryptoNarrativesResult.newsHeadlines.map((h, i) => (
+                              <li key={`${h.link}-${i}`}>
+                                <a href={h.link} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+                                  {h.title}
+                                </a>
+                                {h.pubDate && <span className="text-xs text-muted-foreground ml-2">{h.pubDate}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{novaCryptoNarrativesResult.disclaimer}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : activeTab === "nova-eagle" ? (
+              <div className="mx-3 sm:mx-6 py-6 sm:py-8">
+                <NovaEaglePanel />
+              </div>
+            ) : activeTab === "crypto-buddie" ? (
+              <div className="mx-3 sm:mx-6 py-6 sm:py-8">
+                <CryptoBuddiePanel />
+              </div>
             ) : activeTab === "futures" ? (
               <div className="mx-3 sm:mx-6 py-6 sm:py-8">
                 <div className="flex flex-wrap gap-2 mb-6">
@@ -4293,34 +4435,6 @@ export default function Dashboard() {
                   >
                     Hot New Perps
                   </Button>
-                  <Button
-                    variant={futuresView === "nova-crypto-narratives" ? "default" : "outline"}
-                    size="sm"
-                    className={futuresView === "nova-crypto-narratives" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
-                    onClick={() => setFuturesView("nova-crypto-narratives")}
-                  >
-                    Nova Crypto Narratives
-                  </Button>
-                  {isVip && vipFuturesAddons?.novaEagle && (
-                    <Button
-                      variant={futuresView === "nova-eagle" ? "default" : "outline"}
-                      size="sm"
-                      className={futuresView === "nova-eagle" ? "bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white" : ""}
-                      onClick={() => setFuturesView("nova-eagle")}
-                    >
-                      Nova Eagle
-                    </Button>
-                  )}
-                  {isVip && vipFuturesAddons?.cryptoBuddie && (
-                    <Button
-                      variant={futuresView === "crypto-buddie" ? "default" : "outline"}
-                      size="sm"
-                      className={futuresView === "crypto-buddie" ? "bg-violet-500 hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-700 text-white" : ""}
-                      onClick={() => setFuturesView("crypto-buddie")}
-                    >
-                      Crypto Buddie
-                    </Button>
-                  )}
                 </div>
                 {futuresView === "workflow" ? (
                   <FuturesWorkflow />
@@ -4663,9 +4777,9 @@ export default function Dashboard() {
                   </div>
                 ) : futuresView === "nova-crypto-narratives" ? (
                   <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 max-w-3xl space-y-4">
-                    <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Crypto Narratives</h2>
+                    <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Futures Narratives</h2>
                     <p className="text-xs text-muted-foreground">
-                      Pro and VIP. Pulls recent headlines (via public news search), summarizes narrative noise, and pairs it with{" "}
+                      VIP. Pulls recent headlines (via public news search), summarizes narrative noise, and pairs it with{" "}
                       <strong className="text-zinc-700 dark:text-zinc-300">CFTC Traders in Financial Futures (TFF)</strong> positioning where we map your symbol to a listed contract. The same data is viewable on{" "}
                       <a href="https://www.tradingster.com/cot/futures/fin/133741" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
                         Tradingster

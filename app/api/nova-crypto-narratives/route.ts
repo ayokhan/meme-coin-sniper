@@ -1,22 +1,26 @@
 import { NextResponse } from "next/server";
-import { getSessionAndSubscription } from "@/lib/auth-server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { buildNovaCryptoNarratives } from "@/lib/nova-crypto-narratives";
+import { getNovaFuturesNarrativesAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Pro + VIP: narrative + CFTC / news scan for Crypto Futures tab. */
+/** VIP: narrative + CFTC / news scan (standalone tab). */
 export async function POST(request: Request) {
   try {
-    const { isPaid } = await getSessionAndSubscription();
-    if (!isPaid) {
+    const session = await getServerSession(authOptions);
+    const access = await getNovaFuturesNarrativesAccess(session);
+    if (!access.ok) {
       return NextResponse.json(
         {
           success: false,
-          error: "Nova Crypto Narratives is for Pro and VIP subscribers.",
+          error: access.error ?? "Nova Futures Narratives is for VIP subscribers.",
           locked: true,
+          disabled: access.disabled,
         },
-        { status: 403 }
+        { status: access.status ?? 403 }
       );
     }
 

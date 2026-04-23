@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ success: true, novaEagle: false, cryptoBuddie: false });
+      return NextResponse.json({ success: true, novaEagle: false, cryptoBuddie: false, novaFuturesNarratives: false });
     }
     let vip = isOwnerSession(session);
     if (!vip) {
@@ -19,13 +19,14 @@ export async function GET() {
       vip = tier === "vip";
     }
     if (!vip) {
-      return NextResponse.json({ success: true, novaEagle: false, cryptoBuddie: false });
+      return NextResponse.json({ success: true, novaEagle: false, cryptoBuddie: false, novaFuturesNarratives: false });
     }
-    const [novaEagle, cryptoBuddie] = await Promise.all([
+    const [novaEagle, cryptoBuddie, novaFuturesNarratives] = await Promise.all([
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_EAGLE),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE),
+      getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FUTURES_NARRATIVES),
     ]);
-    return NextResponse.json({ success: true, novaEagle, cryptoBuddie });
+    return NextResponse.json({ success: true, novaEagle, cryptoBuddie, novaFuturesNarratives });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to read flags";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

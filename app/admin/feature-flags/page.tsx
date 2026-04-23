@@ -164,6 +164,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users see the Crypto Buddie subtab: ranked perps for short-horizon style reads plus optional Sol/BSC AI monitor polling. Default OFF until you enable it.",
   },
+  nova_futures_narratives: {
+    label: "Nova Futures Narratives",
+    description:
+      "When ON, VIP users see the standalone Nova Futures Narratives tab (headline + CFTC institutional narrative read). Default OFF until you enable it.",
+  },
   nova_perp_wallet_analyst: {
     label: "Nova Perp Wallet Analyst Agent (Wallet Tracker)",
     description:

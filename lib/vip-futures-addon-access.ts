@@ -39,3 +39,13 @@ export async function getCryptoBuddieAccess(session: Session | null): Promise<Vi
   }
   return base;
 }
+
+export async function getNovaFuturesNarrativesAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await assertVip(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FUTURES_NARRATIVES);
+  if (!on) {
+    return { ok: false, status: 403, error: "Nova Futures Narratives is disabled by admin.", disabled: true };
+  }
+  return base;
+}
