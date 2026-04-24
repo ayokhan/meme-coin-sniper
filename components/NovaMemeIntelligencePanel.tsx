@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,6 +57,17 @@ export default function NovaMemeIntelligencePanel() {
   const [topCoins, setTopCoins] = useState<TopMemeCoin[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+
+  const copyContract = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      window.setTimeout(() => setCopiedAddress((prev) => (prev === address ? null : prev)), 1500);
+    } catch {
+      // ignore clipboard permission failures
+    }
+  };
 
   useEffect(() => {
     if (subTab === "top-meme-coins" && topCoins.length === 0 && !loading) {
@@ -124,9 +136,9 @@ export default function NovaMemeIntelligencePanel() {
     <div className="mx-3 sm:mx-6 py-6 sm:py-8">
       <Tabs value={subTab} onValueChange={(v) => setSubTab(v as typeof subTab)} className="space-y-4">
         <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg flex-wrap h-auto gap-1 w-full">
-          <TabsTrigger value="nova-q-memes" className="min-h-[40px] sm:min-h-[36px]">NovaQ - Memes</TabsTrigger>
-          <TabsTrigger value="nova-smart-memes" className="min-h-[40px] sm:min-h-[36px]">Nova Smart Analysis for Memes</TabsTrigger>
-          <TabsTrigger value="top-meme-coins" className="min-h-[40px] sm:min-h-[36px]">Top Meme coins</TabsTrigger>
+          <TabsTrigger value="nova-q-memes" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">NovaQ - Memes</TabsTrigger>
+          <TabsTrigger value="nova-smart-memes" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Nova Smart Analysis for Memes</TabsTrigger>
+          <TabsTrigger value="top-meme-coins" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Top Meme coins</TabsTrigger>
         </TabsList>
 
         <TabsContent value="nova-q-memes" className="mt-0 space-y-3">
@@ -239,7 +251,7 @@ export default function NovaMemeIntelligencePanel() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Coin</TableHead><TableHead>Chain</TableHead><TableHead className="text-right">Score</TableHead>
-                    <TableHead className="text-right">MCap</TableHead><TableHead className="text-right">Liquidity</TableHead><TableHead className="text-right">24h %</TableHead><TableHead>Status</TableHead>
+                    <TableHead className="text-right">MCap</TableHead><TableHead className="text-right">Liquidity</TableHead><TableHead className="text-right">24h %</TableHead><TableHead>Status</TableHead><TableHead>Contract</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -252,6 +264,18 @@ export default function NovaMemeIntelligencePanel() {
                       <TableCell className="text-right font-mono">${c.liquidity.toLocaleString()}</TableCell>
                       <TableCell className={`text-right font-mono ${c.priceChange24h >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{c.priceChange24h.toFixed(2)}%</TableCell>
                       <TableCell>{c.deadFlag ? <Badge variant="destructive">Caution</Badge> : <Badge variant="secondary">Healthy</Badge>}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-xs"
+                          onClick={() => void copyContract(c.contractAddress)}
+                          title={c.contractAddress}
+                        >
+                          <Copy className="h-3.5 w-3.5 mr-1" />
+                          {copiedAddress === c.contractAddress ? "Copied" : "Copy CA"}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

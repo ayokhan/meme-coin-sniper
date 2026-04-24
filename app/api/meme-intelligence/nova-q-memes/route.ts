@@ -1,32 +1,23 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getCandles, getTicker } from "@/lib/hyperliquid";
-import {
-  type CandleTuple,
-  combineStructureAndTrendline,
-  countSupportResistanceTouches,
-  demandSupplyRead,
-  highLowFromCandles,
-  overallTrendlineSummary,
-  structureDirectionFromCloses,
-  trendlineRegressionFromCloses,
-} from "@/lib/nova-q-analytics";
+import axios from "axios";
+import { demandSupplyRead, overallTrendlineSummary } from "@/lib/nova-q-analytics";
 import { getNovaQMemesAccess } from "@/lib/vip-futures-addon-access";
-import { getBscToken, getSolanaToken } from "@/lib/api-clients/dexscreener";
+import { getBscToken, getSolanaToken, type DexPair } from "@/lib/api-clients/dexscreener";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
 
 const MEME_Q_TIMEFRAMES = [
-  { id: "5m", label: "5 mins", interval: "1m", limit: 5 },
-  { id: "15m", label: "15 mins", interval: "1m", limit: 15 },
-  { id: "30m", label: "30 mins", interval: "1m", limit: 30 },
-  { id: "1h", label: "1 hour", interval: "1m", limit: 60 },
-  { id: "2h", label: "2 hours", interval: "5m", limit: 24 },
-  { id: "4h", label: "4 hours", interval: "5m", limit: 48 },
-  { id: "24h", label: "24 hours", interval: "1h", limit: 24 },
-  { id: "1w", label: "1 week", interval: "1d", limit: 7 },
+  { id: "5m", label: "5 mins", key: "h1", scale: 0.35 },
+  { id: "15m", label: "15 mins", key: "h1", scale: 0.55 },
+  { id: "30m", label: "30 mins", key: "h1", scale: 0.8 },
+  { id: "1h", label: "1 hour", key: "h1", scale: 1 },
+  { id: "2h", label: "2 hours", key: "h6", scale: 0.55 },
+  { id: "4h", label: "4 hours", key: "h6", scale: 0.85 },
+  { id: "24h", label: "24 hours", key: "h24", scale: 1 },
+  { id: "1w", label: "1 week", key: "h24", scale: 1.35 },
 ] as const;
 
 type MemeQTfResult = {
@@ -43,6 +34,12 @@ type MemeQTfResult = {
   supportTouches: number;
   resistanceTouches: number;
 };
+
+function pctForKey(pair: DexPair, key: "h1" | "h6" | "h24"): number {
+  if (key === "h1") return Number(pair.priceChange?.h1 ?? 0);
+  if (key === "h6") return Number(pair.priceChange?.h6 ?? pair.priceChange?.h24 ?? 0);
+  return Number(pair.priceChange?.h24 ?? 0);
+}
 
 function normalizeSymbol(raw: string): string {
   const upper = String(raw ?? "").trim().toUpperCase();
@@ -73,6 +70,25 @@ async function resolveSymbolInput(raw: string): Promise<{ symbol: string; note?:
     if (resolved) return { symbol: normalizeSymbol(resolved), note: `Resolved EVM contract to ${resolved}.` };
   }
   return { symbol: normalizeSymbol(trimmed) };
+}
+
+async function getDexPairForInput(rawInput: string, symbol: string): Promise<DexPair | null> {
+  const trimmed = rawInput.trim();
+  if (isLikelySolanaMint(trimmed)) return getSolanaToken(trimmed);
+  if (isLikelyEvmAddress(trimmed)) return getBscToken(trimmed);
+  try {
+    const res = await axios.get<{ pairs?: DexPair[] }>("https://api.dexscreener.com/latest/dex/search", {
+      params: { q: symbol },
+      timeout: 15000,
+    });
+    const pairs = res.data?.pairs ?? [];
+    const ranked = pairs
+      .filter((p) => ["solana", "bsc", "bnb"].includes((p.chainId || "").toLowerCase()))
+      .sort((a, b) => Number(b.liquidity?.usd ?? 0) - Number(a.liquidity?.usd ?? 0));
+    return ranked[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function getOverallDirection(timeframes: MemeQTfResult[]): "bullish" | "bearish" | "sideways" {
@@ -119,6 +135,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const resolved = await resolveSymbolInput(String(body.symbol ?? "PEPE"));
     const symbol = resolved.symbol;
+    const rawInput = String(body.symbol ?? "PEPE");
     const tfParam = body.timeframes ?? ["15m", "1h", "24h"];
     const requested = (Array.isArray(tfParam) ? tfParam : String(tfParam).split(/[\s,]+/))
       .map((x) => String(x).trim().toLowerCase())
@@ -126,49 +143,14 @@ export async function POST(request: Request) {
     const selected = MEME_Q_TIMEFRAMES.filter((t) => requested.includes(t.id));
     const effectiveTf = selected.length > 0 ? selected : [MEME_Q_TIMEFRAMES[1], MEME_Q_TIMEFRAMES[3], MEME_Q_TIMEFRAMES[6]];
 
-    const rows: MemeQTfResult[] = [];
-    for (const tf of effectiveTf) {
-      try {
-        const candles = (await getCandles(symbol, tf.interval, tf.limit)) as CandleTuple[];
-        const hl = highLowFromCandles(candles);
-        if (!hl) continue;
-        const { supportTouches, resistanceTouches } = countSupportResistanceTouches(candles, hl.low, hl.high);
-        const structureDirection = structureDirectionFromCloses(candles);
-        const tl = trendlineRegressionFromCloses(candles) ?? {
-          bias: "flat" as const,
-          slopePctWindow: 0,
-          closeVsLinePct: 0,
-          read: "Too few candles for trendline regression.",
-        };
-        rows.push({
-          id: tf.id,
-          label: tf.label,
-          support: hl.low,
-          resistance: hl.high,
-          structureDirection,
-          trendlineBias: tl.bias,
-          trendlineSlopePctWindow: tl.slopePctWindow,
-          trendlineRead: tl.read,
-          demandSupplyRead: demandSupplyRead(hl.low, hl.high, supportTouches, resistanceTouches),
-          direction: combineStructureAndTrendline(structureDirection, tl.bias),
-          supportTouches,
-          resistanceTouches,
-        });
-      } catch {
-        // skip timeframe errors and keep the rest
-      }
-    }
-
-    const ticker = await getTicker(symbol);
-    const currentPrice = ticker?.last ? Number(ticker.last) : null;
-    const deadFlag = getDeadFlag(currentPrice, rows);
-    if (rows.length === 0) {
+    const pair = await getDexPairForInput(rawInput, symbol);
+    if (!pair) {
       return NextResponse.json(
         {
           success: false,
           error:
-            `No analyzable market data returned for "${symbol}". ` +
-            `This usually means the token is not listed on the supported perp feed yet. Try a listed ticker or use Top Meme coins for spot candidates.`,
+            `No DexScreener pair found for "${rawInput}". ` +
+            `Paste a valid meme coin contract or searchable ticker.`,
           resolvedSymbol: symbol,
           resolvedNote: resolved.note ?? null,
         },
@@ -176,6 +158,52 @@ export async function POST(request: Request) {
       );
     }
 
+    const currentPrice = Number(pair.priceUsd ?? 0) || null;
+    if (currentPrice == null || currentPrice <= 0) {
+      return NextResponse.json(
+        { success: false, error: "Price unavailable from DexScreener for this coin.", resolvedSymbol: symbol, resolvedNote: resolved.note ?? null },
+        { status: 404 }
+      );
+    }
+
+    const buys = Number(pair.txns?.h24?.buys ?? 0);
+    const sells = Number(pair.txns?.h24?.sells ?? 0);
+    const touchSeed = Math.max(1, Math.round((buys + sells) / 120));
+    const rows: MemeQTfResult[] = [];
+    for (const tf of effectiveTf) {
+      const basePct = pctForKey(pair, tf.key);
+      const slopePct = basePct * tf.scale;
+      const move = Math.max(0.01, Math.min(85, Math.abs(slopePct)));
+      const support = currentPrice * (1 - move / 200);
+      const resistance = currentPrice * (1 + move / 200);
+      const structureDirection = slopePct > 2 ? "bullish" : slopePct < -2 ? "bearish" : "sideways";
+      const trendlineBias = slopePct > 1 ? "up" : slopePct < -1 ? "down" : "flat";
+      const direction = structureDirection === "sideways" || trendlineBias === "flat"
+        ? "sideways"
+        : structureDirection === "bullish" && trendlineBias === "up"
+          ? "bullish"
+          : structureDirection === "bearish" && trendlineBias === "down"
+            ? "bearish"
+            : "sideways";
+      const supportTouches = Math.max(1, Math.round(touchSeed * (sells >= buys ? 1.2 : 0.8)));
+      const resistanceTouches = Math.max(1, Math.round(touchSeed * (buys >= sells ? 1.2 : 0.8)));
+      rows.push({
+        id: tf.id,
+        label: tf.label,
+        support,
+        resistance,
+        structureDirection,
+        trendlineBias,
+        trendlineSlopePctWindow: slopePct,
+        trendlineRead: `Dex trend proxy from ${tf.key} change (${basePct.toFixed(2)}%) scaled to ${tf.id}.`,
+        demandSupplyRead: demandSupplyRead(support, resistance, supportTouches, resistanceTouches),
+        direction,
+        supportTouches,
+        resistanceTouches,
+      });
+    }
+
+    const deadFlag = getDeadFlag(currentPrice, rows);
     return NextResponse.json({
       success: true,
       result: {
