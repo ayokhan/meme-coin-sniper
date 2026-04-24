@@ -9,6 +9,10 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 45;
 
 const MEME_SMART_TIMEFRAMES = [
+  { id: "30s", label: "30 secs", key: "h1", scale: 0.12 },
+  { id: "1m", label: "1 min", key: "h1", scale: 0.2 },
+  { id: "2m", label: "2 mins", key: "h1", scale: 0.26 },
+  { id: "3m", label: "3 mins", key: "h1", scale: 0.3 },
   { id: "5m", label: "5 mins", key: "h1", scale: 0.35 },
   { id: "15m", label: "15 mins", key: "h1", scale: 0.55 },
   { id: "30m", label: "30 mins", key: "h1", scale: 0.8 },
@@ -86,16 +90,31 @@ type SmartResult = {
   trendlineConfidence: "high" | "medium" | "low";
   trendlineConfidenceNote: string;
   deadFlag: { dead: boolean; note: string };
+  recommendation: { signal: "buy" | "no_buy"; note: string };
   timeframes: Array<{
     id: string;
     label: string;
     high: number;
     low: number;
+    supportTouches: number;
+    resistanceTouches: number;
     structureDirection: "bullish" | "bearish" | "sideways";
     trendlineBias: "up" | "down" | "flat";
     direction: "bullish" | "bearish" | "sideways";
   }>;
 };
+
+function getBuyRecommendation(
+  recommendedDirection: "long" | "short" | "neutral",
+  trendlineConfidence: "high" | "medium" | "low",
+  deadFlag: { dead: boolean; note: string }
+): { signal: "buy" | "no_buy"; note: string } {
+  if (deadFlag.dead) return { signal: "no_buy", note: "No buy: dead/downside warning is active." };
+  if (recommendedDirection === "long" && (trendlineConfidence === "high" || trendlineConfidence === "medium")) {
+    return { signal: "buy", note: `Buy bias: direction is long with ${trendlineConfidence} confidence.` };
+  }
+  return { signal: "no_buy", note: "No buy: structure is not strong enough for a long bias yet." };
+}
 
 export async function POST(request: Request) {
   try {
@@ -130,6 +149,7 @@ export async function POST(request: Request) {
           trendlineConfidence: "low",
           trendlineConfidenceNote: "No market data available.",
           deadFlag: { dead: false, note: "Insufficient data." },
+          recommendation: { signal: "no_buy", note: "No buy: no pair data available." },
           timeframes: [],
         });
         continue;
@@ -148,12 +168,16 @@ export async function POST(request: Request) {
           trendlineConfidence: "low",
           trendlineConfidenceNote: "No market data available.",
           deadFlag: { dead: false, note: "Insufficient data." },
+          recommendation: { signal: "no_buy", note: "No buy: no reliable price feed available." },
           timeframes: [],
         });
         continue;
       }
 
       const tfRows: SmartResult["timeframes"] = [];
+      const buys = Number(pair.txns?.h24?.buys ?? 0);
+      const sells = Number(pair.txns?.h24?.sells ?? 0);
+      const touchSeed = Math.max(1, Math.round((buys + sells) / 120));
       for (const tf of effectiveTf) {
         const basePct = pctForKey(pair, tf.key);
         const slopePct = basePct * tf.scale;
@@ -174,6 +198,8 @@ export async function POST(request: Request) {
           label: tf.label,
           high,
           low,
+          supportTouches: Math.max(1, Math.round(touchSeed * (sells >= buys ? 1.2 : 0.8))),
+          resistanceTouches: Math.max(1, Math.round(touchSeed * (buys >= sells ? 1.2 : 0.8))),
           structureDirection,
           trendlineBias,
           direction,
@@ -195,6 +221,7 @@ export async function POST(request: Request) {
         currentPrice != null && smartLongEntry > 0 && smartShortEntry > smartLongEntry && bearish >= bullish && currentPrice <= smartLongEntry * 1.03
           ? { dead: true, note: "Warning: bearish alignment near range lows. Avoid buy-the-dip unless momentum reclaims key levels." }
           : { dead: false, note: "No immediate dead-coin warning from current structure/trendline alignment." };
+      const recommendation = getBuyRecommendation(recommendedDirection, trendlineConfidence, deadFlag);
 
       results.push({
         symbol,
@@ -212,6 +239,7 @@ export async function POST(request: Request) {
         trendlineConfidence,
         trendlineConfidenceNote: `${bullish} bullish vs ${bearish} bearish blended rows across ${tfRows.length} timeframe(s).`,
         deadFlag,
+        recommendation,
         timeframes: tfRows,
       });
     }

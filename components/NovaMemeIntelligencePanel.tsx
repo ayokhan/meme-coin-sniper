@@ -13,9 +13,18 @@ type MemeQResult = {
   resolvedNote?: string | null;
   currentPrice: number | null;
   marketDirection: "bullish" | "bearish" | "sideways";
+  recommendation?: { signal: "buy" | "no_buy"; note: string };
   overallTrendlineSummary?: string;
   deadFlag?: { dead: boolean; note: string };
-  timeframes: Array<{ id: string; label: string; support: number; resistance: number; direction: "bullish" | "bearish" | "sideways" }>;
+  timeframes: Array<{
+    id: string;
+    label: string;
+    support: number;
+    resistance: number;
+    supportTouches: number;
+    resistanceTouches: number;
+    direction: "bullish" | "bearish" | "sideways";
+  }>;
 };
 
 type MemeSmartResult = {
@@ -29,6 +38,16 @@ type MemeSmartResult = {
   trendlineConfidence: "high" | "medium" | "low";
   trendlineConfidenceNote: string;
   deadFlag: { dead: boolean; note: string };
+  recommendation?: { signal: "buy" | "no_buy"; note: string };
+  timeframes: Array<{
+    id: string;
+    label: string;
+    high: number;
+    low: number;
+    supportTouches: number;
+    resistanceTouches: number;
+    direction: "bullish" | "bearish" | "sideways";
+  }>;
 };
 
 type TopMemeCoin = {
@@ -45,11 +64,11 @@ type TopMemeCoin = {
   qualityNote: string;
 };
 
-const TF_OPTIONS = ["5m", "15m", "30m", "1h", "2h", "4h", "24h", "1w"];
+const TF_OPTIONS = ["30s", "1m", "2m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "24h", "1w"];
 
 export default function NovaMemeIntelligencePanel() {
   const [subTab, setSubTab] = useState<"nova-q-memes" | "nova-smart-memes" | "top-meme-coins">("nova-q-memes");
-  const [timeframes, setTimeframes] = useState<string[]>(["15m", "1h", "24h"]);
+  const [timeframes, setTimeframes] = useState<string[]>(["1m", "5m", "15m", "1h", "24h"]);
   const [symbol, setSymbol] = useState("PEPE");
   const [symbols, setSymbols] = useState("PEPE,DOGE,SHIB");
   const [qResult, setQResult] = useState<MemeQResult | null>(null);
@@ -175,21 +194,29 @@ export default function NovaMemeIntelligencePanel() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex flex-wrap gap-2 items-center">
                   <Badge variant="outline">Direction: {qResult.marketDirection}</Badge>
+                  {qResult.recommendation ? (
+                    <Badge className={qResult.recommendation.signal === "buy" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"}>
+                      {qResult.recommendation.signal === "buy" ? "Buy" : "No buy"}
+                    </Badge>
+                  ) : null}
                   <span className="text-xs text-muted-foreground">Price: {qResult.currentPrice != null ? `$${qResult.currentPrice.toLocaleString()}` : "—"}</span>
                   {qResult.deadFlag?.dead ? <Badge className="bg-rose-600 text-white">Dead / avoid buy</Badge> : <Badge variant="secondary">Not dead</Badge>}
                 </div>
+                {qResult.recommendation?.note ? <p className="text-xs text-muted-foreground">{qResult.recommendation.note}</p> : null}
                 {qResult.deadFlag?.note ? <p className="text-xs text-muted-foreground">{qResult.deadFlag.note}</p> : null}
                 {qResult.resolvedNote ? <p className="text-xs text-cyan-600 dark:text-cyan-400">{qResult.resolvedNote}</p> : null}
                 {qResult.overallTrendlineSummary ? <p className="text-xs text-muted-foreground">{qResult.overallTrendlineSummary}</p> : null}
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader><TableRow><TableHead>TF</TableHead><TableHead className="text-right">Support</TableHead><TableHead className="text-right">Resistance</TableHead><TableHead>Direction</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>TF</TableHead><TableHead className="text-right">Support</TableHead><TableHead className="text-right">S touches</TableHead><TableHead className="text-right">Resistance</TableHead><TableHead className="text-right">R touches</TableHead><TableHead>Direction</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {qResult.timeframes.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell>{r.label}</TableCell>
                           <TableCell className="text-right font-mono">${r.support.toLocaleString(undefined, { maximumFractionDigits: 6 })}</TableCell>
+                          <TableCell className="text-right font-mono">{r.supportTouches}</TableCell>
                           <TableCell className="text-right font-mono">${r.resistance.toLocaleString(undefined, { maximumFractionDigits: 6 })}</TableCell>
+                          <TableCell className="text-right font-mono">{r.resistanceTouches}</TableCell>
                           <TableCell className="capitalize">{r.direction}</TableCell>
                         </TableRow>
                       ))}
@@ -204,6 +231,18 @@ export default function NovaMemeIntelligencePanel() {
         <TabsContent value="nova-smart-memes" className="mt-0 space-y-3">
           <p className="text-xs text-muted-foreground">Meme-focused smart entries, trendline confidence, direction call, and dead/downside warnings.</p>
           <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
+            <div className="flex flex-wrap gap-2 items-center mb-2">
+              {TF_OPTIONS.map((tf) => (
+                <label key={`smart-${tf}`} className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800">
+                  <input
+                    type="checkbox"
+                    checked={timeframes.includes(tf)}
+                    onChange={() => setTimeframes((prev) => (prev.includes(tf) ? prev.filter((x) => x !== tf) : [...prev, tf]))}
+                  />
+                  {tf}
+                </label>
+              ))}
+            </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 value={symbols}
@@ -225,13 +264,24 @@ export default function NovaMemeIntelligencePanel() {
                     <div className="flex flex-wrap gap-2 items-center">
                       <span className="font-mono font-semibold">{r.symbol}</span>
                       <Badge variant="outline" className="capitalize">Direction: {r.recommendedDirection}</Badge>
+                      {r.recommendation ? (
+                        <Badge className={r.recommendation.signal === "buy" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"}>
+                          {r.recommendation.signal === "buy" ? "Buy" : "No buy"}
+                        </Badge>
+                      ) : null}
                       <Badge variant="secondary" className="capitalize">Confidence: {r.trendlineConfidence}</Badge>
                       {r.deadFlag.dead ? <Badge className="bg-rose-600 text-white">Dead / going down</Badge> : null}
                     </div>
+                    {r.recommendation?.note ? <p className="text-xs text-muted-foreground">{r.recommendation.note}</p> : null}
                     <p className="text-xs text-muted-foreground">{r.recommendationNote}</p>
                     {r.resolvedNote ? <p className="text-xs text-cyan-600 dark:text-cyan-400">{r.resolvedNote}</p> : null}
                     <p className="text-xs text-muted-foreground">{r.trendlineConfidenceNote}</p>
                     <p className="text-xs">Short entry: <span className="font-mono">${r.smartShortEntry.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span> · Long entry: <span className="font-mono">${r.smartLongEntry.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span></p>
+                    {r.timeframes.length > 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Touches (first TF {r.timeframes[0].label}): support {r.timeframes[0].supportTouches}, resistance {r.timeframes[0].resistanceTouches}
+                      </p>
+                    ) : null}
                   </CardContent>
                 </Card>
               ))}

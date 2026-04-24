@@ -10,6 +10,10 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 45;
 
 const MEME_Q_TIMEFRAMES = [
+  { id: "30s", label: "30 secs", key: "h1", scale: 0.12 },
+  { id: "1m", label: "1 min", key: "h1", scale: 0.2 },
+  { id: "2m", label: "2 mins", key: "h1", scale: 0.26 },
+  { id: "3m", label: "3 mins", key: "h1", scale: 0.3 },
   { id: "5m", label: "5 mins", key: "h1", scale: 0.35 },
   { id: "15m", label: "15 mins", key: "h1", scale: 0.55 },
   { id: "30m", label: "30 mins", key: "h1", scale: 0.8 },
@@ -124,6 +128,22 @@ function getDeadFlag(currentPrice: number | null, rows: MemeQTfResult[]): { dead
   return { dead: false, note: "No strong dead-coin flag from current structure/trendline blend." };
 }
 
+function getBuyRecommendation(
+  marketDirection: "bullish" | "bearish" | "sideways",
+  deadFlag: { dead: boolean; note: string },
+  rows: MemeQTfResult[]
+): { signal: "buy" | "no_buy"; note: string } {
+  const bullishRows = rows.filter((r) => r.direction === "bullish").length;
+  const bearishRows = rows.filter((r) => r.direction === "bearish").length;
+  if (deadFlag.dead) {
+    return { signal: "no_buy", note: "No buy: dead/downside risk is elevated." };
+  }
+  if (marketDirection === "bullish" && bullishRows >= Math.max(2, bearishRows + 1)) {
+    return { signal: "buy", note: `Buy bias: ${bullishRows} bullish timeframe reads vs ${bearishRows} bearish.` };
+  }
+  return { signal: "no_buy", note: "No buy: momentum/structure is mixed or bearish. Wait for stronger confirmation." };
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -204,13 +224,16 @@ export async function POST(request: Request) {
     }
 
     const deadFlag = getDeadFlag(currentPrice, rows);
+    const marketDirection = getOverallDirection(rows);
+    const recommendation = getBuyRecommendation(marketDirection, deadFlag, rows);
     return NextResponse.json({
       success: true,
       result: {
         symbol,
         resolvedNote: resolved.note ?? null,
         currentPrice,
-        marketDirection: getOverallDirection(rows),
+        marketDirection,
+        recommendation,
         overallTrendlineSummary: overallTrendlineSummary(rows),
         timeframes: rows,
         deadFlag,
