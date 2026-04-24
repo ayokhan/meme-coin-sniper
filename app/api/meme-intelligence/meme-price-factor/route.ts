@@ -61,6 +61,17 @@ function estimateCounts(tf: TfOption, pair: DexPair, absMovePct: number): { lowC
   return { lowCount, highCount };
 }
 
+function estimateMcapRangeFromChange(currentMcap: number, pctChange: number): { lowMcap: number; highMcap: number } {
+  // current = past * (1 + pct/100)
+  // => past = current / (1 + pct/100)
+  const denom = 1 + pctChange / 100;
+  const safeDenom = Math.abs(denom) < 0.01 ? (denom < 0 ? -0.01 : 0.01) : denom;
+  const historicalMcap = currentMcap / safeDenom;
+  const low = Math.max(0, Math.min(currentMcap, historicalMcap));
+  const high = Math.max(currentMcap, historicalMcap);
+  return { lowMcap: low, highMcap: high };
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -96,9 +107,7 @@ export async function POST(request: Request) {
     const rows = effectiveTfs.map((tf) => {
       const basePct = pctForKey(pair, tf.key);
       const slopePct = basePct * tf.scale;
-      const move = Math.max(0.02, Math.min(90, Math.abs(slopePct)));
-      const lowMcap = currentMcap * (1 - move / 200);
-      const highMcap = currentMcap * (1 + move / 200);
+      const { lowMcap, highMcap } = estimateMcapRangeFromChange(currentMcap, slopePct);
       const { lowCount, highCount } = estimateCounts(tf, pair, Math.abs(basePct));
       return {
         timeframe: tf.id,
@@ -107,6 +116,7 @@ export async function POST(request: Request) {
         highMcap,
         lowCount,
         highCount,
+        netChangePct: slopePct,
       };
     });
 
