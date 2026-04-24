@@ -21,6 +21,7 @@ import { Zap, Copy, Send, Star, Flame, ChevronDown, Menu, X } from "lucide-react
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import NovaEaglePanel from "@/components/NovaEaglePanel";
 import CryptoBuddiePanel from "@/components/CryptoBuddiePanel";
+import NovaMemeIntelligencePanel from "@/components/NovaMemeIntelligencePanel";
 import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
@@ -95,12 +96,13 @@ type TabId =
   | "nova-futures-narratives"
   | "nova-eagle"
   | "crypto-buddie"
+  | "meme-intelligence"
   | "nova-connect"
   | "chris-clayton";
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-connect"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie"];
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
 const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   new: "page_tab_new",
   trending: "page_tab_trending",
@@ -126,6 +128,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   "nova-futures-narratives": "page_tab_futures",
   "nova-eagle": "page_tab_futures",
   "crypto-buddie": "page_tab_futures",
+  "meme-intelligence": "page_tab_meme_intelligence",
   "nova-connect": "page_tab_nova_connect",
   "chris-clayton": "page_tab_chris_clayton",
 };
@@ -154,6 +157,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "nova-futures-narratives",
   "nova-eagle",
   "crypto-buddie",
+  "meme-intelligence",
   "nova-connect",
   "chris-clayton",
 ];
@@ -161,6 +165,7 @@ const NEW_TOP_TAB_EXPIRY_ISO: Partial<Record<TabId, string>> = {
   "nova-futures-narratives": "2026-05-31T23:59:59.999Z",
   "nova-eagle": "2026-05-31T23:59:59.999Z",
   "crypto-buddie": "2026-05-31T23:59:59.999Z",
+  "meme-intelligence": "2026-06-30T23:59:59.999Z",
 };
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
 type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc"; symbol?: string; name?: string };
@@ -298,7 +303,7 @@ export default function Dashboard() {
     if (topTabFilter === "all") return true;
     const coreTabs: TabId[] = ["new", "trending", "bsc", "watchlist"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
-    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie"];
+    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
     const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-ultimate"];
     if (topTabFilter === "core") return coreTabs.includes(tab);
     if (topTabFilter === "pro") return proTabs.includes(tab);
@@ -699,7 +704,12 @@ export default function Dashboard() {
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
   const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps">("ai");
-  const [vipFuturesAddons, setVipFuturesAddons] = useState<{ novaEagle: boolean; cryptoBuddie: boolean; novaFuturesNarratives: boolean } | null>(null);
+  const [vipFuturesAddons, setVipFuturesAddons] = useState<{
+    novaEagle: boolean;
+    cryptoBuddie: boolean;
+    novaFuturesNarratives: boolean;
+    novaMemeIntelligence: boolean;
+  } | null>(null);
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
 
   useEffect(() => {
@@ -708,10 +718,22 @@ export default function Dashboard() {
       .then((r) => r.json())
       .then((d) => {
         if (cancelled || !d?.success) return;
-        setVipFuturesAddons({ novaEagle: !!d.novaEagle, cryptoBuddie: !!d.cryptoBuddie, novaFuturesNarratives: !!d.novaFuturesNarratives });
+        setVipFuturesAddons({
+          novaEagle: !!d.novaEagle,
+          cryptoBuddie: !!d.cryptoBuddie,
+          novaFuturesNarratives: !!d.novaFuturesNarratives,
+          novaMemeIntelligence: !!d.novaMemeIntelligence,
+        });
       })
       .catch(() => {
-        if (!cancelled) setVipFuturesAddons({ novaEagle: false, cryptoBuddie: false, novaFuturesNarratives: false });
+        if (!cancelled) {
+          setVipFuturesAddons({
+            novaEagle: false,
+            cryptoBuddie: false,
+            novaFuturesNarratives: false,
+            novaMemeIntelligence: false,
+          });
+        }
       });
     return () => {
       cancelled = true;
@@ -2225,7 +2247,7 @@ export default function Dashboard() {
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (walletTrackerView === "meme") {
@@ -3192,6 +3214,17 @@ export default function Dashboard() {
                     )}
                   </TabsTrigger>
                 )}
+                {showTopTab("meme-intelligence") && vipFuturesAddons?.novaMemeIntelligence && (
+                  <TabsTrigger value="meme-intelligence" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">
+                    <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
+                    Nova Meme Intelligence
+                    {isNewTopTab("meme-intelligence") && (
+                      <span className="ml-2 inline-flex rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold">
+                        NEW
+                      </span>
+                    )}
+                  </TabsTrigger>
+                )}
                 {showTopTab("trending-perps") && (
                   <TabsTrigger value="trending-perps" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Trending perps</TabsTrigger>
                 )}
@@ -3268,6 +3301,7 @@ export default function Dashboard() {
                   {activeTab === "nova-futures-narratives" && "Nova Futures Narratives combines headline noise with CFTC institutional positioning. VIP only."}
                   {activeTab === "nova-eagle" && "Nova Eagle surfaces sampled large perp positions and skew heuristics. VIP only."}
                   {activeTab === "crypto-buddie" && "Crypto Buddie gives ranked short-horizon perp reads plus optional monitor workflow. VIP only."}
+                  {activeTab === "meme-intelligence" && "Nova Meme Intelligence gives meme-focused NovaQ and Nova Smart analysis plus Top Meme coins screening for safer scalp/swing setups. VIP only."}
                   {activeTab === "trending-perps" && "See the biggest perp movers in one place—5m, 15m, 30m, 1h, and 24h—so you can spot what’s moving fast."}
                   {activeTab === "perp-radar" && "Spot the biggest perp movers across exchanges—before they peak."}
                   {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
@@ -4409,6 +4443,8 @@ export default function Dashboard() {
               <div className="mx-3 sm:mx-6 py-6 sm:py-8">
                 <CryptoBuddiePanel />
               </div>
+            ) : activeTab === "meme-intelligence" ? (
+              <NovaMemeIntelligencePanel />
             ) : activeTab === "futures" ? (
               <div className="mx-3 sm:mx-6 py-6 sm:py-8">
                 <div className="flex flex-wrap gap-2 mb-6">

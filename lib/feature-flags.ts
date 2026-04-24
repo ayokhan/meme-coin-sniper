@@ -33,6 +33,7 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_COACH_CALLS: 'page_tab_coach_calls',
   PAGE_TAB_NOVA_FORECAST: 'page_tab_nova_forecast',
   PAGE_TAB_NOVA_PLUS: 'page_tab_nova_plus',
+  PAGE_TAB_MEME_INTELLIGENCE: 'page_tab_meme_intelligence',
   PAGE_TAB_NOVA_INVESTMENT_AGENT: 'page_tab_nova_investment_agent',
   PAGE_TAB_BSC: 'page_tab_bsc',
   PAGE_TAB_WATCHLIST: 'page_tab_watchlist',
@@ -65,6 +66,14 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_CRYPTO_BUDDIE: 'nova_crypto_buddie',
   /** VIP: Nova Futures Narratives tab (headline + institutional narrative read). Default OFF until admin enables. */
   NOVA_FUTURES_NARRATIVES: 'nova_futures_narratives',
+  /** VIP: Nova Meme Intelligence top-level tab. Default OFF until admin enables. */
+  NOVA_MEME_INTELLIGENCE: 'nova_meme_intelligence',
+  /** VIP: NovaQ - Memes subtab under Nova Meme Intelligence. Default OFF until admin enables. */
+  NOVA_Q_MEMES: 'nova_q_memes',
+  /** VIP: Nova Smart Analysis for Memes subtab under Nova Meme Intelligence. Default OFF until admin enables. */
+  NOVA_SMART_MEMES: 'nova_smart_memes',
+  /** VIP: Top Meme coins subtab under Nova Meme Intelligence. Default OFF until admin enables. */
+  NOVA_TOP_MEME_COINS: 'nova_top_meme_coins',
   /** UVIP: Nova Perp Wallet Analyst Agent subtab under Wallet Tracker. Default OFF until admin enables. */
   NOVA_PERP_WALLET_ANALYST: 'nova_perp_wallet_analyst',
 } as const;
@@ -81,6 +90,10 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_EAGLE,
   FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE,
   FEATURE_FLAG_KEYS.NOVA_FUTURES_NARRATIVES,
+  FEATURE_FLAG_KEYS.NOVA_MEME_INTELLIGENCE,
+  FEATURE_FLAG_KEYS.NOVA_Q_MEMES,
+  FEATURE_FLAG_KEYS.NOVA_SMART_MEMES,
+  FEATURE_FLAG_KEYS.NOVA_TOP_MEME_COINS,
   FEATURE_FLAG_KEYS.NOVA_PERP_WALLET_ANALYST,
 ]);
 

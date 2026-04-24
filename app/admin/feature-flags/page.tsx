@@ -93,6 +93,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Tab: Nova+",
     description: "Show/hide the Nova+ tab (VIP-only risk-managed trade analysis) in the main GUI.",
   },
+  page_tab_meme_intelligence: {
+    label: "Tab: Nova Meme Intelligence",
+    description: "Show/hide the Nova Meme Intelligence tab (VIP-only meme TA workspace) in the main GUI.",
+  },
   page_tab_nova_investment_agent: {
     label: "Tab: Nova Investment Agent",
     description: "Show/hide the Nova Investment Agent tab (VIP-only) in the main GUI.",
@@ -168,6 +172,26 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Nova Futures Narratives",
     description:
       "When ON, VIP users see the standalone Nova Futures Narratives tab (headline + CFTC institutional narrative read). Default OFF until you enable it.",
+  },
+  nova_meme_intelligence: {
+    label: "Nova Meme Intelligence",
+    description:
+      "When ON, VIP users see the Nova Meme Intelligence tab with meme-focused technical analysis tools. Default OFF until you enable it.",
+  },
+  nova_q_memes: {
+    label: "NovaQ - Memes",
+    description:
+      "When ON, VIP users can use NovaQ - Memes for support/resistance, market structure, trendline, liquidity reads, and dead/downside warnings.",
+  },
+  nova_smart_memes: {
+    label: "Nova Smart Analysis for Memes",
+    description:
+      "When ON, VIP users can run Nova Smart Analysis for Memes for entry/exit ideas, direction bias, trendline confidence, and risk notes.",
+  },
+  nova_top_meme_coins: {
+    label: "Top Meme coins",
+    description:
+      "When ON, VIP users can access Top Meme coins to discover more stable, liquid meme coins with filters against honeypots and weak setups.",
   },
   nova_perp_wallet_analyst: {
     label: "Nova Perp Wallet Analyst Agent (Wallet Tracker)",

@@ -49,3 +49,43 @@ export async function getNovaFuturesNarrativesAccess(session: Session | null): P
   }
   return base;
 }
+
+export async function getNovaMemeIntelligenceAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await assertVip(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_INTELLIGENCE);
+  if (!on) {
+    return { ok: false, status: 403, error: "Nova Meme Intelligence is disabled by admin.", disabled: true };
+  }
+  return base;
+}
+
+export async function getNovaQMemesAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await getNovaMemeIntelligenceAccess(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_Q_MEMES);
+  if (!on) {
+    return { ok: false, status: 403, error: "NovaQ - Memes is disabled by admin.", disabled: true };
+  }
+  return base;
+}
+
+export async function getNovaSmartMemesAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await getNovaMemeIntelligenceAccess(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_SMART_MEMES);
+  if (!on) {
+    return { ok: false, status: 403, error: "Nova Smart Analysis for Memes is disabled by admin.", disabled: true };
+  }
+  return base;
+}
+
+export async function getTopMemeCoinsAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await getNovaMemeIntelligenceAccess(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_TOP_MEME_COINS);
+  if (!on) {
+    return { ok: false, status: 403, error: "Top Meme coins is disabled by admin.", disabled: true };
+  }
+  return base;
+}
