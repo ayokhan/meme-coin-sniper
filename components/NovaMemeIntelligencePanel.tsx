@@ -13,6 +13,11 @@ type MemeQResult = {
   resolvedNote?: string | null;
   currentPrice: number | null;
   currentMarketCap?: number | null;
+  marketCapSource?: "marketCap";
+  analyzedAt?: string;
+  pairAddress?: string | null;
+  dexUrl?: string | null;
+  confidenceNotes?: string[];
   marketDirection: "bullish" | "bearish" | "sideways";
   recommendation?: { signal: "buy" | "no_buy"; note: string };
   overallTrendlineSummary?: string;
@@ -33,6 +38,11 @@ type MemeSmartResult = {
   resolvedNote?: string | null;
   currentPrice: number | null;
   currentMarketCap?: number | null;
+  marketCapSource?: "marketCap";
+  analyzedAt?: string;
+  pairAddress?: string | null;
+  dexUrl?: string | null;
+  confidenceNotes?: string[];
   smartShortEntry: number;
   smartLongEntry: number;
   recommendedDirection: "long" | "short" | "neutral";
@@ -213,6 +223,15 @@ export default function NovaMemeIntelligencePanel() {
                 {qResult.recommendation?.note ? <p className="text-xs text-muted-foreground">{qResult.recommendation.note}</p> : null}
                 {qResult.deadFlag?.note ? <p className="text-xs text-muted-foreground">{qResult.deadFlag.note}</p> : null}
                 {qResult.resolvedNote ? <p className="text-xs text-cyan-600 dark:text-cyan-400">{qResult.resolvedNote}</p> : null}
+                {qResult.analyzedAt ? <p className="text-xs text-muted-foreground">Analyzed: {new Date(qResult.analyzedAt).toLocaleString()} · Source: {qResult.marketCapSource ?? "marketCap"}</p> : null}
+                {qResult.dexUrl ? <a href={qResult.dexUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">View selected pair on DexScreener</a> : null}
+                {qResult.confidenceNotes?.length ? (
+                  <div className="rounded-md border border-amber-300/60 dark:border-amber-700/60 bg-amber-50/70 dark:bg-amber-950/30 px-2 py-1">
+                    {qResult.confidenceNotes.map((n, i) => (
+                      <p key={`q-note-${i}`} className="text-xs text-amber-700 dark:text-amber-300">{n}</p>
+                    ))}
+                  </div>
+                ) : null}
                 {qResult.overallTrendlineSummary ? <p className="text-xs text-muted-foreground">{qResult.overallTrendlineSummary}</p> : null}
                 <div className="overflow-x-auto">
                   <Table>
@@ -283,6 +302,15 @@ export default function NovaMemeIntelligencePanel() {
                     {r.recommendation?.note ? <p className="text-xs text-muted-foreground">{r.recommendation.note}</p> : null}
                     <p className="text-xs text-muted-foreground">{r.recommendationNote}</p>
                     {r.resolvedNote ? <p className="text-xs text-cyan-600 dark:text-cyan-400">{r.resolvedNote}</p> : null}
+                    {r.analyzedAt ? <p className="text-xs text-muted-foreground">Analyzed: {new Date(r.analyzedAt).toLocaleString()} · Source: {r.marketCapSource ?? "marketCap"}</p> : null}
+                    {r.dexUrl ? <a href={r.dexUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">View selected pair on DexScreener</a> : null}
+                    {r.confidenceNotes?.length ? (
+                      <div className="rounded-md border border-amber-300/60 dark:border-amber-700/60 bg-amber-50/70 dark:bg-amber-950/30 px-2 py-1">
+                        {r.confidenceNotes.map((n, i) => (
+                          <p key={`${r.symbol}-note-${i}`} className="text-xs text-amber-700 dark:text-amber-300">{n}</p>
+                        ))}
+                      </div>
+                    ) : null}
                     <p className="text-xs text-muted-foreground">{r.trendlineConfidenceNote}</p>
                     <p className="text-xs text-muted-foreground">Current MCap: <span className="font-mono">{formatUsdCompact(r.currentMarketCap ?? null)}</span></p>
                     <p className="text-xs">Resistance MCap: <span className="font-mono">{formatUsdCompact(r.smartShortEntry)}</span> · Support MCap: <span className="font-mono">{formatUsdCompact(r.smartLongEntry)}</span></p>

@@ -132,8 +132,19 @@ function estimateTouchesForTimeframe(args: {
 }
 
 function getPairMarketCap(pair: DexPair): number | null {
-  const mcap = Number((pair as DexPair & { marketCap?: unknown }).marketCap ?? pair.fdv ?? 0);
+  const mcap = Number((pair as DexPair & { marketCap?: unknown }).marketCap ?? 0);
   return Number.isFinite(mcap) && mcap > 0 ? mcap : null;
+}
+
+function buildConfidenceNotes(pair: DexPair, usedContractInput: boolean): string[] {
+  const notes: string[] = [];
+  const liq = Number(pair.liquidity?.usd ?? 0);
+  const mcap = Number((pair as DexPair & { marketCap?: unknown }).marketCap ?? 0);
+  const h24 = Math.abs(Number(pair.priceChange?.h24 ?? 0));
+  if (!usedContractInput) notes.push("Ticker search can map to a different pair than expected. Contract input is more reliable.");
+  if (liq > 0 && mcap > 0 && mcap / liq > 1200) notes.push("High market-cap/liquidity ratio detected; levels may be less stable.");
+  if (h24 > 85) notes.push("Very high 24h volatility detected; support/resistance bands can shift quickly.");
+  return notes;
 }
 
 type SmartResult = {
@@ -141,6 +152,11 @@ type SmartResult = {
   resolvedNote?: string | null;
   currentPrice: number | null;
   currentMarketCap?: number | null;
+  marketCapSource?: "marketCap";
+  analyzedAt?: string;
+  pairAddress?: string | null;
+  dexUrl?: string | null;
+  confidenceNotes?: string[];
   smartShortEntry: number;
   smartLongEntry: number;
   recommendedDirection: "long" | "short" | "neutral";
@@ -221,6 +237,11 @@ export async function POST(request: Request) {
           resolvedNote: resolved.note ?? null,
           currentPrice: null,
           currentMarketCap: null,
+          marketCapSource: "marketCap",
+          analyzedAt: new Date().toISOString(),
+          pairAddress: null,
+          dexUrl: null,
+          confidenceNotes: ["No valid pair resolved from provided input."],
           smartShortEntry: 0,
           smartLongEntry: 0,
           recommendedDirection: "neutral",
@@ -298,6 +319,11 @@ export async function POST(request: Request) {
         resolvedNote: resolved.note ?? null,
         currentPrice,
         currentMarketCap,
+        marketCapSource: "marketCap",
+        analyzedAt: new Date().toISOString(),
+        pairAddress: pair.pairAddress ?? null,
+        dexUrl: (pair as DexPair & { url?: string }).url ?? null,
+        confidenceNotes: buildConfidenceNotes(pair, isLikelySolanaMint(rawSymbol) || isLikelyEvmAddress(rawSymbol)),
         smartShortEntry,
         smartLongEntry,
         recommendedDirection,
