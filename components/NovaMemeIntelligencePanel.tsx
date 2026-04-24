@@ -82,13 +82,15 @@ const PRICE_FACTOR_TF_OPTIONS = ["60s", "1m", "3m", "5m", "15m", "30m", "1h", "2
 type MemePriceFactorResult = {
   symbol: string;
   contract: string;
-  timeframe: string;
-  timeframeLabel: string;
   currentMcap: number;
-  lowMcap: number;
-  highMcap: number;
-  lowCount: number;
-  highCount: number;
+  rows: Array<{
+    timeframe: string;
+    timeframeLabel: string;
+    lowMcap: number;
+    highMcap: number;
+    lowCount: number;
+    highCount: number;
+  }>;
   analyzedAt: string;
   pairAddress?: string | null;
   dexUrl?: string | null;
@@ -105,7 +107,7 @@ export default function NovaMemeIntelligencePanel() {
   const [symbol, setSymbol] = useState("PEPE");
   const [symbols, setSymbols] = useState("PEPE,DOGE,SHIB");
   const [priceFactorContract, setPriceFactorContract] = useState("");
-  const [priceFactorTf, setPriceFactorTf] = useState("1h");
+  const [priceFactorTfs, setPriceFactorTfs] = useState<string[]>(["1m", "5m", "15m", "1h", "24h"]);
   const [priceFactorResult, setPriceFactorResult] = useState<MemePriceFactorResult | null>(null);
   const [addonFlags, setAddonFlags] = useState<{ novaQMemes: boolean; novaSmartMemes: boolean; topMemeCoins: boolean; memePriceFactor: boolean } | null>(null);
   const [qResult, setQResult] = useState<MemeQResult | null>(null);
@@ -223,7 +225,7 @@ export default function NovaMemeIntelligencePanel() {
       const res = await fetch("/api/meme-intelligence/meme-price-factor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contract: priceFactorContract.trim(), timeframe: priceFactorTf }),
+        body: JSON.stringify({ contract: priceFactorContract.trim(), timeframes: priceFactorTfs }),
         credentials: "include",
       });
       const data = await res.json();
@@ -443,6 +445,20 @@ export default function NovaMemeIntelligencePanel() {
         <TabsContent value="meme-price-factor" className="mt-0 space-y-3">
           <p className="text-xs text-muted-foreground">Paste a Solana or BSC contract, choose timeframe, then get high/low market-cap bands and touch counts.</p>
           <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              {PRICE_FACTOR_TF_OPTIONS.map((tf) => (
+                <label key={`mpf-${tf}`} className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800">
+                  <input
+                    type="checkbox"
+                    checked={priceFactorTfs.includes(tf)}
+                    onChange={() =>
+                      setPriceFactorTfs((prev) => (prev.includes(tf) ? prev.filter((x) => x !== tf) : [...prev, tf]))
+                    }
+                  />
+                  {tf}
+                </label>
+              ))}
+            </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 value={priceFactorContract}
@@ -450,16 +466,7 @@ export default function NovaMemeIntelligencePanel() {
                 className="text-sm border rounded-md px-3 py-2 h-10 w-full sm:w-[420px] bg-white dark:bg-zinc-800"
                 placeholder="Paste Solana/BSC contract"
               />
-              <select
-                value={priceFactorTf}
-                onChange={(e) => setPriceFactorTf(e.target.value)}
-                className="text-sm border rounded-md px-3 py-2 h-10 bg-white dark:bg-zinc-800"
-              >
-                {PRICE_FACTOR_TF_OPTIONS.map((tf) => (
-                  <option key={tf} value={tf}>{tf}</option>
-                ))}
-              </select>
-              <Button className="h-10 px-4 w-full sm:w-auto" onClick={runMemePriceFactor} disabled={loading || !priceFactorContract.trim()}>
+              <Button className="h-10 px-4 w-full sm:w-auto" onClick={runMemePriceFactor} disabled={loading || !priceFactorContract.trim() || priceFactorTfs.length === 0}>
                 {loading ? "Searching..." : "Search"}
               </Button>
             </div>
@@ -485,13 +492,19 @@ export default function NovaMemeIntelligencePanel() {
                     </TableHeader>
                     <TableBody>
                       <TableRow>
-                        <TableCell>{priceFactorResult.timeframeLabel}</TableCell>
-                        <TableCell className="text-right font-mono">{formatUsdCompact(priceFactorResult.currentMcap)}</TableCell>
-                        <TableCell className="text-right font-mono">{formatUsdCompact(priceFactorResult.lowMcap)}</TableCell>
-                        <TableCell className="text-right font-mono">{priceFactorResult.lowCount}</TableCell>
-                        <TableCell className="text-right font-mono">{formatUsdCompact(priceFactorResult.highMcap)}</TableCell>
-                        <TableCell className="text-right font-mono">{priceFactorResult.highCount}</TableCell>
+                        <TableCell className="font-mono">{formatUsdCompact(priceFactorResult.currentMcap)}</TableCell>
+                        <TableCell colSpan={5} className="text-muted-foreground text-xs">Rows by selected timeframe</TableCell>
                       </TableRow>
+                      {priceFactorResult.rows.map((r) => (
+                        <TableRow key={`mpf-row-${r.timeframe}`}>
+                          <TableCell>{r.timeframeLabel}</TableCell>
+                          <TableCell className="text-right font-mono">{formatUsdCompact(priceFactorResult.currentMcap)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatUsdCompact(r.lowMcap)}</TableCell>
+                          <TableCell className="text-right font-mono">{r.lowCount}</TableCell>
+                          <TableCell className="text-right font-mono">{formatUsdCompact(r.highMcap)}</TableCell>
+                          <TableCell className="text-right font-mono">{r.highCount}</TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </div>

@@ -71,11 +71,15 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const contract = String(body.contract ?? "").trim();
-    const timeframe = String(body.timeframe ?? "1h").trim().toLowerCase();
+    const timeframeParam = body.timeframes ?? body.timeframe ?? ["1h"];
     if (!contract) {
       return NextResponse.json({ success: false, error: "Contract is required." }, { status: 400 });
     }
-    const tf = TF_OPTIONS.find((x) => x.id === timeframe) ?? TF_OPTIONS.find((x) => x.id === "1h")!;
+    const requested = (Array.isArray(timeframeParam) ? timeframeParam : String(timeframeParam).split(/[\s,]+/))
+      .map((x) => String(x).trim().toLowerCase())
+      .filter(Boolean);
+    const selected = TF_OPTIONS.filter((x) => requested.includes(x.id));
+    const effectiveTfs = selected.length ? selected : [TF_OPTIONS.find((x) => x.id === "1h")!];
 
     let pair: DexPair | null = null;
     if (isLikelySolanaMint(contract)) pair = await getSolanaToken(contract);
@@ -89,25 +93,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Market cap unavailable for this pair right now." }, { status: 404 });
     }
 
-    const basePct = pctForKey(pair, tf.key);
-    const slopePct = basePct * tf.scale;
-    const move = Math.max(0.02, Math.min(90, Math.abs(slopePct)));
-    const lowMcap = currentMcap * (1 - move / 200);
-    const highMcap = currentMcap * (1 + move / 200);
-    const { lowCount, highCount } = estimateCounts(tf, pair, Math.abs(basePct));
+    const rows = effectiveTfs.map((tf) => {
+      const basePct = pctForKey(pair, tf.key);
+      const slopePct = basePct * tf.scale;
+      const move = Math.max(0.02, Math.min(90, Math.abs(slopePct)));
+      const lowMcap = currentMcap * (1 - move / 200);
+      const highMcap = currentMcap * (1 + move / 200);
+      const { lowCount, highCount } = estimateCounts(tf, pair, Math.abs(basePct));
+      return {
+        timeframe: tf.id,
+        timeframeLabel: tf.label,
+        lowMcap,
+        highMcap,
+        lowCount,
+        highCount,
+      };
+    });
 
     return NextResponse.json({
       success: true,
       result: {
         symbol: pair.baseToken?.symbol ?? "UNKNOWN",
         contract,
-        timeframe: tf.id,
-        timeframeLabel: tf.label,
         currentMcap,
-        lowMcap,
-        highMcap,
-        lowCount,
-        highCount,
+        rows,
         analyzedAt: new Date().toISOString(),
         pairAddress: pair.pairAddress ?? null,
         dexUrl: (pair as DexPair & { url?: string }).url ?? null,
