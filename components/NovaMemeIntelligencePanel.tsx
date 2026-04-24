@@ -90,6 +90,7 @@ type MemePriceFactorResult = {
     highMcap: number;
     lowCount: number;
     highCount: number;
+    netChangePct?: number;
   }>;
   analyzedAt: string;
   pairAddress?: string | null;
@@ -488,12 +489,13 @@ export default function NovaMemeIntelligencePanel() {
                         <TableHead className="text-right">Low count</TableHead>
                         <TableHead className="text-right">High MCap</TableHead>
                         <TableHead className="text-right">High count</TableHead>
+                        <TableHead className="text-right">Net change %</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       <TableRow>
                         <TableCell className="font-mono">{formatUsdCompact(priceFactorResult.currentMcap)}</TableCell>
-                        <TableCell colSpan={5} className="text-muted-foreground text-xs">Rows by selected timeframe</TableCell>
+                        <TableCell colSpan={6} className="text-muted-foreground text-xs">Rows by selected timeframe</TableCell>
                       </TableRow>
                       {priceFactorResult.rows.map((r) => (
                         <TableRow key={`mpf-row-${r.timeframe}`}>
@@ -503,6 +505,9 @@ export default function NovaMemeIntelligencePanel() {
                           <TableCell className="text-right font-mono">{r.lowCount}</TableCell>
                           <TableCell className="text-right font-mono">{formatUsdCompact(r.highMcap)}</TableCell>
                           <TableCell className="text-right font-mono">{r.highCount}</TableCell>
+                          <TableCell className={`text-right font-mono ${(r.netChangePct ?? 0) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                            {(r.netChangePct ?? 0).toFixed(2)}%
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
