@@ -89,3 +89,13 @@ export async function getTopMemeCoinsAccess(session: Session | null): Promise<Vi
   }
   return base;
 }
+
+export async function getMemePriceFactorAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await getNovaMemeIntelligenceAccess(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_PRICE_FACTOR);
+  if (!on) {
+    return { ok: false, status: 403, error: "Meme Price Factor is disabled by admin.", disabled: true };
+  }
+  return base;
+}

@@ -193,6 +193,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users can access Top Meme coins to discover more stable, liquid meme coins with filters against honeypots and weak setups.",
   },
+  nova_meme_price_factor: {
+    label: "Meme Price Factor",
+    description:
+      "When ON, VIP users can access Meme Price Factor under Nova Meme Intelligence to analyze high/low market-cap bands and touch counts by timeframe for Solana/BSC contracts.",
+  },
   nova_perp_wallet_analyst: {
     label: "Nova Perp Wallet Analyst Agent (Wallet Tracker)",
     description:

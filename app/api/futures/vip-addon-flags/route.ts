@@ -10,7 +10,7 @@ export async function GET() {
   try {
     // Session read kept for parity/auditing, but visibility is flag-driven for all users.
     await getServerSession(authOptions);
-    const [novaEagle, cryptoBuddie, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins] = await Promise.all([
+    const [novaEagle, cryptoBuddie, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor] = await Promise.all([
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_EAGLE),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FUTURES_NARRATIVES),
@@ -18,8 +18,9 @@ export async function GET() {
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_Q_MEMES),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_SMART_MEMES),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_TOP_MEME_COINS),
+      getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_PRICE_FACTOR),
     ]);
-    return NextResponse.json({ success: true, novaEagle, cryptoBuddie, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins });
+    return NextResponse.json({ success: true, novaEagle, cryptoBuddie, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to read flags";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

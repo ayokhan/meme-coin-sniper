@@ -77,6 +77,22 @@ type TopMemeCoin = {
 };
 
 const TF_OPTIONS = ["30s", "1m", "2m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "24h", "1w"];
+const PRICE_FACTOR_TF_OPTIONS = ["60s", "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "8h", "12h", "24h", "48h", "72h", "1w"];
+
+type MemePriceFactorResult = {
+  symbol: string;
+  contract: string;
+  timeframe: string;
+  timeframeLabel: string;
+  currentMcap: number;
+  lowMcap: number;
+  highMcap: number;
+  lowCount: number;
+  highCount: number;
+  analyzedAt: string;
+  pairAddress?: string | null;
+  dexUrl?: string | null;
+};
 
 function formatUsdCompact(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -84,10 +100,14 @@ function formatUsdCompact(value: number | null | undefined): string {
 }
 
 export default function NovaMemeIntelligencePanel() {
-  const [subTab, setSubTab] = useState<"nova-q-memes" | "nova-smart-memes" | "top-meme-coins">("nova-q-memes");
+  const [subTab, setSubTab] = useState<"nova-q-memes" | "nova-smart-memes" | "top-meme-coins" | "meme-price-factor">("nova-q-memes");
   const [timeframes, setTimeframes] = useState<string[]>(["1m", "5m", "15m", "1h", "24h"]);
   const [symbol, setSymbol] = useState("PEPE");
   const [symbols, setSymbols] = useState("PEPE,DOGE,SHIB");
+  const [priceFactorContract, setPriceFactorContract] = useState("");
+  const [priceFactorTf, setPriceFactorTf] = useState("1h");
+  const [priceFactorResult, setPriceFactorResult] = useState<MemePriceFactorResult | null>(null);
+  const [addonFlags, setAddonFlags] = useState<{ novaQMemes: boolean; novaSmartMemes: boolean; topMemeCoins: boolean; memePriceFactor: boolean } | null>(null);
   const [qResult, setQResult] = useState<MemeQResult | null>(null);
   const [smartResults, setSmartResults] = useState<MemeSmartResult[]>([]);
   const [topCoins, setTopCoins] = useState<TopMemeCoin[]>([]);
@@ -110,6 +130,33 @@ export default function NovaMemeIntelligencePanel() {
       void loadTopMemeCoins();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subTab]);
+
+  useEffect(() => {
+    fetch("/api/futures/vip-addon-flags", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d?.success) return;
+        const flags = {
+          novaQMemes: !!d.novaQMemes,
+          novaSmartMemes: !!d.novaSmartMemes,
+          topMemeCoins: !!d.topMemeCoins,
+          memePriceFactor: !!d.memePriceFactor,
+        };
+        setAddonFlags(flags);
+        const ordered: Array<typeof subTab> = ["nova-q-memes", "nova-smart-memes", "top-meme-coins", "meme-price-factor"];
+        const enabledMap: Record<typeof subTab, boolean> = {
+          "nova-q-memes": flags.novaQMemes,
+          "nova-smart-memes": flags.novaSmartMemes,
+          "top-meme-coins": flags.topMemeCoins,
+          "meme-price-factor": flags.memePriceFactor,
+        };
+        if (!enabledMap[subTab]) {
+          const firstEnabled = ordered.find((id) => enabledMap[id]);
+          if (firstEnabled) setSubTab(firstEnabled);
+        }
+      })
+      .catch(() => {});
   }, [subTab]);
 
   const runNovaQMemes = async () => {
@@ -168,13 +215,35 @@ export default function NovaMemeIntelligencePanel() {
     }
   };
 
+  const runMemePriceFactor = async () => {
+    setLoading(true);
+    setError(null);
+    setPriceFactorResult(null);
+    try {
+      const res = await fetch("/api/meme-intelligence/meme-price-factor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contract: priceFactorContract.trim(), timeframe: priceFactorTf }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.result) setPriceFactorResult(data.result as MemePriceFactorResult);
+      else setError(data?.error ?? "Failed to run Meme Price Factor.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to run Meme Price Factor.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="mx-3 sm:mx-6 py-6 sm:py-8">
       <Tabs value={subTab} onValueChange={(v) => setSubTab(v as typeof subTab)} className="space-y-4">
         <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg flex-wrap h-auto gap-1 w-full">
-          <TabsTrigger value="nova-q-memes" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">NovaQ - Memes</TabsTrigger>
-          <TabsTrigger value="nova-smart-memes" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Nova Smart Analysis for Memes</TabsTrigger>
-          <TabsTrigger value="top-meme-coins" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Top Meme coins</TabsTrigger>
+          {(addonFlags?.novaQMemes ?? true) && <TabsTrigger value="nova-q-memes" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">NovaQ - Memes</TabsTrigger>}
+          {(addonFlags?.novaSmartMemes ?? true) && <TabsTrigger value="nova-smart-memes" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Nova Smart Analysis for Memes</TabsTrigger>}
+          {(addonFlags?.topMemeCoins ?? true) && <TabsTrigger value="top-meme-coins" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Top Meme coins</TabsTrigger>}
+          {(addonFlags?.memePriceFactor ?? true) && <TabsTrigger value="meme-price-factor" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Meme Price Factor</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="nova-q-memes" className="mt-0 space-y-3">
@@ -368,6 +437,66 @@ export default function NovaMemeIntelligencePanel() {
                 </TableBody>
               </Table>
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="meme-price-factor" className="mt-0 space-y-3">
+          <p className="text-xs text-muted-foreground">Paste a Solana or BSC contract, choose timeframe, then get high/low market-cap bands and touch counts.</p>
+          <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                value={priceFactorContract}
+                onChange={(e) => setPriceFactorContract(e.target.value.trim())}
+                className="text-sm border rounded-md px-3 py-2 h-10 w-full sm:w-[420px] bg-white dark:bg-zinc-800"
+                placeholder="Paste Solana/BSC contract"
+              />
+              <select
+                value={priceFactorTf}
+                onChange={(e) => setPriceFactorTf(e.target.value)}
+                className="text-sm border rounded-md px-3 py-2 h-10 bg-white dark:bg-zinc-800"
+              >
+                {PRICE_FACTOR_TF_OPTIONS.map((tf) => (
+                  <option key={tf} value={tf}>{tf}</option>
+                ))}
+              </select>
+              <Button className="h-10 px-4 w-full sm:w-auto" onClick={runMemePriceFactor} disabled={loading || !priceFactorContract.trim()}>
+                {loading ? "Searching..." : "Search"}
+              </Button>
+            </div>
+          </div>
+          {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
+          {priceFactorResult && (
+            <Card>
+              <CardHeader className="py-3"><CardTitle className="text-base">{priceFactorResult.symbol} · Meme Price Factor</CardTitle></CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p className="text-xs text-muted-foreground">Analyzed: {new Date(priceFactorResult.analyzedAt).toLocaleString()}</p>
+                {priceFactorResult.dexUrl ? <a href={priceFactorResult.dexUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">View selected pair on DexScreener</a> : null}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>TF</TableHead>
+                        <TableHead className="text-right">Current MCap</TableHead>
+                        <TableHead className="text-right">Low MCap</TableHead>
+                        <TableHead className="text-right">Low count</TableHead>
+                        <TableHead className="text-right">High MCap</TableHead>
+                        <TableHead className="text-right">High count</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>{priceFactorResult.timeframeLabel}</TableCell>
+                        <TableCell className="text-right font-mono">{formatUsdCompact(priceFactorResult.currentMcap)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatUsdCompact(priceFactorResult.lowMcap)}</TableCell>
+                        <TableCell className="text-right font-mono">{priceFactorResult.lowCount}</TableCell>
+                        <TableCell className="text-right font-mono">{formatUsdCompact(priceFactorResult.highMcap)}</TableCell>
+                        <TableCell className="text-right font-mono">{priceFactorResult.highCount}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>
