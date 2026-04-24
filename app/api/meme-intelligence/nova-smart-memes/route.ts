@@ -10,6 +10,7 @@ import {
   trendlineRegressionFromCloses,
 } from "@/lib/nova-q-analytics";
 import { getNovaSmartMemesAccess } from "@/lib/vip-futures-addon-access";
+import { getBscToken, getSolanaToken } from "@/lib/api-clients/dexscreener";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
@@ -31,8 +32,34 @@ function normalizeSymbol(raw: string): string {
   return base || "PEPE";
 }
 
+function isLikelySolanaMint(input: string): boolean {
+  const s = input.trim();
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+}
+
+function isLikelyEvmAddress(input: string): boolean {
+  return /^0x[a-fA-F0-9]{40}$/.test(input.trim());
+}
+
+async function resolveOneSymbol(raw: string): Promise<{ symbol: string; note?: string }> {
+  const trimmed = raw.trim();
+  if (!trimmed) return { symbol: "PEPE" };
+  if (isLikelySolanaMint(trimmed)) {
+    const pair = await getSolanaToken(trimmed);
+    const resolved = pair?.baseToken?.symbol?.trim().toUpperCase();
+    if (resolved) return { symbol: normalizeSymbol(resolved), note: `Resolved Solana contract to ${resolved}.` };
+  }
+  if (isLikelyEvmAddress(trimmed)) {
+    const pair = await getBscToken(trimmed);
+    const resolved = pair?.baseToken?.symbol?.trim().toUpperCase();
+    if (resolved) return { symbol: normalizeSymbol(resolved), note: `Resolved EVM contract to ${resolved}.` };
+  }
+  return { symbol: normalizeSymbol(trimmed) };
+}
+
 type SmartResult = {
   symbol: string;
+  resolvedNote?: string | null;
   currentPrice: number | null;
   smartShortEntry: number;
   smartLongEntry: number;
@@ -62,14 +89,16 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const symbolsInput = Array.isArray(body.symbols) ? body.symbols : String(body.symbols ?? body.symbol ?? "PEPE").split(/[\s,]+/);
-    const symbols = symbolsInput.map((s: unknown) => normalizeSymbol(String(s))).filter(Boolean).slice(0, 10);
+    const rawSymbols = symbolsInput.map((s: unknown) => String(s)).filter(Boolean).slice(0, 10);
     const tfParam = body.timeframes ?? ["15m", "1h", "24h"];
     const requested = (Array.isArray(tfParam) ? tfParam : String(tfParam).split(/[\s,]+/)).map((x) => String(x).trim().toLowerCase());
     const chosen = MEME_SMART_TIMEFRAMES.filter((t) => requested.includes(t.id));
     const effectiveTf = chosen.length > 0 ? chosen : [MEME_SMART_TIMEFRAMES[1], MEME_SMART_TIMEFRAMES[3], MEME_SMART_TIMEFRAMES[6]];
 
     const results: SmartResult[] = [];
-    for (const symbol of symbols.length ? symbols : ["PEPE"]) {
+    for (const rawSymbol of rawSymbols.length ? rawSymbols : ["PEPE"]) {
+      const resolved = await resolveOneSymbol(rawSymbol);
+      const symbol = resolved.symbol;
       const tfRows: SmartResult["timeframes"] = [];
       for (const tf of effectiveTf) {
         try {
@@ -112,6 +141,7 @@ export async function POST(request: Request) {
 
       results.push({
         symbol,
+        resolvedNote: resolved.note ?? null,
         currentPrice,
         smartShortEntry,
         smartLongEntry,

@@ -13,6 +13,7 @@ import {
   trendlineRegressionFromCloses,
 } from "@/lib/nova-q-analytics";
 import { getNovaQMemesAccess } from "@/lib/vip-futures-addon-access";
+import { getBscToken, getSolanaToken } from "@/lib/api-clients/dexscreener";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
@@ -47,6 +48,31 @@ function normalizeSymbol(raw: string): string {
   const upper = String(raw ?? "").trim().toUpperCase();
   const base = upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim();
   return base || "PEPE";
+}
+
+function isLikelySolanaMint(input: string): boolean {
+  const s = input.trim();
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+}
+
+function isLikelyEvmAddress(input: string): boolean {
+  return /^0x[a-fA-F0-9]{40}$/.test(input.trim());
+}
+
+async function resolveSymbolInput(raw: string): Promise<{ symbol: string; note?: string }> {
+  const trimmed = raw.trim();
+  if (!trimmed) return { symbol: "PEPE" };
+  if (isLikelySolanaMint(trimmed)) {
+    const pair = await getSolanaToken(trimmed);
+    const resolved = pair?.baseToken?.symbol?.trim().toUpperCase();
+    if (resolved) return { symbol: normalizeSymbol(resolved), note: `Resolved Solana contract to ${resolved}.` };
+  }
+  if (isLikelyEvmAddress(trimmed)) {
+    const pair = await getBscToken(trimmed);
+    const resolved = pair?.baseToken?.symbol?.trim().toUpperCase();
+    if (resolved) return { symbol: normalizeSymbol(resolved), note: `Resolved EVM contract to ${resolved}.` };
+  }
+  return { symbol: normalizeSymbol(trimmed) };
 }
 
 function getOverallDirection(timeframes: MemeQTfResult[]): "bullish" | "bearish" | "sideways" {
@@ -91,7 +117,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const symbol = normalizeSymbol(String(body.symbol ?? "PEPE"));
+    const resolved = await resolveSymbolInput(String(body.symbol ?? "PEPE"));
+    const symbol = resolved.symbol;
     const tfParam = body.timeframes ?? ["15m", "1h", "24h"];
     const requested = (Array.isArray(tfParam) ? tfParam : String(tfParam).split(/[\s,]+/))
       .map((x) => String(x).trim().toLowerCase())
@@ -135,10 +162,25 @@ export async function POST(request: Request) {
     const ticker = await getTicker(symbol);
     const currentPrice = ticker?.last ? Number(ticker.last) : null;
     const deadFlag = getDeadFlag(currentPrice, rows);
+    if (rows.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            `No analyzable market data returned for "${symbol}". ` +
+            `This usually means the token is not listed on the supported perp feed yet. Try a listed ticker or use Top Meme coins for spot candidates.`,
+          resolvedSymbol: symbol,
+          resolvedNote: resolved.note ?? null,
+        },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       result: {
         symbol,
+        resolvedNote: resolved.note ?? null,
         currentPrice,
         marketDirection: getOverallDirection(rows),
         overallTrendlineSummary: overallTrendlineSummary(rows),

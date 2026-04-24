@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type MemeQResult = {
   symbol: string;
+  resolvedNote?: string | null;
   currentPrice: number | null;
   marketDirection: "bullish" | "bearish" | "sideways";
   overallTrendlineSummary?: string;
@@ -18,6 +19,7 @@ type MemeQResult = {
 
 type MemeSmartResult = {
   symbol: string;
+  resolvedNote?: string | null;
   currentPrice: number | null;
   smartShortEntry: number;
   smartLongEntry: number;
@@ -54,6 +56,13 @@ export default function NovaMemeIntelligencePanel() {
   const [topCoins, setTopCoins] = useState<TopMemeCoin[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (subTab === "top-meme-coins" && topCoins.length === 0 && !loading) {
+      void loadTopMemeCoins();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subTab]);
 
   const runNovaQMemes = async () => {
     setLoading(true);
@@ -114,17 +123,18 @@ export default function NovaMemeIntelligencePanel() {
   return (
     <div className="mx-3 sm:mx-6 py-6 sm:py-8">
       <Tabs value={subTab} onValueChange={(v) => setSubTab(v as typeof subTab)} className="space-y-4">
-        <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg flex-wrap h-auto gap-1">
-          <TabsTrigger value="nova-q-memes">NovaQ - Memes</TabsTrigger>
-          <TabsTrigger value="nova-smart-memes">Nova Smart Analysis for Memes</TabsTrigger>
-          <TabsTrigger value="top-meme-coins">Top Meme coins</TabsTrigger>
+        <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg flex-wrap h-auto gap-1 w-full">
+          <TabsTrigger value="nova-q-memes" className="min-h-[40px] sm:min-h-[36px]">NovaQ - Memes</TabsTrigger>
+          <TabsTrigger value="nova-smart-memes" className="min-h-[40px] sm:min-h-[36px]">Nova Smart Analysis for Memes</TabsTrigger>
+          <TabsTrigger value="top-meme-coins" className="min-h-[40px] sm:min-h-[36px]">Top Meme coins</TabsTrigger>
         </TabsList>
 
         <TabsContent value="nova-q-memes" className="mt-0 space-y-3">
           <p className="text-xs text-muted-foreground">Meme-focused support/resistance, market structure, trendline, liquidity pressure, direction, and dead/downside warnings.</p>
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="space-y-3 rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
+            <div className="flex flex-wrap gap-2 items-center">
             {TF_OPTIONS.map((tf) => (
-              <label key={tf} className="flex items-center gap-1 text-xs">
+              <label key={tf} className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800">
                 <input
                   type="checkbox"
                   checked={timeframes.includes(tf)}
@@ -133,8 +143,18 @@ export default function NovaMemeIntelligencePanel() {
                 {tf}
               </label>
             ))}
-            <input value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} className="text-sm border rounded-md px-2 py-1.5 w-44 bg-white dark:bg-zinc-800" placeholder="PEPE" />
-            <Button onClick={runNovaQMemes} disabled={loading || timeframes.length === 0}>{loading ? "Running..." : "Run NovaQ - Memes"}</Button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                className="text-sm border rounded-md px-3 py-2 h-10 w-full sm:w-[360px] bg-white dark:bg-zinc-800"
+                placeholder="Ticker or contract (Solana/BSC)"
+              />
+              <Button className="h-10 px-4 w-full sm:w-auto" onClick={runNovaQMemes} disabled={loading || timeframes.length === 0}>
+                {loading ? "Running..." : "Run NovaQ - Memes"}
+              </Button>
+            </div>
           </div>
           {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
           {qResult && (
@@ -147,6 +167,7 @@ export default function NovaMemeIntelligencePanel() {
                   {qResult.deadFlag?.dead ? <Badge className="bg-rose-600 text-white">Dead / avoid buy</Badge> : <Badge variant="secondary">Not dead</Badge>}
                 </div>
                 {qResult.deadFlag?.note ? <p className="text-xs text-muted-foreground">{qResult.deadFlag.note}</p> : null}
+                {qResult.resolvedNote ? <p className="text-xs text-cyan-600 dark:text-cyan-400">{qResult.resolvedNote}</p> : null}
                 {qResult.overallTrendlineSummary ? <p className="text-xs text-muted-foreground">{qResult.overallTrendlineSummary}</p> : null}
                 <div className="overflow-x-auto">
                   <Table>
@@ -170,9 +191,18 @@ export default function NovaMemeIntelligencePanel() {
 
         <TabsContent value="nova-smart-memes" className="mt-0 space-y-3">
           <p className="text-xs text-muted-foreground">Meme-focused smart entries, trendline confidence, direction call, and dead/downside warnings.</p>
-          <div className="flex flex-wrap gap-2 items-center">
-            <input value={symbols} onChange={(e) => setSymbols(e.target.value.toUpperCase())} className="text-sm border rounded-md px-2 py-1.5 w-72 bg-white dark:bg-zinc-800" placeholder="PEPE,DOGE,SHIB" />
-            <Button onClick={runNovaSmartMemes} disabled={loading || timeframes.length === 0}>{loading ? "Running..." : "Run Nova Smart Memes"}</Button>
+          <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                value={symbols}
+                onChange={(e) => setSymbols(e.target.value.toUpperCase())}
+                className="text-sm border rounded-md px-3 py-2 h-10 w-full sm:w-[420px] bg-white dark:bg-zinc-800"
+                placeholder="Symbols or contracts, comma-separated"
+              />
+              <Button className="h-10 px-4 w-full sm:w-auto" onClick={runNovaSmartMemes} disabled={loading || timeframes.length === 0}>
+                {loading ? "Running..." : "Run Nova Smart Memes"}
+              </Button>
+            </div>
           </div>
           {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
           {smartResults.length > 0 && (
@@ -187,6 +217,7 @@ export default function NovaMemeIntelligencePanel() {
                       {r.deadFlag.dead ? <Badge className="bg-rose-600 text-white">Dead / going down</Badge> : null}
                     </div>
                     <p className="text-xs text-muted-foreground">{r.recommendationNote}</p>
+                    {r.resolvedNote ? <p className="text-xs text-cyan-600 dark:text-cyan-400">{r.resolvedNote}</p> : null}
                     <p className="text-xs text-muted-foreground">{r.trendlineConfidenceNote}</p>
                     <p className="text-xs">Short entry: <span className="font-mono">${r.smartShortEntry.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span> · Long entry: <span className="font-mono">${r.smartLongEntry.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span></p>
                   </CardContent>
@@ -198,7 +229,9 @@ export default function NovaMemeIntelligencePanel() {
 
         <TabsContent value="top-meme-coins" className="mt-0 space-y-3">
           <p className="text-xs text-muted-foreground">Reliable meme-coin candidates (not honeypot, stronger liquidity/market cap, older listings) for scalp/swing watchlists.</p>
-          <Button onClick={loadTopMemeCoins} disabled={loading}>{loading ? "Loading..." : "Refresh Top Meme coins"}</Button>
+          <Button className="h-10 px-4 w-full sm:w-auto" onClick={loadTopMemeCoins} disabled={loading}>
+            {loading ? "Loading..." : "Refresh Top Meme coins"}
+          </Button>
           {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
           {topCoins.length > 0 && (
             <div className="overflow-x-auto">
