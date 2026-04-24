@@ -79,6 +79,58 @@ function pctForKey(pair: DexPair, key: "h1" | "h6" | "h24"): number {
   return Number(pair.priceChange?.h24 ?? 0);
 }
 
+function timeframeMinutes(id: string): number {
+  switch (id) {
+    case "30s":
+      return 0.5;
+    case "1m":
+      return 1;
+    case "2m":
+      return 2;
+    case "3m":
+      return 3;
+    case "5m":
+      return 5;
+    case "15m":
+      return 15;
+    case "30m":
+      return 30;
+    case "1h":
+      return 60;
+    case "2h":
+      return 120;
+    case "4h":
+      return 240;
+    case "24h":
+      return 1440;
+    case "1w":
+      return 10080;
+    default:
+      return 60;
+  }
+}
+
+function estimateTouchesForTimeframe(args: {
+  tfId: string;
+  tfKey: "h1" | "h6" | "h24";
+  buys: number;
+  sells: number;
+  absMovePct: number;
+}): { supportTouches: number; resistanceTouches: number } {
+  const { tfId, tfKey, buys, sells, absMovePct } = args;
+  const total = Math.max(1, buys + sells);
+  const minutes = timeframeMinutes(tfId);
+  const windowMinutes = tfKey === "h1" ? 60 : tfKey === "h6" ? 360 : 1440;
+  const activityInWindow = total * Math.max(0.02, Math.min(1, minutes / windowMinutes));
+  const volFactor = 1 + Math.min(1.5, absMovePct / 18);
+  const baseTouches = Math.max(1, Math.round(Math.log10(activityInWindow + 10) * 2.2 * volFactor));
+  const bias = sells - buys;
+  const biasNorm = bias / total;
+  const supportTouches = Math.max(1, Math.round(baseTouches * (1 + Math.max(0, biasNorm) * 0.8)));
+  const resistanceTouches = Math.max(1, Math.round(baseTouches * (1 + Math.max(0, -biasNorm) * 0.8)));
+  return { supportTouches, resistanceTouches };
+}
+
 type SmartResult = {
   symbol: string;
   resolvedNote?: string | null;
@@ -175,9 +227,6 @@ export async function POST(request: Request) {
       }
 
       const tfRows: SmartResult["timeframes"] = [];
-      const buys = Number(pair.txns?.h24?.buys ?? 0);
-      const sells = Number(pair.txns?.h24?.sells ?? 0);
-      const touchSeed = Math.max(1, Math.round((buys + sells) / 120));
       for (const tf of effectiveTf) {
         const basePct = pctForKey(pair, tf.key);
         const slopePct = basePct * tf.scale;
@@ -193,13 +242,26 @@ export async function POST(request: Request) {
             : structureDirection === "bearish" && trendlineBias === "down"
               ? "bearish"
               : "sideways";
+        const buys = Number(
+          tf.key === "h1" ? pair.txns?.h1?.buys ?? pair.txns?.h24?.buys ?? 0 : tf.key === "h6" ? pair.txns?.h6?.buys ?? pair.txns?.h24?.buys ?? 0 : pair.txns?.h24?.buys ?? 0
+        );
+        const sells = Number(
+          tf.key === "h1" ? pair.txns?.h1?.sells ?? pair.txns?.h24?.sells ?? 0 : tf.key === "h6" ? pair.txns?.h6?.sells ?? pair.txns?.h24?.sells ?? 0 : pair.txns?.h24?.sells ?? 0
+        );
+        const { supportTouches, resistanceTouches } = estimateTouchesForTimeframe({
+          tfId: tf.id,
+          tfKey: tf.key,
+          buys,
+          sells,
+          absMovePct: Math.abs(basePct),
+        });
         tfRows.push({
           id: tf.id,
           label: tf.label,
           high,
           low,
-          supportTouches: Math.max(1, Math.round(touchSeed * (sells >= buys ? 1.2 : 0.8))),
-          resistanceTouches: Math.max(1, Math.round(touchSeed * (buys >= sells ? 1.2 : 0.8))),
+          supportTouches,
+          resistanceTouches,
           structureDirection,
           trendlineBias,
           direction,
