@@ -249,13 +249,6 @@ export default function Dashboard() {
   const [pageTabFlags, setPageTabFlags] = useState<Record<string, boolean> | null>(null);
   const [pageTabFlagsLoaded, setPageTabFlagsLoaded] = useState(false);
 
-  // Default tab grouping by device: mobile => Core, desktop => All.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mobile = window.matchMedia("(max-width: 767px)").matches;
-    setTopTabFilter((prev) => (prev === "all" ? (mobile ? "core" : "all") : prev));
-  }, []);
-
   // Client-side: hide/show main GUI tabs based on owner feature flags.
   useEffect(() => {
     let cancelled = false;
@@ -3170,7 +3163,8 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-              <TabsList className="w-full bg-zinc-100/95 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 flex-wrap h-auto gap-2 p-2 rounded-xl overflow-visible -mx-1 sm:mx-0 [scrollbar-width:thin] [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab]]:leading-none [&_[role=tab]]:items-center [&_[role=tab]]:justify-center [&_[role=tab][data-state=active]]:shadow-sm">
+              <div className="-mx-1 sm:mx-0 overflow-x-auto overflow-y-hidden pb-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5">
+              <TabsList className="inline-flex w-max min-w-full bg-zinc-100/95 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 flex-nowrap h-auto gap-2 p-2 rounded-xl snap-x snap-mandatory overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch] [&_[role=tab]]:snap-start [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab]]:leading-none [&_[role=tab]]:items-center [&_[role=tab]]:justify-center [&_[role=tab][data-state=active]]:shadow-sm">
                 {showTopTab("new") && (
                   <TabsTrigger value="new" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
                 )}
@@ -3300,6 +3294,7 @@ export default function Dashboard() {
                   <TabsTrigger value="chris-clayton" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">Online Boss Strategy</TabsTrigger>
                 )}
               </TabsList>
+              </div>
             </Tabs>
           </CardHeader>
           <CardContent className="p-0">
