@@ -3133,11 +3133,12 @@ export default function Dashboard() {
             <CardTitle className="text-lg font-bold bg-gradient-to-r from-zinc-900 to-zinc-700 dark:from-zinc-100 dark:to-zinc-300 bg-clip-text text-transparent">
               Multi-Market AI Trading Workspace
             </CardTitle>
-            <p className="text-muted-foreground text-sm mt-1 leading-relaxed">
-              NovaStaris brings meme coin discovery, futures decision support, wallet intelligence, prediction market intelligence, and VIP agent tools into one workflow.
-              <Link href="/how-it-works" className="ml-1 text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-                See how it works.
+            <p className="mt-2 max-w-5xl text-sm sm:text-[15px] leading-relaxed text-zinc-600 dark:text-zinc-300">
+              NovaStaris unifies meme discovery, futures decision support, wallet intelligence, prediction market insights, and VIP agent workflows in one trading workspace.
+              <Link href="/how-it-works" className="ml-1 inline-flex items-center font-semibold text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 hover:underline underline-offset-2">
+                See how it works
               </Link>
+              .
             </p>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4">
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
@@ -3162,7 +3163,7 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-              <TabsList className="bg-zinc-100/95 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 flex-nowrap lg:flex-wrap h-auto gap-2 p-2 rounded-xl overflow-x-auto overflow-y-hidden lg:overflow-visible -mx-1 sm:mx-0 snap-x snap-mandatory [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&_[role=tab]]:snap-start [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab]]:leading-none [&_[role=tab]]:items-center [&_[role=tab]]:justify-center [&_[role=tab][data-state=active]]:shadow-sm">
+              <TabsList className="w-full bg-zinc-100/95 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 flex-nowrap lg:flex-wrap h-auto gap-2 p-2 rounded-xl overflow-x-auto overflow-y-hidden lg:overflow-visible -mx-1 sm:mx-0 snap-x snap-mandatory overscroll-x-contain touch-pan-x [scrollbar-width:thin] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:h-1.5 [&_[role=tab]]:snap-start [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab]]:leading-none [&_[role=tab]]:items-center [&_[role=tab]]:justify-center [&_[role=tab][data-state=active]]:shadow-sm">
                 {showTopTab("new") && (
                   <TabsTrigger value="new" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
                 )}
