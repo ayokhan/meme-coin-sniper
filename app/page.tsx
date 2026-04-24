@@ -3350,23 +3350,27 @@ export default function Dashboard() {
             ) : (
               <>
             {activeTab === "new" && (
-              <div className="mx-3 sm:mx-6 mt-4 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
-                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">View:</span>
-                {(["new_pairs", "final_stretch", "migrated"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setGoHuntingView(v)}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      goHuntingView === v
-                        ? "bg-cyan-500 text-white dark:bg-cyan-600"
-                        : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
-                    }`}
-                  >
-                    {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : "Migrated"}
-                  </button>
-                ))}
-                <span className="text-xs text-muted-foreground ml-1">
+              <div className="mx-3 sm:mx-6 mt-4 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">View:</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(["new_pairs", "final_stretch", "migrated"] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setGoHuntingView(v)}
+                        className={`px-3 py-1.5 min-h-[36px] rounded-md text-sm font-medium transition-colors ${
+                          goHuntingView === v
+                            ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                            : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                        }`}
+                      >
+                        {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : "Migrated"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <span className="mt-2 block text-xs text-muted-foreground">
                   {goHuntingView === "new_pairs" && "All new pairs (last 60m — meme coins move fast)."}
                   {goHuntingView === "final_stretch" && "Pump.fun tokens still on bonding curve."}
                   {goHuntingView === "migrated" && "Recently migrated to Raydium/Orca."}
@@ -3374,23 +3378,27 @@ export default function Dashboard() {
               </div>
             )}
             {activeTab === "bsc" && (
-              <div className="mx-3 sm:mx-6 mt-4 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
-                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Go Hunting:</span>
-                {(["new_pairs", "final_stretch", "migrated", "trending"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setBscGoHuntingView(v)}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      bscGoHuntingView === v
-                        ? "bg-cyan-500 text-white dark:bg-cyan-600"
-                        : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
-                    }`}
-                  >
-                    {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : v === "migrated" ? "Migrated" : "Trending"}
-                  </button>
-                ))}
-                <span className="text-xs text-muted-foreground ml-1">
+              <div className="mx-3 sm:mx-6 mt-4 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Go Hunting:</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(["new_pairs", "final_stretch", "migrated", "trending"] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setBscGoHuntingView(v)}
+                        className={`px-3 py-1.5 min-h-[36px] rounded-md text-sm font-medium transition-colors ${
+                          bscGoHuntingView === v
+                            ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                            : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                        }`}
+                      >
+                        {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : v === "migrated" ? "Migrated" : "Trending"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <span className="mt-2 block text-xs text-muted-foreground">
                   {bscGoHuntingView === "new_pairs" && "New BSC pairs (PancakeSwap etc.)."}
                   {bscGoHuntingView === "final_stretch" && "BSC pairs on main DEXs."}
                   {bscGoHuntingView === "migrated" && "Migrated BSC pairs."}
