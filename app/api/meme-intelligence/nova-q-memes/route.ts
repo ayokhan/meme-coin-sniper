@@ -39,6 +39,11 @@ type MemeQTfResult = {
   resistanceTouches: number;
 };
 
+function getPairMarketCap(pair: DexPair): number | null {
+  const mcap = Number((pair as DexPair & { marketCap?: unknown }).marketCap ?? pair.fdv ?? 0);
+  return Number.isFinite(mcap) && mcap > 0 ? mcap : null;
+}
+
 function pctForKey(pair: DexPair, key: "h1" | "h6" | "h24"): number {
   if (key === "h1") return Number(pair.priceChange?.h1 ?? 0);
   if (key === "h6") return Number(pair.priceChange?.h6 ?? pair.priceChange?.h24 ?? 0);
@@ -231,9 +236,15 @@ export async function POST(request: Request) {
     }
 
     const currentPrice = Number(pair.priceUsd ?? 0) || null;
-    if (currentPrice == null || currentPrice <= 0) {
+    const currentMarketCap = getPairMarketCap(pair);
+    if (currentMarketCap == null || currentMarketCap <= 0) {
       return NextResponse.json(
-        { success: false, error: "Price unavailable from DexScreener for this coin.", resolvedSymbol: symbol, resolvedNote: resolved.note ?? null },
+        {
+          success: false,
+          error: "Market cap unavailable from DexScreener for this coin.",
+          resolvedSymbol: symbol,
+          resolvedNote: resolved.note ?? null,
+        },
         { status: 404 }
       );
     }
@@ -243,8 +254,8 @@ export async function POST(request: Request) {
       const basePct = pctForKey(pair, tf.key);
       const slopePct = basePct * tf.scale;
       const move = Math.max(0.01, Math.min(85, Math.abs(slopePct)));
-      const support = currentPrice * (1 - move / 200);
-      const resistance = currentPrice * (1 + move / 200);
+      const support = currentMarketCap * (1 - move / 200);
+      const resistance = currentMarketCap * (1 + move / 200);
       const structureDirection = slopePct > 2 ? "bullish" : slopePct < -2 ? "bearish" : "sideways";
       const trendlineBias = slopePct > 1 ? "up" : slopePct < -1 ? "down" : "flat";
       const direction = structureDirection === "sideways" || trendlineBias === "flat"
@@ -283,7 +294,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const deadFlag = getDeadFlag(currentPrice, rows);
+    const deadFlag = getDeadFlag(currentMarketCap, rows);
     const marketDirection = getOverallDirection(rows);
     const recommendation = getBuyRecommendation(marketDirection, deadFlag, rows);
     return NextResponse.json({
@@ -292,6 +303,7 @@ export async function POST(request: Request) {
         symbol,
         resolvedNote: resolved.note ?? null,
         currentPrice,
+        currentMarketCap,
         marketDirection,
         recommendation,
         overallTrendlineSummary: overallTrendlineSummary(rows),

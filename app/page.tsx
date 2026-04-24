@@ -249,6 +249,13 @@ export default function Dashboard() {
   const [pageTabFlags, setPageTabFlags] = useState<Record<string, boolean> | null>(null);
   const [pageTabFlagsLoaded, setPageTabFlagsLoaded] = useState(false);
 
+  // Default tab grouping by device: mobile => Core, desktop => All.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    setTopTabFilter((prev) => (prev === "all" ? (mobile ? "core" : "all") : prev));
+  }, []);
+
   // Client-side: hide/show main GUI tabs based on owner feature flags.
   useEffect(() => {
     let cancelled = false;

@@ -12,6 +12,7 @@ type MemeQResult = {
   symbol: string;
   resolvedNote?: string | null;
   currentPrice: number | null;
+  currentMarketCap?: number | null;
   marketDirection: "bullish" | "bearish" | "sideways";
   recommendation?: { signal: "buy" | "no_buy"; note: string };
   overallTrendlineSummary?: string;
@@ -31,6 +32,7 @@ type MemeSmartResult = {
   symbol: string;
   resolvedNote?: string | null;
   currentPrice: number | null;
+  currentMarketCap?: number | null;
   smartShortEntry: number;
   smartLongEntry: number;
   recommendedDirection: "long" | "short" | "neutral";
@@ -65,6 +67,11 @@ type TopMemeCoin = {
 };
 
 const TF_OPTIONS = ["30s", "1m", "2m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "24h", "1w"];
+
+function formatUsdCompact(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 2 }).format(value);
+}
 
 export default function NovaMemeIntelligencePanel() {
   const [subTab, setSubTab] = useState<"nova-q-memes" | "nova-smart-memes" | "top-meme-coins">("nova-q-memes");
@@ -200,6 +207,7 @@ export default function NovaMemeIntelligencePanel() {
                     </Badge>
                   ) : null}
                   <span className="text-xs text-muted-foreground">Price: {qResult.currentPrice != null ? `$${qResult.currentPrice.toLocaleString()}` : "—"}</span>
+                  <span className="text-xs text-muted-foreground">MCap: {formatUsdCompact(qResult.currentMarketCap ?? null)}</span>
                   {qResult.deadFlag?.dead ? <Badge className="bg-rose-600 text-white">Dead / avoid buy</Badge> : <Badge variant="secondary">Not dead</Badge>}
                 </div>
                 {qResult.recommendation?.note ? <p className="text-xs text-muted-foreground">{qResult.recommendation.note}</p> : null}
@@ -208,14 +216,14 @@ export default function NovaMemeIntelligencePanel() {
                 {qResult.overallTrendlineSummary ? <p className="text-xs text-muted-foreground">{qResult.overallTrendlineSummary}</p> : null}
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader><TableRow><TableHead>TF</TableHead><TableHead className="text-right">Support</TableHead><TableHead className="text-right">S touches</TableHead><TableHead className="text-right">Resistance</TableHead><TableHead className="text-right">R touches</TableHead><TableHead>Direction</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>TF</TableHead><TableHead className="text-right">Support MCap</TableHead><TableHead className="text-right">S touches</TableHead><TableHead className="text-right">Resistance MCap</TableHead><TableHead className="text-right">R touches</TableHead><TableHead>Direction</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {qResult.timeframes.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell>{r.label}</TableCell>
-                          <TableCell className="text-right font-mono">${r.support.toLocaleString(undefined, { maximumFractionDigits: 6 })}</TableCell>
+                          <TableCell className="text-right font-mono">{formatUsdCompact(r.support)}</TableCell>
                           <TableCell className="text-right font-mono">{r.supportTouches}</TableCell>
-                          <TableCell className="text-right font-mono">${r.resistance.toLocaleString(undefined, { maximumFractionDigits: 6 })}</TableCell>
+                          <TableCell className="text-right font-mono">{formatUsdCompact(r.resistance)}</TableCell>
                           <TableCell className="text-right font-mono">{r.resistanceTouches}</TableCell>
                           <TableCell className="capitalize">{r.direction}</TableCell>
                         </TableRow>
@@ -276,7 +284,8 @@ export default function NovaMemeIntelligencePanel() {
                     <p className="text-xs text-muted-foreground">{r.recommendationNote}</p>
                     {r.resolvedNote ? <p className="text-xs text-cyan-600 dark:text-cyan-400">{r.resolvedNote}</p> : null}
                     <p className="text-xs text-muted-foreground">{r.trendlineConfidenceNote}</p>
-                    <p className="text-xs">Short entry: <span className="font-mono">${r.smartShortEntry.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span> · Long entry: <span className="font-mono">${r.smartLongEntry.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span></p>
+                    <p className="text-xs text-muted-foreground">Current MCap: <span className="font-mono">{formatUsdCompact(r.currentMarketCap ?? null)}</span></p>
+                    <p className="text-xs">Resistance MCap: <span className="font-mono">{formatUsdCompact(r.smartShortEntry)}</span> · Support MCap: <span className="font-mono">{formatUsdCompact(r.smartLongEntry)}</span></p>
                     {r.timeframes.length > 0 ? (
                       <p className="text-xs text-muted-foreground">
                         Touches (first TF {r.timeframes[0].label}): support {r.timeframes[0].supportTouches}, resistance {r.timeframes[0].resistanceTouches}
