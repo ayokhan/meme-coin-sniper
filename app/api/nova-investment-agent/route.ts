@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
+import { getCandles as getBlofinCandles, getTicker as getBlofinTicker, toBlofinBar } from "@/lib/blofin";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 import {
   type CandleTuple,
@@ -13,6 +14,7 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
 const HL_INFO_BASE = "https://api.hyperliquid.xyz/info";
+const BLOFIN_XAU_INST = "XAU-USDT";
 
 type RiskProfitPreset = "low_low" | "low_medium" | "medium_medium" | "high_high";
 type DurationMode =
@@ -131,7 +133,22 @@ function normalizeSymbol(raw: string): string {
   const upper = String(raw ?? "").trim().toUpperCase();
   if (!upper) return "BTC";
   // Normalize BTC/USDT, BTC-USDT, BTC.USDT -> BTC
-  return upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim() || upper;
+  const base = upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim() || upper;
+  return base === "GOLD" ? "XAU" : base;
+}
+
+function useBlofinForSymbol(symbol: string): boolean {
+  return symbol === "XAU";
+}
+
+async function getCandlesForSymbol(symbol: string, interval: string, limit: number) {
+  if (useBlofinForSymbol(symbol)) return getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar(interval), limit);
+  return getCandles(symbol, interval, limit);
+}
+
+async function getTickerForSymbol(symbol: string) {
+  if (useBlofinForSymbol(symbol)) return getBlofinTicker(BLOFIN_XAU_INST);
+  return getTicker(symbol);
 }
 
 function parseFocusSymbols(body: Record<string, unknown>): string[] {
@@ -431,7 +448,10 @@ export async function POST(request: Request) {
       legUsd: number,
       legProfitGoalUsd: number | null
     ) => {
-      const [candlesBase, tickerBase] = await Promise.all([getCandles(anchorSymbol, window.interval, window.limit), getTicker(anchorSymbol)]);
+      const [candlesBase, tickerBase] = await Promise.all([
+        getCandlesForSymbol(anchorSymbol, window.interval, window.limit),
+        getTickerForSymbol(anchorSymbol),
+      ]);
       const hl = highLowFromCandles(candlesBase as CandleTuple[]);
       const currentPrice = tickerBase?.last != null && Number.isFinite(Number(tickerBase.last)) ? Number(tickerBase.last) : null;
 
@@ -458,7 +478,9 @@ export async function POST(request: Request) {
       const trend = trendlineRegressionFromCloses(tfRows)?.bias ?? "flat";
       const tfDir = combineStructureAndTrendline(struct, trend);
       const legDirection = chooseDirectionFromMarketStructure(tfDir, currentPrice, hl.low, hl.high);
-      const { strongestBidWall, strongestAskWall } = await fetchOrderBookWalls(anchorSymbol);
+      const { strongestBidWall, strongestAskWall } = useBlofinForSymbol(anchorSymbol)
+        ? { strongestBidWall: null, strongestAskWall: null }
+        : await fetchOrderBookWalls(anchorSymbol);
       const atrPct = getAtrPct(candlesBase as CandleTuple[], currentPrice);
       const rangePct = hl.high > 0 ? (hl.high - hl.low) / hl.high : 0.01;
 
@@ -503,7 +525,10 @@ export async function POST(request: Request) {
 
       await Promise.all(
         candidateSymbols.map(async (sym) => {
-          const [c, t] = await Promise.all([getCandles(sym, window.interval, window.limit), getTicker(sym)]);
+          const [c, t] = await Promise.all([
+            getCandlesForSymbol(sym, window.interval, window.limit),
+            getTickerForSymbol(sym),
+          ]);
           candlesPerCoin[sym] = (c ?? []) as CandleTuple[];
           tickerPerCoin[sym] = t;
         })

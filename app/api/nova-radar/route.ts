@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
+import { getCandles as getBlofinCandles, getTicker as getBlofinTicker, toBlofinBar } from "@/lib/blofin";
 import {
   type CandleTuple,
   combineStructureAndTrendline,
@@ -19,6 +20,7 @@ const STRUCTURE_TFS = [
   { id: "1w", label: "1 week", interval: "1d", limit: 7 },
   { id: "4w", label: "4 weeks", interval: "1d", limit: 28 },
 ] as const;
+const BLOFIN_XAU_INST = "XAU-USDT";
 
 type TfRow = {
   id: string;
@@ -34,7 +36,12 @@ type TfRow = {
 function normalizeSymbol(raw: string): string {
   const upper = raw.trim().toUpperCase();
   const base = upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim();
+  if (base === "GOLD") return "XAU";
   return base || "BTC";
+}
+
+function useBlofinForSymbol(symbol: string): boolean {
+  return symbol === "XAU";
 }
 
 function parseTargetPrice(raw: unknown): number | null {
@@ -129,9 +136,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const useBlofin = useBlofinForSymbol(symbol);
     const [ticker, dailyCandles] = await Promise.all([
-      getTicker(symbol),
-      getCandles(symbol, "1d", 400) as Promise<CandleTuple[]>,
+      useBlofin ? getBlofinTicker(BLOFIN_XAU_INST) : getTicker(symbol),
+      (useBlofin
+        ? getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar("1d"), 400)
+        : getCandles(symbol, "1d", 400)) as Promise<CandleTuple[]>,
     ]);
 
     let currentPrice = ticker?.last ? Number(ticker.last) : NaN;
@@ -143,7 +153,12 @@ export async function POST(request: Request) {
 
     if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
       return NextResponse.json(
-        { success: false, error: `No live price for ${symbol}. Check the contract symbol (Hyperliquid perps).` },
+        {
+          success: false,
+          error: useBlofin
+            ? `No live price for ${symbol}. Check Blofin (${BLOFIN_XAU_INST}) availability.`
+            : `No live price for ${symbol}. Check the contract symbol (Hyperliquid perps).`,
+        },
         { status: 400 }
       );
     }
@@ -151,7 +166,9 @@ export async function POST(request: Request) {
     const tfRows: TfRow[] = [];
     for (const tf of STRUCTURE_TFS) {
       try {
-        const candles = (await getCandles(symbol, tf.interval, tf.limit)) as CandleTuple[];
+        const candles = (useBlofin
+          ? await getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar(tf.interval), tf.limit)
+          : await getCandles(symbol, tf.interval, tf.limit)) as CandleTuple[];
         const hl = highLowFromCandles(candles);
         if (!hl) continue;
         const structureDirection = structureDirectionFromCloses(candles);
