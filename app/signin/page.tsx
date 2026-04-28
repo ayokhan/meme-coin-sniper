@@ -8,6 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
 
+function GoogleLogo() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
+      <path fill="#EA4335" d="M9 7.2v3.6h5.1c-.22 1.16-.9 2.14-1.92 2.8l3.1 2.4c1.8-1.66 2.84-4.1 2.84-7 0-.7-.06-1.38-.18-2.04H9z" />
+      <path fill="#34A853" d="M9 18c2.58 0 4.74-.86 6.32-2.34l-3.1-2.4c-.86.58-1.96.92-3.22.92-2.48 0-4.58-1.68-5.32-3.94l-3.2 2.48C2.04 15.8 5.26 18 9 18z" />
+      <path fill="#4A90E2" d="M3.68 10.24A5.39 5.39 0 0 1 3.38 9c0-.44.1-.86.3-1.24L.48 5.28A9 9 0 0 0 0 9c0 1.44.34 2.8.94 4l2.74-2.76z" />
+      <path fill="#FBBC05" d="M9 3.58c1.4 0 2.66.48 3.66 1.42l2.74-2.74A8.98 8.98 0 0 0 9 0C5.26 0 2.04 2.2.48 5.28l3.2 2.48C4.42 5.26 6.52 3.58 9 3.58z" />
+    </svg>
+  );
+}
+
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -87,7 +98,10 @@ function SignInForm() {
 
           {googleEnabled && (
             <Button type="button" variant="outline" className="w-full" disabled={googleLoading} onClick={handleGoogleSignIn}>
-              {googleLoading ? "Connecting Google..." : "Continue with Gmail"}
+              <span className="inline-flex items-center gap-2">
+                <GoogleLogo />
+                {googleLoading ? "Connecting Google..." : "Continue with Gmail"}
+              </span>
             </Button>
           )}
 
