@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 import { PublicKey } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
@@ -119,8 +120,67 @@ function verifyWalletSignature(message: string, signature: string, walletAddress
   }
 }
 
+async function getAuthUserStateById(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return null;
+  const isPaid = await getActiveSubscription(user.id);
+  const tier = await getSubscriptionTier(user.id);
+  return {
+    id: user.id,
+    email: user.email ?? null,
+    name: user.name ?? null,
+    image: user.image ?? null,
+    walletAddress: user.walletAddress ?? null,
+    isPaid,
+    tier,
+    tradingBotOnDemand: !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand,
+    polymarketBotOnDemand: !!(user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand,
+    propFirmBotOnDemand: !!(user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand,
+    novaUltimateOnDemand: !!(user as { novaUltimateOnDemand?: boolean }).novaUltimateOnDemand,
+    ctScanOnDemand: !!(user as { ctScanOnDemand?: boolean }).ctScanOnDemand,
+    memeCoinsTraderOnDemand: !!(user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand,
+    novaConnectCommunityRep: !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep,
+    novaConnectAllowedByAdmin: !!(user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin,
+  };
+}
+
+async function upsertGoogleUser(params: { email: string; name?: string | null; image?: string | null }) {
+  const email = params.email.trim().toLowerCase();
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        email,
+        name: params.name ?? email.split('@')[0] ?? 'User',
+        image: params.image ?? undefined,
+      },
+    });
+  } else {
+    const shouldUpdateName = !user.name && !!params.name;
+    const shouldUpdateImage = !user.image && !!params.image;
+    if (shouldUpdateName || shouldUpdateImage) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ...(shouldUpdateName ? { name: params.name } : {}),
+          ...(shouldUpdateImage ? { image: params.image } : {}),
+        },
+      });
+    }
+  }
+  return user;
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
     CredentialsProvider({
       id: 'email',
       name: 'Email',
@@ -186,7 +246,72 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ account, profile }) {
+      if (account?.provider === 'google') {
+        const email = String(profile?.email ?? '').trim().toLowerCase();
+        if (!email) return false;
+        return true;
+      }
+      return true;
+    },
+    async jwt({ token, user, account, profile }) {
+      if (account?.provider === 'google') {
+        const email = String((profile as { email?: string } | undefined)?.email ?? token.email ?? '').trim().toLowerCase();
+        if (email) {
+          const gUser = await upsertGoogleUser({
+            email,
+            name: (profile as { name?: string } | undefined)?.name ?? token.name ?? null,
+            image: (profile as { picture?: string } | undefined)?.picture ?? token.picture ?? null,
+          });
+          const fresh = await getAuthUserStateById(gUser.id);
+          if (fresh) {
+            token.id = fresh.id;
+            token.email = fresh.email;
+            token.name = fresh.name;
+            token.picture = fresh.image;
+            token.walletAddress = fresh.walletAddress;
+            token.isPaid = fresh.isPaid;
+            token.tier = fresh.tier;
+            token.tradingBotOnDemand = fresh.tradingBotOnDemand;
+            token.polymarketBotOnDemand = fresh.polymarketBotOnDemand;
+            token.propFirmBotOnDemand = fresh.propFirmBotOnDemand;
+            token.novaUltimateOnDemand = fresh.novaUltimateOnDemand;
+            token.ctScanOnDemand = fresh.ctScanOnDemand;
+            token.memeCoinsTraderOnDemand = fresh.memeCoinsTraderOnDemand;
+            token.novaConnectCommunityRep = fresh.novaConnectCommunityRep;
+            token.novaConnectAllowedByAdmin = fresh.novaConnectAllowedByAdmin;
+            return token;
+          }
+        }
+      }
+
+      if (!user && token?.email) {
+        const email = String(token.email).trim().toLowerCase();
+        if (email) {
+          const dbUser = await prisma.user.findUnique({ where: { email } });
+          if (dbUser) {
+            const fresh = await getAuthUserStateById(dbUser.id);
+            if (fresh) {
+              token.id = fresh.id;
+              token.email = fresh.email;
+              token.name = fresh.name;
+              token.picture = fresh.image;
+              token.walletAddress = fresh.walletAddress;
+              token.isPaid = fresh.isPaid;
+              token.tier = fresh.tier;
+              token.tradingBotOnDemand = fresh.tradingBotOnDemand;
+              token.polymarketBotOnDemand = fresh.polymarketBotOnDemand;
+              token.propFirmBotOnDemand = fresh.propFirmBotOnDemand;
+              token.novaUltimateOnDemand = fresh.novaUltimateOnDemand;
+              token.ctScanOnDemand = fresh.ctScanOnDemand;
+              token.memeCoinsTraderOnDemand = fresh.memeCoinsTraderOnDemand;
+              token.novaConnectCommunityRep = fresh.novaConnectCommunityRep;
+              token.novaConnectAllowedByAdmin = fresh.novaConnectAllowedByAdmin;
+            }
+          }
+        }
+      }
+
       if (user) {
         token.id = user.id;
         token.email = user.email;

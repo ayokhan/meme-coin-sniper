@@ -1,7 +1,8 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { getProviders, signIn } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,8 +25,28 @@ function RegisterForm() {
   const [acceptCommunityRules, setAcceptCommunityRules] = useState(false);
   const [acceptPresencePrivacy, setAcceptPresencePrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    const loadProviders = async () => {
+      try {
+        const providers = await getProviders();
+        if (!mounted) return;
+        setGoogleEnabled(!!providers?.google);
+      } catch {
+        if (!mounted) return;
+        setGoogleEnabled(false);
+      }
+    };
+    loadProviders();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +83,17 @@ function RegisterForm() {
     }
   };
 
+  const handleGoogleSignUp = async () => {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      await signIn("google", { callbackUrl });
+    } catch {
+      setError("Unable to continue with Google right now.");
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6">
       <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -89,6 +121,11 @@ function RegisterForm() {
           )}
 
           <div className="space-y-2">
+            {googleEnabled && (
+              <Button type="button" variant="outline" className="w-full" disabled={googleLoading} onClick={handleGoogleSignUp}>
+                {googleLoading ? "Connecting Google..." : "Continue with Gmail"}
+              </Button>
+            )}
             <form onSubmit={handleRegister} className="space-y-3">
               <input
                 type="text"

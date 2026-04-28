@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
+import { Suspense, useEffect, useState } from "react";
+import { getProviders, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,27 @@ function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    const loadProviders = async () => {
+      try {
+        const providers = await getProviders();
+        if (!mounted) return;
+        setGoogleEnabled(!!providers?.google);
+      } catch {
+        if (!mounted) return;
+        setGoogleEnabled(false);
+      }
+    };
+    loadProviders();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +56,17 @@ function SignInForm() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      await signIn("google", { callbackUrl });
+    } catch {
+      setError("Unable to continue with Google right now.");
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6">
       <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -52,6 +83,12 @@ function SignInForm() {
             <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2">
               {error}
             </div>
+          )}
+
+          {googleEnabled && (
+            <Button type="button" variant="outline" className="w-full" disabled={googleLoading} onClick={handleGoogleSignIn}>
+              {googleLoading ? "Connecting Google..." : "Continue with Gmail"}
+            </Button>
           )}
 
           <form onSubmit={handleSignIn} className="space-y-3">
