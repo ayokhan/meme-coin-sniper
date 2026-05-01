@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap, Send, User, Bot, Headphones, Trash2 } from "lucide-react";
+import { Zap, Send, User, Bot, Headphones, Trash2, MessageSquarePlus, X } from "lucide-react";
 
 type Message = { id: string; role: string; content: string; createdAt: string };
 type Session = {
@@ -23,7 +23,9 @@ export default function AdminChatPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
-  const [sending, setSending] = useState(false);
+  const [sendingBySession, setSendingBySession] = useState<Record<string, boolean>>({});
+  const [windowReplyBySession, setWindowReplyBySession] = useState<Record<string, string>>({});
+  const [openWindowIds, setOpenWindowIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -33,6 +35,10 @@ export default function AdminChatPage() {
   const presenceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const selected = sessions.find((s) => s.id === selectedId);
+  const openWindows = useMemo(
+    () => openWindowIds.map((id) => sessions.find((s) => s.id === id)).filter((s): s is Session => !!s),
+    [openWindowIds, sessions]
+  );
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
 
   const loadSessions = () => {
@@ -63,39 +69,81 @@ export default function AdminChatPage() {
   }, [isOwner]);
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId && openWindowIds.length === 0) return;
     const interval = setInterval(loadSessions, 3000);
     return () => clearInterval(interval);
-  }, [selectedId]);
+  }, [selectedId, openWindowIds]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [selected?.messages]);
 
-  const sendReply = async () => {
-    if (!selectedId || !reply.trim()) return;
-    setSending(true);
+  useEffect(() => {
+    setOpenWindowIds((prev) => prev.filter((id) => sessions.some((s) => s.id === id)));
+  }, [sessions]);
+
+  useEffect(() => {
+    if (openWindows.length === 0) return;
+    const timer = setTimeout(() => {
+      for (const w of openWindows) {
+        const el = document.getElementById(`chat-window-scroll-${w.id}`);
+        if (el) el.scrollTop = el.scrollHeight;
+      }
+    }, 20);
+    return () => clearTimeout(timer);
+  }, [openWindows]);
+
+  const sendReplyToSession = async (targetSessionId: string, text: string): Promise<boolean> => {
+    if (!targetSessionId || !text.trim()) return false;
+    setSendingBySession((prev) => ({ ...prev, [targetSessionId]: true }));
     setError("");
     try {
       const res = await fetch("/api/admin/chat/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: selectedId, content: reply.trim() }),
+        body: JSON.stringify({ sessionId: targetSessionId, content: text.trim() }),
       });
       const data = await res.json();
       if (!data.success) {
         setError(data.error ?? "Failed to send");
-        return;
+        return false;
       }
-      setReply("");
       loadSessions();
       setSuccessMessage("Message sent.");
       setTimeout(() => setSuccessMessage(""), 4000);
+      return true;
     } catch {
       setError("Failed to send");
+      return false;
     } finally {
-      setSending(false);
+      setSendingBySession((prev) => ({ ...prev, [targetSessionId]: false }));
     }
+  };
+
+  const sendReply = async () => {
+    if (!selectedId || !reply.trim()) return;
+    const ok = await sendReplyToSession(selectedId, reply);
+    if (ok) setReply("");
+  };
+
+  const sendWindowReply = async (sid: string) => {
+    const text = (windowReplyBySession[sid] ?? "").trim();
+    if (!text) return;
+    const ok = await sendReplyToSession(sid, text);
+    if (ok) setWindowReplyBySession((prev) => ({ ...prev, [sid]: "" }));
+  };
+
+  const openWindow = (sid: string) => {
+    setOpenWindowIds((prev) => (prev.includes(sid) ? prev : [...prev, sid]));
+  };
+
+  const closeWindow = (sid: string) => {
+    setOpenWindowIds((prev) => prev.filter((id) => id !== sid));
+    setWindowReplyBySession((prev) => {
+      const next = { ...prev };
+      delete next[sid];
+      return next;
+    });
   };
 
   const deleteChat = async (sid: string) => {
@@ -210,19 +258,31 @@ export default function AdminChatPage() {
                   ) : (
                     <ul className="divide-y divide-zinc-200 dark:divide-zinc-700">
                       {sessions.map((s) => (
-                        <li key={s.id}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedId(s.id)}
-                            className={`w-full text-left px-4 py-3 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${selectedId === s.id ? "bg-cyan-50 dark:bg-cyan-950/30 border-l-2 border-cyan-500" : ""}`}
-                          >
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100 block truncate">
-                              {s.customerName || s.customerEmail || "Guest"}
-                            </span>
-                            <span className="text-xs text-zinc-500">
-                              {s.status === "live" ? "Live" : "Nja"} · {new Date(s.updatedAt).toLocaleString()}
-                            </span>
-                          </button>
+                        <li key={s.id} className={`${selectedId === s.id ? "bg-cyan-50 dark:bg-cyan-950/30 border-l-2 border-cyan-500" : ""}`}>
+                          <div className="flex items-start gap-2 px-2 py-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedId(s.id)}
+                              className="flex-1 text-left px-2 py-1 text-sm rounded hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                            >
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100 block truncate">
+                                {s.customerName || s.customerEmail || "Guest"}
+                              </span>
+                              <span className="text-xs text-zinc-500">
+                                {s.status === "live" ? "Live" : "Nja"} · {new Date(s.updatedAt).toLocaleString()}
+                              </span>
+                            </button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openWindow(s.id)}
+                              title="Open chat window"
+                              className="shrink-0 text-cyan-600 dark:text-cyan-400"
+                            >
+                              <MessageSquarePlus className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -300,9 +360,9 @@ export default function AdminChatPage() {
                             onChange={(e) => setReply(e.target.value)}
                             placeholder={selected.status === "live" ? "Reply as support agent…" : "Take over (reply to start live chat)…"}
                             className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                            disabled={sending}
+                            disabled={!!sendingBySession[selected.id]}
                           />
-                          <Button type="submit" disabled={sending || !reply.trim()}>
+                          <Button type="submit" disabled={!!sendingBySession[selected.id] || !reply.trim()}>
                             <Send className="h-4 w-4" />
                           </Button>
                         </form>
@@ -318,6 +378,70 @@ export default function AdminChatPage() {
           <Link href="/" className="underline">Back to app</Link>
         </p>
       </div>
+      {openWindows.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-[240] flex max-w-[calc(100vw-1rem)] gap-3 overflow-x-auto pb-1">
+          {openWindows.map((w) => (
+            <div
+              key={w.id}
+              className="w-[330px] shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl"
+            >
+              <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                    {w.customerName || w.customerEmail || "Guest"}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">{w.status === "live" ? "Live" : "Nja"}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => closeWindow(w.id)}
+                  className="rounded p-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  aria-label="Close chat window"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div id={`chat-window-scroll-${w.id}`} className="h-60 overflow-y-auto p-3 space-y-2 bg-zinc-50/50 dark:bg-zinc-900/40">
+                {w.messages.map((m) => (
+                  <div key={m.id} className={`flex ${m.role === "agent" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-xs ${
+                        m.role === "agent"
+                          ? "bg-cyan-500 text-white"
+                          : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
+                      }`}
+                    >
+                      {m.role === "agent" && <span className="block text-[10px] opacity-90 mb-0.5">You</span>}
+                      <span className="whitespace-pre-wrap">{m.content}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {(w.status === "live" || w.status === "nja") && (
+                <form
+                  className="flex gap-2 p-3 border-t border-zinc-200 dark:border-zinc-700"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    sendWindowReply(w.id);
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={windowReplyBySession[w.id] ?? ""}
+                    onChange={(e) => setWindowReplyBySession((prev) => ({ ...prev, [w.id]: e.target.value }))}
+                    placeholder="Reply..."
+                    className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    disabled={!!sendingBySession[w.id]}
+                  />
+                  <Button type="submit" size="sm" disabled={!!sendingBySession[w.id] || !(windowReplyBySession[w.id] ?? "").trim()}>
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
+                </form>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
