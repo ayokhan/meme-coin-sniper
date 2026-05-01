@@ -3353,7 +3353,7 @@ export default function Dashboard() {
             ) : (
               <>
             {activeTab === "new" && (
-              <div className="mx-3 sm:mx-6 mt-4 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+              <div className="mx-3 sm:mx-6 mt-8 sm:mt-10 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">View:</span>
                   <div className="flex flex-wrap items-center gap-2">
@@ -3381,7 +3381,7 @@ export default function Dashboard() {
               </div>
             )}
             {activeTab === "bsc" && (
-              <div className="mx-3 sm:mx-6 mt-4 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+              <div className="mx-3 sm:mx-6 mt-8 sm:mt-10 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Go Hunting:</span>
                   <div className="flex flex-wrap items-center gap-2">
