@@ -22,6 +22,16 @@ function normalizeSymbol(raw: string): string {
   return first.replace(/[^A-Z0-9]/g, "");
 }
 
+function normalizeWithAliases(raw: string): { normalized: string; aliasUsed?: string } {
+  const s = normalizeSymbol(raw);
+  const alias: Record<string, string> = {
+    XAU: "PAXG",
+    GOLD: "PAXG",
+  };
+  if (alias[s]) return { normalized: alias[s], aliasUsed: s };
+  return { normalized: s };
+}
+
 function fmtUsd(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.round(n));
@@ -31,6 +41,51 @@ function parseNum(v: string | undefined): number {
   if (!v) return 0;
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+function pctChange(from: number, to: number): number {
+  if (!Number.isFinite(from) || from === 0 || !Number.isFinite(to)) return 0;
+  return ((to - from) / from) * 100;
+}
+
+function getTrendAndStructure(candles: Array<[string, string, string, string, string, ...string[]]>): {
+  trend: "up" | "down" | "sideways";
+  marketStructure: "higher-highs/higher-lows" | "lower-highs/lower-lows" | "mixed";
+  trendlineRead: string;
+} {
+  const closes = candles
+    .map((c) => Number(c[4]))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (closes.length < 10) {
+    return {
+      trend: "sideways",
+      marketStructure: "mixed",
+      trendlineRead: "Not enough candles for robust trendline/structure read.",
+    };
+  }
+  const shortLen = Math.max(4, Math.floor(closes.length * 0.25));
+  const longLen = Math.max(8, Math.floor(closes.length * 0.6));
+  const sma = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+  const shortMa = sma(closes.slice(-shortLen));
+  const longMa = sma(closes.slice(-longLen));
+  const slopePct = pctChange(closes[Math.max(0, closes.length - longLen)], closes[closes.length - 1]);
+  const trend =
+    shortMa > longMa * 1.002 || slopePct > 0.8 ? "up" : shortMa < longMa * 0.998 || slopePct < -0.8 ? "down" : "sideways";
+
+  const highs = candles.map((c) => Number(c[2])).filter((n) => Number.isFinite(n));
+  const lows = candles.map((c) => Number(c[3])).filter((n) => Number.isFinite(n));
+  const mid = Math.floor(Math.min(highs.length, lows.length) / 2);
+  const firstHigh = Math.max(...highs.slice(0, mid));
+  const secondHigh = Math.max(...highs.slice(mid));
+  const firstLow = Math.min(...lows.slice(0, mid));
+  const secondLow = Math.min(...lows.slice(mid));
+  const hh = secondHigh > firstHigh;
+  const hl = secondLow > firstLow;
+  const lh = secondHigh < firstHigh;
+  const ll = secondLow < firstLow;
+  const marketStructure = hh && hl ? "higher-highs/higher-lows" : lh && ll ? "lower-highs/lower-lows" : "mixed";
+  const trendlineRead = `MA trend ${trend} (short MA ${shortMa.toFixed(2)} vs long MA ${longMa.toFixed(2)}), slope ${slopePct >= 0 ? "+" : ""}${slopePct.toFixed(2)}%. Structure: ${marketStructure}.`;
+  return { trend, marketStructure, trendlineRead };
 }
 
 function computeVolatilityPct(candles: Array<[string, string, string, string, string, ...string[]]>): number {
@@ -76,6 +131,16 @@ function buildAnalysis(input: {
     stopArea: string;
     noStopArea: string;
     riskNote: string;
+  };
+  levels: {
+    buyMin: number | null;
+    buyMax: number | null;
+    noBuyMin: number | null;
+    noBuyMax: number | null;
+    stopLevel: number | null;
+    noStopMin: number | null;
+    noStopMax: number | null;
+    invalidation: number | null;
   };
 } {
   const { markPrice, fundingRatePct, dayChangePct, openInterest, volume24h, volatilityPct } = input;
@@ -182,6 +247,45 @@ function buildAnalysis(input: {
       : "Use tight invalidation just beyond nearest sweep level; reduce size until bias is clear.";
   const noStopArea = "Do not place stops exactly at obvious round numbers or directly inside the nearest liquidity pocket.";
 
+  const nearLong = clusters.find((c) => c.side === "long_liq_below" && c.label.toLowerCase().includes("near"));
+  const deepLong = clusters.find((c) => c.side === "long_liq_below" && c.label.toLowerCase().includes("deep"));
+  const nearShort = clusters.find((c) => c.side === "short_liq_above" && c.label.toLowerCase().includes("near"));
+  const deepShort = clusters.find((c) => c.side === "short_liq_above" && c.label.toLowerCase().includes("deep"));
+
+  const levels =
+    bias === "long"
+      ? {
+          buyMin: deepLong?.price ?? null,
+          buyMax: nearLong?.price ?? null,
+          noBuyMin: nearShort?.price ?? null,
+          noBuyMax: deepShort?.price ?? null,
+          stopLevel: deepLong ? deepLong.price * 0.998 : null,
+          noStopMin: nearLong ? nearLong.price * 0.997 : null,
+          noStopMax: nearLong ? nearLong.price * 1.003 : null,
+          invalidation: deepLong ? deepLong.price * 0.994 : null,
+        }
+      : bias === "short"
+      ? {
+          buyMin: nearShort?.price ?? null,
+          buyMax: deepShort?.price ?? null,
+          noBuyMin: deepLong?.price ?? null,
+          noBuyMax: nearLong?.price ?? null,
+          stopLevel: deepShort ? deepShort.price * 1.002 : null,
+          noStopMin: nearShort ? nearShort.price * 0.997 : null,
+          noStopMax: nearShort ? nearShort.price * 1.003 : null,
+          invalidation: deepShort ? deepShort.price * 1.006 : null,
+        }
+      : {
+          buyMin: nearLong?.price ?? null,
+          buyMax: nearShort?.price ?? null,
+          noBuyMin: nearLong ? nearLong.price * 1.001 : null,
+          noBuyMax: nearShort ? nearShort.price * 0.999 : null,
+          stopLevel: null,
+          noStopMin: markPrice * 0.999,
+          noStopMax: markPrice * 1.001,
+          invalidation: null,
+        };
+
   const summary =
     bias === "long"
       ? "Long-side setup favored after downside liquidity sweep."
@@ -203,6 +307,7 @@ function buildAnalysis(input: {
       noStopArea,
       riskNote: "Liquidation zones are probabilistic. Use confirmation + risk sizing; never treat map levels as guaranteed reversal points.",
     },
+    levels,
   };
 }
 
@@ -226,7 +331,12 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const symbol = normalizeSymbol(typeof body.symbol === "string" ? body.symbol : "");
+    const { normalized: symbol, aliasUsed } = normalizeWithAliases(typeof body.symbol === "string" ? body.symbol : "");
+    const traderTypeRaw = typeof body.traderType === "string" ? body.traderType.toLowerCase().trim() : "";
+    const traderType = traderTypeRaw === "long" || traderTypeRaw === "short" ? traderTypeRaw : null;
+    const entry = Number(body.entry);
+    const exit = Number(body.exit);
+    const leverage = Number(body.leverage ?? 10);
     if (!symbol) {
       return NextResponse.json({ success: false, error: "Enter a contract symbol like BTC, ETH, SOL, or XAU." }, { status: 400 });
     }
@@ -250,7 +360,9 @@ export async function POST(request: Request) {
     const fundingRatePct = parseNum(market.funding) * 100;
     const dayChangePct = Number.isFinite(market.dayPct) ? market.dayPct : 0;
     const candles = await getCandles(market.coin, "1h", 24);
+    const structureCandles = await getCandles(market.coin, "15m", 48);
     const volatilityPct = computeVolatilityPct(candles);
+    const { trend, marketStructure, trendlineRead } = getTrendAndStructure(structureCandles.length ? structureCandles : candles);
 
     const analysis = buildAnalysis({
       symbol: market.coin,
@@ -262,16 +374,71 @@ export async function POST(request: Request) {
       volatilityPct,
     });
 
+    const hasTradePlan = traderType && Number.isFinite(entry) && Number.isFinite(exit) && entry > 0 && exit > 0;
+    let tradeCheck:
+      | {
+          score: number;
+          verdict: "good_trade" | "risky_trade" | "avoid_trade";
+          directionFit: string;
+          trendlineFit: string;
+          structureFit: string;
+          liquidationRisk: string;
+          notes: string[];
+        }
+      | undefined;
+    if (hasTradePlan) {
+      const expectedDirOk = (traderType === "long" && analysis.bias !== "short") || (traderType === "short" && analysis.bias !== "long");
+      const trendOk = (traderType === "long" && trend !== "down") || (traderType === "short" && trend !== "up");
+      const structureOk =
+        (traderType === "long" && marketStructure !== "lower-highs/lower-lows") ||
+        (traderType === "short" && marketStructure !== "higher-highs/higher-lows");
+      const rr = traderType === "long" ? (exit - entry) / Math.max(0.0000001, entry * 0.004) : (entry - exit) / Math.max(0.0000001, entry * 0.004);
+      const nearestRiskCluster =
+        traderType === "long"
+          ? analysis.clusters.filter((c) => c.side === "long_liq_below").sort((a, b) => a.distancePct - b.distancePct)[0]
+          : analysis.clusters.filter((c) => c.side === "short_liq_above").sort((a, b) => a.distancePct - b.distancePct)[0];
+      const liqRisk =
+        leverage >= 20 || (nearestRiskCluster && Math.abs(pctChange(entry, nearestRiskCluster.price)) <= 0.8)
+          ? "high"
+          : leverage >= 10
+          ? "medium"
+          : "low";
+      const base = (expectedDirOk ? 28 : 10) + (trendOk ? 22 : 8) + (structureOk ? 20 : 8) + (rr >= 1.5 ? 15 : rr >= 1 ? 10 : 5) + (liqRisk === "low" ? 15 : liqRisk === "medium" ? 8 : 2);
+      const score = Math.max(0, Math.min(100, Math.round(base)));
+      tradeCheck = {
+        score,
+        verdict: score >= 70 ? "good_trade" : score >= 45 ? "risky_trade" : "avoid_trade",
+        directionFit: expectedDirOk ? "Trade direction aligns with current liquidity bias." : "Direction conflicts with current liquidity bias.",
+        trendlineFit: trendOk ? `Trend is ${trend}; setup is acceptable for ${traderType}.` : `Trend is ${trend}; setup fights trend for ${traderType}.`,
+        structureFit: structureOk ? `Market structure (${marketStructure}) supports this setup.` : `Market structure (${marketStructure}) is not favorable for this setup.`,
+        liquidationRisk:
+          liqRisk === "high"
+            ? "High liquidation risk: entry is close to liquidation pocket and/or leverage is elevated."
+            : liqRisk === "medium"
+            ? "Moderate liquidation risk: keep position size conservative."
+            : "Lower liquidation risk relative to current cluster spacing.",
+        notes: [
+          `Planned entry ${entry.toLocaleString(undefined, { maximumFractionDigits: 4 })}, exit ${exit.toLocaleString(undefined, { maximumFractionDigits: 4 })}, leverage ${Number.isFinite(leverage) ? leverage : 10}x.`,
+          "Use a hard invalidation stop outside the nearest trap zone.",
+        ],
+      };
+    }
+
     return NextResponse.json({
       success: true,
       symbol: market.coin,
+      aliasUsed: aliasUsed ?? null,
       markPrice,
       dayChangePct,
       fundingRatePct,
       openInterest,
       volume24h,
       volatilityPct,
+      trend,
+      marketStructure,
+      trendlineRead,
       ...analysis,
+      tradeCheck,
       disclaimer:
         "Educational analysis only, not financial advice. Liquidation clusters can shift quickly with changing leverage and order flow.",
     });

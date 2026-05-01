@@ -23,6 +23,10 @@ type Result = {
   openInterest: number;
   volume24h: number;
   volatilityPct: number;
+  trend?: "up" | "down" | "sideways";
+  marketStructure?: string;
+  trendlineRead?: string;
+  aliasUsed?: string | null;
   bias: "long" | "short" | "neutral";
   confidence: "low" | "medium" | "high";
   summary: string;
@@ -35,8 +39,32 @@ type Result = {
     noStopArea: string;
     riskNote: string;
   };
+  levels?: {
+    buyMin: number | null;
+    buyMax: number | null;
+    noBuyMin: number | null;
+    noBuyMax: number | null;
+    stopLevel: number | null;
+    noStopMin: number | null;
+    noStopMax: number | null;
+    invalidation: number | null;
+  };
+  tradeCheck?: {
+    score: number;
+    verdict: "good_trade" | "risky_trade" | "avoid_trade";
+    directionFit: string;
+    trendlineFit: string;
+    structureFit: string;
+    liquidationRisk: string;
+    notes: string[];
+  };
   disclaimer: string;
 };
+
+function fmtPrice(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return v.toLocaleString(undefined, { maximumFractionDigits: 4 });
+}
 
 function barClass(side: Cluster["side"]): string {
   return side === "short_liq_above"
@@ -46,6 +74,10 @@ function barClass(side: Cluster["side"]): string {
 
 export default function FuturesLiquidationMapPanel() {
   const [symbol, setSymbol] = useState("BTC");
+  const [traderType, setTraderType] = useState<"long" | "short">("long");
+  const [entry, setEntry] = useState("");
+  const [exit, setExit] = useState("");
+  const [leverage, setLeverage] = useState("10");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -63,7 +95,13 @@ export default function FuturesLiquidationMapPanel() {
       const res = await fetch("/api/futures/liquidation-map", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol: s }),
+        body: JSON.stringify({
+          symbol: s,
+          traderType,
+          entry: entry.trim() ? Number(entry) : undefined,
+          exit: exit.trim() ? Number(exit) : undefined,
+          leverage: leverage.trim() ? Number(leverage) : undefined,
+        }),
       });
       const data = await res.json();
       if (!data.success) {
@@ -105,6 +143,46 @@ export default function FuturesLiquidationMapPanel() {
               {loading ? "Analyzing…" : "Search liquidation map"}
             </Button>
           </div>
+          <div className="grid gap-2 sm:grid-cols-4">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Trader type</label>
+              <select
+                value={traderType}
+                onChange={(e) => setTraderType(e.target.value as "long" | "short")}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm"
+              >
+                <option value="long">Long</option>
+                <option value="short">Short</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Entry point</label>
+              <input
+                value={entry}
+                onChange={(e) => setEntry(e.target.value)}
+                placeholder="e.g. 78500"
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Exit point</label>
+              <input
+                value={exit}
+                onChange={(e) => setExit(e.target.value)}
+                placeholder="e.g. 80100"
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Leverage (x)</label>
+              <input
+                value={leverage}
+                onChange={(e) => setLeverage(e.target.value)}
+                placeholder="10"
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm"
+              />
+            </div>
+          </div>
           {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
         </CardContent>
       </Card>
@@ -120,8 +198,18 @@ export default function FuturesLiquidationMapPanel() {
                 </Badge>
                 <Badge variant="secondary">Confidence: {result.confidence}</Badge>
               </div>
+              {result.aliasUsed && (
+                <p className="text-xs text-muted-foreground">
+                  Mapped requested symbol <strong>{result.aliasUsed}</strong> to available contract <strong>{result.symbol}</strong>.
+                </p>
+              )}
               <p className="text-sm">{result.summary}</p>
               <p className="text-xs text-muted-foreground">{result.liquidityRead}</p>
+              {result.trendlineRead && (
+                <p className="text-xs text-muted-foreground">
+                  Trend/structure: {result.trendlineRead}
+                </p>
+              )}
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 text-xs">
                 <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">Price: <strong>{result.markPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}</strong></div>
                 <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">24h: <strong>{result.dayChangePct >= 0 ? "+" : ""}{result.dayChangePct.toFixed(2)}%</strong></div>
@@ -165,6 +253,27 @@ export default function FuturesLiquidationMapPanel() {
               <CardTitle className="text-base">Trade area guidance</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
+              {result.levels && (
+                <div className="grid gap-2 sm:grid-cols-2 text-xs mb-2">
+                  <div className="rounded border border-emerald-300/40 dark:border-emerald-700/40 p-2">
+                    <p className="font-semibold text-emerald-600 dark:text-emerald-400">Buy range</p>
+                    <p>{fmtPrice(result.levels.buyMin)} - {fmtPrice(result.levels.buyMax)}</p>
+                  </div>
+                  <div className="rounded border border-amber-300/40 dark:border-amber-700/40 p-2">
+                    <p className="font-semibold text-amber-600 dark:text-amber-400">No-buy range</p>
+                    <p>{fmtPrice(result.levels.noBuyMin)} - {fmtPrice(result.levels.noBuyMax)}</p>
+                  </div>
+                  <div className="rounded border border-cyan-300/40 dark:border-cyan-700/40 p-2">
+                    <p className="font-semibold text-cyan-600 dark:text-cyan-400">Stop level</p>
+                    <p>{fmtPrice(result.levels.stopLevel)}</p>
+                  </div>
+                  <div className="rounded border border-rose-300/40 dark:border-rose-700/40 p-2">
+                    <p className="font-semibold text-rose-600 dark:text-rose-400">No-stop / trap zone</p>
+                    <p>{fmtPrice(result.levels.noStopMin)} - {fmtPrice(result.levels.noStopMax)}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">Invalidation: {fmtPrice(result.levels.invalidation)}</p>
+                  </div>
+                </div>
+              )}
               <p><span className="font-semibold text-emerald-600 dark:text-emerald-400">Buy area:</span> {result.recommendations.buyArea}</p>
               <p><span className="font-semibold text-amber-600 dark:text-amber-400">No buy area:</span> {result.recommendations.noBuyArea}</p>
               <p><span className="font-semibold text-cyan-600 dark:text-cyan-400">Stop area:</span> {result.recommendations.stopArea}</p>
@@ -173,6 +282,43 @@ export default function FuturesLiquidationMapPanel() {
               <p className="text-[11px] text-muted-foreground">{result.disclaimer}</p>
             </CardContent>
           </Card>
+
+          {result.tradeCheck && (
+            <Card className="border-zinc-200 dark:border-zinc-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Your trade check</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">Score: {result.tradeCheck.score}/100</Badge>
+                  <Badge
+                    className={
+                      result.tradeCheck.verdict === "good_trade"
+                        ? "bg-emerald-600 text-white"
+                        : result.tradeCheck.verdict === "risky_trade"
+                        ? "bg-amber-600 text-white"
+                        : "bg-rose-600 text-white"
+                    }
+                  >
+                    {result.tradeCheck.verdict === "good_trade"
+                      ? "Good trade"
+                      : result.tradeCheck.verdict === "risky_trade"
+                      ? "Risky trade"
+                      : "Avoid trade"}
+                  </Badge>
+                </div>
+                <p>{result.tradeCheck.directionFit}</p>
+                <p>{result.tradeCheck.trendlineFit}</p>
+                <p>{result.tradeCheck.structureFit}</p>
+                <p>{result.tradeCheck.liquidationRisk}</p>
+                <ul className="list-disc list-inside text-xs text-muted-foreground">
+                  {result.tradeCheck.notes.map((n, i) => (
+                    <li key={i}>{n}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
