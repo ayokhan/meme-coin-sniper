@@ -288,7 +288,7 @@ export async function getTrendingPerps(limit = 50): Promise<TrendingPerp[]> {
 }
 
 /** Coins we want (order preserved). Must match exchange symbols (e.g. BTC, ETH, SOL). */
-const TOP_ALTCOINS = ["BTC", "ETH", "BNB", "SOL", "XRP", "DOGE", "ADA", "AVAX", "DOT", "LINK", "UNI", "ATOM", "LTC", "BCH", "NEAR", "APT", "ARB", "OP", "INJ", "MATIC"];
+const TOP_ALTCOINS = ["BTC", "ETH", "BNB", "SOL", "XRP", "DOGE", "ADA", "AVAX", "DOT", "LINK", "UNI", "ATOM", "LTC", "BCH", "NEAR", "APT", "ARB", "OP", "INJ", "MATIC", "PAXG"];
 
 /**
  * Fetch perp data for a specific list of coins (e.g. top altcoins). Same shape as getTrendingPerps.

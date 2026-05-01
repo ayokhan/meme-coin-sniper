@@ -13,6 +13,7 @@ export default function CryptoBuddiePanel() {
   const [rows, setRows] = useState<CryptoBuddieRow[]>([]);
   const [search, setSearch] = useState("");
   const [focus, setFocus] = useState<CryptoBuddieRow | null>(null);
+  const [focusAliasRequested, setFocusAliasRequested] = useState<string | null>(null);
   const [focusLoading, setFocusLoading] = useState(false);
 
   const loadRows = useCallback(async () => {
@@ -43,6 +44,7 @@ export default function CryptoBuddiePanel() {
     const sym = search.trim().toUpperCase();
     if (!sym) {
       setFocus(null);
+      setFocusAliasRequested(null);
       return;
     }
     setFocusLoading(true);
@@ -56,13 +58,17 @@ export default function CryptoBuddiePanel() {
       if (!res.ok || !data.success) {
         setError(data?.error ?? "Lookup failed");
         setFocus(null);
+        setFocusAliasRequested(null);
         return;
       }
       setFocus(data.focus ?? null);
-      if (!data.focus) setError(`No perp data for “${sym}”. Try a Hyperliquid symbol (e.g. BTC, SOL).`);
+      setFocusAliasRequested(typeof data.focusAliasRequested === "string" ? data.focusAliasRequested : null);
+      if (!data.focus)
+        setError(`No perp data for “${sym}”. Try a Hyperliquid symbol (e.g. BTC, SOL) or gold as XAU/GOLD → PAXG.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Lookup failed");
       setFocus(null);
+      setFocusAliasRequested(null);
     } finally {
       setFocusLoading(false);
     }
@@ -117,7 +123,7 @@ export default function CryptoBuddiePanel() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value.toUpperCase())}
-            placeholder="e.g. BTC, SOL"
+            placeholder="e.g. BTC, SOL, XAU"
             className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-36 bg-white dark:bg-zinc-800 font-mono"
           />
         </div>
@@ -125,7 +131,16 @@ export default function CryptoBuddiePanel() {
           {focusLoading ? "…" : "Details"}
         </Button>
         {focus && (
-          <Button size="sm" variant="ghost" onClick={() => { setFocus(null); setSearch(""); setError(null); }}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setFocus(null);
+              setFocusAliasRequested(null);
+              setSearch("");
+              setError(null);
+            }}
+          >
             Clear
           </Button>
         )}
@@ -133,6 +148,12 @@ export default function CryptoBuddiePanel() {
 
       {focus && (
         <div className="rounded-md border border-emerald-200/70 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 p-3 space-y-2 text-sm">
+          {focusAliasRequested && (
+            <p className="text-[11px] text-muted-foreground">
+              Mapped search <strong className="font-mono">{focusAliasRequested}</strong> → Hyperliquid contract{" "}
+              <strong className="font-mono">{focus.coin}</strong>.
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono font-semibold">{focus.coin}</span>
             <Badge variant="outline">Buddy score {focus.buddyScore}</Badge>

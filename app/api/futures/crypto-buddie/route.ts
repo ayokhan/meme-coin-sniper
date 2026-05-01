@@ -20,6 +20,9 @@ function candlePct(candles: Array<[string, string, string, string, string, ...st
 const DISCLAIMER =
   "Crypto Buddie ranks Hyperliquid perps using heuristics (liquidity, short-term momentum alignment, recent 15m range tightness, and net direction of recent 15m closes — not hand-drawn trendlines). It is not a promise that support/resistance will hold for the next 1–4 hours. Not financial advice.";
 
+/** Metals tickers → Hyperliquid perp coin (HL lists gold as PAXG, not XAU). */
+const SEARCH_TO_HL_COIN: Record<string, string> = { XAU: "PAXG", GOLD: "PAXG" };
+
 /** VIP + flag: Top-altcoins-style table with scalp-style scores; optional ?focus=BTC for one row. */
 export async function GET(request: Request) {
   try {
@@ -34,6 +37,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const focusRaw = searchParams.get("focus")?.trim().toUpperCase() ?? "";
+    const hlFocusCoin = focusRaw ? (SEARCH_TO_HL_COIN[focusRaw] ?? focusRaw) : "";
 
     const perps = await getPerpsByCoins(TOP_ALTCOINS);
     const rows: CryptoBuddieRow[] = await Promise.all(
@@ -86,10 +90,10 @@ export async function GET(request: Request) {
     rows.sort((a, b) => b.buddyScore - a.buddyScore);
 
     let focus: CryptoBuddieRow | null = null;
-    if (focusRaw) {
-      focus = rows.find((r) => r.coin.toUpperCase() === focusRaw) ?? null;
+    if (focusRaw && hlFocusCoin) {
+      focus = rows.find((r) => r.coin.toUpperCase() === hlFocusCoin) ?? null;
       if (!focus) {
-        const single = await getPerpsByCoins([focusRaw]);
+        const single = await getPerpsByCoins([hlFocusCoin]);
         if (single[0]) {
           const p = single[0];
           const [c5, c15, c30, c1h, c4h, c48h, c72h, c1w, c2w, c3w, c4w, c15series] = await Promise.all([
@@ -138,11 +142,14 @@ export async function GET(request: Request) {
       }
     }
 
+    const focusAliasRequested = focusRaw && hlFocusCoin && focusRaw !== hlFocusCoin ? focusRaw : null;
+
     return NextResponse.json({
       success: true,
       disclaimer: DISCLAIMER,
       rows,
       focus,
+      focusAliasRequested,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Crypto Buddie failed";
