@@ -384,7 +384,14 @@ export async function POST(request: Request) {
           structureFit: string;
           liquidationRisk: string;
           notes: string[];
-          scoreBreakdown: Array<{ id: string; label: string; earned: number; max: number; detail: string }>;
+          scoreBreakdown: Array<{
+            id: string;
+            label: string;
+            earned: number;
+            max: number;
+            detail: string;
+            suggestedFix: string | null;
+          }>;
         }
       | undefined;
     if (hasTradePlan) {
@@ -430,7 +437,62 @@ export async function POST(request: Request) {
       const trendPts = trendOk ? W.trend : 8;
       const structPts = structureOk ? W.structure : 6;
 
-      const scoreBreakdown: Array<{ id: string; label: string; earned: number; max: number; detail: string }> = [
+      const exitFor1R = traderType === "long" ? entry + riskProxy : entry - riskProxy;
+      const exitFor15R = traderType === "long" ? entry + 1.5 * riskProxy : entry - 1.5 * riskProxy;
+      const exitFor25R = traderType === "long" ? entry + 2.5 * riskProxy : entry - 2.5 * riskProxy;
+      const fmtPx = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+
+      const fixDirection =
+        dirPts >= W.direction
+          ? null
+          : `Fade or counter-bias setups need smaller size and a hard invalidation beyond the trap zone — or wait until bias softens toward ${traderType === "long" ? "neutral/bullish" : "neutral/bearish"}.`;
+
+      const fixTrend =
+        trendPts >= W.trend
+          ? null
+          : `Prefer pullback or range-edge entries rather than chasing impulse while the read is "${trend}" against ${traderType}.`;
+
+      const fixStructure =
+        structPts >= W.structure
+          ? null
+          : `Consider waiting for a cleaner swing break (and retest) that supports ${traderType} before adding notional — structure "${marketStructure}" is awkward here.`;
+
+      let fixRr: string | null = null;
+      if (rrPts >= W.rr) {
+        fixRr = null;
+      } else if (!rrValid) {
+        fixRr = `Set take-profit ${traderType === "long" ? "above" : "below"} entry — e.g. near ${fmtPx(exitFor1R)} (~1.0× proxy R) minimum.`;
+      } else if (rrMultiple < 1.5) {
+        const gapPct = (Math.abs(exitFor15R - exit) / entry) * 100;
+        fixRr = `Improve R:R toward ~1.5× proxy: aim take-profit near ${fmtPx(exitFor15R)} (~${gapPct.toFixed(2)}% ${traderType === "long" ? "above" : "below"} your current exit).`;
+      } else if (rrMultiple < 2.5) {
+        const gapPct = (Math.abs(exitFor25R - exit) / entry) * 100;
+        fixRr = `For the top RR bracket (~2.5× proxy), stretch target toward ${fmtPx(exitFor25R)} (~${gapPct.toFixed(2)}% vs your exit) or tighten risk with a nearer structural stop if that target is unrealistic.`;
+      }
+
+      let fixLiq: string | null = null;
+      if (liqPts >= W.liquidation) {
+        fixLiq = null;
+      } else if (liqRisk === "high") {
+        const levN = Number.isFinite(leverage) ? leverage : 10;
+        const parts: string[] = [];
+        if (levN > 10) parts.push(`cut leverage toward ≤8× (you used ${levN}×)`);
+        if (nearestRiskCluster && Math.abs(pctChange(entry, nearestRiskCluster.price)) <= 0.8) {
+          parts.push(`bias entry away from the nearest liquidation pocket (~>0.9% clearance if possible)`);
+        }
+        fixLiq = parts.length ? parts.join("; ") + "." : `Add clearance from liquidation bands and keep leverage moderate (${levN}× reads hot).`;
+      } else {
+        fixLiq = `Trim leverage slightly or add spacing from the nearest adverse cluster (${nearestRiskCluster ? `${nearestRiskCluster.distancePct.toFixed(2)}% away` : "see map above"}).`;
+      }
+
+      const scoreBreakdown: Array<{
+        id: string;
+        label: string;
+        earned: number;
+        max: number;
+        detail: string;
+        suggestedFix: string | null;
+      }> = [
         {
           id: "direction",
           label: "Direction vs liquidity bias",
@@ -439,6 +501,7 @@ export async function POST(request: Request) {
           detail: expectedDirOk
             ? `Your ${traderType} aligns with NovaStaris liquidity bias (${analysis.bias}).`
             : `Your ${traderType} fights liquidity bias (${analysis.bias}) — fades can work but carry extra risk.`,
+          suggestedFix: fixDirection,
         },
         {
           id: "trend",
@@ -448,6 +511,7 @@ export async function POST(request: Request) {
           detail: trendOk
             ? `15m/regression read: trend ${trend} — workable for ${traderType}.`
             : `15m/regression read: trend ${trend} — crowded against ${traderType}.`,
+          suggestedFix: fixTrend,
         },
         {
           id: "structure",
@@ -457,6 +521,7 @@ export async function POST(request: Request) {
           detail: structureOk
             ? `Structure ${marketStructure} is not aggressively against ${traderType}.`
             : `Structure ${marketStructure} argues against naive ${traderType} continuation.`,
+          suggestedFix: fixStructure,
         },
         {
           id: "rr",
@@ -466,6 +531,7 @@ export async function POST(request: Request) {
           detail: !rrValid
             ? `Exit must be ${traderType === "long" ? "above" : "below"} entry for reward; RR score is zero until fixed.`
             : `RR ≈ ${rrMultiple.toFixed(2)}× vs ~0.3–0.4% structural risk proxy.`,
+          suggestedFix: fixRr,
         },
         {
           id: "liquidation",
@@ -478,6 +544,7 @@ export async function POST(request: Request) {
               : liqRisk === "medium"
               ? `Moderate: watch size; nearest cluster ${nearestRiskCluster ? `${nearestRiskCluster.distancePct.toFixed(2)}%` : "unknown"} away.`
               : `More cushion vs nearest adverse cluster ${nearestRiskCluster ? `(${nearestRiskCluster.distancePct.toFixed(2)}%)` : ""}.`,
+          suggestedFix: fixLiq,
         },
       ];
 

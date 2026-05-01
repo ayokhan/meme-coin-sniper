@@ -57,7 +57,7 @@ type Result = {
     structureFit: string;
     liquidationRisk: string;
     notes: string[];
-    scoreBreakdown: Array<{ id: string; label: string; earned: number; max: number; detail: string }>;
+    scoreBreakdown: Array<{ id: string; label: string; earned: number; max: number; detail: string; suggestedFix: string | null }>;
   };
   disclaimer: string;
 };
@@ -335,6 +335,12 @@ export default function FuturesLiquidationMapPanel() {
                             />
                           </div>
                           <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{row.detail}</p>
+                          {row.suggestedFix ? (
+                            <p className="text-[11px] text-cyan-800 dark:text-cyan-200/95 mt-1.5 leading-snug rounded border border-cyan-200/70 dark:border-cyan-800/60 bg-cyan-50/90 dark:bg-cyan-950/35 px-2 py-1.5">
+                              <span className="font-medium text-cyan-900 dark:text-cyan-100">Suggested fix:</span>{" "}
+                              {row.suggestedFix}
+                            </p>
+                          ) : null}
                         </li>
                       );
                     })}
