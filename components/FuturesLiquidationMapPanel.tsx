@@ -57,6 +57,7 @@ type Result = {
     structureFit: string;
     liquidationRisk: string;
     notes: string[];
+    scoreBreakdown: Array<{ id: string; label: string; earned: number; max: number; detail: string }>;
   };
   disclaimer: string;
 };
@@ -311,6 +312,34 @@ export default function FuturesLiquidationMapPanel() {
                 <p>{result.tradeCheck.trendlineFit}</p>
                 <p>{result.tradeCheck.structureFit}</p>
                 <p>{result.tradeCheck.liquidationRisk}</p>
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-950/40 p-3 space-y-2 mt-3">
+                  <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">Why this score?</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Weighted pillars (earned / max). Total matches the badge above.
+                  </p>
+                  <ul className="space-y-2">
+                    {result.tradeCheck.scoreBreakdown.map((row) => {
+                      const pct = row.max > 0 ? Math.min(100, Math.round((row.earned / row.max) * 100)) : 0;
+                      return (
+                        <li key={row.id} className="text-xs">
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium text-zinc-800 dark:text-zinc-200">{row.label}</span>
+                            <span className="tabular-nums text-muted-foreground shrink-0">
+                              {row.earned}/{row.max}
+                            </span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden mt-1">
+                            <div
+                              className="h-full rounded-full bg-violet-500/90 dark:bg-violet-400/80"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{row.detail}</p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
                 <ul className="list-disc list-inside text-xs text-muted-foreground">
                   {result.tradeCheck.notes.map((n, i) => (
                     <li key={i}>{n}</li>

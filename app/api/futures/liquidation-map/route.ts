@@ -384,15 +384,36 @@ export async function POST(request: Request) {
           structureFit: string;
           liquidationRisk: string;
           notes: string[];
+          scoreBreakdown: Array<{ id: string; label: string; earned: number; max: number; detail: string }>;
         }
       | undefined;
     if (hasTradePlan) {
+      const W = { direction: 30, trend: 25, structure: 20, rr: 15, liquidation: 10 } as const;
+
       const expectedDirOk = (traderType === "long" && analysis.bias !== "short") || (traderType === "short" && analysis.bias !== "long");
       const trendOk = (traderType === "long" && trend !== "down") || (traderType === "short" && trend !== "up");
       const structureOk =
         (traderType === "long" && marketStructure !== "lower-highs/lower-lows") ||
         (traderType === "short" && marketStructure !== "higher-highs/higher-lows");
-      const rr = traderType === "long" ? (exit - entry) / Math.max(0.0000001, entry * 0.004) : (entry - exit) / Math.max(0.0000001, entry * 0.004);
+
+      const riskProxy = Math.max(entry * 0.004, markPrice * 0.003);
+      const rewardAbs =
+        traderType === "long" ? exit - entry : entry - exit;
+      const rrValid = rewardAbs > 0;
+      const rrMultiple = rrValid ? rewardAbs / Math.max(riskProxy, 1e-12) : 0;
+      const rrPts =
+        !rrValid
+          ? 0
+          : rrMultiple >= 2.5
+            ? W.rr
+            : rrMultiple >= 2
+              ? 13
+              : rrMultiple >= 1.5
+                ? 11
+                : rrMultiple >= 1
+                  ? 8
+                  : 4;
+
       const nearestRiskCluster =
         traderType === "long"
           ? analysis.clusters.filter((c) => c.side === "long_liq_below").sort((a, b) => a.distancePct - b.distancePct)[0]
@@ -403,8 +424,64 @@ export async function POST(request: Request) {
           : leverage >= 10
           ? "medium"
           : "low";
-      const base = (expectedDirOk ? 28 : 10) + (trendOk ? 22 : 8) + (structureOk ? 20 : 8) + (rr >= 1.5 ? 15 : rr >= 1 ? 10 : 5) + (liqRisk === "low" ? 15 : liqRisk === "medium" ? 8 : 2);
-      const score = Math.max(0, Math.min(100, Math.round(base)));
+      const liqPts = liqRisk === "low" ? W.liquidation : liqRisk === "medium" ? 5 : 1;
+
+      const dirPts = expectedDirOk ? W.direction : 8;
+      const trendPts = trendOk ? W.trend : 8;
+      const structPts = structureOk ? W.structure : 6;
+
+      const scoreBreakdown: Array<{ id: string; label: string; earned: number; max: number; detail: string }> = [
+        {
+          id: "direction",
+          label: "Direction vs liquidity bias",
+          earned: dirPts,
+          max: W.direction,
+          detail: expectedDirOk
+            ? `Your ${traderType} aligns with NovaStaris liquidity bias (${analysis.bias}).`
+            : `Your ${traderType} fights liquidity bias (${analysis.bias}) — fades can work but carry extra risk.`,
+        },
+        {
+          id: "trend",
+          label: "Trend & MA slope",
+          earned: trendPts,
+          max: W.trend,
+          detail: trendOk
+            ? `15m/regression read: trend ${trend} — workable for ${traderType}.`
+            : `15m/regression read: trend ${trend} — crowded against ${traderType}.`,
+        },
+        {
+          id: "structure",
+          label: "Market structure",
+          earned: structPts,
+          max: W.structure,
+          detail: structureOk
+            ? `Structure ${marketStructure} is not aggressively against ${traderType}.`
+            : `Structure ${marketStructure} argues against naive ${traderType} continuation.`,
+        },
+        {
+          id: "rr",
+          label: "Risk / reward vs proxy stop",
+          earned: rrPts,
+          max: W.rr,
+          detail: !rrValid
+            ? `Exit must be ${traderType === "long" ? "above" : "below"} entry for reward; RR score is zero until fixed.`
+            : `RR ≈ ${rrMultiple.toFixed(2)}× vs ~0.3–0.4% structural risk proxy.`,
+        },
+        {
+          id: "liquidation",
+          label: "Liquidation cushion & leverage",
+          earned: liqPts,
+          max: W.liquidation,
+          detail:
+            liqRisk === "high"
+              ? `High risk: lev ${Number.isFinite(leverage) ? leverage : 10}x or entry hugs nearest liq pocket.`
+              : liqRisk === "medium"
+              ? `Moderate: watch size; nearest cluster ${nearestRiskCluster ? `${nearestRiskCluster.distancePct.toFixed(2)}%` : "unknown"} away.`
+              : `More cushion vs nearest adverse cluster ${nearestRiskCluster ? `(${nearestRiskCluster.distancePct.toFixed(2)}%)` : ""}.`,
+        },
+      ];
+
+      const score = Math.max(0, Math.min(100, Math.round(dirPts + trendPts + structPts + rrPts + liqPts)));
       tradeCheck = {
         score,
         verdict: score >= 70 ? "good_trade" : score >= 45 ? "risky_trade" : "avoid_trade",
@@ -420,7 +497,9 @@ export async function POST(request: Request) {
         notes: [
           `Planned entry ${entry.toLocaleString(undefined, { maximumFractionDigits: 4 })}, exit ${exit.toLocaleString(undefined, { maximumFractionDigits: 4 })}, leverage ${Number.isFinite(leverage) ? leverage : 10}x.`,
           "Use a hard invalidation stop outside the nearest trap zone.",
+          `Score sums five pillars (max ${W.direction}+${W.trend}+${W.structure}+${W.rr}+${W.liquidation}=100): direction · trend · structure · RR · liquidation.`,
         ],
+        scoreBreakdown,
       };
     }
 
