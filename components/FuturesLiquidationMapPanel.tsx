@@ -73,6 +73,44 @@ function barClass(side: Cluster["side"]): string {
     : "bg-rose-500/75 dark:bg-rose-400/70";
 }
 
+/** Copies API `levels`; bands are keyed off liquidity bias — not always literal "buy to go long". */
+function tradeAreaLabels(bias: Result["bias"]) {
+  if (bias === "long") {
+    return {
+      explainer:
+        "These boxes follow the liquidity bias badge (Long above). Emerald = where the model favors building or scaling longs near long liquidation; amber = belts where fresh long risk is crowded (typically under short-liq squeeze pressure). Stop/trap captions assume a long thesis.",
+      preferBand: "Long accumulation band",
+      avoidBand: "Avoid new longs (squeeze belts)",
+      stopBand: "Long invalidation anchor",
+      trapBand: "Stop trap zone (longs)",
+      prosePrefer: "Long playbook:",
+      proseAvoid: "When not to add long:",
+    };
+  }
+  if (bias === "short") {
+    return {
+      explainer:
+        "These boxes follow the liquidity bias badge (Short above). Emerald = pullback / sell-into-short-liq zone for short setups; amber = underside long-liq area where blindly adding shorts tends to chop. Stop/trap captions assume a short thesis.",
+      preferBand: "Short entry band",
+      avoidBand: "Avoid chasing shorts lower",
+      stopBand: "Short invalidation anchor",
+      trapBand: "Stop trap zone (shorts)",
+      prosePrefer: "Short playbook:",
+      proseAvoid: "When shorts are fragile:",
+    };
+  }
+  return {
+    explainer:
+      "Liquidity bias is Neutral — emerald/amber spans are reference rails between liquidation magnets (not a clean long or short “go” zone). Pair the numbers with sweep + reclaim confirmation before committing size.",
+    preferBand: "Between magnets (neutral)",
+    avoidBand: "Mid-range chop band",
+    stopBand: "Stop anchor (often unset)",
+    trapBand: "Local trap / chop pinch",
+    prosePrefer: "Neutral context:",
+    proseAvoid: "Fade aggressive direction:",
+  };
+}
+
 export default function FuturesLiquidationMapPanel() {
   const [symbol, setSymbol] = useState("BTC");
   const [traderType, setTraderType] = useState<"long" | "short">("long");
@@ -254,31 +292,39 @@ export default function FuturesLiquidationMapPanel() {
               <CardTitle className="text-base">Trade area guidance</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
+              {(() => {
+                const t = tradeAreaLabels(result.bias);
+                return (
+              <>
+              <p className="text-xs text-muted-foreground leading-snug -mt-1 mb-2">{t.explainer}</p>
               {result.levels && (
                 <div className="grid gap-2 sm:grid-cols-2 text-xs mb-2">
                   <div className="rounded border border-emerald-300/40 dark:border-emerald-700/40 p-2">
-                    <p className="font-semibold text-emerald-600 dark:text-emerald-400">Buy range</p>
+                    <p className="font-semibold text-emerald-600 dark:text-emerald-400">{t.preferBand}</p>
                     <p>{fmtPrice(result.levels.buyMin)} - {fmtPrice(result.levels.buyMax)}</p>
                   </div>
                   <div className="rounded border border-amber-300/40 dark:border-amber-700/40 p-2">
-                    <p className="font-semibold text-amber-600 dark:text-amber-400">No-buy range</p>
+                    <p className="font-semibold text-amber-600 dark:text-amber-400">{t.avoidBand}</p>
                     <p>{fmtPrice(result.levels.noBuyMin)} - {fmtPrice(result.levels.noBuyMax)}</p>
                   </div>
                   <div className="rounded border border-cyan-300/40 dark:border-cyan-700/40 p-2">
-                    <p className="font-semibold text-cyan-600 dark:text-cyan-400">Stop level</p>
+                    <p className="font-semibold text-cyan-600 dark:text-cyan-400">{t.stopBand}</p>
                     <p>{fmtPrice(result.levels.stopLevel)}</p>
                   </div>
                   <div className="rounded border border-rose-300/40 dark:border-rose-700/40 p-2">
-                    <p className="font-semibold text-rose-600 dark:text-rose-400">No-stop / trap zone</p>
+                    <p className="font-semibold text-rose-600 dark:text-rose-400">{t.trapBand}</p>
                     <p>{fmtPrice(result.levels.noStopMin)} - {fmtPrice(result.levels.noStopMax)}</p>
                     <p className="text-[11px] text-muted-foreground mt-1">Invalidation: {fmtPrice(result.levels.invalidation)}</p>
                   </div>
                 </div>
               )}
-              <p><span className="font-semibold text-emerald-600 dark:text-emerald-400">Buy area:</span> {result.recommendations.buyArea}</p>
-              <p><span className="font-semibold text-amber-600 dark:text-amber-400">No buy area:</span> {result.recommendations.noBuyArea}</p>
-              <p><span className="font-semibold text-cyan-600 dark:text-cyan-400">Stop area:</span> {result.recommendations.stopArea}</p>
-              <p><span className="font-semibold text-rose-600 dark:text-rose-400">No stop area:</span> {result.recommendations.noStopArea}</p>
+              <p><span className="font-semibold text-emerald-600 dark:text-emerald-400">{t.prosePrefer}</span> {result.recommendations.buyArea}</p>
+              <p><span className="font-semibold text-amber-600 dark:text-amber-400">{t.proseAvoid}</span> {result.recommendations.noBuyArea}</p>
+              <p><span className="font-semibold text-cyan-600 dark:text-cyan-400">Stop discipline:</span> {result.recommendations.stopArea}</p>
+              <p><span className="font-semibold text-rose-600 dark:text-rose-400">Where not to leave stops:</span> {result.recommendations.noStopArea}</p>
+              </>
+              );
+              })()}
               <p className="text-xs text-muted-foreground mt-3">{result.recommendations.riskNote}</p>
               <p className="text-[11px] text-muted-foreground">{result.disclaimer}</p>
             </CardContent>
