@@ -44,8 +44,12 @@ export async function POST(req: Request) {
     const online = !wantTicketOnly && (presence ? Date.now() - presence.lastSeenAt.getTime() < ONLINE_MS : false);
 
     if (online) {
+      const now = new Date();
       await prisma.$transaction([
-        prisma.chatSession.update({ where: { id: sid }, data: { status: 'live', customerName: name, customerEmail: email || undefined } }),
+        prisma.chatSession.update({
+          where: { id: sid },
+          data: { status: 'live', customerName: name, customerEmail: email || undefined, liveTransferAt: now },
+        }),
         prisma.chatMessage.create({ data: { sessionId: sid, role: 'nja', content: 'Transferring you to a live agent. One moment please.' } }),
       ]);
       return NextResponse.json({ success: true, transferred: true });

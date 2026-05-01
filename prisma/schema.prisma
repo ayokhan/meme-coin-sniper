@@ -426,11 +426,14 @@ model ChatSession {
   customerName    String?
   customerEmail   String?
   supportTicketId String?
+  /// Set when customer is routed to live agent (agent online path only); used for admin alerts.
+  liveTransferAt DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   messages        ChatMessage[]
   @@index([status])
   @@index([createdAt])
+  @@index([liveTransferAt])
 }
 
 model ChatMessage {
