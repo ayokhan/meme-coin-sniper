@@ -3351,9 +3351,9 @@ export default function Dashboard() {
                 </Button>
               </div>
             ) : (
-              <>
+              <div className="pt-6 sm:pt-8 pb-1">
             {activeTab === "new" && (
-              <div className="mx-3 sm:mx-6 mt-8 sm:mt-10 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+              <div className="mx-3 sm:mx-6 mb-8 sm:mb-10 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">View:</span>
                   <div className="flex flex-wrap items-center gap-2">
@@ -3381,7 +3381,7 @@ export default function Dashboard() {
               </div>
             )}
             {activeTab === "bsc" && (
-              <div className="mx-3 sm:mx-6 mt-8 sm:mt-10 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+              <div className="mx-3 sm:mx-6 mb-8 sm:mb-10 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Go Hunting:</span>
                   <div className="flex flex-wrap items-center gap-2">
@@ -3410,7 +3410,7 @@ export default function Dashboard() {
               </div>
             )}
             {activeTab === "ct" && ctAccounts.length > 0 && (
-              <details className="mx-3 sm:mx-6 mt-4 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
+              <details className="mx-3 sm:mx-6 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
                 <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   Accounts we track ({ctAccounts.length})
                 </summary>
@@ -3431,7 +3431,7 @@ export default function Dashboard() {
               </details>
             )}
             {activeTab === "ct" && (
-              <details className="mx-3 sm:mx-6 mt-2 mb-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50" open>
+              <details className="mx-3 sm:mx-6 mb-8 sm:mb-10 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50" open>
                 <summary className="cursor-pointer px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between gap-2">
                   <span>
                     Live tweets from tracked accounts
@@ -3480,7 +3480,7 @@ export default function Dashboard() {
               </details>
             )}
             {activeTab === "surge" && (
-              <div className="mx-3 sm:mx-6 mt-4 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+              <div className="mx-3 sm:mx-6 mb-8 sm:mb-10 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4">
                 <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Volume window:</span>
                 {(["5m", "15m", "30m", "1h", "6h", "24h"] as const).map((w) => (
                   <button
@@ -3500,7 +3500,7 @@ export default function Dashboard() {
               </div>
             )}
             {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-ultimate" && tokensForDisplay.length === 0 ? (
-              <div className="px-4 py-4">
+              <div className="mx-3 sm:mx-6 overflow-x-auto px-2 py-8 sm:py-10">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
@@ -6120,14 +6120,14 @@ export default function Dashboard() {
                   </div>
                 </div>
                 ) : (
-                <div className="mx-3 sm:mx-6 mt-4 mb-3">
+                <div className="mx-3 sm:mx-6 mb-6 sm:mb-8">
                   <p className="text-sm text-muted-foreground mb-3">Blofin futures bot: configure symbol, leverage, TP/SL; run demo or live. VIP + On demand.</p>
                   <TradingBotPanel mode="futures-only" />
                 </div>
                 );
               })()
             ) : activeTab === "polymarket-bot" ? (
-              <div className="mx-3 sm:mx-6 mt-4 mb-3">
+              <div className="mx-3 sm:mx-6 mb-6 sm:mb-8">
                 <TradingBotPanel mode="polymarket-only" />
               </div>
             ) : activeTab === "prop-firm-bot" ? (
@@ -6136,7 +6136,7 @@ export default function Dashboard() {
                 const canAccessPropFirm = isOwner || (isVip && propFirmOnDemand);
                 if (canAccessPropFirm) {
                   return (
-                    <div className="mx-3 sm:mx-6 mt-4 mb-3">
+                    <div className="mx-3 sm:mx-6 mb-6 sm:mb-8">
                       <p className="text-sm text-muted-foreground mb-3">
                         <Flame className="inline-block h-4 w-4 mr-1 flame-hot-tab -mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden />
                         Nova Prop Firm Bot: discipline and rule guardrails for prop-style challenges. VIP on demand.
@@ -6191,7 +6191,7 @@ export default function Dashboard() {
                 const canAccessNovaUltimate = isOwner || (isVip && novaUltimateOnDemand);
                 if (canAccessNovaUltimate) {
                   return (
-                    <div className="mx-3 sm:mx-6 mt-4 mb-3">
+                    <div className="mx-3 sm:mx-6 mb-6 sm:mb-8">
                       <p className="text-sm text-muted-foreground mb-3">
                         <Flame className="inline-block h-4 w-4 mr-1 flame-hot-tab -mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden />
                         Nova Ultimate: Jupiter-powered live snipes with Phantom, copy-trade prefs, and a Phantom Perps playbook. VIP on demand.
@@ -7891,7 +7891,7 @@ export default function Dashboard() {
                   <p className="mt-2">Star tokens from Go Hunting, Trending, BSC, or other tabs to see them here.</p>
                 </div>
               ) : (
-                <div className="px-4 py-4 overflow-x-auto">
+                <div className="mx-3 sm:mx-6 overflow-x-auto pb-8 sm:pb-10 [&_table]:w-full [&_table]:min-w-[520px]">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
@@ -7973,6 +7973,7 @@ export default function Dashboard() {
                 </div>
               </div>
             ) : activeTab === "transactions" ? (
+              <div className="mx-3 sm:mx-6 overflow-x-auto pb-8 sm:pb-10 [&_table]:w-full [&_table]:min-w-[620px]">
               <Table>
                 <TableHeader>
                   <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
@@ -8011,7 +8012,9 @@ export default function Dashboard() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
+              <div className="mx-3 sm:mx-6 overflow-x-auto pb-8 sm:pb-10 [&_table]:w-full [&_table]:min-w-[720px]">
               <Table>
                 <TableHeader>
                   <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
@@ -8159,8 +8162,9 @@ export default function Dashboard() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
