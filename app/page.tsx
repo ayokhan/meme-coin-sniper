@@ -21,6 +21,7 @@ import { Zap, Copy, Send, Star, Flame, ChevronDown, Menu, X } from "lucide-react
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import NovaEaglePanel from "@/components/NovaEaglePanel";
 import CryptoBuddiePanel from "@/components/CryptoBuddiePanel";
+import FuturesLiquidationMapPanel from "@/components/FuturesLiquidationMapPanel";
 import NovaMemeIntelligencePanel from "@/components/NovaMemeIntelligencePanel";
 import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
@@ -703,10 +704,11 @@ export default function Dashboard() {
   } | null>(null);
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
-  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps">("ai");
+  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map">("ai");
   const [vipFuturesAddons, setVipFuturesAddons] = useState<{
     novaEagle: boolean;
     cryptoBuddie: boolean;
+    novaLiquidationMap: boolean;
     novaFuturesNarratives: boolean;
     novaMemeIntelligence: boolean;
   } | null>(null);
@@ -721,6 +723,7 @@ export default function Dashboard() {
         setVipFuturesAddons({
           novaEagle: !!d.novaEagle,
           cryptoBuddie: !!d.cryptoBuddie,
+          novaLiquidationMap: !!d.novaLiquidationMap,
           novaFuturesNarratives: !!d.novaFuturesNarratives,
           novaMemeIntelligence: !!d.novaMemeIntelligence,
         });
@@ -730,6 +733,7 @@ export default function Dashboard() {
           setVipFuturesAddons({
             novaEagle: false,
             cryptoBuddie: false,
+            novaLiquidationMap: false,
             novaFuturesNarratives: false,
             novaMemeIntelligence: false,
           });
@@ -768,6 +772,13 @@ export default function Dashboard() {
       setWalletTrackerView("leverage");
     }
   }, [walletTrackerView, showNovaPerpWalletAnalyst]);
+
+  useEffect(() => {
+    const canUseLiquidationMap = (isVip || isOwner) && !!vipFuturesAddons?.novaLiquidationMap;
+    if (futuresView === "liquidation-map" && !canUseLiquidationMap) {
+      setFuturesView("ai");
+    }
+  }, [futuresView, isVip, isOwner, vipFuturesAddons]);
 
   type NovaCryptoNarrativesHeadline = { title: string; link: string; pubDate?: string };
   type NovaCryptoNarrativesCot = {
@@ -4498,6 +4509,16 @@ export default function Dashboard() {
                   >
                     Hot New Perps
                   </Button>
+                  {(isVip || isOwner) && !!vipFuturesAddons?.novaLiquidationMap && (
+                    <Button
+                      variant={futuresView === "liquidation-map" ? "default" : "outline"}
+                      size="sm"
+                      className={futuresView === "liquidation-map" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
+                      onClick={() => setFuturesView("liquidation-map")}
+                    >
+                      Liquidation Map
+                    </Button>
+                  )}
                 </div>
                 {futuresView === "workflow" ? (
                   <FuturesWorkflow />
@@ -4838,6 +4859,8 @@ export default function Dashboard() {
                       </div>
                     )}
                   </div>
+                ) : futuresView === "liquidation-map" ? (
+                  <FuturesLiquidationMapPanel />
                 ) : (
                 <div className="max-w-2xl">
                 <h2 className="text-xl sm:text-2xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">

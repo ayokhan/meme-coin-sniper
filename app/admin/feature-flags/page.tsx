@@ -168,6 +168,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users see the Crypto Buddie subtab: ranked perps for short-horizon style reads plus optional Sol/BSC AI monitor polling. Default OFF until you enable it.",
   },
+  nova_liquidation_map: {
+    label: "Liquidation Map (Crypto Futures)",
+    description:
+      "When ON, VIP users see the Liquidation Map subtab under Crypto Futures (symbol search for BTC/ETH/SOL/XAU-style contracts, liquidity zones, stop/liquidation clusters, and AI trade area guidance). Default OFF until you enable it.",
+  },
   nova_futures_narratives: {
     label: "Nova Futures Narratives",
     description:
