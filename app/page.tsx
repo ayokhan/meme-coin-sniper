@@ -2894,7 +2894,7 @@ export default function Dashboard() {
               </Button>
             )}
             {status === "authenticated" && isPaid && (
-              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">{tier === "vip" ? "VIP" : "Pro"}</span>
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">{isCoachUser && !isOwner ? "Coach" : tier === "vip" ? "VIP" : "Pro"}</span>
             )}
             {status === "authenticated" && isOwner && (
               <>
@@ -3027,7 +3027,7 @@ export default function Dashboard() {
                 </Button>
               )}
               {status === "authenticated" && isPaid && (
-                <div className="py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">{tier === "vip" ? "VIP" : "Pro"}</div>
+                <div className="py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">{isCoachUser && !isOwner ? "Coach" : tier === "vip" ? "VIP" : "Pro"}</div>
               )}
               {status === "authenticated" && isOwner && (
                 <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">

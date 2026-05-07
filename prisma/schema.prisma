@@ -510,6 +510,7 @@ model NovaConnectReport {
 model CoachCall {
   id        String   @id @default(cuid())
   title     String?  // optional short title
+  authorLabel String? // e.g. "Coach Zaza"
   content   String   // CA details, contract address, notes, etc.
   createdAt DateTime @default(now())
   @@index([createdAt])

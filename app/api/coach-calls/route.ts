@@ -21,6 +21,7 @@ export async function GET() {
       calls: calls.map((c) => ({
         id: c.id,
         title: c.title,
+        authorLabel: c.authorLabel ?? null,
         content: c.content,
         createdAt: c.createdAt,
       })),
@@ -42,20 +43,25 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const title = typeof body.title === 'string' ? body.title.trim() : null;
     const content = typeof body.content === 'string' ? body.content.trim() : '';
+    const coachDisplayNameRaw =
+      session?.user?.name?.trim() ||
+      session?.user?.email?.split("@")[0]?.trim() ||
+      "User";
+    const authorLabel = isCoachUser ? `Coach ${coachDisplayNameRaw}` : null;
     if (!content) {
       return NextResponse.json({ success: false, error: 'Content is required.' }, { status: 400 });
     }
     const call = await prisma.coachCall.create({
-      data: { title: title || undefined, content },
+      data: { title: title || undefined, authorLabel: authorLabel ?? undefined, content },
     });
     const dateStr = new Date(call.createdAt).toLocaleString();
     const safeTitle = title ? escapeHtml(title) : '';
     const safeContent = escapeHtml(content);
-    const telegramText = `📢 <b>Coach Call</b>\n${safeTitle ? `📌 ${safeTitle}\n` : ''}${safeContent}\n\n🕐 <em>${escapeHtml(dateStr)}</em>`;
+    const telegramText = `📢 <b>Coach Call</b>\n${authorLabel ? `👤 <b>${escapeHtml(authorLabel)}</b>\n` : ""}${safeTitle ? `📌 ${safeTitle}\n` : ''}${safeContent}\n\n🕐 <em>${escapeHtml(dateStr)}</em>`;
     await sendTelegramMessage(telegramText);
     return NextResponse.json({
       success: true,
-      call: { id: call.id, title: call.title, content: call.content, createdAt: call.createdAt },
+      call: { id: call.id, title: call.title, authorLabel: call.authorLabel, content: call.content, createdAt: call.createdAt },
     });
   } catch (e) {
     console.error('Coach call create error:', e);

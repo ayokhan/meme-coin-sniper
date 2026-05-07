@@ -2,6 +2,7 @@ declare module '@prisma/client' {
   export interface CoachCallRow {
     id: string;
     title: string | null;
+    authorLabel: string | null;
     content: string;
     createdAt: Date;
   }
@@ -78,7 +79,7 @@ declare module '@prisma/client' {
     };
     coachCall: {
       findMany: (args?: { orderBy?: unknown }) => Promise<CoachCallRow[]>;
-      create: (args: { data: { title?: string; content: string } }) => Promise<{ id: string; title: string | null; content: string; createdAt: Date }>;
+      create: (args: { data: { title?: string; authorLabel?: string; content: string } }) => Promise<{ id: string; title: string | null; authorLabel: string | null; content: string; createdAt: Date }>;
       delete: (args: { where: { id: string } }) => Promise<unknown>;
     };
     userTelegram: {

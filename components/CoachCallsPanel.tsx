@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Trash2, MessageSquare, Shield, Copy, Check } from "lucide-react";
 
-type CoachCallItem = { id: string; title: string | null; content: string; createdAt: string };
+type CoachCallItem = { id: string; title: string | null; authorLabel: string | null; content: string; createdAt: string };
 type TelegramRow = { userId: string; telegramId: string; email: string | null; name: string | null; createdAt: string };
 
 type CoachSubTab = "calls" | "admin";
@@ -187,6 +187,9 @@ export default function CoachCallsPanel({
                   <p className="text-xs font-medium text-muted-foreground">
                     {new Date(c.createdAt).toLocaleString()}
                   </p>
+                  {c.authorLabel && (
+                    <p className="text-[11px] text-cyan-700 dark:text-cyan-300 font-medium mt-0.5">{c.authorLabel}</p>
+                  )}
                   {(c.title?.trim() || c.content.trim()) && (
                     <button
                       type="button"
