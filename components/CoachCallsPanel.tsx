@@ -13,9 +13,11 @@ type CoachSubTab = "calls" | "admin";
 
 export default function CoachCallsPanel({
   isOwner,
+  isCoachUser,
   isVip,
 }: {
   isOwner: boolean;
+  isCoachUser: boolean;
   isVip: boolean;
 }) {
   const [calls, setCalls] = useState<CoachCallItem[]>([]);
@@ -30,6 +32,7 @@ export default function CoachCallsPanel({
   const [ownerSubTab, setOwnerSubTab] = useState<CoachSubTab>("calls");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedTitleId, setCopiedTitleId] = useState<string | null>(null);
+  const canManageCoachCalls = isOwner || isCoachUser;
 
   const loadCalls = () => {
     fetch("/api/coach-calls")
@@ -363,7 +366,7 @@ export default function CoachCallsPanel({
     </div>
   );
 
-  if (isOwner) {
+  if (canManageCoachCalls) {
     return (
       <div className="mx-6 py-4">
         <Tabs value={ownerSubTab} onValueChange={(v) => setOwnerSubTab(v as CoachSubTab)} className="space-y-4">
@@ -373,7 +376,7 @@ export default function CoachCallsPanel({
             </TabsTrigger>
             <TabsTrigger value="admin" className="rounded-md data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600 flex items-center gap-1.5">
               <Shield className="h-3.5 w-3.5" />
-              Admin
+              {isOwner ? "Admin" : "Coach"}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="calls" className="mt-4 space-y-6">

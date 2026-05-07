@@ -31,11 +31,12 @@ export async function GET() {
   }
 }
 
-/** POST - Create coach call (owner only). Sends Telegram notification if configured. */
+/** POST - Create coach call (owner or coach user). Sends Telegram notification if configured. */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!isOwnerSession(session)) {
+    const isCoachUser = !!(session?.user as { isCoachUser?: boolean } | undefined)?.isCoachUser;
+    if (!isOwnerSession(session) && !isCoachUser) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
     const body = await req.json().catch(() => ({}));

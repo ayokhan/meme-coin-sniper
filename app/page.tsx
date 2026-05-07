@@ -226,8 +226,9 @@ export default function Dashboard() {
   const [subscriptionPaid, setSubscriptionPaid] = useState<boolean | null>(null);
   const [subscriptionTier, setSubscriptionTier] = useState<"pro" | "vip" | null>(null);
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
-  const isPaid = isOwner || (subscriptionPaid !== null ? subscriptionPaid : sessionPaid);
-  const tier = isOwner ? "vip" : (subscriptionTier !== null ? subscriptionTier : sessionTier);
+  const isCoachUser = (session?.user as { isCoachUser?: boolean } | undefined)?.isCoachUser ?? false;
+  const isPaid = isOwner || isCoachUser || (subscriptionPaid !== null ? subscriptionPaid : sessionPaid);
+  const tier = (isOwner || isCoachUser) ? "vip" : (subscriptionTier !== null ? subscriptionTier : sessionTier);
   const isVip = tier === "vip";
   const novaConnectAllowedByAdmin = (session?.user as { novaConnectAllowedByAdmin?: boolean } | undefined)?.novaConnectAllowedByAdmin ?? false;
   const canUseNovaConnectPaidFeatures = isPaid || isOwner || novaConnectAllowedByAdmin;
@@ -3730,7 +3731,7 @@ export default function Dashboard() {
                         <li key={i}>{r}</li>
                       ))}
                     </ul>
-                    {isOwner && (
+                    {(isOwner || isCoachUser) && (
                       <div className="mt-4 flex flex-wrap gap-2 items-center">
                         <Button
                           type="button"
@@ -5031,7 +5032,7 @@ export default function Dashboard() {
                         <li key={i}>{r}</li>
                       ))}
                     </ul>
-                    {isOwner && (
+                    {(isOwner || isCoachUser) && (
                       <div className="mt-4 space-y-3 pt-3 border-t border-zinc-200 dark:border-zinc-600">
                         <div className="flex flex-wrap gap-2 items-center">
                           <Button
@@ -7253,7 +7254,7 @@ export default function Dashboard() {
             ) : activeTab === "nova-investment" ? (
               <NovaInvestmentAgentPanel isOwner={isOwner} />
             ) : activeTab === "coach-calls" ? (
-              <CoachCallsPanel isOwner={isOwner} isVip={isVip} />
+              <CoachCallsPanel isOwner={isOwner} isCoachUser={isCoachUser} isVip={isVip} />
             ) : activeTab === "wallets" ? (
               <div className="px-3 sm:px-6 pt-2 space-y-6">
                 <Tabs value={walletTrackerView} onValueChange={(v) => setWalletTrackerView(v as WalletTrackerView)} className="space-y-4">

@@ -15,6 +15,7 @@ export const maxDuration = 30;
 
 /** Default top alt symbols for NovaForecast (VIP). */
 const DEFAULT_SYMBOLS = ["BTC", "ETH", "SOL", "ZEC", "NEO", "DOGE", "AVAX", "LINK", "MATIC", "DOT", "ATOM", "UNI", "XRP", "ADA", "LTC", "BCH", "ETC", "APT", "ARB", "OP"];
+const SYMBOL_ALIASES: Record<string, string> = { XAU: "PAXG", GOLD: "PAXG" };
 
 /** Time range options: interval for candles + number of bars. Default 2w. */
 export const FORECAST_RANGES = [
@@ -76,8 +77,9 @@ export async function GET(request: Request) {
 
     const forecasts: NovaForecastItem[] = [];
 
-    for (const symbol of toFetch) {
+    for (const requestedSymbol of toFetch) {
       try {
+        const symbol = SYMBOL_ALIASES[requestedSymbol] ?? requestedSymbol;
         const [candles, ticker] = await Promise.all([
           getCandles(symbol, interval, candleLimit),
           getTicker(symbol),
@@ -115,8 +117,11 @@ export async function GET(request: Request) {
           insight = `Short entry at ${rangeLabel} high; long entry at ${rangeLabel} low.`;
         }
         insight += ` Structure ${structureDirection}, trendline ${trendlineBias}, blended ${blendedDirection}.`;
+        if (requestedSymbol !== symbol) {
+          insight += ` Mapped ${requestedSymbol} to ${symbol} on Hyperliquid.`;
+        }
         forecasts.push({
-          symbol,
+          symbol: requestedSymbol,
           high,
           low,
           shortEntry,
@@ -129,7 +134,7 @@ export async function GET(request: Request) {
         });
       } catch {
         forecasts.push({
-          symbol,
+          symbol: requestedSymbol,
           high: 0,
           low: 0,
           shortEntry: 0,

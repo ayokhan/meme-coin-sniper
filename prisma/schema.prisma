@@ -117,6 +117,8 @@ model User {
   novaConnectCommunityRep    Boolean  @default(false)
   /** Set by admin: allow NovaConnect (online list, DMs) even if not Pro/VIP. */
   novaConnectAllowedByAdmin  Boolean  @default(false)
+  /** Set by owner/admin: coach user gets VIP-level app access + can publish coach calls (not admin pages). */
+  coachUser                  Boolean  @default(false)
   /** When user accepted Payment Terms and Conditions (required before any subscription payment). */
   paymentTermsAcceptedAt     DateTime?
   createdAt     DateTime  @default(now())

@@ -34,6 +34,7 @@ export async function PATCH(
     const novaConnectEnabled = body.novaConnectEnabled;
     const novaConnectCommunityRep = body.novaConnectCommunityRep;
     const novaConnectAllowedByAdmin = body.novaConnectAllowedByAdmin;
+    const coachUser = body.coachUser;
     const rulesAccepted = body.rulesAccepted;
     const updates: {
       tradingBotOnDemand?: boolean;
@@ -48,6 +49,7 @@ export async function PATCH(
       novaConnectEnabled?: boolean;
       novaConnectCommunityRep?: boolean;
       novaConnectAllowedByAdmin?: boolean;
+      coachUser?: boolean;
       novaConnectRulesAcceptedAt?: Date | null;
     } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
@@ -66,13 +68,14 @@ export async function PATCH(
     if (typeof novaConnectEnabled === 'boolean') updates.novaConnectEnabled = novaConnectEnabled;
     if (typeof novaConnectCommunityRep === 'boolean') updates.novaConnectCommunityRep = novaConnectCommunityRep;
     if (typeof novaConnectAllowedByAdmin === 'boolean') updates.novaConnectAllowedByAdmin = novaConnectAllowedByAdmin;
+    if (typeof coachUser === 'boolean') updates.coachUser = coachUser;
     if (typeof rulesAccepted === 'boolean') {
       updates.novaConnectRulesAcceptedAt = rulesAccepted ? new Date() : null;
     }
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, rulesAccepted (boolean).',
+        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, rulesAccepted (boolean).',
       }, { status: 400 });
     }
     await (prisma as any).user.update({

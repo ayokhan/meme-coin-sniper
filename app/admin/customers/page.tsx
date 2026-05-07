@@ -33,6 +33,7 @@ type Customer = {
   novaConnectEnabled: boolean;
   novaConnectCommunityRep: boolean;
   novaConnectAllowedByAdmin: boolean;
+  coachUser: boolean;
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
   createdAt: string;
@@ -65,11 +66,12 @@ export default function AdminCustomersPage() {
   const [togglingNovaConnectId, setTogglingNovaConnectId] = useState<string | null>(null);
   const [togglingCommunityRepId, setTogglingCommunityRepId] = useState<string | null>(null);
   const [togglingAllowedByAdminId, setTogglingAllowedByAdminId] = useState<string | null>(null);
+  const [togglingCoachUserId, setTogglingCoachUserId] = useState<string | null>(null);
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const [paymentsExpandedId, setPaymentsExpandedId] = useState<string | null>(null);
   const customersTableScrollRef = useRef<HTMLDivElement>(null);
-  const TABLE_COL_COUNT = 22;
+  const TABLE_COL_COUNT = 23;
 
   const formatExpiryLabel = (expiresAt: string | null, subscriptionExpiresAt: string | null) => {
     if (!expiresAt) return "No custom expiry set";
@@ -469,6 +471,28 @@ export default function AdminCustomersPage() {
     }
   };
 
+  const handleCoachUserToggle = async (id: string, value: boolean) => {
+    setTogglingCoachUserId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coachUser: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Coach user enabled: VIP access + coach call publishing." : "Coach user removed.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update coach user");
+    } catch {
+      setError("Failed to update coach user");
+    } finally {
+      setTogglingCoachUserId(null);
+    }
+  };
+
   const handleAcceptRules = async (id: string, value: boolean) => {
     setAcceptingRulesId(id);
     setError("");
@@ -694,6 +718,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold">Email digest</th>
                       <th className="pb-2 pr-4 font-semibold">NovaConnect</th>
                       <th className="pb-2 pr-4 font-semibold">Allow NovaConnect</th>
+                      <th className="pb-2 pr-4 font-semibold">Coach user</th>
                       <th className="pb-2 pr-4 font-semibold">Rules accepted</th>
                       <th className="pb-2 pr-4 font-semibold">Payment terms</th>
                       <th className="pb-2 pr-4 font-semibold">Payments</th>
@@ -858,6 +883,17 @@ export default function AdminCustomersPage() {
                             title="Allow online list & DMs even if not Pro/VIP"
                           >
                             {togglingAllowedByAdminId === c.id ? "…" : c.novaConnectAllowedByAdmin ? "On" : "Off"}
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => handleCoachUserToggle(c.id, !c.coachUser)}
+                            disabled={togglingCoachUserId === c.id}
+                            className={`text-xs font-medium px-2 py-1 rounded ${c.coachUser ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"} disabled:opacity-50`}
+                            title="Coach user gets VIP access and can publish Coach Calls (no admin access)"
+                          >
+                            {togglingCoachUserId === c.id ? "…" : c.coachUser ? "On" : "Off"}
                           </button>
                         </td>
                         <td className="py-2 pr-4">

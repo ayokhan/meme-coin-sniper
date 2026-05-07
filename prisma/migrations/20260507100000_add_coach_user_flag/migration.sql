@@ -1,0 +1,2 @@
+ALTER TABLE "User"
+ADD COLUMN "coachUser" BOOLEAN NOT NULL DEFAULT false;
