@@ -122,6 +122,8 @@ export default function MemeLeaderboardPanel({
   const [discovering, setDiscovering] = useState(false);
   const [discoveryMsg, setDiscoveryMsg] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<DiscoveryCandidate[]>([]);
+  const [addedCandidates, setAddedCandidates] = useState<Set<string>>(new Set());
+  const [candidateErrors, setCandidateErrors] = useState<Record<string, string>>({});
   const [pairsScanned, setPairsScanned] = useState(0);
   const [addingWallet, setAddingWallet] = useState<string | null>(null);
 
@@ -199,6 +201,15 @@ export default function MemeLeaderboardPanel({
   useEffect(() => {
     if (!disabled && !locked) void fetchMyWallets();
   }, [disabled, locked, fetchMyWallets]);
+
+  useEffect(() => {
+    if (myWallets.length === 0) return;
+    setAddedCandidates((prev) => {
+      const next = new Set(prev);
+      for (const w of myWallets) next.add(w.address);
+      return next;
+    });
+  }, [myWallets]);
 
   const analyzerPeriod: AnalyzerPeriod = period;
 
@@ -420,27 +431,59 @@ export default function MemeLeaderboardPanel({
 
   const onAddCandidate = useCallback(async (wallet: string, label: string) => {
     setAddingWallet(wallet);
+    setCandidateErrors((prev) => {
+      const next = { ...prev };
+      delete next[wallet];
+      return next;
+    });
     try {
-      const res = await fetch(`/api/admin/wallet-tracker/wallets`, {
+      const res = await fetch(`/api/wallet-tracker/meme-leaderboard/my-wallets`, {
         method: "POST",
         credentials: "include",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet, label }),
+        body: JSON.stringify({ address: wallet, nickname: label, chain: "solana" }),
       });
-      const data = (await res.json()) as { success?: boolean; error?: string };
+      const data = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        duplicate?: boolean;
+        wallets?: MyWallet[];
+      };
       if (data.success) {
-        // Remove from candidates list and let user know.
-        setCandidates((prev) => prev.filter((c) => c.walletAddress !== wallet));
+        setAddedCandidates((prev) => {
+          const next = new Set(prev);
+          next.add(wallet);
+          return next;
+        });
+        if (data.wallets) setMyWallets(data.wallets);
+        // Refresh leaderboard so the new wallet shows up tagged "Mine".
+        void fetchData(period);
+      } else if (data.duplicate) {
+        setAddedCandidates((prev) => {
+          const next = new Set(prev);
+          next.add(wallet);
+          return next;
+        });
+        setCandidateErrors((prev) => ({
+          ...prev,
+          [wallet]: data.error ?? "Wallet already added.",
+        }));
       } else {
-        setDiscoveryMsg(data.error ?? "Failed to add wallet.");
+        setCandidateErrors((prev) => ({
+          ...prev,
+          [wallet]: data.error ?? "Failed to add wallet.",
+        }));
       }
     } catch (err) {
-      setDiscoveryMsg(err instanceof Error ? err.message : "Failed to add wallet.");
+      setCandidateErrors((prev) => ({
+        ...prev,
+        [wallet]: err instanceof Error ? err.message : "Failed to add wallet.",
+      }));
     } finally {
       setAddingWallet(null);
     }
-  }, []);
+  }, [fetchData, period]);
 
   const totals = useMemo(() => {
     if (rows.length === 0) return null;
@@ -876,11 +919,11 @@ export default function MemeLeaderboardPanel({
           {discoverOpen && (
             <CardContent className="space-y-3 text-sm">
               <p className="text-xs text-muted-foreground">
-                Pulls top trending Solana meme pairs from Dexscreener (default ~25 pairs), then surfaces every wallet
-                that appears as a top holder of one or more of those tokens via the Helius free RPC. Wallets that
-                appear in 2+ trending memes are marked <span className="font-medium text-violet-600 dark:text-violet-300">high-confidence</span>
-                overlap. Already-tracked wallets and known program addresses are excluded. Click
-                {" "}<span className="font-medium">Add</span> to start tracking a candidate.
+                Surfaces wallets that appear as top holders of one or more trending Solana meme tokens.
+                Wallets seen across 2+ trending memes are marked
+                {" "}<span className="font-medium text-violet-600 dark:text-violet-300">high confidence</span>.
+                Click <span className="font-medium">Add</span> to track a candidate, or
+                {" "}<span className="font-medium">Analyze</span> to inspect its PnL and holdings.
               </p>
               {discoveryMsg && (
                 <div className="rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50/60 dark:bg-violet-900/20 px-3 py-2 text-xs text-violet-700 dark:text-violet-200">
@@ -905,17 +948,42 @@ export default function MemeLeaderboardPanel({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {candidates.map((c) => (
+                      {candidates.map((c) => {
+                        const isAdded = addedCandidates.has(c.walletAddress);
+                        const rowError = candidateErrors[c.walletAddress];
+                        return (
                         <TableRow key={c.walletAddress}>
                           <TableCell>
-                            <a
-                              href={`https://solscan.io/account/${c.walletAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono text-xs"
-                            >
-                              {shortenWallet(c.walletAddress)}
-                            </a>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <a
+                                href={`https://solscan.io/account/${c.walletAddress}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono text-xs"
+                              >
+                                {shortenWallet(c.walletAddress)}
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => void copyAddress(`cand-${c.walletAddress}`, c.walletAddress)}
+                                title="Copy wallet address"
+                                className="opacity-70 hover:opacity-100"
+                              >
+                                {copiedKey === `cand-${c.walletAddress}` ? (
+                                  <Check className="h-3 w-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                              {isAdded && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                  Tracked
+                                </span>
+                              )}
+                            </div>
+                            {rowError && (
+                              <p className="text-[10px] mt-0.5 text-amber-700 dark:text-amber-300">{rowError}</p>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="inline-flex items-center gap-1.5">
@@ -944,24 +1012,49 @@ export default function MemeLeaderboardPanel({
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                onAddCandidate(
-                                  c.walletAddress,
-                                  `Discovered ${c.mints[0]?.symbol ?? "meme"} x${c.appearances}`,
-                                )
-                              }
-                              disabled={addingWallet === c.walletAddress}
-                            >
-                              <Plus className="h-3.5 w-3.5 mr-1" />
-                              {addingWallet === c.walletAddress ? "Adding…" : "Add"}
-                            </Button>
+                            <div className="inline-flex items-center gap-1.5 flex-wrap justify-end">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7"
+                                onClick={() => triggerAnalyzeRow(c.walletAddress)}
+                                title="Open Wallet Analyzer for this wallet"
+                              >
+                                <Wand2 className="h-3 w-3 mr-1" />
+                                Analyze
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={isAdded ? "secondary" : "outline"}
+                                className="h-7"
+                                onClick={() =>
+                                  onAddCandidate(
+                                    c.walletAddress,
+                                    `Discovered ${c.mints[0]?.symbol ?? "meme"} x${c.appearances}`,
+                                  )
+                                }
+                                disabled={addingWallet === c.walletAddress || isAdded}
+                                title={isAdded ? "Already in your tracked wallets" : "Add to my tracker"}
+                              >
+                                {isAdded ? (
+                                  <>
+                                    <Check className="h-3 w-3 mr-1" />
+                                    Added
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="h-3.5 w-3.5 mr-1" />
+                                    {addingWallet === c.walletAddress ? "Adding…" : "Add"}
+                                  </>
+                                )}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

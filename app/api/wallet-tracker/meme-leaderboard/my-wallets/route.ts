@@ -57,6 +57,22 @@ export async function POST(request: Request) {
     const chain = (body.chain === "bsc" ? "bsc" : "solana") as string;
     if (!address) return NextResponse.json({ success: false, error: "Wallet address is required." }, { status: 400 });
 
+    const existing = (await (prisma as unknown as {
+      userMemeCoinWallet: { findUnique: (args: unknown) => Promise<UserMemeWallet | null> };
+    }).userMemeCoinWallet.findUnique({
+      where: { userId_address: { userId: access.userId, address } },
+    })) as UserMemeWallet | null;
+    if (existing) {
+      return NextResponse.json(
+        {
+          success: false,
+          duplicate: true,
+          error: `Wallet already added${existing.label ? ` as "${existing.label}"` : ""}.`,
+        },
+        { status: 409 },
+      );
+    }
+
     const count = (await (prisma as unknown as {
       userMemeCoinWallet: { count: (args: unknown) => Promise<number> };
     }).userMemeCoinWallet.count({ where: { userId: access.userId } })) as number;
@@ -68,11 +84,9 @@ export async function POST(request: Request) {
     }
 
     await (prisma as unknown as {
-      userMemeCoinWallet: { upsert: (args: unknown) => Promise<unknown> };
-    }).userMemeCoinWallet.upsert({
-      where: { userId_address: { userId: access.userId, address } },
-      create: { userId: access.userId, address, label: nickname, chain },
-      update: { label: nickname, chain },
+      userMemeCoinWallet: { create: (args: unknown) => Promise<unknown> };
+    }).userMemeCoinWallet.create({
+      data: { userId: access.userId, address, label: nickname, chain },
     });
 
     const list = (await (prisma as unknown as {
