@@ -74,6 +74,50 @@ async function helRpc<T>(method: string, params: unknown[]): Promise<T | null> {
   }
 }
 
+/**
+ * Get the number of non-zero-balance holder accounts for a Solana mint via Helius DAS
+ * `getTokenAccounts`. Free tier supports this. Returns null if Helius is unavailable.
+ *
+ * NOTE: DAS expects `params` as a single object (not an array), so we bypass the standard
+ * `helRpc` helper here.
+ */
+async function getSolanaHolderCount(mint: string): Promise<number | null> {
+  if (!HELIUS_RPC) return null;
+  type Resp = { total?: number; token_accounts?: unknown[]; cursor?: string };
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const res = await fetch(HELIUS_RPC, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "getTokenAccounts",
+          method: "getTokenAccounts",
+          params: {
+            mint,
+            limit: 1,
+            options: { showZeroBalance: false },
+          },
+        }),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { result?: Resp; error?: { message?: string } };
+      if (data.error || !data.result) return null;
+      const total = data.result.total;
+      if (typeof total === "number" && Number.isFinite(total) && total >= 0) return total;
+      return null;
+    } finally {
+      clearTimeout(t);
+    }
+  } catch {
+    return null;
+  }
+}
+
 async function getSolanaTopHolders(mint: string, take = 20): Promise<Array<{ tokenAccount: string; owner: string; balance: number; percent: number }>> {
   const res = await helRpc<{
     value?: Array<{ address: string; amount?: string; decimals?: number; uiAmount?: number }>;
@@ -370,9 +414,16 @@ export async function runDeepMemeAnalysis(
     if (!pair && !sec) {
       return { ok: false, error: "Could not resolve token on Solana via Dexscreener or GoPlus.", status: 404 };
     }
-    const heliusHolders = HELIUS_RPC ? await getSolanaTopHolders(normalized, 20) : [];
-    sources.helius = heliusHolders.length > 0;
+    const [heliusHolders, heliusHolderCountRaw] = HELIUS_RPC
+      ? await Promise.all([getSolanaTopHolders(normalized, 20), getSolanaHolderCount(normalized)])
+      : [[] as Awaited<ReturnType<typeof getSolanaTopHolders>>, null as number | null];
+    sources.helius = heliusHolders.length > 0 || heliusHolderCountRaw != null;
     if (!sources.helius) notes.push("Helius RPC unavailable — using GoPlus holder snapshot only.");
+
+    // GoPlus on Solana only returns a tiny snapshot of top accounts; their `holder_count` is unreliable
+    // (often equals the array length). Prefer Helius DAS getTokenAccounts.total which is the real
+    // count of non-zero-balance token accounts for the mint.
+    const resolvedHolderCount: number | null = heliusHolderCountRaw ?? sec?.holderCount ?? null;
 
     const pairAddresses = new Set<string>();
     if (pair?.pairAddress) pairAddresses.add(pair.pairAddress);
@@ -441,9 +492,13 @@ export async function runDeepMemeAnalysis(
     else if (sec?.mintAuthority) flags.push({ key: "mint_active", label: "Mint authority active (more supply can be minted)", level: "warn" });
     if (sec?.freezeAuthorityRevoked) flags.push({ key: "freeze_revoked", label: "Freeze authority revoked", level: "good" });
     else if (sec?.freezeAuthority) flags.push({ key: "freeze_active", label: "Freeze authority active (holders can be frozen)", level: "bad" });
-    if (sec?.holders && sec.holders.length > 0) flags.push({ key: "goplus_holders", label: `GoPlus reported ${sec.holders.length} top holders`, level: "info" });
+    if (heliusHolderCountRaw != null) {
+      flags.push({ key: "helius_holders", label: `On-chain holders: ${heliusHolderCountRaw.toLocaleString()} (non-zero balance)`, level: "info" });
+    } else if (sec?.holders && sec.holders.length > 0) {
+      flags.push({ key: "goplus_holders", label: `GoPlus snapshot: ${sec.holders.length} top holders`, level: "info" });
+    }
 
-    const isRugLikely = (sec?.freezeAuthority != null) || (sec?.mintAuthority != null && (sec.holderCount ?? 0) < 50);
+    const isRugLikely = (sec?.freezeAuthority != null) || (sec?.mintAuthority != null && (resolvedHolderCount ?? 0) < 50);
     const isHoneypotLikely = false; // Solana model differs — GoPlus does not flag honeypots on SOL today.
 
     const topTen = holders
@@ -459,7 +514,7 @@ export async function runDeepMemeAnalysis(
     const rec = computeRecommendation({
       liquidityUsd: pair?.liquidity?.usd ?? null,
       volume24hUsd: pair?.volume?.h24 ?? null,
-      holderCount: sec?.holderCount ?? null,
+      holderCount: resolvedHolderCount,
       topTenSharePct,
       devSharePct,
       lpBurnedOrLocked: true, // For Pump.fun / Raydium pools, LP tokens commonly burned; we can't verify cheaply so default optimistic but note.
@@ -477,7 +532,7 @@ export async function runDeepMemeAnalysis(
       pair,
       tokenName: sec?.tokenName ?? null,
       tokenSymbol: sec?.tokenSymbol ?? null,
-      holderCount: sec?.holderCount ?? null,
+      holderCount: resolvedHolderCount,
       flags,
       isHoneypotLikely,
       isRugLikely,
