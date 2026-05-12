@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,7 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Trophy, RefreshCw, Info, ExternalLink, Lock, Search, Download, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { Trophy, RefreshCw, Info, ExternalLink, Lock, Search, Download, Plus, Wand2 } from "lucide-react";
+import WalletAnalyzerCard, { type AnalyzerChain, type AnalyzerPeriod } from "@/components/WalletAnalyzerCard";
 
 type Period = "24h" | "7d" | "30d";
 
@@ -49,27 +50,6 @@ type DiscoveryCandidate = {
   appearances: number;
   mints: Array<{ mint: string; symbol?: string; name?: string }>;
   totalLiquidityScore: number;
-};
-
-type DetailsPosition = {
-  mint: string;
-  symbol: string | null;
-  trades: number;
-  realizedSol: number;
-  realizedUsd: number;
-  currentPriceUsd: number | null;
-};
-
-type DetailsResponse = {
-  success: boolean;
-  error?: string;
-  totals?: {
-    realizedPnlUsd: number;
-    volumeUsd: number;
-    tradeCount: number;
-    winRatePct: number | null;
-  };
-  positions?: DetailsPosition[];
 };
 
 function fmtUsd(v: number | null | undefined, opts?: { signed?: boolean }) {
@@ -129,10 +109,10 @@ export default function MemeLeaderboardPanel() {
   const [pairsScanned, setPairsScanned] = useState(0);
   const [addingWallet, setAddingWallet] = useState<string | null>(null);
 
-  const [expandedWallet, setExpandedWallet] = useState<string | null>(null);
-  const [detailsLoading, setDetailsLoading] = useState(false);
-  const [detailsError, setDetailsError] = useState<string | null>(null);
-  const [details, setDetails] = useState<DetailsResponse | null>(null);
+  // Drives the WalletAnalyzerCard at the top when a row's "Analyze" button is clicked.
+  const [analyzerTrigger, setAnalyzerTrigger] = useState(0);
+  const [analyzerAddress, setAnalyzerAddress] = useState<string | undefined>(undefined);
+  const [analyzerChain, setAnalyzerChain] = useState<AnalyzerChain | undefined>(undefined);
 
   const fetchData = useCallback(async (p: Period) => {
     setLoading(true);
@@ -167,12 +147,13 @@ export default function MemeLeaderboardPanel() {
     void fetchData(period);
   }, [fetchData, period]);
 
-  // Reset open drilldown when period or rows change
-  useEffect(() => {
-    setExpandedWallet(null);
-    setDetails(null);
-    setDetailsError(null);
-  }, [period]);
+  const analyzerPeriod: AnalyzerPeriod = period;
+
+  const triggerAnalyzeRow = useCallback((walletAddress: string) => {
+    setAnalyzerAddress(walletAddress);
+    setAnalyzerChain("solana");
+    setAnalyzerTrigger((t) => t + 1);
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -284,37 +265,6 @@ export default function MemeLeaderboardPanel() {
     }
   }, []);
 
-  const toggleDetails = useCallback(
-    async (walletAddress: string) => {
-      if (expandedWallet === walletAddress) {
-        setExpandedWallet(null);
-        setDetails(null);
-        return;
-      }
-      setExpandedWallet(walletAddress);
-      setDetails(null);
-      setDetailsError(null);
-      setDetailsLoading(true);
-      try {
-        const res = await fetch(
-          `/api/wallet-tracker/meme-leaderboard/details?wallet=${walletAddress}&period=${period}`,
-          { credentials: "include", cache: "no-store" },
-        );
-        const data = (await res.json()) as DetailsResponse;
-        if (!data.success) {
-          setDetailsError(data.error ?? "Could not load details.");
-        } else {
-          setDetails(data);
-        }
-      } catch (err) {
-        setDetailsError(err instanceof Error ? err.message : "Could not load details.");
-      } finally {
-        setDetailsLoading(false);
-      }
-    },
-    [expandedWallet, period],
-  );
-
   const totals = useMemo(() => {
     if (rows.length === 0) return null;
     const totalPnl = rows.reduce((a, r) => a + r.totalPnlUsd, 0);
@@ -356,6 +306,12 @@ export default function MemeLeaderboardPanel() {
 
   return (
     <div className="space-y-4">
+      <WalletAnalyzerCard
+        pendingTrigger={analyzerTrigger}
+        pendingAddress={analyzerAddress}
+        pendingChain={analyzerChain}
+        pendingPeriod={analyzerPeriod}
+      />
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -471,32 +427,16 @@ export default function MemeLeaderboardPanel() {
                   </TableRow>
                 ) : (
                   rows.map((r, i) => {
-                    const isOpen = expandedWallet === r.walletAddress;
                     return (
-                      <Fragment key={r.walletAddress}>
-                        <TableRow>
+                      <TableRow key={r.walletAddress}>
                           <TableCell className="font-mono text-xs">{i + 1}</TableCell>
                           <TableCell>
-                            <button
-                              type="button"
-                              onClick={() => toggleDetails(r.walletAddress)}
-                              className="text-left group inline-flex items-start gap-1.5"
-                              title="Click for trade-by-trade breakdown"
-                            >
-                              {isOpen ? (
-                                <ChevronDown className="h-3.5 w-3.5 mt-1 text-zinc-400 group-hover:text-cyan-500" />
-                              ) : (
-                                <ChevronRight className="h-3.5 w-3.5 mt-1 text-zinc-400 group-hover:text-cyan-500" />
+                            <div>
+                              <div className="font-medium">{r.label || shortenWallet(r.walletAddress)}</div>
+                              {r.label && (
+                                <div className="text-xs text-muted-foreground font-mono">{shortenWallet(r.walletAddress)}</div>
                               )}
-                              <span>
-                                <div className="font-medium group-hover:text-cyan-600 dark:group-hover:text-cyan-400">
-                                  {r.label || shortenWallet(r.walletAddress)}
-                                </div>
-                                {r.label && (
-                                  <div className="text-xs text-muted-foreground font-mono">{shortenWallet(r.walletAddress)}</div>
-                                )}
-                              </span>
-                            </button>
+                            </div>
                           </TableCell>
                           <TableCell className={`text-right font-semibold ${r.totalPnlUsd >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                             {fmtUsd(r.totalPnlUsd, { signed: true })}
@@ -523,7 +463,18 @@ export default function MemeLeaderboardPanel() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7"
+                                onClick={() => triggerAnalyzeRow(r.walletAddress)}
+                                title="Open Wallet Analyzer for this wallet"
+                              >
+                                <Wand2 className="h-3 w-3 mr-1" />
+                                Analyze
+                              </Button>
                               <a
                                 href={`https://solscan.io/account/${r.walletAddress}`}
                                 target="_blank"
@@ -532,85 +483,9 @@ export default function MemeLeaderboardPanel() {
                               >
                                 Solscan <ExternalLink className="h-3 w-3" />
                               </a>
-                              {r.biggestWinMint && (
-                                <a
-                                  href={`https://dexscreener.com/solana/${r.biggestWinMint}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline inline-flex items-center gap-1"
-                                >
-                                  Dex <ExternalLink className="h-3 w-3" />
-                                </a>
-                              )}
                             </div>
                           </TableCell>
                         </TableRow>
-                        {isOpen && (
-                          <TableRow className="bg-zinc-50/60 dark:bg-zinc-900/50">
-                            <TableCell colSpan={10} className="py-3">
-                              {detailsLoading ? (
-                                <p className="text-xs text-muted-foreground">Loading trade-by-trade breakdown…</p>
-                              ) : detailsError ? (
-                                <p className="text-xs text-rose-600 dark:text-rose-400">{detailsError}</p>
-                              ) : details && details.positions && details.positions.length > 0 ? (
-                                <div className="space-y-2">
-                                  <p className="text-xs font-medium">
-                                    Trade-by-trade breakdown ({period}) — recomputed live from Helius
-                                  </p>
-                                  <div className="overflow-x-auto rounded border border-zinc-200 dark:border-zinc-700">
-                                    <Table>
-                                      <TableHeader>
-                                        <TableRow>
-                                          <TableHead>Token</TableHead>
-                                          <TableHead className="text-right">Realized SOL</TableHead>
-                                          <TableHead className="text-right">Realized USD</TableHead>
-                                          <TableHead className="text-right">Trades</TableHead>
-                                          <TableHead className="text-right">Price now</TableHead>
-                                          <TableHead className="text-right">Dex</TableHead>
-                                        </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                        {details.positions.slice(0, 25).map((pos) => (
-                                          <TableRow key={`${r.walletAddress}-${pos.mint}`}>
-                                            <TableCell className="font-medium">
-                                              {pos.symbol ?? shortenWallet(pos.mint)}
-                                              <div className="text-xs text-muted-foreground font-mono">{shortenWallet(pos.mint)}</div>
-                                            </TableCell>
-                                            <TableCell className={`text-right ${pos.realizedSol >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                                              {pos.realizedSol >= 0 ? "+" : ""}{pos.realizedSol.toFixed(3)} SOL
-                                            </TableCell>
-                                            <TableCell className={`text-right ${pos.realizedUsd >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                                              {fmtUsd(pos.realizedUsd, { signed: true })}
-                                            </TableCell>
-                                            <TableCell className="text-right">{pos.trades}</TableCell>
-                                            <TableCell className="text-right">
-                                              {pos.currentPriceUsd !== null && pos.currentPriceUsd !== undefined
-                                                ? fmtUsd(pos.currentPriceUsd)
-                                                : "—"}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                              <a
-                                                href={`https://dexscreener.com/solana/${pos.mint}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline inline-flex items-center gap-1"
-                                              >
-                                                Open <ExternalLink className="h-3 w-3" />
-                                              </a>
-                                            </TableCell>
-                                          </TableRow>
-                                        ))}
-                                      </TableBody>
-                                    </Table>
-                                  </div>
-                                </div>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">No qualifying trades in this window.</p>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Fragment>
                     );
                   })
                 )}
