@@ -25,6 +25,7 @@ import FuturesLiquidationMapPanel from "@/components/FuturesLiquidationMapPanel"
 import NovaMemeIntelligencePanel from "@/components/NovaMemeIntelligencePanel";
 import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel";
 import MemeLeaderboardPanel from "@/components/MemeLeaderboardPanel";
+import DeepMemeAgentPanel from "@/components/DeepMemeAgentPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
@@ -463,7 +464,7 @@ export default function Dashboard() {
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
   const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
-  type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst" | "meme-leaderboard";
+  type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst" | "meme-leaderboard" | "deep-meme-agent";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
   const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
 
@@ -716,6 +717,10 @@ export default function Dashboard() {
   } | null>(null);
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
   const [showMemeLeaderboard, setShowMemeLeaderboard] = useState(false);
+  const [showDeepMemeAgent, setShowDeepMemeAgent] = useState(false);
+  const [deepAgentHandoffTrigger, setDeepAgentHandoffTrigger] = useState(0);
+  const [deepAgentHandoffAddress, setDeepAgentHandoffAddress] = useState<string | undefined>(undefined);
+  const [deepAgentHandoffChain, setDeepAgentHandoffChain] = useState<"solana" | "bsc" | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -803,22 +808,48 @@ export default function Dashboard() {
     if (walletTrackerView === "meme-leaderboard" && !showMemeLeaderboard) {
       setWalletTrackerView("meme");
     }
-    // Owner can hide the Meme Coins Traders sub-tab via feature flag.
+    if (walletTrackerView === "deep-meme-agent" && !showDeepMemeAgent) {
+      setWalletTrackerView(showMemeLeaderboard ? "meme-leaderboard" : "meme");
+    }
     if (
       walletTrackerView === "meme" &&
       pageTabFlagsLoaded &&
       pageTabFlags &&
       pageTabFlags.page_tab_meme_coins_traders === false
     ) {
-      // Pick the next available view in priority order.
       const next: WalletTrackerView = showMemeLeaderboard
         ? "meme-leaderboard"
-        : showNovaPerpWalletAnalyst
-          ? "nova-perp-wallet-analyst"
-          : "leverage";
+        : showDeepMemeAgent
+          ? "deep-meme-agent"
+          : showNovaPerpWalletAnalyst
+            ? "nova-perp-wallet-analyst"
+            : "leverage";
       setWalletTrackerView(next);
     }
-  }, [walletTrackerView, showMemeLeaderboard, showNovaPerpWalletAnalyst, pageTabFlags, pageTabFlagsLoaded]);
+  }, [walletTrackerView, showMemeLeaderboard, showDeepMemeAgent, showNovaPerpWalletAnalyst, pageTabFlags, pageTabFlagsLoaded]);
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setShowDeepMemeAgent(false);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/wallet-tracker/deep-meme-agent/access", { credentials: "include", cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) return { success: false };
+        return r.json();
+      })
+      .then((d) => {
+        if (cancelled) return;
+        setShowDeepMemeAgent(!!d?.success);
+      })
+      .catch(() => {
+        if (!cancelled) setShowDeepMemeAgent(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, isVip, isOwner]);
 
   useEffect(() => {
     const canUseLiquidationMap = (isVip || isOwner) && !!vipFuturesAddons?.novaLiquidationMap;
@@ -7324,6 +7355,11 @@ export default function Dashboard() {
                           Meme Coin Advantage Bundle
                         </TabsTrigger>
                       )}
+                      {showDeepMemeAgent && (
+                        <TabsTrigger value="deep-meme-agent" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600" title="Deep Meme Agent — contract security + top holder report (SOL · BSC · ETH)">
+                          Deep Meme Agent
+                        </TabsTrigger>
+                      )}
                     </TabsList>
                     <span className="text-xs text-muted-foreground">
                       {walletTrackerView === "meme" && "When 3+ tracked wallets buy same token → alert. First-buy alerts (owner)."}
@@ -7960,7 +7996,22 @@ export default function Dashboard() {
                     <NovaPerpWalletAnalystPanel />
                   </TabsContent>
                   <TabsContent value="meme-leaderboard" className="mt-0 space-y-4">
-                    <MemeLeaderboardPanel />
+                    <MemeLeaderboardPanel
+                      externalAnalyzerTrigger={deepAgentHandoffTrigger}
+                      externalAnalyzerAddress={deepAgentHandoffAddress}
+                      externalAnalyzerChain={deepAgentHandoffChain}
+                    />
+                  </TabsContent>
+                  <TabsContent value="deep-meme-agent" className="mt-0 space-y-4">
+                    <DeepMemeAgentPanel
+                      onAnalyzeWallet={(address, walletChain) => {
+                        if (walletChain !== "solana" && walletChain !== "bsc") return;
+                        setDeepAgentHandoffAddress(address);
+                        setDeepAgentHandoffChain(walletChain);
+                        setDeepAgentHandoffTrigger((n) => n + 1);
+                        setWalletTrackerView("meme-leaderboard");
+                      }}
+                    />
                   </TabsContent>
                 </Tabs>
               </div>

@@ -84,6 +84,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_PERP_WALLET_ANALYST: 'nova_perp_wallet_analyst',
   /** VIP: Meme Leaderboard subtab under Wallet Tracker (free-API meme trader rankings). Default OFF until admin enables. */
   NOVA_MEME_LEADERBOARD: 'nova_meme_leaderboard',
+  /** VIP: Deep Meme Agent subtab under Wallet Tracker (token security + top-holder analyzer using GoPlus + Dexscreener + Helius). Default ON. */
+  NOVA_DEEP_MEME_AGENT: 'nova_deep_meme_agent',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];

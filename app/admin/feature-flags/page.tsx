@@ -218,6 +218,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users see the Meme Coin Advantage Bundle subtab under Wallet Tracker — combining Wallet Tracker + Wallet Analyzer + Leaderboard. Includes free-API meme PnL rankings (Helius free tier + Dexscreener no-key), per-wallet copy-trade verdict, user-managed personal wallets, and owner promote-to-global. Owner can refresh snapshots; users can change period.",
   },
+  nova_deep_meme_agent: {
+    label: "Deep Meme Agent (Wallet Tracker)",
+    description:
+      "When ON, VIP users see the Deep Meme Agent subtab under Wallet Tracker. Paste a Solana, BSC, or Ethereum contract to get a full report: token overview (Dexscreener), security flags + top holders (GoPlus free API), honeypot/rug detection, dev/creator wallet, and per-holder classification (Dev, Whale, LP, Sniper/Bot, Pro, Fresh) with one-click Track or Analyze actions that hand off to the Meme Coin Advantage Bundle.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {

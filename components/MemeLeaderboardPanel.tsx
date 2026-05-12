@@ -90,7 +90,18 @@ function fmtAgo(iso: string | null | undefined) {
   return `${days}d ago`;
 }
 
-export default function MemeLeaderboardPanel() {
+export type MemeLeaderboardPanelProps = {
+  /** Bump this counter from a parent to ask the panel to focus its Wallet Analyzer card with the given address. */
+  externalAnalyzerTrigger?: number;
+  externalAnalyzerAddress?: string;
+  externalAnalyzerChain?: AnalyzerChain;
+};
+
+export default function MemeLeaderboardPanel({
+  externalAnalyzerTrigger,
+  externalAnalyzerAddress,
+  externalAnalyzerChain,
+}: MemeLeaderboardPanelProps = {}) {
   const [period, setPeriod] = useState<Period>("7d");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -178,6 +189,20 @@ export default function MemeLeaderboardPanel() {
   }, [disabled, locked, fetchMyWallets]);
 
   const analyzerPeriod: AnalyzerPeriod = period;
+
+  useEffect(() => {
+    if (!externalAnalyzerTrigger || externalAnalyzerTrigger === 0) return;
+    const addr = (externalAnalyzerAddress ?? "").trim();
+    if (!addr) return;
+    setAnalyzerAddress(addr);
+    if (externalAnalyzerChain) setAnalyzerChain(externalAnalyzerChain);
+    setAnalyzerTrigger((n) => n + 1);
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
+  }, [externalAnalyzerTrigger, externalAnalyzerAddress, externalAnalyzerChain]);
 
   const onAddMyWallet = useCallback(async () => {
     const address = addAddress.trim();
