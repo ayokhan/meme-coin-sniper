@@ -208,6 +208,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, UVIP users (VIP + Nova Ultimate enabled) and owner see this Wallet Tracker subtab to analyze a pasted perp wallet, review open positions and win/loss profile, and add wallets to personal/global lists.",
   },
+  nova_meme_leaderboard: {
+    label: "Meme Leaderboard (Wallet Tracker)",
+    description:
+      "When ON, eligible Meme Coins Traders users see the Meme Leaderboard subtab under Wallet Tracker: top tracked Solana wallets ranked by realized SOL flow, win-rate, volume and biggest wins. Uses free APIs only (Helius free tier + Dexscreener no-key). Owner can refresh snapshots; users can change period.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {

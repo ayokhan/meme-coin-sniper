@@ -7,6 +7,24 @@ declare module '@prisma/client' {
     createdAt: Date;
   }
 
+  export interface MemeTraderStatsRow {
+    id: string;
+    walletAddress: string;
+    periodKey: string;
+    label: string | null;
+    realizedPnlUsd: number;
+    unrealizedHoldingsUsd: number;
+    totalPnlUsd: number;
+    volumeUsd: number;
+    tradeCount: number;
+    winRatePct: number | null;
+    biggestWinMint: string | null;
+    biggestWinSymbol: string | null;
+    biggestWinPnlUsd: number | null;
+    notes: string | null;
+    computedAt: Date;
+  }
+
   export interface PrismaUser {
     id: string;
     email: string | null;
@@ -153,6 +171,16 @@ declare module '@prisma/client' {
       findUnique: (args: { where: { userId_address: { userId: string; address: string } } }) => Promise<{ id: string } | null>;
       upsert: (args: unknown) => Promise<unknown>;
       deleteMany: (args: { where: { userId: string; address: string } }) => Promise<unknown>;
+    };
+    memeTraderStats: {
+      findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<MemeTraderStatsRow[]>;
+      findUnique: (args: { where: { walletAddress_periodKey: { walletAddress: string; periodKey: string } } }) => Promise<MemeTraderStatsRow | null>;
+      upsert: (args: {
+        where: { walletAddress_periodKey: { walletAddress: string; periodKey: string } };
+        create: Partial<MemeTraderStatsRow> & { walletAddress: string; periodKey: string };
+        update: Partial<MemeTraderStatsRow>;
+      }) => Promise<MemeTraderStatsRow>;
+      deleteMany: (args: { where?: unknown }) => Promise<unknown>;
     };
   }
 }

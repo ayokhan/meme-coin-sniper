@@ -674,6 +674,31 @@ model NovaFiveMinsOwnerFeedback {
   @@index([outcome])
 }
 
+// VIP: Meme Leaderboard cached PnL snapshots per tracked wallet + period.
+// Built with free APIs only (Helius free + Dexscreener no-key).
+model MemeTraderStats {
+  id                   String   @id @default(cuid())
+  walletAddress        String
+  // Period key: "24h" | "7d" | "30d"
+  periodKey            String
+  label                String?  // mirror of TrackedWallet.label at compute time
+  realizedPnlUsd       Float    @default(0)
+  unrealizedHoldingsUsd Float   @default(0)
+  totalPnlUsd          Float    @default(0)
+  volumeUsd            Float    @default(0)
+  tradeCount           Int      @default(0)
+  winRatePct           Float?
+  biggestWinMint       String?
+  biggestWinSymbol     String?
+  biggestWinPnlUsd     Float?
+  notes                String?  // e.g. "approximation: net SOL flow"
+  computedAt           DateTime @default(now())
+
+  @@unique([walletAddress, periodKey])
+  @@index([periodKey, totalPnlUsd])
+  @@index([periodKey, computedAt])
+}
+
 // VIP: Nova Investment Agent portfolio pins + owner feedback (worked/did not work + reason)
 model NovaInvestmentAgentPortfolioPin {
   id                       String   @id @default(cuid())

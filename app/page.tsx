@@ -24,6 +24,7 @@ import CryptoBuddiePanel from "@/components/CryptoBuddiePanel";
 import FuturesLiquidationMapPanel from "@/components/FuturesLiquidationMapPanel";
 import NovaMemeIntelligencePanel from "@/components/NovaMemeIntelligencePanel";
 import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel";
+import MemeLeaderboardPanel from "@/components/MemeLeaderboardPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
@@ -462,7 +463,7 @@ export default function Dashboard() {
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
   const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
-  type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst";
+  type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst" | "meme-leaderboard";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
   const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
 
@@ -714,6 +715,7 @@ export default function Dashboard() {
     novaMemeIntelligence: boolean;
   } | null>(null);
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
+  const [showMemeLeaderboard, setShowMemeLeaderboard] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -773,6 +775,35 @@ export default function Dashboard() {
       setWalletTrackerView("leverage");
     }
   }, [walletTrackerView, showNovaPerpWalletAnalyst]);
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setShowMemeLeaderboard(false);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/wallet-tracker/meme-leaderboard/access", { credentials: "include", cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) return { success: false };
+        return r.json();
+      })
+      .then((d) => {
+        if (cancelled) return;
+        setShowMemeLeaderboard(!!d?.success);
+      })
+      .catch(() => {
+        if (!cancelled) setShowMemeLeaderboard(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, isVip, isOwner]);
+
+  useEffect(() => {
+    if (walletTrackerView === "meme-leaderboard" && !showMemeLeaderboard) {
+      setWalletTrackerView("meme");
+    }
+  }, [walletTrackerView, showMemeLeaderboard]);
 
   useEffect(() => {
     const canUseLiquidationMap = (isVip || isOwner) && !!vipFuturesAddons?.novaLiquidationMap;
@@ -7271,9 +7302,15 @@ export default function Dashboard() {
                           Nova Perp Wallet Analyst Agent
                         </TabsTrigger>
                       )}
+                      {showMemeLeaderboard && (
+                        <TabsTrigger value="meme-leaderboard" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
+                          Meme Leaderboard
+                        </TabsTrigger>
+                      )}
                     </TabsList>
                     <span className="text-xs text-muted-foreground">
                       {walletTrackerView === "meme" && "When 3+ tracked wallets buy same token → alert. First-buy alerts (owner)."}
+                      {walletTrackerView === "meme-leaderboard" && "Free-API meme PnL leaderboard from tracked Solana wallets. Snapshots refreshed by admin."}
                     </span>
                   </div>
                   <TabsContent value="meme" className="mt-0 space-y-4">
@@ -7905,6 +7942,9 @@ export default function Dashboard() {
                   </TabsContent>
                   <TabsContent value="nova-perp-wallet-analyst" className="mt-0 space-y-4">
                     <NovaPerpWalletAnalystPanel />
+                  </TabsContent>
+                  <TabsContent value="meme-leaderboard" className="mt-0 space-y-4">
+                    <MemeLeaderboardPanel />
                   </TabsContent>
                 </Tabs>
               </div>

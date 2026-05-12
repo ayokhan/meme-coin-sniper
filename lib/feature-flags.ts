@@ -80,6 +80,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_MEME_PRICE_FACTOR: 'nova_meme_price_factor',
   /** UVIP: Nova Perp Wallet Analyst Agent subtab under Wallet Tracker. Default OFF until admin enables. */
   NOVA_PERP_WALLET_ANALYST: 'nova_perp_wallet_analyst',
+  /** VIP: Meme Leaderboard subtab under Wallet Tracker (free-API meme trader rankings). Default OFF until admin enables. */
+  NOVA_MEME_LEADERBOARD: 'nova_meme_leaderboard',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -101,6 +103,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_TOP_MEME_COINS,
   FEATURE_FLAG_KEYS.NOVA_MEME_PRICE_FACTOR,
   FEATURE_FLAG_KEYS.NOVA_PERP_WALLET_ANALYST,
+  FEATURE_FLAG_KEYS.NOVA_MEME_LEADERBOARD,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {
