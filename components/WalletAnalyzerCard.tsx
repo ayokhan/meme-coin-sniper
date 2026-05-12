@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Star, Globe, Copy, Check, Flag, LogOut } from "lucide-react";
+import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Star, Globe, Copy, Check, Flag, LogOut, Anchor } from "lucide-react";
 
 export type AnalyzerChain = "solana" | "bsc";
 export type AnalyzerPeriod = "24h" | "7d" | "30d";
@@ -49,6 +49,7 @@ type Position = {
   realizedNative: number;
   realizedUsd: number;
   realizedPct: number | null;
+  currentHoldingUiAmount: number;
   currentHoldingUsd: number | null;
   pctSold: number | null;
   pctHeld: number | null;
@@ -301,46 +302,85 @@ export default function WalletAnalyzerCard({
   const explorer = analysis ? chainExplorerWalletUrl(analysis.chain, analysis.walletAddress) : null;
 
   /**
-   * Per-trade annotations: first buy, exit-trade (running net hits zero), and "still holds X%" for tokens
-   * the wallet still owns. We replay trades in chronological order to find the firsts/exits, then look up
-   * the wallet's final per-token pctHeld so we can flag rows of mints still held.
+   * Per-trade annotations driven by *position-level* aggregates (not just visible trades):
+   *  - isFirstBuy: chronologically first BUY of this mint in the window.
+   *  - isExit: this is the chronologically last SELL of a mint that the wallet no longer holds.
+   *  - hodl: this row's mint was bought and never sold within the window (sells === 0 AND still holds).
+   *  - pctHeldNow: the wallet's final per-mint pctHeld (only set when still holding).
+   *
+   * Using position aggregates lets us correctly tag exits / HODL even when one side of the trade
+   * (e.g. the original buy) is outside the analyzed window.
    */
   const tradeAnnotations = useMemo(() => {
-    type Anno = { isFirstBuy: boolean; isExit: boolean; pctHeldNow: number | null };
+    type Anno = {
+      isFirstBuy: boolean;
+      isExit: boolean;
+      hodl: boolean;
+      pctHeldNow: number | null;
+    };
     const out = new Map<number, Anno>();
     if (!analysis) return out;
-    const pctHeldByMint = new Map<string, number | null>();
-    const hasHoldingByMint = new Map<string, boolean>();
+
+    type PosLite = {
+      sells: number;
+      currentHoldingUiAmount: number;
+      currentHoldingUsd: number | null;
+      pctHeld: number | null;
+    };
+    const positionByMint = new Map<string, PosLite>();
     for (const p of analysis.positions) {
-      pctHeldByMint.set(p.mint, p.pctHeld);
-      hasHoldingByMint.set(p.mint, (p.currentHoldingUsd ?? 0) > 0 || (p.pctHeld ?? 0) > 0);
+      positionByMint.set(p.mint, {
+        sells: p.sells,
+        currentHoldingUiAmount: p.currentHoldingUiAmount ?? 0,
+        currentHoldingUsd: p.currentHoldingUsd,
+        pctHeld: p.pctHeld,
+      });
     }
-    // Walk trades oldest → newest so first-buy/exit detection is correct.
+
     const chronoIdx = analysis.trades
       .map((t, i) => ({ t, i }))
       .sort((a, b) => a.t.timestampMs - b.t.timestampMs);
+
     const firstBuySeen = new Set<string>();
-    const runningNet = new Map<string, number>();
+    const lastSellOriginalIdxByMint = new Map<string, number>();
     for (const { t, i } of chronoIdx) {
-      const prevNet = runningNet.get(t.mint) ?? 0;
-      const newNet = prevNet + t.tokenDelta;
-      runningNet.set(t.mint, newNet);
       let isFirstBuy = false;
-      let isExit = false;
       if (t.action === "buy" && !firstBuySeen.has(t.mint)) {
         firstBuySeen.add(t.mint);
         isFirstBuy = true;
       }
-      // Exit = running net was > 0 and becomes ≤ ~0 on a SELL (negative tokenDelta).
-      if (t.action === "sell" && prevNet > 1e-9 && newNet <= 1e-6) {
-        isExit = true;
+      if (t.action === "sell") {
+        lastSellOriginalIdxByMint.set(t.mint, i);
       }
-      out.set(i, {
-        isFirstBuy,
-        isExit,
-        pctHeldNow: hasHoldingByMint.get(t.mint) ? pctHeldByMint.get(t.mint) ?? null : null,
-      });
+      out.set(i, { isFirstBuy, isExit: false, hodl: false, pctHeldNow: null });
     }
+
+    // Second pass: use position aggregates to tag HODL / Exit / pctHeld accurately.
+    for (let i = 0; i < analysis.trades.length; i += 1) {
+      const t = analysis.trades[i];
+      const pos = positionByMint.get(t.mint);
+      const anno = out.get(i)!;
+      const holdingUi = pos?.currentHoldingUiAmount ?? 0;
+      const stillHolds = holdingUi > 0 || (pos?.currentHoldingUsd ?? 0) > 0;
+      const neverSold = (pos?.sells ?? 0) === 0;
+
+      // HODL: bought + never sold within window + still holds.
+      anno.hodl = t.action === "buy" && stillHolds && neverSold;
+
+      // Show pctHeld badge on all rows of a mint the wallet still holds (we suppress on exit rows below).
+      if (stillHolds) anno.pctHeldNow = pos?.pctHeld ?? 100;
+
+      // Exit: the chronologically last SELL of a mint the wallet has fully exited.
+      if (
+        t.action === "sell" &&
+        !stillHolds &&
+        (pos?.sells ?? 0) > 0 &&
+        lastSellOriginalIdxByMint.get(t.mint) === i
+      ) {
+        anno.isExit = true;
+      }
+    }
+
     return out;
   }, [analysis]);
 
@@ -644,11 +684,13 @@ export default function WalletAnalyzerCard({
                     <TableBody>
                       {analysis.trades.slice(0, 100).map((t, i) => {
                         const anno = tradeAnnotations.get(i);
-                        const rowHighlight = anno?.isFirstBuy
-                          ? "bg-emerald-50/50 dark:bg-emerald-900/10"
-                          : anno?.isExit
-                            ? "bg-rose-50/50 dark:bg-rose-900/10"
-                            : "";
+                        const rowHighlight = anno?.hodl
+                          ? "bg-amber-50/70 dark:bg-amber-900/15 border-l-2 border-l-amber-400 dark:border-l-amber-600"
+                          : anno?.isFirstBuy
+                            ? "bg-emerald-50/50 dark:bg-emerald-900/10"
+                            : anno?.isExit
+                              ? "bg-rose-50/50 dark:bg-rose-900/10"
+                              : "";
                         return (
                         <TableRow key={`${t.signature ?? i}-${i}`} className={rowHighlight}>
                           <TableCell className="whitespace-nowrap text-xs">{localTime(t.timestampMs)}</TableCell>
@@ -689,6 +731,14 @@ export default function WalletAnalyzerCard({
                           <TableCell className="text-right">{fmtUsd(t.notionalUsd)}</TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
+                              {anno?.hodl && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/30"
+                                  title="Wallet bought this token and has not sold any of it within the analyzed window."
+                                >
+                                  <Anchor className="h-2.5 w-2.5" /> HODL · 100%
+                                </span>
+                              )}
                               {anno?.isFirstBuy && (
                                 <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/30">
                                   <Flag className="h-2.5 w-2.5" /> First buy
@@ -699,12 +749,15 @@ export default function WalletAnalyzerCard({
                                   <LogOut className="h-2.5 w-2.5" /> Exited
                                 </span>
                               )}
-                              {anno?.pctHeldNow !== null && anno?.pctHeldNow !== undefined && !anno.isExit && (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-900/30">
+                              {!anno?.hodl && anno?.pctHeldNow !== null && anno?.pctHeldNow !== undefined && !anno.isExit && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-900/30"
+                                  title="Wallet still holds this token; percentage = current holding ÷ tokens received in window."
+                                >
                                   Holds {Math.max(0, Math.min(100, anno.pctHeldNow)).toFixed(0)}%
                                 </span>
                               )}
-                              {!anno?.isFirstBuy && !anno?.isExit && (anno?.pctHeldNow === null || anno?.pctHeldNow === undefined) && (
+                              {!anno?.hodl && !anno?.isFirstBuy && !anno?.isExit && (anno?.pctHeldNow === null || anno?.pctHeldNow === undefined) && (
                                 <span className="text-[10px] text-muted-foreground">—</span>
                               )}
                             </div>
