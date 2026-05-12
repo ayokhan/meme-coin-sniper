@@ -416,7 +416,7 @@ export default function WalletAnalyzerCard({
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
-          <div className="md:col-span-7">
+          <div className="md:col-span-6">
             <input
               type="text"
               className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 text-sm font-mono"
@@ -450,24 +450,24 @@ export default function WalletAnalyzerCard({
               title="Analyzer lookback window"
             />
           </div>
-          <div className="md:col-span-1">
+          <div className="md:col-span-2">
             <Button
               type="button"
-              className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+              className="w-full h-10 bg-cyan-600 hover:bg-cyan-700 text-white whitespace-nowrap"
               onClick={() => void runAnalyze()}
               disabled={loading}
               title={loading ? "Scanning wallet… this can take 10–20 seconds" : "Analyze wallet"}
             >
               {loading ? (
-                <>
-                  <Search className="h-4 w-4 mr-1.5 animate-pulse" />
-                  <span>Scanning…</span>
-                </>
+                <span className="inline-flex items-center gap-1.5">
+                  <Search className="h-4 w-4 animate-pulse shrink-0" />
+                  Scanning…
+                </span>
               ) : (
-                <>
-                  <Wand2 className="h-4 w-4 mr-1.5" />
-                  <span>Analyze</span>
-                </>
+                <span className="inline-flex items-center gap-1.5">
+                  <Wand2 className="h-4 w-4 shrink-0" />
+                  Analyze
+                </span>
               )}
             </Button>
           </div>
