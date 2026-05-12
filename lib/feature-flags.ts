@@ -39,6 +39,8 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_WATCHLIST: 'page_tab_watchlist',
   PAGE_TAB_NOVA_CONNECT: 'page_tab_nova_connect',
   PAGE_TAB_CHRIS_CLAYTON: 'page_tab_chris_clayton',
+  /** Sub-tab visibility: Meme Coins Traders under Wallet Tracker. Default ON. Owner can hide while keeping the Wallet Tracker tab. */
+  PAGE_TAB_MEME_COINS_TRADERS: 'page_tab_meme_coins_traders',
 
   /** Show/fetch live trades from tracked wallets. When OFF, no calls to /api/wallet-tracker/trades (saves Moralis). Alerts still work. */
   LIVE_TRADES_ENABLED: 'live_trades_enabled',

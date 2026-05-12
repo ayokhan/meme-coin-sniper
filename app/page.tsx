@@ -803,7 +803,22 @@ export default function Dashboard() {
     if (walletTrackerView === "meme-leaderboard" && !showMemeLeaderboard) {
       setWalletTrackerView("meme");
     }
-  }, [walletTrackerView, showMemeLeaderboard]);
+    // Owner can hide the Meme Coins Traders sub-tab via feature flag.
+    if (
+      walletTrackerView === "meme" &&
+      pageTabFlagsLoaded &&
+      pageTabFlags &&
+      pageTabFlags.page_tab_meme_coins_traders === false
+    ) {
+      // Pick the next available view in priority order.
+      const next: WalletTrackerView = showMemeLeaderboard
+        ? "meme-leaderboard"
+        : showNovaPerpWalletAnalyst
+          ? "nova-perp-wallet-analyst"
+          : "leverage";
+      setWalletTrackerView(next);
+    }
+  }, [walletTrackerView, showMemeLeaderboard, showNovaPerpWalletAnalyst, pageTabFlags, pageTabFlagsLoaded]);
 
   useEffect(() => {
     const canUseLiquidationMap = (isVip || isOwner) && !!vipFuturesAddons?.novaLiquidationMap;
@@ -7291,9 +7306,11 @@ export default function Dashboard() {
                 <Tabs value={walletTrackerView} onValueChange={(v) => setWalletTrackerView(v as WalletTrackerView)} className="space-y-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <TabsList className="bg-zinc-100/95 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 p-1.5 rounded-xl flex-nowrap overflow-x-auto max-w-full gap-1.5 snap-x snap-mandatory [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&_[role=tab]]:snap-start">
-                      <TabsTrigger value="meme" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
-                        Meme Coins Traders
-                      </TabsTrigger>
+                      {(pageTabFlags?.page_tab_meme_coins_traders ?? true) && (
+                        <TabsTrigger value="meme" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
+                          Meme Coins Traders
+                        </TabsTrigger>
+                      )}
                       <TabsTrigger value="leverage" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
                         Top Leverage Traders
                       </TabsTrigger>

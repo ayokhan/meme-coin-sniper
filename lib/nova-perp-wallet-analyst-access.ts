@@ -1,6 +1,5 @@
 import type { Session } from "next-auth";
 import { isOwnerSession } from "@/lib/auth";
-import { getSubscriptionTier } from "@/lib/subscription";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 
 export type NovaPerpWalletAnalystAccess =
@@ -9,9 +8,10 @@ export type NovaPerpWalletAnalystAccess =
 
 /**
  * Access policy:
- * - Owner: always allowed when feature flag is ON.
- * - User: VIP tier + feature flag ON. (Previously required Nova Ultimate on-demand;
- *   relaxed so all VIP customers can use the Wallet Analyst Agent.)
+ * - Feature flag NOVA_PERP_WALLET_ANALYST must be ON.
+ * - Owner: always allowed.
+ * - Any VIP user is allowed (tier read from the session JWT, which is "vip" for paying
+ *   VIPs AND for coach users — see lib/auth session callback).
  */
 export async function getNovaPerpWalletAnalystAccess(session: Session | null): Promise<NovaPerpWalletAnalystAccess> {
   if (!session?.user?.id) {
@@ -28,8 +28,9 @@ export async function getNovaPerpWalletAnalystAccess(session: Session | null): P
     return { ok: true, userId, isOwner: true };
   }
 
-  const tier = await getSubscriptionTier(userId);
-  if (tier !== "vip") {
+  const tier = (session.user as { tier?: string | null })?.tier;
+  const isCoach = (session.user as { isCoachUser?: boolean })?.isCoachUser === true;
+  if (tier !== "vip" && !isCoach) {
     return { ok: false, status: 403, error: "VIP subscription required for Nova Perp Wallet Analyst Agent." };
   }
 

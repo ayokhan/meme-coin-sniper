@@ -206,7 +206,12 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   nova_perp_wallet_analyst: {
     label: "Nova Perp Wallet Analyst Agent (Wallet Tracker)",
     description:
-      "When ON, UVIP users (VIP + Nova Ultimate enabled) and owner see this Wallet Tracker subtab to analyze a pasted perp wallet, review open positions and win/loss profile, and add wallets to personal/global lists.",
+      "When ON, any VIP user (including coach users) and the owner see this Wallet Tracker subtab to analyze a pasted perp wallet, review open positions and win/loss profile, and add wallets to personal/global lists.",
+  },
+  page_tab_meme_coins_traders: {
+    label: "Meme Coins Traders (Wallet Tracker sub-tab)",
+    description:
+      "When ON, the Meme Coins Traders sub-tab is visible under Wallet Tracker (per-user wallet tracking + 3-buyer alerts). Turn OFF to hide the sub-tab without affecting the rest of Wallet Tracker.",
   },
   nova_meme_leaderboard: {
     label: "Meme Coin Advantage Bundle (Wallet Tracker)",
