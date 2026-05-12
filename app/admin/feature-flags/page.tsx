@@ -209,9 +209,9 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
       "When ON, UVIP users (VIP + Nova Ultimate enabled) and owner see this Wallet Tracker subtab to analyze a pasted perp wallet, review open positions and win/loss profile, and add wallets to personal/global lists.",
   },
   nova_meme_leaderboard: {
-    label: "Meme Leaderboard (Wallet Tracker)",
+    label: "Meme Coin Advantage Bundle (Wallet Tracker)",
     description:
-      "When ON, eligible Meme Coins Traders users see the Meme Leaderboard subtab under Wallet Tracker: top tracked Solana wallets ranked by realized SOL flow, win-rate, volume and biggest wins. Uses free APIs only (Helius free tier + Dexscreener no-key). Owner can refresh snapshots; users can change period.",
+      "When ON, VIP users see the Meme Coin Advantage Bundle subtab under Wallet Tracker — combining Wallet Tracker + Wallet Analyzer + Leaderboard. Includes free-API meme PnL rankings (Helius free tier + Dexscreener no-key), per-wallet copy-trade verdict, user-managed personal wallets, and owner promote-to-global. Owner can refresh snapshots; users can change period.",
   },
 };
 

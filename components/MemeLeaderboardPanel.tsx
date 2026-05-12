@@ -257,6 +257,34 @@ export default function MemeLeaderboardPanel() {
     }
   }, [fetchData, period]);
 
+  const onDemoteRow = useCallback(async (address: string) => {
+    if (typeof window !== "undefined" && !window.confirm(
+      "Remove this wallet from global? Users won't see it on their leaderboard unless they added it personally.",
+    )) {
+      return;
+    }
+    setBusyAddress(address);
+    try {
+      const res = await fetch(`/api/wallet-tracker/meme-leaderboard/promote`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, global: false }),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!data.success) {
+        setAddMsg(data.error ?? "Failed to remove from global.");
+        return;
+      }
+      await fetchData(period);
+    } catch (err) {
+      setAddMsg(err instanceof Error ? err.message : "Failed to remove from global.");
+    } finally {
+      setBusyAddress(null);
+    }
+  }, [fetchData, period]);
+
   const triggerAnalyzeRow = useCallback((walletAddress: string) => {
     setAnalyzerAddress(walletAddress);
     setAnalyzerChain("solana");
@@ -388,9 +416,9 @@ export default function MemeLeaderboardPanel() {
         <CardContent className="p-6 flex items-start gap-3">
           <Info className="h-5 w-5 text-amber-600 dark:text-amber-300 mt-0.5" />
           <div>
-            <p className="font-semibold text-amber-700 dark:text-amber-200">Meme Leaderboard is disabled</p>
+            <p className="font-semibold text-amber-700 dark:text-amber-200">Meme Coin Advantage Bundle is disabled</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Owner can turn it on in Nova Admin → Feature flags → &quot;Meme Leaderboard (Wallet Tracker)&quot;.
+              Owner can turn it on in Nova Admin → Feature flags → &quot;Meme Coin Advantage Bundle (Wallet Tracker)&quot;.
             </p>
           </div>
         </CardContent>
@@ -405,7 +433,7 @@ export default function MemeLeaderboardPanel() {
           <Lock className="mx-auto h-6 w-6 text-zinc-400 mb-2" />
           <p className="font-semibold">VIP subscription required</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Upgrade to VIP to access the Meme Leaderboard and the Wallet Analyzer.
+            Upgrade to VIP to access the Meme Coin Advantage Bundle (wallet tracker + wallet analyzer + leaderboard).
           </p>
         </CardContent>
       </Card>
@@ -507,7 +535,10 @@ export default function MemeLeaderboardPanel() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Trophy className="h-5 w-5 text-amber-500" />
-              Meme Leaderboard
+              <span className="flex flex-col">
+                <span>Meme Coin Advantage Bundle</span>
+                <span className="text-[11px] font-normal text-muted-foreground">Wallet Tracker · Wallet Analyzer · Leaderboard</span>
+              </span>
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
@@ -703,6 +734,20 @@ export default function MemeLeaderboardPanel() {
                                 >
                                   <Globe className="h-3 w-3 mr-1" />
                                   Make global
+                                </Button>
+                              )}
+                              {isOwner && r.isGlobal && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                  onClick={() => void onDemoteRow(r.walletAddress)}
+                                  disabled={busyAddress === r.walletAddress}
+                                  title="Remove from global (hide from all users; still available to anyone who added it personally)"
+                                >
+                                  <Globe className="h-3 w-3 mr-1" />
+                                  Remove global
                                 </Button>
                               )}
                               <a

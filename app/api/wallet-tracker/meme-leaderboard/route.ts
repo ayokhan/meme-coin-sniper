@@ -58,7 +58,7 @@ export async function GET(request: Request) {
       }).trackedWallet.findMany({ where: { global: true, active: true } }),
       (prisma as unknown as {
         userMemeCoinWallet: { findMany: (args: unknown) => Promise<Array<{ address: string; label: string | null; chain: string }>> };
-      }).userMemeCoinWallet.findMany({ where: { userId: access.userId, chain: "solana" } }),
+      }).userMemeCoinWallet.findMany({ where: { userId: access.userId } }),
     ]);
 
     const globalAddrs = new Set(globalWallets.map((w) => w.address));

@@ -7,7 +7,7 @@ import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 export const dynamic = "force-dynamic";
 
 /**
- * Owner-only: promote (or demote) a wallet to global so all users see it on the Meme Leaderboard.
+ * Owner-only: promote (or demote) a wallet to global so all users see it on the Meme Coin Advantage Bundle leaderboard.
  * Body: { address: string; nickname?: string; global?: boolean }
  *
  * Behaviour:
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
     const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_LEADERBOARD);
     if (!enabled) {
-      return NextResponse.json({ success: false, error: "Meme Leaderboard is disabled." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "Meme Coin Advantage Bundle is disabled." }, { status: 403 });
     }
 
     const body = await request.json().catch(() => ({}));

@@ -7303,8 +7303,8 @@ export default function Dashboard() {
                         </TabsTrigger>
                       )}
                       {showMemeLeaderboard && (
-                        <TabsTrigger value="meme-leaderboard" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
-                          Meme Leaderboard
+                        <TabsTrigger value="meme-leaderboard" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600" title="Wallet tracker + Wallet Analyzer + Leaderboard">
+                          Meme Coin Advantage Bundle
                         </TabsTrigger>
                       )}
                     </TabsList>

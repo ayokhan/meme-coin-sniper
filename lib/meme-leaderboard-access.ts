@@ -19,7 +19,7 @@ export async function getMemeLeaderboardAccess(session: Session | null): Promise
 
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_LEADERBOARD);
   if (!enabled) {
-    return { ok: false, status: 403, error: "Meme Leaderboard is disabled by admin.", disabled: true };
+    return { ok: false, status: 403, error: "Meme Coin Advantage Bundle is disabled by admin.", disabled: true };
   }
 
   if (isOwnerSession(session)) {
@@ -31,7 +31,7 @@ export async function getMemeLeaderboardAccess(session: Session | null): Promise
     return {
       ok: false,
       status: 403,
-      error: "VIP subscription required for Meme Leaderboard.",
+      error: "VIP subscription required for Meme Coin Advantage Bundle.",
       locked: true,
     };
   }

@@ -19,7 +19,7 @@ export async function POST() {
   }
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_LEADERBOARD);
   if (!enabled) {
-    return NextResponse.json({ success: false, error: "Meme Leaderboard is disabled by admin." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "Meme Coin Advantage Bundle is disabled by admin." }, { status: 403 });
   }
 
   try {

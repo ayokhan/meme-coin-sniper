@@ -404,7 +404,7 @@ export default function WalletAnalyzerCard({
                 <Globe className="h-4 w-4 text-cyan-500" />
                 <div className="flex-1 min-w-[180px]">
                   <p className="text-xs font-medium">Make this wallet global</p>
-                  <p className="text-[11px] text-muted-foreground">All users will see it on the Meme Leaderboard.</p>
+                  <p className="text-[11px] text-muted-foreground">All users will see it in the Meme Coin Advantage Bundle leaderboard.</p>
                 </div>
                 <input
                   type="text"
