@@ -11,7 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Star, Globe, Copy, Check, Flag, LogOut, Anchor, ChevronDown } from "lucide-react";
+import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Star, Globe, Copy, Check, Flag, LogOut, Anchor, Search } from "lucide-react";
+import { StyledSelect } from "@/components/ui/styled-select";
 
 export type AnalyzerChain = "solana" | "bsc";
 export type AnalyzerPeriod = "30m" | "1h" | "2h" | "4h" | "8h" | "24h" | "7d" | "30d";
@@ -32,73 +33,6 @@ const CHAIN_OPTIONS: { value: AnalyzerChain | "auto"; label: string }[] = [
   { value: "solana", label: "Solana" },
   { value: "bsc", label: "BSC" },
 ];
-
-type SelectOption<T extends string> = { value: T; label: string };
-
-function StyledSelect<T extends string>({
-  value,
-  options,
-  onChange,
-  title,
-}: {
-  value: T;
-  options: SelectOption<T>[];
-  onChange: (v: T) => void;
-  title?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-  const current = options.find((p) => p.value === value);
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        title={title}
-        onClick={() => setOpen((o) => !o)}
-        className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm flex items-center justify-between gap-2 text-zinc-900 dark:text-zinc-100"
-      >
-        <span className="truncate">{current?.label ?? value}</span>
-        <ChevronDown className={`h-4 w-4 opacity-70 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute left-0 right-0 z-50 mt-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl overflow-hidden">
-          {options.map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => {
-                onChange(p.value);
-                setOpen(false);
-              }}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
-                p.value === value
-                  ? "bg-cyan-50 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300 font-medium"
-                  : "text-zinc-900 dark:text-zinc-100"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 type Holding = {
   mint: string;
@@ -522,8 +456,19 @@ export default function WalletAnalyzerCard({
               className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
               onClick={() => void runAnalyze()}
               disabled={loading}
+              title={loading ? "Scanning wallet… this can take 10–20 seconds" : "Analyze wallet"}
             >
-              {loading ? "…" : "Analyze"}
+              {loading ? (
+                <>
+                  <Search className="h-4 w-4 mr-1.5 animate-pulse" />
+                  <span>Scanning…</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-4 w-4 mr-1.5" />
+                  <span>Analyze</span>
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -879,6 +824,16 @@ export default function WalletAnalyzerCard({
                   </Table>
                 </div>
               </details>
+            )}
+
+            {analysis.trades.length === 0 && (
+              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-900/20 px-3 py-3 text-xs text-amber-700 dark:text-amber-200">
+                <p className="font-medium">No trades found in the last {analysis.period}.</p>
+                <p className="mt-1 opacity-90">
+                  This wallet may have an open position from before the current window, or hasn&apos;t traded recently.
+                  Try a longer window (e.g. <strong>7 days</strong> or <strong>30 days</strong>) — buys / sells often sit outside short windows like 24h.
+                </p>
+              </div>
             )}
 
             {analysis.notes.length > 0 && (

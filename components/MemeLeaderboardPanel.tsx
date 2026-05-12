@@ -12,8 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Trophy, RefreshCw, Info, ExternalLink, Lock, Search, Download, Plus, Wand2, Trash2, Globe, Star } from "lucide-react";
+import { Trophy, RefreshCw, Info, ExternalLink, Lock, Search, Download, Plus, Wand2, Trash2, Globe, Star, Copy, Check } from "lucide-react";
 import WalletAnalyzerCard, { type AnalyzerChain, type AnalyzerPeriod } from "@/components/WalletAnalyzerCard";
+import { StyledSelect } from "@/components/ui/styled-select";
 
 type Period = "24h" | "7d" | "30d";
 
@@ -137,6 +138,17 @@ export default function MemeLeaderboardPanel({
   const [addBusy, setAddBusy] = useState(false);
   const [addMsg, setAddMsg] = useState<string | null>(null);
   const [busyAddress, setBusyAddress] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const copyAddress = useCallback(async (key: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1200);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const fetchData = useCallback(async (p: Period) => {
     setLoading(true);
@@ -512,14 +524,15 @@ export default function MemeLeaderboardPanel({
               />
             </div>
             <div className="md:col-span-2">
-              <select
-                className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 text-sm"
+              <StyledSelect<"solana" | "bsc">
                 value={addChain}
-                onChange={(e) => setAddChain(e.target.value as "solana" | "bsc")}
-              >
-                <option value="solana">Solana</option>
-                <option value="bsc">BSC</option>
-              </select>
+                options={[
+                  { value: "solana", label: "Solana" },
+                  { value: "bsc", label: "BSC" },
+                ]}
+                onChange={(v) => setAddChain(v)}
+                title="Chain"
+              />
             </div>
             <div className="md:col-span-2">
               <Button
@@ -694,6 +707,18 @@ export default function MemeLeaderboardPanel({
                                     <Star className="h-2.5 w-2.5" /> Mine
                                   </span>
                                 )}
+                                <button
+                                  type="button"
+                                  onClick={() => void copyAddress(`wallet-${r.walletAddress}`, r.walletAddress)}
+                                  title="Copy wallet address"
+                                  className="opacity-70 hover:opacity-100"
+                                >
+                                  {copiedKey === `wallet-${r.walletAddress}` ? (
+                                    <Check className="h-3 w-3 text-emerald-500" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </button>
                               </div>
                               {r.label && (
                                 <div className="text-xs text-muted-foreground font-mono">{shortenWallet(r.walletAddress)}</div>

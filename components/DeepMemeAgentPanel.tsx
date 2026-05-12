@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,6 @@ import {
   Check,
   Wand2,
   Plus,
-  ChevronDown,
   Flame,
   Globe,
   Skull,
@@ -29,6 +28,7 @@ import {
   Star,
   Search,
 } from "lucide-react";
+import { StyledSelect } from "@/components/ui/styled-select";
 
 type Chain = "solana" | "bsc" | "ethereum";
 type ChainInput = Chain | "auto";
@@ -148,68 +148,6 @@ function fmtAge(ms: number | null | undefined) {
 function shorten(addr: string, n = 4) {
   if (!addr || addr.length < n * 2 + 2) return addr;
   return `${addr.slice(0, n)}…${addr.slice(-n)}`;
-}
-
-function StyledSelect<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-  const current = options.find((p) => p.value === value);
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm flex items-center justify-between gap-2 text-zinc-900 dark:text-zinc-100"
-      >
-        <span className="truncate">{current?.label ?? value}</span>
-        <ChevronDown className={`h-4 w-4 opacity-70 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute left-0 right-0 z-50 mt-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl overflow-hidden">
-          {options.map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => {
-                onChange(p.value);
-                setOpen(false);
-              }}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
-                p.value === value
-                  ? "bg-cyan-50 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300 font-medium"
-                  : "text-zinc-900 dark:text-zinc-100"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 function ClassBadge({ c }: { c: HolderClass }) {
