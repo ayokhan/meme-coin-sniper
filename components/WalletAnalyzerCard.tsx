@@ -304,8 +304,9 @@ export default function WalletAnalyzerCard({
   /**
    * Per-trade annotations driven by *position-level* aggregates (not just visible trades):
    *  - isFirstBuy: chronologically first BUY of this mint in the window.
-   *  - isExit: this is the chronologically last SELL of a mint that the wallet no longer holds.
-   *  - hodl: this row's mint was bought and never sold within the window (sells === 0 AND still holds).
+   *  - isLastExit: this is the chronologically last SELL of a mint that the wallet no longer holds.
+   *  - isClosed: this row is a SELL of a mint the wallet has fully exited (covers all sell rows of exited mints, not only the last one).
+   *  - hodl: bought + never sold within window + still holds.
    *  - pctHeldNow: the wallet's final per-mint pctHeld (only set when still holding).
    *
    * Using position aggregates lets us correctly tag exits / HODL even when one side of the trade
@@ -314,7 +315,8 @@ export default function WalletAnalyzerCard({
   const tradeAnnotations = useMemo(() => {
     type Anno = {
       isFirstBuy: boolean;
-      isExit: boolean;
+      isLastExit: boolean;
+      isClosed: boolean;
       hodl: boolean;
       pctHeldNow: number | null;
     };
@@ -331,7 +333,8 @@ export default function WalletAnalyzerCard({
     for (const p of analysis.positions) {
       positionByMint.set(p.mint, {
         sells: p.sells,
-        currentHoldingUiAmount: p.currentHoldingUiAmount ?? 0,
+        // Be defensive: older deploys may not have shipped currentHoldingUiAmount.
+        currentHoldingUiAmount: (p as { currentHoldingUiAmount?: number }).currentHoldingUiAmount ?? 0,
         currentHoldingUsd: p.currentHoldingUsd,
         pctHeld: p.pctHeld,
       });
@@ -352,32 +355,28 @@ export default function WalletAnalyzerCard({
       if (t.action === "sell") {
         lastSellOriginalIdxByMint.set(t.mint, i);
       }
-      out.set(i, { isFirstBuy, isExit: false, hodl: false, pctHeldNow: null });
+      out.set(i, { isFirstBuy, isLastExit: false, isClosed: false, hodl: false, pctHeldNow: null });
     }
 
-    // Second pass: use position aggregates to tag HODL / Exit / pctHeld accurately.
     for (let i = 0; i < analysis.trades.length; i += 1) {
       const t = analysis.trades[i];
       const pos = positionByMint.get(t.mint);
       const anno = out.get(i)!;
       const holdingUi = pos?.currentHoldingUiAmount ?? 0;
-      const stillHolds = holdingUi > 0 || (pos?.currentHoldingUsd ?? 0) > 0;
-      const neverSold = (pos?.sells ?? 0) === 0;
+      const holdingUsd = pos?.currentHoldingUsd ?? 0;
+      const stillHolds = holdingUi > 0 || holdingUsd > 0;
+      const sellsCount = pos?.sells ?? 0;
+      const neverSold = sellsCount === 0;
 
-      // HODL: bought + never sold within window + still holds.
       anno.hodl = t.action === "buy" && stillHolds && neverSold;
-
-      // Show pctHeld badge on all rows of a mint the wallet still holds (we suppress on exit rows below).
       if (stillHolds) anno.pctHeldNow = pos?.pctHeld ?? 100;
 
-      // Exit: the chronologically last SELL of a mint the wallet has fully exited.
-      if (
-        t.action === "sell" &&
-        !stillHolds &&
-        (pos?.sells ?? 0) > 0 &&
-        lastSellOriginalIdxByMint.get(t.mint) === i
-      ) {
-        anno.isExit = true;
+      // Any SELL of a fully-exited mint = closed. The most-recent one gets the stronger "Exited" tint.
+      if (t.action === "sell" && !stillHolds && sellsCount > 0) {
+        anno.isClosed = true;
+        if (lastSellOriginalIdxByMint.get(t.mint) === i) {
+          anno.isLastExit = true;
+        }
       }
     }
 
@@ -668,6 +667,20 @@ export default function WalletAnalyzerCard({
                 <summary className="cursor-pointer px-3 py-2 text-xs font-medium">
                   Trades ({analysis.trades.length}) — times in your local timezone
                 </summary>
+                <div className="px-3 py-2 text-[11px] text-muted-foreground flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-foreground">Legend:</span>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/30"><Anchor className="h-2.5 w-2.5" /> HODL 100%</span>
+                  <span>= bought + never sold within window + still held</span>
+                  <span className="mx-1">·</span>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/30"><Flag className="h-2.5 w-2.5" /> First buy</span>
+                  <span>= first BUY of this token</span>
+                  <span className="mx-1">·</span>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-900/30">Holds X%</span>
+                  <span>= partial hold remaining</span>
+                  <span className="mx-1">·</span>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/30"><LogOut className="h-2.5 w-2.5" /> Exited</span>
+                  <span>/ Closed = wallet has fully exited this token. Switch the window to 30d to surface older HODL purchases.</span>
+                </div>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -688,7 +701,7 @@ export default function WalletAnalyzerCard({
                           ? "bg-amber-50/70 dark:bg-amber-900/15 border-l-2 border-l-amber-400 dark:border-l-amber-600"
                           : anno?.isFirstBuy
                             ? "bg-emerald-50/50 dark:bg-emerald-900/10"
-                            : anno?.isExit
+                            : anno?.isLastExit
                               ? "bg-rose-50/50 dark:bg-rose-900/10"
                               : "";
                         return (
@@ -744,12 +757,16 @@ export default function WalletAnalyzerCard({
                                   <Flag className="h-2.5 w-2.5" /> First buy
                                 </span>
                               )}
-                              {anno?.isExit && (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/30">
+                              {anno?.isLastExit ? (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/30" title="Last SELL that closed this position within the window.">
                                   <LogOut className="h-2.5 w-2.5" /> Exited
                                 </span>
-                              )}
-                              {!anno?.hodl && anno?.pctHeldNow !== null && anno?.pctHeldNow !== undefined && !anno.isExit && (
+                              ) : anno?.isClosed ? (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20" title="Wallet has fully exited this token (sum of sells covered the holdings); this is one of the closing sells.">
+                                  Closed
+                                </span>
+                              ) : null}
+                              {!anno?.hodl && anno?.pctHeldNow !== null && anno?.pctHeldNow !== undefined && !anno.isLastExit && !anno.isClosed && (
                                 <span
                                   className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-900/30"
                                   title="Wallet still holds this token; percentage = current holding ÷ tokens received in window."
@@ -757,7 +774,7 @@ export default function WalletAnalyzerCard({
                                   Holds {Math.max(0, Math.min(100, anno.pctHeldNow)).toFixed(0)}%
                                 </span>
                               )}
-                              {!anno?.hodl && !anno?.isFirstBuy && !anno?.isExit && (anno?.pctHeldNow === null || anno?.pctHeldNow === undefined) && (
+                              {!anno?.hodl && !anno?.isFirstBuy && !anno?.isLastExit && !anno?.isClosed && (anno?.pctHeldNow === null || anno?.pctHeldNow === undefined) && (
                                 <span className="text-[10px] text-muted-foreground">—</span>
                               )}
                             </div>
