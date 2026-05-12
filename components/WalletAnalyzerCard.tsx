@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -15,7 +14,18 @@ import {
 import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Star, Globe, Copy, Check, Flag, LogOut, Anchor } from "lucide-react";
 
 export type AnalyzerChain = "solana" | "bsc";
-export type AnalyzerPeriod = "24h" | "7d" | "30d";
+export type AnalyzerPeriod = "30m" | "1h" | "2h" | "4h" | "8h" | "24h" | "7d" | "30d";
+
+const PERIOD_OPTIONS: { value: AnalyzerPeriod; label: string }[] = [
+  { value: "30m", label: "30 min" },
+  { value: "1h", label: "1 hour" },
+  { value: "2h", label: "2 hours" },
+  { value: "4h", label: "4 hours" },
+  { value: "8h", label: "8 hours" },
+  { value: "24h", label: "24 hours" },
+  { value: "7d", label: "7 days" },
+  { value: "30d", label: "30 days" },
+];
 
 type Holding = {
   mint: string;
@@ -429,13 +439,16 @@ export default function WalletAnalyzerCard({
             </select>
           </div>
           <div className="md:col-span-2">
-            <Tabs value={period} onValueChange={(v) => setPeriod(v as AnalyzerPeriod)}>
-              <TabsList className="bg-zinc-100 dark:bg-zinc-800 w-full">
-                <TabsTrigger value="24h" className="flex-1">24h</TabsTrigger>
-                <TabsTrigger value="7d" className="flex-1">7d</TabsTrigger>
-                <TabsTrigger value="30d" className="flex-1">30d</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <select
+              className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 text-sm"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as AnalyzerPeriod)}
+              title="Analyzer lookback window"
+            >
+              {PERIOD_OPTIONS.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
           </div>
           <div className="md:col-span-1">
             <Button

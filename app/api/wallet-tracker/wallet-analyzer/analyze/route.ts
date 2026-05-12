@@ -9,7 +9,7 @@ import type { AnalyzerChain, AnalyzerPeriod } from "@/lib/wallet-analyzer/types"
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const ALLOWED_PERIODS = new Set<AnalyzerPeriod>(["24h", "7d", "30d"]);
+const ALLOWED_PERIODS = new Set<AnalyzerPeriod>(["30m", "1h", "2h", "4h", "8h", "24h", "7d", "30d"]);
 
 function isValidSolanaAddress(addr: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr.trim());

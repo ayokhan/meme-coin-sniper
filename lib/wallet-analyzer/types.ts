@@ -1,5 +1,5 @@
 export type AnalyzerChain = "solana" | "bsc";
-export type AnalyzerPeriod = "24h" | "7d" | "30d";
+export type AnalyzerPeriod = "30m" | "1h" | "2h" | "4h" | "8h" | "24h" | "7d" | "30d";
 
 export type AnalyzerHolding = {
   mint: string;
