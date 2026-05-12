@@ -6,8 +6,10 @@
  *   2. For each winning meme mint, call Helius RPC `getTokenLargestAccounts` (free)
  *      to get the top SPL token-account holders of that mint.
  *   3. Resolve token-account → owner wallet via `getMultipleAccounts` (jsonParsed).
- *   4. Aggregate across multiple winning mints: wallets that appear as top holders of
- *      2+ trending meme tokens are surfaced as smart-money candidates.
+ *   4. Aggregate across multiple winning mints: every wallet that appears as a top
+ *      holder of one or more trending meme tokens is surfaced as a candidate, ranked
+ *      by overlap (appearances) and total trending-liquidity score. Wallets that
+ *      appear in 2+ trending memes are higher-confidence smart-money picks.
  *   5. Filter out the tracked wallets we already have, known program/burn addresses,
  *      and obvious bots / market-makers.
  */
@@ -118,6 +120,8 @@ export type DiscoverOptions = {
   minLiquidityUsd?: number;
   minVolume24hUsd?: number;
   holdersPerMint?: number;
+  minAppearances?: number;
+  maxCandidates?: number;
   excludeAddresses?: Set<string>;
 };
 
@@ -127,10 +131,12 @@ export async function discoverSmartMoneyCandidates(opts: DiscoverOptions = {}): 
     return { candidates: [], pairsScanned: 0, ownersResolved: 0, trendingSnapshot: [] };
   }
 
-  const maxPairs = opts.maxPairs ?? 8;
+  const maxPairs = opts.maxPairs ?? 25;
   const minLiq = opts.minLiquidityUsd ?? 25_000;
   const minVol = opts.minVolume24hUsd ?? 50_000;
-  const holdersPerMint = Math.min(Math.max(opts.holdersPerMint ?? 20, 5), 30);
+  const holdersPerMint = Math.min(Math.max(opts.holdersPerMint ?? 30, 5), 30);
+  const minAppearances = Math.max(opts.minAppearances ?? 1, 1);
+  const maxCandidates = Math.min(Math.max(opts.maxCandidates ?? 50, 5), 100);
   const excluded = opts.excludeAddresses ?? new Set<string>();
 
   const trending = await getTrendingSolanaPairs(60);
@@ -181,7 +187,7 @@ export async function discoverSmartMoneyCandidates(opts: DiscoverOptions = {}): 
   }
 
   const candidates: SmartMoneyCandidate[] = Array.from(tally.entries())
-    .filter(([, v]) => v.appearances >= 2) // must appear as top holder of ≥2 trending memes
+    .filter(([, v]) => v.appearances >= minAppearances)
     .map(([walletAddress, v]) => ({
       walletAddress,
       appearances: v.appearances,
@@ -189,7 +195,7 @@ export async function discoverSmartMoneyCandidates(opts: DiscoverOptions = {}): 
       totalLiquidityScore: v.liquidityScore,
     }))
     .sort((a, b) => b.appearances - a.appearances || b.totalLiquidityScore - a.totalLiquidityScore)
-    .slice(0, 25);
+    .slice(0, maxCandidates);
 
   return {
     candidates,

@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Star, Globe, Copy, Check, Flag, LogOut, Anchor } from "lucide-react";
+import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Star, Globe, Copy, Check, Flag, LogOut, Anchor, ChevronDown } from "lucide-react";
 
 export type AnalyzerChain = "solana" | "bsc";
 export type AnalyzerPeriod = "30m" | "1h" | "2h" | "4h" | "8h" | "24h" | "7d" | "30d";
@@ -26,6 +26,79 @@ const PERIOD_OPTIONS: { value: AnalyzerPeriod; label: string }[] = [
   { value: "7d", label: "7 days" },
   { value: "30d", label: "30 days" },
 ];
+
+const CHAIN_OPTIONS: { value: AnalyzerChain | "auto"; label: string }[] = [
+  { value: "auto", label: "Auto-detect" },
+  { value: "solana", label: "Solana" },
+  { value: "bsc", label: "BSC" },
+];
+
+type SelectOption<T extends string> = { value: T; label: string };
+
+function StyledSelect<T extends string>({
+  value,
+  options,
+  onChange,
+  title,
+}: {
+  value: T;
+  options: SelectOption<T>[];
+  onChange: (v: T) => void;
+  title?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const current = options.find((p) => p.value === value);
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        title={title}
+        onClick={() => setOpen((o) => !o)}
+        className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm flex items-center justify-between gap-2 text-zinc-900 dark:text-zinc-100"
+      >
+        <span className="truncate">{current?.label ?? value}</span>
+        <ChevronDown className={`h-4 w-4 opacity-70 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 z-50 mt-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl overflow-hidden">
+          {options.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => {
+                onChange(p.value);
+                setOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
+                p.value === value
+                  ? "bg-cyan-50 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300 font-medium"
+                  : "text-zinc-900 dark:text-zinc-100"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type Holding = {
   mint: string;
@@ -428,27 +501,20 @@ export default function WalletAnalyzerCard({
             />
           </div>
           <div className="md:col-span-2">
-            <select
-              className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 text-sm"
+            <StyledSelect<AnalyzerChain | "auto">
               value={chain}
-              onChange={(e) => setChain(e.target.value as AnalyzerChain | "auto")}
-            >
-              <option value="auto">Auto-detect</option>
-              <option value="solana">Solana</option>
-              <option value="bsc">BSC</option>
-            </select>
+              options={CHAIN_OPTIONS}
+              onChange={(v) => setChain(v)}
+              title="Chain"
+            />
           </div>
           <div className="md:col-span-2">
-            <select
-              className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 text-sm"
+            <StyledSelect<AnalyzerPeriod>
               value={period}
-              onChange={(e) => setPeriod(e.target.value as AnalyzerPeriod)}
+              options={PERIOD_OPTIONS}
+              onChange={(v) => setPeriod(v)}
               title="Analyzer lookback window"
-            >
-              {PERIOD_OPTIONS.map((p) => (
-                <option key={p.value} value={p.value}>{p.label}</option>
-              ))}
-            </select>
+            />
           </div>
           <div className="md:col-span-1">
             <Button

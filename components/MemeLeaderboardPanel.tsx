@@ -364,11 +364,15 @@ export default function MemeLeaderboardPanel() {
       } else {
         setCandidates(data.candidates ?? []);
         setPairsScanned(data.pairsScanned ?? 0);
-        setDiscoveryMsg(
-          (data.candidates?.length ?? 0) === 0
-            ? `Scanned ${data.pairsScanned ?? 0} trending pairs — no smart-money candidates met the 2+ appearances bar.`
-            : `Scanned ${data.pairsScanned ?? 0} trending pairs → ${data.candidates?.length ?? 0} candidates.`,
-        );
+        {
+          const count = data.candidates?.length ?? 0;
+          const overlap = (data.candidates ?? []).filter((c) => (c?.appearances ?? 0) >= 2).length;
+          setDiscoveryMsg(
+            count === 0
+              ? `Scanned ${data.pairsScanned ?? 0} trending pairs — no candidate wallets surfaced. Try again in a few minutes when trending data refreshes.`
+              : `Scanned ${data.pairsScanned ?? 0} trending pairs → ${count} candidate${count === 1 ? "" : "s"} (${overlap} high-confidence overlap${overlap === 1 ? "" : "s"}).`,
+          );
+        }
       }
     } catch (err) {
       setDiscoveryMsg(err instanceof Error ? err.message : "Discovery failed.");
@@ -822,9 +826,11 @@ export default function MemeLeaderboardPanel() {
           {discoverOpen && (
             <CardContent className="space-y-3 text-sm">
               <p className="text-xs text-muted-foreground">
-                Pulls top trending Solana meme pairs from Dexscreener, then identifies wallets that appear as a top
-                holder of 2+ of those tokens (Helius free RPC). Already-tracked wallets and known program addresses
-                are excluded. Click <span className="font-medium">Add</span> to start tracking a candidate.
+                Pulls top trending Solana meme pairs from Dexscreener (default ~25 pairs), then surfaces every wallet
+                that appears as a top holder of one or more of those tokens via the Helius free RPC. Wallets that
+                appear in 2+ trending memes are marked <span className="font-medium text-violet-600 dark:text-violet-300">high-confidence</span>
+                overlap. Already-tracked wallets and known program addresses are excluded. Click
+                {" "}<span className="font-medium">Add</span> to start tracking a candidate.
               </p>
               {discoveryMsg && (
                 <div className="rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50/60 dark:bg-violet-900/20 px-3 py-2 text-xs text-violet-700 dark:text-violet-200">
@@ -861,7 +867,20 @@ export default function MemeLeaderboardPanel() {
                               {shortenWallet(c.walletAddress)}
                             </a>
                           </TableCell>
-                          <TableCell className="text-right">{c.appearances}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="inline-flex items-center gap-1.5">
+                              <span className="font-medium">{c.appearances}</span>
+                              {c.appearances >= 2 ? (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                                  High confidence
+                                </span>
+                              ) : (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+                                  Single hit
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
                               {c.mints.slice(0, 6).map((m) => (
