@@ -7310,7 +7310,6 @@ export default function Dashboard() {
                     </TabsList>
                     <span className="text-xs text-muted-foreground">
                       {walletTrackerView === "meme" && "When 3+ tracked wallets buy same token → alert. First-buy alerts (owner)."}
-                      {walletTrackerView === "meme-leaderboard" && "Free-API meme PnL leaderboard from tracked Solana wallets. Snapshots refreshed by admin."}
                     </span>
                   </div>
                   <TabsContent value="meme" className="mt-0 space-y-4">

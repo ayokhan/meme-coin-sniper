@@ -32,6 +32,7 @@ export async function GET(request: Request) {
     perpDigest?: { ok: boolean; message?: string };
     perpAlerts?: { ok: boolean; triggered?: number; message?: string };
     novaScalper?: { ok: boolean; processed?: number; skipped?: boolean; message?: string };
+    memeLeaderboard?: { ok: boolean; refreshed?: number; totalWallets?: number; skipped?: boolean; message?: string };
   } = {};
 
   try {
@@ -201,6 +202,30 @@ export async function GET(request: Request) {
     };
   } catch (e) {
     results.novaScalper = { ok: false, message: e instanceof Error ? e.message : 'NovaScalper cron failed' };
+  }
+
+  try {
+    const { getFeatureFlag, FEATURE_FLAG_KEYS } = await import('@/lib/feature-flags');
+    const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_LEADERBOARD);
+    if (!enabled) {
+      results.memeLeaderboard = { ok: true, skipped: true, message: 'Feature flag OFF' };
+    } else {
+      const authLb = request.headers.get('authorization');
+      const lbRes = await fetch(`${base}/api/wallet-tracker/meme-leaderboard/refresh?period=7d`, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: authLb ? { Authorization: authLb } : {},
+      });
+      const lbData = await lbRes.json().catch(() => ({}));
+      results.memeLeaderboard = {
+        ok: lbData.success === true,
+        refreshed: typeof lbData.refreshed === 'number' ? lbData.refreshed : undefined,
+        totalWallets: typeof lbData.totalWallets === 'number' ? lbData.totalWallets : undefined,
+        message: lbData.error,
+      };
+    }
+  } catch (e) {
+    results.memeLeaderboard = { ok: false, message: e instanceof Error ? e.message : 'Meme leaderboard refresh failed' };
   }
 
   return NextResponse.json({ success: true, cron: results });
