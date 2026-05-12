@@ -1,6 +1,5 @@
 import type { Session } from "next-auth";
 import { isOwnerSession } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { getSubscriptionTier } from "@/lib/subscription";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 
@@ -11,7 +10,8 @@ export type NovaPerpWalletAnalystAccess =
 /**
  * Access policy:
  * - Owner: always allowed when feature flag is ON.
- * - User: VIP tier + Nova Ultimate on-demand enabled (UVIP flow) + feature flag ON.
+ * - User: VIP tier + feature flag ON. (Previously required Nova Ultimate on-demand;
+ *   relaxed so all VIP customers can use the Wallet Analyst Agent.)
  */
 export async function getNovaPerpWalletAnalystAccess(session: Session | null): Promise<NovaPerpWalletAnalystAccess> {
   if (!session?.user?.id) {
@@ -30,15 +30,7 @@ export async function getNovaPerpWalletAnalystAccess(session: Session | null): P
 
   const tier = await getSubscriptionTier(userId);
   if (tier !== "vip") {
-    return { ok: false, status: 403, error: "UVIP access required (VIP + Nova Ultimate enabled)." };
-  }
-
-  const user = await (prisma as any).user.findUnique({
-    where: { id: userId },
-  });
-  const isUvip = !!(user as { novaUltimateOnDemand?: boolean } | null)?.novaUltimateOnDemand;
-  if (!isUvip) {
-    return { ok: false, status: 403, error: "Ask admin to enable Nova Ultimate (on demand) for your account." };
+    return { ok: false, status: 403, error: "VIP subscription required for Nova Perp Wallet Analyst Agent." };
   }
 
   return { ok: true, userId, isOwner: false };

@@ -1,5 +1,5 @@
 import type { Session } from "next-auth";
-import { canAccessMemeCoinsTrader, isOwnerSession } from "@/lib/auth";
+import { isOwnerSession } from "@/lib/auth";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 
 export type MemeLeaderboardAccess =
@@ -10,9 +10,7 @@ export type MemeLeaderboardAccess =
  * Access policy:
  * - Feature flag NOVA_MEME_LEADERBOARD must be ON.
  * - Owner: always allowed when flag is ON.
- * - Other users: must satisfy canAccessMemeCoinsTrader (VIP + on-demand) — same gate as the
- *   parent Meme Coins Traders sub-tab — so we never grant the leaderboard to users who
- *   can't see the rest of the meme wallet workspace.
+ * - Any VIP user is allowed (no extra on-demand entitlement required).
  */
 export async function getMemeLeaderboardAccess(session: Session | null): Promise<MemeLeaderboardAccess> {
   if (!session?.user?.id) {
@@ -28,11 +26,12 @@ export async function getMemeLeaderboardAccess(session: Session | null): Promise
     return { ok: true, userId: session.user.id, isOwner: true };
   }
 
-  if (!canAccessMemeCoinsTrader(session)) {
+  const tier = (session.user as { tier?: string | null })?.tier;
+  if (tier !== "vip") {
     return {
       ok: false,
       status: 403,
-      error: "Meme Coins Traders on-demand access required.",
+      error: "VIP subscription required for Meme Leaderboard.",
       locked: true,
     };
   }

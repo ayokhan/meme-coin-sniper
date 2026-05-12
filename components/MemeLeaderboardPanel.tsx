@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Trophy, RefreshCw, Info, ExternalLink, Lock, Search, Download, Plus, Wand2 } from "lucide-react";
+import { Trophy, RefreshCw, Info, ExternalLink, Lock, Search, Download, Plus, Wand2, Trash2, Globe, Star } from "lucide-react";
 import WalletAnalyzerCard, { type AnalyzerChain, type AnalyzerPeriod } from "@/components/WalletAnalyzerCard";
 
 type Period = "24h" | "7d" | "30d";
@@ -31,7 +31,11 @@ type Row = {
   biggestWinPnlUsd: number | null;
   notes: string | null;
   computedAt: string;
+  isMine: boolean;
+  isGlobal: boolean;
 };
+
+type MyWallet = { id: string; address: string; label: string | null; chain: string };
 
 type LeaderboardResponse = {
   success: boolean;
@@ -114,6 +118,15 @@ export default function MemeLeaderboardPanel() {
   const [analyzerAddress, setAnalyzerAddress] = useState<string | undefined>(undefined);
   const [analyzerChain, setAnalyzerChain] = useState<AnalyzerChain | undefined>(undefined);
 
+  // Personal-wallet management (any signed-in user with leaderboard access).
+  const [myWallets, setMyWallets] = useState<MyWallet[]>([]);
+  const [addAddress, setAddAddress] = useState("");
+  const [addNickname, setAddNickname] = useState("");
+  const [addChain, setAddChain] = useState<"solana" | "bsc">("solana");
+  const [addBusy, setAddBusy] = useState(false);
+  const [addMsg, setAddMsg] = useState<string | null>(null);
+  const [busyAddress, setBusyAddress] = useState<string | null>(null);
+
   const fetchData = useCallback(async (p: Period) => {
     setLoading(true);
     setError(null);
@@ -143,11 +156,106 @@ export default function MemeLeaderboardPanel() {
     }
   }, []);
 
+  const fetchMyWallets = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/wallet-tracker/meme-leaderboard/my-wallets`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = (await res.json()) as { success?: boolean; wallets?: MyWallet[] };
+      if (data.success) setMyWallets(data.wallets ?? []);
+    } catch {
+      // Silent — UI degrades to empty list.
+    }
+  }, []);
+
   useEffect(() => {
     void fetchData(period);
   }, [fetchData, period]);
 
+  useEffect(() => {
+    if (!disabled && !locked) void fetchMyWallets();
+  }, [disabled, locked, fetchMyWallets]);
+
   const analyzerPeriod: AnalyzerPeriod = period;
+
+  const onAddMyWallet = useCallback(async () => {
+    const address = addAddress.trim();
+    if (!address) {
+      setAddMsg("Paste a wallet address first.");
+      return;
+    }
+    setAddBusy(true);
+    setAddMsg(null);
+    try {
+      const res = await fetch(`/api/wallet-tracker/meme-leaderboard/my-wallets`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, nickname: addNickname.trim() || undefined, chain: addChain }),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string; wallets?: MyWallet[] };
+      if (!data.success) {
+        setAddMsg(data.error ?? "Failed to add wallet.");
+        return;
+      }
+      setMyWallets(data.wallets ?? []);
+      setAddAddress("");
+      setAddNickname("");
+      setAddMsg("Wallet added. Click Analyze on the row to compute live stats — cron will refresh nightly.");
+      await fetchData(period);
+    } catch (err) {
+      setAddMsg(err instanceof Error ? err.message : "Failed to add wallet.");
+    } finally {
+      setAddBusy(false);
+    }
+  }, [addAddress, addNickname, addChain, fetchData, period]);
+
+  const onRemoveMyWallet = useCallback(async (address: string) => {
+    setBusyAddress(address);
+    try {
+      const res = await fetch(`/api/wallet-tracker/meme-leaderboard/my-wallets?address=${encodeURIComponent(address)}`, {
+        method: "DELETE",
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!data.success) {
+        setAddMsg(data.error ?? "Failed to remove wallet.");
+        return;
+      }
+      setMyWallets((prev) => prev.filter((w) => w.address !== address));
+      await fetchData(period);
+    } catch (err) {
+      setAddMsg(err instanceof Error ? err.message : "Failed to remove wallet.");
+    } finally {
+      setBusyAddress(null);
+    }
+  }, [fetchData, period]);
+
+  const onPromoteRow = useCallback(async (address: string, label: string | null) => {
+    setBusyAddress(address);
+    try {
+      const res = await fetch(`/api/wallet-tracker/meme-leaderboard/promote`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, nickname: label ?? undefined, global: true }),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!data.success) {
+        setAddMsg(data.error ?? "Failed to promote.");
+        return;
+      }
+      await fetchData(period);
+    } catch (err) {
+      setAddMsg(err instanceof Error ? err.message : "Failed to promote.");
+    } finally {
+      setBusyAddress(null);
+    }
+  }, [fetchData, period]);
 
   const triggerAnalyzeRow = useCallback((walletAddress: string) => {
     setAnalyzerAddress(walletAddress);
@@ -295,9 +403,9 @@ export default function MemeLeaderboardPanel() {
       <Card>
         <CardContent className="p-8 text-center">
           <Lock className="mx-auto h-6 w-6 text-zinc-400 mb-2" />
-          <p className="font-semibold">Meme Coins Traders on-demand access required</p>
+          <p className="font-semibold">VIP subscription required</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Contact admin to enable Meme Coins Traders on your account.
+            Upgrade to VIP to access the Meme Leaderboard and the Wallet Analyzer.
           </p>
         </CardContent>
       </Card>
@@ -311,7 +419,89 @@ export default function MemeLeaderboardPanel() {
         pendingAddress={analyzerAddress}
         pendingChain={analyzerChain}
         pendingPeriod={analyzerPeriod}
+        isOwner={isOwner}
+        onWalletChanged={() => { void fetchData(period); void fetchMyWallets(); }}
       />
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Plus className="h-5 w-5 text-cyan-500" />
+            Add a wallet to your leaderboard
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+            <div className="md:col-span-5">
+              <input
+                type="text"
+                className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 text-sm font-mono"
+                placeholder="Solana (base58) or BSC (0x…) wallet address"
+                value={addAddress}
+                onChange={(e) => setAddAddress(e.target.value)}
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+              />
+            </div>
+            <div className="md:col-span-3">
+              <input
+                type="text"
+                className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 text-sm"
+                placeholder="Nickname (optional)"
+                value={addNickname}
+                onChange={(e) => setAddNickname(e.target.value)}
+                maxLength={64}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <select
+                className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 text-sm"
+                value={addChain}
+                onChange={(e) => setAddChain(e.target.value as "solana" | "bsc")}
+              >
+                <option value="solana">Solana</option>
+                <option value="bsc">BSC</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <Button
+                type="button"
+                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white h-10"
+                onClick={() => void onAddMyWallet()}
+                disabled={addBusy}
+              >
+                {addBusy ? "Adding…" : "Add wallet"}
+              </Button>
+            </div>
+          </div>
+          {addMsg && (
+            <p className="text-xs text-muted-foreground">{addMsg}</p>
+          )}
+          {myWallets.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <span className="text-[11px] text-muted-foreground mr-1">Your wallets:</span>
+              {myWallets.map((w) => (
+                <span
+                  key={w.id}
+                  className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-cyan-300 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300"
+                >
+                  {w.label || shortenWallet(w.address)}
+                  <button
+                    type="button"
+                    className="hover:text-rose-600"
+                    onClick={() => void onRemoveMyWallet(w.address)}
+                    disabled={busyAddress === w.address}
+                    title="Remove"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -432,7 +622,19 @@ export default function MemeLeaderboardPanel() {
                           <TableCell className="font-mono text-xs">{i + 1}</TableCell>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{r.label || shortenWallet(r.walletAddress)}</div>
+                              <div className="font-medium flex items-center gap-1.5 flex-wrap">
+                                {r.label || shortenWallet(r.walletAddress)}
+                                {r.isGlobal && (
+                                  <span className="text-[10px] px-1 py-0 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 inline-flex items-center gap-0.5">
+                                    <Globe className="h-2.5 w-2.5" /> Global
+                                  </span>
+                                )}
+                                {r.isMine && (
+                                  <span className="text-[10px] px-1 py-0 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 inline-flex items-center gap-0.5">
+                                    <Star className="h-2.5 w-2.5" /> Mine
+                                  </span>
+                                )}
+                              </div>
                               {r.label && (
                                 <div className="text-xs text-muted-foreground font-mono">{shortenWallet(r.walletAddress)}</div>
                               )}
@@ -463,7 +665,7 @@ export default function MemeLeaderboardPanel() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end items-center gap-2">
+                            <div className="flex justify-end items-center gap-1.5 flex-wrap">
                               <Button
                                 type="button"
                                 variant="outline"
@@ -475,6 +677,34 @@ export default function MemeLeaderboardPanel() {
                                 <Wand2 className="h-3 w-3 mr-1" />
                                 Analyze
                               </Button>
+                              {r.isMine && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                                  onClick={() => void onRemoveMyWallet(r.walletAddress)}
+                                  disabled={busyAddress === r.walletAddress}
+                                  title="Remove from my wallets"
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  Remove
+                                </Button>
+                              )}
+                              {isOwner && !r.isGlobal && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7"
+                                  onClick={() => void onPromoteRow(r.walletAddress, r.label)}
+                                  disabled={busyAddress === r.walletAddress}
+                                  title="Promote to global (visible to all users)"
+                                >
+                                  <Globe className="h-3 w-3 mr-1" />
+                                  Make global
+                                </Button>
+                              )}
                               <a
                                 href={`https://solscan.io/account/${r.walletAddress}`}
                                 target="_blank"

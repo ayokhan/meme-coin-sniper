@@ -54,7 +54,25 @@ export async function POST(request: Request) {
 
   try {
     const wallets = await getTrackedWallets();
-    const list = onlyParam ? wallets.filter((w) => w.address === onlyParam) : wallets;
+
+    // Also include user-personal Solana wallets so they appear on the leaderboard for their owner.
+    const userMemeWallets = (await (prisma as unknown as {
+      userMemeCoinWallet: { findMany: (args: unknown) => Promise<Array<{ address: string; label: string | null; chain: string }>> };
+    }).userMemeCoinWallet.findMany({ where: { chain: "solana" } })) ?? [];
+
+    const byAddress = new Map<string, { address: string; label: string | null }>();
+    for (const w of wallets) {
+      byAddress.set(w.address, { address: w.address, label: w.label ?? null });
+    }
+    for (const w of userMemeWallets) {
+      // Prefer the admin-curated label when both exist.
+      if (!byAddress.has(w.address)) {
+        byAddress.set(w.address, { address: w.address, label: w.label ?? null });
+      }
+    }
+
+    const merged = Array.from(byAddress.values());
+    const list = onlyParam ? merged.filter((w) => w.address === onlyParam) : merged;
     if (list.length === 0) {
       return NextResponse.json({ success: true, refreshed: 0, period: periodKey, message: "No tracked wallets." });
     }

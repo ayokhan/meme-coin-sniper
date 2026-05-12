@@ -178,6 +178,9 @@ export async function analyzeSolanaWallet(walletAddress: string, period: Analyze
     sells: number;
     spentNative: number;
     receivedNative: number;
+    tokensReceived: number;
+    tokensSold: number;
+    firstBuyAtMs: number | null;
   }>();
   let volumeNative = 0;
   let totalCostBasisNative = 0;
@@ -203,16 +206,23 @@ export async function analyzeSolanaWallet(walletAddress: string, period: Analyze
       sells: 0,
       spentNative: 0,
       receivedNative: 0,
+      tokensReceived: 0,
+      tokensSold: 0,
+      firstBuyAtMs: null as number | null,
     };
     cur.trades += 1;
     if (primary.symbol && !cur.symbol) cur.symbol = primary.symbol;
+    const tsMs = (tx.timestamp ?? 0) * 1000;
     if (action === "buy") {
       cur.buys += 1;
       cur.spentNative += Math.abs(nativeDelta);
+      cur.tokensReceived += Math.abs(primary.tokenDelta);
       totalCostBasisNative += Math.abs(nativeDelta);
+      if (tsMs && (cur.firstBuyAtMs === null || tsMs < cur.firstBuyAtMs)) cur.firstBuyAtMs = tsMs;
     } else if (action === "sell") {
       cur.sells += 1;
       cur.receivedNative += nativeDelta;
+      cur.tokensSold += Math.abs(primary.tokenDelta);
     }
     perMint.set(primary.mint, cur);
 
@@ -230,26 +240,18 @@ export async function analyzeSolanaWallet(walletAddress: string, period: Analyze
     }
   }
 
-  // Holdings
+  // Holdings + positions (computed together because they share the price map)
   const rawHoldings = await getWalletHoldings(walletAddress);
   const allMintsToPrice = new Set<string>([...rawHoldings.map((h) => h.mint), ...perMint.keys()]);
   const prices = allMintsToPrice.size > 0 ? await getSolanaTokenPricesUsd(Array.from(allMintsToPrice)) : new Map();
-  const holdings: AnalyzerHolding[] = rawHoldings.map((h) => {
-    const p = prices.get(h.mint);
-    return {
-      mint: h.mint,
-      symbol: p?.symbol ?? null,
-      name: null,
-      uiAmount: h.uiAmount,
-      priceUsd: p?.priceUsd ?? null,
-      valueUsd: p?.priceUsd ? p.priceUsd * h.uiAmount : null,
-    };
-  });
-  holdings.sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0));
-  const holdingsValueUsd = holdings.reduce((acc, h) => acc + (h.valueUsd ?? 0), 0);
-
-  // Positions
   const holdingByMint = new Map(rawHoldings.map((h) => [h.mint, h.uiAmount]));
+
+  // Pre-compute holdings value (priced via Dexscreener); used in totals + verdict.
+  const holdingsValueUsd = rawHoldings.reduce((acc, h) => {
+    const p = prices.get(h.mint);
+    return acc + (p?.priceUsd ? p.priceUsd * h.uiAmount : 0);
+  }, 0);
+
   const positions: AnalyzerPosition[] = Array.from(perMint.entries()).map(([mint, v]) => {
     const realizedNative = v.receivedNative - v.spentNative;
     const realizedUsd = realizedNative * solUsd;
@@ -258,6 +260,8 @@ export async function analyzeSolanaWallet(walletAddress: string, period: Analyze
     const ui = holdingByMint.get(mint) ?? 0;
     const p = prices.get(mint);
     const holdingUsd = p?.priceUsd ? ui * p.priceUsd : null;
+    const pctSold = v.tokensReceived > 0 ? Math.min((v.tokensSold / v.tokensReceived) * 100, 100) : null;
+    const pctHeld = v.tokensReceived > 0 ? Math.max(0, (ui / v.tokensReceived) * 100) : null;
     return {
       mint,
       symbol: v.symbol ?? p?.symbol ?? null,
@@ -271,6 +275,12 @@ export async function analyzeSolanaWallet(walletAddress: string, period: Analyze
       realizedPct,
       currentHoldingUiAmount: ui,
       currentHoldingUsd: holdingUsd,
+      firstBuyAtMs: v.firstBuyAtMs,
+      tokensReceived: v.tokensReceived,
+      tokensSold: v.tokensSold,
+      pctSold,
+      pctHeld,
+      recommendedCopy: false, // set after verdict
     };
   });
   positions.sort((a, b) => b.realizedUsd - a.realizedUsd);
@@ -301,7 +311,38 @@ export async function analyzeSolanaWallet(walletAddress: string, period: Analyze
     uniqueMints: perMint.size,
   };
 
+  // Build holdings (priced) after positions so we can attach per-mint metadata.
+  const positionByMint = new Map(positions.map((p) => [p.mint, p]));
+  const holdings: AnalyzerHolding[] = rawHoldings.map((h) => {
+    const p = prices.get(h.mint);
+    const pos = positionByMint.get(h.mint);
+    return {
+      mint: h.mint,
+      symbol: pos?.symbol ?? p?.symbol ?? null,
+      name: null,
+      uiAmount: h.uiAmount,
+      priceUsd: p?.priceUsd ?? null,
+      valueUsd: p?.priceUsd ? p.priceUsd * h.uiAmount : null,
+      firstBuyAtMs: pos?.firstBuyAtMs ?? null,
+      pctSold: pos?.pctSold ?? null,
+      pctHeld: pos?.pctHeld ?? null,
+      recommendedCopy: false,
+      realizedUsd: pos?.realizedUsd ?? 0,
+    };
+  });
+  holdings.sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0));
+
   const verdict = buildVerdict({ positions, trades, holdings, totals });
+
+  // Tag positions + holdings with recommendedCopy using the wallet-level verdict.
+  const walletGood = verdict.label === "Strong copy" || verdict.label === "Moderate copy";
+  for (const pos of positions) {
+    pos.recommendedCopy = walletGood && pos.currentHoldingUiAmount > 0 && ((pos.pctHeld ?? 0) > 30 || pos.realizedUsd >= 0);
+  }
+  for (const h of holdings) {
+    const pos = positionByMint.get(h.mint);
+    h.recommendedCopy = walletGood && h.uiAmount > 0 && ((h.pctHeld ?? 100) > 30 || (pos?.realizedUsd ?? 0) >= 0);
+  }
 
   if (!notes.length && trades.length === 0) {
     notes.push(`No Solana trades found in the last ${period}. The wallet may be inactive or trading on chains we don't cover yet.`);

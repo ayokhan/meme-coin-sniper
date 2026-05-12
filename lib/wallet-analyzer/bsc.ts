@@ -262,6 +262,9 @@ export async function analyzeBscWallet(walletAddress: string, period: AnalyzerPe
     spentNative: number;
     receivedNative: number;
     netUiAmount: number;
+    tokensReceived: number;
+    tokensSold: number;
+    firstBuyAtMs: number | null;
   }>();
   let volumeNative = 0;
   let totalCostBasisNative = 0;
@@ -287,6 +290,9 @@ export async function analyzeBscWallet(walletAddress: string, period: AnalyzerPe
         spentNative: 0,
         receivedNative: 0,
         netUiAmount: 0,
+        tokensReceived: 0,
+        tokensSold: 0,
+        firstBuyAtMs: null as number | null,
       };
       cur.netUiAmount += signed;
       if (tr.symbol && !cur.symbol) cur.symbol = tr.symbol;
@@ -303,13 +309,17 @@ export async function analyzeBscWallet(walletAddress: string, period: AnalyzerPe
 
     const cur = perToken.get(primary.contract)!;
     cur.trades += 1;
+    const tsMs = agg.timeStamp * 1000;
     if (action === "buy") {
       cur.buys += 1;
       cur.spentNative += Math.abs(nativeDelta);
+      cur.tokensReceived += Math.abs(primary.amount);
       totalCostBasisNative += Math.abs(nativeDelta);
+      if (tsMs && (cur.firstBuyAtMs === null || tsMs < cur.firstBuyAtMs)) cur.firstBuyAtMs = tsMs;
     } else if (action === "sell") {
       cur.sells += 1;
       cur.receivedNative += nativeDelta;
+      cur.tokensSold += Math.abs(primary.amount);
     }
 
     if (trades.length < MAX_TRADES) {
@@ -326,29 +336,16 @@ export async function analyzeBscWallet(walletAddress: string, period: AnalyzerPe
     }
   }
 
-  // Holdings: positive net amounts only.
-  const heldContracts = Array.from(perToken.entries())
-    .filter(([, v]) => v.netUiAmount > 0)
-    .map(([contract]) => contract);
-  const priceMap = heldContracts.length > 0 ? await getBscTokenPricesUsd(heldContracts) : new Map();
-  const holdings: AnalyzerHolding[] = heldContracts.map((contract) => {
-    const v = perToken.get(contract)!;
-    const p = priceMap.get(contract);
-    return {
-      mint: contract,
-      symbol: v.symbol ?? p?.symbol ?? null,
-      name: null,
-      uiAmount: v.netUiAmount,
-      priceUsd: p?.priceUsd ?? null,
-      valueUsd: p?.priceUsd ? p.priceUsd * v.netUiAmount : null,
-    };
-  });
-  holdings.sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0));
-  const holdingsValueUsd = holdings.reduce((acc, h) => acc + (h.valueUsd ?? 0), 0);
+  // Price every contract once (held + traded, excluding stables) so positions + holdings share prices.
+  const allMintsToPrice = new Set<string>(Array.from(perToken.keys()).filter((c) => !STABLES.has(c)));
+  const priceMap = allMintsToPrice.size > 0 ? await getBscTokenPricesUsd(Array.from(allMintsToPrice)) : new Map();
 
-  // Positions
-  const allMintsToPrice = new Set<string>([...heldContracts, ...Array.from(perToken.keys()).filter((c) => !STABLES.has(c))]);
-  const allPrices = allMintsToPrice.size > 0 ? await getBscTokenPricesUsd(Array.from(allMintsToPrice)) : priceMap;
+  const holdingsValueUsd = Array.from(perToken.entries()).reduce((acc, [contract, v]) => {
+    if (v.netUiAmount <= 0) return acc;
+    const p = priceMap.get(contract);
+    return acc + (p?.priceUsd ? p.priceUsd * v.netUiAmount : 0);
+  }, 0);
+
   const positions: AnalyzerPosition[] = Array.from(perToken.entries())
     .filter(([contract]) => !STABLES.has(contract))
     .map(([contract, v]) => {
@@ -356,8 +353,11 @@ export async function analyzeBscWallet(walletAddress: string, period: AnalyzerPe
       const realizedUsd = realizedNative * bnbUsd;
       const costBasisUsd = v.spentNative * bnbUsd;
       const realizedPct = costBasisUsd > 0 ? (realizedUsd / costBasisUsd) * 100 : null;
-      const p = allPrices.get(contract);
-      const holdingUsd = p?.priceUsd ? Math.max(v.netUiAmount, 0) * p.priceUsd : null;
+      const p = priceMap.get(contract);
+      const heldUi = Math.max(v.netUiAmount, 0);
+      const holdingUsd = p?.priceUsd ? heldUi * p.priceUsd : null;
+      const pctSold = v.tokensReceived > 0 ? Math.min((v.tokensSold / v.tokensReceived) * 100, 100) : null;
+      const pctHeld = v.tokensReceived > 0 ? Math.max(0, (heldUi / v.tokensReceived) * 100) : null;
       return {
         mint: contract,
         symbol: v.symbol ?? p?.symbol ?? null,
@@ -369,8 +369,14 @@ export async function analyzeBscWallet(walletAddress: string, period: AnalyzerPe
         realizedNative,
         realizedUsd,
         realizedPct,
-        currentHoldingUiAmount: Math.max(v.netUiAmount, 0),
+        currentHoldingUiAmount: heldUi,
         currentHoldingUsd: holdingUsd,
+        firstBuyAtMs: v.firstBuyAtMs,
+        tokensReceived: v.tokensReceived,
+        tokensSold: v.tokensSold,
+        pctSold,
+        pctHeld,
+        recommendedCopy: false,
       };
     });
   positions.sort((a, b) => b.realizedUsd - a.realizedUsd);
@@ -400,7 +406,39 @@ export async function analyzeBscWallet(walletAddress: string, period: AnalyzerPe
     uniqueMints: positions.length,
   };
 
+  // Build holdings after positions so we can attach per-mint metadata.
+  const positionByMint = new Map(positions.map((p) => [p.mint, p]));
+  const holdings: AnalyzerHolding[] = Array.from(perToken.entries())
+    .filter(([, v]) => v.netUiAmount > 0)
+    .map(([contract, v]) => {
+      const p = priceMap.get(contract);
+      const pos = positionByMint.get(contract);
+      return {
+        mint: contract,
+        symbol: pos?.symbol ?? v.symbol ?? p?.symbol ?? null,
+        name: null,
+        uiAmount: v.netUiAmount,
+        priceUsd: p?.priceUsd ?? null,
+        valueUsd: p?.priceUsd ? p.priceUsd * v.netUiAmount : null,
+        firstBuyAtMs: pos?.firstBuyAtMs ?? null,
+        pctSold: pos?.pctSold ?? null,
+        pctHeld: pos?.pctHeld ?? null,
+        recommendedCopy: false,
+        realizedUsd: pos?.realizedUsd ?? 0,
+      };
+    });
+  holdings.sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0));
+
   const verdict = buildVerdict({ positions, trades, holdings, totals });
+
+  const walletGood = verdict.label === "Strong copy" || verdict.label === "Moderate copy";
+  for (const pos of positions) {
+    pos.recommendedCopy = walletGood && pos.currentHoldingUiAmount > 0 && ((pos.pctHeld ?? 0) > 30 || pos.realizedUsd >= 0);
+  }
+  for (const h of holdings) {
+    const pos = positionByMint.get(h.mint);
+    h.recommendedCopy = walletGood && h.uiAmount > 0 && ((h.pctHeld ?? 100) > 30 || (pos?.realizedUsd ?? 0) >= 0);
+  }
 
   notes.push(
     "Realized PnL pairs ERC-20 transfers with BNB deltas (normal + internal txs) per hash — same approximation we use on Solana.",

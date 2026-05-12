@@ -8,6 +8,16 @@ export type AnalyzerHolding = {
   uiAmount: number;
   priceUsd: number | null;
   valueUsd: number | null;
+  /** Earliest BUY timestamp for this mint within the analyzed window. */
+  firstBuyAtMs: number | null;
+  /** % of acquired tokens already sold (capped at 100). null if no buys seen in window. */
+  pctSold: number | null;
+  /** % of acquired tokens still held (currentHolding / totalReceived × 100). null if no buys seen. */
+  pctHeld: number | null;
+  /** True if the wallet's verdict is at least Moderate AND this position is still > 30% held OR realized PnL > 0. */
+  recommendedCopy: boolean;
+  /** Realized USD on this token across the window. May be 0 if never sold. */
+  realizedUsd: number;
 };
 
 export type AnalyzerTrade = {
@@ -34,6 +44,12 @@ export type AnalyzerPosition = {
   realizedPct: number | null; // (realizedUsd / cost-basis USD) × 100
   currentHoldingUiAmount: number;
   currentHoldingUsd: number | null;
+  firstBuyAtMs: number | null;
+  tokensReceived: number;
+  tokensSold: number;
+  pctSold: number | null;
+  pctHeld: number | null;
+  recommendedCopy: boolean;
 };
 
 export type AnalyzerVerdict = {

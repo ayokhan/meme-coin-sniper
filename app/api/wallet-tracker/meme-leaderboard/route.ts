@@ -22,6 +22,8 @@ type LeaderboardRow = {
   biggestWinPnlUsd: number | null;
   notes: string | null;
   computedAt: string;
+  isMine: boolean;
+  isGlobal: boolean;
 };
 
 export async function GET(request: Request) {
@@ -47,6 +49,35 @@ export async function GET(request: Request) {
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(Math.trunc(limitParam), 5), 100) : 50;
 
   try {
+    // Collect the set of wallet addresses visible to this user:
+    //  - All global tracked wallets (admin curated)
+    //  - All user-personal meme coin wallets for this user
+    const [globalWallets, userWallets] = await Promise.all([
+      (prisma as unknown as {
+        trackedWallet: { findMany: (args: unknown) => Promise<Array<{ address: string; label: string | null }>> };
+      }).trackedWallet.findMany({ where: { global: true, active: true } }),
+      (prisma as unknown as {
+        userMemeCoinWallet: { findMany: (args: unknown) => Promise<Array<{ address: string; label: string | null; chain: string }>> };
+      }).userMemeCoinWallet.findMany({ where: { userId: access.userId, chain: "solana" } }),
+    ]);
+
+    const globalAddrs = new Set(globalWallets.map((w) => w.address));
+    const mineAddrs = new Set(userWallets.map((w) => w.address));
+    const userLabelByAddress = new Map(userWallets.map((w) => [w.address, w.label]));
+    const visibleAddrs = new Set<string>([...globalAddrs, ...mineAddrs]);
+
+    if (visibleAddrs.size === 0) {
+      return NextResponse.json({
+        success: true,
+        period,
+        rows: [] as LeaderboardRow[],
+        isOwner: access.isOwner,
+        lastComputedAt: null,
+        methodology:
+          "Approximation. Realized PnL = net SOL flow per token × SOL/USD (Helius free tier). Holdings priced via Dexscreener (free, no key). Win rate counts mints with at least one SELL.",
+      });
+    }
+
     const stats = await (prisma as unknown as {
       memeTraderStats: {
         findMany: (args: unknown) => Promise<Array<{
@@ -66,14 +97,14 @@ export async function GET(request: Request) {
         }>>;
       };
     }).memeTraderStats.findMany({
-      where: { periodKey: period },
+      where: { periodKey: period, walletAddress: { in: Array.from(visibleAddrs) } },
       orderBy: [{ totalPnlUsd: "desc" }, { realizedPnlUsd: "desc" }],
       take: limit,
     });
 
     const rows: LeaderboardRow[] = stats.map((s) => ({
       walletAddress: s.walletAddress,
-      label: s.label,
+      label: s.label ?? userLabelByAddress.get(s.walletAddress) ?? null,
       realizedPnlUsd: s.realizedPnlUsd,
       unrealizedHoldingsUsd: s.unrealizedHoldingsUsd,
       totalPnlUsd: s.totalPnlUsd,
@@ -85,7 +116,31 @@ export async function GET(request: Request) {
       biggestWinPnlUsd: s.biggestWinPnlUsd,
       notes: s.notes,
       computedAt: s.computedAt.toISOString(),
+      isMine: mineAddrs.has(s.walletAddress),
+      isGlobal: globalAddrs.has(s.walletAddress),
     }));
+
+    // Surface added-but-not-yet-refreshed wallets as placeholder rows so users see them right after adding.
+    const missingMine = Array.from(mineAddrs).filter((addr) => !rows.some((r) => r.walletAddress === addr));
+    for (const addr of missingMine) {
+      rows.push({
+        walletAddress: addr,
+        label: userLabelByAddress.get(addr) ?? null,
+        realizedPnlUsd: 0,
+        unrealizedHoldingsUsd: 0,
+        totalPnlUsd: 0,
+        volumeUsd: 0,
+        tradeCount: 0,
+        winRatePct: null,
+        biggestWinMint: null,
+        biggestWinSymbol: null,
+        biggestWinPnlUsd: null,
+        notes: "Pending first refresh — analyze the wallet to compute stats on demand.",
+        computedAt: new Date(0).toISOString(),
+        isMine: true,
+        isGlobal: globalAddrs.has(addr),
+      });
+    }
 
     const lastComputedAt = rows.length > 0 ? rows.reduce((a, b) => (a > b.computedAt ? a : b.computedAt), rows[0].computedAt) : null;
 

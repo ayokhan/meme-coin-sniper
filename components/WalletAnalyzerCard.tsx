@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle } from "lucide-react";
+import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Star, Globe } from "lucide-react";
 
 export type AnalyzerChain = "solana" | "bsc";
 export type AnalyzerPeriod = "24h" | "7d" | "30d";
@@ -23,6 +23,10 @@ type Holding = {
   uiAmount: number;
   priceUsd: number | null;
   valueUsd: number | null;
+  firstBuyAtMs: number | null;
+  pctSold: number | null;
+  pctHeld: number | null;
+  recommendedCopy: boolean;
 };
 
 type Trade = {
@@ -46,6 +50,9 @@ type Position = {
   realizedUsd: number;
   realizedPct: number | null;
   currentHoldingUsd: number | null;
+  pctSold: number | null;
+  pctHeld: number | null;
+  recommendedCopy: boolean;
 };
 
 type Verdict = {
@@ -88,6 +95,10 @@ export type WalletAnalyzerCardProps = {
   pendingAddress?: string;
   pendingChain?: AnalyzerChain | "auto";
   pendingPeriod?: AnalyzerPeriod;
+  /** When true, surfaces owner-only actions (e.g. promote to global). */
+  isOwner?: boolean;
+  /** Called after a successful promote-to-global so the leaderboard can refetch. */
+  onWalletChanged?: () => void;
 };
 
 function fmtUsd(v: number | null | undefined, opts?: { signed?: boolean }) {
@@ -156,6 +167,8 @@ export default function WalletAnalyzerCard({
   pendingAddress,
   pendingChain,
   pendingPeriod,
+  isOwner,
+  onWalletChanged,
 }: WalletAnalyzerCardProps) {
   const [address, setAddress] = useState("");
   const [chain, setChain] = useState<AnalyzerChain | "auto">("auto");
@@ -163,6 +176,9 @@ export default function WalletAnalyzerCard({
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [promoting, setPromoting] = useState(false);
+  const [promoteNickname, setPromoteNickname] = useState("");
+  const [promoteMsg, setPromoteMsg] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const runAnalyze = useCallback(async (overrideAddress?: string, overrideChain?: AnalyzerChain | "auto", overridePeriod?: AnalyzerPeriod) => {
@@ -222,6 +238,38 @@ export default function WalletAnalyzerCard({
     const d = new Date(ms);
     return d.toLocaleString();
   }, []);
+
+  const localDateShort = useCallback((ms: number | null) => {
+    if (!ms) return "—";
+    const d = new Date(ms);
+    return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }, []);
+
+  const promoteToGlobal = useCallback(async () => {
+    if (!analysis) return;
+    setPromoting(true);
+    setPromoteMsg(null);
+    try {
+      const res = await fetch("/api/wallet-tracker/meme-leaderboard/promote", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: analysis.walletAddress, nickname: promoteNickname.trim() || undefined, global: true }),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!data.success) {
+        setPromoteMsg(data.error ?? "Failed to promote.");
+        return;
+      }
+      setPromoteMsg("Promoted to global. All users will now see this wallet on the leaderboard.");
+      onWalletChanged?.();
+    } catch (err) {
+      setPromoteMsg(err instanceof Error ? err.message : "Failed to promote.");
+    } finally {
+      setPromoting(false);
+    }
+  }, [analysis, promoteNickname, onWalletChanged]);
 
   const showHoldings = useMemo(() => analysis?.holdings.filter((h) => (h.valueUsd ?? 0) > 0.01) ?? [], [analysis]);
   const explorer = analysis ? chainExplorerWalletUrl(analysis.chain, analysis.walletAddress) : null;
@@ -351,9 +399,30 @@ export default function WalletAnalyzerCard({
               </div>
             )}
 
+            {isOwner && (
+              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 flex flex-wrap items-center gap-2">
+                <Globe className="h-4 w-4 text-cyan-500" />
+                <div className="flex-1 min-w-[180px]">
+                  <p className="text-xs font-medium">Make this wallet global</p>
+                  <p className="text-[11px] text-muted-foreground">All users will see it on the Meme Leaderboard.</p>
+                </div>
+                <input
+                  type="text"
+                  className="h-8 w-44 rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 text-xs"
+                  placeholder="Nickname (optional)"
+                  value={promoteNickname}
+                  onChange={(e) => setPromoteNickname(e.target.value)}
+                />
+                <Button size="sm" type="button" onClick={() => void promoteToGlobal()} disabled={promoting} className="h-8 bg-cyan-600 hover:bg-cyan-700 text-white">
+                  {promoting ? "Promoting…" : "Promote to global"}
+                </Button>
+                {promoteMsg && <span className="text-[11px] text-muted-foreground basis-full pl-6">{promoteMsg}</span>}
+              </div>
+            )}
+
             {showHoldings.length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-medium">Active holdings</p>
+                <p className="text-xs font-medium">Active holdings <span className="text-[11px] text-muted-foreground">— buy times in your local time</span></p>
                 <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
                   <Table>
                     <TableHeader>
@@ -362,6 +431,10 @@ export default function WalletAnalyzerCard({
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Price</TableHead>
                         <TableHead className="text-right">Value</TableHead>
+                        <TableHead className="text-right">First buy</TableHead>
+                        <TableHead className="text-right">% sold</TableHead>
+                        <TableHead className="text-right">% held</TableHead>
+                        <TableHead className="text-right">Copy?</TableHead>
                         <TableHead className="text-right">Dex</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -375,6 +448,18 @@ export default function WalletAnalyzerCard({
                           <TableCell className="text-right">{h.uiAmount.toLocaleString(undefined, { maximumFractionDigits: 6 })}</TableCell>
                           <TableCell className="text-right">{h.priceUsd !== null ? fmtUsd(h.priceUsd) : "—"}</TableCell>
                           <TableCell className="text-right font-semibold">{fmtUsd(h.valueUsd)}</TableCell>
+                          <TableCell className="text-right text-xs whitespace-nowrap">{localDateShort(h.firstBuyAtMs)}</TableCell>
+                          <TableCell className="text-right text-xs">{h.pctSold === null ? "—" : `${h.pctSold.toFixed(0)}%`}</TableCell>
+                          <TableCell className="text-right text-xs">{h.pctHeld === null ? "—" : `${h.pctHeld.toFixed(0)}%`}</TableCell>
+                          <TableCell className="text-right">
+                            {h.recommendedCopy ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 rounded px-1.5 py-0.5">
+                                <Star className="h-3 w-3" /> Copy
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
                             <a
                               href={chainDexTokenUrl(analysis.chain, h.mint)}
@@ -390,6 +475,9 @@ export default function WalletAnalyzerCard({
                     </TableBody>
                   </Table>
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  &quot;Copy?&quot; = recommended to consider copy-buy. Rule: wallet verdict ≥ Moderate copy AND this position is still &gt;30% held OR realized PnL ≥ 0.
+                </p>
               </div>
             )}
 
