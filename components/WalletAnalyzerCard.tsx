@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Star, Globe } from "lucide-react";
+import { Wand2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Star, Globe, Copy, Check, Flag, LogOut } from "lucide-react";
 
 export type AnalyzerChain = "solana" | "bsc";
 export type AnalyzerPeriod = "24h" | "7d" | "30d";
@@ -179,7 +179,33 @@ export default function WalletAnalyzerCard({
   const [promoting, setPromoting] = useState(false);
   const [promoteNickname, setPromoteNickname] = useState("");
   const [promoteMsg, setPromoteMsg] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const copyAddress = useCallback(async (text: string, key?: string) => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else if (typeof document !== "undefined") {
+        const el = document.createElement("textarea");
+        el.value = text;
+        el.setAttribute("readonly", "");
+        el.style.position = "absolute";
+        el.style.left = "-9999px";
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+      }
+      const k = key ?? text;
+      setCopiedKey(k);
+      setTimeout(() => {
+        setCopiedKey((cur) => (cur === k ? null : cur));
+      }, 1500);
+    } catch {
+      // Silently no-op; users can still copy via Solscan/Dexscreener link.
+    }
+  }, []);
 
   const runAnalyze = useCallback(async (overrideAddress?: string, overrideChain?: AnalyzerChain | "auto", overridePeriod?: AnalyzerPeriod) => {
     const addr = (overrideAddress ?? address).trim();
@@ -273,6 +299,50 @@ export default function WalletAnalyzerCard({
 
   const showHoldings = useMemo(() => analysis?.holdings.filter((h) => (h.valueUsd ?? 0) > 0.01) ?? [], [analysis]);
   const explorer = analysis ? chainExplorerWalletUrl(analysis.chain, analysis.walletAddress) : null;
+
+  /**
+   * Per-trade annotations: first buy, exit-trade (running net hits zero), and "still holds X%" for tokens
+   * the wallet still owns. We replay trades in chronological order to find the firsts/exits, then look up
+   * the wallet's final per-token pctHeld so we can flag rows of mints still held.
+   */
+  const tradeAnnotations = useMemo(() => {
+    type Anno = { isFirstBuy: boolean; isExit: boolean; pctHeldNow: number | null };
+    const out = new Map<number, Anno>();
+    if (!analysis) return out;
+    const pctHeldByMint = new Map<string, number | null>();
+    const hasHoldingByMint = new Map<string, boolean>();
+    for (const p of analysis.positions) {
+      pctHeldByMint.set(p.mint, p.pctHeld);
+      hasHoldingByMint.set(p.mint, (p.currentHoldingUsd ?? 0) > 0 || (p.pctHeld ?? 0) > 0);
+    }
+    // Walk trades oldest → newest so first-buy/exit detection is correct.
+    const chronoIdx = analysis.trades
+      .map((t, i) => ({ t, i }))
+      .sort((a, b) => a.t.timestampMs - b.t.timestampMs);
+    const firstBuySeen = new Set<string>();
+    const runningNet = new Map<string, number>();
+    for (const { t, i } of chronoIdx) {
+      const prevNet = runningNet.get(t.mint) ?? 0;
+      const newNet = prevNet + t.tokenDelta;
+      runningNet.set(t.mint, newNet);
+      let isFirstBuy = false;
+      let isExit = false;
+      if (t.action === "buy" && !firstBuySeen.has(t.mint)) {
+        firstBuySeen.add(t.mint);
+        isFirstBuy = true;
+      }
+      // Exit = running net was > 0 and becomes ≤ ~0 on a SELL (negative tokenDelta).
+      if (t.action === "sell" && prevNet > 1e-9 && newNet <= 1e-6) {
+        isExit = true;
+      }
+      out.set(i, {
+        isFirstBuy,
+        isExit,
+        pctHeldNow: hasHoldingByMint.get(t.mint) ? pctHeldByMint.get(t.mint) ?? null : null,
+      });
+    }
+    return out;
+  }, [analysis]);
 
   return (
     <div ref={containerRef} className="scroll-mt-4">
@@ -443,7 +513,21 @@ export default function WalletAnalyzerCard({
                         <TableRow key={h.mint}>
                           <TableCell>
                             <div className="font-medium">{h.symbol ?? shorten(h.mint)}</div>
-                            <div className="text-xs text-muted-foreground font-mono">{shorten(h.mint)}</div>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                              <span>{shorten(h.mint)}</span>
+                              <button
+                                type="button"
+                                onClick={() => void copyAddress(h.mint, `h-${h.mint}`)}
+                                className="text-zinc-400 hover:text-cyan-600 dark:hover:text-cyan-400"
+                                title="Copy token address"
+                              >
+                                {copiedKey === `h-${h.mint}` ? (
+                                  <Check className="h-3 w-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">{h.uiAmount.toLocaleString(undefined, { maximumFractionDigits: 6 })}</TableCell>
                           <TableCell className="text-right">{h.priceUsd !== null ? fmtUsd(h.priceUsd) : "—"}</TableCell>
@@ -507,7 +591,21 @@ export default function WalletAnalyzerCard({
                             >
                               {p.symbol ?? shorten(p.mint)}
                             </a>
-                            <div className="text-xs text-muted-foreground font-mono">{shorten(p.mint)}</div>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                              <span>{shorten(p.mint)}</span>
+                              <button
+                                type="button"
+                                onClick={() => void copyAddress(p.mint, `p-${p.mint}`)}
+                                className="text-zinc-400 hover:text-cyan-600 dark:hover:text-cyan-400"
+                                title="Copy token address"
+                              >
+                                {copiedKey === `p-${p.mint}` ? (
+                                  <Check className="h-3 w-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">{p.trades} ({p.buys}/{p.sells})</TableCell>
                           <TableCell className={`text-right ${p.realizedUsd >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
@@ -539,12 +637,20 @@ export default function WalletAnalyzerCard({
                         <TableHead>Token</TableHead>
                         <TableHead className="text-right">{analysis.nativeSymbol} delta</TableHead>
                         <TableHead className="text-right">Notional USD</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead className="text-right">Tx</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {analysis.trades.slice(0, 100).map((t, i) => (
-                        <TableRow key={`${t.signature ?? i}-${i}`}>
+                      {analysis.trades.slice(0, 100).map((t, i) => {
+                        const anno = tradeAnnotations.get(i);
+                        const rowHighlight = anno?.isFirstBuy
+                          ? "bg-emerald-50/50 dark:bg-emerald-900/10"
+                          : anno?.isExit
+                            ? "bg-rose-50/50 dark:bg-rose-900/10"
+                            : "";
+                        return (
+                        <TableRow key={`${t.signature ?? i}-${i}`} className={rowHighlight}>
                           <TableCell className="whitespace-nowrap text-xs">{localTime(t.timestampMs)}</TableCell>
                           <TableCell>
                             <span
@@ -559,12 +665,50 @@ export default function WalletAnalyzerCard({
                               {t.action.toUpperCase()}
                             </span>
                           </TableCell>
-                          <TableCell>{t.symbol ?? shorten(t.mint)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <span>{t.symbol ?? shorten(t.mint)}</span>
+                              <button
+                                type="button"
+                                onClick={() => void copyAddress(t.mint, `t-${i}-${t.mint}`)}
+                                className="text-zinc-400 hover:text-cyan-600 dark:hover:text-cyan-400"
+                                title="Copy token address"
+                              >
+                                {copiedKey === `t-${i}-${t.mint}` ? (
+                                  <Check className="h-3 w-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
+                          </TableCell>
                           <TableCell className={`text-right ${t.nativeDelta >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                             {t.nativeDelta >= 0 ? "+" : ""}
                             {t.nativeDelta.toFixed(3)}
                           </TableCell>
                           <TableCell className="text-right">{fmtUsd(t.notionalUsd)}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {anno?.isFirstBuy && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/30">
+                                  <Flag className="h-2.5 w-2.5" /> First buy
+                                </span>
+                              )}
+                              {anno?.isExit && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/30">
+                                  <LogOut className="h-2.5 w-2.5" /> Exited
+                                </span>
+                              )}
+                              {anno?.pctHeldNow !== null && anno?.pctHeldNow !== undefined && !anno.isExit && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-900/30">
+                                  Holds {Math.max(0, Math.min(100, anno.pctHeldNow)).toFixed(0)}%
+                                </span>
+                              )}
+                              {!anno?.isFirstBuy && !anno?.isExit && (anno?.pctHeldNow === null || anno?.pctHeldNow === undefined) && (
+                                <span className="text-[10px] text-muted-foreground">—</span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">
                             {t.signature ? (
                               <a
@@ -580,7 +724,8 @@ export default function WalletAnalyzerCard({
                             )}
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
