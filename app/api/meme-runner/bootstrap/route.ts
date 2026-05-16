@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, isOwnerSession } from "@/lib/auth";
 import { getMemeRunnerAccess } from "@/lib/meme-runner-access";
 import { getMemeRunnerSolConfig } from "@/lib/meme-runner/config";
 import { DEFAULT_MEME_RUNNER_SOL_CONFIG } from "@/lib/meme-runner/defaults";
@@ -22,9 +22,13 @@ export async function GET() {
       getMemeRunnerSolConfig(),
       getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_GO_HUNTING),
     ]);
+    const isCoachUser = (session?.user as { isCoachUser?: boolean })?.isCoachUser === true;
     return NextResponse.json({
       success: true,
       enabled: true,
+      isOwner: isOwnerSession(session),
+      isCoachUser,
+      canShareCoach: isOwnerSession(session) || isCoachUser,
       chains: { sol: true, bsc: false, eth: false },
       config,
       defaults: DEFAULT_MEME_RUNNER_SOL_CONFIG,

@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { Copy, ExternalLink, RefreshCw, Send, Sparkles, Zap, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { isOwnerSession } from "@/lib/auth";
 import { formatMemeRunnerShareForCoach } from "@/lib/meme-runner/format";
 import { NOVASTARIS_OPEN_AI_AGENT } from "@/lib/novastaris-events";
 import type { MemeRunnerLane, MemeRunnerSolConfig, MemeRunnerToken } from "@/lib/meme-runner/types";
@@ -230,7 +228,8 @@ export default function MemeRunnerPanel() {
           return;
         }
         if (d.config) setConfig(d.config);
-        if (d.laneLegend) setLaneLegend(d.laneLegend);
+        setIsOwner(!!d.isOwner);
+        setCanShareCoach(!!d.canShareCoach);
         void runScan();
       })
       .catch(() => setError("Could not load Meme Runner"));
