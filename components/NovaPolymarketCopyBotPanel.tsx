@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, Copy, ListPlus, Radar, Search } from "lucide-react";
+import { ExternalLink, Copy, ListPlus, Radar, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -159,6 +159,30 @@ export default function NovaPolymarketCopyBotPanel({
     },
     [addrInput, runAnalyzeForAddress]
   );
+
+  const clearWalletAnalysis = useCallback(() => {
+    setAnalyzed(null);
+    setAllTrades([]);
+    setNextTradeOffset(0);
+    setTradesHasMore(false);
+    setLoadingMore(false);
+    setMergedStats(null);
+    setError(null);
+    setTrackerMsg(null);
+  }, []);
+
+  const clearTopicRadar = useCallback(() => {
+    setTopicResult(null);
+    setError(null);
+  }, []);
+
+  const clearAllResults = useCallback(() => {
+    clearWalletAnalysis();
+    clearTopicRadar();
+  }, [clearWalletAnalysis, clearTopicRadar]);
+
+  const hasWalletAnalysis = !!analyzed?.address;
+  const hasTopicResult = !!topicResult;
 
   useEffect(() => {
     if (!analyzeHandoff?.address || !isValidAddr(analyzeHandoff.address)) return;
@@ -335,6 +359,12 @@ export default function NovaPolymarketCopyBotPanel({
               >
                 {loading ? "Analyzing…" : "Analyze wallet"}
               </Button>
+              {hasWalletAnalysis && (
+                <Button type="button" size="sm" variant="outline" disabled={loading} onClick={clearWalletAnalysis}>
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
 
@@ -351,6 +381,12 @@ export default function NovaPolymarketCopyBotPanel({
                 <Search className="h-3.5 w-3.5 mr-1" />
                 {topicLoading ? "Scanning..." : "Run topic radar"}
               </Button>
+              {hasTopicResult && (
+                <Button type="button" size="sm" variant="outline" disabled={topicLoading} onClick={clearTopicRadar}>
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Clear
+                </Button>
+              )}
             </div>
             {topicResult && (
               <div className="rounded border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/70 dark:bg-zinc-900/40 space-y-2">
@@ -383,6 +419,15 @@ export default function NovaPolymarketCopyBotPanel({
             )}
           </div>
 
+          {(hasWalletAnalysis || hasTopicResult) && (
+            <div className="flex justify-end">
+              <Button type="button" size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={clearAllResults}>
+                <X className="h-3.5 w-3.5 mr-1" />
+                Clear all results
+              </Button>
+            </div>
+          )}
+
           {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
           {trackerMsg && <p className="text-xs text-emerald-700 dark:text-emerald-300">{trackerMsg}</p>}
 
@@ -403,6 +448,10 @@ export default function NovaPolymarketCopyBotPanel({
                 <Button type="button" size="sm" variant="outline" onClick={() => void copyAddress()}>
                   <Copy className="h-3.5 w-3.5 mr-1" />
                   Copy address
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={clearWalletAnalysis}>
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Clear analysis
                 </Button>
               </div>
 
