@@ -25,7 +25,7 @@ function toMs(createdAt: number): number {
 }
 
 /** Fetch Solana pairs via search (official API has no "all pairs" endpoint). More queries = more pairs. */
-async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Promise<DexPair[]> {
+export async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Promise<DexPair[]> {
   const queries = [
     'SOL', 'USDC', 'BONK', 'WIF', 'PEPE', 'DOGE', 'FLOKI', 'POPCAT', 'MEW', 'SLERF', 'SHIB',
     'MEME', 'TOSHI', 'NEIRO', 'MOODENG', 'FARTCOIN', 'MOG', 'TURBO',
@@ -54,13 +54,49 @@ async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Promise<D
   return all;
 }
 
+function normalizeDexIdForFilter(dexId: string): string {
+  return (dexId || '').toLowerCase().replace(/\./g, '');
+}
+
+export type MemeRunnerDexFetchOptions = {
+  minLiquidity: number;
+  maxAgeMinutes: number;
+  allowedDexIds: string[];
+  searchQueries: string[];
+};
+
+/** Pairs for Meme Runner with launchpad-specific search + dex allowlist. */
+export async function getMemeRunnerSolanaPairs(opts: MemeRunnerDexFetchOptions): Promise<DexPair[]> {
+  const allowed = new Set(opts.allowedDexIds.map(normalizeDexIdForFilter));
+  try {
+    const pairs = await fetchSolanaPairsViaSearch(opts.searchQueries);
+    const now = Date.now();
+    const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
+    const vol = (p: DexPair) => p.volume?.h24 ?? 0;
+    const dexOk = (p: DexPair) => allowed.has(normalizeDexIdForFilter(p.dexId || ''));
+    const eligible = pairs
+      .filter((p) => usd(p) >= opts.minLiquidity && (vol(p) > 0 || usd(p) >= opts.minLiquidity) && dexOk(p))
+      .sort((a, b) => toMs(b.pairCreatedAt) - toMs(a.pairCreatedAt));
+    const inWindow = eligible.filter((p) => now - toMs(p.pairCreatedAt) <= opts.maxAgeMinutes * 60000);
+    const fallbackMinutes = Math.min(opts.maxAgeMinutes * 2, 1440);
+    const inFallback = eligible.filter((p) => now - toMs(p.pairCreatedAt) <= fallbackMinutes * 60000);
+    const source = inWindow.length > 0 ? inWindow : inFallback.length > 0 ? inFallback : eligible;
+    return source.slice(0, 400);
+  } catch {
+    return [];
+  }
+}
+
 export async function getNewSolanaPairs(minLiquidity = 500, maxAgeMinutes = 120): Promise<DexPair[]> {
   try {
     const pairs = await fetchSolanaPairsViaSearch();
     const now = Date.now();
     const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
     const vol = (p: DexPair) => p.volume?.h24 ?? 0;
-    const dexOk = (p: DexPair) => ['raydium', 'orca', 'meteora', 'pump.fun', 'pumpswap'].includes((p.dexId || '').toLowerCase());
+    const dexOk = (p: DexPair) =>
+      ['raydium', 'orca', 'meteora', 'pumpfun', 'pump.fun', 'pumpswap'].some(
+        (d) => normalizeDexIdForFilter(p.dexId || '') === normalizeDexIdForFilter(d)
+      );
     const eligible = pairs
       .filter((p) => usd(p) >= minLiquidity && (vol(p) > 0 || usd(p) >= minLiquidity) && dexOk(p))
       .sort((a, b) => toMs(b.pairCreatedAt) - toMs(a.pairCreatedAt));

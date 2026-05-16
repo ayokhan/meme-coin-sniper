@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatMemeRunnerShareForCoach } from "@/lib/meme-runner/format";
+import { launchpadExternalUrl } from "@/lib/meme-runner/launchpads";
 import { NOVASTARIS_OPEN_AI_AGENT } from "@/lib/novastaris-events";
 import type { MemeRunnerLane, MemeRunnerSolConfig, MemeRunnerToken } from "@/lib/meme-runner/types";
 
@@ -81,9 +82,16 @@ function TokenCard({
           <p className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{t.symbol}</p>
           <p className="text-muted-foreground truncate max-w-[140px]">{t.name}</p>
         </div>
-        <Badge variant="outline" className="shrink-0 tabular-nums">
-          Score {t.runnerScore}
-        </Badge>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {t.launchpadLabel && (
+            <Badge variant="secondary" className="text-[10px] h-5">
+              {t.launchpadLabel}
+            </Badge>
+          )}
+          <Badge variant="outline" className="tabular-nums">
+            Score {t.runnerScore}
+          </Badge>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
         <span>MC {fmtUsd(t.marketCapUsd)}</span>
@@ -113,14 +121,15 @@ function TokenCard({
             Chart <ExternalLink className="h-3 w-3" />
           </a>
         )}
-        <a
-          href={`https://pump.fun/coin/${t.contractAddress}`}
-          target="_blank"
-          rel="noreferrer"
-          className="text-emerald-600 hover:underline"
-        >
-          pump.fun
-        </a>
+        {(() => {
+          const padUrl = launchpadExternalUrl(t.launchpadId, t.contractAddress);
+          if (!padUrl) return null;
+          return (
+            <a href={padUrl} target="_blank" rel="noreferrer" className="text-emerald-600 hover:underline">
+              {t.launchpadLabel ?? "Launchpad"}
+            </a>
+          );
+        })()}
       </div>
       <p className="font-mono text-[10px] text-muted-foreground break-all" title={t.contractAddress}>
         {shortAddr(t.contractAddress)}
@@ -190,6 +199,7 @@ export default function MemeRunnerPanel() {
   const [error, setError] = useState<string | null>(null);
   const [disabled, setDisabled] = useState(false);
   const [scannedAt, setScannedAt] = useState<string | null>(null);
+  const [launchpadSummary, setLaunchpadSummary] = useState<string>("");
 
   const runScan = useCallback(async () => {
     if (chain !== "sol") return;
@@ -225,6 +235,9 @@ export default function MemeRunnerPanel() {
           return;
         }
         if (d.config) setConfig(d.config);
+        setLaunchpadSummary(
+          typeof d.enabledLaunchpadLabels === "string" ? d.enabledLaunchpadLabels : ""
+        );
         setIsOwner(!!d.isOwner);
         setCanShareCoach(!!d.canShareCoach);
         void runScan();
@@ -269,8 +282,8 @@ export default function MemeRunnerPanel() {
             Meme Runner
           </CardTitle>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Padre-style trenches scanner for pump.fun on Solana. Surfaces tokens in the ~$50k market-cap band with real
-            activity (fees, volume, socials) before migration — not financial advice.
+            Padre-style trenches scanner on Solana — launchpads configurable by admin (default Pump, Bonk, Bags).
+            New / Soon / Migrated lanes with per-lane filters — not financial advice.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -287,18 +300,42 @@ export default function MemeRunnerPanel() {
             <TabsContent value="sol" className="mt-3 space-y-3">
               {config && (
                 <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3 text-[11px] text-muted-foreground space-y-2">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <span>Min age {config.minTokenAgeMinutes}m</span>
-                    <span>MC {fmtUsd(config.minMarketCapUsd)}–{fmtUsd(config.maxMarketCapUsd)}</span>
-                    <span>Min fees {config.minEstimatedFeesSol} SOL</span>
-                    <span>Min score {config.minRunnerScore}</span>
-                  </div>
+                  <p className="text-[10px]">
+                    <strong className="text-zinc-700 dark:text-zinc-300">Launchpads:</strong>{" "}
+                    {launchpadSummary || (config.enabledLaunchpads.length > 0 ? config.enabledLaunchpads.join(", ") : "none")}
+                    {config.includeMigratedPools ? " · Migrated pools on" : " · Migrated pools off"}
+                  </p>
+                  {(["new", "soon", "migrated"] as const).map((lane) => {
+                    const f = config[lane];
+                    const label =
+                      lane === "new" ? "New" : lane === "soon" ? "Soon" : "Migrated";
+                    const color =
+                      lane === "new"
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : lane === "soon"
+                          ? "text-fuchsia-700 dark:text-fuchsia-400"
+                          : "text-cyan-700 dark:text-cyan-400";
+                    return (
+                      <div
+                        key={lane}
+                        className="grid grid-cols-2 sm:grid-cols-4 gap-1 border-t border-zinc-200/80 dark:border-zinc-700/80 pt-1.5"
+                      >
+                        <span className={`font-medium ${color}`}>{label}</span>
+                        <span>
+                          Age {f.minTokenAgeMinutes}-{f.maxTokenAgeMinutes}m
+                        </span>
+                        <span>
+                          MC {fmtUsd(f.minMarketCapUsd)}-{fmtUsd(f.maxMarketCapUsd)}
+                        </span>
+                        <span>
+                          &gt;={f.minEstimatedFeesSol} SOL, score {f.minRunnerScore}+
+                        </span>
+                      </div>
+                    );
+                  })}
                   <p className="text-[10px] border-t border-zinc-200/80 dark:border-zinc-700/80 pt-2">
-                    <strong className="text-zinc-700 dark:text-zinc-300">Lanes:</strong>{" "}
-                    <span className="text-emerald-700 dark:text-emerald-400">New</span> &lt; {fmtUsd(config.laneNewMaxMcapUsd)} MC on pump.fun ·{" "}
-                    <span className="text-fuchsia-700 dark:text-fuchsia-400">Soon</span> {fmtUsd(config.laneSoonMinMcapUsd)}–
-                    {fmtUsd(config.laneSoonMaxMcapUsd)} on pump.fun ·{" "}
-                    <span className="text-cyan-700 dark:text-cyan-400">Migrated</span> on Raydium/Orca/Meteora.
+                    Lane MC: New &lt; {fmtUsd(config.laneNewMaxMcapUsd)}; Soon{" "}
+                    {fmtUsd(config.laneSoonMinMcapUsd)}-{fmtUsd(config.laneSoonMaxMcapUsd)}.
                   </p>
                 </div>
               )}

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/auth";
 import { getMemeRunnerSolConfig, saveMemeRunnerSolConfig } from "@/lib/meme-runner/config";
 import { DEFAULT_MEME_RUNNER_SOL_CONFIG, parseMemeRunnerSolConfig } from "@/lib/meme-runner/defaults";
+import { MEME_RUNNER_LAUNCHPADS } from "@/lib/meme-runner/launchpads";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,16 @@ export async function GET() {
   if (!auth.ok) return auth.res;
   try {
     const config = await getMemeRunnerSolConfig();
-    return NextResponse.json({ success: true, config, defaults: DEFAULT_MEME_RUNNER_SOL_CONFIG });
+    return NextResponse.json({
+      success: true,
+      config,
+      defaults: DEFAULT_MEME_RUNNER_SOL_CONFIG,
+      launchpads: MEME_RUNNER_LAUNCHPADS.map((p) => ({
+        id: p.id,
+        label: p.label,
+        defaultEnabled: p.defaultEnabled,
+      })),
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to load config";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

@@ -1,9 +1,28 @@
-import { extractSocials, getNewSolanaPairs, type DexPair } from "@/lib/api-clients/dexscreener";
+import {
+  extractSocials,
+  fetchSolanaPairsViaSearch,
+  getMemeRunnerSolanaPairs,
+  type DexPair,
+} from "@/lib/api-clients/dexscreener";
 import { getPumpFunNewTokens } from "@/lib/api-clients/moralis";
-import type { MemeRunnerLane, MemeRunnerSolConfig, MemeRunnerToken } from "@/lib/meme-runner/types";
+import { laneFiltersFor } from "@/lib/meme-runner/defaults";
+import {
+  buildLaunchpadScanPlan,
+  launchpadExternalUrl,
+  MIGRATED_POOL_DEX_IDS,
+  matchLaunchpadsForPair,
+  normalizeDexId,
+  primaryLaunchpadForPair,
+  type MemeRunnerLaunchpadDef,
+} from "@/lib/meme-runner/launchpads";
+import type {
+  MemeRunnerLane,
+  MemeRunnerLaneFilters,
+  MemeRunnerSolConfig,
+  MemeRunnerToken,
+} from "@/lib/meme-runner/types";
 
-const PUMP_DEX = new Set(["pump.fun", "pumpswap"]);
-const MIGRATED_DEX = new Set(["raydium", "orca", "meteora"]);
+type TaggedPair = { pair: DexPair; taggedLaunchpadId: string | null };
 
 function toMs(createdAt: number): number {
   return createdAt < 1e12 ? createdAt * 1000 : createdAt;
@@ -21,11 +40,39 @@ function estimateFeesSol(volumeUsd: number, solPrice: number): number {
   return (volumeUsd / solPrice) * 0.0125;
 }
 
-function classifyLane(pair: DexPair, mcap: number | null, config: MemeRunnerSolConfig): MemeRunnerLane {
-  const dex = (pair.dexId || "").toLowerCase();
-  if (MIGRATED_DEX.has(dex)) return "migrated";
+function isMigratedDex(dexId: string): boolean {
+  const n = normalizeDexId(dexId);
+  return MIGRATED_POOL_DEX_IDS.some((d) => normalizeDexId(d) === n);
+}
+
+function isBondingDex(dexId: string, plan: ReturnType<typeof buildLaunchpadScanPlan>): boolean {
+  return plan.allowedBondingDexIds.has(normalizeDexId(dexId));
+}
+
+function pairAllowed(
+  pair: DexPair,
+  taggedLaunchpadId: string | null,
+  plan: ReturnType<typeof buildLaunchpadScanPlan>
+): boolean {
+  const dex = pair.dexId || "";
+  if (plan.includeMigratedPools && isMigratedDex(dex)) return true;
+  if (isBondingDex(dex, plan)) return true;
+  if (taggedLaunchpadId && plan.enabled.some((p) => p.id === taggedLaunchpadId)) return true;
+  return matchLaunchpadsForPair(dex, plan.enabled).length > 0;
+}
+
+function classifyLane(
+  pair: DexPair,
+  mcap: number | null,
+  config: MemeRunnerSolConfig,
+  plan: ReturnType<typeof buildLaunchpadScanPlan>,
+  launchpad: MemeRunnerLaunchpadDef | null
+): MemeRunnerLane {
+  const dex = pair.dexId || "";
+  if (config.includeMigratedPools && isMigratedDex(dex)) return "migrated";
   const mc = mcap ?? 0;
-  if (!PUMP_DEX.has(dex)) return "soon";
+  const onBonding = launchpad?.kind === "bonding" || isBondingDex(dex, plan);
+  if (!onBonding) return "soon";
   if (mc < config.laneNewMaxMcapUsd) return "new";
   if (mc >= config.laneSoonMinMcapUsd && mc <= config.laneSoonMaxMcapUsd) return "soon";
   if (mc < config.laneSoonMinMcapUsd) return "new";
@@ -38,8 +85,15 @@ function socialFlags(socials: { twitter: string | null; telegram: string | null;
   return { hasSocials: hasAny, hasOriginalSocials: hasOriginal };
 }
 
+function scoreTargetMc(config: MemeRunnerSolConfig, lane: MemeRunnerLane, filters: MemeRunnerLaneFilters): number {
+  if (lane === "soon") return config.targetMarketCapUsd;
+  return (filters.minMarketCapUsd + filters.maxMarketCapUsd) / 2;
+}
+
 function scoreToken(
   config: MemeRunnerSolConfig,
+  lane: MemeRunnerLane,
+  filters: MemeRunnerLaneFilters,
   mcap: number | null,
   ageMin: number,
   feesSol: number,
@@ -50,22 +104,23 @@ function scoreToken(
   const notes: string[] = [];
   let score = 0;
   const mc = mcap ?? 0;
-  if (mc >= config.minMarketCapUsd && mc <= config.maxMarketCapUsd) {
-    const dist = Math.abs(mc - config.targetMarketCapUsd);
-    const band = config.maxMarketCapUsd - config.minMarketCapUsd;
+  const targetMc = scoreTargetMc(config, lane, filters);
+  if (mc >= filters.minMarketCapUsd && mc <= filters.maxMarketCapUsd) {
+    const dist = Math.abs(mc - targetMc);
+    const band = filters.maxMarketCapUsd - filters.minMarketCapUsd;
     const proximity = Math.max(0, 1 - dist / Math.max(band, 1));
     score += Math.round(25 * proximity);
     if (proximity > 0.7) notes.push("MC in target band");
   }
-  if (ageMin >= config.minTokenAgeMinutes && ageMin <= config.maxTokenAgeMinutes) {
+  if (ageMin >= filters.minTokenAgeMinutes && ageMin <= filters.maxTokenAgeMinutes) {
     score += ageMin <= 180 ? 20 : 12;
     notes.push("Age in window");
   }
-  if (feesSol >= config.minEstimatedFeesSol) {
+  if (feesSol >= filters.minEstimatedFeesSol) {
     score += 20;
     notes.push("Fees ≥ min SOL");
   }
-  if (vol >= config.minVolume24hUsd) {
+  if (vol >= filters.minVolume24hUsd) {
     score += 10;
     notes.push("Volume OK");
   }
@@ -81,7 +136,7 @@ function scoreToken(
 }
 
 function applyFilters(
-  config: MemeRunnerSolConfig,
+  filters: MemeRunnerLaneFilters,
   ageMin: number,
   mcap: number | null,
   liq: number,
@@ -91,20 +146,26 @@ function applyFilters(
   hasOriginalSocials: boolean
 ): { passes: boolean; notes: string[] } {
   const notes: string[] = [];
-  if (ageMin < config.minTokenAgeMinutes) notes.push(`Age ${Math.round(ageMin)}m < ${config.minTokenAgeMinutes}m`);
-  if (ageMin > config.maxTokenAgeMinutes) notes.push(`Age ${Math.round(ageMin)}m > max`);
+  if (ageMin < filters.minTokenAgeMinutes) notes.push(`Age ${Math.round(ageMin)}m < ${filters.minTokenAgeMinutes}m`);
+  if (ageMin > filters.maxTokenAgeMinutes) notes.push(`Age ${Math.round(ageMin)}m > max`);
   const mc = mcap ?? 0;
-  if (mc < config.minMarketCapUsd) notes.push(`MC $${Math.round(mc)} < min`);
-  if (mc > config.maxMarketCapUsd) notes.push(`MC $${Math.round(mc)} > max`);
-  if (liq < config.minLiquidityUsd) notes.push(`Liquidity $${Math.round(liq)} low`);
-  if (vol < config.minVolume24hUsd) notes.push(`Volume $${Math.round(vol)} low`);
-  if (feesSol < config.minEstimatedFeesSol) notes.push(`Est. fees ${feesSol.toFixed(2)} SOL < ${config.minEstimatedFeesSol}`);
-  if (config.requireAtLeastOneSocial && !hasSocials) notes.push("No socials");
-  if (config.requireOriginalSocials && !hasOriginalSocials) notes.push("No Twitter/Telegram");
+  if (mc < filters.minMarketCapUsd) notes.push(`MC $${Math.round(mc)} < min`);
+  if (mc > filters.maxMarketCapUsd) notes.push(`MC $${Math.round(mc)} > max`);
+  if (liq < filters.minLiquidityUsd) notes.push(`Liquidity $${Math.round(liq)} low`);
+  if (vol < filters.minVolume24hUsd) notes.push(`Volume $${Math.round(vol)} low`);
+  if (feesSol < filters.minEstimatedFeesSol)
+    notes.push(`Est. fees ${feesSol.toFixed(2)} SOL < ${filters.minEstimatedFeesSol}`);
+  if (filters.requireAtLeastOneSocial && !hasSocials) notes.push("No socials");
+  if (filters.requireOriginalSocials && !hasOriginalSocials) notes.push("No Twitter/Telegram");
   return { passes: notes.length === 0, notes };
 }
 
-function pairToRunnerToken(pair: DexPair, config: MemeRunnerSolConfig): MemeRunnerToken {
+function pairToRunnerToken(
+  pair: DexPair,
+  config: MemeRunnerSolConfig,
+  plan: ReturnType<typeof buildLaunchpadScanPlan>,
+  taggedLaunchpadId: string | null
+): MemeRunnerToken {
   const socials = extractSocials(pair);
   const { hasSocials, hasOriginalSocials } = socialFlags(socials);
   const launchedMs = toMs(pair.pairCreatedAt ?? Date.now());
@@ -113,15 +174,30 @@ function pairToRunnerToken(pair: DexPair, config: MemeRunnerSolConfig): MemeRunn
   const liq = pair.liquidity?.usd ?? 0;
   const vol = pair.volume?.h24 ?? 0;
   const feesSol = estimateFeesSol(vol, config.solPriceUsd);
-  const lane = classifyLane(pair, mcap, config);
-  const bondingProgressPct = PUMP_DEX.has((pair.dexId || "").toLowerCase())
+  const launchpad = primaryLaunchpadForPair(pair.dexId || "", plan.enabled, taggedLaunchpadId);
+  const lane = classifyLane(pair, mcap, config, plan, launchpad);
+  const filters = laneFiltersFor(config, lane);
+  const onBondingCurve =
+    launchpad?.kind === "bonding" ||
+    plan.allowedBondingDexIds.has(normalizeDexId(pair.dexId || ""));
+  const bondingProgressPct = onBondingCurve
     ? mcap != null
       ? Math.min(100, (mcap / config.pumpGraduationMcapUsd) * 100)
       : null
     : null;
-  const { score, notes: scoreNotes } = scoreToken(config, mcap, ageMin, feesSol, vol, hasSocials, hasOriginalSocials);
-  const { passes: filterPasses, notes: filterNotes } = applyFilters(
+  const { score, notes: scoreNotes } = scoreToken(
     config,
+    lane,
+    filters,
+    mcap,
+    ageMin,
+    feesSol,
+    vol,
+    hasSocials,
+    hasOriginalSocials
+  );
+  const { passes: filterPasses, notes: filterNotes } = applyFilters(
+    filters,
     ageMin,
     mcap,
     liq,
@@ -153,6 +229,8 @@ function pairToRunnerToken(pair: DexPair, config: MemeRunnerSolConfig): MemeRunn
     hasSocials,
     hasOriginalSocials,
     dexId: pair.dexId || "",
+    launchpadId: launchpad?.id ?? null,
+    launchpadLabel: launchpad?.label ?? null,
     dexUrl: slug ? `https://dexscreener.com/solana/${slug}` : null,
     launchedAt: new Date(launchedMs).toISOString(),
     filterPasses,
@@ -161,35 +239,89 @@ function pairToRunnerToken(pair: DexPair, config: MemeRunnerSolConfig): MemeRunn
   };
 }
 
+function fetchWindow(config: MemeRunnerSolConfig): { maxAgeMinutes: number; minLiquidityUsd: number } {
+  const lanes: MemeRunnerLane[] = ["new", "soon", "migrated"];
+  return {
+    maxAgeMinutes: Math.max(...lanes.map((l) => laneFiltersFor(config, l).maxTokenAgeMinutes)),
+    minLiquidityUsd: Math.min(...lanes.map((l) => laneFiltersFor(config, l).minLiquidityUsd)),
+  };
+}
+
+async function fetchTaggedPairs(
+  config: MemeRunnerSolConfig,
+  plan: ReturnType<typeof buildLaunchpadScanPlan>,
+  minLiquidityUsd: number,
+  maxAgeMinutes: number
+): Promise<TaggedPair[]> {
+  const migratedIds = plan.includeMigratedPools ? [...MIGRATED_POOL_DEX_IDS] : [];
+  const allowedDexIds = [...plan.allowedBondingDexIds, ...migratedIds.map((d) => normalizeDexId(d))];
+
+  const pairs = await getMemeRunnerSolanaPairs({
+    minLiquidity: minLiquidityUsd,
+    maxAgeMinutes,
+    allowedDexIds,
+    searchQueries: plan.searchQueries,
+  });
+
+  const byKey = new Map<string, TaggedPair>();
+  const add = (pair: DexPair, taggedLaunchpadId: string | null) => {
+    const key = pair.pairAddress || pair.baseToken?.address;
+    if (!key || !pairAllowed(pair, taggedLaunchpadId, plan)) return;
+    if (!byKey.has(key)) byKey.set(key, { pair, taggedLaunchpadId });
+  };
+
+  for (const p of pairs) {
+    const matches = matchLaunchpadsForPair(p.dexId || "", plan.enabled);
+    add(p, matches[0]?.id ?? null);
+  }
+
+  const searchOnlyPads = plan.enabled.filter((p) => p.dexIds.length === 0 && p.searchQueries.length > 0);
+  if (searchOnlyPads.length > 0) {
+    const now = Date.now();
+    for (const pad of searchOnlyPads) {
+      const extra = await fetchSolanaPairsViaSearch(pad.searchQueries);
+      for (const p of extra) {
+        const ageMin = (now - toMs(p.pairCreatedAt ?? now)) / 60_000;
+        if (ageMin > maxAgeMinutes * 2) continue;
+        if ((p.liquidity?.usd ?? 0) < minLiquidityUsd) continue;
+        add(p, pad.id);
+      }
+    }
+  }
+
+  return [...byKey.values()];
+}
+
 export async function scanMemeRunnerSol(
   config: MemeRunnerSolConfig,
   lane: MemeRunnerLane | "all" = "all",
   moralisEnabled = true
 ): Promise<MemeRunnerToken[]> {
-  const maxAge = Math.max(config.maxTokenAgeMinutes, 120);
-  const [pairs, moralis] = await Promise.all([
-    getNewSolanaPairs(config.minLiquidityUsd, maxAge),
-    moralisEnabled ? getPumpFunNewTokens(40).catch(() => []) : Promise.resolve([]),
+  const plan = buildLaunchpadScanPlan(config.enabledLaunchpads, config.includeMigratedPools);
+  if (plan.enabled.length === 0 && !plan.includeMigratedPools) return [];
+
+  const { maxAgeMinutes, minLiquidityUsd } = fetchWindow(config);
+  const pumpEnabled = config.enabledLaunchpads.includes("pump");
+
+  const [tagged, moralis] = await Promise.all([
+    fetchTaggedPairs(config, plan, minLiquidityUsd, maxAgeMinutes),
+    moralisEnabled && pumpEnabled ? getPumpFunNewTokens(40).catch(() => []) : Promise.resolve([]),
   ]);
 
-  const byKey = new Map<string, DexPair>();
-  const add = (p: DexPair) => {
-    const key = p.pairAddress || p.baseToken?.address;
-    if (!key) return;
-    const dex = (p.dexId || "").toLowerCase();
-    if (!PUMP_DEX.has(dex) && !MIGRATED_DEX.has(dex)) return;
-    if (!byKey.has(key)) byKey.set(key, p);
-  };
-  pairs.forEach(add);
+  const byKey = new Map<string, TaggedPair>();
+  for (const t of tagged) {
+    const key = t.pair.pairAddress || t.pair.baseToken?.address;
+    if (key) byKey.set(key, t);
+  }
 
   for (const m of moralis) {
     const addr = m.tokenAddress;
     if (!addr || byKey.has(addr)) continue;
     const liq = m.liquidity != null ? parseFloat(String(m.liquidity)) : 0;
     const created = m.createdAt ? new Date(m.createdAt).getTime() : Date.now();
-    byKey.set(`moralis:${addr}`, {
+    const pair: DexPair = {
       chainId: "solana",
-      dexId: "pump.fun",
+      dexId: "pumpfun",
       pairAddress: "",
       baseToken: { address: addr, name: m.name ?? "—", symbol: m.symbol ?? "—" },
       priceUsd: m.priceUsd != null ? String(m.priceUsd) : "0",
@@ -197,15 +329,23 @@ export async function scanMemeRunnerSol(
       volume: { h24: 0 },
       fdv: m.fullyDilutedValuation ? parseFloat(String(m.fullyDilutedValuation)) : undefined,
       pairCreatedAt: created,
-    });
+    };
+    if (pairAllowed(pair, "pump", plan)) {
+      byKey.set(`moralis:${addr}`, { pair, taggedLaunchpadId: "pump" });
+    }
   }
 
-  let tokens = Array.from(byKey.values())
-    .map((p) => pairToRunnerToken(p, config))
-    .filter((t) => t.filterPasses && t.runnerScore >= config.minRunnerScore);
+  let tokens = [...byKey.values()]
+    .map(({ pair, taggedLaunchpadId }) => pairToRunnerToken(pair, config, plan, taggedLaunchpadId))
+    .filter((t) => {
+      const f = laneFiltersFor(config, t.lane);
+      return t.filterPasses && t.runnerScore >= f.minRunnerScore;
+    });
 
   if (lane !== "all") tokens = tokens.filter((t) => t.lane === lane);
   tokens.sort((a, b) => b.runnerScore - a.runnerScore || (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0));
 
   return tokens.slice(0, 80);
 }
+
+export { launchpadExternalUrl };
