@@ -1,7 +1,8 @@
 /**
- * Solana meme launchpads — Padre Trenches–style catalog.
- * DexScreener `dexId` values vary; we also use search queries to surface pairs.
+ * Meme launchpad catalogs per chain (DexScreener dexId + search queries).
  */
+
+import type { MemeRunnerChain } from "@/lib/meme-runner/types";
 
 export type MemeRunnerLaunchpadId =
   | "pump"
@@ -26,7 +27,7 @@ export type MemeRunnerLaunchpadId =
   | "boop";
 
 export type MemeRunnerLaunchpadDef = {
-  id: MemeRunnerLaunchpadId;
+  id: string;
   label: string;
   /** DexScreener dexId values (normalized lowercase, no dots). */
   dexIds: string[];
@@ -43,9 +44,28 @@ export function normalizeDexId(dexId: string): string {
   return (dexId || "").toLowerCase().replace(/\./g, "");
 }
 
-export const MIGRATED_POOL_DEX_IDS = ["raydium", "orca", "meteora"] as const;
+export const MIGRATED_POOL_DEX_IDS_SOL = ["raydium", "orca", "meteora"] as const;
+export const MIGRATED_POOL_DEX_IDS_BSC = ["pancakeswap", "pancakeswapv2", "pancakeswapv3", "biswap", "apeswap", "thena"] as const;
+export const MIGRATED_POOL_DEX_IDS_ETH = ["uniswap", "sushiswap", "balancer"] as const;
 
-export const MEME_RUNNER_LAUNCHPADS: MemeRunnerLaunchpadDef[] = [
+/** @deprecated use getMigratedDexIds(chain) */
+export const MIGRATED_POOL_DEX_IDS = MIGRATED_POOL_DEX_IDS_SOL;
+
+export function getMigratedDexIds(chain: MemeRunnerChain): readonly string[] {
+  if (chain === "bsc") return MIGRATED_POOL_DEX_IDS_BSC;
+  if (chain === "eth") return MIGRATED_POOL_DEX_IDS_ETH;
+  return MIGRATED_POOL_DEX_IDS_SOL;
+}
+
+export function isMigratedPoolDex(chain: MemeRunnerChain, dexId: string): boolean {
+  const n = normalizeDexId(dexId);
+  return getMigratedDexIds(chain).some((d) => {
+    const nd = normalizeDexId(d);
+    return n === nd || n.includes(nd) || nd.includes(n);
+  });
+}
+
+export const MEME_RUNNER_LAUNCHPADS_SOL: MemeRunnerLaunchpadDef[] = [
   {
     id: "pump",
     label: "Pump",
@@ -208,39 +228,116 @@ export const MEME_RUNNER_LAUNCHPADS: MemeRunnerLaunchpadDef[] = [
   },
 ];
 
-const BY_ID = new Map(MEME_RUNNER_LAUNCHPADS.map((p) => [p.id, p]));
+export const MEME_RUNNER_LAUNCHPADS_BSC: MemeRunnerLaunchpadDef[] = [
+  {
+    id: "fourmeme",
+    label: "Four.meme",
+    dexIds: ["fourmeme"],
+    searchQueries: ["four.meme", "fourmeme", "bsc meme"],
+    defaultEnabled: true,
+    kind: "bonding",
+  },
+  {
+    id: "pancakeswap",
+    label: "PancakeSwap",
+    dexIds: ["pancakeswap"],
+    searchQueries: ["pancakeswap bsc meme"],
+    defaultEnabled: false,
+    kind: "bonding",
+  },
+  {
+    id: "gra",
+    label: "Gra.fun",
+    dexIds: [],
+    searchQueries: ["gra.fun bsc"],
+    defaultEnabled: false,
+    kind: "bonding",
+  },
+  {
+    id: "flap",
+    label: "Flap",
+    dexIds: [],
+    searchQueries: ["flap bsc launch"],
+    defaultEnabled: false,
+    kind: "bonding",
+  },
+];
 
-export function getLaunchpad(id: string): MemeRunnerLaunchpadDef | undefined {
-  return BY_ID.get(id as MemeRunnerLaunchpadId);
+export const MEME_RUNNER_LAUNCHPADS_ETH: MemeRunnerLaunchpadDef[] = [
+  {
+    id: "uniswap",
+    label: "Uniswap",
+    dexIds: ["uniswap"],
+    searchQueries: ["uniswap ethereum meme", "ethereum meme"],
+    defaultEnabled: true,
+    kind: "bonding",
+  },
+  {
+    id: "zora",
+    label: "Zora",
+    dexIds: [],
+    searchQueries: ["zora ethereum"],
+    defaultEnabled: false,
+    kind: "bonding",
+  },
+  {
+    id: "clanker",
+    label: "Clanker",
+    dexIds: [],
+    searchQueries: ["clanker base", "clanker ethereum"],
+    defaultEnabled: false,
+    kind: "bonding",
+  },
+];
+
+/** @deprecated use getLaunchpadsForChain('sol') */
+export const MEME_RUNNER_LAUNCHPADS = MEME_RUNNER_LAUNCHPADS_SOL;
+
+export function getLaunchpadsForChain(chain: MemeRunnerChain): MemeRunnerLaunchpadDef[] {
+  if (chain === "bsc") return MEME_RUNNER_LAUNCHPADS_BSC;
+  if (chain === "eth") return MEME_RUNNER_LAUNCHPADS_ETH;
+  return MEME_RUNNER_LAUNCHPADS_SOL;
 }
 
-export function defaultEnabledLaunchpadIds(): MemeRunnerLaunchpadId[] {
-  return MEME_RUNNER_LAUNCHPADS.filter((p) => p.defaultEnabled).map((p) => p.id);
+export function getLaunchpad(chain: MemeRunnerChain, id: string): MemeRunnerLaunchpadDef | undefined {
+  return getLaunchpadsForChain(chain).find((p) => p.id === id);
 }
 
-export function allLaunchpadIds(): MemeRunnerLaunchpadId[] {
-  return MEME_RUNNER_LAUNCHPADS.map((p) => p.id);
+export function defaultEnabledLaunchpadIds(chain: MemeRunnerChain): string[] {
+  return getLaunchpadsForChain(chain)
+    .filter((p) => p.defaultEnabled)
+    .map((p) => p.id);
 }
 
-export function parseEnabledLaunchpads(raw: unknown): MemeRunnerLaunchpadId[] {
-  const valid = new Set(allLaunchpadIds());
-  if (!Array.isArray(raw) || raw.length === 0) return defaultEnabledLaunchpadIds();
-  const ids = raw.filter((x): x is MemeRunnerLaunchpadId => typeof x === "string" && valid.has(x as MemeRunnerLaunchpadId));
-  return ids.length > 0 ? ids : defaultEnabledLaunchpadIds();
+export function allLaunchpadIds(chain: MemeRunnerChain): string[] {
+  return getLaunchpadsForChain(chain).map((p) => p.id);
+}
+
+export function parseEnabledLaunchpads(chain: MemeRunnerChain, raw: unknown): string[] {
+  const valid = new Set(allLaunchpadIds(chain));
+  const defaults = defaultEnabledLaunchpadIds(chain);
+  if (!Array.isArray(raw) || raw.length === 0) return defaults;
+  const ids = raw.filter((x): x is string => typeof x === "string" && valid.has(x));
+  return ids.length > 0 ? ids : defaults;
 }
 
 export type LaunchpadScanPlan = {
+  chain: MemeRunnerChain;
   enabled: MemeRunnerLaunchpadDef[];
   allowedBondingDexIds: Set<string>;
   searchQueries: string[];
   includeMigratedPools: boolean;
+  migratedDexIds: readonly string[];
 };
 
 export function buildLaunchpadScanPlan(
-  enabledIds: MemeRunnerLaunchpadId[],
+  chain: MemeRunnerChain,
+  enabledIds: string[],
   includeMigratedPools = true
 ): LaunchpadScanPlan {
-  const enabled = enabledIds.map((id) => getLaunchpad(id)).filter((p): p is MemeRunnerLaunchpadDef => !!p);
+  const enabled = enabledIds
+    .map((id) => getLaunchpad(chain, id))
+    .filter((p): p is MemeRunnerLaunchpadDef => !!p);
   const allowedBondingDexIds = new Set<string>();
   const searchQueries: string[] = [];
   for (const p of enabled) {
@@ -248,10 +345,12 @@ export function buildLaunchpadScanPlan(
     searchQueries.push(...p.searchQueries);
   }
   return {
+    chain,
     enabled,
     allowedBondingDexIds,
     searchQueries: [...new Set(searchQueries)],
     includeMigratedPools,
+    migratedDexIds: getMigratedDexIds(chain),
   };
 }
 
@@ -265,31 +364,50 @@ export function matchLaunchpadsForPair(
 }
 
 export function primaryLaunchpadForPair(
+  chain: MemeRunnerChain,
   dexId: string,
   enabled: MemeRunnerLaunchpadDef[],
   taggedId?: string | null
 ): MemeRunnerLaunchpadDef | null {
   if (taggedId) {
-    const t = getLaunchpad(taggedId);
+    const t = getLaunchpad(chain, taggedId);
     if (t && enabled.some((e) => e.id === t.id)) return t;
   }
   const matches = matchLaunchpadsForPair(dexId, enabled);
   if (matches.length > 0) return matches[0];
-  if (MIGRATED_POOL_DEX_IDS.includes(normalizeDexId(dexId) as (typeof MIGRATED_POOL_DEX_IDS)[number])) {
-    return null;
+  if (isMigratedPoolDex(chain, dexId)) return null;
+  return null;
+}
+
+export function launchpadExternalUrl(
+  chain: MemeRunnerChain,
+  launchpadId: string | null,
+  contractAddress: string
+): string | null {
+  const addr = contractAddress.trim();
+  if (!addr) return null;
+  if (chain === "sol") {
+    switch (launchpadId) {
+      case "pump":
+        return `https://pump.fun/coin/${addr}`;
+      case "bags":
+        return `https://bags.fm/${addr}`;
+      case "bonk":
+        return `https://letsbonk.fun/token/${addr}`;
+      default:
+        return null;
+    }
+  }
+  if (chain === "bsc" && launchpadId === "fourmeme") {
+    return `https://four.meme/token/${addr}`;
+  }
+  if (chain === "eth") {
+    return `https://dexscreener.com/ethereum/${addr}`;
   }
   return null;
 }
 
-export function launchpadExternalUrl(launchpadId: string | null, contractAddress: string): string | null {
-  switch (launchpadId) {
-    case "pump":
-      return `https://pump.fun/coin/${contractAddress}`;
-    case "bags":
-      return `https://bags.fm/${contractAddress}`;
-    case "bonk":
-      return `https://letsbonk.fun/token/${contractAddress}`;
-    default:
-      return null;
-  }
+export function dexScreenerPairUrl(chain: MemeRunnerChain, pairOrToken: string): string {
+  const slug = chain === "bsc" ? "bsc" : chain === "eth" ? "ethereum" : "solana";
+  return `https://dexscreener.com/${slug}/${pairOrToken}`;
 }

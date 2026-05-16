@@ -1,4 +1,4 @@
-/** Meme Runner lane — mirrors Padre Trenches columns. */
+/** Meme Runner lane — New / Soon / Migrated columns. */
 export type MemeRunnerLane = "new" | "soon" | "migrated";
 
 export type MemeRunnerChain = "sol" | "bsc" | "eth";
@@ -17,13 +17,11 @@ export type MemeRunnerLaneFilters = {
   minRunnerScore: number;
 };
 
-import type { MemeRunnerLaunchpadId } from "@/lib/meme-runner/launchpads";
-
-/** Admin-tunable SOL config. */
+/** Admin-tunable per-chain config (stored per chain in DB). */
 export type MemeRunnerSolConfig = {
-  /** Which launchpads to scan (Padre-style protocol list). */
-  enabledLaunchpads: MemeRunnerLaunchpadId[];
-  /** Include Raydium / Orca / Meteora pools (Migrated lane). */
+  /** Which launchpads to scan for this chain. */
+  enabledLaunchpads: string[];
+  /** Include post-graduation AMM pools (Migrated lane). */
   includeMigratedPools: boolean;
   /** Used for Soon lane scoring proximity + fee estimate. */
   targetMarketCapUsd: number;
@@ -40,6 +38,7 @@ export type MemeRunnerSolConfig = {
 };
 
 export type MemeRunnerToken = {
+  chain: MemeRunnerChain;
   id: string;
   symbol: string;
   name: string;

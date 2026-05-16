@@ -211,7 +211,7 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   nova_meme_runner: {
     label: "Meme Runner (Nova Meme Intelligence)",
     description:
-      "When ON, VIP users see Meme Runner under Nova Meme Intelligence — Padre-style pump.fun trenches filters (age, fees, socials, ~$50k MC band) for SOL. Configure thresholds in Admin → Meme Runner.",
+      "When ON, VIP users see Meme Runner under Nova Meme Intelligence — multi-chain trenches (SOL, BSC, ETH) with launchpad filters. Configure in Admin → Meme Runner.",
   },
   nova_perp_wallet_analyst: {
     label: "Nova Perp Wallet Analyst Agent (Wallet Tracker)",

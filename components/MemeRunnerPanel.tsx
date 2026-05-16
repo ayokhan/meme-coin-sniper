@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatMemeRunnerShareForCoach } from "@/lib/meme-runner/format";
+import { getChainMeta, memeRunnerAgentChain } from "@/lib/meme-runner/chain-meta";
 import { launchpadExternalUrl } from "@/lib/meme-runner/launchpads";
 import { NOVASTARIS_OPEN_AI_AGENT } from "@/lib/novastaris-events";
-import type { MemeRunnerLane, MemeRunnerSolConfig, MemeRunnerToken } from "@/lib/meme-runner/types";
+import type { MemeRunnerChain, MemeRunnerLane, MemeRunnerSolConfig, MemeRunnerToken } from "@/lib/meme-runner/types";
 
 function fmtUsd(n: number | null | undefined) {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -24,9 +25,11 @@ function shortAddr(a: string) {
 function TokenCard({
   t,
   canShareCoach,
+  nativeSymbol,
 }: {
   t: MemeRunnerToken;
   canShareCoach: boolean;
+  nativeSymbol: string;
 }) {
   const [copied, setCopied] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
@@ -97,7 +100,9 @@ function TokenCard({
         <span>MC {fmtUsd(t.marketCapUsd)}</span>
         <span>Vol {fmtUsd(t.volume24hUsd)}</span>
         <span>Age {t.tokenAgeMinutes}m</span>
-        <span>Fees ~{t.estimatedFeesSol} SOL</span>
+        <span>
+          Fees ~{t.estimatedFeesSol} {nativeSymbol}
+        </span>
         {t.bondingProgressPct != null && <span className="col-span-2">Curve {t.bondingProgressPct}%</span>}
       </div>
       <div className="flex flex-wrap gap-1">
@@ -122,7 +127,7 @@ function TokenCard({
           </a>
         )}
         {(() => {
-          const padUrl = launchpadExternalUrl(t.launchpadId, t.contractAddress);
+          const padUrl = launchpadExternalUrl(t.chain, t.launchpadId, t.contractAddress);
           if (!padUrl) return null;
           return (
             <a href={padUrl} target="_blank" rel="noreferrer" className="text-emerald-600 hover:underline">
@@ -166,11 +171,13 @@ function LaneColumn({
   tokens,
   empty,
   canShareCoach,
+  nativeSymbol,
 }: {
   title: string;
   tokens: MemeRunnerToken[];
   empty: string;
   canShareCoach: boolean;
+  nativeSymbol: string;
 }) {
   return (
     <div className="space-y-2 min-w-0">
@@ -181,7 +188,9 @@ function LaneColumn({
         {tokens.length === 0 ? (
           <p className="text-xs text-muted-foreground py-4 text-center border border-dashed rounded-lg">{empty}</p>
         ) : (
-          tokens.map((t) => <TokenCard key={t.id} t={t} canShareCoach={canShareCoach} />)
+          tokens.map((t) => (
+            <TokenCard key={t.id} t={t} canShareCoach={canShareCoach} nativeSymbol={nativeSymbol} />
+          ))
         )}
       </div>
     </div>
@@ -191,7 +200,7 @@ function LaneColumn({
 export default function MemeRunnerPanel() {
   const [isOwner, setIsOwner] = useState(false);
   const [canShareCoach, setCanShareCoach] = useState(false);
-  const [chain, setChain] = useState<"sol" | "bsc" | "eth">("sol");
+  const [chain, setChain] = useState<MemeRunnerChain>("sol");
   const [lane, setLane] = useState<MemeRunnerLane | "all">("all");
   const [config, setConfig] = useState<MemeRunnerSolConfig | null>(null);
   const [tokens, setTokens] = useState<MemeRunnerToken[]>([]);
@@ -200,9 +209,10 @@ export default function MemeRunnerPanel() {
   const [disabled, setDisabled] = useState(false);
   const [scannedAt, setScannedAt] = useState<string | null>(null);
   const [launchpadSummary, setLaunchpadSummary] = useState<string>("");
+  const [nativeSymbol, setNativeSymbol] = useState("SOL");
+  const [migratedLabel, setMigratedLabel] = useState("Raydium, Orca, or Meteora");
 
   const runScan = useCallback(async () => {
-    if (chain !== "sol") return;
     setLoading(true);
     setError(null);
     try {
@@ -225,30 +235,39 @@ export default function MemeRunnerPanel() {
     }
   }, [chain, lane]);
 
-  useEffect(() => {
-    fetch("/api/meme-runner/bootstrap", { cache: "no-store", credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d?.success) {
-          if (d?.disabled) setDisabled(true);
-          setError(d?.error ?? "Meme Runner unavailable");
-          return;
-        }
-        if (d.config) setConfig(d.config);
-        setLaunchpadSummary(
-          typeof d.enabledLaunchpadLabels === "string" ? d.enabledLaunchpadLabels : ""
-        );
-        setIsOwner(!!d.isOwner);
-        setCanShareCoach(!!d.canShareCoach);
-        void runScan();
-      })
-      .catch(() => setError("Could not load Meme Runner"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const loadBootstrap = useCallback(async (c: MemeRunnerChain) => {
+    const res = await fetch(`/api/meme-runner/bootstrap?chain=${c}`, {
+      cache: "no-store",
+      credentials: "include",
+    });
+    const d = await res.json();
+    if (!d?.success) {
+      if (d?.disabled) setDisabled(true);
+      setError(d?.error ?? "Meme Runner unavailable");
+      return false;
+    }
+    if (d.config) setConfig(d.config as MemeRunnerSolConfig);
+    setLaunchpadSummary(typeof d.enabledLaunchpadLabels === "string" ? d.enabledLaunchpadLabels : "");
+    setNativeSymbol(typeof d.nativeSymbol === "string" ? d.nativeSymbol : getChainMeta(c).nativeSymbol);
+    const legend = d.laneLegend as { migrated?: string } | undefined;
+    if (legend?.migrated) setMigratedLabel(legend.migrated.replace(/^Listed on /, "").replace(/ after graduation\.?$/, ""));
+    setIsOwner(!!d.isOwner);
+    setCanShareCoach(!!d.canShareCoach);
+    return true;
   }, []);
 
   useEffect(() => {
-    if (chain === "sol" && !disabled) void runScan();
-  }, [lane, chain, disabled, runScan]);
+    if (disabled) return;
+    void (async () => {
+      await loadBootstrap(chain);
+      void runScan();
+    })();
+  }, [chain, disabled, loadBootstrap, runScan]);
+
+  useEffect(() => {
+    if (disabled) return;
+    void runScan();
+  }, [lane, disabled, runScan]);
 
   const byLane = useMemo(() => {
     const n: MemeRunnerToken[] = [];
@@ -282,22 +301,19 @@ export default function MemeRunnerPanel() {
             Meme Runner
           </CardTitle>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Padre-style trenches scanner on Solana — launchpads configurable by admin (default Pump, Bonk, Bags).
-            New / Soon / Migrated lanes with per-lane filters — not financial advice.
+            Multi-chain meme trenches scanner (SOL, BSC, ETH). Admin picks launchpads per chain; New / Soon / Migrated
+            lanes with per-lane filters — not financial advice.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <Tabs value={chain} onValueChange={(v) => setChain(v as typeof chain)}>
             <TabsList className="flex-wrap h-auto gap-1">
               <TabsTrigger value="sol">SOL</TabsTrigger>
-              <TabsTrigger value="bsc" disabled>
-                BSC (soon)
-              </TabsTrigger>
-              <TabsTrigger value="eth" disabled>
-                ETH (soon)
-              </TabsTrigger>
+              <TabsTrigger value="bsc">BSC</TabsTrigger>
+              <TabsTrigger value="eth">ETH</TabsTrigger>
             </TabsList>
-            <TabsContent value="sol" className="mt-3 space-y-3">
+          </Tabs>
+          <div className="mt-3 space-y-3">
               {config && (
                 <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3 text-[11px] text-muted-foreground space-y-2">
                   <p className="text-[10px]">
@@ -328,7 +344,7 @@ export default function MemeRunnerPanel() {
                           MC {fmtUsd(f.minMarketCapUsd)}-{fmtUsd(f.maxMarketCapUsd)}
                         </span>
                         <span>
-                          &gt;={f.minEstimatedFeesSol} SOL, score {f.minRunnerScore}+
+                          &gt;={f.minEstimatedFeesSol} {nativeSymbol}, score {f.minRunnerScore}+
                         </span>
                       </div>
                     );
@@ -369,13 +385,26 @@ export default function MemeRunnerPanel() {
               {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
               {lane === "all" ? (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <LaneColumn title="New" tokens={byLane.new} empty="No new-lane tokens passed filters." canShareCoach={canShareCoach} />
-                  <LaneColumn title="Soon" tokens={byLane.soon} empty="No soon-lane tokens in the $50k band." canShareCoach={canShareCoach} />
+                  <LaneColumn
+                    title="New"
+                    tokens={byLane.new}
+                    empty="No new-lane tokens passed filters."
+                    canShareCoach={canShareCoach}
+                    nativeSymbol={nativeSymbol}
+                  />
+                  <LaneColumn
+                    title="Soon"
+                    tokens={byLane.soon}
+                    empty="No soon-lane tokens in the $50k band."
+                    canShareCoach={canShareCoach}
+                    nativeSymbol={nativeSymbol}
+                  />
                   <LaneColumn
                     title="Migrated"
                     tokens={byLane.migrated}
-                    empty="No tokens on Raydium/Orca/Meteora passed filters."
+                    empty={`No tokens on ${migratedLabel} passed filters.`}
                     canShareCoach={canShareCoach}
+                    nativeSymbol={nativeSymbol}
                   />
                 </div>
               ) : (
@@ -384,14 +413,11 @@ export default function MemeRunnerPanel() {
                   tokens={tokens}
                   empty="No tokens passed your filters."
                   canShareCoach={canShareCoach}
+                  nativeSymbol={nativeSymbol}
                 />
               )}
               <p className="text-[10px] text-muted-foreground">
-                Inspired by{" "}
-                <a href="https://trade.padre.gg/trenches" target="_blank" rel="noreferrer" className="underline">
-                  Padre Trenches
-                </a>
-                . Fees are estimated from 24h volume × 1.25% bonding-curve rate.
+                Fees estimated from 24h volume × 1.25% bonding-curve rate.
                 {isOwner && (
                   <>
                     {" "}
@@ -402,14 +428,7 @@ export default function MemeRunnerPanel() {
                   </>
                 )}
               </p>
-            </TabsContent>
-            <TabsContent value="bsc" className="mt-3">
-              <p className="text-sm text-muted-foreground">BSC Meme Runner is planned after SOL validation.</p>
-            </TabsContent>
-            <TabsContent value="eth" className="mt-3">
-              <p className="text-sm text-muted-foreground">Ethereum Meme Runner is planned after SOL validation.</p>
-            </TabsContent>
-          </Tabs>
+          </div>
         </CardContent>
       </Card>
     </div>

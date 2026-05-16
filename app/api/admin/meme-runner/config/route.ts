@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/auth";
-import { getMemeRunnerSolConfig, saveMemeRunnerSolConfig } from "@/lib/meme-runner/config";
-import { DEFAULT_MEME_RUNNER_SOL_CONFIG, parseMemeRunnerSolConfig } from "@/lib/meme-runner/defaults";
-import { MEME_RUNNER_LAUNCHPADS } from "@/lib/meme-runner/launchpads";
+import { getMemeRunnerConfig, saveMemeRunnerConfig } from "@/lib/meme-runner/config";
+import { defaultMemeRunnerConfig, parseMemeRunnerConfig } from "@/lib/meme-runner/defaults";
+import { getLaunchpadsForChain } from "@/lib/meme-runner/launchpads";
+import type { MemeRunnerChain } from "@/lib/meme-runner/types";
 
 export const dynamic = "force-dynamic";
 
@@ -16,16 +17,24 @@ async function assertOwner() {
   return { ok: true as const, session };
 }
 
-export async function GET() {
+function parseChainParam(v: string | null): MemeRunnerChain {
+  const c = (v || "sol").toLowerCase();
+  if (c === "bsc" || c === "eth") return c;
+  return "sol";
+}
+
+export async function GET(request: Request) {
   const auth = await assertOwner();
   if (!auth.ok) return auth.res;
+  const chain = parseChainParam(new URL(request.url).searchParams.get("chain"));
   try {
-    const config = await getMemeRunnerSolConfig();
+    const config = await getMemeRunnerConfig(chain);
     return NextResponse.json({
       success: true,
+      chain,
       config,
-      defaults: DEFAULT_MEME_RUNNER_SOL_CONFIG,
-      launchpads: MEME_RUNNER_LAUNCHPADS.map((p) => ({
+      defaults: defaultMemeRunnerConfig(chain),
+      launchpads: getLaunchpadsForChain(chain).map((p) => ({
         id: p.id,
         label: p.label,
         defaultEnabled: p.defaultEnabled,
@@ -40,11 +49,12 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const auth = await assertOwner();
   if (!auth.ok) return auth.res;
+  const chain = parseChainParam(new URL(request.url).searchParams.get("chain"));
   try {
     const body = await request.json().catch(() => ({}));
-    const parsed = parseMemeRunnerSolConfig(body.config ?? body);
-    const saved = await saveMemeRunnerSolConfig(parsed);
-    return NextResponse.json({ success: true, config: saved });
+    const parsed = parseMemeRunnerConfig(chain, body.config ?? body);
+    const saved = await saveMemeRunnerConfig(chain, parsed);
+    return NextResponse.json({ success: true, chain, config: saved });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to save config";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

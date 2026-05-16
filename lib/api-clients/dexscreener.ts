@@ -25,13 +25,34 @@ function toMs(createdAt: number): number {
 }
 
 /** Fetch Solana pairs via search (official API has no "all pairs" endpoint). More queries = more pairs. */
-export async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Promise<DexPair[]> {
-  const queries = [
+const CHAIN_BASE_QUERIES: Record<string, string[]> = {
+  solana: [
     'SOL', 'USDC', 'BONK', 'WIF', 'PEPE', 'DOGE', 'FLOKI', 'POPCAT', 'MEW', 'SLERF', 'SHIB',
     'MEME', 'TOSHI', 'NEIRO', 'MOODENG', 'FARTCOIN', 'MOG', 'TURBO',
     'solana', 'pump', 'raydium', 'jup', 'meme coin', 'new token', 'pump.fun', 'pumpswap',
-    ...extraQueries
-  ];
+  ],
+  bsc: [
+    'BNB', 'BUSD', 'CAKE', 'PEPE', 'FLOKI', 'DOGE', 'SHIB', 'MEME', 'TURBO', 'WOJAK',
+    'bsc', 'pancakeswap', 'meme coin', 'new token', 'binance smart chain', 'four.meme', 'fourmeme',
+  ],
+  ethereum: [
+    'ETH', 'USDC', 'PEPE', 'SHIB', 'MEME', 'DOGE', 'FLOKI', 'TURBO',
+    'ethereum', 'uniswap', 'meme coin', 'new token', 'eth meme',
+  ],
+};
+
+function chainMatches(pair: DexPair, dexChainKey: string): boolean {
+  const chain = (pair.chainId || '').toLowerCase();
+  if (dexChainKey === 'bsc') return chain === 'bsc' || chain === 'bnb';
+  return chain === dexChainKey;
+}
+
+/** Fetch pairs for a chain via DexScreener search. */
+export async function fetchChainPairsViaSearch(
+  dexChainKey: 'solana' | 'bsc' | 'ethereum',
+  extraQueries: string[] = []
+): Promise<DexPair[]> {
+  const queries = [...(CHAIN_BASE_QUERIES[dexChainKey] ?? []), ...extraQueries];
   const seen = new Set<string>();
   const all: DexPair[] = [];
   for (const q of queries) {
@@ -42,7 +63,7 @@ export async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Pr
       });
       const pairs = res.data?.pairs ?? [];
       for (const p of pairs) {
-        if (p.chainId !== 'solana') continue;
+        if (!chainMatches(p, dexChainKey)) continue;
         if (seen.has(p.pairAddress)) continue;
         seen.add(p.pairAddress);
         all.push(p);
@@ -54,26 +75,42 @@ export async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Pr
   return all;
 }
 
+export async function fetchSolanaPairsViaSearch(extraQueries: string[] = []): Promise<DexPair[]> {
+  return fetchChainPairsViaSearch('solana', extraQueries);
+}
+
 function normalizeDexIdForFilter(dexId: string): string {
   return (dexId || '').toLowerCase().replace(/\./g, '');
 }
 
+/** Pairs for Meme Runner with launchpad-specific search + dex allowlist. */
+export type MemeRunnerChainDexKey = 'solana' | 'bsc' | 'ethereum';
+
 export type MemeRunnerDexFetchOptions = {
+  chain: MemeRunnerChainDexKey;
   minLiquidity: number;
   maxAgeMinutes: number;
   allowedDexIds: string[];
   searchQueries: string[];
 };
 
-/** Pairs for Meme Runner with launchpad-specific search + dex allowlist. */
-export async function getMemeRunnerSolanaPairs(opts: MemeRunnerDexFetchOptions): Promise<DexPair[]> {
+function dexAllowed(dexId: string, allowed: Set<string>): boolean {
+  const n = normalizeDexIdForFilter(dexId);
+  if (allowed.has(n)) return true;
+  for (const a of allowed) {
+    if (n.includes(a) || a.includes(n)) return true;
+  }
+  return false;
+}
+
+export async function getMemeRunnerChainPairs(opts: MemeRunnerDexFetchOptions): Promise<DexPair[]> {
   const allowed = new Set(opts.allowedDexIds.map(normalizeDexIdForFilter));
   try {
-    const pairs = await fetchSolanaPairsViaSearch(opts.searchQueries);
+    const pairs = await fetchChainPairsViaSearch(opts.chain, opts.searchQueries);
     const now = Date.now();
     const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
     const vol = (p: DexPair) => p.volume?.h24 ?? 0;
-    const dexOk = (p: DexPair) => allowed.has(normalizeDexIdForFilter(p.dexId || ''));
+    const dexOk = (p: DexPair) => dexAllowed(p.dexId || '', allowed);
     const eligible = pairs
       .filter((p) => usd(p) >= opts.minLiquidity && (vol(p) > 0 || usd(p) >= opts.minLiquidity) && dexOk(p))
       .sort((a, b) => toMs(b.pairCreatedAt) - toMs(a.pairCreatedAt));
@@ -85,6 +122,13 @@ export async function getMemeRunnerSolanaPairs(opts: MemeRunnerDexFetchOptions):
   } catch {
     return [];
   }
+}
+
+/** @deprecated use getMemeRunnerChainPairs */
+export async function getMemeRunnerSolanaPairs(
+  opts: Omit<MemeRunnerDexFetchOptions, 'chain'>
+): Promise<DexPair[]> {
+  return getMemeRunnerChainPairs({ ...opts, chain: 'solana' });
 }
 
 export async function getNewSolanaPairs(minLiquidity = 500, maxAgeMinutes = 120): Promise<DexPair[]> {

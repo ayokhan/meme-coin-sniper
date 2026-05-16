@@ -82,7 +82,7 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_TOP_MEME_COINS: 'nova_top_meme_coins',
   /** VIP: Meme Price Factor subtab under Nova Meme Intelligence. Default OFF until admin enables. */
   NOVA_MEME_PRICE_FACTOR: 'nova_meme_price_factor',
-  /** VIP: Meme Runner — Padre-style pump.fun trenches scanner (SOL first). Default OFF until admin enables. */
+  /** VIP: Meme Runner — multi-chain trenches scanner (SOL, BSC, ETH). Default OFF until admin enables. */
   NOVA_MEME_RUNNER: 'nova_meme_runner',
   /** UVIP: Nova Perp Wallet Analyst Agent subtab under Wallet Tracker. Default OFF until admin enables. */
   NOVA_PERP_WALLET_ANALYST: 'nova_perp_wallet_analyst',

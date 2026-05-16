@@ -4,7 +4,7 @@ import type { MemeRunnerToken } from "@/lib/meme-runner/types";
 export function formatMemeRunnerShareForCoach(t: MemeRunnerToken): { title: string; content: string } {
   const pad = t.launchpadLabel ? ` · ${t.launchpadLabel}` : "";
   const title = `Meme Runner · ${t.symbol} (${t.lane}${pad})`;
-  const padUrl = launchpadExternalUrl(t.launchpadId, t.contractAddress);
+  const padUrl = launchpadExternalUrl(t.chain, t.launchpadId, t.contractAddress);
   const lines = [
     `${t.name} · ${t.symbol}`,
     `Contract: ${t.contractAddress}`,

@@ -1,8 +1,6 @@
-import {
-  defaultEnabledLaunchpadIds,
-  parseEnabledLaunchpads,
-} from "@/lib/meme-runner/launchpads";
-import type { MemeRunnerLaneFilters, MemeRunnerSolConfig } from "@/lib/meme-runner/types";
+import { getChainMeta } from "@/lib/meme-runner/chain-meta";
+import { defaultEnabledLaunchpadIds, parseEnabledLaunchpads } from "@/lib/meme-runner/launchpads";
+import type { MemeRunnerChain, MemeRunnerLaneFilters, MemeRunnerSolConfig } from "@/lib/meme-runner/types";
 
 const SOON_FILTERS: MemeRunnerLaneFilters = {
   minTokenAgeMinutes: 45,
@@ -17,7 +15,6 @@ const SOON_FILTERS: MemeRunnerLaneFilters = {
   minRunnerScore: 55,
 };
 
-/** Fresh pump.fun launches — looser age/fees/MC so the New column actually populates. */
 const NEW_FILTERS: MemeRunnerLaneFilters = {
   minTokenAgeMinutes: 8,
   maxTokenAgeMinutes: 120,
@@ -31,7 +28,6 @@ const NEW_FILTERS: MemeRunnerLaneFilters = {
   minRunnerScore: 35,
 };
 
-/** Post-migration on Raydium / Orca / Meteora — higher activity bar. */
 const MIGRATED_FILTERS: MemeRunnerLaneFilters = {
   minTokenAgeMinutes: 20,
   maxTokenAgeMinutes: 1_440,
@@ -45,23 +41,45 @@ const MIGRATED_FILTERS: MemeRunnerLaneFilters = {
   minRunnerScore: 50,
 };
 
-/**
- * Sources: pump.fun + pumpswap via DexScreener; Moralis pump.fun new feed.
- * Not Bonk / Bags / Moonshot etc. (Padre supports many launchpads; we start with pump.fun only).
- */
-export const DEFAULT_MEME_RUNNER_SOL_CONFIG: MemeRunnerSolConfig = {
-  enabledLaunchpads: defaultEnabledLaunchpadIds(),
-  includeMigratedPools: true,
-  targetMarketCapUsd: 50_000,
-  solPriceUsd: 150,
-  pumpGraduationMcapUsd: 69_000,
-  laneNewMaxMcapUsd: 20_000,
-  laneSoonMinMcapUsd: 25_000,
-  laneSoonMaxMcapUsd: 120_000,
-  new: { ...NEW_FILTERS },
-  soon: { ...SOON_FILTERS },
-  migrated: { ...MIGRATED_FILTERS },
-};
+function baseDefaults(chain: MemeRunnerChain): MemeRunnerSolConfig {
+  const meta = getChainMeta(chain);
+  const soon = { ...SOON_FILTERS };
+  const migrated = { ...MIGRATED_FILTERS };
+  const newF = { ...NEW_FILTERS };
+  if (chain === "bsc") {
+    soon.minEstimatedFeesSol = 0.35;
+    migrated.minEstimatedFeesSol = 0.5;
+    newF.minEstimatedFeesSol = 0.05;
+  }
+  if (chain === "eth") {
+    soon.minEstimatedFeesSol = 0.15;
+    migrated.minEstimatedFeesSol = 0.25;
+    newF.minEstimatedFeesSol = 0.02;
+  }
+  return {
+    enabledLaunchpads: defaultEnabledLaunchpadIds(chain),
+    includeMigratedPools: true,
+    targetMarketCapUsd: 50_000,
+    solPriceUsd: meta.defaultNativePriceUsd,
+    pumpGraduationMcapUsd: chain === "sol" ? 69_000 : 80_000,
+    laneNewMaxMcapUsd: 20_000,
+    laneSoonMinMcapUsd: 25_000,
+    laneSoonMaxMcapUsd: 120_000,
+    new: newF,
+    soon,
+    migrated,
+  };
+}
+
+export const DEFAULT_MEME_RUNNER_SOL_CONFIG = baseDefaults("sol");
+export const DEFAULT_MEME_RUNNER_BSC_CONFIG = baseDefaults("bsc");
+export const DEFAULT_MEME_RUNNER_ETH_CONFIG = baseDefaults("eth");
+
+export function defaultMemeRunnerConfig(chain: MemeRunnerChain): MemeRunnerSolConfig {
+  if (chain === "bsc") return { ...DEFAULT_MEME_RUNNER_BSC_CONFIG };
+  if (chain === "eth") return { ...DEFAULT_MEME_RUNNER_ETH_CONFIG };
+  return { ...DEFAULT_MEME_RUNNER_SOL_CONFIG };
+}
 
 function parseLaneFilters(raw: unknown, fallback: MemeRunnerLaneFilters): MemeRunnerLaneFilters {
   if (!raw || typeof raw !== "object") return { ...fallback };
@@ -85,8 +103,8 @@ function parseLaneFilters(raw: unknown, fallback: MemeRunnerLaneFilters): MemeRu
   };
 }
 
-/** Upgrade legacy flat config (pre per-lane) stored in DB. */
-function fromLegacyFlat(o: Record<string, unknown>): MemeRunnerSolConfig {
+function fromLegacyFlat(chain: MemeRunnerChain, o: Record<string, unknown>): MemeRunnerSolConfig {
+  const d = defaultMemeRunnerConfig(chain);
   const soon = parseLaneFilters(
     {
       minTokenAgeMinutes: o.minTokenAgeMinutes,
@@ -100,36 +118,38 @@ function fromLegacyFlat(o: Record<string, unknown>): MemeRunnerSolConfig {
       requireOriginalSocials: o.requireOriginalSocials,
       minRunnerScore: o.minRunnerScore,
     },
-    SOON_FILTERS
+    d.soon
   );
   return {
-    ...DEFAULT_MEME_RUNNER_SOL_CONFIG,
-    targetMarketCapUsd: Number(o.targetMarketCapUsd) || DEFAULT_MEME_RUNNER_SOL_CONFIG.targetMarketCapUsd,
-    solPriceUsd: Number(o.solPriceUsd) || DEFAULT_MEME_RUNNER_SOL_CONFIG.solPriceUsd,
-    pumpGraduationMcapUsd: Number(o.pumpGraduationMcapUsd) || DEFAULT_MEME_RUNNER_SOL_CONFIG.pumpGraduationMcapUsd,
-    laneNewMaxMcapUsd: Number(o.laneNewMaxMcapUsd) || DEFAULT_MEME_RUNNER_SOL_CONFIG.laneNewMaxMcapUsd,
-    laneSoonMinMcapUsd: Number(o.laneSoonMinMcapUsd) || DEFAULT_MEME_RUNNER_SOL_CONFIG.laneSoonMinMcapUsd,
-    laneSoonMaxMcapUsd: Number(o.laneSoonMaxMcapUsd) || DEFAULT_MEME_RUNNER_SOL_CONFIG.laneSoonMaxMcapUsd,
+    ...d,
+    enabledLaunchpads: parseEnabledLaunchpads(chain, o.enabledLaunchpads),
+    includeMigratedPools: o.includeMigratedPools !== false,
+    targetMarketCapUsd: Number(o.targetMarketCapUsd) || d.targetMarketCapUsd,
+    solPriceUsd: Number(o.solPriceUsd) || d.solPriceUsd,
+    pumpGraduationMcapUsd: Number(o.pumpGraduationMcapUsd) || d.pumpGraduationMcapUsd,
+    laneNewMaxMcapUsd: Number(o.laneNewMaxMcapUsd) || d.laneNewMaxMcapUsd,
+    laneSoonMinMcapUsd: Number(o.laneSoonMinMcapUsd) || d.laneSoonMinMcapUsd,
+    laneSoonMaxMcapUsd: Number(o.laneSoonMaxMcapUsd) || d.laneSoonMaxMcapUsd,
     soon,
-    new: { ...NEW_FILTERS },
-    migrated: { ...MIGRATED_FILTERS },
+    new: { ...d.new },
+    migrated: { ...d.migrated },
   };
 }
 
-export function parseMemeRunnerSolConfig(raw: unknown): MemeRunnerSolConfig {
-  const d = DEFAULT_MEME_RUNNER_SOL_CONFIG;
+export function parseMemeRunnerConfig(chain: MemeRunnerChain, raw: unknown): MemeRunnerSolConfig {
+  const d = defaultMemeRunnerConfig(chain);
   if (!raw || typeof raw !== "object") return { ...d };
   const o = raw as Record<string, unknown>;
-  if (!o.new && o.minTokenAgeMinutes != null) return fromLegacyFlat(o);
+  if (!o.new && o.minTokenAgeMinutes != null) return fromLegacyFlat(chain, o);
   const numShared = (k: keyof MemeRunnerSolConfig, min: number, max: number) => {
     const v = Number(o[k]);
     return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : (d[k] as number);
   };
   return {
-    enabledLaunchpads: parseEnabledLaunchpads(o.enabledLaunchpads),
+    enabledLaunchpads: parseEnabledLaunchpads(chain, o.enabledLaunchpads),
     includeMigratedPools: o.includeMigratedPools !== false,
     targetMarketCapUsd: numShared("targetMarketCapUsd", 5_000, 500_000),
-    solPriceUsd: numShared("solPriceUsd", 10, 10_000),
+    solPriceUsd: numShared("solPriceUsd", 10, 50_000),
     pumpGraduationMcapUsd: numShared("pumpGraduationMcapUsd", 30_000, 200_000),
     laneNewMaxMcapUsd: numShared("laneNewMaxMcapUsd", 5_000, 100_000),
     laneSoonMinMcapUsd: numShared("laneSoonMinMcapUsd", 5_000, 500_000),
@@ -138,6 +158,11 @@ export function parseMemeRunnerSolConfig(raw: unknown): MemeRunnerSolConfig {
     soon: parseLaneFilters(o.soon, d.soon),
     migrated: parseLaneFilters(o.migrated, d.migrated),
   };
+}
+
+/** @deprecated use parseMemeRunnerConfig('sol', raw) */
+export function parseMemeRunnerSolConfig(raw: unknown): MemeRunnerSolConfig {
+  return parseMemeRunnerConfig("sol", raw);
 }
 
 export function laneFiltersFor(config: MemeRunnerSolConfig, lane: "new" | "soon" | "migrated"): MemeRunnerLaneFilters {
