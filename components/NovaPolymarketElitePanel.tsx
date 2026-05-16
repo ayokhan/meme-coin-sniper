@@ -16,7 +16,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { PolymarketLeaderboardCategory } from "@/lib/polymarket-data-api";
-import type { EliteConsensusSignal, EliteTrader } from "@/lib/polymarket-elite";
+import {
+  ELITE_COUNT_OPTIONS,
+  type EliteConsensusSignal,
+  type EliteCountOption,
+  type EliteTrader,
+} from "@/lib/polymarket-elite";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE } from "@/lib/novastaris-polymarket-events";
 
 type TimeUi = "DAY" | "WEEK" | "MONTH" | "ALL";
@@ -28,6 +33,7 @@ type SignalsJson = {
   category?: string;
   timePeriod?: string;
   lookbackHours?: number;
+  eliteCount?: EliteCountOption;
   eliteTraders?: EliteTrader[];
   signals?: EliteConsensusSignal[];
   scannedAt?: string;
@@ -78,6 +84,7 @@ function fmtLocalTime(ms: number | null | undefined) {
 export default function NovaPolymarketElitePanel() {
   const [timePeriod, setTimePeriod] = useState<TimeUi>("WEEK");
   const [category, setCategory] = useState<PolymarketLeaderboardCategory>("OVERALL");
+  const [eliteCount, setEliteCount] = useState<EliteCountOption>(5);
   const [eliteTraders, setEliteTraders] = useState<EliteTrader[]>([]);
   const [signals, setSignals] = useState<EliteConsensusSignal[]>([]);
   const [lookbackHours, setLookbackHours] = useState<number | null>(null);
@@ -98,7 +105,7 @@ export default function NovaPolymarketElitePanel() {
     setLoading(true);
     setError(null);
     try {
-      const q = new URLSearchParams({ category, timePeriod });
+      const q = new URLSearchParams({ category, timePeriod, eliteCount: String(eliteCount) });
       const res = await fetch(`/api/polymarket-elite/signals?${q.toString()}`, { cache: "no-store" });
       const data = (await res.json()) as SignalsJson;
       if (!res.ok || !data.success) {
@@ -119,7 +126,7 @@ export default function NovaPolymarketElitePanel() {
     } finally {
       setLoading(false);
     }
-  }, [category, timePeriod]);
+  }, [category, timePeriod, eliteCount]);
 
   useEffect(() => {
     void load();
@@ -169,7 +176,7 @@ export default function NovaPolymarketElitePanel() {
             <strong className="font-medium text-zinc-800 dark:text-zinc-200">same side</strong> — that overlap is your signal.
           </p>
           <ol className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 space-y-0.5 list-decimal list-inside">
-            <li>Leaderboard → top 5 elite wallets (profit + volume)</li>
+            <li>Leaderboard → top elite wallets (profit + volume; default 5)</li>
             <li>Scan their recent trades</li>
             <li>Highlight markets where 2+ elites align on the same outcome</li>
           </ol>
@@ -211,6 +218,18 @@ export default function NovaPolymarketElitePanel() {
           {CATEGORIES.map((c) => (
             <option key={c.id} value={c.id}>
               {c.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={eliteCount}
+          onChange={(e) => setEliteCount(Number(e.target.value) as EliteCountOption)}
+          className="h-9 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+          aria-label="Number of elite traders"
+        >
+          {ELITE_COUNT_OPTIONS.map((n) => (
+            <option key={n} value={n}>
+              Top {n} traders
             </option>
           ))}
         </select>
@@ -267,7 +286,7 @@ export default function NovaPolymarketElitePanel() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-cyan-500" />
-              Elite traders (top 5)
+              Elite traders (top {eliteCount})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">

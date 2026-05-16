@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { scanPolymarketEliteConsensus } from "@/lib/polymarket-elite";
+import { normalizeEliteCount, scanPolymarketEliteConsensus } from "@/lib/polymarket-elite";
 import { getPolymarketEliteAccess } from "@/lib/polymarket-elite-access";
 import type { PolymarketLeaderboardCategory, PolymarketLeaderboardTimePeriod } from "@/lib/polymarket-data-api";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const CATEGORIES = new Set([
   "OVERALL",
@@ -60,9 +60,14 @@ export async function GET(request: Request) {
         ? Math.min(336, Math.max(6, parseInt(lbRaw, 10) || 72))
         : undefined;
 
+    const eliteCount = normalizeEliteCount(
+      searchParams.get("eliteCount") ? parseInt(searchParams.get("eliteCount")!, 10) : 5
+    );
+
     const result = await scanPolymarketEliteConsensus({
       category,
       timePeriod,
+      eliteCount,
       lookbackHours: lookbackHours || undefined,
     });
 

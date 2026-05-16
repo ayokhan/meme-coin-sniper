@@ -48,9 +48,18 @@ export type EliteConsensusSignal = {
   score: number;
 };
 
+export const ELITE_COUNT_OPTIONS = [5, 10, 20, 50] as const;
+export type EliteCountOption = (typeof ELITE_COUNT_OPTIONS)[number];
+
+export function normalizeEliteCount(n: number | undefined | null): EliteCountOption {
+  const v = Number(n);
+  return ELITE_COUNT_OPTIONS.includes(v as EliteCountOption) ? (v as EliteCountOption) : 5;
+}
+
 export type EliteScanResult = {
   category: PolymarketLeaderboardCategory;
   timePeriod: PolymarketLeaderboardTimePeriod;
+  eliteCount: EliteCountOption;
   lookbackHours: number;
   eliteTraders: EliteTrader[];
   signals: EliteConsensusSignal[];
@@ -242,10 +251,10 @@ export async function scanPolymarketEliteConsensus(opts: {
 }): Promise<EliteScanResult> {
   const category = (opts.category ?? "OVERALL").toString().toUpperCase() as PolymarketLeaderboardCategory;
   const timePeriod = (opts.timePeriod ?? "WEEK").toString().toUpperCase() as PolymarketLeaderboardTimePeriod;
-  const eliteCount = Math.min(5, Math.max(3, opts.eliteCount ?? 5));
+  const eliteCount = normalizeEliteCount(opts.eliteCount);
   const minWallets = Math.max(2, Math.min(eliteCount, opts.minWallets ?? 2));
   const lookbackHours = opts.lookbackHours ?? defaultLookbackHours(timePeriod);
-  const tradesPerWallet = Math.min(120, Math.max(30, opts.tradesPerWallet ?? 80));
+  const tradesPerWallet = Math.min(120, Math.max(30, opts.tradesPerWallet ?? (eliteCount > 20 ? 60 : 80)));
   const cutoffMs = Date.now() - lookbackHours * 60 * 60 * 1000;
 
   const leaderboard = await fetchPolymarketTraderLeaderboard({
@@ -260,14 +269,20 @@ export async function scanPolymarketEliteConsensus(opts: {
   const buyAgg = new Map<string, SignalAgg>();
   const sellAgg = new Map<string, SignalAgg>();
 
-  for (const trader of eliteTraders) {
-    const trades = await fetchPolymarketTrades(trader.proxyWallet, tradesPerWallet, 0, true);
-    for (const t of trades) {
-      const side = String(t.side ?? "").toUpperCase();
-      if (side === "BUY") ingestTrade(buyAgg, t, trader.proxyWallet, trader.displayName, cutoffMs);
-      else if (side === "SELL") ingestTrade(sellAgg, t, trader.proxyWallet, trader.displayName, cutoffMs);
-    }
-    await sleep(80);
+  const batchSize = 5;
+  for (let i = 0; i < eliteTraders.length; i += batchSize) {
+    const batch = eliteTraders.slice(i, i + batchSize);
+    await Promise.all(
+      batch.map(async (trader) => {
+        const trades = await fetchPolymarketTrades(trader.proxyWallet, tradesPerWallet, 0, true);
+        for (const t of trades) {
+          const side = String(t.side ?? "").toUpperCase();
+          if (side === "BUY") ingestTrade(buyAgg, t, trader.proxyWallet, trader.displayName, cutoffMs);
+          else if (side === "SELL") ingestTrade(sellAgg, t, trader.proxyWallet, trader.displayName, cutoffMs);
+        }
+      })
+    );
+    if (i + batchSize < eliteTraders.length) await sleep(60);
   }
 
   const buySignals = toSignals(buyAgg, minWallets);
@@ -277,6 +292,7 @@ export async function scanPolymarketEliteConsensus(opts: {
   return {
     category,
     timePeriod,
+    eliteCount,
     lookbackHours,
     eliteTraders,
     signals,
