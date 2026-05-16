@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Star, RefreshCw, ExternalLink } from "lucide-react";
+import { Star, RefreshCw, ExternalLink, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -231,6 +231,10 @@ export default function NovaPolymarketTrackerPanel() {
   const [newNick, setNewNick] = useState("");
   const [adding, setAdding] = useState(false);
   const [addWalletError, setAddWalletError] = useState<string | null>(null);
+  const [editingWalletAddr, setEditingWalletAddr] = useState<string | null>(null);
+  const [editNickDraft, setEditNickDraft] = useState("");
+  const [savingNickAddr, setSavingNickAddr] = useState<string | null>(null);
+  const [editNickError, setEditNickError] = useState<string | null>(null);
 
   const fetchList = useCallback(async () => {
     setListLoading(true);
@@ -468,10 +472,54 @@ export default function NovaPolymarketTrackerPanel() {
   const removeMyWallet = async (address: string) => {
     try {
       await fetch(`/api/user/polymarket-tracker-wallets?address=${encodeURIComponent(address)}`, { method: "DELETE" });
+      if (editingWalletAddr === address) {
+        setEditingWalletAddr(null);
+        setEditNickDraft("");
+      }
       void fetchMyWallets();
       void fetchList();
     } catch {
       /* ignore */
+    }
+  };
+
+  const startEditWalletNickname = (w: { address: string; nickname: string | null }) => {
+    setEditingWalletAddr(w.address);
+    setEditNickDraft(w.nickname ?? "");
+    setEditNickError(null);
+  };
+
+  const cancelEditWalletNickname = () => {
+    setEditingWalletAddr(null);
+    setEditNickDraft("");
+    setEditNickError(null);
+  };
+
+  const saveWalletNickname = async (address: string) => {
+    setSavingNickAddr(address);
+    setEditNickError(null);
+    try {
+      const res = await fetch("/api/user/polymarket-tracker-wallets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: address.toLowerCase(),
+          nickname: editNickDraft.trim().slice(0, 120) || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMyWallets(Array.isArray(data.wallets) ? data.wallets : []);
+        setEditingWalletAddr(null);
+        setEditNickDraft("");
+        void fetchList();
+      } else {
+        setEditNickError(data?.error ?? "Could not save nickname.");
+      }
+    } catch {
+      setEditNickError("Could not save nickname.");
+    } finally {
+      setSavingNickAddr(null);
     }
   };
 
@@ -909,21 +957,70 @@ export default function NovaPolymarketTrackerPanel() {
               {adding ? "Adding…" : "Add"}
             </Button>
           </div>
+          {editNickError && <p className="text-sm text-rose-600 dark:text-rose-400">{editNickError}</p>}
           {myWallets.length > 0 && (
-            <ul className="text-sm space-y-1">
-              {myWallets.map((w) => (
-                <li key={w.id} className="flex flex-wrap items-center justify-between gap-2 py-1 border-b border-zinc-100 dark:border-zinc-800">
-                  <span className="font-mono text-xs">{w.address}</span>
-                  <span className="text-muted-foreground">{w.nickname || ""}</span>
-                  <button
-                    type="button"
-                    className="text-rose-600 dark:text-rose-400 text-xs hover:underline"
-                    onClick={() => void removeMyWallet(w.address)}
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
+            <ul className="text-sm space-y-2">
+              {myWallets.map((w) => {
+                const isEditing = editingWalletAddr === w.address;
+                const shortAddr = `${w.address.slice(0, 6)}…${w.address.slice(-4)}`;
+                return (
+                  <li key={w.id} className="py-2 border-b border-zinc-100 dark:border-zinc-800 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-mono text-xs" title={w.address}>
+                        {shortAddr}
+                      </span>
+                      {!isEditing && (
+                        <span className="text-muted-foreground flex-1 min-w-[80px]">{w.nickname || "—"}</span>
+                      )}
+                      <div className="flex items-center gap-2 ml-auto">
+                        {!isEditing ? (
+                          <>
+                            <button
+                              type="button"
+                              className="text-violet-600 dark:text-violet-400 text-xs hover:underline inline-flex items-center gap-0.5"
+                              onClick={() => startEditWalletNickname(w)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="text-rose-600 dark:text-rose-400 text-xs hover:underline"
+                              onClick={() => void removeMyWallet(w.address)}
+                            >
+                              Remove
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                    {isEditing && (
+                      <div className="flex flex-wrap gap-2 items-end">
+                        <div className="flex flex-col min-w-[140px] flex-1">
+                          <label className="text-[10px] text-muted-foreground mb-1">Nickname</label>
+                          <input
+                            value={editNickDraft}
+                            onChange={(e) => setEditNickDraft(e.target.value.slice(0, 120))}
+                            placeholder="Label"
+                            className="h-8 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={savingNickAddr === w.address}
+                          onClick={() => void saveWalletNickname(w.address)}
+                        >
+                          {savingNickAddr === w.address ? "Saving…" : "Save"}
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={cancelEditWalletNickname}>
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>

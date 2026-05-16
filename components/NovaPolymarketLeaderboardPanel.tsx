@@ -135,7 +135,7 @@ export default function NovaPolymarketLeaderboardPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           address: a,
-          nickname: nickname?.trim() ? nickname.trim().slice(0, 120) : "Leaderboard",
+          nickname: nickname?.trim().slice(0, 120) || null,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };

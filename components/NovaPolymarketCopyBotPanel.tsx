@@ -107,8 +107,8 @@ export default function NovaPolymarketCopyBotPanel({
 
   const [addingTracker, setAddingTracker] = useState(false);
   const [trackerMsg, setTrackerMsg] = useState<string | null>(null);
-  /** Display name from Elite / Leaderboard when opened via Analyze handoff. */
-  const [handoffNickname, setHandoffNickname] = useState<string | null>(null);
+  /** Nickname saved with My Tracker — prefilled from Elite / Leaderboard Analyze handoff. */
+  const [trackerNicknameInput, setTrackerNicknameInput] = useState("");
   const [topic, setTopic] = useState("");
   const [topicLoading, setTopicLoading] = useState(false);
   const [topicResult, setTopicResult] = useState<RadarTopicJson | null>(null);
@@ -155,7 +155,6 @@ export default function NovaPolymarketCopyBotPanel({
 
   const runAnalyze = useCallback(
     async (reset = true) => {
-      setHandoffNickname(null);
       await runAnalyzeForAddress(addrInput, reset);
     },
     [addrInput, runAnalyzeForAddress]
@@ -164,9 +163,9 @@ export default function NovaPolymarketCopyBotPanel({
   useEffect(() => {
     if (!analyzeHandoff?.address || !isValidAddr(analyzeHandoff.address)) return;
     const lower = analyzeHandoff.address.toLowerCase();
-    const nick = analyzeHandoff.nickname?.trim().slice(0, 120) || null;
+    const nick = analyzeHandoff.nickname?.trim().slice(0, 120) ?? "";
     setAddrInput(lower);
-    setHandoffNickname(nick);
+    if (nick) setTrackerNicknameInput(nick);
     void runAnalyzeForAddress(lower, true);
     onAnalyzeHandoffConsumed?.();
   }, [analyzeHandoff?.key, analyzeHandoff?.address, analyzeHandoff?.nickname, runAnalyzeForAddress, onAnalyzeHandoffConsumed]);
@@ -177,8 +176,9 @@ export default function NovaPolymarketCopyBotPanel({
       const addr = ce.detail?.address?.trim() ?? "";
       if (!isValidAddr(addr)) return;
       const lower = addr.toLowerCase();
+      const nick = ce.detail?.nickname?.trim().slice(0, 120) ?? "";
       setAddrInput(lower);
-      setHandoffNickname(ce.detail?.nickname?.trim().slice(0, 120) || null);
+      if (nick) setTrackerNicknameInput(nick);
       if (ce.detail?.autoRun) void runAnalyzeForAddress(lower, true);
     };
     window.addEventListener(NOVASTARIS_POLY_RADAR_ANALYZE_WALLET, onExternalAnalyze as EventListener);
@@ -236,17 +236,14 @@ export default function NovaPolymarketCopyBotPanel({
   const addToMyTracker = async () => {
     const a = analyzed?.address ?? (isValidAddr(addrInput) ? addrInput.trim().toLowerCase() : "");
     if (!a || !isValidAddr(a)) return;
-    const nick = handoffNickname?.trim().slice(0, 120) || null;
+    const nick = trackerNicknameInput.trim().slice(0, 120) || null;
     setAddingTracker(true);
     setTrackerMsg(null);
     try {
       const res = await fetch("/api/user/polymarket-tracker-wallets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          address: a,
-          ...(nick ? { nickname: nick } : {}),
-        }),
+        body: JSON.stringify({ address: a, nickname: nick }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
@@ -456,17 +453,29 @@ export default function NovaPolymarketCopyBotPanel({
 
               <div>
                 <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Use this wallet in Nova Polymarket Pro</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="default" className="bg-violet-600 hover:bg-violet-700" onClick={sendToCopilot}>
-                    Add to Polymarket Copilot
-                  </Button>
-                  <Button type="button" size="sm" variant="secondary" disabled={addingTracker} onClick={() => void addToMyTracker()}>
-                    <ListPlus className="h-3.5 w-3.5 mr-1" />
-                    {addingTracker ? "Adding…" : "Add to My Tracker"}
-                  </Button>
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-end mb-2">
+                  <div className="flex flex-col min-w-[160px] flex-1 max-w-xs">
+                    <label className="text-[10px] text-muted-foreground mb-1">Tracker nickname (optional)</label>
+                    <input
+                      value={trackerNicknameInput}
+                      onChange={(e) => setTrackerNicknameInput(e.target.value.slice(0, 120))}
+                      placeholder="e.g. trader username"
+                      className="h-8 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant="default" className="bg-violet-600 hover:bg-violet-700" onClick={sendToCopilot}>
+                      Add to Polymarket Copilot
+                    </Button>
+                    <Button type="button" size="sm" variant="secondary" disabled={addingTracker} onClick={() => void addToMyTracker()}>
+                      <ListPlus className="h-3.5 w-3.5 mr-1" />
+                      {addingTracker ? "Adding…" : "Add to My Tracker"}
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-2">
+                <p className="text-[10px] text-muted-foreground">
                   Copilot appends this wallet to your copy-trader list; Tracker saves it in your personal list for ongoing monitoring.
+                  Nickname is prefilled when you open Analyze from Elite or Leaderboard.
                 </p>
               </div>
 

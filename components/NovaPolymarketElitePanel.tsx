@@ -144,16 +144,18 @@ export default function NovaPolymarketElitePanel() {
       setActionToast("Invalid wallet address.");
       return;
     }
-    const nick = nickname?.trim().slice(0, 120) || null;
+    const fromTrader = eliteTraders.find((t) => t.proxyWallet === a);
+    const nick =
+      nickname?.trim().slice(0, 120) ||
+      fromTrader?.userName?.trim().slice(0, 120) ||
+      fromTrader?.displayName?.trim().slice(0, 120) ||
+      null;
     setTrackingAddr(a);
     try {
       const res = await fetch("/api/user/polymarket-tracker-wallets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          address: a,
-          ...(nick ? { nickname: nick } : {}),
-        }),
+        body: JSON.stringify({ address: a, nickname: nick }),
       });
       const j = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok || !j.success) {
@@ -342,7 +344,7 @@ export default function NovaPolymarketElitePanel() {
                       size="sm"
                       className="h-7 text-[10px] px-2"
                       disabled={trackingAddr === t.proxyWallet}
-                      onClick={() => void addToTracker(t.proxyWallet, t.displayName)}
+                      onClick={() => void addToTracker(t.proxyWallet, t.userName ?? t.displayName)}
                     >
                       <ListPlus className="h-3 w-3 mr-0.5" />
                       Track

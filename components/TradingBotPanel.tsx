@@ -2046,7 +2046,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 </TabsContent>
                 <TabsContent value="radar" className="mt-0 space-y-4" forceMount>
                   <NovaPolymarketCopyBotPanel
-                    analyzeHandoff={polyInnerTab === "radar" ? radarHandoff : null}
+                    analyzeHandoff={radarHandoff}
                     onAnalyzeHandoffConsumed={clearRadarHandoff}
                   />
                 </TabsContent>

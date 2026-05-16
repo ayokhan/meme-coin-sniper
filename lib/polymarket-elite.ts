@@ -16,6 +16,8 @@ import {
 export type EliteTrader = {
   rank: number;
   proxyWallet: string;
+  /** Polymarket username when available (preferred for tracker nicknames). */
+  userName: string | null;
   displayName: string;
   pnl: number;
   vol: number;
@@ -122,6 +124,7 @@ export function pickEliteTraders(entries: PolymarketLeaderboardEntry[], take = 5
 
   const scored = valid.map((x) => ({
     wallet: x.wallet,
+    userName: x.row.userName?.trim() || null,
     displayName: displayName(x.row, x.wallet),
     pnl: x.pnl,
     vol: x.vol,
@@ -134,6 +137,7 @@ export function pickEliteTraders(entries: PolymarketLeaderboardEntry[], take = 5
   return scored.slice(0, take).map((t, i) => ({
     rank: i + 1,
     proxyWallet: t.wallet,
+    userName: t.userName,
     displayName: t.displayName,
     pnl: t.pnl,
     vol: t.vol,
