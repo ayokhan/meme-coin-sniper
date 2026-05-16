@@ -81,7 +81,19 @@ type RadarTopicJson = {
   }>;
 };
 
-export default function NovaPolymarketCopyBotPanel() {
+export type PolymarketRadarAnalyzeHandoff = {
+  address: string;
+  nickname?: string | null;
+  key: number;
+};
+
+export default function NovaPolymarketCopyBotPanel({
+  analyzeHandoff = null,
+  onAnalyzeHandoffConsumed,
+}: {
+  analyzeHandoff?: PolymarketRadarAnalyzeHandoff | null;
+  onAnalyzeHandoffConsumed?: () => void;
+} = {}) {
   const [addrInput, setAddrInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +160,16 @@ export default function NovaPolymarketCopyBotPanel() {
     },
     [addrInput, runAnalyzeForAddress]
   );
+
+  useEffect(() => {
+    if (!analyzeHandoff?.address || !isValidAddr(analyzeHandoff.address)) return;
+    const lower = analyzeHandoff.address.toLowerCase();
+    const nick = analyzeHandoff.nickname?.trim().slice(0, 120) || null;
+    setAddrInput(lower);
+    setHandoffNickname(nick);
+    void runAnalyzeForAddress(lower, true);
+    onAnalyzeHandoffConsumed?.();
+  }, [analyzeHandoff?.key, analyzeHandoff?.address, analyzeHandoff?.nickname, runAnalyzeForAddress, onAnalyzeHandoffConsumed]);
 
   useEffect(() => {
     const onExternalAnalyze = (e: Event) => {

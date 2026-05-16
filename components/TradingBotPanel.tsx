@@ -242,8 +242,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [polyLeaderboardEnabled, setPolyLeaderboardEnabled] = useState(false);
   const [polyFiveMinsEnabled, setPolyFiveMinsEnabled] = useState(false);
   const [polyEliteEnabled, setPolyEliteEnabled] = useState(false);
-  /** When opening Polymarket Radar with “Analyze” from Leaderboard, stash wallet until Radar content mounts. */
-  const pendingRadarAnalyzeRef = useRef<{ address: string; nickname?: string | null } | null>(null);
+  /** Wallet + nickname passed to Polymarket Radar when user clicks Analyze from Elite / Leaderboard. */
+  const [radarHandoff, setRadarHandoff] = useState<{
+    address: string;
+    nickname?: string | null;
+    key: number;
+  } | null>(null);
+  const radarHandoffKeyRef = useRef(0);
+  const clearRadarHandoff = useCallback(() => setRadarHandoff(null), []);
   useEffect(() => {
     if (mode === "polymarket-only") setBotSubTab("polymarket");
     if (mode === "futures-only" && botSubTab === "polymarket") setBotSubTab("ai");
@@ -302,28 +308,18 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       const raw = ce.detail?.address?.trim() ?? "";
       if (!/^0x[a-fA-F0-9]{40}$/.test(raw)) return;
       const nick = ce.detail?.nickname?.trim() || null;
-      pendingRadarAnalyzeRef.current = { address: raw.toLowerCase(), nickname: nick };
+      radarHandoffKeyRef.current += 1;
+      setRadarHandoff({
+        address: raw.toLowerCase(),
+        nickname: nick,
+        key: radarHandoffKeyRef.current,
+      });
       setBotSubTab("polymarket");
       setPolyInnerTab("radar");
     };
     window.addEventListener(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, onOpenRadarAnalyze as EventListener);
     return () => window.removeEventListener(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, onOpenRadarAnalyze as EventListener);
   }, []);
-
-  useEffect(() => {
-    if (polyInnerTab !== "radar") return;
-    const pending = pendingRadarAnalyzeRef.current;
-    if (!pending?.address) return;
-    pendingRadarAnalyzeRef.current = null;
-    const id = window.requestAnimationFrame(() => {
-      window.dispatchEvent(
-        new CustomEvent(NOVASTARIS_POLY_RADAR_ANALYZE_WALLET, {
-          detail: { address: pending.address, nickname: pending.nickname ?? undefined, autoRun: true },
-        })
-      );
-    });
-    return () => window.cancelAnimationFrame(id);
-  }, [polyInnerTab]);
 
   const [polyKeyword, setPolyKeyword] = useState("bitcoin");
   const [polyBankroll, setPolyBankroll] = useState("1000");
@@ -2048,8 +2044,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 <TabsContent value="tracker" className="mt-0 space-y-4">
                   <NovaPolymarketTrackerPanel />
                 </TabsContent>
-                <TabsContent value="radar" className="mt-0 space-y-4">
-                  <NovaPolymarketCopyBotPanel />
+                <TabsContent value="radar" className="mt-0 space-y-4" forceMount>
+                  <NovaPolymarketCopyBotPanel
+                    analyzeHandoff={polyInnerTab === "radar" ? radarHandoff : null}
+                    onAnalyzeHandoffConsumed={clearRadarHandoff}
+                  />
                 </TabsContent>
                 {polyLeaderboardEnabled && (
                   <TabsContent value="leaderboard" className="mt-0 space-y-4">
