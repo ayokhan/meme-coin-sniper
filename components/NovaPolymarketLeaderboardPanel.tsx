@@ -148,14 +148,19 @@ export default function NovaPolymarketLeaderboardPanel() {
     }
   }, []);
 
-  const openRadarAnalyze = useCallback((address: string) => {
+  const openRadarAnalyze = useCallback((address: string, nickname?: string | null) => {
     const a = address.trim().toLowerCase();
     if (!isValidProxyAddr(a)) {
       setActionToast("Invalid wallet for analyze.");
       return;
     }
-    window.dispatchEvent(new CustomEvent(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, { detail: { address: a } }));
-    setActionToast("Opening Polymarket Radar…");
+    const nick = nickname?.trim() || null;
+    window.dispatchEvent(
+      new CustomEvent(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, {
+        detail: { address: a, nickname: nick ?? undefined },
+      })
+    );
+    setActionToast(nick ? `Opening Polymarket Radar for ${nick}…` : "Opening Polymarket Radar…");
   }, []);
 
   const filteredRows = useMemo(() => {
@@ -409,7 +414,7 @@ export default function NovaPolymarketLeaderboardPanel() {
                                   size="sm"
                                   variant="secondary"
                                   className="h-7 px-2 text-[11px] bg-emerald-700/90 hover:bg-emerald-800 text-white"
-                                  onClick={() => openRadarAnalyze(wallet)}
+                                  onClick={() => openRadarAnalyze(wallet, nick)}
                                 >
                                   <Radar className="h-3 w-3 mr-0.5 shrink-0" />
                                   Analyze
@@ -496,7 +501,7 @@ export default function NovaPolymarketLeaderboardPanel() {
                           size="sm"
                           variant="secondary"
                           className="h-6 px-1.5 text-[10px] bg-emerald-700/90 hover:bg-emerald-800 text-white"
-                          onClick={() => openRadarAnalyze(w.proxyWallet)}
+                          onClick={() => openRadarAnalyze(w.proxyWallet, w.displayName)}
                         >
                           <Radar className="h-3 w-3 mr-0.5" />
                           Analyze

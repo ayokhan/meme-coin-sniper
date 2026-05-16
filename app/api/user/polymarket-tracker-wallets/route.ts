@@ -53,7 +53,8 @@ export async function POST(request: Request) {
     }
     const body = await request.json().catch(() => ({}));
     const address = String(body.address ?? "").trim().toLowerCase();
-    const nickname = body.nickname != null ? String(body.nickname).trim() || null : null;
+    const nicknameProvided = Object.prototype.hasOwnProperty.call(body, "nickname");
+    const nickname = nicknameProvided ? String(body.nickname ?? "").trim().slice(0, 120) || null : null;
     if (!address || !isValidEvmAddress(address)) {
       return NextResponse.json({ success: false, error: "Valid 0x address required." }, { status: 400 });
     }
@@ -61,8 +62,8 @@ export async function POST(request: Request) {
       where: {
         userId_address: { userId: access.userId, address },
       },
-      create: { userId: access.userId, address, nickname },
-      update: { nickname },
+      create: { userId: access.userId, address, nickname: nicknameProvided ? nickname : null },
+      update: nicknameProvided ? { nickname } : {},
     });
     const list = await prisma.userPolymarketTrackedWallet.findMany({
       where: { userId: access.userId },

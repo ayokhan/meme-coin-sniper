@@ -95,6 +95,8 @@ export default function NovaPolymarketCopyBotPanel() {
 
   const [addingTracker, setAddingTracker] = useState(false);
   const [trackerMsg, setTrackerMsg] = useState<string | null>(null);
+  /** Display name from Elite / Leaderboard when opened via Analyze handoff. */
+  const [handoffNickname, setHandoffNickname] = useState<string | null>(null);
   const [topic, setTopic] = useState("");
   const [topicLoading, setTopicLoading] = useState(false);
   const [topicResult, setTopicResult] = useState<RadarTopicJson | null>(null);
@@ -141,6 +143,7 @@ export default function NovaPolymarketCopyBotPanel() {
 
   const runAnalyze = useCallback(
     async (reset = true) => {
+      setHandoffNickname(null);
       await runAnalyzeForAddress(addrInput, reset);
     },
     [addrInput, runAnalyzeForAddress]
@@ -148,11 +151,12 @@ export default function NovaPolymarketCopyBotPanel() {
 
   useEffect(() => {
     const onExternalAnalyze = (e: Event) => {
-      const ce = e as CustomEvent<{ address?: string; autoRun?: boolean }>;
+      const ce = e as CustomEvent<{ address?: string; nickname?: string | null; autoRun?: boolean }>;
       const addr = ce.detail?.address?.trim() ?? "";
       if (!isValidAddr(addr)) return;
       const lower = addr.toLowerCase();
       setAddrInput(lower);
+      setHandoffNickname(ce.detail?.nickname?.trim().slice(0, 120) || null);
       if (ce.detail?.autoRun) void runAnalyzeForAddress(lower, true);
     };
     window.addEventListener(NOVASTARIS_POLY_RADAR_ANALYZE_WALLET, onExternalAnalyze as EventListener);
@@ -210,17 +214,26 @@ export default function NovaPolymarketCopyBotPanel() {
   const addToMyTracker = async () => {
     const a = analyzed?.address ?? (isValidAddr(addrInput) ? addrInput.trim().toLowerCase() : "");
     if (!a || !isValidAddr(a)) return;
+    const nick = handoffNickname?.trim().slice(0, 120) || null;
     setAddingTracker(true);
     setTrackerMsg(null);
     try {
       const res = await fetch("/api/user/polymarket-tracker-wallets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: a, nickname: "Copy bot" }),
+        body: JSON.stringify({
+          address: a,
+          ...(nick ? { nickname: nick } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) setTrackerMsg("Wallet added to My tracked wallets (Nova Polymarket Tracker).");
-      else setTrackerMsg(data.error ?? "Could not add wallet.");
+      if (res.ok && data.success) {
+        setTrackerMsg(
+          nick
+            ? `Added ${nick} to My tracked wallets (Nova Polymarket Tracker).`
+            : "Wallet added to My tracked wallets (Nova Polymarket Tracker)."
+        );
+      } else setTrackerMsg(data.error ?? "Could not add wallet.");
     } catch {
       setTrackerMsg("Could not add wallet.");
     } finally {

@@ -243,7 +243,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [polyFiveMinsEnabled, setPolyFiveMinsEnabled] = useState(false);
   const [polyEliteEnabled, setPolyEliteEnabled] = useState(false);
   /** When opening Polymarket Radar with “Analyze” from Leaderboard, stash wallet until Radar content mounts. */
-  const pendingRadarAnalyzeRef = useRef<string | null>(null);
+  const pendingRadarAnalyzeRef = useRef<{ address: string; nickname?: string | null } | null>(null);
   useEffect(() => {
     if (mode === "polymarket-only") setBotSubTab("polymarket");
     if (mode === "futures-only" && botSubTab === "polymarket") setBotSubTab("ai");
@@ -298,10 +298,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
 
   useEffect(() => {
     const onOpenRadarAnalyze = (e: Event) => {
-      const ce = e as CustomEvent<{ address?: string }>;
+      const ce = e as CustomEvent<{ address?: string; nickname?: string | null }>;
       const raw = ce.detail?.address?.trim() ?? "";
       if (!/^0x[a-fA-F0-9]{40}$/.test(raw)) return;
-      pendingRadarAnalyzeRef.current = raw.toLowerCase();
+      const nick = ce.detail?.nickname?.trim() || null;
+      pendingRadarAnalyzeRef.current = { address: raw.toLowerCase(), nickname: nick };
       setBotSubTab("polymarket");
       setPolyInnerTab("radar");
     };
@@ -311,12 +312,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
 
   useEffect(() => {
     if (polyInnerTab !== "radar") return;
-    const addr = pendingRadarAnalyzeRef.current;
-    if (!addr) return;
+    const pending = pendingRadarAnalyzeRef.current;
+    if (!pending?.address) return;
     pendingRadarAnalyzeRef.current = null;
     const id = window.requestAnimationFrame(() => {
       window.dispatchEvent(
-        new CustomEvent(NOVASTARIS_POLY_RADAR_ANALYZE_WALLET, { detail: { address: addr, autoRun: true } })
+        new CustomEvent(NOVASTARIS_POLY_RADAR_ANALYZE_WALLET, {
+          detail: { address: pending.address, nickname: pending.nickname ?? undefined, autoRun: true },
+        })
       );
     });
     return () => window.cancelAnimationFrame(id);

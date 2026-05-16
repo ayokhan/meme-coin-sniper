@@ -138,20 +138,29 @@ export default function NovaPolymarketElitePanel() {
     void load();
   }, [load]);
 
-  const addToTracker = async (wallet: string) => {
-    setTrackingAddr(wallet);
+  const addToTracker = async (wallet: string, nickname?: string | null) => {
+    const a = wallet.trim().toLowerCase();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(a)) {
+      setActionToast("Invalid wallet address.");
+      return;
+    }
+    const nick = nickname?.trim().slice(0, 120) || null;
+    setTrackingAddr(a);
     try {
       const res = await fetch("/api/user/polymarket-tracker-wallets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet }),
+        body: JSON.stringify({
+          address: a,
+          ...(nick ? { nickname: nick } : {}),
+        }),
       });
       const j = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok || !j.success) {
         setActionToast(j.error ?? "Could not add wallet to tracker.");
         return;
       }
-      setActionToast("Wallet added to Polymarket Tracker.");
+      setActionToast(nick ? `Added ${nick} to Polymarket Tracker.` : "Wallet added to Polymarket Tracker.");
     } catch {
       setActionToast("Could not add wallet to tracker.");
     } finally {
@@ -159,16 +168,19 @@ export default function NovaPolymarketElitePanel() {
     }
   };
 
-  const openRadarAnalyze = (wallet: string) => {
+  const openRadarAnalyze = (wallet: string, nickname?: string | null) => {
     const a = wallet.trim().toLowerCase();
     if (!/^0x[a-fA-F0-9]{40}$/.test(a)) {
       setActionToast("Invalid wallet for analyze.");
       return;
     }
+    const nick = nickname?.trim() || null;
     window.dispatchEvent(
-      new CustomEvent(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, { detail: { address: a } })
+      new CustomEvent(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, {
+        detail: { address: a, nickname: nick ?? undefined },
+      })
     );
-    setActionToast("Opening Polymarket Radar…");
+    setActionToast(nick ? `Opening Polymarket Radar for ${nick}…` : "Opening Polymarket Radar…");
   };
 
   const buySignals = signals.filter((s) => s.side === "BUY");
@@ -330,7 +342,7 @@ export default function NovaPolymarketElitePanel() {
                       size="sm"
                       className="h-7 text-[10px] px-2"
                       disabled={trackingAddr === t.proxyWallet}
-                      onClick={() => void addToTracker(t.proxyWallet)}
+                      onClick={() => void addToTracker(t.proxyWallet, t.displayName)}
                     >
                       <ListPlus className="h-3 w-3 mr-0.5" />
                       Track
@@ -340,7 +352,7 @@ export default function NovaPolymarketElitePanel() {
                       variant="outline"
                       size="sm"
                       className="h-7 text-[10px] px-2"
-                      onClick={() => openRadarAnalyze(t.proxyWallet)}
+                      onClick={() => openRadarAnalyze(t.proxyWallet, t.displayName)}
                     >
                       <Radar className="h-3 w-3 mr-0.5" />
                       Analyze
@@ -365,8 +377,8 @@ function SignalSection({
 }: {
   title: string;
   signals: EliteConsensusSignal[];
-  onTrack: (wallet: string) => void;
-  onAnalyze: (wallet: string) => void;
+  onTrack: (wallet: string, nickname?: string | null) => void;
+  onAnalyze: (wallet: string, nickname?: string | null) => void;
   trackingAddr: string | null;
 }) {
   return (
@@ -441,11 +453,11 @@ function SignalSection({
                     size="sm"
                     className="h-7 text-[10px] px-2"
                     disabled={trackingAddr === w.address}
-                    onClick={() => onTrack(w.address)}
+                    onClick={() => onTrack(w.address, w.displayName)}
                   >
                     Track
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => onAnalyze(w.address)}>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => onAnalyze(w.address, w.displayName)}>
                     Analyze
                   </Button>
                   </div>
