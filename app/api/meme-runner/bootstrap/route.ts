@@ -31,6 +31,11 @@ export async function GET() {
       moralisGoHunting,
       researchNote:
         "Defaults mirror Padre Trenches: ≥45m age, ≥2 SOL est. fees, ~$50k MC band pre pump.fun graduation (~$69k).",
+      laneLegend: {
+        new: "pump.fun token with market cap below laneNewMaxMcapUsd (early curve).",
+        soon: "pump.fun token with MC between laneSoonMinMcapUsd and laneSoonMaxMcapUsd (target ~$50k band).",
+        migrated: "Listed on Raydium, Orca, or Meteora (post pump.fun migration).",
+      },
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Bootstrap failed";

@@ -2,11 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, RefreshCw, Zap } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Copy, ExternalLink, RefreshCw, Send, Sparkles, Zap, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { isOwnerSession } from "@/lib/auth";
+import { formatMemeRunnerShareForCoach } from "@/lib/meme-runner/format";
+import { NOVASTARIS_OPEN_AI_AGENT } from "@/lib/novastaris-events";
 import type { MemeRunnerLane, MemeRunnerSolConfig, MemeRunnerToken } from "@/lib/meme-runner/types";
 
 function fmtUsd(n: number | null | undefined) {
@@ -18,7 +22,60 @@ function shortAddr(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
 
-function TokenCard({ t }: { t: MemeRunnerToken }) {
+function TokenCard({
+  t,
+  canShareCoach,
+}: {
+  t: MemeRunnerToken;
+  canShareCoach: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareOk, setShareOk] = useState(false);
+
+  const copyContract = async () => {
+    try {
+      await navigator.clipboard.writeText(t.contractAddress);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const openAiAgent = () => {
+    window.dispatchEvent(
+      new CustomEvent(NOVASTARIS_OPEN_AI_AGENT, {
+        detail: { contractAddress: t.contractAddress, chain: "solana" as const },
+      })
+    );
+  };
+
+  const shareToCoachCalls = async () => {
+    if (!canShareCoach || shareLoading) return;
+    setShareLoading(true);
+    setShareOk(false);
+    const { title, content } = formatMemeRunnerShareForCoach(t);
+    try {
+      const res = await fetch("/api/coach-calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !data.success) {
+        alert(data.error ?? "Failed to share");
+        return;
+      }
+      setShareOk(true);
+      window.setTimeout(() => setShareOk(false), 3000);
+    } catch {
+      alert("Failed to share");
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-900/60 p-3 space-y-2 text-xs">
       <div className="flex items-start justify-between gap-2">
@@ -67,14 +124,47 @@ function TokenCard({ t }: { t: MemeRunnerToken }) {
           pump.fun
         </a>
       </div>
-      <p className="font-mono text-[10px] text-muted-foreground" title={t.contractAddress}>
+      <p className="font-mono text-[10px] text-muted-foreground break-all" title={t.contractAddress}>
         {shortAddr(t.contractAddress)}
       </p>
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] px-2" onClick={() => void copyContract()}>
+          {copied ? <Check className="h-3 w-3 mr-0.5 text-emerald-600" /> : <Copy className="h-3 w-3 mr-0.5" />}
+          {copied ? "Copied" : "Copy ID"}
+        </Button>
+        <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] px-2" onClick={openAiAgent}>
+          <Sparkles className="h-3 w-3 mr-0.5" />
+          Analyze
+        </Button>
+        {canShareCoach && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 text-[10px] px-2 border-cyan-300/80 dark:border-cyan-700 text-cyan-800 dark:text-cyan-200"
+            disabled={shareLoading}
+            onClick={() => void shareToCoachCalls()}
+          >
+            {shareOk ? <Check className="h-3 w-3 mr-0.5" /> : <Send className="h-3 w-3 mr-0.5" />}
+            {shareLoading ? "…" : shareOk ? "Shared" : "Share"}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
 
-function LaneColumn({ title, tokens, empty }: { title: string; tokens: MemeRunnerToken[]; empty: string }) {
+function LaneColumn({
+  title,
+  tokens,
+  empty,
+  canShareCoach,
+}: {
+  title: string;
+  tokens: MemeRunnerToken[];
+  empty: string;
+  canShareCoach: boolean;
+}) {
   return (
     <div className="space-y-2 min-w-0">
       <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
@@ -84,7 +174,7 @@ function LaneColumn({ title, tokens, empty }: { title: string; tokens: MemeRunne
         {tokens.length === 0 ? (
           <p className="text-xs text-muted-foreground py-4 text-center border border-dashed rounded-lg">{empty}</p>
         ) : (
-          tokens.map((t) => <TokenCard key={t.id} t={t} />)
+          tokens.map((t) => <TokenCard key={t.id} t={t} canShareCoach={canShareCoach} />)
         )}
       </div>
     </div>
@@ -92,11 +182,15 @@ function LaneColumn({ title, tokens, empty }: { title: string; tokens: MemeRunne
 }
 
 export default function MemeRunnerPanel() {
+  const { data: session } = useSession();
+  const isOwner = isOwnerSession(session);
+  const isCoachUser = (session?.user as { isCoachUser?: boolean })?.isCoachUser === true;
+  const canShareCoach = isOwner || isCoachUser;
+
   const [chain, setChain] = useState<"sol" | "bsc" | "eth">("sol");
   const [lane, setLane] = useState<MemeRunnerLane | "all">("all");
   const [config, setConfig] = useState<MemeRunnerSolConfig | null>(null);
   const [tokens, setTokens] = useState<MemeRunnerToken[]>([]);
-  const [counts, setCounts] = useState({ new: 0, soon: 0, migrated: 0, passed: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [disabled, setDisabled] = useState(false);
@@ -117,7 +211,6 @@ export default function MemeRunnerPanel() {
         return;
       }
       setTokens(Array.isArray(data.tokens) ? data.tokens : []);
-      if (data.counts) setCounts(data.counts);
       if (data.config) setConfig(data.config);
       setScannedAt(data.scannedAt ?? new Date().toISOString());
     } catch {
@@ -137,6 +230,7 @@ export default function MemeRunnerPanel() {
           return;
         }
         if (d.config) setConfig(d.config);
+        if (d.laneLegend) setLaneLegend(d.laneLegend);
         void runScan();
       })
       .catch(() => setError("Could not load Meme Runner"));
@@ -196,11 +290,20 @@ export default function MemeRunnerPanel() {
             </TabsList>
             <TabsContent value="sol" className="mt-3 space-y-3">
               {config && (
-                <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3 text-[11px] text-muted-foreground grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <span>Min age {config.minTokenAgeMinutes}m</span>
-                  <span>MC {fmtUsd(config.minMarketCapUsd)}–{fmtUsd(config.maxMarketCapUsd)}</span>
-                  <span>Min fees {config.minEstimatedFeesSol} SOL</span>
-                  <span>Min score {config.minRunnerScore}</span>
+                <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3 text-[11px] text-muted-foreground space-y-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <span>Min age {config.minTokenAgeMinutes}m</span>
+                    <span>MC {fmtUsd(config.minMarketCapUsd)}–{fmtUsd(config.maxMarketCapUsd)}</span>
+                    <span>Min fees {config.minEstimatedFeesSol} SOL</span>
+                    <span>Min score {config.minRunnerScore}</span>
+                  </div>
+                  <p className="text-[10px] border-t border-zinc-200/80 dark:border-zinc-700/80 pt-2">
+                    <strong className="text-zinc-700 dark:text-zinc-300">Lanes:</strong>{" "}
+                    <span className="text-emerald-700 dark:text-emerald-400">New</span> &lt; {fmtUsd(config.laneNewMaxMcapUsd)} MC on pump.fun ·{" "}
+                    <span className="text-fuchsia-700 dark:text-fuchsia-400">Soon</span> {fmtUsd(config.laneSoonMinMcapUsd)}–
+                    {fmtUsd(config.laneSoonMaxMcapUsd)} on pump.fun ·{" "}
+                    <span className="text-cyan-700 dark:text-cyan-400">Migrated</span> on Raydium/Orca/Meteora.
+                  </p>
                 </div>
               )}
               <div className="flex flex-wrap gap-2 items-center">
@@ -233,15 +336,21 @@ export default function MemeRunnerPanel() {
               {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
               {lane === "all" ? (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <LaneColumn title="New" tokens={byLane.new} empty="No new-lane tokens passed filters." />
-                  <LaneColumn title="Soon" tokens={byLane.soon} empty="No soon-lane tokens in the $50k band." />
-                  <LaneColumn title="Migrated" tokens={byLane.migrated} empty="No recent migrations passed filters." />
+                  <LaneColumn title="New" tokens={byLane.new} empty="No new-lane tokens passed filters." canShareCoach={canShareCoach} />
+                  <LaneColumn title="Soon" tokens={byLane.soon} empty="No soon-lane tokens in the $50k band." canShareCoach={canShareCoach} />
+                  <LaneColumn
+                    title="Migrated"
+                    tokens={byLane.migrated}
+                    empty="No tokens on Raydium/Orca/Meteora passed filters."
+                    canShareCoach={canShareCoach}
+                  />
                 </div>
               ) : (
                 <LaneColumn
                   title={lane === "new" ? "New" : lane === "soon" ? "Soon" : "Migrated"}
                   tokens={tokens}
-                  empty="No tokens passed your filters. Try Admin → Meme Runner to loosen thresholds."
+                  empty="No tokens passed your filters."
+                  canShareCoach={canShareCoach}
                 />
               )}
               <p className="text-[10px] text-muted-foreground">
@@ -249,11 +358,16 @@ export default function MemeRunnerPanel() {
                 <a href="https://trade.padre.gg/trenches" target="_blank" rel="noreferrer" className="underline">
                   Padre Trenches
                 </a>
-                . Fees are estimated from 24h volume × 1.25% bonding-curve rate. Owner:{" "}
-                <Link href="/admin/meme-runner" className="underline">
-                  adjust config
-                </Link>
-                .
+                . Fees are estimated from 24h volume × 1.25% bonding-curve rate.
+                {isOwner && (
+                  <>
+                    {" "}
+                    <Link href="/admin/meme-runner" className="underline">
+                      Owner: adjust config
+                    </Link>
+                    .
+                  </>
+                )}
               </p>
             </TabsContent>
             <TabsContent value="bsc" className="mt-3">

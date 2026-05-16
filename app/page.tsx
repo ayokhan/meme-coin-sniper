@@ -31,6 +31,7 @@ import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
 import TradingBotPanel from "@/components/TradingBotPanel";
+import { NOVASTARIS_OPEN_AI_AGENT } from "@/lib/novastaris-events";
 import PropFirmBotPanel from "@/components/PropFirmBotPanel";
 import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
@@ -1413,6 +1414,22 @@ export default function Dashboard() {
     window.localStorage.setItem("firstVisitDashboard", "1");
     setActiveTab("nova-connect");
   }, [status, novaConnectEnabled, pageTabFlagsLoaded, isTabVisibleInGui]);
+
+  useEffect(() => {
+    const onOpenAiAgent = (e: Event) => {
+      const ce = e as CustomEvent<{ contractAddress?: string; chain?: "solana" | "bsc" }>;
+      const ca = ce.detail?.contractAddress?.trim() ?? "";
+      if (!ca) return;
+      setActiveTab("ai-analysis");
+      setAiAnalysisCa(ca);
+      setAiAnalysisChain(ce.detail?.chain === "bsc" ? "bsc" : "solana");
+      setAiAnalysisResult(null);
+      setAiAnalysisError(null);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    window.addEventListener(NOVASTARIS_OPEN_AI_AGENT, onOpenAiAgent);
+    return () => window.removeEventListener(NOVASTARIS_OPEN_AI_AGENT, onOpenAiAgent);
+  }, []);
 
   // Poll DM and play beep when the other user sends a new message
   useEffect(() => {

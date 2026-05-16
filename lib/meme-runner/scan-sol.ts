@@ -24,9 +24,11 @@ function estimateFeesSol(volumeUsd: number, solPrice: number): number {
 function classifyLane(pair: DexPair, mcap: number | null, config: MemeRunnerSolConfig): MemeRunnerLane {
   const dex = (pair.dexId || "").toLowerCase();
   if (MIGRATED_DEX.has(dex)) return "migrated";
-  if (!PUMP_DEX.has(dex)) return "soon";
   const mc = mcap ?? 0;
-  if (mc < config.minMarketCapUsd * 0.8) return "new";
+  if (!PUMP_DEX.has(dex)) return "soon";
+  if (mc < config.laneNewMaxMcapUsd) return "new";
+  if (mc >= config.laneSoonMinMcapUsd && mc <= config.laneSoonMaxMcapUsd) return "soon";
+  if (mc < config.laneSoonMinMcapUsd) return "new";
   return "soon";
 }
 

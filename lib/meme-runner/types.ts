@@ -26,6 +26,11 @@ export type MemeRunnerSolConfig = {
   solPriceUsd: number;
   /** Pump.fun bonding curve graduates near ~$69k MC. */
   pumpGraduationMcapUsd: number;
+  /** Lane: pump.fun tokens below this MC (USD). Default ~80% of minMarketCapUsd. */
+  laneNewMaxMcapUsd: number;
+  /** Lane: pump.fun tokens from this MC up to laneSoonMaxMcapUsd. */
+  laneSoonMinMcapUsd: number;
+  laneSoonMaxMcapUsd: number;
 };
 
 export type MemeRunnerToken = {

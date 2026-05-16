@@ -22,6 +22,9 @@ export const DEFAULT_MEME_RUNNER_SOL_CONFIG: MemeRunnerSolConfig = {
   minRunnerScore: 55,
   solPriceUsd: 150,
   pumpGraduationMcapUsd: 69_000,
+  laneNewMaxMcapUsd: 20_000,
+  laneSoonMinMcapUsd: 25_000,
+  laneSoonMaxMcapUsd: 120_000,
 };
 
 export function parseMemeRunnerSolConfig(raw: unknown): MemeRunnerSolConfig {
@@ -46,5 +49,8 @@ export function parseMemeRunnerSolConfig(raw: unknown): MemeRunnerSolConfig {
     minRunnerScore: num("minRunnerScore", 0, 100),
     solPriceUsd: num("solPriceUsd", 10, 10_000),
     pumpGraduationMcapUsd: num("pumpGraduationMcapUsd", 30_000, 200_000),
+    laneNewMaxMcapUsd: num("laneNewMaxMcapUsd", 5_000, 100_000),
+    laneSoonMinMcapUsd: num("laneSoonMinMcapUsd", 5_000, 500_000),
+    laneSoonMaxMcapUsd: num("laneSoonMaxMcapUsd", 10_000, 2_000_000),
   };
 }

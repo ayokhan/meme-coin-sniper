@@ -13,8 +13,9 @@ async function assertVip(session: Session | null): Promise<VipFuturesAddonAccess
   }
   if (!isOwnerSession(session)) {
     const tier = await getSubscriptionTier(session.user.id);
-    if (tier !== "vip") {
-      return { ok: false, status: 403, error: "This feature is for VIP subscribers." };
+    const isCoach = (session.user as { isCoachUser?: boolean })?.isCoachUser === true;
+    if (tier !== "vip" && !isCoach) {
+      return { ok: false, status: 403, error: "This feature is for VIP and Coach users." };
     }
   }
   return { ok: true, userId: session.user.id };

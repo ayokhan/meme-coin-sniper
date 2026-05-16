@@ -28,6 +28,9 @@ const FIELDS: ConfigField[] = [
   { key: "pumpGraduationMcapUsd", label: "Pump graduation MC (USD)", step: 1000 },
   { key: "requireAtLeastOneSocial", label: "Require at least one social", type: "boolean" },
   { key: "requireOriginalSocials", label: "Require Twitter or Telegram", type: "boolean" },
+  { key: "laneNewMaxMcapUsd", label: "Lane New: max MC (USD)", step: 1000 },
+  { key: "laneSoonMinMcapUsd", label: "Lane Soon: min MC (USD)", step: 1000 },
+  { key: "laneSoonMaxMcapUsd", label: "Lane Soon: max MC (USD)", step: 1000 },
 ];
 
 export default function AdminMemeRunnerPage() {
@@ -111,8 +114,8 @@ export default function AdminMemeRunnerPage() {
           <CardHeader>
             <CardTitle>Meme Runner — SOL config</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Tune filters for catching pre-migration pump.fun memes (~$50k MC). Defaults follow Padre Trenches research:
-              ≥45m age, ≥2 SOL est. fees, socials required. Enable the feature in{" "}
+              Tune filters for catching pre-migration pump.fun memes (~$50k MC). Lanes: New / Soon use MC thresholds on pump.fun;
+              Migrated = Raydium, Orca, or Meteora. Defaults follow Padre Trenches research (≥45m age, ≥2 SOL est. fees). Enable in{" "}
               <Link href="/admin/feature-flags" className="underline">
                 Feature flags
               </Link>{" "}
