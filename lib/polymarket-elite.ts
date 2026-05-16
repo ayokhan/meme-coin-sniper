@@ -412,3 +412,40 @@ export async function scanPolymarketEliteConsensus(opts: {
       `Elite traders are the top ${eliteCount} profitable wallets on the Polymarket leaderboard (blended PnL + volume). Signals appear when ${minWallets}+ of them take the same side on the same market outcome within the last ${lookbackHours}h. Not financial advice.`,
   };
 }
+
+/** Format Polymarket Elite copy recipe for Coach Calls share (owner / coach user). */
+export function formatEliteCopyRecipeForShare(
+  recipe: EliteCopyRecipe,
+  marketUrl: string,
+  extras?: {
+    walletCount?: number;
+    strength?: "strong" | "moderate";
+    totalNotionalUsd?: number;
+    eliteNames?: string[];
+  }
+): { title: string; content: string } {
+  const title = `Polymarket Elite · ${recipe.marketTitle}`;
+  const lines: string[] = [
+    "📊 Polymarket Elite consensus signal",
+    "",
+    `🎯 ${recipe.action}`,
+    "",
+    recipe.hint,
+    "",
+    `🔗 ${marketUrl}`,
+  ];
+  if (extras?.walletCount != null) {
+    const strengthLabel = extras.strength === "strong" ? "Strong" : extras.strength === "moderate" ? "Moderate" : "";
+    lines.push(
+      `👥 ${extras.walletCount} elite trader${extras.walletCount === 1 ? "" : "s"} aligned${strengthLabel ? ` (${strengthLabel})` : ""}.`
+    );
+  }
+  if (extras?.totalNotionalUsd != null && extras.totalNotionalUsd > 0) {
+    lines.push(`💵 Combined elite notional ~$${Math.round(extras.totalNotionalUsd).toLocaleString()}.`);
+  }
+  if (extras?.eliteNames && extras.eliteNames.length > 0) {
+    lines.push(`Traders: ${extras.eliteNames.slice(0, 8).join(", ")}${extras.eliteNames.length > 8 ? "…" : ""}`);
+  }
+  lines.push("", "Not financial advice. Size to your own risk.");
+  return { title, content: lines.join("\n") };
+}

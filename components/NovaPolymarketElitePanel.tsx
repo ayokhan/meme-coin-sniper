@@ -7,6 +7,7 @@ import {
   Copy,
   Check,
   ExternalLink,
+  Send,
   ListPlus,
   Radar,
   RefreshCw,
@@ -24,8 +25,10 @@ import {
   type EliteCopyRecipe,
   type EliteCountOption,
   type EliteTrader,
+  formatEliteCopyRecipeForShare,
 } from "@/lib/polymarket-elite";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE } from "@/lib/novastaris-polymarket-events";
+import { useSession } from "next-auth/react";
 
 type TimeUi = "DAY" | "WEEK" | "MONTH" | "ALL";
 
@@ -401,7 +404,16 @@ function SignalSection({
             <span>Notional ~{fmtUsd(s.totalNotionalUsd)}</span>
             <span>Last activity {fmtLocalTime(s.lastActivityMs)}</span>
           </div>
-          {s.copyRecipe && <CopyRecipeCard recipe={s.copyRecipe} marketUrl={s.url} />}
+          {s.copyRecipe && (
+            <CopyRecipeCard
+              recipe={s.copyRecipe}
+              marketUrl={s.url}
+              walletCount={s.walletCount}
+              strength={s.strength}
+              totalNotionalUsd={s.totalNotionalUsd}
+              eliteNames={s.wallets.map((w) => w.displayName)}
+            />
+          )}
           <Button type="button" variant="outline" size="sm" className="h-8" asChild>
             <Link href={s.url} target="_blank" rel="noreferrer">
               <ExternalLink className="h-3.5 w-3.5 mr-1" />
@@ -475,18 +487,72 @@ function SignalSection({
   );
 }
 
-function CopyRecipeCard({ recipe, marketUrl }: { recipe: EliteCopyRecipe; marketUrl: string }) {
+function CopyRecipeCard({
+  recipe,
+  marketUrl,
+  walletCount,
+  strength,
+  totalNotionalUsd,
+  eliteNames,
+}: {
+  recipe: EliteCopyRecipe;
+  marketUrl: string;
+  walletCount?: number;
+  strength?: "strong" | "moderate";
+  totalNotionalUsd?: number;
+  eliteNames?: string[];
+}) {
+  const { data: session } = useSession();
+  const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
+  const isCoachUser = !!(session?.user as { isCoachUser?: boolean } | undefined)?.isCoachUser;
+  const canShareToCoachCalls = isOwner || isCoachUser;
+
   const [copied, setCopied] = useState(false);
-  const line = `${recipe.action} — ${recipe.marketTitle}`;
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
+
+  const { title: shareTitle, content: shareContent } = formatEliteCopyRecipeForShare(recipe, marketUrl, {
+    walletCount,
+    strength,
+    totalNotionalUsd,
+    eliteNames,
+  });
+  const clipboardLine = `${shareTitle}\n\n${shareContent}`;
+
   const copyText = async () => {
     try {
-      await navigator.clipboard.writeText(line);
+      await navigator.clipboard.writeText(clipboardLine);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       /* ignore */
     }
   };
+
+  const shareToCoachCalls = async () => {
+    if (shareLoading) return;
+    setShareLoading(true);
+    setShareSuccess(false);
+    try {
+      const res = await fetch("/api/coach-calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: shareTitle, content: shareContent }),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !data.success) {
+        alert(data.error ?? "Failed to share");
+        return;
+      }
+      setShareSuccess(true);
+      window.setTimeout(() => setShareSuccess(false), 3000);
+    } catch {
+      alert("Failed to share");
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
   return (
     <div className="rounded-md border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/50 dark:bg-cyan-950/20 p-3 space-y-2">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-800 dark:text-cyan-200">Copy this trade</p>
@@ -497,6 +563,30 @@ function CopyRecipeCard({ recipe, marketUrl }: { recipe: EliteCopyRecipe; market
           {copied ? <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
           {copied ? "Copied" : "Copy summary"}
         </Button>
+        {canShareToCoachCalls && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs border-cyan-300 dark:border-cyan-700 text-cyan-800 dark:text-cyan-200 hover:bg-cyan-100/60 dark:hover:bg-cyan-950/40"
+            disabled={shareLoading}
+            onClick={() => void shareToCoachCalls()}
+          >
+            {shareLoading ? (
+              "Sharing…"
+            ) : shareSuccess ? (
+              <>
+                <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" />
+                Shared!
+              </>
+            ) : (
+              <>
+                <Send className="h-3.5 w-3.5 mr-1" />
+                Share to Coach Calls
+              </>
+            )}
+          </Button>
+        )}
         <Button type="button" variant="outline" size="sm" className="h-8 text-xs" asChild>
           <Link href={marketUrl} target="_blank" rel="noreferrer">
             Trade on Polymarket
