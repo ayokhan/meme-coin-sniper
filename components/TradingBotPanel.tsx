@@ -302,6 +302,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       const raw = ce.detail?.address?.trim() ?? "";
       if (!/^0x[a-fA-F0-9]{40}$/.test(raw)) return;
       pendingRadarAnalyzeRef.current = raw.toLowerCase();
+      setBotSubTab("polymarket");
       setPolyInnerTab("radar");
     };
     window.addEventListener(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, onOpenRadarAnalyze as EventListener);

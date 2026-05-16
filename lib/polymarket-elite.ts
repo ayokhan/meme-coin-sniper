@@ -23,6 +23,15 @@ export type EliteTrader = {
   compositeScore: number;
 };
 
+export type EliteSignalFill = {
+  side: "BUY" | "SELL";
+  size: number;
+  price: number;
+  priceCents: number;
+  notionalUsd: number;
+  timestampMs: number | null;
+};
+
 export type EliteSignalWallet = {
   address: string;
   displayName: string;
@@ -30,6 +39,21 @@ export type EliteSignalWallet = {
   sellCount: number;
   notionalUsd: number;
   lastTradeMs: number | null;
+  /** Recent fills for this market+outcome (newest first, capped). */
+  fills: EliteSignalFill[];
+  avgPrice: number | null;
+  avgPriceCents: number | null;
+};
+
+export type EliteCopyRecipe = {
+  action: string;
+  marketTitle: string;
+  outcome: string;
+  side: "BUY" | "SELL";
+  weightedAvgPrice: number | null;
+  weightedAvgPriceCents: number | null;
+  totalShares: number;
+  hint: string;
 };
 
 export type EliteConsensusSignal = {
@@ -46,6 +70,8 @@ export type EliteConsensusSignal = {
   url: string;
   strength: "strong" | "moderate";
   score: number;
+  /** What to mirror on Polymarket (side + outcome + typical fill price). */
+  copyRecipe: EliteCopyRecipe;
 };
 
 export const ELITE_COUNT_OPTIONS = [5, 10, 20, 50] as const;
@@ -127,6 +153,15 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+type WalletAgg = {
+  displayName: string;
+  buyCount: number;
+  sellCount: number;
+  notionalUsd: number;
+  lastTradeMs: number | null;
+  fills: EliteSignalFill[];
+};
+
 type SignalAgg = {
   slug: string;
   title: string;
@@ -135,12 +170,78 @@ type SignalAgg = {
   buys: number;
   sells: number;
   notionalUsd: number;
-  wallets: Map<
-    string,
-    { displayName: string; buyCount: number; sellCount: number; notionalUsd: number; lastTradeMs: number | null }
-  >;
+  wallets: Map<string, WalletAgg>;
   lastActivityMs: number | null;
 };
+
+const MAX_FILLS_PER_WALLET = 12;
+
+function pushFill(w: WalletAgg, t: PolymarketTradeRow, side: "BUY" | "SELL") {
+  const sz = Number(t.size);
+  const px = Number(t.price);
+  if (!Number.isFinite(sz) || !Number.isFinite(px) || sz <= 0 || px <= 0) return;
+  const tsMs = tradeTimestampToMs(t.timestamp);
+  const fill: EliteSignalFill = {
+    side,
+    size: sz,
+    price: px,
+    priceCents: Math.round(px * 1000) / 10,
+    notionalUsd: Number(tradeNotionalUsd(t).toFixed(2)),
+    timestampMs: tsMs,
+  };
+  w.fills.push(fill);
+  w.fills.sort((a, b) => (b.timestampMs ?? 0) - (a.timestampMs ?? 0));
+  if (w.fills.length > MAX_FILLS_PER_WALLET) w.fills.length = MAX_FILLS_PER_WALLET;
+}
+
+function walletAvgPrice(fills: EliteSignalFill[]): { avgPrice: number | null; avgPriceCents: number | null } {
+  let shares = 0;
+  let weighted = 0;
+  for (const f of fills) {
+    shares += f.size;
+    weighted += f.size * f.price;
+  }
+  if (shares <= 0) return { avgPrice: null, avgPriceCents: null };
+  const avgPrice = weighted / shares;
+  return { avgPrice, avgPriceCents: Math.round(avgPrice * 1000) / 10 };
+}
+
+function buildCopyRecipe(
+  title: string,
+  outcome: string,
+  side: "BUY" | "SELL",
+  wallets: EliteSignalWallet[]
+): EliteCopyRecipe {
+  let totalShares = 0;
+  let weighted = 0;
+  for (const w of wallets) {
+    for (const f of w.fills) {
+      if (f.side !== side) continue;
+      totalShares += f.size;
+      weighted += f.size * f.price;
+    }
+  }
+  const weightedAvgPrice = totalShares > 0 ? weighted / totalShares : null;
+  const weightedAvgPriceCents =
+    weightedAvgPrice != null ? Math.round(weightedAvgPrice * 1000) / 10 : null;
+  const pricePart =
+    weightedAvgPriceCents != null ? ` at ~${weightedAvgPriceCents}¢/share` : "";
+  const action = `${side} · ${outcome}${pricePart}`;
+  const hint =
+    weightedAvgPriceCents != null
+      ? `On Polymarket, open this market and ${side === "BUY" ? "buy" : "sell"} the “${outcome}” outcome. Elites paid about ${weightedAvgPriceCents}¢ per share on average (your fill may differ). Size to your own risk — not financial advice.`
+      : `On Polymarket, open this market and ${side === "BUY" ? "buy" : "sell"} the “${outcome}” outcome. Size to your own risk — not financial advice.`;
+  return {
+    action,
+    marketTitle: title,
+    outcome,
+    side,
+    weightedAvgPrice: weightedAvgPrice != null ? Number(weightedAvgPrice.toFixed(4)) : null,
+    weightedAvgPriceCents,
+    totalShares: Number(totalShares.toFixed(2)),
+    hint,
+  };
+}
 
 function ingestTrade(
   agg: Map<string, SignalAgg>,
@@ -183,10 +284,12 @@ function ingestTrade(
     sellCount: 0,
     notionalUsd: 0,
     lastTradeMs: null,
+    fills: [],
   };
   if (side === "BUY") wPrev.buyCount += 1;
   else wPrev.sellCount += 1;
   wPrev.notionalUsd += notional;
+  pushFill(wPrev, t, side);
   if (tsMs != null && (wPrev.lastTradeMs == null || tsMs > wPrev.lastTradeMs)) wPrev.lastTradeMs = tsMs;
   prev.wallets.set(wallet, wPrev);
 
@@ -204,14 +307,21 @@ function toSignals(agg: Map<string, SignalAgg>, minWallets: number): EliteConsen
     if (walletEntries.length < minWallets) continue;
 
     const wallets: EliteSignalWallet[] = walletEntries
-      .map(([address, w]) => ({
-        address,
-        displayName: w.displayName,
-        buyCount: w.buyCount,
-        sellCount: w.sellCount,
-        notionalUsd: Number(w.notionalUsd.toFixed(2)),
-        lastTradeMs: w.lastTradeMs,
-      }))
+      .map(([address, w]) => {
+        const sideFills = w.fills.filter((f) => f.side === s.side);
+        const { avgPrice, avgPriceCents } = walletAvgPrice(sideFills);
+        return {
+          address,
+          displayName: w.displayName,
+          buyCount: w.buyCount,
+          sellCount: w.sellCount,
+          notionalUsd: Number(w.notionalUsd.toFixed(2)),
+          lastTradeMs: w.lastTradeMs,
+          fills: sideFills,
+          avgPrice,
+          avgPriceCents,
+        };
+      })
       .sort((a, b) => b.notionalUsd - a.notionalUsd);
 
     const walletCount = wallets.length;
@@ -235,6 +345,7 @@ function toSignals(agg: Map<string, SignalAgg>, minWallets: number): EliteConsen
       url: `https://polymarket.com/event/${s.slug}`,
       strength: walletCount >= 3 ? "strong" : "moderate",
       score: Number(score.toFixed(2)),
+      copyRecipe: buildCopyRecipe(s.title, s.outcome, s.side, wallets),
     });
   }
 

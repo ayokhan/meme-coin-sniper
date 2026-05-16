@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Crown,
+  Copy,
+  Check,
   ExternalLink,
   ListPlus,
   Radar,
@@ -19,6 +21,7 @@ import type { PolymarketLeaderboardCategory } from "@/lib/polymarket-data-api";
 import {
   ELITE_COUNT_OPTIONS,
   type EliteConsensusSignal,
+  type EliteCopyRecipe,
   type EliteCountOption,
   type EliteTrader,
 } from "@/lib/polymarket-elite";
@@ -154,10 +157,15 @@ export default function NovaPolymarketElitePanel() {
   };
 
   const openRadarAnalyze = (wallet: string) => {
+    const a = wallet.trim().toLowerCase();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(a)) {
+      setActionToast("Invalid wallet for analyze.");
+      return;
+    }
     window.dispatchEvent(
-      new CustomEvent(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, { detail: { wallet } })
+      new CustomEvent(NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, { detail: { address: a } })
     );
-    setActionToast("Opening Polymarket Radar to analyze this wallet…");
+    setActionToast("Opening Polymarket Radar…");
   };
 
   const buySignals = signals.filter((s) => s.side === "BUY");
@@ -393,6 +401,7 @@ function SignalSection({
             <span>Notional ~{fmtUsd(s.totalNotionalUsd)}</span>
             <span>Last activity {fmtLocalTime(s.lastActivityMs)}</span>
           </div>
+          {s.copyRecipe && <CopyRecipeCard recipe={s.copyRecipe} marketUrl={s.url} />}
           <Button type="button" variant="outline" size="sm" className="h-8" asChild>
             <Link href={s.url} target="_blank" rel="noreferrer">
               <ExternalLink className="h-3.5 w-3.5 mr-1" />
@@ -400,20 +409,20 @@ function SignalSection({
             </Link>
           </Button>
           <div className="border-t border-zinc-200/80 dark:border-zinc-700/80 pt-2 space-y-1.5">
-            <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Wallets on this signal</p>
+            <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Wallets and exact fills</p>
             {s.wallets.map((w) => (
               <div
                 key={w.address}
-                className="flex flex-wrap items-center justify-between gap-2 text-xs rounded-md bg-white/60 dark:bg-zinc-950/40 px-2 py-1.5 border border-zinc-100 dark:border-zinc-800"
+                className="rounded-md bg-white/60 dark:bg-zinc-950/40 px-2 py-2 border border-zinc-100 dark:border-zinc-800 space-y-2"
               >
-                <span className="truncate">
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">{w.displayName}</span>
-                  <span className="text-muted-foreground ml-1">
-                    · {w.buyCount} buy{w.buyCount !== 1 ? "s" : ""}
-                    {w.sellCount > 0 ? ` / ${w.sellCount} sell` : ""} · {fmtUsd(w.notionalUsd)}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="truncate min-w-0">
+                    <span className="font-medium text-zinc-800 dark:text-zinc-200">{w.displayName}</span>
+                    <span className="text-muted-foreground ml-1 block sm:inline">
+                      {w.avgPriceCents != null ? ` · avg ${w.avgPriceCents}¢` : ""} · {fmtUsd(w.notionalUsd)} total
+                    </span>
                   </span>
-                </span>
-                <div className="flex gap-1 shrink-0">
+                  <div className="flex gap-1 shrink-0">
                   <Button
                     type="button"
                     variant="ghost"
@@ -427,7 +436,36 @@ function SignalSection({
                   <Button type="button" variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => onAnalyze(w.address)}>
                     Analyze
                   </Button>
+                  </div>
                 </div>
+                {w.fills.length > 0 ? (
+                  <div className="overflow-x-auto rounded border border-zinc-200/60 dark:border-zinc-700/60">
+                    <table className="w-full text-[10px]">
+                      <thead className="bg-zinc-50 dark:bg-zinc-900/80 text-zinc-500">
+                        <tr>
+                          <th className="p-1.5 text-left font-medium">Time</th>
+                          <th className="p-1.5 text-right font-medium">Side</th>
+                          <th className="p-1.5 text-right font-medium">Shares</th>
+                          <th className="p-1.5 text-right font-medium">Price</th>
+                          <th className="p-1.5 text-right font-medium">$</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {w.fills.map((f, i) => (
+                          <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
+                            <td className="p-1.5 whitespace-nowrap">{fmtLocalTime(f.timestampMs)}</td>
+                            <td className="p-1.5 text-right">{f.side}</td>
+                            <td className="p-1.5 text-right">{f.size.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
+                            <td className="p-1.5 text-right">{f.priceCents}¢</td>
+                            <td className="p-1.5 text-right">{fmtUsd(f.notionalUsd)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground">No fill details in this window.</p>
+                )}
               </div>
             ))}
           </div>
@@ -436,3 +474,36 @@ function SignalSection({
     </div>
   );
 }
+
+function CopyRecipeCard({ recipe, marketUrl }: { recipe: EliteCopyRecipe; marketUrl: string }) {
+  const [copied, setCopied] = useState(false);
+  const line = `${recipe.action} — ${recipe.marketTitle}`;
+  const copyText = async () => {
+    try {
+      await navigator.clipboard.writeText(line);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+  return (
+    <div className="rounded-md border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/50 dark:bg-cyan-950/20 p-3 space-y-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-800 dark:text-cyan-200">Copy this trade</p>
+      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{recipe.action}</p>
+      <p className="text-xs text-muted-foreground">{recipe.hint}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => void copyText()}>
+          {copied ? <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
+          {copied ? "Copied" : "Copy summary"}
+        </Button>
+        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" asChild>
+          <Link href={marketUrl} target="_blank" rel="noreferrer">
+            Trade on Polymarket
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
