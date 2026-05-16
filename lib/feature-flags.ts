@@ -82,6 +82,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_TOP_MEME_COINS: 'nova_top_meme_coins',
   /** VIP: Meme Price Factor subtab under Nova Meme Intelligence. Default OFF until admin enables. */
   NOVA_MEME_PRICE_FACTOR: 'nova_meme_price_factor',
+  /** VIP: Meme Runner — Padre-style pump.fun trenches scanner (SOL first). Default OFF until admin enables. */
+  NOVA_MEME_RUNNER: 'nova_meme_runner',
   /** UVIP: Nova Perp Wallet Analyst Agent subtab under Wallet Tracker. Default OFF until admin enables. */
   NOVA_PERP_WALLET_ANALYST: 'nova_perp_wallet_analyst',
   /** VIP: Meme Leaderboard subtab under Wallet Tracker (free-API meme trader rankings). Default OFF until admin enables. */
@@ -109,6 +111,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_SMART_MEMES,
   FEATURE_FLAG_KEYS.NOVA_TOP_MEME_COINS,
   FEATURE_FLAG_KEYS.NOVA_MEME_PRICE_FACTOR,
+  FEATURE_FLAG_KEYS.NOVA_MEME_RUNNER,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {

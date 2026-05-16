@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import MemeRunnerPanel from "@/components/MemeRunnerPanel";
 
 type MemeQResult = {
   symbol: string;
@@ -103,14 +104,22 @@ function formatUsdCompact(value: number | null | undefined): string {
 }
 
 export default function NovaMemeIntelligencePanel() {
-  const [subTab, setSubTab] = useState<"nova-q-memes" | "nova-smart-memes" | "top-meme-coins" | "meme-price-factor">("nova-q-memes");
+  const [subTab, setSubTab] = useState<
+    "nova-q-memes" | "nova-smart-memes" | "top-meme-coins" | "meme-price-factor" | "meme-runner"
+  >("nova-q-memes");
   const [timeframes, setTimeframes] = useState<string[]>(["1m", "5m", "15m", "1h", "24h"]);
   const [symbol, setSymbol] = useState("PEPE");
   const [symbols, setSymbols] = useState("PEPE,DOGE,SHIB");
   const [priceFactorContract, setPriceFactorContract] = useState("");
   const [priceFactorTfs, setPriceFactorTfs] = useState<string[]>(["1m", "5m", "15m", "1h", "24h"]);
   const [priceFactorResult, setPriceFactorResult] = useState<MemePriceFactorResult | null>(null);
-  const [addonFlags, setAddonFlags] = useState<{ novaQMemes: boolean; novaSmartMemes: boolean; topMemeCoins: boolean; memePriceFactor: boolean } | null>(null);
+  const [addonFlags, setAddonFlags] = useState<{
+    novaQMemes: boolean;
+    novaSmartMemes: boolean;
+    topMemeCoins: boolean;
+    memePriceFactor: boolean;
+    memeRunner: boolean;
+  } | null>(null);
   const [qResult, setQResult] = useState<MemeQResult | null>(null);
   const [smartResults, setSmartResults] = useState<MemeSmartResult[]>([]);
   const [topCoins, setTopCoins] = useState<TopMemeCoin[]>([]);
@@ -145,10 +154,18 @@ export default function NovaMemeIntelligencePanel() {
           novaSmartMemes: !!d.novaSmartMemes,
           topMemeCoins: !!d.topMemeCoins,
           memePriceFactor: !!d.memePriceFactor,
+          memeRunner: !!d.memeRunner,
         };
         setAddonFlags(flags);
-        const ordered: Array<typeof subTab> = ["nova-q-memes", "nova-smart-memes", "top-meme-coins", "meme-price-factor"];
+        const ordered: Array<typeof subTab> = [
+          "meme-runner",
+          "nova-q-memes",
+          "nova-smart-memes",
+          "top-meme-coins",
+          "meme-price-factor",
+        ];
         const enabledMap: Record<typeof subTab, boolean> = {
+          "meme-runner": flags.memeRunner,
           "nova-q-memes": flags.novaQMemes,
           "nova-smart-memes": flags.novaSmartMemes,
           "top-meme-coins": flags.topMemeCoins,
@@ -247,7 +264,12 @@ export default function NovaMemeIntelligencePanel() {
           {(addonFlags?.novaSmartMemes ?? true) && <TabsTrigger value="nova-smart-memes" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Nova Smart Analysis for Memes</TabsTrigger>}
           {(addonFlags?.topMemeCoins ?? true) && <TabsTrigger value="top-meme-coins" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Top Meme coins</TabsTrigger>}
           {(addonFlags?.memePriceFactor ?? true) && <TabsTrigger value="meme-price-factor" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Meme Price Factor</TabsTrigger>}
+          {(addonFlags?.memeRunner ?? true) && <TabsTrigger value="meme-runner" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">Meme Runner</TabsTrigger>}
         </TabsList>
+
+        <TabsContent value="meme-runner" className="mt-0">
+          <MemeRunnerPanel />
+        </TabsContent>
 
         <TabsContent value="nova-q-memes" className="mt-0 space-y-3">
           <p className="text-xs text-muted-foreground">Meme-focused support/resistance, market structure, trendline, liquidity pressure, direction, and dead/downside warnings.</p>

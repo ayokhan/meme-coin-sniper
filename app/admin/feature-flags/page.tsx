@@ -208,6 +208,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users can access Meme Price Factor under Nova Meme Intelligence to analyze high/low market-cap bands and touch counts by timeframe for Solana/BSC contracts.",
   },
+  nova_meme_runner: {
+    label: "Meme Runner (Nova Meme Intelligence)",
+    description:
+      "When ON, VIP users see Meme Runner under Nova Meme Intelligence — Padre-style pump.fun trenches filters (age, fees, socials, ~$50k MC band) for SOL. Configure thresholds in Admin → Meme Runner.",
+  },
   nova_perp_wallet_analyst: {
     label: "Nova Perp Wallet Analyst Agent (Wallet Tracker)",
     description:

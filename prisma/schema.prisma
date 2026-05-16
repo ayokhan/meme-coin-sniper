@@ -718,3 +718,10 @@ model NovaInvestmentAgentPortfolioPin {
 
   @@index([userId, pinnedAt])
 }
+
+/** Admin-tunable Meme Runner filter thresholds per chain (sol | bsc | eth). */
+model MemeRunnerSettings {
+  chain     String   @id
+  config    Json
+  updatedAt DateTime @updatedAt
+}

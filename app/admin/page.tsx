@@ -77,6 +77,7 @@ export default function AdminHubPage() {
     { href: "/admin/leverage-wallet-tracker", label: "Leverage Wallet Tracker", icon: Wallet },
     { href: "/admin/polymarket-tracker", label: "Polymarket Tracker", icon: Wallet },
     { href: "/admin/feature-flags", label: "Feature flags", icon: Flag },
+    { href: "/admin/meme-runner", label: "Meme Runner config", icon: Zap },
     { href: "/admin/support", label: "Support", icon: Headphones },
     { href: "/admin/chat", label: "Chat", icon: MessageCircle },
     { href: "/admin/ai-feedback", label: "AI Feedback", icon: Lightbulb },
