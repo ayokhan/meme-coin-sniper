@@ -10,6 +10,7 @@ import NovaPolymarketTrackerPanel from "@/components/NovaPolymarketTrackerPanel"
 import NovaPolymarketCopyBotPanel from "@/components/NovaPolymarketCopyBotPanel";
 import NovaPolymarketLeaderboardPanel from "@/components/NovaPolymarketLeaderboardPanel";
 import NovaPolymarketFiveMinsPanel from "@/components/NovaPolymarketFiveMinsPanel";
+import NovaPolymarketElitePanel from "@/components/NovaPolymarketElitePanel";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
@@ -237,9 +238,10 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
 
   const [form, setForm] = useState<Partial<Config>>({});
   const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
-  const [polyInnerTab, setPolyInnerTab] = useState<"copilot" | "tracker" | "radar" | "leaderboard" | "fivemins">("copilot");
+  const [polyInnerTab, setPolyInnerTab] = useState<"copilot" | "tracker" | "radar" | "leaderboard" | "fivemins" | "elite">("copilot");
   const [polyLeaderboardEnabled, setPolyLeaderboardEnabled] = useState(false);
   const [polyFiveMinsEnabled, setPolyFiveMinsEnabled] = useState(false);
+  const [polyEliteEnabled, setPolyEliteEnabled] = useState(false);
   /** When opening Polymarket Radar with “Analyze” from Leaderboard, stash wallet until Radar content mounts. */
   const pendingRadarAnalyzeRef = useRef<string | null>(null);
   useEffect(() => {
@@ -260,25 +262,33 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   }, [polyInnerTab, polyFiveMinsEnabled]);
 
   useEffect(() => {
+    if (polyInnerTab === "elite" && !polyEliteEnabled) setPolyInnerTab("copilot");
+  }, [polyInnerTab, polyEliteEnabled]);
+
+  useEffect(() => {
     if (!canAccessPolymarket) {
       setPolyLeaderboardEnabled(false);
       setPolyFiveMinsEnabled(false);
+      setPolyEliteEnabled(false);
       return;
     }
     let cancel = false;
     Promise.all([
       fetch("/api/polymarket-leaderboard/bootstrap").then((r) => r.json()),
       fetch("/api/polymarket-five-mins/bootstrap").then((r) => r.json()),
+      fetch("/api/polymarket-elite/bootstrap").then((r) => r.json()),
     ])
-      .then(([lb, fm]) => {
+      .then(([lb, fm, el]) => {
         if (cancel) return;
         setPolyLeaderboardEnabled(!!(lb as { leaderboardEnabled?: boolean }).leaderboardEnabled);
         setPolyFiveMinsEnabled(!!(fm as { fiveMinsEnabled?: boolean }).fiveMinsEnabled);
+        setPolyEliteEnabled(!!(el as { eliteEnabled?: boolean }).eliteEnabled);
       })
       .catch(() => {
         if (!cancel) {
           setPolyLeaderboardEnabled(false);
           setPolyFiveMinsEnabled(false);
+          setPolyEliteEnabled(false);
         }
       });
     return () => {
@@ -1481,7 +1491,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 </CardContent>
               </Card>
             ) : (
-              <Tabs value={polyInnerTab} onValueChange={(v) => setPolyInnerTab(v as "copilot" | "tracker" | "radar" | "leaderboard" | "fivemins")} className="space-y-4">
+              <Tabs value={polyInnerTab} onValueChange={(v) => setPolyInnerTab(v as "copilot" | "tracker" | "radar" | "leaderboard" | "fivemins" | "elite")} className="space-y-4">
                 <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg h-auto flex-wrap">
                   <TabsTrigger
                     value="copilot"
@@ -1515,6 +1525,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                       className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-sky-600 data-[state=active]:text-white dark:data-[state=active]:bg-sky-600"
                     >
                       Nova 5 mins
+                    </TabsTrigger>
+                  )}
+                  {polyEliteEnabled && (
+                    <TabsTrigger
+                      value="elite"
+                      className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-600 data-[state=active]:text-white dark:data-[state=active]:bg-amber-700"
+                    >
+                      Polymarket Elite
                     </TabsTrigger>
                   )}
                 </TabsList>
@@ -2037,6 +2055,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 {polyFiveMinsEnabled && (
                   <TabsContent value="fivemins" className="mt-0 space-y-4">
                     <NovaPolymarketFiveMinsPanel />
+                  </TabsContent>
+                )}
+                {polyEliteEnabled && (
+                  <TabsContent value="elite" className="mt-0 space-y-4">
+                    <NovaPolymarketElitePanel />
                   </TabsContent>
                 )}
               </Tabs>

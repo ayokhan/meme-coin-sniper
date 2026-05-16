@@ -158,6 +158,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, eligible VIP users see the Nova 5 mins subtab under Nova Polymarket Pro (short-horizon Up/Down-style AI context from spot candles + optional browser alerts on signal flips). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
   },
+  nova_polymarket_elite: {
+    label: "Polymarket Elite",
+    description:
+      "When ON, eligible VIP users see the Polymarket Elite subtab under Nova Polymarket Pro: top leaderboard traders and consensus signals when multiple elites take the same side on a market. Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
+  },
   nova_eagle: {
     label: "Nova Eagle (Crypto Futures)",
     description:
