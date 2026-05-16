@@ -180,11 +180,8 @@ function LaneColumn({
 }
 
 export default function MemeRunnerPanel() {
-  const { data: session } = useSession();
-  const isOwner = isOwnerSession(session);
-  const isCoachUser = (session?.user as { isCoachUser?: boolean })?.isCoachUser === true;
-  const canShareCoach = isOwner || isCoachUser;
-
+  const [isOwner, setIsOwner] = useState(false);
+  const [canShareCoach, setCanShareCoach] = useState(false);
   const [chain, setChain] = useState<"sol" | "bsc" | "eth">("sol");
   const [lane, setLane] = useState<MemeRunnerLane | "all">("all");
   const [config, setConfig] = useState<MemeRunnerSolConfig | null>(null);
