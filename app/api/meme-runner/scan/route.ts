@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_GO_HUNTING),
     ]);
 
-    const allScanned = await scanMemeRunner(chain, config, "all", moralisOn);
+    const { tokens: allScanned, diagnostics } = await scanMemeRunner(chain, config, "all", moralisOn);
     const tokens = lane === "all" ? allScanned : allScanned.filter((t) => t.lane === lane);
     const counts = {
       new: allScanned.filter((t) => t.lane === "new").length,
@@ -57,6 +57,7 @@ export async function GET(request: Request) {
       config,
       tokens,
       counts,
+      diagnostics,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Scan failed";

@@ -225,6 +225,10 @@ export default function MemeRunnerPanel() {
   const [launchpadSummary, setLaunchpadSummary] = useState<string>("");
   const [nativeSymbol, setNativeSymbol] = useState("SOL");
   const [migratedLabel, setMigratedLabel] = useState("Raydium, Orca, or Meteora");
+  const [diagnostics, setDiagnostics] = useState<{
+    classified: { new: number; soon: number; migrated: number };
+    passed: { new: number; soon: number; migrated: number };
+  } | null>(null);
 
   const runScan = useCallback(async () => {
     setLoading(true);
@@ -241,6 +245,7 @@ export default function MemeRunnerPanel() {
       }
       setTokens(Array.isArray(data.tokens) ? data.tokens : []);
       if (data.config) setConfig(data.config);
+      if (data.diagnostics) setDiagnostics(data.diagnostics);
       setScannedAt(data.scannedAt ?? new Date().toISOString());
     } catch {
       setError("Scan failed");
@@ -373,6 +378,13 @@ export default function MemeRunnerPanel() {
                     Lane MC: New &lt; {fmtUsd(config.laneNewMaxMcapUsd)}; Soon{" "}
                     {fmtUsd(config.laneSoonMinMcapUsd)}-{fmtUsd(config.laneSoonMaxMcapUsd)}.
                   </p>
+                  {diagnostics && (
+                    <p className="text-[10px] text-amber-800 dark:text-amber-200/90">
+                      Scan: New {diagnostics.passed.new}/{diagnostics.classified.new} · Soon{" "}
+                      {diagnostics.passed.soon}/{diagnostics.classified.soon} · Migrated{" "}
+                      {diagnostics.passed.migrated}/{diagnostics.classified.migrated}
+                    </p>
+                  )}
                 </div>
               )}
               <div className="flex flex-wrap gap-2 items-center">

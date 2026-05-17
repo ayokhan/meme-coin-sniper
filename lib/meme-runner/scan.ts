@@ -47,6 +47,14 @@ function marketCapUsd(pair: DexPair): number | null {
   return null;
 }
 
+/** Use recent windows when 24h vol is still near zero (fresh launches). */
+function effectiveVolume24h(pair: DexPair): number {
+  const h24 = pair.volume?.h24 ?? 0;
+  const h6 = pair.volume?.h6 ?? 0;
+  const h1 = pair.volume?.h1 ?? 0;
+  return Math.max(h24, h6 * 4, h1 * 12);
+}
+
 function estimateFeesNative(volumeUsd: number, nativePriceUsd: number): number {
   if (!Number.isFinite(volumeUsd) || volumeUsd <= 0 || nativePriceUsd <= 0) return 0;
   return (volumeUsd / nativePriceUsd) * 0.0125;
@@ -135,6 +143,8 @@ function scoreToken(
     score += 10;
     notes.push("Twitter/Telegram");
   }
+  if (lane === "new" && ageMin <= 90) score += 8;
+  if (lane === "migrated" && vol >= filters.minVolume24hUsd) score += 8;
   return { score: Math.min(100, score), notes };
 }
 
@@ -178,7 +188,7 @@ function pairToRunnerToken(
   const ageMin = (Date.now() - launchedMs) / 60_000;
   const mcap = marketCapUsd(pair);
   const liq = pair.liquidity?.usd ?? 0;
-  const vol = pair.volume?.h24 ?? 0;
+  const vol = effectiveVolume24h(pair);
   const feesNative = estimateFeesNative(vol, config.solPriceUsd);
   const launchpad = primaryLaunchpadForPair(chain, pair.dexId || "", plan.enabled, taggedLaunchpadId);
   const lane = classifyLane(pair, mcap, config, plan, launchpad);
@@ -313,14 +323,23 @@ async function fetchTaggedPairs(
   return [...byKey.values()];
 }
 
+export type MemeRunnerScanDiagnostics = {
+  classified: { new: number; soon: number; migrated: number };
+  passed: { new: number; soon: number; migrated: number };
+};
+
 export async function scanMemeRunner(
   chain: MemeRunnerChain,
   config: MemeRunnerSolConfig,
   lane: MemeRunnerLane | "all" = "all",
   moralisEnabled = true
-): Promise<MemeRunnerToken[]> {
+): Promise<{ tokens: MemeRunnerToken[]; diagnostics: MemeRunnerScanDiagnostics }> {
   const plan = buildLaunchpadScanPlan(chain, config.enabledLaunchpads, config.includeMigratedPools);
-  if (plan.enabled.length === 0 && !plan.includeMigratedPools) return [];
+  const emptyDiag: MemeRunnerScanDiagnostics = {
+    classified: { new: 0, soon: 0, migrated: 0 },
+    passed: { new: 0, soon: 0, migrated: 0 },
+  };
+  if (plan.enabled.length === 0 && !plan.includeMigratedPools) return { tokens: [], diagnostics: emptyDiag };
 
   const { maxAgeMinutes, minLiquidityUsd } = fetchWindow(config);
   const meta = getChainMeta(chain);
@@ -360,12 +379,22 @@ export async function scanMemeRunner(
     }
   }
 
-  let tokens = [...byKey.values()]
-    .map(({ pair, taggedLaunchpadId }) => pairToRunnerToken(chain, pair, config, plan, taggedLaunchpadId))
-    .filter((t) => {
-      const f = laneFiltersFor(config, t.lane);
-      return t.filterPasses && t.runnerScore >= f.minRunnerScore;
-    });
+  const allMapped = [...byKey.values()].map(({ pair, taggedLaunchpadId }) =>
+    pairToRunnerToken(chain, pair, config, plan, taggedLaunchpadId)
+  );
+  const diagnostics: MemeRunnerScanDiagnostics = {
+    classified: { new: 0, soon: 0, migrated: 0 },
+    passed: { new: 0, soon: 0, migrated: 0 },
+  };
+  for (const t of allMapped) {
+    if (t.lane === "new" || t.lane === "soon" || t.lane === "migrated") diagnostics.classified[t.lane] += 1;
+  }
+  let tokens = allMapped.filter((t) => {
+    const f = laneFiltersFor(config, t.lane);
+    const pass = t.filterPasses && t.runnerScore >= f.minRunnerScore;
+    if (pass && (t.lane === "new" || t.lane === "soon" || t.lane === "migrated")) diagnostics.passed[t.lane] += 1;
+    return pass;
+  });
 
   if (lane !== "all") tokens = tokens.filter((t) => t.lane === lane);
   tokens.sort((a, b) => {
@@ -379,7 +408,7 @@ export async function scanMemeRunner(
     return b.runnerScore - a.runnerScore || (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0);
   });
 
-  return tokens.slice(0, 80);
+  return { tokens: tokens.slice(0, 80), diagnostics };
 }
 
 export async function scanMemeRunnerSol(
@@ -387,7 +416,8 @@ export async function scanMemeRunnerSol(
   lane: MemeRunnerLane | "all" = "all",
   moralisEnabled = true
 ): Promise<MemeRunnerToken[]> {
-  return scanMemeRunner("sol", config, lane, moralisEnabled);
+  const { tokens } = await scanMemeRunner("sol", config, lane, moralisEnabled);
+  return tokens;
 }
 
 export { launchpadExternalUrl };

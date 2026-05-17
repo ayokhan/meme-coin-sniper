@@ -32,30 +32,31 @@ const SOON_FILTERS: MemeRunnerLaneFilters = {
 
 const NEW_FILTERS: MemeRunnerLaneFilters = {
   ...CONTINUATION_OFF,
-  minTokenAgeMinutes: 8,
-  maxTokenAgeMinutes: 120,
-  minMarketCapUsd: 2_000,
-  maxMarketCapUsd: 22_000,
-  minVolume24hUsd: 800,
-  minEstimatedFeesSol: 0.25,
-  minLiquidityUsd: 400,
-  requireAtLeastOneSocial: true,
+  minTokenAgeMinutes: 5,
+  maxTokenAgeMinutes: 180,
+  minMarketCapUsd: 1_500,
+  maxMarketCapUsd: 24_000,
+  minVolume24hUsd: 250,
+  minEstimatedFeesSol: 0.05,
+  minLiquidityUsd: 250,
+  requireAtLeastOneSocial: false,
   requireOriginalSocials: false,
-  minRunnerScore: 35,
+  minRunnerScore: 28,
 };
 
+/** Post-migration runners (Raydium etc.) — separate from Soon bonding rules. */
 const MIGRATED_FILTERS: MemeRunnerLaneFilters = {
   ...CONTINUATION_OFF,
-  minTokenAgeMinutes: 20,
-  maxTokenAgeMinutes: 1_440,
-  minMarketCapUsd: 35_000,
-  maxMarketCapUsd: 800_000,
-  minVolume24hUsd: 12_000,
-  minEstimatedFeesSol: 2.5,
-  minLiquidityUsd: 8_000,
-  requireAtLeastOneSocial: true,
-  requireOriginalSocials: true,
-  minRunnerScore: 50,
+  minTokenAgeMinutes: 15,
+  maxTokenAgeMinutes: 2_880,
+  minMarketCapUsd: 25_000,
+  maxMarketCapUsd: 2_000_000,
+  minVolume24hUsd: 4_000,
+  minEstimatedFeesSol: 0.8,
+  minLiquidityUsd: 3_000,
+  requireAtLeastOneSocial: false,
+  requireOriginalSocials: false,
+  minRunnerScore: 35,
 };
 
 function baseDefaults(chain: MemeRunnerChain): MemeRunnerSolConfig {
@@ -114,8 +115,14 @@ function parseLaneFilters(raw: unknown, fallback: MemeRunnerLaneFilters): MemeRu
     minVolume24hUsd: num("minVolume24hUsd", 0, 10_000_000),
     minEstimatedFeesSol: num("minEstimatedFeesSol", 0, 500),
     minLiquidityUsd: num("minLiquidityUsd", 0, 1_000_000),
-    requireAtLeastOneSocial: o.requireAtLeastOneSocial !== false,
-    requireOriginalSocials: o.requireOriginalSocials === true,
+    requireAtLeastOneSocial:
+      typeof o.requireAtLeastOneSocial === "boolean"
+        ? o.requireAtLeastOneSocial
+        : fallback.requireAtLeastOneSocial,
+    requireOriginalSocials:
+      typeof o.requireOriginalSocials === "boolean"
+        ? o.requireOriginalSocials
+        : fallback.requireOriginalSocials,
     minRunnerScore: num("minRunnerScore", 0, 100),
     minContinuationScore: num("minContinuationScore", 0, 100),
     maxBondingProgressPct:
@@ -162,16 +169,29 @@ function fromLegacyFlat(chain: MemeRunnerChain, o: Record<string, unknown>): Mem
   };
 }
 
+/** DB configs that copied Soon rules onto New by mistake (45m+ age gate). */
+function repairLaneFilters(chain: MemeRunnerChain, config: MemeRunnerSolConfig): MemeRunnerSolConfig {
+  const d = defaultMemeRunnerConfig(chain);
+  let { new: n, migrated: m } = config;
+  if (n.minTokenAgeMinutes >= 30 || n.minEstimatedFeesSol >= 1.5) {
+    n = { ...d.new, ...n, ...NEW_FILTERS, minRunnerScore: Math.min(n.minRunnerScore, NEW_FILTERS.minRunnerScore) };
+  }
+  if (m.minTokenAgeMinutes >= 40 && m.minEstimatedFeesSol >= 2) {
+    m = { ...d.migrated, ...m, ...MIGRATED_FILTERS, minRunnerScore: Math.min(m.minRunnerScore, MIGRATED_FILTERS.minRunnerScore) };
+  }
+  return { ...config, new: n, migrated: m };
+}
+
 export function parseMemeRunnerConfig(chain: MemeRunnerChain, raw: unknown): MemeRunnerSolConfig {
   const d = defaultMemeRunnerConfig(chain);
   if (!raw || typeof raw !== "object") return { ...d };
   const o = raw as Record<string, unknown>;
-  if (!o.new && o.minTokenAgeMinutes != null) return fromLegacyFlat(chain, o);
+  if (!o.new && o.minTokenAgeMinutes != null) return repairLaneFilters(chain, fromLegacyFlat(chain, o));
   const numShared = (k: keyof MemeRunnerSolConfig, min: number, max: number) => {
     const v = Number(o[k]);
     return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : (d[k] as number);
   };
-  return {
+  const parsed: MemeRunnerSolConfig = {
     enabledLaunchpads: parseEnabledLaunchpads(chain, o.enabledLaunchpads),
     includeMigratedPools: o.includeMigratedPools !== false,
     targetMarketCapUsd: numShared("targetMarketCapUsd", 5_000, 500_000),
@@ -184,6 +204,7 @@ export function parseMemeRunnerConfig(chain: MemeRunnerChain, raw: unknown): Mem
     soon: parseLaneFilters(o.soon, d.soon),
     migrated: parseLaneFilters(o.migrated, d.migrated),
   };
+  return repairLaneFilters(chain, parsed);
 }
 
 /** @deprecated use parseMemeRunnerConfig('sol', raw) */
