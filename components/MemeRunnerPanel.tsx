@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Copy, ExternalLink, RefreshCw, Send, Sparkles, Zap, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,28 @@ function fmtUsd(n: number | null | undefined) {
 function shortAddr(a: string) {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
+
+const AUTO_REFRESH_STORAGE_KEY = "meme-runner-auto-refresh-ms";
+
+type AutoRefreshMs = 0 | 30_000 | 60_000 | 120_000 | 300_000;
+
+const AUTO_REFRESH_OPTIONS: { label: string; value: AutoRefreshMs }[] = [
+  { label: "Off", value: 0 },
+  { label: "30 sec", value: 30_000 },
+  { label: "1 min", value: 60_000 },
+  { label: "2 min", value: 120_000 },
+  { label: "5 min", value: 300_000 },
+];
+
+function readStoredAutoRefresh(): AutoRefreshMs {
+  if (typeof window === "undefined") return 0;
+  const v = Number(localStorage.getItem(AUTO_REFRESH_STORAGE_KEY));
+  if (v === 30_000 || v === 60_000 || v === 120_000 || v === 300_000) return v;
+  return 0;
+}
+
+const selectClass =
+  "h-8 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 text-xs text-zinc-800 dark:text-zinc-200";
 
 function TokenCard({
   t,
@@ -240,6 +262,8 @@ export default function MemeRunnerPanel() {
     migratedRejectSamples?: string[];
     newRejectSamples?: string[];
   } | null>(null);
+  const [autoRefreshMs, setAutoRefreshMs] = useState<AutoRefreshMs>(() => readStoredAutoRefresh());
+  const loadingRef = useRef(false);
 
   const runScan = useCallback(async () => {
     setLoading(true);
@@ -264,6 +288,27 @@ export default function MemeRunnerPanel() {
       setLoading(false);
     }
   }, [chain, lane]);
+
+  loadingRef.current = loading;
+
+  useEffect(() => {
+    if (disabled || autoRefreshMs === 0) return;
+    const id = window.setInterval(() => {
+      if (!loadingRef.current) void runScan();
+    }, autoRefreshMs);
+    return () => window.clearInterval(id);
+  }, [disabled, autoRefreshMs, runScan]);
+
+  const onAutoRefreshChange = (value: string) => {
+    const ms = Number(value) as AutoRefreshMs;
+    const next = AUTO_REFRESH_OPTIONS.some((o) => o.value === ms) ? ms : 0;
+    setAutoRefreshMs(next);
+    try {
+      localStorage.setItem(AUTO_REFRESH_STORAGE_KEY, String(next));
+    } catch {
+      /* ignore */
+    }
+  };
 
   const loadBootstrap = useCallback(async (c: MemeRunnerChain) => {
     const res = await fetch(`/api/meme-runner/bootstrap?chain=${c}`, {
@@ -443,9 +488,27 @@ export default function MemeRunnerPanel() {
                   <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />
                   {loading ? "Scanning…" : "Refresh scan"}
                 </Button>
+                <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span className="whitespace-nowrap">Auto</span>
+                  <select
+                    className={selectClass}
+                    value={autoRefreshMs}
+                    onChange={(e) => onAutoRefreshChange(e.target.value)}
+                    aria-label="Auto-refresh interval"
+                  >
+                    {AUTO_REFRESH_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 {scannedAt && (
                   <span className="text-[10px] text-muted-foreground">
                     Updated {new Date(scannedAt).toLocaleTimeString()}
+                    {autoRefreshMs > 0
+                      ? ` · every ${AUTO_REFRESH_OPTIONS.find((o) => o.value === autoRefreshMs)?.label ?? ""}`
+                      : ""}
                   </span>
                 )}
               </div>
