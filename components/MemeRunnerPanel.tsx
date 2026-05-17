@@ -92,6 +92,14 @@ function TokenCard({
             </Badge>
           )}
           <div className="flex flex-col items-end gap-0.5">
+            {t.lane === "soon" && t.soonGraduating && (
+              <Badge
+                variant="outline"
+                className="text-[10px] h-5 border-amber-500/60 text-amber-800 dark:text-amber-300"
+              >
+                Grad
+              </Badge>
+            )}
             {t.lane === "soon" && t.continuationScore > 0 && (
               <Badge
                 variant="outline"
@@ -379,8 +387,8 @@ export default function MemeRunnerPanel() {
                   })}
                   <p className="text-[10px] border-t border-zinc-200/80 dark:border-zinc-700/80 pt-2">
                     Lane MC: New &lt; {fmtUsd(config.laneNewMaxMcapUsd)}; Soon{" "}
-                    {fmtUsd(config.laneSoonMinMcapUsd)}–{fmtUsd(config.laneSoonMaxMcapUsd)} (pump.fun curve); Migrated
-                    ≥ {fmtUsd(config.migrated.minMarketCapUsd)} grads.
+                    {fmtUsd(config.laneSoonMinMcapUsd)}–{fmtUsd(config.laneSoonMaxMcapUsd)} + Grad $85k–$120k; Migrated ≥
+                    {fmtUsd(config.migrated.minMarketCapUsd)}.
                   </p>
                   {diagnostics && (
                     <div className="text-[10px] text-amber-800 dark:text-amber-200/90 space-y-0.5">

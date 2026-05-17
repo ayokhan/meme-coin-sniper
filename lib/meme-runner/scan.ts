@@ -8,7 +8,12 @@ import {
 import { getPumpFunNewTokens } from "@/lib/api-clients/moralis";
 import { getChainMeta } from "@/lib/meme-runner/chain-meta";
 import { passesContinuationFilters, scoreContinuation } from "@/lib/meme-runner/continuation";
-import { laneFiltersFor } from "@/lib/meme-runner/defaults";
+import {
+  laneFiltersFor,
+  SOON_GRADUATING_CURVE_MIN_PCT,
+  SOON_GRADUATING_MC_MAX_USD,
+  SOON_GRADUATING_MC_MIN_USD,
+} from "@/lib/meme-runner/defaults";
 import {
   buildLaunchpadScanPlan,
   dexScreenerPairUrl,
@@ -77,7 +82,13 @@ function bondingCurvePct(mcap: number | null, config: MemeRunnerSolConfig): numb
   return Math.min(100, (mcap / config.pumpGraduationMcapUsd) * 100);
 }
 
-/** Soon = still on pump.fun curve ($50k→$100k). Migrated = Raydium/Orca or graduated pumpswap. */
+function isGraduatingPumpswap(dex: string, mc: number, curvePct: number | null): boolean {
+  if (!dex.includes("pumpswap")) return false;
+  if (curvePct == null || curvePct < SOON_GRADUATING_CURVE_MIN_PCT) return false;
+  return mc >= SOON_GRADUATING_MC_MIN_USD && mc <= SOON_GRADUATING_MC_MAX_USD;
+}
+
+/** Soon = pump.fun $50k→$100k + graduating pumpswap $85k→$120k. Migrated = AMM / past grad band. */
 function classifyLane(
   pair: DexPair,
   mcap: number | null,
@@ -93,10 +104,13 @@ function classifyLane(
   const curvePct = onBonding ? bondingCurvePct(mcap, config) : null;
   const onPumpfun = dex === "pumpfun" || dex.includes("pumpfun");
 
+  if (onBonding && isGraduatingPumpswap(dex, mc, curvePct)) return "soon";
+
   if (onBonding && !onPumpfun) {
-    const graduated =
-      (curvePct != null && curvePct >= 88) || mc >= config.pumpGraduationMcapUsd * 0.88;
-    if (graduated) return "migrated";
+    const pastGradBand =
+      (curvePct != null && curvePct >= SOON_GRADUATING_CURVE_MIN_PCT && mc > SOON_GRADUATING_MC_MAX_USD) ||
+      mc >= config.pumpGraduationMcapUsd * 1.15;
+    if (pastGradBand) return "migrated";
   }
 
   if (onPumpfun || (onBonding && curvePct != null && curvePct < 88)) {
@@ -120,6 +134,8 @@ function isActiveBondingPair(
   if (isMigratedPoolDex(chain, pair.dexId || "")) return false;
   const mc = marketCapUsd(pair) ?? 0;
   if (dex === "pumpfun" || dex.includes("pumpfun")) return true;
+  const curve = bondingCurvePct(marketCapUsd(pair), config);
+  if (isGraduatingPumpswap(dex, mc, curve)) return true;
   if (dex.includes("pumpswap") && mc < config.pumpGraduationMcapUsd * 0.88) return true;
   if (!isBondingDex(pair.dexId || "", plan)) return false;
   return mc <= config.laneSoonMaxMcapUsd * 1.05;
@@ -236,10 +252,14 @@ function pairToRunnerToken(
   const feesNative = estimateFeesNative(vol, config.solPriceUsd);
   const launchpad = primaryLaunchpadForPair(chain, pair.dexId || "", plan.enabled, taggedLaunchpadId);
   const lane = classifyLane(pair, mcap, config, plan, launchpad);
+  const dexNorm = normalizeDexId(pair.dexId || "");
+  const mcVal = mcap ?? 0;
   const filters = laneFiltersFor(config, lane);
   const onBondingCurve =
     launchpad?.kind === "bonding" || plan.allowedBondingDexIds.has(normalizeDexId(pair.dexId || ""));
   const bondingProgressPct = onBondingCurve ? bondingCurvePct(mcap, config) : null;
+  const soonGraduating =
+    lane === "soon" && isGraduatingPumpswap(dexNorm, mcVal, bondingProgressPct);
   const { score, notes: scoreNotes } = scoreToken(
     config,
     lane,
@@ -305,6 +325,7 @@ function pairToRunnerToken(
     filterPasses,
     filterNotes: allFilterNotes,
     scoreNotes: allScoreNotes,
+    soonGraduating,
   };
 }
 
@@ -494,7 +515,9 @@ export async function scanMemeRunner(
   if (lane !== "all") tokens = tokens.filter((t) => t.lane === lane);
   tokens.sort((a, b) => {
     if (a.lane === "soon" && b.lane === "soon") {
+      const gradRank = (t: MemeRunnerToken) => (t.soonGraduating ? 1 : 0);
       return (
+        gradRank(b) - gradRank(a) ||
         b.continuationScore - a.continuationScore ||
         b.runnerScore - a.runnerScore ||
         (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0)

@@ -48,8 +48,13 @@ export function scoreContinuation({ pair, mcap, bondingProgressPct, config }: Co
       score += 18;
       notes.push("Curve mid-band (room to run)");
     } else if (bondingProgressPct > 88) {
-      score -= 28;
-      notes.push("Curve near graduation (fade risk)");
+      if (mc >= 85_000 && mc <= 120_000) {
+        score += 10;
+        notes.push("Graduating band (90k→1M setup)");
+      } else {
+        score -= 28;
+        notes.push("Curve near graduation (fade risk)");
+      }
     } else if (bondingProgressPct < 35) {
       score += 5;
       notes.push("Early curve");

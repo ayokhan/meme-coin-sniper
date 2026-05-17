@@ -12,7 +12,12 @@ const CONTINUATION_OFF: Pick<
   continuationSweetMaxMcapUsd: 0,
 };
 
-/** Soon: $50k→$100k on bonding curve (+ late curve toward $1M); sorted by continuation. */
+/** Pumpswap “about to graduate” band — still Soon, not Migrated. */
+export const SOON_GRADUATING_MC_MIN_USD = 85_000;
+export const SOON_GRADUATING_MC_MAX_USD = 120_000;
+export const SOON_GRADUATING_CURVE_MIN_PCT = 88;
+
+/** Soon: $50k→$100k pump.fun + $85k→$120k graduating pumpswap; sorted by Run score. */
 const SOON_FILTERS: MemeRunnerLaneFilters = {
   minTokenAgeMinutes: 12,
   maxTokenAgeMinutes: 720,

@@ -75,6 +75,8 @@ export type MemeRunnerToken = {
   filterPasses: boolean;
   filterNotes: string[];
   scoreNotes: string[];
+  /** Soon lane: pumpswap ~88%+ curve in $85k–$120k (pre-Raydium graduation). */
+  soonGraduating?: boolean;
 };
 
 export type MemeRunnerScanResult = {
