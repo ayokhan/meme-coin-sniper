@@ -228,6 +228,7 @@ export default function MemeRunnerPanel() {
   const [diagnostics, setDiagnostics] = useState<{
     classified: { new: number; soon: number; migrated: number };
     passed: { new: number; soon: number; migrated: number };
+    soonRejectSamples?: string[];
   } | null>(null);
 
   const runScan = useCallback(async () => {
@@ -379,11 +380,20 @@ export default function MemeRunnerPanel() {
                     {fmtUsd(config.laneSoonMinMcapUsd)}-{fmtUsd(config.laneSoonMaxMcapUsd)}.
                   </p>
                   {diagnostics && (
-                    <p className="text-[10px] text-amber-800 dark:text-amber-200/90">
-                      Scan: New {diagnostics.passed.new}/{diagnostics.classified.new} · Soon{" "}
-                      {diagnostics.passed.soon}/{diagnostics.classified.soon} · Migrated{" "}
-                      {diagnostics.passed.migrated}/{diagnostics.classified.migrated}
-                    </p>
+                    <div className="text-[10px] text-amber-800 dark:text-amber-200/90 space-y-0.5">
+                      <p>
+                        Scan: New {diagnostics.passed.new}/{diagnostics.classified.new} · Soon{" "}
+                        {diagnostics.passed.soon}/{diagnostics.classified.soon} · Migrated{" "}
+                        {diagnostics.passed.migrated}/{diagnostics.classified.migrated}
+                      </p>
+                      {diagnostics.classified.soon > 0 &&
+                      diagnostics.passed.soon === 0 &&
+                      diagnostics.soonRejectSamples?.length ? (
+                        <p className="text-amber-700/90 dark:text-amber-300/80">
+                          Soon blocked: {diagnostics.soonRejectSamples.join(" · ")}
+                        </p>
+                      ) : null}
+                    </div>
                   )}
                 </div>
               )}

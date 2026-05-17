@@ -94,6 +94,13 @@ export type MemeRunnerDexFetchOptions = {
   searchQueries: string[];
 };
 
+function effectiveVolume24h(pair: DexPair): number {
+  const h24 = pair.volume?.h24 ?? 0;
+  const h6 = pair.volume?.h6 ?? 0;
+  const h1 = pair.volume?.h1 ?? 0;
+  return Math.max(h24, h6 * 4, h1 * 12);
+}
+
 function dexAllowed(dexId: string, allowed: Set<string>): boolean {
   const n = normalizeDexIdForFilter(dexId);
   if (allowed.has(n)) return true;
@@ -109,10 +116,10 @@ export async function getMemeRunnerChainPairs(opts: MemeRunnerDexFetchOptions): 
     const pairs = await fetchChainPairsViaSearch(opts.chain, opts.searchQueries);
     const now = Date.now();
     const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
-    const vol = (p: DexPair) => p.volume?.h24 ?? 0;
+    const vol = (p: DexPair) => effectiveVolume24h(p);
     const dexOk = (p: DexPair) => dexAllowed(p.dexId || '', allowed);
     const eligible = pairs
-      .filter((p) => usd(p) >= opts.minLiquidity && (vol(p) > 0 || usd(p) >= opts.minLiquidity) && dexOk(p))
+      .filter((p) => usd(p) >= opts.minLiquidity && (vol(p) > 0 || usd(p) >= opts.minLiquidity * 2) && dexOk(p))
       .sort((a, b) => toMs(b.pairCreatedAt) - toMs(a.pairCreatedAt));
     const inWindow = eligible.filter((p) => now - toMs(p.pairCreatedAt) <= opts.maxAgeMinutes * 60000);
     const fallbackMinutes = Math.min(opts.maxAgeMinutes * 2, 1440);

@@ -326,6 +326,8 @@ async function fetchTaggedPairs(
 export type MemeRunnerScanDiagnostics = {
   classified: { new: number; soon: number; migrated: number };
   passed: { new: number; soon: number; migrated: number };
+  /** Top filter/continuation notes for Soon tokens that did not pass (max 3). */
+  soonRejectSamples?: string[];
 };
 
 export async function scanMemeRunner(
@@ -386,8 +388,20 @@ export async function scanMemeRunner(
     classified: { new: 0, soon: 0, migrated: 0 },
     passed: { new: 0, soon: 0, migrated: 0 },
   };
+  const soonRejectCounts = new Map<string, number>();
   for (const t of allMapped) {
     if (t.lane === "new" || t.lane === "soon" || t.lane === "migrated") diagnostics.classified[t.lane] += 1;
+    if (t.lane === "soon" && !t.filterPasses) {
+      for (const note of t.filterNotes) {
+        soonRejectCounts.set(note, (soonRejectCounts.get(note) ?? 0) + 1);
+      }
+    }
+  }
+  if (soonRejectCounts.size > 0) {
+    diagnostics.soonRejectSamples = [...soonRejectCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([note, n]) => `${note} (${n})`);
   }
   let tokens = allMapped.filter((t) => {
     const f = laneFiltersFor(config, t.lane);

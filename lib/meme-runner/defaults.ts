@@ -12,20 +12,20 @@ const CONTINUATION_OFF: Pick<
   continuationSweetMaxMcapUsd: 0,
 };
 
-/** Soon: favor $35k–$75k + mid-curve, not $90k+ graduation froth (+20% then die). */
+/** Soon: favor $35k–$75k + mid-curve; gates kept passable so the lane isn’t empty at scan time. */
 const SOON_FILTERS: MemeRunnerLaneFilters = {
-  minTokenAgeMinutes: 45,
+  minTokenAgeMinutes: 15,
   maxTokenAgeMinutes: 360,
-  minMarketCapUsd: 30_000,
-  maxMarketCapUsd: 85_000,
-  minVolume24hUsd: 10_000,
-  minEstimatedFeesSol: 2,
-  minLiquidityUsd: 4_000,
-  requireAtLeastOneSocial: true,
-  requireOriginalSocials: true,
-  minRunnerScore: 52,
-  minContinuationScore: 52,
-  maxBondingProgressPct: 86,
+  minMarketCapUsd: 25_000,
+  maxMarketCapUsd: 90_000,
+  minVolume24hUsd: 2_500,
+  minEstimatedFeesSol: 0.35,
+  minLiquidityUsd: 2_500,
+  requireAtLeastOneSocial: false,
+  requireOriginalSocials: false,
+  minRunnerScore: 38,
+  minContinuationScore: 38,
+  maxBondingProgressPct: 90,
   continuationSweetMinMcapUsd: 35_000,
   continuationSweetMaxMcapUsd: 72_000,
 };
@@ -80,7 +80,7 @@ function baseDefaults(chain: MemeRunnerChain): MemeRunnerSolConfig {
     targetMarketCapUsd: 50_000,
     solPriceUsd: meta.defaultNativePriceUsd,
     pumpGraduationMcapUsd: chain === "sol" ? 69_000 : 80_000,
-    laneNewMaxMcapUsd: 20_000,
+    laneNewMaxMcapUsd: 28_000,
     laneSoonMinMcapUsd: 25_000,
     laneSoonMaxMcapUsd: chain === "sol" ? 95_000 : 120_000,
     new: newF,
@@ -172,14 +172,25 @@ function fromLegacyFlat(chain: MemeRunnerChain, o: Record<string, unknown>): Mem
 /** DB configs that copied Soon rules onto New by mistake (45m+ age gate). */
 function repairLaneFilters(chain: MemeRunnerChain, config: MemeRunnerSolConfig): MemeRunnerSolConfig {
   const d = defaultMemeRunnerConfig(chain);
-  let { new: n, migrated: m } = config;
+  let { new: n, soon: s, migrated: m } = config;
   if (n.minTokenAgeMinutes >= 30 || n.minEstimatedFeesSol >= 1.5) {
     n = { ...d.new, ...n, ...NEW_FILTERS, minRunnerScore: Math.min(n.minRunnerScore, NEW_FILTERS.minRunnerScore) };
+  }
+  if (s.minEstimatedFeesSol >= 1 || s.minContinuationScore >= 48) {
+    s = {
+      ...d.soon,
+      ...s,
+      ...SOON_FILTERS,
+      minRunnerScore: Math.min(s.minRunnerScore, SOON_FILTERS.minRunnerScore),
+      minContinuationScore: Math.min(s.minContinuationScore, SOON_FILTERS.minContinuationScore),
+    };
   }
   if (m.minTokenAgeMinutes >= 40 && m.minEstimatedFeesSol >= 2) {
     m = { ...d.migrated, ...m, ...MIGRATED_FILTERS, minRunnerScore: Math.min(m.minRunnerScore, MIGRATED_FILTERS.minRunnerScore) };
   }
-  return { ...config, new: n, migrated: m };
+  const laneNewMaxMcapUsd =
+    config.laneNewMaxMcapUsd <= 20_000 ? d.laneNewMaxMcapUsd : config.laneNewMaxMcapUsd;
+  return { ...config, new: n, soon: s, migrated: m, laneNewMaxMcapUsd };
 }
 
 export function parseMemeRunnerConfig(chain: MemeRunnerChain, raw: unknown): MemeRunnerSolConfig {
