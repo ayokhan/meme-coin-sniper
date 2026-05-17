@@ -37,16 +37,16 @@ const SOON_FILTERS: MemeRunnerLaneFilters = {
 
 const NEW_FILTERS: MemeRunnerLaneFilters = {
   ...CONTINUATION_OFF,
-  minTokenAgeMinutes: 5,
-  maxTokenAgeMinutes: 180,
-  minMarketCapUsd: 1_500,
-  maxMarketCapUsd: 28_000,
-  minVolume24hUsd: 250,
-  minEstimatedFeesSol: 0.05,
-  minLiquidityUsd: 250,
+  minTokenAgeMinutes: 3,
+  maxTokenAgeMinutes: 240,
+  minMarketCapUsd: 800,
+  maxMarketCapUsd: 55_000,
+  minVolume24hUsd: 0,
+  minEstimatedFeesSol: 0.02,
+  minLiquidityUsd: 150,
   requireAtLeastOneSocial: false,
   requireOriginalSocials: false,
-  minRunnerScore: 24,
+  minRunnerScore: 18,
 };
 
 /** Migrated: fresh Raydium grads (~$25k+) before they’re multi-million; tune max MC in admin. */
@@ -85,8 +85,8 @@ function baseDefaults(chain: MemeRunnerChain): MemeRunnerSolConfig {
     targetMarketCapUsd: 72_000,
     solPriceUsd: meta.defaultNativePriceUsd,
     pumpGraduationMcapUsd: chain === "sol" ? 69_000 : 80_000,
-    laneNewMaxMcapUsd: 40_000,
-    laneSoonMinMcapUsd: 42_000,
+    laneNewMaxMcapUsd: 55_000,
+    laneSoonMinMcapUsd: 45_000,
     laneSoonMaxMcapUsd: chain === "sol" ? 150_000 : 180_000,
     new: newF,
     soon: {
@@ -186,7 +186,13 @@ function repairLaneFilters(chain: MemeRunnerChain, config: MemeRunnerSolConfig):
     n = { ...d.new, ...n, ...NEW_FILTERS, minRunnerScore: Math.min(n.minRunnerScore, NEW_FILTERS.minRunnerScore) };
   }
   const laneNewMaxMcapUsd =
-    config.laneNewMaxMcapUsd <= 20_000 ? d.laneNewMaxMcapUsd : config.laneNewMaxMcapUsd;
+    config.laneNewMaxMcapUsd <= 35_000 ? d.laneNewMaxMcapUsd : config.laneNewMaxMcapUsd;
+  if (n.maxMarketCapUsd < laneNewMaxMcapUsd * 0.85) {
+    n = { ...n, maxMarketCapUsd: laneNewMaxMcapUsd };
+  }
+  if (n.minVolume24hUsd > 0 && n.minVolume24hUsd < 100) {
+    n = { ...n, minVolume24hUsd: 0 };
+  }
   return { ...config, new: n, laneNewMaxMcapUsd };
 }
 

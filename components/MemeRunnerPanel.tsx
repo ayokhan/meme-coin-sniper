@@ -431,7 +431,7 @@ export default function MemeRunnerPanel() {
                     );
                   })}
                   <p className="text-[10px] border-t border-zinc-200/80 dark:border-zinc-700/80 pt-2">
-                    Lane MC: New &lt; {fmtUsd(config.laneNewMaxMcapUsd)}; Soon{" "}
+                    Lane MC: New &lt; {fmtUsd(config.laneNewMaxMcapUsd)} (pump.fun); Soon{" "}
                     {fmtUsd(config.laneSoonMinMcapUsd)}–{fmtUsd(config.laneSoonMaxMcapUsd)} + Grad $85k–$120k; Migrated ≥
                     {fmtUsd(config.migrated.minMarketCapUsd)}.
                   </p>

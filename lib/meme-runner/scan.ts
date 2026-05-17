@@ -114,7 +114,7 @@ function classifyLane(
   }
 
   if (onPumpfun || (onBonding && curvePct != null && curvePct < 88)) {
-    if (mc < config.laneNewMaxMcapUsd) return "new";
+    if (mc <= 0 || mc < config.laneNewMaxMcapUsd) return "new";
     if (mc >= config.laneSoonMinMcapUsd && mc <= config.laneSoonMaxMcapUsd) return "soon";
     if (mc < config.laneSoonMinMcapUsd) return "new";
     return "migrated";
@@ -194,7 +194,10 @@ function scoreToken(
     score += 10;
     notes.push("Twitter/Telegram");
   }
-  if (lane === "new" && ageMin <= 90) score += 8;
+  if (lane === "new") {
+    if (ageMin <= 120) score += 12;
+    if (vol <= 0 && ageMin <= 90) score += 8;
+  }
   if (lane === "soon" && mc >= 50_000 && mc <= 100_000) {
     score += 14;
     notes.push("50k–100k run zone");
@@ -217,7 +220,8 @@ function applyFilters(
   feesNative: number,
   hasSocials: boolean,
   hasOriginalSocials: boolean,
-  nativeSymbol: string
+  nativeSymbol: string,
+  minFeesNative = filters.minEstimatedFeesSol
 ): { passes: boolean; notes: string[] } {
   const notes: string[] = [];
   if (ageMin < filters.minTokenAgeMinutes) notes.push(`Age ${Math.round(ageMin)}m < ${filters.minTokenAgeMinutes}m`);
@@ -226,9 +230,10 @@ function applyFilters(
   if (mc < filters.minMarketCapUsd) notes.push(`MC $${Math.round(mc)} < min`);
   if (mc > filters.maxMarketCapUsd) notes.push(`MC $${Math.round(mc)} > max`);
   if (liq < filters.minLiquidityUsd) notes.push(`Liquidity $${Math.round(liq)} low`);
-  if (vol < filters.minVolume24hUsd) notes.push(`Volume $${Math.round(vol)} low`);
-  if (feesNative < filters.minEstimatedFeesSol)
-    notes.push(`Est. fees ${feesNative.toFixed(3)} ${nativeSymbol} < ${filters.minEstimatedFeesSol}`);
+  if (filters.minVolume24hUsd > 0 && vol < filters.minVolume24hUsd)
+    notes.push(`Volume $${Math.round(vol)} low`);
+  if (feesNative < minFeesNative)
+    notes.push(`Est. fees ${feesNative.toFixed(3)} ${nativeSymbol} < ${minFeesNative}`);
   if (filters.requireAtLeastOneSocial && !hasSocials) notes.push("No socials");
   if (filters.requireOriginalSocials && !hasOriginalSocials) notes.push("No Twitter/Telegram");
   return { passes: notes.length === 0, notes };
@@ -271,6 +276,8 @@ function pairToRunnerToken(
     hasSocials,
     hasOriginalSocials
   );
+  const feeFloor =
+    lane === "new" && vol <= 0 && ageMin <= 120 ? Math.min(filters.minEstimatedFeesSol, 0.001) : filters.minEstimatedFeesSol;
   const { passes: basePasses, notes: filterNotes } = applyFilters(
     filters,
     ageMin,
@@ -280,7 +287,8 @@ function pairToRunnerToken(
     feesNative,
     hasSocials,
     hasOriginalSocials,
-    meta.nativeSymbol
+    meta.nativeSymbol,
+    feeFloor
   );
   const { score: continuationScore, notes: contNotes } =
     lane === "soon"
@@ -357,6 +365,21 @@ async function fetchTaggedPairs(
       add(p, matches[0]?.id ?? null);
     }
   };
+
+  const newFilters = laneFiltersFor(config, "new");
+  const pumpfunOnly = await getMemeRunnerChainPairs({
+    chain: dexKey(chain),
+    minLiquidity: Math.min(newFilters.minLiquidityUsd, 120),
+    maxAgeMinutes: Math.max(newFilters.maxTokenAgeMinutes, 360),
+    allowedDexIds: ["pumpfun"],
+    searchQueries: ["pump.fun", "pumpfun", "new pump", "fresh pump"],
+    maxResults: 120,
+  });
+  for (const p of pumpfunOnly) {
+    const mc = marketCapUsd(p) ?? 0;
+    if (mc > config.laneNewMaxMcapUsd * 1.15) continue;
+    add(p, "pump");
+  }
 
   const bondingDex = [...plan.allowedBondingDexIds];
   if (bondingDex.length > 0) {
@@ -440,7 +463,7 @@ export async function scanMemeRunner(
   const [tagged, moralis] = await Promise.all([
     fetchTaggedPairs(chain, config, plan, minLiquidityUsd, maxAgeMinutes),
     moralisEnabled && meta.moralisPumpNew && pumpEnabled
-      ? getPumpFunNewTokens(60).catch(() => [])
+      ? getPumpFunNewTokens(80).catch(() => [])
       : Promise.resolve([]),
   ]);
 
