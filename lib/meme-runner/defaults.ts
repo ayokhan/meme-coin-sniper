@@ -23,9 +23,9 @@ const SOON_FILTERS: MemeRunnerLaneFilters = {
   minLiquidityUsd: 2_500,
   requireAtLeastOneSocial: false,
   requireOriginalSocials: false,
-  minRunnerScore: 38,
-  minContinuationScore: 38,
-  maxBondingProgressPct: 90,
+  minRunnerScore: 35,
+  minContinuationScore: 32,
+  maxBondingProgressPct: null,
   continuationSweetMinMcapUsd: 35_000,
   continuationSweetMaxMcapUsd: 72_000,
 };
@@ -41,22 +41,22 @@ const NEW_FILTERS: MemeRunnerLaneFilters = {
   minLiquidityUsd: 250,
   requireAtLeastOneSocial: false,
   requireOriginalSocials: false,
-  minRunnerScore: 28,
+  minRunnerScore: 24,
 };
 
 /** Post-migration runners (Raydium etc.) — separate from Soon bonding rules. */
 const MIGRATED_FILTERS: MemeRunnerLaneFilters = {
   ...CONTINUATION_OFF,
-  minTokenAgeMinutes: 15,
-  maxTokenAgeMinutes: 2_880,
-  minMarketCapUsd: 25_000,
-  maxMarketCapUsd: 2_000_000,
-  minVolume24hUsd: 4_000,
-  minEstimatedFeesSol: 0.8,
-  minLiquidityUsd: 3_000,
+  minTokenAgeMinutes: 10,
+  maxTokenAgeMinutes: 10_080,
+  minMarketCapUsd: 12_000,
+  maxMarketCapUsd: 5_000_000,
+  minVolume24hUsd: 800,
+  minEstimatedFeesSol: 0.15,
+  minLiquidityUsd: 1_200,
   requireAtLeastOneSocial: false,
   requireOriginalSocials: false,
-  minRunnerScore: 35,
+  minRunnerScore: 22,
 };
 
 function baseDefaults(chain: MemeRunnerChain): MemeRunnerSolConfig {
@@ -176,7 +176,7 @@ function repairLaneFilters(chain: MemeRunnerChain, config: MemeRunnerSolConfig):
   if (n.minTokenAgeMinutes >= 30 || n.minEstimatedFeesSol >= 1.5) {
     n = { ...d.new, ...n, ...NEW_FILTERS, minRunnerScore: Math.min(n.minRunnerScore, NEW_FILTERS.minRunnerScore) };
   }
-  if (s.minEstimatedFeesSol >= 1 || s.minContinuationScore >= 48) {
+  if (s.minEstimatedFeesSol >= 1 || s.minContinuationScore >= 48 || s.maxBondingProgressPct != null) {
     s = {
       ...d.soon,
       ...s,
@@ -185,8 +185,14 @@ function repairLaneFilters(chain: MemeRunnerChain, config: MemeRunnerSolConfig):
       minContinuationScore: Math.min(s.minContinuationScore, SOON_FILTERS.minContinuationScore),
     };
   }
-  if (m.minTokenAgeMinutes >= 40 && m.minEstimatedFeesSol >= 2) {
-    m = { ...d.migrated, ...m, ...MIGRATED_FILTERS, minRunnerScore: Math.min(m.minRunnerScore, MIGRATED_FILTERS.minRunnerScore) };
+  if (m.maxTokenAgeMinutes <= 4_000 || m.minEstimatedFeesSol >= 0.5 || m.minRunnerScore >= 30) {
+    m = {
+      ...d.migrated,
+      ...m,
+      ...MIGRATED_FILTERS,
+      minRunnerScore: Math.min(m.minRunnerScore, MIGRATED_FILTERS.minRunnerScore),
+      maxTokenAgeMinutes: Math.max(m.maxTokenAgeMinutes, MIGRATED_FILTERS.maxTokenAgeMinutes),
+    };
   }
   const laneNewMaxMcapUsd =
     config.laneNewMaxMcapUsd <= 20_000 ? d.laneNewMaxMcapUsd : config.laneNewMaxMcapUsd;

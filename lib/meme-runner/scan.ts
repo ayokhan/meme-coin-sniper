@@ -144,7 +144,12 @@ function scoreToken(
     notes.push("Twitter/Telegram");
   }
   if (lane === "new" && ageMin <= 90) score += 8;
-  if (lane === "migrated" && vol >= filters.minVolume24hUsd) score += 8;
+  if (lane === "migrated") {
+    score += 18;
+    notes.push("Graduated pool");
+    if (vol >= filters.minVolume24hUsd) score += 12;
+    if (mc >= 40_000) score += 10;
+  }
   return { score: Math.min(100, score), notes };
 }
 
@@ -328,6 +333,7 @@ export type MemeRunnerScanDiagnostics = {
   passed: { new: number; soon: number; migrated: number };
   /** Top filter/continuation notes for Soon tokens that did not pass (max 3). */
   soonRejectSamples?: string[];
+  migratedRejectSamples?: string[];
 };
 
 export async function scanMemeRunner(
@@ -389,20 +395,29 @@ export async function scanMemeRunner(
     passed: { new: 0, soon: 0, migrated: 0 },
   };
   const soonRejectCounts = new Map<string, number>();
+  const migratedRejectCounts = new Map<string, number>();
+  const bumpReject = (map: Map<string, number>, t: MemeRunnerToken, lane: MemeRunnerLane) => {
+    const f = laneFiltersFor(config, lane);
+    if (t.filterPasses && t.runnerScore >= f.minRunnerScore) return;
+    if (!t.filterPasses) {
+      for (const note of t.filterNotes) map.set(note, (map.get(note) ?? 0) + 1);
+    } else {
+      const key = `Runner score ${t.runnerScore} < ${f.minRunnerScore}`;
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+  };
   for (const t of allMapped) {
     if (t.lane === "new" || t.lane === "soon" || t.lane === "migrated") diagnostics.classified[t.lane] += 1;
-    if (t.lane === "soon" && !t.filterPasses) {
-      for (const note of t.filterNotes) {
-        soonRejectCounts.set(note, (soonRejectCounts.get(note) ?? 0) + 1);
-      }
-    }
+    if (t.lane === "soon") bumpReject(soonRejectCounts, t, "soon");
+    if (t.lane === "migrated") bumpReject(migratedRejectCounts, t, "migrated");
   }
-  if (soonRejectCounts.size > 0) {
-    diagnostics.soonRejectSamples = [...soonRejectCounts.entries()]
+  const topReject = (map: Map<string, number>) =>
+    [...map.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([note, n]) => `${note} (${n})`);
-  }
+  if (soonRejectCounts.size > 0) diagnostics.soonRejectSamples = topReject(soonRejectCounts);
+  if (migratedRejectCounts.size > 0) diagnostics.migratedRejectSamples = topReject(migratedRejectCounts);
   let tokens = allMapped.filter((t) => {
     const f = laneFiltersFor(config, t.lane);
     const pass = t.filterPasses && t.runnerScore >= f.minRunnerScore;

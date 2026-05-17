@@ -229,6 +229,7 @@ export default function MemeRunnerPanel() {
     classified: { new: number; soon: number; migrated: number };
     passed: { new: number; soon: number; migrated: number };
     soonRejectSamples?: string[];
+    migratedRejectSamples?: string[];
   } | null>(null);
 
   const runScan = useCallback(async () => {
@@ -391,6 +392,13 @@ export default function MemeRunnerPanel() {
                       diagnostics.soonRejectSamples?.length ? (
                         <p className="text-amber-700/90 dark:text-amber-300/80">
                           Soon blocked: {diagnostics.soonRejectSamples.join(" · ")}
+                        </p>
+                      ) : null}
+                      {diagnostics.classified.migrated > 0 &&
+                      diagnostics.passed.migrated === 0 &&
+                      diagnostics.migratedRejectSamples?.length ? (
+                        <p className="text-amber-700/90 dark:text-amber-300/80">
+                          Migrated blocked: {diagnostics.migratedRejectSamples.join(" · ")}
                         </p>
                       ) : null}
                     </div>
