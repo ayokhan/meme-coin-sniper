@@ -379,7 +379,8 @@ export default function MemeRunnerPanel() {
                   })}
                   <p className="text-[10px] border-t border-zinc-200/80 dark:border-zinc-700/80 pt-2">
                     Lane MC: New &lt; {fmtUsd(config.laneNewMaxMcapUsd)}; Soon{" "}
-                    {fmtUsd(config.laneSoonMinMcapUsd)}-{fmtUsd(config.laneSoonMaxMcapUsd)}.
+                    {fmtUsd(config.laneSoonMinMcapUsd)}–{fmtUsd(config.laneSoonMaxMcapUsd)} (pump.fun curve); Migrated
+                    ≥ {fmtUsd(config.migrated.minMarketCapUsd)} grads.
                   </p>
                   {diagnostics && (
                     <div className="text-[10px] text-amber-800 dark:text-amber-200/90 space-y-0.5">

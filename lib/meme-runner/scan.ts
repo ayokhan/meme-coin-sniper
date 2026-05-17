@@ -72,6 +72,12 @@ function pairAllowed(pair: DexPair, taggedLaunchpadId: string | null, plan: Laun
   return matchLaunchpadsForPair(dex, plan.enabled).length > 0;
 }
 
+function bondingCurvePct(mcap: number | null, config: MemeRunnerSolConfig): number | null {
+  if (mcap == null || mcap <= 0) return null;
+  return Math.min(100, (mcap / config.pumpGraduationMcapUsd) * 100);
+}
+
+/** Soon = still on pump.fun curve ($50k→$100k). Migrated = Raydium/Orca or graduated pumpswap. */
 function classifyLane(
   pair: DexPair,
   mcap: number | null,
@@ -79,18 +85,44 @@ function classifyLane(
   plan: LaunchpadScanPlan,
   launchpad: MemeRunnerLaunchpadDef | null
 ): MemeRunnerLane {
-  const dex = pair.dexId || "";
-  if (config.includeMigratedPools && isMigratedPoolDex(plan.chain, dex)) return "migrated";
+  const dex = normalizeDexId(pair.dexId || "");
   const mc = mcap ?? 0;
-  const onBonding = launchpad?.kind === "bonding" || isBondingDex(dex, plan);
-  if (onBonding) {
+  if (config.includeMigratedPools && isMigratedPoolDex(plan.chain, pair.dexId || "")) return "migrated";
+
+  const onBonding = launchpad?.kind === "bonding" || isBondingDex(pair.dexId || "", plan);
+  const curvePct = onBonding ? bondingCurvePct(mcap, config) : null;
+  const onPumpfun = dex === "pumpfun" || dex.includes("pumpfun");
+
+  if (onBonding && !onPumpfun) {
+    const graduated =
+      (curvePct != null && curvePct >= 88) || mc >= config.pumpGraduationMcapUsd * 0.88;
+    if (graduated) return "migrated";
+  }
+
+  if (onPumpfun || (onBonding && curvePct != null && curvePct < 88)) {
     if (mc < config.laneNewMaxMcapUsd) return "new";
     if (mc >= config.laneSoonMinMcapUsd && mc <= config.laneSoonMaxMcapUsd) return "soon";
     if (mc < config.laneSoonMinMcapUsd) return "new";
     return "migrated";
   }
+
   if (mc >= config.laneSoonMinMcapUsd && mc <= config.laneSoonMaxMcapUsd) return "soon";
   return "migrated";
+}
+
+function isActiveBondingPair(
+  chain: MemeRunnerChain,
+  pair: DexPair,
+  config: MemeRunnerSolConfig,
+  plan: LaunchpadScanPlan
+): boolean {
+  const dex = normalizeDexId(pair.dexId || "");
+  if (isMigratedPoolDex(chain, pair.dexId || "")) return false;
+  const mc = marketCapUsd(pair) ?? 0;
+  if (dex === "pumpfun" || dex.includes("pumpfun")) return true;
+  if (dex.includes("pumpswap") && mc < config.pumpGraduationMcapUsd * 0.88) return true;
+  if (!isBondingDex(pair.dexId || "", plan)) return false;
+  return mc <= config.laneSoonMaxMcapUsd * 1.05;
 }
 
 function socialFlags(socials: { twitter: string | null; telegram: string | null; website: string | null }) {
@@ -207,11 +239,7 @@ function pairToRunnerToken(
   const filters = laneFiltersFor(config, lane);
   const onBondingCurve =
     launchpad?.kind === "bonding" || plan.allowedBondingDexIds.has(normalizeDexId(pair.dexId || ""));
-  const bondingProgressPct = onBondingCurve
-    ? mcap != null
-      ? Math.min(100, (mcap / config.pumpGraduationMcapUsd) * 100)
-      : null
-    : null;
+  const bondingProgressPct = onBondingCurve ? bondingCurvePct(mcap, config) : null;
   const { score, notes: scoreNotes } = scoreToken(
     config,
     lane,
@@ -311,15 +339,26 @@ async function fetchTaggedPairs(
 
   const bondingDex = [...plan.allowedBondingDexIds];
   if (bondingDex.length > 0) {
+    const soonQueries = [
+      ...plan.searchQueries,
+      "pump.fun",
+      "pumpfun",
+      "letsbonk",
+      "bags.fm",
+    ];
     const bondingPairs = await getMemeRunnerChainPairs({
       chain: dexKey(chain),
-      minLiquidity: minLiquidityUsd,
+      minLiquidity: Math.min(minLiquidityUsd, 400),
       maxAgeMinutes,
       allowedDexIds: bondingDex,
-      searchQueries: plan.searchQueries,
-      maxResults: 160,
+      searchQueries: [...new Set(soonQueries)],
+      maxResults: 200,
     });
-    ingest(bondingPairs);
+    for (const p of bondingPairs) {
+      if (!isActiveBondingPair(chain, p, config, plan)) continue;
+      const matches = matchLaunchpadsForPair(p.dexId || "", plan.enabled);
+      add(p, matches[0]?.id ?? null);
+    }
   }
 
   if (plan.includeMigratedPools) {
