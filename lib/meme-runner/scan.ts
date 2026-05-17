@@ -334,6 +334,7 @@ export type MemeRunnerScanDiagnostics = {
   /** Top filter/continuation notes for Soon tokens that did not pass (max 3). */
   soonRejectSamples?: string[];
   migratedRejectSamples?: string[];
+  newRejectSamples?: string[];
 };
 
 export async function scanMemeRunner(
@@ -396,6 +397,7 @@ export async function scanMemeRunner(
   };
   const soonRejectCounts = new Map<string, number>();
   const migratedRejectCounts = new Map<string, number>();
+  const newRejectCounts = new Map<string, number>();
   const bumpReject = (map: Map<string, number>, t: MemeRunnerToken, lane: MemeRunnerLane) => {
     const f = laneFiltersFor(config, lane);
     if (t.filterPasses && t.runnerScore >= f.minRunnerScore) return;
@@ -418,6 +420,7 @@ export async function scanMemeRunner(
       .map(([note, n]) => `${note} (${n})`);
   if (soonRejectCounts.size > 0) diagnostics.soonRejectSamples = topReject(soonRejectCounts);
   if (migratedRejectCounts.size > 0) diagnostics.migratedRejectSamples = topReject(migratedRejectCounts);
+  if (newRejectCounts.size > 0) diagnostics.newRejectSamples = topReject(newRejectCounts);
   let tokens = allMapped.filter((t) => {
     const f = laneFiltersFor(config, t.lane);
     const pass = t.filterPasses && t.runnerScore >= f.minRunnerScore;

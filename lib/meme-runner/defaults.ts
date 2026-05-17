@@ -23,8 +23,9 @@ const SOON_FILTERS: MemeRunnerLaneFilters = {
   minLiquidityUsd: 2_500,
   requireAtLeastOneSocial: false,
   requireOriginalSocials: false,
-  minRunnerScore: 35,
-  minContinuationScore: 32,
+  minRunnerScore: 32,
+  /** 0 = rank by continuation in UI, do not hard-drop Soon candidates */
+  minContinuationScore: 0,
   maxBondingProgressPct: null,
   continuationSweetMinMcapUsd: 35_000,
   continuationSweetMaxMcapUsd: 72_000,
@@ -176,13 +177,13 @@ function repairLaneFilters(chain: MemeRunnerChain, config: MemeRunnerSolConfig):
   if (n.minTokenAgeMinutes >= 30 || n.minEstimatedFeesSol >= 1.5) {
     n = { ...d.new, ...n, ...NEW_FILTERS, minRunnerScore: Math.min(n.minRunnerScore, NEW_FILTERS.minRunnerScore) };
   }
-  if (s.minEstimatedFeesSol >= 1 || s.minContinuationScore >= 48 || s.maxBondingProgressPct != null) {
+  if (s.minEstimatedFeesSol >= 1 || s.minContinuationScore > 0 || s.maxBondingProgressPct != null) {
     s = {
       ...d.soon,
       ...s,
       ...SOON_FILTERS,
       minRunnerScore: Math.min(s.minRunnerScore, SOON_FILTERS.minRunnerScore),
-      minContinuationScore: Math.min(s.minContinuationScore, SOON_FILTERS.minContinuationScore),
+      minContinuationScore: 0,
     };
   }
   if (m.maxTokenAgeMinutes <= 4_000 || m.minEstimatedFeesSol >= 0.5 || m.minRunnerScore >= 30) {

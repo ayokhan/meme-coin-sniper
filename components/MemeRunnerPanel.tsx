@@ -230,6 +230,7 @@ export default function MemeRunnerPanel() {
     passed: { new: number; soon: number; migrated: number };
     soonRejectSamples?: string[];
     migratedRejectSamples?: string[];
+    newRejectSamples?: string[];
   } | null>(null);
 
   const runScan = useCallback(async () => {
@@ -445,7 +446,7 @@ export default function MemeRunnerPanel() {
                   <LaneColumn
                     title="Soon"
                     tokens={byLane.soon}
-                    empty="No Soon tokens passed continuation filters (try lowering min in admin)."
+                    empty="No Soon tokens passed filters (sorted by Run score when listed)."
                     canShareCoach={canShareCoach}
                     nativeSymbol={nativeSymbol}
                   />
