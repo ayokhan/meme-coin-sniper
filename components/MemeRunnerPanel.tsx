@@ -91,9 +91,23 @@ function TokenCard({
               {t.launchpadLabel}
             </Badge>
           )}
-          <Badge variant="outline" className="tabular-nums">
-            Score {t.runnerScore}
-          </Badge>
+          <div className="flex flex-col items-end gap-0.5">
+            {t.lane === "soon" && t.continuationScore > 0 && (
+              <Badge
+                variant="outline"
+                className={`text-[10px] h-5 tabular-nums ${
+                  t.continuationScore >= 60
+                    ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-400"
+                    : ""
+                }`}
+              >
+                Run {t.continuationScore}
+              </Badge>
+            )}
+            <Badge variant="outline" className="tabular-nums text-[10px] h-5">
+              Score {t.runnerScore}
+            </Badge>
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
@@ -278,6 +292,12 @@ export default function MemeRunnerPanel() {
       else if (t.lane === "soon") s.push(t);
       else m.push(t);
     }
+    s.sort(
+      (a, b) =>
+        b.continuationScore - a.continuationScore ||
+        b.runnerScore - a.runnerScore ||
+        (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0)
+    );
     return { new: n, soon: s, migrated: m };
   }, [tokens]);
 
@@ -301,8 +321,8 @@ export default function MemeRunnerPanel() {
             Meme Runner
           </CardTitle>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Multi-chain meme trenches scanner (SOL, BSC, ETH). Admin picks launchpads per chain; New / Soon / Migrated
-            lanes with per-lane filters — not financial advice.
+            Multi-chain meme trenches scanner (SOL, BSC, ETH). Soon uses a continuation score to deprioritize
+            late-curve pops (~90k) that often fade after +20% — not financial advice.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -395,7 +415,7 @@ export default function MemeRunnerPanel() {
                   <LaneColumn
                     title="Soon"
                     tokens={byLane.soon}
-                    empty="No soon-lane tokens in the $50k band."
+                    empty="No Soon tokens passed continuation filters (try lowering min in admin)."
                     canShareCoach={canShareCoach}
                     nativeSymbol={nativeSymbol}
                   />

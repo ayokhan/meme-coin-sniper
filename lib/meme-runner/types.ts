@@ -15,6 +15,13 @@ export type MemeRunnerLaneFilters = {
   requireAtLeastOneSocial: boolean;
   requireOriginalSocials: boolean;
   minRunnerScore: number;
+  /** Soon only: 0 = off. Filters tokens likely to fade after a small pop. */
+  minContinuationScore: number;
+  /** Soon only: reject pump.fun tokens above this % on bonding curve (null = no cap). */
+  maxBondingProgressPct: number | null;
+  /** Soon only: MC band that scores best for continuation (not hard filter). */
+  continuationSweetMinMcapUsd: number;
+  continuationSweetMaxMcapUsd: number;
 };
 
 /** Admin-tunable per-chain config (stored per chain in DB). */
@@ -53,6 +60,8 @@ export type MemeRunnerToken = {
   estimatedFeesSol: number;
   bondingProgressPct: number | null;
   runnerScore: number;
+  /** 0–100: momentum / curve / buy-pressure heuristic (Soon lane). */
+  continuationScore: number;
   twitter: string | null;
   telegram: string | null;
   website: string | null;

@@ -7,6 +7,7 @@ import {
 } from "@/lib/api-clients/dexscreener";
 import { getPumpFunNewTokens } from "@/lib/api-clients/moralis";
 import { getChainMeta } from "@/lib/meme-runner/chain-meta";
+import { passesContinuationFilters, scoreContinuation } from "@/lib/meme-runner/continuation";
 import { laneFiltersFor } from "@/lib/meme-runner/defaults";
 import {
   buildLaunchpadScanPlan,
@@ -200,7 +201,7 @@ function pairToRunnerToken(
     hasSocials,
     hasOriginalSocials
   );
-  const { passes: filterPasses, notes: filterNotes } = applyFilters(
+  const { passes: basePasses, notes: filterNotes } = applyFilters(
     filters,
     ageMin,
     mcap,
@@ -211,6 +212,17 @@ function pairToRunnerToken(
     hasOriginalSocials,
     meta.nativeSymbol
   );
+  const { score: continuationScore, notes: contNotes } =
+    lane === "soon"
+      ? scoreContinuation({ pair, mcap, bondingProgressPct, config })
+      : { score: 0, notes: [] as string[] };
+  const contGate =
+    lane === "soon"
+      ? passesContinuationFilters(continuationScore, bondingProgressPct, config)
+      : { passes: true, notes: [] as string[] };
+  const filterPasses = basePasses && contGate.passes;
+  const allFilterNotes = [...filterNotes, ...contGate.notes];
+  const allScoreNotes = [...scoreNotes, ...contNotes];
   const addr = pair.baseToken.address;
   const slug = pair.pairAddress ?? addr;
   return {
@@ -229,6 +241,7 @@ function pairToRunnerToken(
     estimatedFeesSol: Number(feesNative.toFixed(3)),
     bondingProgressPct: bondingProgressPct != null ? Number(bondingProgressPct.toFixed(1)) : null,
     runnerScore: score,
+    continuationScore,
     twitter: socials.twitter,
     telegram: socials.telegram,
     website: socials.website,
@@ -240,8 +253,8 @@ function pairToRunnerToken(
     dexUrl: slug ? dexScreenerPairUrl(chain, slug) : null,
     launchedAt: new Date(launchedMs).toISOString(),
     filterPasses,
-    filterNotes,
-    scoreNotes,
+    filterNotes: allFilterNotes,
+    scoreNotes: allScoreNotes,
   };
 }
 
@@ -355,7 +368,16 @@ export async function scanMemeRunner(
     });
 
   if (lane !== "all") tokens = tokens.filter((t) => t.lane === lane);
-  tokens.sort((a, b) => b.runnerScore - a.runnerScore || (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0));
+  tokens.sort((a, b) => {
+    if (a.lane === "soon" && b.lane === "soon") {
+      return (
+        b.continuationScore - a.continuationScore ||
+        b.runnerScore - a.runnerScore ||
+        (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0)
+      );
+    }
+    return b.runnerScore - a.runnerScore || (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0);
+  });
 
   return tokens.slice(0, 80);
 }

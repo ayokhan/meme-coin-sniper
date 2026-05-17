@@ -2,20 +2,36 @@ import { getChainMeta } from "@/lib/meme-runner/chain-meta";
 import { defaultEnabledLaunchpadIds, parseEnabledLaunchpads } from "@/lib/meme-runner/launchpads";
 import type { MemeRunnerChain, MemeRunnerLaneFilters, MemeRunnerSolConfig } from "@/lib/meme-runner/types";
 
+const CONTINUATION_OFF: Pick<
+  MemeRunnerLaneFilters,
+  "minContinuationScore" | "maxBondingProgressPct" | "continuationSweetMinMcapUsd" | "continuationSweetMaxMcapUsd"
+> = {
+  minContinuationScore: 0,
+  maxBondingProgressPct: null,
+  continuationSweetMinMcapUsd: 0,
+  continuationSweetMaxMcapUsd: 0,
+};
+
+/** Soon: favor $35k–$75k + mid-curve, not $90k+ graduation froth (+20% then die). */
 const SOON_FILTERS: MemeRunnerLaneFilters = {
   minTokenAgeMinutes: 45,
-  maxTokenAgeMinutes: 480,
-  minMarketCapUsd: 25_000,
-  maxMarketCapUsd: 120_000,
-  minVolume24hUsd: 8_000,
+  maxTokenAgeMinutes: 360,
+  minMarketCapUsd: 30_000,
+  maxMarketCapUsd: 85_000,
+  minVolume24hUsd: 10_000,
   minEstimatedFeesSol: 2,
-  minLiquidityUsd: 3_000,
+  minLiquidityUsd: 4_000,
   requireAtLeastOneSocial: true,
   requireOriginalSocials: true,
-  minRunnerScore: 55,
+  minRunnerScore: 52,
+  minContinuationScore: 52,
+  maxBondingProgressPct: 86,
+  continuationSweetMinMcapUsd: 35_000,
+  continuationSweetMaxMcapUsd: 72_000,
 };
 
 const NEW_FILTERS: MemeRunnerLaneFilters = {
+  ...CONTINUATION_OFF,
   minTokenAgeMinutes: 8,
   maxTokenAgeMinutes: 120,
   minMarketCapUsd: 2_000,
@@ -29,6 +45,7 @@ const NEW_FILTERS: MemeRunnerLaneFilters = {
 };
 
 const MIGRATED_FILTERS: MemeRunnerLaneFilters = {
+  ...CONTINUATION_OFF,
   minTokenAgeMinutes: 20,
   maxTokenAgeMinutes: 1_440,
   minMarketCapUsd: 35_000,
@@ -64,7 +81,7 @@ function baseDefaults(chain: MemeRunnerChain): MemeRunnerSolConfig {
     pumpGraduationMcapUsd: chain === "sol" ? 69_000 : 80_000,
     laneNewMaxMcapUsd: 20_000,
     laneSoonMinMcapUsd: 25_000,
-    laneSoonMaxMcapUsd: 120_000,
+    laneSoonMaxMcapUsd: chain === "sol" ? 95_000 : 120_000,
     new: newF,
     soon,
     migrated,
@@ -100,6 +117,15 @@ function parseLaneFilters(raw: unknown, fallback: MemeRunnerLaneFilters): MemeRu
     requireAtLeastOneSocial: o.requireAtLeastOneSocial !== false,
     requireOriginalSocials: o.requireOriginalSocials === true,
     minRunnerScore: num("minRunnerScore", 0, 100),
+    minContinuationScore: num("minContinuationScore", 0, 100),
+    maxBondingProgressPct:
+      o.maxBondingProgressPct === undefined
+        ? fallback.maxBondingProgressPct
+        : o.maxBondingProgressPct === null || o.maxBondingProgressPct === ""
+          ? null
+          : num("maxBondingProgressPct", 50, 100),
+    continuationSweetMinMcapUsd: num("continuationSweetMinMcapUsd", 1_000, 500_000),
+    continuationSweetMaxMcapUsd: num("continuationSweetMaxMcapUsd", 5_000, 2_000_000),
   };
 }
 

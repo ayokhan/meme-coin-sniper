@@ -33,9 +33,9 @@ function sharedFields(chain: MemeRunnerChain): { key: keyof MemeRunnerSolConfig;
   ];
 }
 
-function laneFilterFields(chain: MemeRunnerChain): FilterField[] {
+function laneFilterFields(chain: MemeRunnerChain, lane: LaneKey): FilterField[] {
   const native = getChainMeta(chain).nativeSymbol;
-  return [
+  const base: FilterField[] = [
     { key: "minTokenAgeMinutes", label: "Min token age (minutes)" },
     { key: "maxTokenAgeMinutes", label: "Max token age (minutes)" },
     { key: "minMarketCapUsd", label: "Min market cap (USD)", step: 1000 },
@@ -47,13 +47,22 @@ function laneFilterFields(chain: MemeRunnerChain): FilterField[] {
     { key: "requireAtLeastOneSocial", label: "Require at least one social", type: "boolean" },
     { key: "requireOriginalSocials", label: "Require Twitter or Telegram", type: "boolean" },
   ];
+  if (lane === "soon") {
+    base.push(
+      { key: "minContinuationScore", label: "Min continuation score (0=off)", step: 1 },
+      { key: "maxBondingProgressPct", label: "Max bonding curve % (100=off)", step: 1 },
+      { key: "continuationSweetMinMcapUsd", label: "Sweet-spot MC min (USD)", step: 1000 },
+      { key: "continuationSweetMaxMcapUsd", label: "Sweet-spot MC max (USD)", step: 1000 }
+    );
+  }
+  return base;
 }
 
 function laneLabels(chain: MemeRunnerChain): Record<LaneKey, string> {
   const migrated = getChainMeta(chain).migratedPoolsLabel;
   return {
     new: "New (early bonding)",
-    soon: "Soon (~$50k band)",
+    soon: "Soon (continuation / avoid late curve)",
     migrated: `Migrated (${migrated})`,
   };
 }
@@ -74,7 +83,7 @@ function LaneFilterSection({
     <div className="space-y-3 rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
       <h3 className="text-sm font-medium">{labels[lane]}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {laneFilterFields(chain).map((f) =>
+        {laneFilterFields(chain, lane).map((f) =>
           f.type === "boolean" ? (
             <label key={f.key} className="flex items-center gap-2 text-sm col-span-1 sm:col-span-2">
               <input
