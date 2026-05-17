@@ -15,15 +15,15 @@ const CONTINUATION_OFF: Pick<
 /** Soon: favor $35k–$75k + mid-curve; gates kept passable so the lane isn’t empty at scan time. */
 const SOON_FILTERS: MemeRunnerLaneFilters = {
   minTokenAgeMinutes: 15,
-  maxTokenAgeMinutes: 360,
+  maxTokenAgeMinutes: 720,
   minMarketCapUsd: 25_000,
-  maxMarketCapUsd: 90_000,
+  maxMarketCapUsd: 95_000,
   minVolume24hUsd: 2_500,
   minEstimatedFeesSol: 0.35,
   minLiquidityUsd: 2_500,
   requireAtLeastOneSocial: false,
   requireOriginalSocials: false,
-  minRunnerScore: 32,
+  minRunnerScore: 26,
   /** 0 = rank by continuation in UI, do not hard-drop Soon candidates */
   minContinuationScore: 0,
   maxBondingProgressPct: null,
@@ -36,7 +36,7 @@ const NEW_FILTERS: MemeRunnerLaneFilters = {
   minTokenAgeMinutes: 5,
   maxTokenAgeMinutes: 180,
   minMarketCapUsd: 1_500,
-  maxMarketCapUsd: 24_000,
+  maxMarketCapUsd: 28_000,
   minVolume24hUsd: 250,
   minEstimatedFeesSol: 0.05,
   minLiquidityUsd: 250,
@@ -85,7 +85,7 @@ function baseDefaults(chain: MemeRunnerChain): MemeRunnerSolConfig {
     laneSoonMinMcapUsd: 25_000,
     laneSoonMaxMcapUsd: chain === "sol" ? 95_000 : 120_000,
     new: newF,
-    soon,
+    soon: { ...soon, maxMarketCapUsd: chain === "sol" ? 95_000 : 120_000 },
     migrated,
   };
 }
@@ -177,7 +177,13 @@ function repairLaneFilters(chain: MemeRunnerChain, config: MemeRunnerSolConfig):
   if (n.minTokenAgeMinutes >= 30 || n.minEstimatedFeesSol >= 1.5) {
     n = { ...d.new, ...n, ...NEW_FILTERS, minRunnerScore: Math.min(n.minRunnerScore, NEW_FILTERS.minRunnerScore) };
   }
-  if (s.minEstimatedFeesSol >= 1 || s.minContinuationScore > 0 || s.maxBondingProgressPct != null) {
+  if (
+    s.minEstimatedFeesSol >= 1 ||
+    s.minContinuationScore > 0 ||
+    s.maxBondingProgressPct != null ||
+    s.maxTokenAgeMinutes <= 400 ||
+    s.maxMarketCapUsd < 95_000
+  ) {
     s = {
       ...d.soon,
       ...s,

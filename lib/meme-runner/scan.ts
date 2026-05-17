@@ -87,7 +87,8 @@ function classifyLane(
   if (mc < config.laneNewMaxMcapUsd) return "new";
   if (mc >= config.laneSoonMinMcapUsd && mc <= config.laneSoonMaxMcapUsd) return "soon";
   if (mc < config.laneSoonMinMcapUsd) return "new";
-  return "soon";
+  // Above Soon MC band → Migrated-style runners (avoids Soon 0/N from mis-bucketed high caps)
+  return "migrated";
 }
 
 function socialFlags(socials: { twitter: string | null; telegram: string | null; website: string | null }) {
