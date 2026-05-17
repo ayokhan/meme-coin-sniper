@@ -523,6 +523,11 @@ export async function scanMemeRunner(
         (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0)
       );
     }
+    if (a.lane === "migrated" && b.lane === "migrated") {
+      const mcA = a.marketCapUsd ?? Number.MAX_SAFE_INTEGER;
+      const mcB = b.marketCapUsd ?? Number.MAX_SAFE_INTEGER;
+      return mcA - mcB || b.runnerScore - a.runnerScore || (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0);
+    }
     return b.runnerScore - a.runnerScore || (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0);
   });
 

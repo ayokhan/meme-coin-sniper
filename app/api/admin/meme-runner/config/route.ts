@@ -52,7 +52,7 @@ export async function PATCH(request: Request) {
   const chain = parseChainParam(new URL(request.url).searchParams.get("chain"));
   try {
     const body = await request.json().catch(() => ({}));
-    const parsed = parseMemeRunnerConfig(chain, body.config ?? body);
+    const parsed = parseMemeRunnerConfig(chain, body.config ?? body, { repairLegacy: false });
     const saved = await saveMemeRunnerConfig(chain, parsed);
     return NextResponse.json({ success: true, chain, config: saved });
   } catch (e) {

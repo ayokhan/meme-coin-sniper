@@ -49,13 +49,13 @@ const NEW_FILTERS: MemeRunnerLaneFilters = {
   minRunnerScore: 24,
 };
 
-/** Migrated: $100k→$1M on Raydium/Orca/Meteora (post-grad or AMM runners). */
+/** Migrated: fresh Raydium grads (~$25k+) before they’re multi-million; tune max MC in admin. */
 const MIGRATED_FILTERS: MemeRunnerLaneFilters = {
   ...CONTINUATION_OFF,
   minTokenAgeMinutes: 10,
   maxTokenAgeMinutes: 10_080,
-  minMarketCapUsd: 90_000,
-  maxMarketCapUsd: 5_000_000,
+  minMarketCapUsd: 25_000,
+  maxMarketCapUsd: 1_200_000,
   minVolume24hUsd: 800,
   minEstimatedFeesSol: 0.15,
   minLiquidityUsd: 1_200,
@@ -178,48 +178,32 @@ function fromLegacyFlat(chain: MemeRunnerChain, o: Record<string, unknown>): Mem
   };
 }
 
-/** DB configs that copied Soon rules onto New by mistake (45m+ age gate). */
+/** Only fix legacy New lane that copied Soon age/fees; never overwrite admin Soon/Migrated saves. */
 function repairLaneFilters(chain: MemeRunnerChain, config: MemeRunnerSolConfig): MemeRunnerSolConfig {
   const d = defaultMemeRunnerConfig(chain);
-  let { new: n, soon: s, migrated: m } = config;
+  let { new: n } = config;
   if (n.minTokenAgeMinutes >= 30 || n.minEstimatedFeesSol >= 1.5) {
     n = { ...d.new, ...n, ...NEW_FILTERS, minRunnerScore: Math.min(n.minRunnerScore, NEW_FILTERS.minRunnerScore) };
   }
-  if (
-    s.minEstimatedFeesSol >= 1 ||
-    s.minContinuationScore > 0 ||
-    s.maxBondingProgressPct != null ||
-    s.maxTokenAgeMinutes <= 400 ||
-    s.maxMarketCapUsd < 120_000 ||
-    s.minMarketCapUsd > 45_000
-  ) {
-    s = {
-      ...d.soon,
-      ...s,
-      ...SOON_FILTERS,
-      minRunnerScore: Math.min(s.minRunnerScore, SOON_FILTERS.minRunnerScore),
-      minContinuationScore: 0,
-    };
-  }
-  if (m.minMarketCapUsd > 95_000 || m.maxTokenAgeMinutes <= 4_000 || m.minEstimatedFeesSol >= 0.5) {
-    m = {
-      ...d.migrated,
-      ...m,
-      ...MIGRATED_FILTERS,
-      minRunnerScore: Math.min(m.minRunnerScore, MIGRATED_FILTERS.minRunnerScore),
-      maxTokenAgeMinutes: Math.max(m.maxTokenAgeMinutes, MIGRATED_FILTERS.maxTokenAgeMinutes),
-    };
-  }
   const laneNewMaxMcapUsd =
     config.laneNewMaxMcapUsd <= 20_000 ? d.laneNewMaxMcapUsd : config.laneNewMaxMcapUsd;
-  return { ...config, new: n, soon: s, migrated: m, laneNewMaxMcapUsd };
+  return { ...config, new: n, laneNewMaxMcapUsd };
 }
 
-export function parseMemeRunnerConfig(chain: MemeRunnerChain, raw: unknown): MemeRunnerSolConfig {
+export type ParseMemeRunnerOptions = { repairLegacy?: boolean };
+
+export function parseMemeRunnerConfig(
+  chain: MemeRunnerChain,
+  raw: unknown,
+  options?: ParseMemeRunnerOptions
+): MemeRunnerSolConfig {
   const d = defaultMemeRunnerConfig(chain);
   if (!raw || typeof raw !== "object") return { ...d };
   const o = raw as Record<string, unknown>;
-  if (!o.new && o.minTokenAgeMinutes != null) return repairLaneFilters(chain, fromLegacyFlat(chain, o));
+  if (!o.new && o.minTokenAgeMinutes != null) {
+    const legacy = fromLegacyFlat(chain, o);
+    return options?.repairLegacy ? repairLaneFilters(chain, legacy) : legacy;
+  }
   const numShared = (k: keyof MemeRunnerSolConfig, min: number, max: number) => {
     const v = Number(o[k]);
     return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : (d[k] as number);
@@ -237,7 +221,7 @@ export function parseMemeRunnerConfig(chain: MemeRunnerChain, raw: unknown): Mem
     soon: parseLaneFilters(o.soon, d.soon),
     migrated: parseLaneFilters(o.migrated, d.migrated),
   };
-  return repairLaneFilters(chain, parsed);
+  return options?.repairLegacy ? repairLaneFilters(chain, parsed) : parsed;
 }
 
 /** @deprecated use parseMemeRunnerConfig('sol', raw) */

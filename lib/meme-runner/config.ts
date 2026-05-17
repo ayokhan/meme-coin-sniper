@@ -24,14 +24,14 @@ async function loadConfig(chain: MemeRunnerChain): Promise<MemeRunnerSolConfig> 
     if (!db.memeRunnerSettings) return { ...fallback };
     const row = await db.memeRunnerSettings.findUnique({ where: { chain } });
     if (!row?.config) return { ...fallback };
-    return parseMemeRunnerConfig(chain, row.config);
+    return parseMemeRunnerConfig(chain, row.config, { repairLegacy: true });
   } catch {
     return { ...fallback };
   }
 }
 
 async function saveConfig(chain: MemeRunnerChain, config: MemeRunnerSolConfig): Promise<MemeRunnerSolConfig> {
-  const parsed = parseMemeRunnerConfig(chain, config);
+  const parsed = parseMemeRunnerConfig(chain, config, { repairLegacy: false });
   const db = prisma as unknown as PrismaWithMemeRunner;
   if (!db.memeRunnerSettings) return parsed;
   await db.memeRunnerSettings.upsert({

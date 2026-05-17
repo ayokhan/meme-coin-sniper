@@ -162,8 +162,11 @@ export default function AdminMemeRunnerPage() {
         setError(data?.error ?? "Save failed");
         return;
       }
-      setConfig(data.config as MemeRunnerSolConfig);
-      setMsg(`Saved ${adminChain.toUpperCase()} config.`);
+      const saved = data.config as MemeRunnerSolConfig;
+      setConfig(saved);
+      setMsg(
+        `Saved ${adminChain.toUpperCase()} config. Migrated min MC $${saved.migrated.minMarketCapUsd.toLocaleString()}, Soon socials ${saved.soon.requireAtLeastOneSocial ? "required" : "off"}.`
+      );
     } catch {
       setError("Save failed");
     } finally {
@@ -220,8 +223,11 @@ export default function AdminMemeRunnerPage() {
           <CardHeader>
             <CardTitle>Meme Runner config</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Per-chain launchpads and lane filters. SOL defaults: Pump, Bonk, Bags. BSC: Four.meme. ETH: Uniswap.
-              Enable <span className="font-mono">nova_meme_runner</span> in{" "}
+              Per-chain launchpads and lane filters. Click <strong>Save {chainLabel} config</strong> after
+              changes — settings are stored in the database (not reset on save). Soon: uncheck &quot;Require at
+              least one social&quot; for more names. Migrated: lower min/max MC to catch earlier grads (defaults
+              $25k–$1.2M). SOL defaults: Pump, Bonk, Bags. Enable{" "}
+              <span className="font-mono">nova_meme_runner</span> in{" "}
               <Link href="/admin/feature-flags" className="underline">
                 Feature flags
               </Link>
