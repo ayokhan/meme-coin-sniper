@@ -92,6 +92,7 @@ export type MemeRunnerDexFetchOptions = {
   maxAgeMinutes: number;
   allowedDexIds: string[];
   searchQueries: string[];
+  maxResults?: number;
 };
 
 function effectiveVolume24h(pair: DexPair): number {
@@ -125,7 +126,8 @@ export async function getMemeRunnerChainPairs(opts: MemeRunnerDexFetchOptions): 
     const fallbackMinutes = Math.min(opts.maxAgeMinutes * 2, 1440);
     const inFallback = eligible.filter((p) => now - toMs(p.pairCreatedAt) <= fallbackMinutes * 60000);
     const source = inWindow.length > 0 ? inWindow : inFallback.length > 0 ? inFallback : eligible;
-    return source.slice(0, 400);
+    const cap = opts.maxResults ?? 400;
+    return source.slice(0, cap);
   } catch {
     return [];
   }

@@ -83,11 +83,13 @@ function classifyLane(
   if (config.includeMigratedPools && isMigratedPoolDex(plan.chain, dex)) return "migrated";
   const mc = mcap ?? 0;
   const onBonding = launchpad?.kind === "bonding" || isBondingDex(dex, plan);
-  if (!onBonding) return "soon";
-  if (mc < config.laneNewMaxMcapUsd) return "new";
+  if (onBonding) {
+    if (mc < config.laneNewMaxMcapUsd) return "new";
+    if (mc >= config.laneSoonMinMcapUsd && mc <= config.laneSoonMaxMcapUsd) return "soon";
+    if (mc < config.laneSoonMinMcapUsd) return "new";
+    return "migrated";
+  }
   if (mc >= config.laneSoonMinMcapUsd && mc <= config.laneSoonMaxMcapUsd) return "soon";
-  if (mc < config.laneSoonMinMcapUsd) return "new";
-  // Above Soon MC band → Migrated-style runners (avoids Soon 0/N from mis-bucketed high caps)
   return "migrated";
 }
 
@@ -145,6 +147,10 @@ function scoreToken(
     notes.push("Twitter/Telegram");
   }
   if (lane === "new" && ageMin <= 90) score += 8;
+  if (lane === "soon" && mc >= 50_000 && mc <= 100_000) {
+    score += 14;
+    notes.push("50k–100k run zone");
+  }
   if (lane === "migrated") {
     score += 18;
     notes.push("Graduated pool");
@@ -289,17 +295,6 @@ async function fetchTaggedPairs(
   minLiquidityUsd: number,
   maxAgeMinutes: number
 ): Promise<TaggedPair[]> {
-  const migratedIds = plan.includeMigratedPools ? [...plan.migratedDexIds] : [];
-  const allowedDexIds = [...plan.allowedBondingDexIds, ...migratedIds.map((d) => normalizeDexId(d))];
-
-  const pairs = await getMemeRunnerChainPairs({
-    chain: dexKey(chain),
-    minLiquidity: minLiquidityUsd,
-    maxAgeMinutes,
-    allowedDexIds,
-    searchQueries: plan.searchQueries,
-  });
-
   const byKey = new Map<string, TaggedPair>();
   const add = (pair: DexPair, taggedLaunchpadId: string | null) => {
     const key = pair.pairAddress || pair.baseToken?.address;
@@ -307,9 +302,36 @@ async function fetchTaggedPairs(
     if (!byKey.has(key)) byKey.set(key, { pair, taggedLaunchpadId });
   };
 
-  for (const p of pairs) {
-    const matches = matchLaunchpadsForPair(p.dexId || "", plan.enabled);
-    add(p, matches[0]?.id ?? null);
+  const ingest = (pairs: DexPair[]) => {
+    for (const p of pairs) {
+      const matches = matchLaunchpadsForPair(p.dexId || "", plan.enabled);
+      add(p, matches[0]?.id ?? null);
+    }
+  };
+
+  const bondingDex = [...plan.allowedBondingDexIds];
+  if (bondingDex.length > 0) {
+    const bondingPairs = await getMemeRunnerChainPairs({
+      chain: dexKey(chain),
+      minLiquidity: minLiquidityUsd,
+      maxAgeMinutes,
+      allowedDexIds: bondingDex,
+      searchQueries: plan.searchQueries,
+      maxResults: 160,
+    });
+    ingest(bondingPairs);
+  }
+
+  if (plan.includeMigratedPools) {
+    const migratedPairs = await getMemeRunnerChainPairs({
+      chain: dexKey(chain),
+      minLiquidity: minLiquidityUsd,
+      maxAgeMinutes,
+      allowedDexIds: plan.migratedDexIds.map((d) => normalizeDexId(d)),
+      searchQueries: ["raydium", "orca", "meteora", "graduated"],
+      maxResults: 100,
+    });
+    for (const p of migratedPairs) add(p, null);
   }
 
   const searchOnlyPads = plan.enabled.filter((p) => p.dexIds.length === 0 && p.searchQueries.length > 0);
@@ -358,7 +380,7 @@ export async function scanMemeRunner(
   const [tagged, moralis] = await Promise.all([
     fetchTaggedPairs(chain, config, plan, minLiquidityUsd, maxAgeMinutes),
     moralisEnabled && meta.moralisPumpNew && pumpEnabled
-      ? getPumpFunNewTokens(40).catch(() => [])
+      ? getPumpFunNewTokens(60).catch(() => [])
       : Promise.resolve([]),
   ]);
 
@@ -413,6 +435,7 @@ export async function scanMemeRunner(
     if (t.lane === "new" || t.lane === "soon" || t.lane === "migrated") diagnostics.classified[t.lane] += 1;
     if (t.lane === "soon") bumpReject(soonRejectCounts, t, "soon");
     if (t.lane === "migrated") bumpReject(migratedRejectCounts, t, "migrated");
+    if (t.lane === "new") bumpReject(newRejectCounts, t, "new");
   }
   const topReject = (map: Map<string, number>) =>
     [...map.entries()]

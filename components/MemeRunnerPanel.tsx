@@ -329,8 +329,8 @@ export default function MemeRunnerPanel() {
             Meme Runner
           </CardTitle>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Multi-chain meme trenches scanner (SOL, BSC, ETH). Soon uses a continuation score to deprioritize
-            late-curve pops (~90k) that often fade after +20% — not financial advice.
+            Multi-chain meme trenches scanner (SOL, BSC, ETH). Soon targets bonding-curve setups around
+            $50k→$100k (sorted by Run score); Migrated targets $100k→$1M grads — not financial advice.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -400,6 +400,13 @@ export default function MemeRunnerPanel() {
                       diagnostics.migratedRejectSamples?.length ? (
                         <p className="text-amber-700/90 dark:text-amber-300/80">
                           Migrated blocked: {diagnostics.migratedRejectSamples.join(" · ")}
+                        </p>
+                      ) : null}
+                      {diagnostics.classified.new > 0 &&
+                      diagnostics.passed.new === 0 &&
+                      diagnostics.newRejectSamples?.length ? (
+                        <p className="text-amber-700/90 dark:text-amber-300/80">
+                          New blocked: {diagnostics.newRejectSamples.join(" · ")}
                         </p>
                       ) : null}
                     </div>

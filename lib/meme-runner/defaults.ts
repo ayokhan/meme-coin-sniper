@@ -12,23 +12,22 @@ const CONTINUATION_OFF: Pick<
   continuationSweetMaxMcapUsd: 0,
 };
 
-/** Soon: favor $35k–$75k + mid-curve; gates kept passable so the lane isn’t empty at scan time. */
+/** Soon: $50k→$100k on bonding curve (+ late curve toward $1M); sorted by continuation. */
 const SOON_FILTERS: MemeRunnerLaneFilters = {
-  minTokenAgeMinutes: 15,
+  minTokenAgeMinutes: 12,
   maxTokenAgeMinutes: 720,
-  minMarketCapUsd: 25_000,
-  maxMarketCapUsd: 95_000,
-  minVolume24hUsd: 2_500,
-  minEstimatedFeesSol: 0.35,
-  minLiquidityUsd: 2_500,
+  minMarketCapUsd: 42_000,
+  maxMarketCapUsd: 150_000,
+  minVolume24hUsd: 1_500,
+  minEstimatedFeesSol: 0.25,
+  minLiquidityUsd: 1_800,
   requireAtLeastOneSocial: false,
   requireOriginalSocials: false,
-  minRunnerScore: 26,
-  /** 0 = rank by continuation in UI, do not hard-drop Soon candidates */
+  minRunnerScore: 24,
   minContinuationScore: 0,
   maxBondingProgressPct: null,
-  continuationSweetMinMcapUsd: 35_000,
-  continuationSweetMaxMcapUsd: 72_000,
+  continuationSweetMinMcapUsd: 50_000,
+  continuationSweetMaxMcapUsd: 100_000,
 };
 
 const NEW_FILTERS: MemeRunnerLaneFilters = {
@@ -45,12 +44,12 @@ const NEW_FILTERS: MemeRunnerLaneFilters = {
   minRunnerScore: 24,
 };
 
-/** Post-migration runners (Raydium etc.) — separate from Soon bonding rules. */
+/** Migrated: $100k→$1M on Raydium/Orca/Meteora (post-grad or AMM runners). */
 const MIGRATED_FILTERS: MemeRunnerLaneFilters = {
   ...CONTINUATION_OFF,
   minTokenAgeMinutes: 10,
   maxTokenAgeMinutes: 10_080,
-  minMarketCapUsd: 12_000,
+  minMarketCapUsd: 90_000,
   maxMarketCapUsd: 5_000_000,
   minVolume24hUsd: 800,
   minEstimatedFeesSol: 0.15,
@@ -78,14 +77,18 @@ function baseDefaults(chain: MemeRunnerChain): MemeRunnerSolConfig {
   return {
     enabledLaunchpads: defaultEnabledLaunchpadIds(chain),
     includeMigratedPools: true,
-    targetMarketCapUsd: 50_000,
+    targetMarketCapUsd: 72_000,
     solPriceUsd: meta.defaultNativePriceUsd,
     pumpGraduationMcapUsd: chain === "sol" ? 69_000 : 80_000,
-    laneNewMaxMcapUsd: 28_000,
-    laneSoonMinMcapUsd: 25_000,
-    laneSoonMaxMcapUsd: chain === "sol" ? 95_000 : 120_000,
+    laneNewMaxMcapUsd: 40_000,
+    laneSoonMinMcapUsd: 42_000,
+    laneSoonMaxMcapUsd: chain === "sol" ? 150_000 : 180_000,
     new: newF,
-    soon: { ...soon, maxMarketCapUsd: chain === "sol" ? 95_000 : 120_000 },
+    soon: {
+      ...soon,
+      minMarketCapUsd: 42_000,
+      maxMarketCapUsd: chain === "sol" ? 150_000 : 180_000,
+    },
     migrated,
   };
 }
@@ -182,7 +185,8 @@ function repairLaneFilters(chain: MemeRunnerChain, config: MemeRunnerSolConfig):
     s.minContinuationScore > 0 ||
     s.maxBondingProgressPct != null ||
     s.maxTokenAgeMinutes <= 400 ||
-    s.maxMarketCapUsd < 95_000
+    s.maxMarketCapUsd < 120_000 ||
+    s.minMarketCapUsd > 45_000
   ) {
     s = {
       ...d.soon,
@@ -192,7 +196,7 @@ function repairLaneFilters(chain: MemeRunnerChain, config: MemeRunnerSolConfig):
       minContinuationScore: 0,
     };
   }
-  if (m.maxTokenAgeMinutes <= 4_000 || m.minEstimatedFeesSol >= 0.5 || m.minRunnerScore >= 30) {
+  if (m.minMarketCapUsd > 95_000 || m.maxTokenAgeMinutes <= 4_000 || m.minEstimatedFeesSol >= 0.5) {
     m = {
       ...d.migrated,
       ...m,
