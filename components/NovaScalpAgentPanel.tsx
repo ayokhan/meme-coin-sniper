@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Check, Copy, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -9,11 +10,88 @@ import {
   type NovaScalpAnalysis,
   type NovaScalpQuickWin,
 } from "@/lib/nova-scalp-agent";
+import {
+  formatNovaScalpAnalysisForShare,
+  formatNovaScalpQuickWinForShare,
+} from "@/lib/nova-scalp-agent-format";
 
 type Props = {
   enabled: boolean;
   isVip: boolean;
+  canShareCoach?: boolean;
 };
+
+function CoachShareButtons({
+  canShare,
+  getPayload,
+  className = "",
+}: {
+  canShare: boolean;
+  getPayload: () => { title: string; content: string };
+  className?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareOk, setShareOk] = useState(false);
+
+  if (!canShare) return null;
+
+  const copyAll = async () => {
+    const { title, content } = getPayload();
+    try {
+      await navigator.clipboard.writeText([title, content].filter(Boolean).join("\n\n"));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const shareToCoachCalls = async () => {
+    if (shareLoading) return;
+    setShareLoading(true);
+    setShareOk(false);
+    const { title, content } = getPayload();
+    try {
+      const res = await fetch("/api/coach-calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !data.success) {
+        alert(data.error ?? "Failed to share");
+        return;
+      }
+      setShareOk(true);
+      window.setTimeout(() => setShareOk(false), 3000);
+    } catch {
+      alert("Failed to share");
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  return (
+    <div className={`flex flex-wrap gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-700 ${className}`}>
+      <Button type="button" variant="outline" size="sm" onClick={() => void copyAll()} className="h-8 text-xs">
+          {copied ? <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
+          {copied ? "Copied!" : "Copy"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={shareLoading}
+          onClick={() => void shareToCoachCalls()}
+          className="h-8 text-xs border-cyan-300/80 dark:border-cyan-700 text-cyan-800 dark:text-cyan-200"
+        >
+          {shareOk ? <Check className="h-3.5 w-3.5 mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+          {shareLoading ? "Sharing…" : shareOk ? "Shared!" : "Share to Coach Calls"}
+        </Button>
+    </div>
+  );
+}
 
 function fmtUsd(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -68,7 +146,7 @@ function LockedMessage({
 }
 
 
-export default function NovaScalpAgentPanel({ enabled, isVip }: Props) {
+export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = false }: Props) {
   const [symbol, setSymbol] = useState("BTC");
   const [amount, setAmount] = useState("100");
   const [leverage, setLeverage] = useState("50");
@@ -288,6 +366,10 @@ export default function NovaScalpAgentPanel({ enabled, isVip }: Props) {
                 </p>
               )}
               <p className="text-[11px] text-muted-foreground">{result.disclaimer}</p>
+              <CoachShareButtons
+                canShare={canShareCoach}
+                getPayload={() => formatNovaScalpAnalysisForShare(result)}
+              />
             </CardContent>
           </Card>
         )}
@@ -348,20 +430,47 @@ export default function NovaScalpAgentPanel({ enabled, isVip }: Props) {
                           ? ` · momentum ${w.momentumBias}`
                           : ""}
                       </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs mt-1"
-                        onClick={() =>
-                          void runAgent({
-                            symbol: w.symbol,
-                            leverage: w.suggestedLeverage,
-                            timeframeId: QUICK_WIN_SCALP_TIMEFRAME_ID,
-                          })
-                        }
-                      >
-                        Analyze on 5m
-                      </Button>
+                      <div className="flex flex-wrap gap-1 justify-end mt-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() =>
+                            void runAgent({
+                              symbol: w.symbol,
+                              leverage: w.suggestedLeverage,
+                              timeframeId: QUICK_WIN_SCALP_TIMEFRAME_ID,
+                            })
+                          }
+                        >
+                          Analyze on 5m
+                        </Button>
+                        {canShareCoach && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs border-cyan-300/80 dark:border-cyan-700 text-cyan-800 dark:text-cyan-200"
+                            onClick={async () => {
+                              const { title, content } = formatNovaScalpQuickWinForShare(w);
+                              try {
+                                const res = await fetch("/api/coach-calls", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ title, content }),
+                                });
+                                const data = (await res.json()) as { success?: boolean; error?: string };
+                                if (!res.ok || !data.success) alert(data.error ?? "Failed to share");
+                              } catch {
+                                alert("Failed to share");
+                              }
+                            }}
+                          >
+                            <Send className="h-3 w-3 mr-0.5" />
+                            Share
+                          </Button>
+                        )}
+                      </div>
                     </div>
               </div>
             ))}

@@ -6987,7 +6987,11 @@ export default function Dashboard() {
                   </TabsContent>
                   {vipFuturesAddons?.novaScalpAgent && (
                     <TabsContent value="nova-scalp" className="mt-0">
-                      <NovaScalpAgentPanel enabled={!!vipFuturesAddons.novaScalpAgent} isVip={isVip || isOwner} />
+                      <NovaScalpAgentPanel
+                        enabled={!!vipFuturesAddons.novaScalpAgent}
+                        isVip={isVip || isOwner}
+                        canShareCoach={isOwner || isCoachUser}
+                      />
                     </TabsContent>
                   )}
                 </Tabs>
