@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
-import { getCandles as getBlofinCandles, getTicker as getBlofinTicker, toBlofinBar } from "@/lib/blofin";
+import {
+  getBlofinMetalCandles,
+  getBlofinMetalTicker,
+  isBlofinMetal,
+  normalizeMetalBase,
+  type BlofinMetal,
+} from "@/lib/blofin-metals";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 import {
   type CandleTuple,
@@ -130,24 +136,16 @@ type NovaInvestmentAgentResult = {
 };
 
 function normalizeSymbol(raw: string): string {
-  const upper = String(raw ?? "").trim().toUpperCase();
-  if (!upper) return "BTC";
-  // Normalize BTC/USDT, BTC-USDT, BTC.USDT -> BTC
-  const base = upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim() || upper;
-  return base === "GOLD" ? "XAU" : base;
-}
-
-function useBlofinForSymbol(symbol: string): boolean {
-  return symbol === "XAU";
+  return normalizeMetalBase(raw) || "BTC";
 }
 
 async function getCandlesForSymbol(symbol: string, interval: string, limit: number) {
-  if (useBlofinForSymbol(symbol)) return getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar(interval), limit);
+  if (isBlofinMetal(symbol)) return getBlofinMetalCandles(symbol as BlofinMetal, interval, limit);
   return getCandles(symbol, interval, limit);
 }
 
 async function getTickerForSymbol(symbol: string) {
-  if (useBlofinForSymbol(symbol)) return getBlofinTicker(BLOFIN_XAU_INST);
+  if (isBlofinMetal(symbol)) return getBlofinMetalTicker(symbol as BlofinMetal);
   return getTicker(symbol);
 }
 
@@ -478,7 +476,7 @@ export async function POST(request: Request) {
       const trend = trendlineRegressionFromCloses(tfRows)?.bias ?? "flat";
       const tfDir = combineStructureAndTrendline(struct, trend);
       const legDirection = chooseDirectionFromMarketStructure(tfDir, currentPrice, hl.low, hl.high);
-      const { strongestBidWall, strongestAskWall } = useBlofinForSymbol(anchorSymbol)
+      const { strongestBidWall, strongestAskWall } = isBlofinMetal(anchorSymbol)
         ? { strongestBidWall: null, strongestAskWall: null }
         : await fetchOrderBookWalls(anchorSymbol);
       const atrPct = getAtrPct(candlesBase as CandleTuple[], currentPrice);

@@ -64,7 +64,7 @@ export default function CryptoBuddiePanel() {
       setFocus(data.focus ?? null);
       setFocusAliasRequested(typeof data.focusAliasRequested === "string" ? data.focusAliasRequested : null);
       if (!data.focus)
-        setError(`No perp data for “${sym}”. Try a Hyperliquid symbol (e.g. BTC, SOL) or gold as XAU/GOLD → PAXG.`);
+        setError(`No perp data for “${sym}”. Try a Hyperliquid symbol (e.g. BTC, SOL) or metals as XAU/XAG (Blofin).`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Lookup failed");
       setFocus(null);
@@ -123,7 +123,7 @@ export default function CryptoBuddiePanel() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value.toUpperCase())}
-            placeholder="e.g. BTC, SOL, XAU"
+            placeholder="e.g. BTC, SOL, XAU, XAG"
             className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-36 bg-white dark:bg-zinc-800 font-mono"
           />
         </div>

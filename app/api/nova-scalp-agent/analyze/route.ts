@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
+import {
+  getBlofinMetalCandles,
+  getBlofinMetalTicker,
+  isBlofinMetal,
+  type BlofinMetal,
+} from "@/lib/blofin-metals";
 import { analyzeScalpSetup, resolveScalpSymbol, scalpTimeframeConfig } from "@/lib/nova-scalp-agent";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
@@ -32,8 +38,12 @@ export async function POST(request: Request) {
     const leverage = Math.min(125, Math.max(1, Number(body.leverage) || 10));
 
     const [candles, ticker] = await Promise.all([
-      getCandles(symbol, tf.interval, tf.limit),
-      getTicker(symbol),
+      isBlofinMetal(symbol)
+        ? getBlofinMetalCandles(symbol as BlofinMetal, tf.interval, tf.limit)
+        : getCandles(symbol, tf.interval, tf.limit),
+      isBlofinMetal(symbol)
+        ? getBlofinMetalTicker(symbol as BlofinMetal)
+        : getTicker(symbol),
     ]);
 
     const currentPrice = ticker?.last ? Number(ticker.last) : null;

@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
-import { getCandles as getBlofinCandles, getTicker as getBlofinTicker, toBlofinBar } from "@/lib/blofin";
+import {
+  getBlofinMetalCandles,
+  getBlofinMetalInstId,
+  getBlofinMetalTicker,
+  isBlofinMetal,
+  normalizeMetalBase,
+  type BlofinMetal,
+} from "@/lib/blofin-metals";
 import {
   type CandleTuple,
   combineStructureAndTrendline,
@@ -20,8 +27,6 @@ const STRUCTURE_TFS = [
   { id: "1w", label: "1 week", interval: "1d", limit: 7 },
   { id: "4w", label: "4 weeks", interval: "1d", limit: 28 },
 ] as const;
-const BLOFIN_XAU_INST = "XAU-USDT";
-
 type TfRow = {
   id: string;
   label: string;
@@ -34,14 +39,7 @@ type TfRow = {
 };
 
 function normalizeSymbol(raw: string): string {
-  const upper = raw.trim().toUpperCase();
-  const base = upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim();
-  if (base === "GOLD") return "XAU";
-  return base || "BTC";
-}
-
-function useBlofinForSymbol(symbol: string): boolean {
-  return symbol === "XAU";
+  return normalizeMetalBase(raw) || "BTC";
 }
 
 function parseTargetPrice(raw: unknown): number | null {
@@ -136,11 +134,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const useBlofin = useBlofinForSymbol(symbol);
+    const useBlofin = isBlofinMetal(symbol);
+    const metal = useBlofin ? (symbol as BlofinMetal) : null;
+    const blofinInst = metal ? getBlofinMetalInstId(metal)! : "";
     const [ticker, dailyCandles] = await Promise.all([
-      useBlofin ? getBlofinTicker(BLOFIN_XAU_INST) : getTicker(symbol),
-      (useBlofin
-        ? getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar("1d"), 400)
+      useBlofin && metal ? getBlofinMetalTicker(metal) : getTicker(symbol),
+      (useBlofin && metal
+        ? getBlofinMetalCandles(metal, "1d", 400)
         : getCandles(symbol, "1d", 400)) as Promise<CandleTuple[]>,
     ]);
 
@@ -156,7 +156,7 @@ export async function POST(request: Request) {
         {
           success: false,
           error: useBlofin
-            ? `No live price for ${symbol}. Check Blofin (${BLOFIN_XAU_INST}) availability.`
+            ? `No live price for ${symbol}. Check Blofin (${blofinInst}) availability.`
             : `No live price for ${symbol}. Check the contract symbol (Hyperliquid perps).`,
         },
         { status: 400 }
@@ -166,8 +166,8 @@ export async function POST(request: Request) {
     const tfRows: TfRow[] = [];
     for (const tf of STRUCTURE_TFS) {
       try {
-        const candles = (useBlofin
-          ? await getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar(tf.interval), tf.limit)
+        const candles = (useBlofin && metal
+          ? await getBlofinMetalCandles(metal, tf.interval, tf.limit)
           : await getCandles(symbol, tf.interval, tf.limit)) as CandleTuple[];
         const hl = highLowFromCandles(candles);
         if (!hl) continue;

@@ -681,15 +681,15 @@ export default function NovaScalperPanel() {
               <input
                 value={config.instrumentPair}
                 onChange={(e) => setField("instrumentPair", e.target.value.toUpperCase())}
-                placeholder="BTC/USDT, BTC/USDC, XAU, or GOLD"
+                placeholder="BTC/USDT, XAU, XAG, GOLD, or SILVER"
                 className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Blofin instrument id: <span className="font-mono">{displayInstId || "—"}</span>
               </p>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Gold shortcuts supported: <span className="font-mono">XAU</span> / <span className="font-mono">GOLD</span> auto-map to{" "}
-                <span className="font-mono">XAU-USDT</span> on Blofin.
+                Metals shortcuts: <span className="font-mono">XAU</span>/<span className="font-mono">GOLD</span> → <span className="font-mono">XAU-USDT</span>,{" "}
+                <span className="font-mono">XAG</span>/<span className="font-mono">SILVER</span> → <span className="font-mono">XAG-USDT</span> on Blofin.
               </p>
             </div>
             <div>

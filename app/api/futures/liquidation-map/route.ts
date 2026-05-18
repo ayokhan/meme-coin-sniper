@@ -3,6 +3,14 @@ import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 import { getPerpsByCoins, getTrendingPerps, type TrendingPerp } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
+import {
+  getBlofinMetalCandles,
+  getBlofinMetalInstId,
+  getBlofinMetalTrendingPerp,
+  isBlofinMetal,
+  normalizeMetalBase,
+  type BlofinMetal,
+} from "@/lib/blofin-metals";
 
 type ClusterSide = "long_liq_below" | "short_liq_above";
 
@@ -23,12 +31,14 @@ function normalizeSymbol(raw: string): string {
 }
 
 function normalizeWithAliases(raw: string): { normalized: string; aliasUsed?: string } {
+  const metal = normalizeMetalBase(raw);
+  if (isBlofinMetal(metal)) {
+    const token = normalizeSymbol(raw);
+    const aliasUsed =
+      token === "GOLD" || token === "SILVER" ? token : token !== metal ? token : undefined;
+    return { normalized: metal, aliasUsed };
+  }
   const s = normalizeSymbol(raw);
-  const alias: Record<string, string> = {
-    XAU: "PAXG",
-    GOLD: "PAXG",
-  };
-  if (alias[s]) return { normalized: alias[s], aliasUsed: s };
   return { normalized: s };
 }
 
@@ -338,20 +348,33 @@ export async function POST(request: Request) {
     const exit = Number(body.exit);
     const leverage = Number(body.leverage ?? 10);
     if (!symbol) {
-      return NextResponse.json({ success: false, error: "Enter a contract symbol like BTC, ETH, SOL, or XAU." }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Enter a contract symbol like BTC, ETH, SOL, XAU, or XAG." }, { status: 400 });
     }
 
-    const direct = await getPerpsByCoins([symbol]);
-    let market: TrendingPerp | null = direct.length > 0 ? direct[0] : null;
-    if (!market) {
-      const all = await getTrendingPerps(300);
-      market = locateContract(symbol, all);
-    }
-    if (!market) {
-      return NextResponse.json(
-        { success: false, error: `No perpetual market found for ${symbol} on the connected futures feed right now.` },
-        { status: 404 }
-      );
+    const useBlofinMetal = isBlofinMetal(symbol);
+    let market: TrendingPerp | null = null;
+    if (useBlofinMetal) {
+      market = await getBlofinMetalTrendingPerp(symbol as BlofinMetal);
+      if (!market) {
+        const inst = getBlofinMetalInstId(symbol);
+        return NextResponse.json(
+          { success: false, error: `No live price for ${symbol}. Check Blofin (${inst}) availability.` },
+          { status: 404 }
+        );
+      }
+    } else {
+      const direct = await getPerpsByCoins([symbol]);
+      market = direct.length > 0 ? direct[0] : null;
+      if (!market) {
+        const all = await getTrendingPerps(300);
+        market = locateContract(symbol, all);
+      }
+      if (!market) {
+        return NextResponse.json(
+          { success: false, error: `No perpetual market found for ${symbol} on the connected futures feed right now.` },
+          { status: 404 }
+        );
+      }
     }
 
     const markPrice = parseNum(market.markPx);
@@ -359,8 +382,12 @@ export async function POST(request: Request) {
     const volume24h = parseNum(market.dayNtlVlm);
     const fundingRatePct = parseNum(market.funding) * 100;
     const dayChangePct = Number.isFinite(market.dayPct) ? market.dayPct : 0;
-    const candles = await getCandles(market.coin, "1h", 24);
-    const structureCandles = await getCandles(market.coin, "15m", 48);
+    const fetchCandles = (interval: string, limit: number) =>
+      useBlofinMetal
+        ? getBlofinMetalCandles(symbol as BlofinMetal, interval, limit)
+        : getCandles(market!.coin, interval, limit);
+    const candles = await fetchCandles("1h", 24);
+    const structureCandles = await fetchCandles("15m", 48);
     const volatilityPct = computeVolatilityPct(candles);
     const { trend, marketStructure, trendlineRead } = getTrendAndStructure(structureCandles.length ? structureCandles : candles);
 

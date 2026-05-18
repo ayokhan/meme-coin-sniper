@@ -8,6 +8,7 @@ import {
 } from "@/lib/nova-q-analytics";
 import { meanRangePct, momentumBias as perpMomentumBias, trendFrom15mCloses } from "@/lib/crypto-buddie-score";
 import type { TrendingPerp } from "@/lib/api-clients/hyperliquid";
+import { normalizeMetalBase } from "@/lib/blofin-metals";
 
 export const SCALP_TIMEFRAMES = [
   { id: "1m", label: "1 min", interval: "1m", limit: 90, estHoldMinutes: 2 },
@@ -74,11 +75,9 @@ export type NovaScalpQuickWin = {
 export const NOVA_SCALP_DISCLAIMER =
   "Not financial advice. Know your risk level before trading.";
 
-const SYMBOL_ALIASES: Record<string, string> = { XAU: "PAXG", GOLD: "PAXG" };
-
 export function resolveScalpSymbol(raw: string): string {
-  const base = raw.trim().toUpperCase().split(/[-/]/)[0] ?? "BTC";
-  return SYMBOL_ALIASES[base] ?? base;
+  const normalized = normalizeMetalBase(raw);
+  return normalized || "BTC";
 }
 
 export function scalpTimeframeConfig(id: string) {

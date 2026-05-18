@@ -11,6 +11,7 @@ export function parseScalperInstrument(symbolField: string, marginCurrencyFallba
     .toUpperCase()
     .replace(/-/g, "/");
   if (raw === "GOLD") raw = "XAU";
+  if (raw === "SILVER") raw = "XAG";
   if (!raw) {
     const quote = marginCurrencyFallback === "USDC" ? "USDC" : "USDT";
     return { base: "", quote, instId: "" };
@@ -22,6 +23,9 @@ export function parseScalperInstrument(symbolField: string, marginCurrencyFallba
       if (base === "XAU" || base === "GOLD") {
         return { base: "XAU", quote: "USDT", instId: "XAU-USDT" };
       }
+      if (base === "XAG" || base === "SILVER") {
+        return { base: "XAG", quote: "USDT", instId: "XAG-USDT" };
+      }
       const quoteRaw = parts[1]!;
       const quote = quoteRaw === "USDC" ? "USDC" : "USDT";
       return { base, quote, instId: `${base}-${quote}` };
@@ -29,6 +33,7 @@ export function parseScalperInstrument(symbolField: string, marginCurrencyFallba
   }
   const base = raw || "BTC";
   if (base === "XAU") return { base: "XAU", quote: "USDT", instId: "XAU-USDT" };
+  if (base === "XAG") return { base: "XAG", quote: "USDT", instId: "XAG-USDT" };
   const quote = marginCurrencyFallback === "USDC" ? "USDC" : "USDT";
   return { base, quote, instId: `${base}-${quote}` };
 }

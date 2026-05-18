@@ -257,8 +257,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
         <div>
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Scalp Agent</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Leveraged scalp plan from market structure, regression trendline, and range position on Hyperliquid perps.
-            For gold use XAU (maps to PAXG).
+            Leveraged scalp plan from market structure, regression trendline, and range position. Hyperliquid perps for most symbols; use XAU or XAG for Blofin metals (XAU-USDT, XAG-USDT).
           </p>
         </div>
 

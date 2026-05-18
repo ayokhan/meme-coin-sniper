@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
-import { getCandles as getBlofinCandles, getTicker as getBlofinTicker, toBlofinBar } from "@/lib/blofin";
+import {
+  getBlofinMetalCandles,
+  getBlofinMetalTicker,
+  isBlofinMetal,
+  normalizeMetalBase,
+  type BlofinMetal,
+} from "@/lib/blofin-metals";
 import {
   type CandleTuple,
   combineStructureAndTrendline,
@@ -37,15 +43,8 @@ const NOVA_SMART_TIMEFRAMES = [
   { id: "104w", label: "104 weeks", interval: "1d", limit: 728 },
 ] as const;
 
-const BLOFIN_XAU_INST = "XAU-USDT";
-
 function normalizeSymbol(raw: string): string {
-  const upper = String(raw ?? "").trim().toUpperCase();
-  if (!upper) return "BTC";
-  if (upper === "GOLD") return "XAU";
-  const base = upper.replace(/\/USDT$/i, "").replace(/\/USD$/i, "").replace(/-USDT$/i, "").replace(/\.USDT$/i, "").trim();
-  if (base === "GOLD") return "XAU";
-  return base || "BTC";
+  return normalizeMetalBase(raw) || "BTC";
 }
 
 /** Derive strategy: scalp (quick in/out), swing (hold for bigger move), or mixed. */
@@ -362,10 +361,10 @@ export async function POST(request: Request) {
           direction: "bullish" | "bearish" | "sideways";
           trendlineRead: string;
         }[] = [];
-        const useBlofinXau = symbol === "XAU";
+        const useBlofinMetal = isBlofinMetal(symbol);
         for (const tf of effectiveTf) {
-          const candles = useBlofinXau
-            ? await getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar(tf.interval), tf.limit)
+          const candles = useBlofinMetal
+            ? await getBlofinMetalCandles(symbol as BlofinMetal, tf.interval, tf.limit)
             : await getCandles(symbol, tf.interval, tf.limit);
           const hl = highLowFromCandles(candles as CandleTuple[]);
           if (!hl) continue;
@@ -391,7 +390,9 @@ export async function POST(request: Request) {
           });
         }
 
-        const ticker = useBlofinXau ? await getBlofinTicker(BLOFIN_XAU_INST) : await getTicker(symbol);
+        const ticker = useBlofinMetal
+          ? await getBlofinMetalTicker(symbol as BlofinMetal)
+          : await getTicker(symbol);
         const currentPrice = ticker?.last ? Number(ticker.last) : null;
 
         if (tfData.length === 0) {

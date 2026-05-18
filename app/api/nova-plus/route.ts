@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker, instIdToCoin } from "@/lib/hyperliquid";
-import { getCandles as getBlofinCandles, getTicker as getBlofinTicker, toBlofinBar } from "@/lib/blofin";
+import {
+  getBlofinMetalCandles,
+  getBlofinMetalTicker,
+  isBlofinMetal,
+  normalizeMetalBase,
+  type BlofinMetal,
+} from "@/lib/blofin-metals";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
 
 const HL_INFO_BASE = "https://api.hyperliquid.xyz/info";
-const BLOFIN_XAU_INST = "XAU-USDT";
-
 const NOVA_PLUS_TIMEFRAMES = [
   { id: "15m", label: "15 mins", interval: "1m", limit: 15 },
   { id: "1h", label: "1 hour", interval: "1m", limit: 60 },
@@ -31,21 +35,17 @@ type CandleTuple = [string, string, string, string, string, ...string[]];
 type BookLevel = { px: number; sz: number };
 
 function normalizeSymbol(raw: string): string {
-  const normalized = instIdToCoin(raw || "BTC");
-  return normalized === "GOLD" ? "XAU" : normalized;
-}
-
-function useBlofinForSymbol(symbol: string): boolean {
-  return symbol === "XAU";
+  const fromInst = instIdToCoin(raw || "BTC");
+  return normalizeMetalBase(fromInst) || fromInst;
 }
 
 async function getCandlesForSymbol(symbol: string, interval: string, limit: number) {
-  if (useBlofinForSymbol(symbol)) return getBlofinCandles(BLOFIN_XAU_INST, toBlofinBar(interval), limit);
+  if (isBlofinMetal(symbol)) return getBlofinMetalCandles(symbol as BlofinMetal, interval, limit);
   return getCandles(symbol, interval, limit);
 }
 
 async function getTickerForSymbol(symbol: string) {
-  if (useBlofinForSymbol(symbol)) return getBlofinTicker(BLOFIN_XAU_INST);
+  if (isBlofinMetal(symbol)) return getBlofinMetalTicker(symbol as BlofinMetal);
   return getTicker(symbol);
 }
 
@@ -183,7 +183,7 @@ export async function POST(request: Request) {
     const [candles, ticker, walls] = await Promise.all([
       getCandlesForSymbol(symbol, tf.interval, tf.limit),
       getTickerForSymbol(symbol),
-      useBlofinForSymbol(symbol)
+      isBlofinMetal(symbol)
         ? Promise.resolve({ strongestBidWall: null, strongestAskWall: null })
         : fetchOrderBookWalls(symbol),
     ]);

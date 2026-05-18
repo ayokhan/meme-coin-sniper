@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
-import { getCandles } from "@/lib/hyperliquid";
-import { getTicker } from "@/lib/hyperliquid";
+import { getCandles, getTicker } from "@/lib/hyperliquid";
+import {
+  getBlofinMetalCandles,
+  getBlofinMetalTicker,
+  isBlofinMetal,
+  normalizeMetalBase,
+  type BlofinMetal,
+} from "@/lib/blofin-metals";
 import {
   type CandleTuple,
   combineStructureAndTrendline,
@@ -15,8 +21,6 @@ export const maxDuration = 30;
 
 /** Default top alt symbols for NovaForecast (VIP). */
 const DEFAULT_SYMBOLS = ["BTC", "ETH", "SOL", "ZEC", "NEO", "DOGE", "AVAX", "LINK", "MATIC", "DOT", "ATOM", "UNI", "XRP", "ADA", "LTC", "BCH", "ETC", "APT", "ARB", "OP"];
-const SYMBOL_ALIASES: Record<string, string> = { XAU: "PAXG", GOLD: "PAXG" };
-
 /** Time range options: interval for candles + number of bars. Default 2w. */
 export const FORECAST_RANGES = [
   { id: "15m", label: "Last 15 mins", interval: "1m", limit: 15 },
@@ -65,7 +69,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const symbolsParam = searchParams.get("symbols");
     const symbols: string[] = symbolsParam
-      ? symbolsParam.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean)
+      ? symbolsParam.split(",").map((s) => normalizeMetalBase(s.trim()) || s.trim().toUpperCase()).filter(Boolean)
       : DEFAULT_SYMBOLS;
 
     const rangeId = (searchParams.get("range") ?? "2w").toLowerCase();
@@ -79,10 +83,13 @@ export async function GET(request: Request) {
 
     for (const requestedSymbol of toFetch) {
       try {
-        const symbol = SYMBOL_ALIASES[requestedSymbol] ?? requestedSymbol;
+        const symbol = requestedSymbol;
+        const useBlofin = isBlofinMetal(symbol);
         const [candles, ticker] = await Promise.all([
-          getCandles(symbol, interval, candleLimit),
-          getTicker(symbol),
+          useBlofin
+            ? getBlofinMetalCandles(symbol as BlofinMetal, interval, candleLimit)
+            : getCandles(symbol, interval, candleLimit),
+          useBlofin ? getBlofinMetalTicker(symbol as BlofinMetal) : getTicker(symbol),
         ]);
         const rows = candles as CandleTuple[];
         const hl = highLowFromCandles(rows);
@@ -117,8 +124,8 @@ export async function GET(request: Request) {
           insight = `Short entry at ${rangeLabel} high; long entry at ${rangeLabel} low.`;
         }
         insight += ` Structure ${structureDirection}, trendline ${trendlineBias}, blended ${blendedDirection}.`;
-        if (requestedSymbol !== symbol) {
-          insight += ` Mapped ${requestedSymbol} to ${symbol} on Hyperliquid.`;
+        if (useBlofin) {
+          insight += ` Data from Blofin ${symbol}-USDT.`;
         }
         forecasts.push({
           symbol: requestedSymbol,
