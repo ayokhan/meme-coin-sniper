@@ -71,8 +71,8 @@ export type NovaScalpQuickWin = {
   previewPnlUsd: number | null;
 };
 
-const DISCLAIMER =
-  "Nova Scalp Agent uses Hyperliquid candles, range structure, and regression trendline reads — not live order-book or funding data. PnL is illustrative (margin × leverage × price move %). Not financial advice.";
+export const NOVA_SCALP_DISCLAIMER =
+  "Not financial advice. Know your risk level before trading.";
 
 const SYMBOL_ALIASES: Record<string, string> = { XAU: "PAXG", GOLD: "PAXG" };
 
@@ -83,6 +83,15 @@ export function resolveScalpSymbol(raw: string): string {
 
 export function scalpTimeframeConfig(id: string) {
   return SCALP_TIMEFRAMES.find((t) => t.id === id) ?? SCALP_TIMEFRAMES.find((t) => t.id === "5m")!;
+}
+
+export function isValidScalpTimeframeId(id: string): id is ScalpTimeframeId {
+  return SCALP_TIMEFRAMES.some((t) => t.id === id);
+}
+
+export function scalpCandlesRequest(timeframeId: string): { interval: string; limit: number } {
+  const tf = scalpTimeframeConfig(timeframeId);
+  return { interval: tf.interval, limit: tf.limit };
 }
 
 function asTuples(candles: Candle[]): CandleTuple[] {
@@ -163,7 +172,7 @@ export function analyzeScalpSetup(input: {
       trendlineBias,
       blendedDirection,
       rationale: "Insufficient candle data for this symbol and timeframe.",
-      disclaimer: DISCLAIMER,
+      disclaimer: NOVA_SCALP_DISCLAIMER,
     };
   }
 
@@ -229,7 +238,7 @@ export function analyzeScalpSetup(input: {
       blendedDirection,
       rationale:
         "No clear scalp edge: price is mid-range or structure/trendline conflict. Wait for retest of range low (long) or high (short), or pick a tighter timeframe.",
-      disclaimer: DISCLAIMER,
+      disclaimer: NOVA_SCALP_DISCLAIMER,
     };
   }
 
@@ -263,7 +272,7 @@ export function analyzeScalpSetup(input: {
     trendlineBias,
     blendedDirection,
     rationale: rationale.trim(),
-    disclaimer: DISCLAIMER,
+    disclaimer: NOVA_SCALP_DISCLAIMER,
   };
 }
 
@@ -273,15 +282,17 @@ export function buildQuickWinCandidate(
   candles15m: Candle[],
   candles5m: Candle[],
   scalpCandles: Candle[],
-  amountUsd = 100
+  amountUsd = 100,
+  scalpTimeframeId: string = QUICK_WIN_SCALP_TIMEFRAME_ID
 ): NovaScalpQuickWin | null {
   const oscillation = scoreOscillationProfile(perp, candles15m, candles5m);
   if (!oscillation) return null;
 
+  const tfId = isValidScalpTimeframeId(scalpTimeframeId) ? scalpTimeframeId : QUICK_WIN_SCALP_TIMEFRAME_ID;
   const price = Number(perp.markPx ?? 0) || null;
   const analysis = analyzeScalpSetup({
     symbol: perp.coin,
-    timeframeId: QUICK_WIN_SCALP_TIMEFRAME_ID,
+    timeframeId: tfId,
     amountUsd,
     leverage: oscillation.suggestedLeverage,
     candles: scalpCandles,

@@ -3,7 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPerpsByCoins, TOP_ALTCOINS } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
-import { buildQuickWinCandidate } from "@/lib/nova-scalp-agent";
+import {
+  buildQuickWinCandidate,
+  isValidScalpTimeframeId,
+  NOVA_SCALP_DISCLAIMER,
+  scalpCandlesRequest,
+  scalpTimeframeConfig,
+} from "@/lib/nova-scalp-agent";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +23,7 @@ function candlePct(candles: Array<[string, string, string, string, string, ...st
   return open && open > 0 ? ((close - open) / open) * 100 : fallback;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     const access = await getNovaScalpAgentAccess(session);
@@ -28,20 +34,25 @@ export async function GET() {
       );
     }
 
+    const rawTf = new URL(request.url).searchParams.get("timeframe")?.trim() ?? "5m";
+    const timeframeId = isValidScalpTimeframeId(rawTf) ? rawTf : "5m";
+    const tfConfig = scalpTimeframeConfig(timeframeId);
+    const { interval, limit } = scalpCandlesRequest(timeframeId);
+
     const perps = await getPerpsByCoins(TOP_ALTCOINS.slice(0, 18));
     const scored = await Promise.all(
       perps.map(async (p) => {
         const [c5, c15, cScalp] = await Promise.all([
           getCandles(p.coin, "5m", 12),
           getCandles(p.coin, "15m", 10),
-          getCandles(p.coin, "1m", 120),
+          getCandles(p.coin, interval, limit),
         ]);
         const enriched = {
           ...p,
           pct5m: candlePct(c5, p.dayPct),
           pct15m: candlePct(c15, p.dayPct),
         };
-        return buildQuickWinCandidate(enriched, c15, c5, cScalp);
+        return buildQuickWinCandidate(enriched, c15, c5, cScalp, 100, timeframeId);
       })
     );
 
@@ -52,9 +63,10 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
+      timeframeId,
+      timeframeLabel: tfConfig.label,
       quickWins,
-      disclaimer:
-        "Quick Wins only lists symbols where Run Agent finds a LONG or SHORT on the 5 min timeframe (tight 5m/15m range + valid entry zone). A longer timeframe (e.g. 30m) can still show NO ENTRY if price is mid-range on that window. Not financial advice.",
+      disclaimer: NOVA_SCALP_DISCLAIMER,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Quick Wins scan failed";

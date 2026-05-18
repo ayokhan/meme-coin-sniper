@@ -25,7 +25,7 @@ export function formatNovaScalpAnalysisForShare(r: NovaScalpAnalysis): { title: 
     `Structure: ${r.structureDirection} · Trendline: ${r.trendlineBias} · Blended: ${r.blendedDirection}`,
     r.rationale,
     "",
-    "Not financial advice. Illustrative PnL from Hyperliquid structure reads.",
+    "Not financial advice. Know your risk level before trading.",
   ].filter((line) => line !== null);
   return { title, content: lines.join("\n") };
 }
@@ -43,7 +43,7 @@ export function formatNovaScalpQuickWinForShare(w: NovaScalpQuickWin): { title: 
     w.directionHint,
     w.liquidityNote,
     "",
-    "Not financial advice.",
+    "Not financial advice. Know your risk level before trading.",
   ].filter(Boolean);
   return { title, content: lines.join("\n") };
 }

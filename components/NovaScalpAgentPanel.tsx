@@ -5,10 +5,12 @@ import { Check, Copy, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  NOVA_SCALP_DISCLAIMER,
   QUICK_WIN_SCALP_TIMEFRAME_ID,
   SCALP_TIMEFRAMES,
   type NovaScalpAnalysis,
   type NovaScalpQuickWin,
+  type ScalpTimeframeId,
 } from "@/lib/nova-scalp-agent";
 import {
   formatNovaScalpAnalysisForShare,
@@ -155,10 +157,11 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<NovaScalpAnalysis | null>(null);
 
+  const [qwTimeframeId, setQwTimeframeId] = useState<ScalpTimeframeId>(QUICK_WIN_SCALP_TIMEFRAME_ID);
+  const [qwTimeframeLabel, setQwTimeframeLabel] = useState("5 mins");
   const [qwLoading, setQwLoading] = useState(false);
   const [qwError, setQwError] = useState<string | null>(null);
   const [quickWins, setQuickWins] = useState<NovaScalpQuickWin[]>([]);
-  const [qwDisclaimer, setQwDisclaimer] = useState<string | null>(null);
 
   const runAgent = useCallback(
     async (overrides?: { symbol?: string; leverage?: number; timeframeId?: string }) => {
@@ -199,11 +202,14 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
     [symbol, amount, leverage, timeframeId]
   );
 
-  const findQuickWins = useCallback(async () => {
+  const findQuickWins = useCallback(async (tfId = qwTimeframeId) => {
     setQwLoading(true);
     setQwError(null);
     try {
-      const res = await fetch("/api/nova-scalp-agent/quick-wins", { credentials: "include", cache: "no-store" });
+      const res = await fetch(
+        `/api/nova-scalp-agent/quick-wins?timeframe=${encodeURIComponent(tfId)}`,
+        { credentials: "include", cache: "no-store" }
+      );
       const data = await res.json();
       if (!res.ok || !data.success) {
         setQwError(data.error ?? "Quick Wins scan failed");
@@ -211,18 +217,18 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
         return;
       }
       setQuickWins((data.quickWins as NovaScalpQuickWin[]) ?? []);
-      setQwDisclaimer(data.disclaimer ?? null);
+      if (typeof data.timeframeLabel === "string") setQwTimeframeLabel(data.timeframeLabel);
     } catch {
       setQwError("Network error");
       setQuickWins([]);
     } finally {
       setQwLoading(false);
     }
-  }, []);
+  }, [qwTimeframeId]);
 
   useEffect(() => {
     if (!enabled || !isVip) return;
-    void findQuickWins();
+    void findQuickWins(QUICK_WIN_SCALP_TIMEFRAME_ID);
   }, [enabled, isVip, findQuickWins]);
 
   if (!enabled) {
@@ -359,10 +365,10 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
                   </div>
                 </div>
               <p className="text-xs text-muted-foreground leading-relaxed">{result.rationale}</p>
-              {result.side === "no_entry" && timeframeId !== QUICK_WIN_SCALP_TIMEFRAME_ID && (
+              {result.side === "no_entry" && timeframeId !== qwTimeframeId && (
                 <p className="text-xs text-amber-700 dark:text-amber-300">
-                  Quick Wins uses the <strong>5 min</strong> timeframe. Try 5m or 15m here, or pick a symbol from Quick Wins
-                  and use Analyze (sets 5m automatically).
+                  Quick Wins is scanning on <strong>{qwTimeframeLabel}</strong>. Match that timeframe here, or pick a symbol
+                  from Quick Wins and use Analyze.
                 </p>
               )}
               <p className="text-[11px] text-muted-foreground">{result.disclaimer}</p>
@@ -380,13 +386,29 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
           <div>
             <h3 className="text-base font-semibold text-zinc-800 dark:text-zinc-200">Quick Wins</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Only symbols with a confirmed <strong>5 min</strong> LONG or SHORT from Run Agent (tight range + entry zone).
-              Momentum bias is extra context — not a separate signal.
+              Symbols with a confirmed LONG or SHORT on your selected timeframe (same rules as Run Agent).
+              {qwTimeframeLabel ? ` Showing: ${qwTimeframeLabel}.` : ""}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={findQuickWins} disabled={qwLoading}>
-            {qwLoading ? "Scanning…" : "Find me quick wins"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>Time frame</span>
+              <select
+                value={qwTimeframeId}
+                onChange={(e) => setQwTimeframeId(e.target.value as ScalpTimeframeId)}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+              >
+                {SCALP_TIMEFRAMES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button variant="outline" size="sm" onClick={() => void findQuickWins(qwTimeframeId)} disabled={qwLoading}>
+              {qwLoading ? "Scanning…" : "Find me quick wins"}
+            </Button>
+          </div>
         </div>
         {qwError && <p className="text-sm text-rose-600 dark:text-rose-400">{qwError}</p>}
         {quickWins.length === 0 && !qwLoading && !qwError && (
@@ -439,11 +461,11 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
                             void runAgent({
                               symbol: w.symbol,
                               leverage: w.suggestedLeverage,
-                              timeframeId: QUICK_WIN_SCALP_TIMEFRAME_ID,
+                              timeframeId: w.scalpTimeframeId,
                             })
                           }
                         >
-                          Analyze on 5m
+                          Analyze
                         </Button>
                         {canShareCoach && (
                           <Button
@@ -476,7 +498,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
             ))}
           </div>
         )}
-        {qwDisclaimer && <p className="text-[11px] text-muted-foreground">{qwDisclaimer}</p>}
+        <p className="text-[11px] text-muted-foreground">{NOVA_SCALP_DISCLAIMER}</p>
       </div>
     </div>
   );
