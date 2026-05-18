@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPerpsByCoins, TOP_ALTCOINS } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
-import { scoreQuickWin } from "@/lib/nova-scalp-agent";
+import { buildQuickWinCandidate } from "@/lib/nova-scalp-agent";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
@@ -31,13 +31,17 @@ export async function GET() {
     const perps = await getPerpsByCoins(TOP_ALTCOINS.slice(0, 18));
     const scored = await Promise.all(
       perps.map(async (p) => {
-        const [c5, c15] = await Promise.all([getCandles(p.coin, "5m", 12), getCandles(p.coin, "15m", 10)]);
+        const [c5, c15, cScalp] = await Promise.all([
+          getCandles(p.coin, "5m", 12),
+          getCandles(p.coin, "15m", 10),
+          getCandles(p.coin, "1m", 120),
+        ]);
         const enriched = {
           ...p,
           pct5m: candlePct(c5, p.dayPct),
           pct15m: candlePct(c15, p.dayPct),
         };
-        return scoreQuickWin(enriched, c15, c5);
+        return buildQuickWinCandidate(enriched, c15, c5, cScalp);
       })
     );
 
@@ -50,7 +54,7 @@ export async function GET() {
       success: true,
       quickWins,
       disclaimer:
-        "Quick Wins ranks liquid Hyperliquid perps with tight, repeatable 5m/15m ranges — suited for fast in/out with high leverage. Always use a stop; not financial advice.",
+        "Quick Wins only lists symbols where Run Agent finds a LONG or SHORT on the 5 min timeframe (tight 5m/15m range + valid entry zone). A longer timeframe (e.g. 30m) can still show NO ENTRY if price is mid-range on that window. Not financial advice.",
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Quick Wins scan failed";

@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SCALP_TIMEFRAMES, type NovaScalpAnalysis, type NovaScalpQuickWin } from "@/lib/nova-scalp-agent";
+import {
+  QUICK_WIN_SCALP_TIMEFRAME_ID,
+  SCALP_TIMEFRAMES,
+  type NovaScalpAnalysis,
+  type NovaScalpQuickWin,
+} from "@/lib/nova-scalp-agent";
 
 type Props = {
   enabled: boolean;
@@ -77,7 +82,14 @@ export default function NovaScalpAgentPanel({ enabled, isVip }: Props) {
   const [quickWins, setQuickWins] = useState<NovaScalpQuickWin[]>([]);
   const [qwDisclaimer, setQwDisclaimer] = useState<string | null>(null);
 
-  const runAgent = useCallback(async () => {
+  const runAgent = useCallback(
+    async (overrides?: { symbol?: string; leverage?: number; timeframeId?: string }) => {
+    const sym = (overrides?.symbol ?? symbol).trim();
+    const lev = overrides?.leverage ?? (Number(leverage) || 10);
+    const tf = overrides?.timeframeId ?? timeframeId;
+    if (overrides?.symbol) setSymbol(overrides.symbol);
+    if (overrides?.leverage != null) setLeverage(String(overrides.leverage));
+    if (overrides?.timeframeId) setTimeframeId(overrides.timeframeId);
     setLoading(true);
     setError(null);
     try {
@@ -86,10 +98,10 @@ export default function NovaScalpAgentPanel({ enabled, isVip }: Props) {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          symbol: symbol.trim(),
+          symbol: sym,
           amountUsd: Number(amount) || 100,
-          leverage: Number(leverage) || 10,
-          timeframeId,
+          leverage: lev,
+          timeframeId: tf,
         }),
       });
       const data = await res.json();
@@ -105,7 +117,9 @@ export default function NovaScalpAgentPanel({ enabled, isVip }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [symbol, amount, leverage, timeframeId]);
+  },
+    [symbol, amount, leverage, timeframeId]
+  );
 
   const findQuickWins = useCallback(async () => {
     setQwLoading(true);
@@ -210,7 +224,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip }: Props) {
             </select>
           </label>
         </div>
-        <Button onClick={runAgent} disabled={loading} className="bg-violet-600 hover:bg-violet-700 text-white">
+        <Button onClick={() => void runAgent()} disabled={loading} className="bg-violet-600 hover:bg-violet-700 text-white">
           {loading ? "Running…" : "Run Agent"}
         </Button>
         {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
@@ -267,6 +281,12 @@ export default function NovaScalpAgentPanel({ enabled, isVip }: Props) {
                   </div>
                 </div>
               <p className="text-xs text-muted-foreground leading-relaxed">{result.rationale}</p>
+              {result.side === "no_entry" && timeframeId !== QUICK_WIN_SCALP_TIMEFRAME_ID && (
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Quick Wins uses the <strong>5 min</strong> timeframe. Try 5m or 15m here, or pick a symbol from Quick Wins
+                  and use Analyze (sets 5m automatically).
+                </p>
+              )}
               <p className="text-[11px] text-muted-foreground">{result.disclaimer}</p>
             </CardContent>
           </Card>
@@ -278,7 +298,8 @@ export default function NovaScalpAgentPanel({ enabled, isVip }: Props) {
           <div>
             <h3 className="text-base font-semibold text-zinc-800 dark:text-zinc-200">Quick Wins</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Contracts with tight, repeatable 5m/15m swings — suited for fast in/out with high leverage.
+              Only symbols with a confirmed <strong>5 min</strong> LONG or SHORT from Run Agent (tight range + entry zone).
+              Momentum bias is extra context — not a separate signal.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={findQuickWins} disabled={qwLoading}>
@@ -309,25 +330,37 @@ export default function NovaScalpAgentPanel({ enabled, isVip }: Props) {
                         </span>
                       </p>
                       <p>
-                        Bias{" "}
-                        <span className="font-medium uppercase">
-                          {w.suggestedSide === "neutral" ? "fade range" : w.suggestedSide}
-                        </span>
+                        Plan{" "}
+                        <span
+                          className={`font-medium uppercase ${
+                            w.scalpSide === "long"
+                              ? "text-emerald-700 dark:text-emerald-300"
+                              : "text-rose-700 dark:text-rose-300"
+                          }`}
+                        >
+                          {w.scalpSide}
+                        </span>{" "}
+                        · entry {fmtUsd(w.entryPrice)}
                       </p>
                       <p className="text-muted-foreground">
                         ~{w.estHoldMinutes}m · ~{w.suggestedLeverage}x · 15m range {w.rangePct15m}%
+                        {w.momentumBias !== w.scalpSide && w.momentumBias !== "neutral"
+                          ? ` · momentum ${w.momentumBias}`
+                          : ""}
                       </p>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-7 text-xs mt-1"
-                        onClick={() => {
-                          setSymbol(w.symbol);
-                          setLeverage(String(w.suggestedLeverage));
-                          void runAgent();
-                        }}
+                        onClick={() =>
+                          void runAgent({
+                            symbol: w.symbol,
+                            leverage: w.suggestedLeverage,
+                            timeframeId: QUICK_WIN_SCALP_TIMEFRAME_ID,
+                          })
+                        }
                       >
-                        Analyze {w.symbol}
+                        Analyze on 5m
                       </Button>
                     </div>
               </div>

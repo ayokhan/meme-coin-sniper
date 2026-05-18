@@ -6,7 +6,7 @@ import {
   structureDirectionFromCloses,
   trendlineRegressionFromCloses,
 } from "@/lib/nova-q-analytics";
-import { meanRangePct, momentumBias, trendFrom15mCloses } from "@/lib/crypto-buddie-score";
+import { meanRangePct, momentumBias as perpMomentumBias, trendFrom15mCloses } from "@/lib/crypto-buddie-score";
 import type { TrendingPerp } from "@/lib/api-clients/hyperliquid";
 
 export const SCALP_TIMEFRAMES = [
@@ -46,16 +46,29 @@ export type NovaScalpAnalysis = {
   disclaimer: string;
 };
 
+/** Timeframe used for Quick Wins list + “Analyze” handoff (must match Run Agent logic). */
+export const QUICK_WIN_SCALP_TIMEFRAME_ID: ScalpTimeframeId = "5m";
+
 export type NovaScalpQuickWin = {
   symbol: string;
   quickWinScore: number;
-  suggestedSide: "long" | "short" | "neutral";
+  /** Momentum read on 5m/15m bars — informational only. */
+  momentumBias: "long" | "short" | "neutral";
   rangePct15m: number;
   liquidityNote: string;
   directionHint: string;
   suggestedLeverage: number;
   estHoldMinutes: number;
   currentPrice: number | null;
+  /** Same engine as Run Agent on 5m — only listed when this is long or short. */
+  scalpSide: "long" | "short";
+  scalpTimeframeId: ScalpTimeframeId;
+  scalpTimeframeLabel: string;
+  entryPrice: number;
+  exitPrice: number;
+  stopLossPrice: number;
+  /** Illustrative PnL at $100 margin and suggested leverage. */
+  previewPnlUsd: number | null;
 };
 
 const DISCLAIMER =
@@ -254,17 +267,71 @@ export function analyzeScalpSetup(input: {
   };
 }
 
-/** Rank perps for tight, repeatable oscillation (quick in/out with high leverage). */
-export function scoreQuickWin(
+/** Rank + require a valid 5m scalp plan (same rules as Run Agent). */
+export function buildQuickWinCandidate(
+  perp: TrendingPerp,
+  candles15m: Candle[],
+  candles5m: Candle[],
+  scalpCandles: Candle[],
+  amountUsd = 100
+): NovaScalpQuickWin | null {
+  const oscillation = scoreOscillationProfile(perp, candles15m, candles5m);
+  if (!oscillation) return null;
+
+  const price = Number(perp.markPx ?? 0) || null;
+  const analysis = analyzeScalpSetup({
+    symbol: perp.coin,
+    timeframeId: QUICK_WIN_SCALP_TIMEFRAME_ID,
+    amountUsd,
+    leverage: oscillation.suggestedLeverage,
+    candles: scalpCandles,
+    currentPrice: price,
+  });
+
+  if (analysis.side === "no_entry" || analysis.entryPrice == null || analysis.exitPrice == null) {
+    return null;
+  }
+
+  const side = analysis.side;
+  return {
+    symbol: perp.coin,
+    quickWinScore: oscillation.quickWinScore,
+    momentumBias: oscillation.momentumBias,
+    rangePct15m: oscillation.rangePct15m,
+    liquidityNote: oscillation.liquidityNote,
+    directionHint: `${side.toUpperCase()} on ${analysis.timeframeLabel}: ${analysis.rationale.split(".")[0]}.`,
+    suggestedLeverage: oscillation.suggestedLeverage,
+    estHoldMinutes: analysis.estimatedHoldMinutes ?? oscillation.estHoldMinutes,
+    currentPrice: price,
+    scalpSide: side,
+    scalpTimeframeId: analysis.timeframeId,
+    scalpTimeframeLabel: analysis.timeframeLabel,
+    entryPrice: analysis.entryPrice,
+    exitPrice: analysis.exitPrice,
+    stopLossPrice: analysis.stopLossPrice ?? analysis.entryPrice,
+    previewPnlUsd: analysis.expectedPnlUsd,
+  };
+}
+
+type OscillationProfile = {
+  quickWinScore: number;
+  momentumBias: "long" | "short" | "neutral";
+  rangePct15m: number;
+  liquidityNote: string;
+  suggestedLeverage: number;
+  estHoldMinutes: number;
+};
+
+/** Tight 5m/15m range + liquidity — does not imply an entry by itself. */
+function scoreOscillationProfile(
   perp: TrendingPerp,
   candles15m: Candle[],
   candles5m: Candle[]
-): NovaScalpQuickWin | null {
-  const price = Number(perp.markPx ?? 0) || null;
+): OscillationProfile | null {
   const range15 = meanRangePct(candles15m);
   const range5 = meanRangePct(candles5m);
   const { label: trend15m, netPct } = trendFrom15mCloses(candles15m);
-  const bias = momentumBias(perp);
+  const bias = perpMomentumBias(perp);
 
   let score = 0;
   const vol = Number(perp.dayNtlVlm || 0);
@@ -286,30 +353,23 @@ export function scoreQuickWin(
   const quickWinScore = Math.max(0, Math.min(100, Math.round(score)));
   if (quickWinScore < 42) return null;
 
-  let suggestedSide: "long" | "short" | "neutral" = "neutral";
-  if (bias === "long") suggestedSide = "long";
-  else if (bias === "short") suggestedSide = "short";
-  else if ((perp.pct5m ?? 0) > 0.04) suggestedSide = "long";
-  else if ((perp.pct5m ?? 0) < -0.04) suggestedSide = "short";
+  let momentumBias: "long" | "short" | "neutral" = "neutral";
+  if (bias === "long") momentumBias = "long";
+  else if (bias === "short") momentumBias = "short";
+  else if ((perp.pct5m ?? 0) > 0.04) momentumBias = "long";
+  else if ((perp.pct5m ?? 0) < -0.04) momentumBias = "short";
 
-  const suggestedLeverage =
-    range15 < 0.014 ? 50 : range15 < 0.022 ? 35 : 25;
+  const suggestedLeverage = range15 < 0.014 ? 50 : range15 < 0.022 ? 35 : 25;
 
   return {
-    symbol: perp.coin,
     quickWinScore,
-    suggestedSide,
+    momentumBias,
     rangePct15m: Number((range15 * 100).toFixed(3)),
     liquidityNote:
       vol > 5_000_000
         ? "High perp volume — fills usually manageable."
         : "Moderate volume — size down if spreads widen.",
-    directionHint:
-      suggestedSide === "neutral"
-        ? "Range-bound — fade extremes of the 15m band."
-        : `${suggestedSide.toUpperCase()} bias: 5m/15m momentum aligned; use tight stop beyond recent swing.`,
     suggestedLeverage,
     estHoldMinutes: range15 < 0.016 ? 6 : 12,
-    currentPrice: price,
   };
 }
