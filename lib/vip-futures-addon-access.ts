@@ -110,3 +110,13 @@ export async function getMemeRunnerAddonAccess(session: Session | null): Promise
   }
   return base;
 }
+
+export async function getNovaScalpAgentAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await assertVip(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_SCALP_AGENT);
+  if (!on) {
+    return { ok: false, status: 403, error: "Nova Scalp Agent is disabled by admin.", disabled: true };
+  }
+  return base;
+}

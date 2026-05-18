@@ -90,6 +90,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_MEME_LEADERBOARD: 'nova_meme_leaderboard',
   /** VIP: Deep Meme Agent subtab under Wallet Tracker (token security + top-holder analyzer using GoPlus + Dexscreener + Helius). Default ON. */
   NOVA_DEEP_MEME_AGENT: 'nova_deep_meme_agent',
+  /** VIP: Nova Scalp Agent subtab under NovaForecast Agent (leveraged scalp entry/exit + Quick Wins scanner). Default OFF until admin enables. */
+  NOVA_SCALP_AGENT: 'nova_scalp_agent',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -112,6 +114,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_TOP_MEME_COINS,
   FEATURE_FLAG_KEYS.NOVA_MEME_PRICE_FACTOR,
   FEATURE_FLAG_KEYS.NOVA_MEME_RUNNER,
+  FEATURE_FLAG_KEYS.NOVA_SCALP_AGENT,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {

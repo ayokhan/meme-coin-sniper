@@ -173,6 +173,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users see the Crypto Buddie subtab: ranked perps for short-horizon style reads plus optional Sol/BSC AI monitor polling. Default OFF until you enable it.",
   },
+  nova_scalp_agent: {
+    label: "Nova Scalp Agent (NovaForecast)",
+    description:
+      "When ON, VIP users see the Nova Scalp Agent subtab under NovaForecast Agent: leveraged entry/exit plans, expected PnL, stop-loss, and Quick Wins scanner. Default OFF until you enable it.",
+  },
   nova_liquidation_map: {
     label: "Liquidation Map (Crypto Futures)",
     description:
