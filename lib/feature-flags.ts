@@ -92,6 +92,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_DEEP_MEME_AGENT: 'nova_deep_meme_agent',
   /** VIP: Nova Scalp Agent subtab under NovaForecast Agent (leveraged scalp entry/exit + Quick Wins scanner). Default OFF until admin enables. */
   NOVA_SCALP_AGENT: 'nova_scalp_agent',
+  /** VIP: NovaQ Fib subtab under NovaForecast Agent (Fibonacci retracement from pivot swings; classic NovaQ unchanged). Default OFF until admin enables. */
+  NOVA_Q_FIB: 'nova_q_fib',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -115,6 +117,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_MEME_PRICE_FACTOR,
   FEATURE_FLAG_KEYS.NOVA_MEME_RUNNER,
   FEATURE_FLAG_KEYS.NOVA_SCALP_AGENT,
+  FEATURE_FLAG_KEYS.NOVA_Q_FIB,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {

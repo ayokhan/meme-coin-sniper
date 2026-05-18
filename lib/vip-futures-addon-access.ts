@@ -120,3 +120,13 @@ export async function getNovaScalpAgentAccess(session: Session | null): Promise<
   }
   return base;
 }
+
+export async function getNovaQFibAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await assertVip(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_Q_FIB);
+  if (!on) {
+    return { ok: false, status: 403, error: "NovaQ Fib is disabled by admin.", disabled: true };
+  }
+  return base;
+}

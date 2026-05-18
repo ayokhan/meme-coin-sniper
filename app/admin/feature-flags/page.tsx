@@ -195,6 +195,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users see the Nova Scalp Agent subtab under NovaForecast Agent: leveraged entry/exit plans, expected PnL, stop-loss, and Quick Wins scanner. Default OFF until you enable it.",
   },
+  nova_q_fib: {
+    label: "NovaQ Fib (NovaForecast)",
+    description:
+      "When ON, VIP users see the NovaQ Fib subtab under NovaForecast Agent: Fibonacci retracement levels from pivot swings (38.2%–88.6% pockets), separate from classic NovaQ. Supports XAU/XAG via Blofin. Default OFF until you enable it.",
+  },
   nova_liquidation_map: {
     label: "Liquidation Map (Crypto Futures)",
     description:

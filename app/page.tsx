@@ -36,6 +36,7 @@ import PropFirmBotPanel from "@/components/PropFirmBotPanel";
 import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
+import NovaQFibPanel from "@/components/NovaQFibPanel";
 import { TopTabNewPill } from "@/components/TopTabNewPill";
 import { isTabNewBadgeActive } from "@/lib/tab-new-badges";
 import { useDashboardScreenAnalytics } from "@/components/DashboardScreenContext";
@@ -711,6 +712,7 @@ export default function Dashboard() {
     novaFuturesNarratives: boolean;
     novaMemeIntelligence: boolean;
     novaScalpAgent: boolean;
+    novaQFib: boolean;
   } | null>(null);
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
   const [showMemeLeaderboard, setShowMemeLeaderboard] = useState(false);
@@ -732,6 +734,7 @@ export default function Dashboard() {
           novaFuturesNarratives: !!d.novaFuturesNarratives,
           novaMemeIntelligence: !!d.novaMemeIntelligence,
           novaScalpAgent: !!d.novaScalpAgent,
+          novaQFib: !!d.novaQFib,
         });
       })
       .catch(() => {
@@ -743,6 +746,7 @@ export default function Dashboard() {
             novaFuturesNarratives: false,
             novaMemeIntelligence: false,
             novaScalpAgent: false,
+            novaQFib: false,
           });
         }
       });
@@ -1058,7 +1062,7 @@ export default function Dashboard() {
   const [novaForecastRange, setNovaForecastRange] = useState<string>("2w");
   const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
   const [novaForecastSubTab, setNovaForecastSubTab] = useState<
-    "agent" | "nova-smart" | "nova-q" | "nova-radar" | "nova-scalp"
+    "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-radar" | "nova-scalp"
   >("agent");
   type NovaSmartTfResult = {
     id: string;
@@ -6350,7 +6354,7 @@ export default function Dashboard() {
               })()
             ) : activeTab === "nova-forecast" ? (
               <div className="mx-6 py-6">
-                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-radar" | "nova-scalp")} className="space-y-4">
+                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-radar" | "nova-scalp")} className="space-y-4">
                   <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg flex-wrap h-auto gap-1">
                     <TabsTrigger value="agent" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaForecast Agent
@@ -6361,6 +6365,11 @@ export default function Dashboard() {
                     <TabsTrigger value="nova-q" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaQ
                     </TabsTrigger>
+                    {vipFuturesAddons?.novaQFib && (
+                      <TabsTrigger value="nova-q-fib" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                        NovaQ Fib
+                      </TabsTrigger>
+                    )}
                     <TabsTrigger value="nova-radar" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaRadar
                     </TabsTrigger>
@@ -6816,6 +6825,11 @@ export default function Dashboard() {
                       )}
                     </div>
                   </TabsContent>
+                  {vipFuturesAddons?.novaQFib && (
+                    <TabsContent value="nova-q-fib" className="mt-0">
+                      <NovaQFibPanel enabled={!!vipFuturesAddons.novaQFib} isVip={isVip || isOwner} />
+                    </TabsContent>
+                  )}
                   <TabsContent value="nova-radar" className="mt-0">
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
                       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaRadar (limit orders)</h2>
