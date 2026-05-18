@@ -37,6 +37,43 @@ export function countSupportResistanceTouches(
   return { supportTouches, resistanceTouches };
 }
 
+function touchTolerance(candles: CandleTuple[], levelA: number, levelB: number): number {
+  const highs = candles.map((c) => Number(c[2])).filter((n) => Number.isFinite(n));
+  const lows = candles.map((c) => Number(c[3])).filter((n) => Number.isFinite(n));
+  if (!highs.length || !lows.length) return 1e-12;
+  const range = Math.max(...highs) - Math.min(...lows);
+  const mid = (levelA + levelB) / 2;
+  return Math.min(Math.max(mid * 0.0008, range * 0.012, 1e-12), Math.max(range * 0.2, mid * 0.002));
+}
+
+/** Count candles that traded near entry / exit targets in the window (Nova Scalp). */
+export function countEntryExitTouches(
+  candles: CandleTuple[],
+  entry: number,
+  exit: number,
+  side: "long" | "short"
+): { entryTouches: number; exitTouches: number } {
+  if (!candles.length || !Number.isFinite(entry) || !Number.isFinite(exit)) {
+    return { entryTouches: 0, exitTouches: 0 };
+  }
+  const tol = touchTolerance(candles, entry, exit);
+  let entryTouches = 0;
+  let exitTouches = 0;
+  for (const c of candles) {
+    const hi = Number(c[2]);
+    const lo = Number(c[3]);
+    if (!Number.isFinite(hi) || !Number.isFinite(lo)) continue;
+    if (side === "long") {
+      if (lo <= entry + tol) entryTouches += 1;
+      if (hi >= exit - tol) exitTouches += 1;
+    } else {
+      if (hi >= entry - tol) entryTouches += 1;
+      if (lo <= exit + tol) exitTouches += 1;
+    }
+  }
+  return { entryTouches, exitTouches };
+}
+
 function linReg(xs: number[], ys: number[]): { m: number; b: number } {
   const n = xs.length;
   if (n < 2) return { m: 0, b: ys[0] ?? 0 };

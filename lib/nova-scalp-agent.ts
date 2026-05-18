@@ -2,6 +2,7 @@ import type { Candle } from "@/lib/hyperliquid";
 import {
   type CandleTuple,
   combineStructureAndTrendline,
+  countEntryExitTouches,
   highLowFromCandles,
   structureDirectionFromCloses,
   trendlineRegressionFromCloses,
@@ -37,6 +38,10 @@ export type NovaScalpAnalysis = {
   entryPrice: number | null;
   exitPrice: number | null;
   stopLossPrice: number | null;
+  /** Candles in the window whose range traded near entry (within tolerance). */
+  entryTouches: number | null;
+  /** Candles in the window whose range traded near exit target (within tolerance). */
+  exitTouches: number | null;
   expectedPnlUsd: number | null;
   expectedPnlPctOnMargin: number | null;
   estimatedHoldMinutes: number | null;
@@ -68,6 +73,8 @@ export type NovaScalpQuickWin = {
   entryPrice: number;
   exitPrice: number;
   stopLossPrice: number;
+  entryTouches: number;
+  exitTouches: number;
   /** Illustrative PnL at $100 margin and suggested leverage. */
   previewPnlUsd: number | null;
 };
@@ -164,6 +171,8 @@ export function analyzeScalpSetup(input: {
       entryPrice: null,
       exitPrice: null,
       stopLossPrice: null,
+      entryTouches: null,
+      exitTouches: null,
       expectedPnlUsd: null,
       expectedPnlPctOnMargin: null,
       estimatedHoldMinutes: null,
@@ -229,6 +238,8 @@ export function analyzeScalpSetup(input: {
       entryPrice: null,
       exitPrice: null,
       stopLossPrice: null,
+      entryTouches: null,
+      exitTouches: null,
       expectedPnlUsd: null,
       expectedPnlPctOnMargin: null,
       estimatedHoldMinutes: null,
@@ -247,6 +258,7 @@ export function analyzeScalpSetup(input: {
     Math.round(tf.estHoldMinutes * Math.min(1.4, Math.max(0.35, distPct / 0.45)))
   );
   const { pnlUsd, pnlPctMargin } = estimatePnl(side, entry, exit, amountUsd, leverage);
+  const { entryTouches, exitTouches } = countEntryExitTouches(rows, entry, exit, side);
 
   const rationale =
     side === "long"
@@ -264,6 +276,8 @@ export function analyzeScalpSetup(input: {
     entryPrice: entry,
     exitPrice: exit,
     stopLossPrice: sl,
+    entryTouches,
+    exitTouches,
     expectedPnlUsd: Number(pnlUsd.toFixed(2)),
     expectedPnlPctOnMargin: Number(pnlPctMargin.toFixed(2)),
     estimatedHoldMinutes: estHold,
@@ -319,6 +333,8 @@ export function buildQuickWinCandidate(
     entryPrice: analysis.entryPrice,
     exitPrice: analysis.exitPrice,
     stopLossPrice: analysis.stopLossPrice ?? analysis.entryPrice,
+    entryTouches: analysis.entryTouches ?? 0,
+    exitTouches: analysis.exitTouches ?? 0,
     previewPnlUsd: analysis.expectedPnlUsd,
   };
 }

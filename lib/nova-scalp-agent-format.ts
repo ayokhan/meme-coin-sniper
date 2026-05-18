@@ -15,8 +15,12 @@ export function formatNovaScalpAnalysisForShare(r: NovaScalpAnalysis): { title: 
     `Signal: ${side}`,
     `Margin: $${r.amountUsd} · Leverage: ${r.leverage}x`,
     r.currentPrice != null ? `Current: ${fmtPx(r.currentPrice)}` : null,
-    r.entryPrice != null ? `Entry: ${fmtPx(r.entryPrice)}` : null,
-    r.exitPrice != null ? `Exit target: ${fmtPx(r.exitPrice)}` : null,
+    r.entryPrice != null
+      ? `Entry: ${fmtPx(r.entryPrice)}${r.entryTouches != null ? ` (${r.entryTouches} touches in ${r.timeframeLabel})` : ""}`
+      : null,
+    r.exitPrice != null
+      ? `Exit target: ${fmtPx(r.exitPrice)}${r.exitTouches != null ? ` (${r.exitTouches} touches in ${r.timeframeLabel})` : ""}`
+      : null,
     r.stopLossPrice != null ? `Stop (invalidation): ${fmtPx(r.stopLossPrice)}` : null,
     r.expectedPnlUsd != null
       ? `Expected PnL: ${r.expectedPnlUsd >= 0 ? "+" : ""}$${r.expectedPnlUsd.toLocaleString()} (${r.expectedPnlPctOnMargin?.toFixed(1) ?? "—"}% on margin)`
@@ -35,7 +39,7 @@ export function formatNovaScalpQuickWinForShare(w: NovaScalpQuickWin): { title: 
   const lines = [
     `Contract: ${w.symbol}`,
     `5m plan: ${w.scalpSide.toUpperCase()}`,
-    `Entry: ${fmtPx(w.entryPrice)} · Exit: ${fmtPx(w.exitPrice)} · Stop: ${fmtPx(w.stopLossPrice)}`,
+    `Entry: ${fmtPx(w.entryPrice)} (${w.entryTouches} touches) · Exit: ${fmtPx(w.exitPrice)} (${w.exitTouches} touches) · Stop: ${fmtPx(w.stopLossPrice)}`,
     w.currentPrice != null ? `Current: ${fmtPx(w.currentPrice)}` : null,
     `Score: ${w.quickWinScore} · ~${w.suggestedLeverage}x · ~${w.estHoldMinutes}m hold`,
     `15m range: ${w.rangePct15m}%`,

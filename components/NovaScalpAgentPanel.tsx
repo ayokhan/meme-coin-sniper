@@ -327,10 +327,20 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
                   <div>
                     <span className="text-muted-foreground text-xs">Entry</span>
                     <p className="font-mono font-medium">{fmtUsd(result.entryPrice)}</p>
+                    {result.entryTouches != null && result.side !== "no_entry" && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {result.entryTouches} touch{result.entryTouches === 1 ? "" : "es"} in {result.timeframeLabel}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <span className="text-muted-foreground text-xs">Exit target</span>
                     <p className="font-mono font-medium">{fmtUsd(result.exitPrice)}</p>
+                    {result.exitTouches != null && result.side !== "no_entry" && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {result.exitTouches} touch{result.exitTouches === 1 ? "" : "es"} in {result.timeframeLabel}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <span className="text-muted-foreground text-xs">Stop (invalidation)</span>
@@ -444,6 +454,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
                           {w.scalpSide}
                         </span>{" "}
                         · entry {fmtUsd(w.entryPrice)}
+                        {w.entryTouches > 0 ? ` (${w.entryTouches} touches)` : ""}
                       </p>
                       <p className="text-muted-foreground">
                         ~{w.estHoldMinutes}m · ~{w.suggestedLeverage}x · 15m range {w.rangePct15m}%
