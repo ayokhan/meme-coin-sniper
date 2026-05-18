@@ -36,6 +36,8 @@ import PropFirmBotPanel from "@/components/PropFirmBotPanel";
 import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
+import { TopTabNewPill } from "@/components/TopTabNewPill";
+import { isTabNewBadgeActive } from "@/lib/tab-new-badges";
 import { useDashboardScreenAnalytics } from "@/components/DashboardScreenContext";
 
 type Token = {
@@ -166,12 +168,6 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "nova-connect",
   "chris-clayton",
 ];
-const NEW_TOP_TAB_EXPIRY_ISO: Partial<Record<TabId, string>> = {
-  "nova-futures-narratives": "2026-05-31T23:59:59.999Z",
-  "nova-eagle": "2026-05-31T23:59:59.999Z",
-  "crypto-buddie": "2026-05-31T23:59:59.999Z",
-  "meme-intelligence": "2026-06-30T23:59:59.999Z",
-};
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
 type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc"; symbol?: string; name?: string };
 
@@ -254,15 +250,19 @@ export default function Dashboard() {
   const [topTabFilter, setTopTabFilter] = useState<TopTabFilter>("all");
   const [pageTabFlags, setPageTabFlags] = useState<Record<string, boolean> | null>(null);
   const [pageTabFlagsLoaded, setPageTabFlagsLoaded] = useState(false);
+  const [tabNewBadges, setTabNewBadges] = useState<Record<string, string>>({});
 
-  // Client-side: hide/show main GUI tabs based on owner feature flags.
+  // Client-side: hide/show main GUI tabs based on owner feature flags + NEW badges.
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/feature-flags-public")
-      .then((r) => r.json())
-      .then((d) => {
-        if (cancelled || !d?.success) return;
-        setPageTabFlags(d.flags ?? {});
+    Promise.all([
+      fetch("/api/feature-flags-public").then((r) => r.json()),
+      fetch("/api/tab-new-badges").then((r) => r.json()),
+    ])
+      .then(([flagsData, badgesData]) => {
+        if (cancelled) return;
+        if (flagsData?.success) setPageTabFlags(flagsData.flags ?? {});
+        if (badgesData?.success) setTabNewBadges(badgesData.badges ?? {});
       })
       .catch(() => {})
       .finally(() => {
@@ -319,13 +319,7 @@ export default function Dashboard() {
   };
 
   const showTopTab = (tab: TabId) => isTabVisibleInGui(tab) && matchesTopTabFilter(tab);
-  const isNewTopTab = (tab: TabId) => {
-    const expiryIso = NEW_TOP_TAB_EXPIRY_ISO[tab];
-    if (!expiryIso) return false;
-    const expiryMs = Date.parse(expiryIso);
-    if (!Number.isFinite(expiryMs)) return false;
-    return Date.now() <= expiryMs;
-  };
+  const isNewTopTab = (tab: TabId) => isTabNewBadgeActive(tab, tabNewBadges);
 
   const fetchSubscription = useCallback(() => {
     if (status !== "authenticated") return;
@@ -3299,44 +3293,28 @@ export default function Dashboard() {
                   <TabsTrigger value="nova-futures-narratives" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
                     Nova Futures Narratives
-                    {isNewTopTab("nova-futures-narratives") && (
-                      <span className="ml-2 inline-flex rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold">
-                        NEW
-                      </span>
-                    )}
+                    <TopTabNewPill show={isNewTopTab("nova-futures-narratives")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("nova-eagle") && vipFuturesAddons?.novaEagle && (
                   <TabsTrigger value="nova-eagle" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
                     Nova Eagle
-                    {isNewTopTab("nova-eagle") && (
-                      <span className="ml-2 inline-flex rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold">
-                        NEW
-                      </span>
-                    )}
+                    <TopTabNewPill show={isNewTopTab("nova-eagle")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("crypto-buddie") && vipFuturesAddons?.cryptoBuddie && (
                   <TabsTrigger value="crypto-buddie" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
                     Crypto Buddie
-                    {isNewTopTab("crypto-buddie") && (
-                      <span className="ml-2 inline-flex rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold">
-                        NEW
-                      </span>
-                    )}
+                    <TopTabNewPill show={isNewTopTab("crypto-buddie")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("meme-intelligence") && vipFuturesAddons?.novaMemeIntelligence && (
                   <TabsTrigger value="meme-intelligence" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />
                     Nova Meme Intelligence
-                    {isNewTopTab("meme-intelligence") && (
-                      <span className="ml-2 inline-flex rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold">
-                        NEW
-                      </span>
-                    )}
+                    <TopTabNewPill show={isNewTopTab("meme-intelligence")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("trending-perps") && (
@@ -3370,13 +3348,13 @@ export default function Dashboard() {
                   <TabsTrigger value="coach-calls" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Coach Calls + Telegram Signals</TabsTrigger>
                 )}
                 {showTopTab("nova-forecast") && (
-                  <TabsTrigger value="nova-forecast" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaForecast Agent</TabsTrigger>
+                  <TabsTrigger value="nova-forecast" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaForecast Agent<TopTabNewPill show={isNewTopTab("nova-forecast")} /></TabsTrigger>
                 )}
                 {showTopTab("nova-plus") && (
-                  <TabsTrigger value="nova-plus" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova+</TabsTrigger>
+                  <TabsTrigger value="nova-plus" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova+<TopTabNewPill show={isNewTopTab("nova-plus")} /></TabsTrigger>
                 )}
                 {showTopTab("nova-investment") && (
-                  <TabsTrigger value="nova-investment" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">Nova Investment Agent</TabsTrigger>
+                  <TabsTrigger value="nova-investment" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">Nova Investment Agent<TopTabNewPill show={isNewTopTab("nova-investment")} /></TabsTrigger>
                 )}
                 {showTopTab("bsc") && (
                   <TabsTrigger value="bsc" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>

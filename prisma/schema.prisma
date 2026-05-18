@@ -382,6 +382,13 @@ model FeatureFlag {
   @@index([key])
 }
 
+// Owner-managed green "NEW" pill on main nav tabs (expiry UTC; null = badge off).
+model TabNewBadge {
+  tabId     String    @id
+  expiresAt DateTime?
+  updatedAt DateTime  @updatedAt
+}
+
 // Pinned tokens for AI re-analysis every ~3 min (Solana or BSC)
 model PinnedToken {
   id              String    @id @default(cuid())

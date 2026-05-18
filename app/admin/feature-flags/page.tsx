@@ -6,6 +6,23 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Zap } from "lucide-react";
+import type { TabNewBadgeAdminRow } from "@/lib/tab-new-badges";
+
+function toDatetimeLocalValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromDatetimeLocalValue(value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  const ms = Date.parse(v);
+  if (!Number.isFinite(ms)) return null;
+  return new Date(ms).toISOString();
+}
 
 const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   moralis_go_hunting: {
@@ -247,21 +264,68 @@ export default function AdminFeatureFlagsPage() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [toggling, setToggling] = useState<string | null>(null);
+  const [tabNewRows, setTabNewRows] = useState<TabNewBadgeAdminRow[]>([]);
+  const [tabNewLoading, setTabNewLoading] = useState(true);
+  const [tabNewSaving, setTabNewSaving] = useState<string | null>(null);
+  const [tabNewDraftDates, setTabNewDraftDates] = useState<Record<string, string>>({});
 
   const load = () =>
-    fetch("/api/admin/feature-flags")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success) setFlags(d.flags ?? {});
-        else setError(d.error ?? "Failed to load");
+    Promise.all([
+      fetch("/api/admin/feature-flags").then((r) => r.json()),
+      fetch("/api/admin/tab-new-badges").then((r) => r.json()),
+    ])
+      .then(([flagsData, badgesData]) => {
+        if (flagsData.success) setFlags(flagsData.flags ?? {});
+        else setError(flagsData.error ?? "Failed to load");
+        if (badgesData.success) {
+          const rows = (badgesData.rows ?? []) as TabNewBadgeAdminRow[];
+          setTabNewRows(rows);
+          const drafts: Record<string, string> = {};
+          for (const row of rows) {
+            drafts[row.tabId] = toDatetimeLocalValue(row.expiresAt);
+          }
+          setTabNewDraftDates(drafts);
+        }
       })
       .catch(() => setError("Failed to load"))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setTabNewLoading(false);
+      });
 
   useEffect(() => {
     if (status !== "authenticated") return;
     load();
   }, [status]);
+
+  const patchTabNew = async (body: { tabId: string; expiresAt?: string | null; resetToDefault?: boolean }) => {
+    setTabNewSaving(body.tabId);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const res = await fetch("/api/admin/tab-new-badges", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const rows = (data.rows ?? []) as TabNewBadgeAdminRow[];
+        setTabNewRows(rows);
+        const drafts: Record<string, string> = {};
+        for (const row of rows) {
+          drafts[row.tabId] = toDatetimeLocalValue(row.expiresAt);
+        }
+        setTabNewDraftDates(drafts);
+        setSuccessMessage("Tab NEW badge updated.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Update failed");
+    } catch {
+      setError("Update failed");
+    } finally {
+      setTabNewSaving(null);
+    }
+  };
 
   const handleToggle = async (key: string) => {
     const next = !flags[key];
@@ -397,6 +461,97 @@ export default function AdminFeatureFlagsPage() {
                             {busy ? "…" : enabled ? "Turn off" : "Turn on"}
                           </Button>
                         </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6 border-zinc-200 dark:border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-base">Tab NEW badges</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Control the green <strong className="text-zinc-800 dark:text-zinc-200">NEW</strong> pill on main navigation tabs.
+              Set an expiry date (your local time) or turn off. Tabs without a saved row use code defaults until you change them.
+              Users see updates on refresh (no deploy needed).
+            </p>
+          </CardHeader>
+          <CardContent>
+            {tabNewLoading ? (
+              <p className="text-muted-foreground text-sm">Loading tab badges…</p>
+            ) : (
+              <ul className="space-y-3 max-h-[min(70vh,520px)] overflow-y-auto pr-1">
+                {tabNewRows.map((row) => {
+                  const busy = tabNewSaving === row.tabId;
+                  const draft = tabNewDraftDates[row.tabId] ?? "";
+                  return (
+                    <li
+                      key={row.tabId}
+                      className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 space-y-2"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-medium text-sm text-zinc-900 dark:text-zinc-100">{row.label}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono">{row.tabId}</p>
+                        </div>
+                        <span
+                          className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                            row.active
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                              : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                          }`}
+                        >
+                          {row.active ? "NEW visible" : "NEW off"}
+                          {row.usesDefault && row.active ? " (default)" : ""}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <label className="text-xs text-muted-foreground flex flex-col gap-1 min-w-[200px] flex-1">
+                          Show until (local)
+                          <input
+                            type="datetime-local"
+                            value={draft}
+                            onChange={(e) =>
+                              setTabNewDraftDates((prev) => ({ ...prev, [row.tabId]: e.target.value }))
+                            }
+                            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                          />
+                        </label>
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => {
+                            const iso = fromDatetimeLocalValue(draft);
+                            if (!iso) {
+                              setError("Pick a valid date and time, or use Turn off.");
+                              return;
+                            }
+                            void patchTabNew({ tabId: row.tabId, expiresAt: iso });
+                          }}
+                        >
+                          {busy ? "…" : "Save"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => void patchTabNew({ tabId: row.tabId, expiresAt: null })}
+                        >
+                          Turn off
+                        </Button>
+                        {!row.usesDefault && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() => void patchTabNew({ tabId: row.tabId, resetToDefault: true })}
+                          >
+                            Reset default
+                          </Button>
+                        )}
                       </div>
                     </li>
                   );
