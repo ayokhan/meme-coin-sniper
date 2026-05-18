@@ -55,6 +55,21 @@ export type NovaScalpAnalysis = {
 /** Timeframe used for Quick Wins list + “Analyze” handoff (must match Run Agent logic). */
 export const QUICK_WIN_SCALP_TIMEFRAME_ID: ScalpTimeframeId = "5m";
 
+export type QuickWinScanSummary = {
+  symbolsScanned: number;
+  oscillationQualified: number;
+  entryConfirmed: number;
+};
+
+/** Liquid, tight-range symbol with no confirmed entry yet — shown when Quick Wins list is empty. */
+export type NovaScalpNearSetup = {
+  symbol: string;
+  quickWinScore: number;
+  blendedDirection: string;
+  structureDirection: string;
+  note: string;
+};
+
 export type NovaScalpQuickWin = {
   symbol: string;
   quickWinScore: number;
@@ -289,17 +304,19 @@ export function analyzeScalpSetup(input: {
   };
 }
 
-/** Rank + require a valid 5m scalp plan (same rules as Run Agent). */
-export function buildQuickWinCandidate(
+const QUICK_WIN_MIN_OSCILLATION_SCORE = 36;
+
+/** Rank + require a valid scalp plan on the selected TF (same rules as Run Agent). */
+export function evaluateQuickWinPerp(
   perp: TrendingPerp,
   candles15m: Candle[],
   candles5m: Candle[],
   scalpCandles: Candle[],
   amountUsd = 100,
   scalpTimeframeId: string = QUICK_WIN_SCALP_TIMEFRAME_ID
-): NovaScalpQuickWin | null {
+): { win: NovaScalpQuickWin | null; near: NovaScalpNearSetup | null; oscillationOk: boolean } {
   const oscillation = scoreOscillationProfile(perp, candles15m, candles5m);
-  if (!oscillation) return null;
+  if (!oscillation) return { win: null, near: null, oscillationOk: false };
 
   const tfId = isValidScalpTimeframeId(scalpTimeframeId) ? scalpTimeframeId : QUICK_WIN_SCALP_TIMEFRAME_ID;
   const price = Number(perp.markPx ?? 0) || null;
@@ -312,31 +329,61 @@ export function buildQuickWinCandidate(
     currentPrice: price,
   });
 
-  if (analysis.side === "no_entry" || analysis.entryPrice == null || analysis.exitPrice == null) {
-    return null;
+  if (
+    (analysis.side === "long" || analysis.side === "short") &&
+    analysis.entryPrice != null &&
+    analysis.exitPrice != null
+  ) {
+    const side = analysis.side;
+    return {
+      win: {
+        symbol: perp.coin,
+        quickWinScore: oscillation.quickWinScore,
+        momentumBias: oscillation.momentumBias,
+        rangePct15m: oscillation.rangePct15m,
+        liquidityNote: oscillation.liquidityNote,
+        directionHint: `${side.toUpperCase()} on ${analysis.timeframeLabel}: ${analysis.rationale.split(".")[0]}.`,
+        suggestedLeverage: oscillation.suggestedLeverage,
+        estHoldMinutes: analysis.estimatedHoldMinutes ?? oscillation.estHoldMinutes,
+        currentPrice: price,
+        scalpSide: side,
+        scalpTimeframeId: analysis.timeframeId,
+        scalpTimeframeLabel: analysis.timeframeLabel,
+        entryPrice: analysis.entryPrice,
+        exitPrice: analysis.exitPrice,
+        stopLossPrice: analysis.stopLossPrice ?? analysis.entryPrice,
+        entryTouches: analysis.entryTouches ?? 0,
+        exitTouches: analysis.exitTouches ?? 0,
+        previewPnlUsd: analysis.expectedPnlUsd,
+      },
+      near: null,
+      oscillationOk: true,
+    };
   }
 
-  const side = analysis.side;
-  return {
-    symbol: perp.coin,
-    quickWinScore: oscillation.quickWinScore,
-    momentumBias: oscillation.momentumBias,
-    rangePct15m: oscillation.rangePct15m,
-    liquidityNote: oscillation.liquidityNote,
-    directionHint: `${side.toUpperCase()} on ${analysis.timeframeLabel}: ${analysis.rationale.split(".")[0]}.`,
-    suggestedLeverage: oscillation.suggestedLeverage,
-    estHoldMinutes: analysis.estimatedHoldMinutes ?? oscillation.estHoldMinutes,
-    currentPrice: price,
-    scalpSide: side,
-    scalpTimeframeId: analysis.timeframeId,
-    scalpTimeframeLabel: analysis.timeframeLabel,
-    entryPrice: analysis.entryPrice,
-    exitPrice: analysis.exitPrice,
-    stopLossPrice: analysis.stopLossPrice ?? analysis.entryPrice,
-    entryTouches: analysis.entryTouches ?? 0,
-    exitTouches: analysis.exitTouches ?? 0,
-    previewPnlUsd: analysis.expectedPnlUsd,
-  };
+  const near =
+    oscillation.quickWinScore >= 48
+      ? {
+          symbol: perp.coin,
+          quickWinScore: oscillation.quickWinScore,
+          blendedDirection: analysis.blendedDirection,
+          structureDirection: analysis.structureDirection,
+          note: analysis.rationale.split(".")[0] ?? analysis.rationale,
+        }
+      : null;
+
+  return { win: null, near, oscillationOk: true };
+}
+
+export function buildQuickWinCandidate(
+  perp: TrendingPerp,
+  candles15m: Candle[],
+  candles5m: Candle[],
+  scalpCandles: Candle[],
+  amountUsd = 100,
+  scalpTimeframeId: string = QUICK_WIN_SCALP_TIMEFRAME_ID
+): NovaScalpQuickWin | null {
+  return evaluateQuickWinPerp(perp, candles15m, candles5m, scalpCandles, amountUsd, scalpTimeframeId).win;
 }
 
 type OscillationProfile = {
@@ -377,7 +424,7 @@ function scoreOscillationProfile(
   else if (Math.abs(netPct) < 0.35) score += 6;
 
   const quickWinScore = Math.max(0, Math.min(100, Math.round(score)));
-  if (quickWinScore < 42) return null;
+  if (quickWinScore < QUICK_WIN_MIN_OSCILLATION_SCORE) return null;
 
   let momentumBias: "long" | "short" | "neutral" = "neutral";
   if (bias === "long") momentumBias = "long";

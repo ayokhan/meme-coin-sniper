@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getPerpsByCoins, TOP_ALTCOINS } from "@/lib/api-clients/hyperliquid";
+import { getPerpsByCoins, getTrendingPerps, TOP_ALTCOINS } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
 import {
-  buildQuickWinCandidate,
+  evaluateQuickWinPerp,
   isValidScalpTimeframeId,
   NOVA_SCALP_DISCLAIMER,
   scalpCandlesRequest,
   scalpTimeframeConfig,
+  type NovaScalpNearSetup,
+  type NovaScalpQuickWin,
+  type QuickWinScanSummary,
 } from "@/lib/nova-scalp-agent";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
@@ -21,6 +24,19 @@ function candlePct(candles: Array<[string, string, string, string, string, ...st
   const open = Number(c[1]);
   const close = Number(c[4]);
   return open && open > 0 ? ((close - open) / open) * 100 : fallback;
+}
+
+async function resolveQuickWinUniverse() {
+  const [basePerps, movers] = await Promise.all([
+    getPerpsByCoins([...TOP_ALTCOINS]),
+    getTrendingPerps(30),
+  ]);
+  const byCoin = new Map<string, (typeof basePerps)[number]>();
+  for (const p of basePerps) byCoin.set(p.coin.toUpperCase(), p);
+  for (const p of movers) {
+    if (!byCoin.has(p.coin.toUpperCase())) byCoin.set(p.coin.toUpperCase(), p);
+  }
+  return [...byCoin.values()].slice(0, 32);
 }
 
 export async function GET(request: Request) {
@@ -39,33 +55,60 @@ export async function GET(request: Request) {
     const tfConfig = scalpTimeframeConfig(timeframeId);
     const { interval, limit } = scalpCandlesRequest(timeframeId);
 
-    const perps = await getPerpsByCoins(TOP_ALTCOINS.slice(0, 18));
-    const scored = await Promise.all(
+    const perps = await resolveQuickWinUniverse();
+    const evaluated = await Promise.all(
       perps.map(async (p) => {
-        const [c5, c15, cScalp] = await Promise.all([
-          getCandles(p.coin, "5m", 12),
-          getCandles(p.coin, "15m", 10),
-          getCandles(p.coin, interval, limit),
-        ]);
-        const enriched = {
-          ...p,
-          pct5m: candlePct(c5, p.dayPct),
-          pct15m: candlePct(c15, p.dayPct),
-        };
-        return buildQuickWinCandidate(enriched, c15, c5, cScalp, 100, timeframeId);
+        try {
+          const [c5, c15, cScalp] = await Promise.all([
+            getCandles(p.coin, "5m", 12),
+            getCandles(p.coin, "15m", 10),
+            getCandles(p.coin, interval, limit),
+          ]);
+          if (!cScalp.length) return null;
+
+          const enriched = {
+            ...p,
+            pct5m: candlePct(c5, p.dayPct),
+            pct15m: candlePct(c15, p.dayPct),
+          };
+          return evaluateQuickWinPerp(enriched, c15, c5, cScalp, 100, timeframeId);
+        } catch {
+          return null;
+        }
       })
     );
 
-    const quickWins = scored
-      .filter((w): w is NonNullable<typeof w> => w != null)
-      .sort((a, b) => b.quickWinScore - a.quickWinScore)
-      .slice(0, 10);
+    const quickWins: NovaScalpQuickWin[] = [];
+    const nearSetups: NovaScalpNearSetup[] = [];
+    let oscillationQualified = 0;
+    let entryConfirmed = 0;
+    for (const row of evaluated) {
+      if (!row) continue;
+      if (row.oscillationOk) oscillationQualified += 1;
+      if (row.win) {
+        entryConfirmed += 1;
+        quickWins.push(row.win);
+      } else if (row.near) {
+        nearSetups.push(row.near);
+      }
+    }
+
+    const summary: QuickWinScanSummary = {
+      symbolsScanned: perps.length,
+      oscillationQualified,
+      entryConfirmed,
+    };
+
+    quickWins.sort((a, b) => b.quickWinScore - a.quickWinScore);
+    nearSetups.sort((a, b) => b.quickWinScore - a.quickWinScore);
 
     return NextResponse.json({
       success: true,
       timeframeId,
       timeframeLabel: tfConfig.label,
-      quickWins,
+      quickWins: quickWins.slice(0, 10),
+      nearSetups: nearSetups.slice(0, 6),
+      scanSummary: summary,
       disclaimer: NOVA_SCALP_DISCLAIMER,
     });
   } catch (e) {

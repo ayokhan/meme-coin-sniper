@@ -9,7 +9,9 @@ import {
   QUICK_WIN_SCALP_TIMEFRAME_ID,
   SCALP_TIMEFRAMES,
   type NovaScalpAnalysis,
+  type NovaScalpNearSetup,
   type NovaScalpQuickWin,
+  type QuickWinScanSummary,
   type ScalpTimeframeId,
 } from "@/lib/nova-scalp-agent";
 import {
@@ -162,6 +164,8 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
   const [qwLoading, setQwLoading] = useState(false);
   const [qwError, setQwError] = useState<string | null>(null);
   const [quickWins, setQuickWins] = useState<NovaScalpQuickWin[]>([]);
+  const [nearSetups, setNearSetups] = useState<NovaScalpNearSetup[]>([]);
+  const [qwScanSummary, setQwScanSummary] = useState<QuickWinScanSummary | null>(null);
 
   const runAgent = useCallback(
     async (overrides?: { symbol?: string; leverage?: number; timeframeId?: string }) => {
@@ -214,13 +218,19 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
       if (!res.ok || !data.success) {
         setQwError(data.error ?? "Quick Wins scan failed");
         setQuickWins([]);
+        setNearSetups([]);
+        setQwScanSummary(null);
         return;
       }
       setQuickWins((data.quickWins as NovaScalpQuickWin[]) ?? []);
+      setNearSetups((data.nearSetups as NovaScalpNearSetup[]) ?? []);
+      setQwScanSummary((data.scanSummary as QuickWinScanSummary) ?? null);
       if (typeof data.timeframeLabel === "string") setQwTimeframeLabel(data.timeframeLabel);
     } catch {
       setQwError("Network error");
       setQuickWins([]);
+      setNearSetups([]);
+      setQwScanSummary(null);
     } finally {
       setQwLoading(false);
     }
@@ -421,7 +431,43 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
         </div>
         {qwError && <p className="text-sm text-rose-600 dark:text-rose-400">{qwError}</p>}
         {quickWins.length === 0 && !qwLoading && !qwError && (
-          <p className="text-xs text-muted-foreground">No quick-win candidates right now. Try again in a few minutes.</p>
+          <div className="space-y-3 text-xs text-muted-foreground">
+            <p>
+              {qwScanSummary
+                ? `Scanned ${qwScanSummary.symbolsScanned} Hyperliquid perps on ${qwTimeframeLabel}: ${qwScanSummary.oscillationQualified} had tight range + liquidity, but none had a confirmed LONG/SHORT entry (price mid-range or structure conflict). This is normal in chop — not a platform error.`
+                : "No quick-win candidates right now."}
+            </p>
+            <p>
+              Try <strong className="text-zinc-700 dark:text-zinc-300">15m</strong> or{" "}
+              <strong className="text-zinc-700 dark:text-zinc-300">30m</strong>, or run the agent on a symbol you
+              like (e.g. BTC, DOGE, SOL).
+            </p>
+            {nearSetups.length > 0 && (
+              <div className="rounded-md border border-amber-200/70 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 p-3 space-y-2">
+                <p className="font-medium text-amber-900 dark:text-amber-200">Near setup (no entry yet)</p>
+                <ul className="space-y-1.5">
+                  {nearSetups.map((n) => (
+                    <li key={n.symbol} className="flex flex-wrap items-center justify-between gap-2">
+                      <span>
+                        <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{n.symbol}</span>
+                        <span className="text-muted-foreground"> · score {n.quickWinScore}</span>
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() =>
+                          void runAgent({ symbol: n.symbol, timeframeId: qwTimeframeId })
+                        }
+                      >
+                        Analyze
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         )}
         {quickWins.length > 0 && (
           <div className="space-y-2 max-h-[50vh] overflow-y-auto">
