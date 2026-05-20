@@ -57,7 +57,7 @@ export default function HowItWorksPage() {
             </p>
             <p>
               <strong>VIP/UVIP workspaces:</strong> advanced decision and execution tools (Polymarket Pro, prop-firm bot, Ultimate,
-              and more) when your plan and admin flags allow.
+              and more) included with VIP or available on request.
             </p>
             <p className="text-xs text-muted-foreground pt-2">
               Not financial advice. Forex and metals quotes are reference OHLC; always confirm prices with your broker.

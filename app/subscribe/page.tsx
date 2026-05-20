@@ -283,7 +283,7 @@ function SubscribeContent() {
             </div>
             <div>
               <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, <strong className="text-zinc-800 dark:text-zinc-200">NovaForecast</strong> (crypto perps + NovaRadar), <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (Market Watch for XAUUSD, FX, indices—NovaQ, Smart, Fib, Radar, Scalp when admin-enabled), NovaQ, Nova Investment Agent, VIP Crypto Futures add-ons, on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate. Pay by card or USDC.</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, <strong className="text-zinc-800 dark:text-zinc-200">NovaForecast</strong> (crypto perps + NovaRadar), <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (Market Watch for XAUUSD, FX, indices—NovaQ, Smart, Fib, Radar, and Scalp), NovaQ, Nova Investment Agent, VIP Crypto Futures add-ons, on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate. Pay by card or USDC.</p>
             </div>
           </div>
         </div>
@@ -342,7 +342,7 @@ function SubscribeContent() {
                 <li>Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand)</li>
                 <li>Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram)</li>
                 <li>NovaForecast Agent — crypto perp high/low zones + NovaRadar</li>
-                <li>Nova Forex Agent — Market Watch for XAUUSD, EURUSD, NAS100, US30, and more; NovaQ Forex with S/R touches, Smart Analysis, Fib, Radar (admin-enabled subtabs)</li>
+                <li>Nova Forex Agent — Market Watch for XAUUSD, EURUSD, NAS100, US30, and more; NovaQ Forex with S/R touches, Smart Analysis, Fib, Radar, and Scalp</li>
                 <li>NovaQ (NovaIntelligence) — support/resistance + market direction</li>
                 <li>Nova Investment Agent (Finance &amp; Investment Agent) — risk/duration leverage framing; not personalized advice</li>
                 <li>Nova+ — VIP Crypto Futures; multi-horizon context (not personalized advice)</li>

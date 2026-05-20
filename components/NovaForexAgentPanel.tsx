@@ -234,7 +234,7 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 text-center">
         <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Nova Forex Agent</h2>
         <p className="text-sm text-muted-foreground">
-          Disabled by admin. Enable <strong>Nova Forex Agent</strong> and <strong>Tab: Nova Forex Agent</strong> in Admin → Feature flags.
+          Nova Forex Agent is not available on your account yet. If you have VIP and do not see this tab, contact support.
         </p>
       </div>
     );
@@ -542,7 +542,7 @@ function NovaForexFibPanel({ symbol, isVip, enabled }: { symbol: string; isVip: 
     }
   };
 
-  if (!enabled) return <p className="text-sm text-muted-foreground">NovaForex Fib is disabled by admin.</p>;
+  if (!enabled) return <p className="text-sm text-muted-foreground">NovaForex Fib is not available on your account yet. Contact support if you need access.</p>;
 
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
