@@ -35,6 +35,7 @@ export const TAB_NEW_BADGE_OPTIONS: { id: string; label: string }[] = [
   { id: "wallets", label: "Wallet Tracker" },
   { id: "coach-calls", label: "Coach Calls + Telegram Signals" },
   { id: "nova-forecast", label: "NovaForecast Agent" },
+  { id: "nova-forex", label: "Nova Forex Agent" },
   { id: "nova-plus", label: "Nova+" },
   { id: "nova-investment", label: "Nova Investment Agent" },
   { id: "bsc", label: "BSC" },

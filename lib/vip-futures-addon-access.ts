@@ -130,3 +130,33 @@ export async function getNovaQFibAccess(session: Session | null): Promise<VipFut
   }
   return base;
 }
+
+export async function getNovaForexAgentAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await assertVip(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FOREX_AGENT);
+  if (!on) {
+    return { ok: false, status: 403, error: "Nova Forex Agent is disabled by admin.", disabled: true };
+  }
+  return base;
+}
+
+export async function getNovaForexFibAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await getNovaForexAgentAccess(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FOREX_FIB);
+  if (!on) {
+    return { ok: false, status: 403, error: "Nova Forex Fib is disabled by admin.", disabled: true };
+  }
+  return base;
+}
+
+export async function getNovaForexScalpAgentAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await getNovaForexAgentAccess(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_AGENT);
+  if (!on) {
+    return { ok: false, status: 403, error: "Nova Forex Scalp Agent is disabled by admin.", disabled: true };
+  }
+  return base;
+}

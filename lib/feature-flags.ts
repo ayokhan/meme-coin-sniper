@@ -32,6 +32,8 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_WALLETS: 'page_tab_wallets',
   PAGE_TAB_COACH_CALLS: 'page_tab_coach_calls',
   PAGE_TAB_NOVA_FORECAST: 'page_tab_nova_forecast',
+  /** VIP: Nova Forex Agent top-level tab (forex/CFD Market Watch). Default OFF until admin enables. */
+  PAGE_TAB_NOVA_FOREX: 'page_tab_nova_forex',
   PAGE_TAB_NOVA_PLUS: 'page_tab_nova_plus',
   PAGE_TAB_MEME_INTELLIGENCE: 'page_tab_meme_intelligence',
   PAGE_TAB_NOVA_INVESTMENT_AGENT: 'page_tab_nova_investment_agent',
@@ -94,6 +96,12 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_SCALP_AGENT: 'nova_scalp_agent',
   /** VIP: NovaQ Fib subtab under NovaForecast Agent (Fibonacci retracement from pivot swings; classic NovaQ unchanged). Default OFF until admin enables. */
   NOVA_Q_FIB: 'nova_q_fib',
+  /** VIP: Nova Forex Agent tab + core subtabs (forecast, NovaQ, smart, radar). Default OFF until admin enables. */
+  NOVA_FOREX_AGENT: 'nova_forex_agent',
+  /** VIP: Nova Forex Fib subtab. Default OFF until admin enables. */
+  NOVA_FOREX_FIB: 'nova_forex_fib',
+  /** VIP: Nova Forex Scalp Agent subtab. Default OFF until admin enables. */
+  NOVA_FOREX_SCALP_AGENT: 'nova_forex_scalp_agent',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -118,6 +126,10 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_MEME_RUNNER,
   FEATURE_FLAG_KEYS.NOVA_SCALP_AGENT,
   FEATURE_FLAG_KEYS.NOVA_Q_FIB,
+  FEATURE_FLAG_KEYS.PAGE_TAB_NOVA_FOREX,
+  FEATURE_FLAG_KEYS.NOVA_FOREX_AGENT,
+  FEATURE_FLAG_KEYS.NOVA_FOREX_FIB,
+  FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_AGENT,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {

@@ -37,6 +37,7 @@ import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
 import NovaQFibPanel from "@/components/NovaQFibPanel";
+import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import { TopTabNewPill } from "@/components/TopTabNewPill";
 import { isTabNewBadgeActive } from "@/lib/tab-new-badges";
 import { useDashboardScreenAnalytics } from "@/components/DashboardScreenContext";
@@ -97,6 +98,7 @@ type TabId =
   | "nova-ultimate"
   | "coach-calls"
   | "nova-forecast"
+  | "nova-forex"
   | "nova-plus"
   | "nova-investment"
   | "bsc"
@@ -108,9 +110,9 @@ type TabId =
   | "nova-connect"
   | "chris-clayton";
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
-const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-connect"];
+const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-connect"];
 /** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
 const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   new: "page_tab_new",
   trending: "page_tab_trending",
@@ -129,6 +131,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   wallets: "page_tab_wallets",
   "coach-calls": "page_tab_coach_calls",
   "nova-forecast": "page_tab_nova_forecast",
+  "nova-forex": "page_tab_nova_forex",
   "nova-plus": "page_tab_nova_plus",
   "nova-investment": "page_tab_nova_investment_agent",
   bsc: "page_tab_bsc",
@@ -158,6 +161,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "wallets",
   "coach-calls",
   "nova-forecast",
+  "nova-forex",
   "nova-plus",
   "nova-investment",
   "bsc",
@@ -310,7 +314,7 @@ export default function Dashboard() {
     if (topTabFilter === "all") return true;
     const coreTabs: TabId[] = ["new", "trending", "bsc", "watchlist"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
-    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
+    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
     const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-ultimate"];
     if (topTabFilter === "core") return coreTabs.includes(tab);
     if (topTabFilter === "pro") return proTabs.includes(tab);
@@ -713,6 +717,9 @@ export default function Dashboard() {
     novaMemeIntelligence: boolean;
     novaScalpAgent: boolean;
     novaQFib: boolean;
+    novaForexAgent: boolean;
+    novaForexFib: boolean;
+    novaForexScalpAgent: boolean;
   } | null>(null);
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
   const [showMemeLeaderboard, setShowMemeLeaderboard] = useState(false);
@@ -735,6 +742,9 @@ export default function Dashboard() {
           novaMemeIntelligence: !!d.novaMemeIntelligence,
           novaScalpAgent: !!d.novaScalpAgent,
           novaQFib: !!d.novaQFib,
+          novaForexAgent: !!d.novaForexAgent,
+          novaForexFib: !!d.novaForexFib,
+          novaForexScalpAgent: !!d.novaForexScalpAgent,
         });
       })
       .catch(() => {
@@ -747,6 +757,9 @@ export default function Dashboard() {
             novaMemeIntelligence: false,
             novaScalpAgent: false,
             novaQFib: false,
+            novaForexAgent: false,
+            novaForexFib: false,
+            novaForexScalpAgent: false,
           });
         }
       });
@@ -2357,7 +2370,7 @@ export default function Dashboard() {
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (walletTrackerView === "meme") {
@@ -3353,6 +3366,9 @@ export default function Dashboard() {
                 )}
                 {showTopTab("nova-forecast") && (
                   <TabsTrigger value="nova-forecast" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaForecast Agent<TopTabNewPill show={isNewTopTab("nova-forecast")} /></TabsTrigger>
+                )}
+                {showTopTab("nova-forex") && vipFuturesAddons?.novaForexAgent && (
+                  <TabsTrigger value="nova-forex" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-700">Nova Forex Agent</TabsTrigger>
                 )}
                 {showTopTab("nova-plus") && (
                   <TabsTrigger value="nova-plus" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova+<TopTabNewPill show={isNewTopTab("nova-plus")} /></TabsTrigger>
@@ -6987,6 +7003,15 @@ export default function Dashboard() {
                     </TabsContent>
                   )}
                 </Tabs>
+              </div>
+            ) : activeTab === "nova-forex" ? (
+              <div className="mx-6 py-6">
+                <NovaForexAgentPanel
+                  enabled={!!vipFuturesAddons?.novaForexAgent}
+                  isVip={isVip || isOwner}
+                  novaForexFib={!!vipFuturesAddons?.novaForexFib}
+                  novaForexScalp={!!vipFuturesAddons?.novaForexScalpAgent}
+                />
               </div>
             ) : activeTab === "nova-plus" ? (
               <div className="mx-6 py-6">

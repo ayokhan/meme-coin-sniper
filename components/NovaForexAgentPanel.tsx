@@ -1,0 +1,568 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { ForexSymbolEntry } from "@/lib/forex-market";
+import { NOVA_SCALP_DISCLAIMER, SCALP_TIMEFRAMES, type NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
+
+const Q_TF = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "24h", "1w", "2w", "4w"];
+const FORECAST_RANGES = [
+  { id: "15m", label: "Last 15 mins" },
+  { id: "1h", label: "1 hour" },
+  { id: "4h", label: "4 hours" },
+  { id: "24h", label: "24 hours" },
+  { id: "1w", label: "1 week" },
+  { id: "2w", label: "2 weeks" },
+  { id: "4w", label: "4 weeks" },
+];
+
+type NovaQResult = {
+  symbol: string;
+  currentPrice: number | null;
+  marketDirection: string;
+  overallTrendlineSummary?: string;
+  contractDescription?: string;
+  timeframes: Array<{
+    id: string;
+    label: string;
+    support: number;
+    resistance: number;
+    supportTouches: number;
+    resistanceTouches: number;
+    structureDirection: string;
+    trendlineBias: string;
+    direction: string;
+    trendlineRead?: string;
+    demandSupplyRead?: string;
+  }>;
+};
+
+type Props = {
+  enabled: boolean;
+  isVip: boolean;
+  novaForexFib: boolean;
+  novaForexScalp: boolean;
+};
+
+function fmtUsd(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}`;
+}
+
+export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, novaForexScalp }: Props) {
+  const [subTab, setSubTab] = useState<
+    "forecast" | "nova-q" | "nova-smart" | "nova-q-fib" | "nova-radar" | "nova-scalp"
+  >("forecast");
+  const [catalog, setCatalog] = useState<ForexSymbolEntry[]>([]);
+  const [symbol, setSymbol] = useState("XAUUSD");
+  const [qTfs, setQTfs] = useState<string[]>(["15m", "1h", "1w"]);
+  const [smartTfs, setSmartTfs] = useState<string[]>(["15m", "1h", "1w"]);
+  const [forecastRange, setForecastRange] = useState("2w");
+  const [forecastItems, setForecastItems] = useState<Array<{
+    symbol: string;
+    high: number;
+    low: number;
+    currentPrice: number | null;
+    direction?: string;
+    insight: string;
+  }>>([]);
+  const [forecastLoading, setForecastLoading] = useState(false);
+  const [qResult, setQResult] = useState<NovaQResult | null>(null);
+  const [qLoading, setQLoading] = useState(false);
+  const [qError, setQError] = useState<string | null>(null);
+  const [smartResults, setSmartResults] = useState<Array<Record<string, unknown>>>([]);
+  const [smartLoading, setSmartLoading] = useState(false);
+  const [smartError, setSmartError] = useState<string | null>(null);
+  const [radarLimit, setRadarLimit] = useState("");
+  const [radarSide, setRadarSide] = useState<"long" | "short">("long");
+  const [radarResult, setRadarResult] = useState<Record<string, unknown> | null>(null);
+  const [radarLoading, setRadarLoading] = useState(false);
+  const [radarError, setRadarError] = useState<string | null>(null);
+  const [scalpTf, setScalpTf] = useState("5m");
+  const [scalpAmount, setScalpAmount] = useState("100");
+  const [scalpLev, setScalpLev] = useState("20");
+  const [scalpResult, setScalpResult] = useState<NovaScalpAnalysis | null>(null);
+  const [scalpLoading, setScalpLoading] = useState(false);
+  const [scalpError, setScalpError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !isVip) return;
+    fetch("/api/nova-forex/symbols", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success && Array.isArray(d.symbols)) setCatalog(d.symbols);
+      })
+      .catch(() => {});
+  }, [enabled, isVip]);
+
+  const toggleTf = (list: string[], setList: (v: string[]) => void, tf: string) => {
+    setList(
+      list.includes(tf)
+        ? list.filter((t) => t !== tf)
+        : [...list, tf].sort((a, b) => Q_TF.indexOf(a) - Q_TF.indexOf(b))
+    );
+  };
+
+  const fetchForecast = useCallback(async () => {
+    if (!enabled || !isVip) return;
+    setForecastLoading(true);
+    setError(null);
+    try {
+      const qs = `?range=${forecastRange}`;
+      const res = await fetch(`/api/nova-forex/forecast${qs}`, { credentials: "include", cache: "no-store" });
+      const d = await res.json();
+      if (!res.ok || !d.success) {
+        setError(d.error ?? "Forecast failed");
+        setForecastItems([]);
+        return;
+      }
+      setForecastItems(d.items ?? []);
+    } catch {
+      setError("Forecast request failed");
+    } finally {
+      setForecastLoading(false);
+    }
+  }, [enabled, isVip, forecastRange]);
+
+  const runNovaQ = async () => {
+    setQLoading(true);
+    setQError(null);
+    try {
+      const res = await fetch("/api/nova-forex/nova-q", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ symbol: symbol.trim(), timeframes: qTfs }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.success) {
+        setQError(d.error ?? "NovaQ Forex failed");
+        setQResult(null);
+        return;
+      }
+      setQResult(d.result);
+    } catch {
+      setQError("Request failed");
+    } finally {
+      setQLoading(false);
+    }
+  };
+
+  const runSmart = async () => {
+    setSmartLoading(true);
+    setSmartError(null);
+    try {
+      const res = await fetch("/api/nova-forex/nova-smart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ symbol: symbol.trim(), timeframes: smartTfs }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.success) {
+        setSmartError(d.error ?? "Smart analysis failed");
+        setSmartResults([]);
+        return;
+      }
+      setSmartResults(d.results ?? []);
+    } catch {
+      setSmartError("Request failed");
+    } finally {
+      setSmartLoading(false);
+    }
+  };
+
+  const runRadar = async () => {
+    setRadarLoading(true);
+    setRadarError(null);
+    try {
+      const res = await fetch("/api/nova-forex/nova-radar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ symbol: symbol.trim(), targetPrice: radarLimit, side: radarSide }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.success) {
+        setRadarError(d.error ?? "Radar failed");
+        setRadarResult(null);
+        return;
+      }
+      setRadarResult(d.result);
+    } catch {
+      setRadarError("Request failed");
+    } finally {
+      setRadarLoading(false);
+    }
+  };
+
+  const runScalp = async () => {
+    setScalpLoading(true);
+    setScalpError(null);
+    try {
+      const res = await fetch("/api/nova-forex/scalp/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          symbol: symbol.trim(),
+          timeframeId: scalpTf,
+          amountUsd: Number(scalpAmount) || 100,
+          leverage: Number(scalpLev) || 20,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.success) {
+        setScalpError(d.error ?? "Scalp failed");
+        setScalpResult(null);
+        return;
+      }
+      setScalpResult(d.analysis);
+    } catch {
+      setScalpError("Request failed");
+    } finally {
+      setScalpLoading(false);
+    }
+  };
+
+  if (!enabled) {
+    return (
+      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 text-center">
+        <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Nova Forex Agent</h2>
+        <p className="text-sm text-muted-foreground">
+          Disabled by admin. Enable <strong>Nova Forex Agent</strong> and <strong>Tab: Nova Forex Agent</strong> in Admin → Feature flags.
+        </p>
+      </div>
+    );
+  }
+
+  if (!isVip) {
+    return (
+      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 text-center">
+        <p className="text-sm text-muted-foreground">Nova Forex Agent is for VIP subscribers.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+        <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Nova Forex Agent</h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Forex, indices, and equities from a Market Watch catalog (XAUUSD, EURUSD, NAS100, TSLA, etc.). OHLC reference via Yahoo Finance chart API—similar symbols to TradingView / FOREX.com; your broker bid/ask may differ.
+        </p>
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <span className="text-xs text-muted-foreground">Symbol:</span>
+          <input
+            list="nova-forex-symbols"
+            value={symbol}
+            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+            placeholder="XAUUSD"
+            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-40 bg-white dark:bg-zinc-800"
+          />
+          <datalist id="nova-forex-symbols">
+            {catalog.map((c) => (
+              <option key={c.symbol} value={c.symbol}>
+                {c.label}
+              </option>
+            ))}
+          </datalist>
+        </div>
+      </div>
+
+      <Tabs value={subTab} onValueChange={(v) => setSubTab(v as typeof subTab)} className="space-y-4">
+        <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg flex-wrap h-auto gap-1">
+          <TabsTrigger value="forecast">NovaForex Forecast</TabsTrigger>
+          <TabsTrigger value="nova-q">NovaQ Forex</TabsTrigger>
+          <TabsTrigger value="nova-smart">Nova Forex Smart</TabsTrigger>
+          {novaForexFib && <TabsTrigger value="nova-q-fib">NovaForex Fib</TabsTrigger>}
+          <TabsTrigger value="nova-radar">NovaForex Radar</TabsTrigger>
+          {novaForexScalp && <TabsTrigger value="nova-scalp">Nova Forex Scalp</TabsTrigger>}
+        </TabsList>
+
+        <TabsContent value="forecast" className="mt-0">
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+            <p className="text-xs text-muted-foreground mb-3">
+              High / low for all Market Watch symbols (like NovaForecast Agent for crypto). Default range: 2 weeks.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              <select
+                value={forecastRange}
+                onChange={(e) => setForecastRange(e.target.value)}
+                className="text-sm border rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+              >
+                {FORECAST_RANGES.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              <Button size="sm" onClick={fetchForecast} disabled={forecastLoading}>
+                {forecastLoading ? "Loading…" : "Refresh Market Watch"}
+              </Button>
+            </div>
+            {error && <p className="text-sm text-rose-600 mb-2">{error}</p>}
+            {forecastItems.length > 0 && (
+              <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Symbol</TableHead>
+                      <TableHead className="text-right text-xs">High</TableHead>
+                      <TableHead className="text-right text-xs">Low</TableHead>
+                      <TableHead className="text-right text-xs">Price</TableHead>
+                      <TableHead className="text-xs">Insight</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {forecastItems.map((row) => (
+                      <TableRow key={row.symbol}>
+                        <TableCell className="font-mono text-xs">{row.symbol}</TableCell>
+                        <TableCell className="text-right font-mono text-xs text-rose-600">{fmtUsd(row.high)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs text-emerald-600">{fmtUsd(row.low)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{fmtUsd(row.currentPrice)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[240px]">{row.insight}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="nova-q" className="mt-0">
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+            <p className="text-xs text-muted-foreground mb-3">
+              Support / resistance, structure, trendline, blended direction, and <strong>S/R touches</strong> per timeframe (same engine as NovaQ).
+            </p>
+            <TfPicker options={Q_TF} selected={qTfs} onToggle={(tf) => toggleTf(qTfs, setQTfs, tf)} />
+            <Button className="mt-3" onClick={runNovaQ} disabled={qLoading || qTfs.length === 0}>
+              {qLoading ? "Running…" : "Run NovaQ Forex"}
+            </Button>
+            {qError && <p className="text-sm text-rose-600 mt-2">{qError}</p>}
+            {qResult && (
+              <div className="mt-4 space-y-3">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="font-mono font-semibold">{qResult.symbol}</span>
+                  <span className="text-xs text-muted-foreground">Price: {fmtUsd(qResult.currentPrice)}</span>
+                  <Badge variant="outline">{qResult.marketDirection}</Badge>
+                </div>
+                {qResult.contractDescription && (
+                  <p className="text-xs text-muted-foreground">{qResult.contractDescription}</p>
+                )}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">TF</TableHead>
+                      <TableHead className="text-right text-xs">Support</TableHead>
+                      <TableHead className="text-right text-xs">S touches</TableHead>
+                      <TableHead className="text-right text-xs">Resistance</TableHead>
+                      <TableHead className="text-right text-xs">R touches</TableHead>
+                      <TableHead className="text-xs">Blended</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {qResult.timeframes.map((tf) => (
+                      <TableRow key={tf.id}>
+                        <TableCell className="text-xs">{tf.label}</TableCell>
+                        <TableCell className="text-right font-mono text-xs text-emerald-600">{fmtUsd(tf.support)}</TableCell>
+                        <TableCell className="text-right text-xs tabular-nums">{tf.supportTouches}</TableCell>
+                        <TableCell className="text-right font-mono text-xs text-rose-600">{fmtUsd(tf.resistance)}</TableCell>
+                        <TableCell className="text-right text-xs tabular-nums">{tf.resistanceTouches}</TableCell>
+                        <TableCell className="text-xs">{tf.direction}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="nova-smart" className="mt-0">
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+            <TfPicker options={Q_TF} selected={smartTfs} onToggle={(tf) => toggleTf(smartTfs, setSmartTfs, tf)} />
+            <Button className="mt-3" onClick={runSmart} disabled={smartLoading}>
+              {smartLoading ? "Running…" : "Run Nova Forex Smart"}
+            </Button>
+            {smartError && <p className="text-sm text-rose-600 mt-2">{smartError}</p>}
+            {smartResults.map((r, i) => (
+              <div key={i} className="mt-4 rounded-md border p-3 text-xs space-y-1">
+                <p className="font-mono font-semibold">{String(r.symbol)}</p>
+                <p>
+                  Smart long {fmtUsd(r.smartLongEntry as number)} · Smart short {fmtUsd(r.smartShortEntry as number)} · Strategy:{" "}
+                  {String(r.strategy)}
+                </p>
+                <p className="text-muted-foreground">{String(r.recommendationNote ?? r.strategyNote)}</p>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        {novaForexFib && (
+          <TabsContent value="nova-q-fib" className="mt-0">
+            <NovaForexFibPanel symbol={symbol} isVip={isVip} enabled={novaForexFib} />
+          </TabsContent>
+        )}
+
+        <TabsContent value="nova-radar" className="mt-0">
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+            <div className="flex flex-wrap gap-3 mb-3">
+              <input
+                type="text"
+                placeholder="Limit price"
+                value={radarLimit}
+                onChange={(e) => setRadarLimit(e.target.value)}
+                className="text-sm border rounded-md px-2 py-1.5 w-36"
+              />
+              <select
+                value={radarSide}
+                onChange={(e) => setRadarSide(e.target.value as "long" | "short")}
+                className="text-sm border rounded-md px-2 py-1.5"
+              >
+                <option value="long">Long</option>
+                <option value="short">Short</option>
+              </select>
+              <Button onClick={runRadar} disabled={radarLoading}>
+                {radarLoading ? "Running…" : "Run NovaForex Radar"}
+              </Button>
+            </div>
+            {radarError && <p className="text-sm text-rose-600">{radarError}</p>}
+            {radarResult && (
+              <div className="text-xs space-y-2">
+                <p>{String(radarResult.summary)}</p>
+                <p className="text-muted-foreground">{String(radarResult.disclaimer)}</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {novaForexScalp && (
+          <TabsContent value="nova-scalp" className="mt-0">
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+              <div className="flex flex-wrap gap-2 mb-3">
+                <select value={scalpTf} onChange={(e) => setScalpTf(e.target.value)} className="text-sm border rounded-md px-2 py-1.5">
+                  {SCALP_TIMEFRAMES.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  placeholder="Amount USD"
+                  value={scalpAmount}
+                  onChange={(e) => setScalpAmount(e.target.value)}
+                  className="text-sm border rounded-md px-2 py-1.5 w-28"
+                />
+                <input
+                  type="number"
+                  placeholder="Leverage"
+                  value={scalpLev}
+                  onChange={(e) => setScalpLev(e.target.value)}
+                  className="text-sm border rounded-md px-2 py-1.5 w-24"
+                />
+                <Button onClick={runScalp} disabled={scalpLoading}>
+                  {scalpLoading ? "Running…" : "Run Nova Forex Scalp"}
+                </Button>
+              </div>
+              {scalpError && <p className="text-sm text-rose-600">{scalpError}</p>}
+              {scalpResult && (
+                <div className="text-xs space-y-2">
+                  <p>
+                    <strong>{scalpResult.side.toUpperCase()}</strong> · Entry {fmtUsd(scalpResult.entryPrice)} · Exit{" "}
+                    {fmtUsd(scalpResult.exitPrice)} · Touches E{scalpResult.entryTouches ?? "—"} / X{scalpResult.exitTouches ?? "—"}
+                  </p>
+                  <p>{scalpResult.rationale}</p>
+                  <p className="text-muted-foreground">{NOVA_SCALP_DISCLAIMER}</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        )}
+      </Tabs>
+    </div>
+  );
+}
+
+function TfPicker({
+  options,
+  selected,
+  onToggle,
+}: {
+  options: string[];
+  selected: string[];
+  onToggle: (tf: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((tf) => (
+        <label key={tf} className="flex items-center gap-1 cursor-pointer text-sm">
+          <input type="checkbox" checked={selected.includes(tf)} onChange={() => onToggle(tf)} className="rounded" />
+          {tf}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+/** Forex-specific Fib panel (calls /api/nova-forex/nova-q-fib). */
+function NovaForexFibPanel({ symbol, isVip, enabled }: { symbol: string; isVip: boolean; enabled: boolean }) {
+  const [timeframes, setTimeframes] = useState(["15m", "1h", "1w"]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+
+  const run = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/nova-forex/nova-q-fib", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ symbol: symbol.trim(), timeframes }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.success) {
+        setError(d.error ?? "Failed");
+        setResult(null);
+        return;
+      }
+      setResult(d.result);
+    } catch {
+      setError("Request failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!enabled) return <p className="text-sm text-muted-foreground">NovaForex Fib is disabled by admin.</p>;
+
+  return (
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+      <p className="text-xs text-muted-foreground mb-3">Fib retracement from pivot swings for {symbol || "your symbol"}.</p>
+      <TfPicker
+        options={["5m", "15m", "1h", "4h", "24h", "1w", "2w", "4w"]}
+        selected={timeframes}
+        onToggle={(tf) =>
+          setTimeframes((prev) =>
+            prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf]
+          )
+        }
+      />
+      <Button className="mt-3" onClick={run} disabled={loading || !isVip}>
+        {loading ? "Running…" : "Run NovaForex Fib"}
+      </Button>
+      {error && <p className="text-sm text-rose-600 mt-2">{error}</p>}
+      {result && (
+        <p className="text-xs mt-3 text-muted-foreground">{String((result as { overallRead?: string }).overallRead ?? "")}</p>
+      )}
+    </div>
+  );
+}

@@ -106,6 +106,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Tab: NovaForecast Agent",
     description: "Show/hide the NovaForecast Agent tab in the main GUI.",
   },
+  page_tab_nova_forex: {
+    label: "Tab: Nova Forex Agent",
+    description: "Show/hide the Nova Forex Agent tab in the main GUI (also requires Nova Forex Agent feature flag ON).",
+  },
   page_tab_nova_plus: {
     label: "Tab: Nova+",
     description: "Show/hide the Nova+ tab (VIP-only risk-managed trade analysis) in the main GUI.",
@@ -199,6 +203,21 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "NovaQ Fib (NovaForecast)",
     description:
       "When ON, VIP users see the NovaQ Fib subtab under NovaForecast Agent: Fibonacci retracement levels from pivot swings (38.2%–88.6% pockets), separate from classic NovaQ. Supports XAU/XAG via Blofin. Default OFF until you enable it.",
+  },
+  nova_forex_agent: {
+    label: "Nova Forex Agent",
+    description:
+      "When ON, VIP users can use Nova Forex Agent (Market Watch forecast, NovaQ Forex, Smart, Radar). Uses Yahoo Finance reference OHLC for symbols like XAUUSD, EURUSD, NAS100. Default OFF until you enable it.",
+  },
+  nova_forex_fib: {
+    label: "Nova Forex Fib",
+    description:
+      "When ON, VIP users see NovaForex Fib subtab under Nova Forex Agent. Requires Nova Forex Agent ON. Default OFF.",
+  },
+  nova_forex_scalp_agent: {
+    label: "Nova Forex Scalp Agent",
+    description:
+      "When ON, VIP users see Nova Forex Scalp subtab. Requires Nova Forex Agent ON. Default OFF.",
   },
   nova_liquidation_map: {
     label: "Liquidation Map (Crypto Futures)",
