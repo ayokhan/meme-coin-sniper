@@ -46,7 +46,8 @@ function AboutContent() {
               {heroBody} Use{" "}
               <strong className="text-cyan-600 dark:text-cyan-400">NovaStaris AI Agent</strong> for fast contract
               analysis, <strong className="text-cyan-600 dark:text-cyan-400">Crypto Futures</strong> tooling for
-              execution framing, and <strong className="text-cyan-600 dark:text-cyan-400">Nova Polymarket Pro</strong>{" "}
+              execution framing, <strong className="text-emerald-600 dark:text-emerald-400">Nova Forex Agent</strong> for
+              gold, FX, and index structure, and <strong className="text-cyan-600 dark:text-cyan-400">Nova Polymarket Pro</strong>{" "}
               for wallet intelligence and radar-driven market context. {heroTail}
             </p>
             <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto">
@@ -71,6 +72,7 @@ function AboutContent() {
                 <strong className="text-zinc-900 dark:text-zinc-100">Transactions</strong>,{" "}
                 <strong className="text-zinc-900 dark:text-zinc-100">Crypto Narratives</strong>,{" "}
                 <strong className="text-zinc-900 dark:text-zinc-100">NovaForecast + NovaRadar</strong>,{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">Nova Forex Agent</strong> (Market Watch for XAUUSD, indices, FX),{" "}
                 <strong className="text-zinc-900 dark:text-zinc-100">NovaQ</strong>,{" "}
                 <strong className="text-zinc-900 dark:text-zinc-100">Nova Investment Agent</strong>,{" "}
                 <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Trading Bot</strong>, and{" "}
@@ -82,7 +84,7 @@ function AboutContent() {
               <p className="text-base leading-relaxed">
                 <strong className="text-zinc-900 dark:text-zinc-100">Trending perps</strong>—one feed, all the heat. See what’s pumping or dumping across 5m, 15m, 30m, 1h, and 24h so you catch momentum before the crowd.{" "}
                 <strong className="text-zinc-900 dark:text-zinc-100">Perp Radar</strong> scans for the biggest 24h perp movers across exchanges so you don’t miss 100%+ runs.{" "}
-                <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong> gives Pro and VIP users two edges: <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong>—upload a chart (any timeframe), set margin and leverage, and get AI support/resistance, entry zone, take profit and stop loss tailored for futures; <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong>—a 4-phase checklist (macro bias, daily flow check, pre-trade setup, execution rules) using powerful tools (COT reports via CFTC and Tradingster, Coinglass, CryptoQuant, Arkham, Whale Alert) and six non-negotiable rules so you trade with institutional flow instead of against it. VIP-only tools in that workflow also include <strong className="text-zinc-900 dark:text-zinc-100">Nova Forecast &amp; NovaQ</strong>,{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong> gives Pro and VIP users two edges: <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong>—upload a chart (any timeframe), set margin and leverage, and get AI support/resistance, entry zone, take profit and stop loss tailored for futures; <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong>—a 4-phase checklist (macro bias, daily flow check, pre-trade setup, execution rules) using powerful tools (COT reports via CFTC and Tradingster, Coinglass, CryptoQuant, Arkham, Whale Alert) and six non-negotiable rules so you trade with institutional flow instead of against it.                 VIP-only tools in that workflow also include <strong className="text-zinc-900 dark:text-zinc-100">Nova Forecast &amp; NovaQ</strong> for crypto perps, and <strong className="text-zinc-900 dark:text-zinc-100">Nova Forex Agent</strong> when you trade gold, FX, or indices in the same session,{" "}
                 <strong className="text-zinc-900 dark:text-zinc-100">Nova Investment Agent</strong>{" "}
                 <span className="text-zinc-600 dark:text-zinc-500">(Finance &amp; Investment Agent)</span>,{" "}
                 <strong className="text-zinc-900 dark:text-zinc-100">Nova+</strong>, and <strong className="text-zinc-900 dark:text-zinc-100">NovaScalper</strong>.
@@ -118,9 +120,9 @@ function AboutContent() {
                 <div className="flex gap-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4">
                   <Sparkles className="h-6 w-6 text-amber-500 shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">VIP: CT Scan, Wallet Tracker, Coach Calls, NovaForecast, NovaQ, Nova Investment Agent (Finance &amp; Investment), Nova+, NovaScalper + AI Trading Bot</h3>
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">VIP: CT Scan, Wallet Tracker, Coach Calls, NovaForecast, Nova Forex, NovaQ, Nova Investment Agent (Finance &amp; Investment), Nova+, NovaScalper + AI Trading Bot</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                      VIP subscribers get CT Scan (Twitter tracker) on-demand and Wallet Tracker access: Top Leverage Traders for all VIP users, plus Meme Coins Traders on-demand. Add Coach Calls + Telegram Signals, <strong className="text-zinc-900 dark:text-zinc-100">NovaForecast Agent</strong>, <strong className="text-zinc-900 dark:text-zinc-100">NovaQ</strong> (support/resistance + direction), <strong className="text-zinc-900 dark:text-zinc-100">Nova Investment Agent</strong>{" "}
+                      VIP subscribers get CT Scan (Twitter tracker) on-demand and Wallet Tracker access: Top Leverage Traders for all VIP users, plus Meme Coins Traders on-demand. Add Coach Calls + Telegram Signals, <strong className="text-zinc-900 dark:text-zinc-100">NovaForecast Agent</strong> (crypto perps), <strong className="text-zinc-900 dark:text-zinc-100">Nova Forex Agent</strong>—your Market Watch desk for symbols like <strong className="text-zinc-900 dark:text-zinc-100">XAUUSD</strong>, EURUSD, NAS100, and US30 with NovaQ Forex, Smart Analysis, Fib, Radar, and optional Scalp subtabs—<strong className="text-zinc-900 dark:text-zinc-100">NovaQ</strong> (support/resistance + direction), <strong className="text-zinc-900 dark:text-zinc-100">Nova Investment Agent</strong>{" "}
                       <span className="text-zinc-600 dark:text-zinc-500">(Finance &amp; Investment Agent)</span>{" "}
                       for risk/duration leverage framing, <strong className="text-zinc-900 dark:text-zinc-100">Nova+</strong> and{" "}
                       <strong className="text-zinc-900 dark:text-zinc-100">NovaScalper</strong> under Crypto Futures (access rules apply), plus the NovaStaris AI Trading Bot (Blofin). Add your own meme coin wallets (max 5) or leverage wallets (unlimited). Coach Calls: exclusive CA in-app and via Telegram; add your Telegram ID to get signals there.
@@ -142,6 +144,15 @@ function AboutContent() {
                     <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Perp Radar</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
                       Cross-exchange radar for the biggest 24h perp movers—so you can catch Binance and CEX perps going 100%+ before CT wakes up.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 rounded-xl border-2 border-emerald-200/80 dark:border-emerald-700/80 bg-emerald-50/50 dark:bg-emerald-950/30 p-4">
+                  <Activity className="h-6 w-6 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Nova Forex Agent</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                      One VIP tab for traditional-market traders: refresh a full <strong className="text-zinc-900 dark:text-zinc-100">Market Watch</strong> (gold, silver, majors, indices, top equities), then drill into any symbol—<strong className="text-zinc-900 dark:text-zinc-100">NovaQ Forex</strong> with support, resistance, and touch counts; Smart Analysis for entries; Fib for pullback pockets; Radar for limit realism; optional Scalp for fast plans. Built for the chart you already watch—without leaving NovaStaris.
                     </p>
                   </div>
                 </div>
@@ -174,7 +185,7 @@ function AboutContent() {
                       <strong className="text-zinc-900 dark:text-zinc-100">Nova Investment Agent</strong>{" "}
                       <span className="text-zinc-600 dark:text-zinc-500">(Finance &amp; Investment Agent)</span>,{" "}
                       <strong className="text-zinc-900 dark:text-zinc-100">Nova+</strong> (analysis framing), and a separate tab,{" "}
-                      <strong className="text-zinc-900 dark:text-zinc-100">NovaScalper</strong>, for a different style of automation when enabled—details are product-only. Wallet tracking lives under the Wallet Tracker tab. Other dashboard tabs cover <strong className="text-zinc-900 dark:text-zinc-100">Crypto Narratives</strong>, <strong className="text-zinc-900 dark:text-zinc-100">NovaRadar</strong> (NovaForecast), <strong className="text-zinc-900 dark:text-zinc-100">Nova Polymarket Pro</strong>, <strong className="text-zinc-900 dark:text-zinc-100">Nova Prop Firm Bot</strong>, and <strong className="text-zinc-900 dark:text-zinc-100">Nova Ultimate</strong> where your plan and on-demand flags apply.
+                      <strong className="text-zinc-900 dark:text-zinc-100">NovaScalper</strong>, for a different style of automation when enabled—details are product-only. Wallet tracking lives under the Wallet Tracker tab. Other dashboard tabs cover <strong className="text-zinc-900 dark:text-zinc-100">Crypto Narratives</strong>, <strong className="text-zinc-900 dark:text-zinc-100">NovaForecast</strong> and <strong className="text-zinc-900 dark:text-zinc-100">Nova Forex Agent</strong>, <strong className="text-zinc-900 dark:text-zinc-100">Nova Polymarket Pro</strong>, <strong className="text-zinc-900 dark:text-zinc-100">Nova Prop Firm Bot</strong>, and <strong className="text-zinc-900 dark:text-zinc-100">Nova Ultimate</strong> where your plan and on-demand flags apply.
                     </p>
                   </div>
                 </div>

@@ -22,7 +22,7 @@ export default function HowItWorksPage() {
           <CardHeader>
             <CardTitle>How It Works</CardTitle>
             <p className="text-sm text-muted-foreground">
-              NovaStaris is now a multi-market workspace, not just a meme coin scanner.
+              NovaStaris is a multi-market workspace: meme coins, crypto perps, forex &amp; indices, and prediction markets.
             </p>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300">
@@ -37,6 +37,15 @@ export default function HowItWorksPage() {
               <strong>Crypto Futures:</strong> AI chart analysis + institutional workflow support for structured execution.
             </p>
             <p>
+              <strong>NovaForecast Agent (VIP):</strong> scan crypto perp ranges—high/low zones, NovaQ structure, NovaRadar for
+              limit orders. Built for BTC, ETH, alts, and metals on supported venues.
+            </p>
+            <p>
+              <strong>Nova Forex Agent (VIP):</strong> your broker-style Market Watch in one tab—refresh gold, FX majors, indices,
+              and top equities, then run <strong>NovaQ Forex</strong> (support, resistance, touch counts), Smart Analysis, Fib,
+              Radar, and optional Scalp on symbols like <strong>XAUUSD</strong>. Separate desk from crypto; same Nova discipline.
+            </p>
+            <p>
               <strong>Nova Futures Narratives:</strong> headline narrative + CFTC institutional positioning context.
             </p>
             <p>
@@ -47,7 +56,11 @@ export default function HowItWorksPage() {
               <strong>Wallet Tracker:</strong> monitor tracked wallet behavior and convert insights into watchlists.
             </p>
             <p>
-              <strong>VIP/UVIP workspaces:</strong> advanced decision and execution tools for specialized strategies.
+              <strong>VIP/UVIP workspaces:</strong> advanced decision and execution tools (Polymarket Pro, prop-firm bot, Ultimate,
+              and more) when your plan and admin flags allow.
+            </p>
+            <p className="text-xs text-muted-foreground pt-2">
+              Not financial advice. Forex and metals quotes are reference OHLC; always confirm prices with your broker.
             </p>
           </CardContent>
         </Card>

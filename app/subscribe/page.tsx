@@ -251,15 +251,17 @@ function SubscribeContent() {
           {isVariantB ? (
             <>
               Build your edge with a plan that matches your speed. <strong className="text-zinc-800 dark:text-zinc-200">Pro</strong> gives you daily signal and execution structure;{" "}
-              <strong className="text-zinc-800 dark:text-zinc-200">VIP</strong> adds Nova Polymarket Pro and premium on-demand workflows for traders scaling into bigger opportunities.
+              <strong className="text-zinc-800 dark:text-zinc-200">VIP</strong> adds NovaForecast, Nova Forex Agent, Nova Polymarket Pro, and premium on-demand workflows for traders scaling into bigger opportunities.
             </>
           ) : (
             <>
               NovaStaris gives you one platform to discover, analyze, and execute across meme coins, futures, and prediction markets.
               <strong className="text-zinc-800 dark:text-zinc-200"> Pro</strong> is your high-speed analysis stack for Solana/BSC
               plus futures context. <strong className="text-zinc-800 dark:text-zinc-200">VIP</strong> unlocks advanced
-              workflows including on-demand tools such as <strong className="text-zinc-800 dark:text-zinc-200">Nova Polymarket Pro</strong>,
-              <strong className="text-zinc-800 dark:text-zinc-200"> Nova Prop Firm Bot</strong>, and{" "}
+              workflows including <strong className="text-zinc-800 dark:text-zinc-200">NovaForecast</strong> and{" "}
+              <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (gold, FX, indices), plus on-demand tools such as{" "}
+              <strong className="text-zinc-800 dark:text-zinc-200">Nova Polymarket Pro</strong>,{" "}
+              <strong className="text-zinc-800 dark:text-zinc-200">Nova Prop Firm Bot</strong>, and{" "}
               <strong className="text-zinc-800 dark:text-zinc-200">Nova Ultimate</strong>. Pay by card or USDC (Solana).
             </>
           )}
@@ -269,7 +271,7 @@ function SubscribeContent() {
           <ul className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 list-disc list-inside space-y-1">
             <li>Faster idea-to-trade workflow across meme coins, futures, and prediction markets</li>
             <li>Higher quality setups with AI-assisted structure, context, and risk framing</li>
-            <li>VIP adds Nova Polymarket Pro and on-demand workspaces for deeper edge</li>
+            <li>VIP adds NovaForecast, Nova Forex Agent, Nova Polymarket Pro, and on-demand workspaces for deeper edge</li>
           </ul>
         </div>
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 mb-6">
@@ -281,7 +283,7 @@ function SubscribeContent() {
             </div>
             <div>
               <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand), Coach Calls + Telegram Signals, NovaForecast (NovaRadar), NovaQ, <strong className="text-zinc-800 dark:text-zinc-200">Nova Investment Agent</strong> (Finance &amp; Investment Agent), VIP Crypto Futures add-ons (Nova+ multi-horizon framing; NovaScalper repeat-cycle tool when enabled), on-demand AI Trading Bot (Blofin), on-demand Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate. Pay by card or USDC.</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, <strong className="text-zinc-800 dark:text-zinc-200">NovaForecast</strong> (crypto perps + NovaRadar), <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (Market Watch for XAUUSD, FX, indices—NovaQ, Smart, Fib, Radar, Scalp when admin-enabled), NovaQ, Nova Investment Agent, VIP Crypto Futures add-ons, on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate. Pay by card or USDC.</p>
             </div>
           </div>
         </div>
@@ -312,7 +314,7 @@ function SubscribeContent() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
-        {tier === "pro" ? "Pro: $50/month. Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast (NovaRadar), NovaQ, Nova Investment Agent (Finance & Investment Agent), Nova+ and NovaScalper (Crypto Futures—eligible accounts), on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate."}
+        {tier === "pro" ? "Pro: $50/month. Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan, Wallet Tracker, Coach Calls, NovaForecast, Nova Forex Agent (gold/FX desk), NovaQ, Nova Investment Agent, Nova+, NovaScalper, on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate."}
         </p>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
           Pick the tier that matches your current pace: Pro for daily execution edge, VIP for maximum market coverage and on-demand premium workflows.
@@ -339,7 +341,8 @@ function SubscribeContent() {
                 <li>CT Scan (on-demand; request access, admin enables per user)</li>
                 <li>Wallet Tracker (Top Leverage Traders for all VIP users; Meme Coins Traders on-demand)</li>
                 <li>Coach Calls + Telegram Signals (exclusive CA in-app and via Telegram)</li>
-                <li>NovaForecast — includes NovaRadar</li>
+                <li>NovaForecast Agent — crypto perp high/low zones + NovaRadar</li>
+                <li>Nova Forex Agent — Market Watch for XAUUSD, EURUSD, NAS100, US30, and more; NovaQ Forex with S/R touches, Smart Analysis, Fib, Radar (admin-enabled subtabs)</li>
                 <li>NovaQ (NovaIntelligence) — support/resistance + market direction</li>
                 <li>Nova Investment Agent (Finance &amp; Investment Agent) — risk/duration leverage framing; not personalized advice</li>
                 <li>Nova+ — VIP Crypto Futures; multi-horizon context (not personalized advice)</li>
