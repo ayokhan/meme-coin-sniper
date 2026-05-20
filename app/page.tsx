@@ -3379,34 +3379,38 @@ export default function Dashboard() {
                 {showTopTab("nova-investment") && (
                   <TabsTrigger value="nova-investment" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">Nova Investment Agent<TopTabNewPill show={isNewTopTab("nova-investment")} /></TabsTrigger>
                 )}
-                {showTopTab("bsc") && (
-                  <TabsTrigger value="bsc" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
-                )}
-                {showTopTab("watchlist") && (
-                  <TabsTrigger value="watchlist" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 flex items-center justify-center gap-1.5 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
-                    <span>Watchlist</span>
-                    {watchlist.length > 0 ? (
-                      <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-black/10 dark:bg-white/15 px-1 text-[11px] font-semibold">
-                        {watchlist.length}
-                      </span>
-                    ) : null}
-                  </TabsTrigger>
-                )}
-                {showTopTab("nova-connect") && (
-                  <TabsTrigger
-                    value="nova-connect"
-                    className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 flex items-center justify-center data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600 gap-1"
-                  >
-                    <span>NovaConnect</span>
-                    {novaConnectHasUnreadDm && (
-                      <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 dark:bg-emerald-300" aria-hidden />
-                    )}
-                  </TabsTrigger>
-                )}
-                {showTopTab("chris-clayton") && (
-                  <TabsTrigger value="chris-clayton" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">Online Boss Strategy</TabsTrigger>
-                )}
               </TabsList>
+              {(showTopTab("bsc") || showTopTab("watchlist") || showTopTab("nova-connect") || showTopTab("chris-clayton")) && (
+                <TabsList className="w-full mt-3 pt-3 border-t border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-100/95 dark:bg-zinc-800/90 flex-wrap h-auto gap-2 p-2 rounded-xl [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab]]:leading-none [&_[role=tab]]:items-center [&_[role=tab]]:justify-center [&_[role=tab][data-state=active]]:shadow-sm">
+                  {showTopTab("bsc") && (
+                    <TabsTrigger value="bsc" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
+                  )}
+                  {showTopTab("watchlist") && (
+                    <TabsTrigger value="watchlist" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 flex items-center justify-center gap-1.5 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
+                      <span>Watchlist</span>
+                      {watchlist.length > 0 ? (
+                        <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-black/10 dark:bg-white/15 px-1 text-[11px] font-semibold">
+                          {watchlist.length}
+                        </span>
+                      ) : null}
+                    </TabsTrigger>
+                  )}
+                  {showTopTab("nova-connect") && (
+                    <TabsTrigger
+                      value="nova-connect"
+                      className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 flex items-center justify-center data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600 gap-1"
+                    >
+                      <span>NovaConnect</span>
+                      {novaConnectHasUnreadDm && (
+                        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 dark:bg-emerald-300" aria-hidden />
+                      )}
+                    </TabsTrigger>
+                  )}
+                  {showTopTab("chris-clayton") && (
+                    <TabsTrigger value="chris-clayton" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">Online Boss Strategy</TabsTrigger>
+                  )}
+                </TabsList>
+              )}
               </div>
             </Tabs>
           </CardHeader>
@@ -3466,64 +3470,7 @@ export default function Dashboard() {
                 </Button>
               </div>
             ) : (
-              <div className="pt-6 sm:pt-8 pb-1">
-            {activeTab === "new" && (
-              <div className="mx-3 sm:mx-6 mb-8 sm:mb-10 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">View:</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {(["new_pairs", "final_stretch", "migrated"] as const).map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => setGoHuntingView(v)}
-                        className={`px-3 py-1.5 min-h-[36px] rounded-md text-sm font-medium transition-colors ${
-                          goHuntingView === v
-                            ? "bg-cyan-500 text-white dark:bg-cyan-600"
-                            : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
-                        }`}
-                      >
-                        {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : "Migrated"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <span className="mt-2 block text-xs text-muted-foreground">
-                  {goHuntingView === "new_pairs" && "All new pairs (last 60m — meme coins move fast)."}
-                  {goHuntingView === "final_stretch" && "Pump.fun tokens still on bonding curve."}
-                  {goHuntingView === "migrated" && "Recently migrated to Raydium/Orca."}
-                </span>
-              </div>
-            )}
-            {activeTab === "bsc" && (
-              <div className="mx-3 sm:mx-6 mb-8 sm:mb-10 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Go Hunting:</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {(["new_pairs", "final_stretch", "migrated", "trending"] as const).map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => setBscGoHuntingView(v)}
-                        className={`px-3 py-1.5 min-h-[36px] rounded-md text-sm font-medium transition-colors ${
-                          bscGoHuntingView === v
-                            ? "bg-cyan-500 text-white dark:bg-cyan-600"
-                            : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
-                        }`}
-                      >
-                        {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : v === "migrated" ? "Migrated" : "Trending"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <span className="mt-2 block text-xs text-muted-foreground">
-                  {bscGoHuntingView === "new_pairs" && "New BSC pairs (PancakeSwap etc.)."}
-                  {bscGoHuntingView === "final_stretch" && "BSC pairs on main DEXs."}
-                  {bscGoHuntingView === "migrated" && "Migrated BSC pairs."}
-                  {bscGoHuntingView === "trending" && "Trending BSC meme coins by volume and price change."}
-                </span>
-              </div>
-            )}
+              <div className="pt-4 sm:pt-6 pb-1">
             {activeTab === "ct" && ctAccounts.length > 0 && (
               <details className="mx-3 sm:mx-6 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
                 <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -3612,6 +3559,63 @@ export default function Dashboard() {
                   </button>
                 ))}
                 <span className="text-xs text-muted-foreground ml-1">5m/15m/30m estimated from 1h. Up to 80 coins.</span>
+              </div>
+            )}
+            {activeTab === "new" && (
+              <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">View:</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(["new_pairs", "final_stretch", "migrated"] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setGoHuntingView(v)}
+                        className={`px-3 py-1.5 min-h-[36px] rounded-md text-sm font-medium transition-colors ${
+                          goHuntingView === v
+                            ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                            : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                        }`}
+                      >
+                        {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : "Migrated"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <span className="mt-2 block text-xs text-muted-foreground">
+                  {goHuntingView === "new_pairs" && "All new pairs (last 60m — meme coins move fast)."}
+                  {goHuntingView === "final_stretch" && "Pump.fun tokens still on bonding curve."}
+                  {goHuntingView === "migrated" && "Recently migrated to Raydium/Orca."}
+                </span>
+              </div>
+            )}
+            {activeTab === "bsc" && (
+              <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">View:</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(["new_pairs", "final_stretch", "migrated", "trending"] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setBscGoHuntingView(v)}
+                        className={`px-3 py-1.5 min-h-[36px] rounded-md text-sm font-medium transition-colors ${
+                          bscGoHuntingView === v
+                            ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                            : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                        }`}
+                      >
+                        {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : v === "migrated" ? "Migrated" : "Trending"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <span className="mt-2 block text-xs text-muted-foreground">
+                  {bscGoHuntingView === "new_pairs" && "New BSC pairs (PancakeSwap etc.)."}
+                  {bscGoHuntingView === "final_stretch" && "BSC pairs on main DEXs."}
+                  {bscGoHuntingView === "migrated" && "Migrated BSC pairs."}
+                  {bscGoHuntingView === "trending" && "Trending BSC meme coins by volume and price change."}
+                </span>
               </div>
             )}
             {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-ultimate" && tokensForDisplay.length === 0 ? (
