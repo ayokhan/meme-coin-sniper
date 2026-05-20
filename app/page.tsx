@@ -115,7 +115,7 @@ const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
 /** Main dashboard top nav — flex-none overrides default TabsTrigger flex-1 so wrapped tabs do not overlap. */
 const DASHBOARD_TOP_TABS_LIST_CLASS =
-  "w-full flex flex-wrap content-start items-start gap-x-3 gap-y-2.5 p-3 h-auto min-h-0 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-100/95 dark:bg-zinc-800/90 [&_[role=tab]]:flex-none [&_[role=tab]]:grow-0 [&_[role=tab]]:shrink-0 [&_[role=tab]]:inline-flex [&_[role=tab]]:items-center [&_[role=tab]]:gap-1.5 [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:leading-normal [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab][data-state=active]]:shadow-sm";
+  "!flex w-full flex-wrap content-start items-start gap-x-3 gap-y-2.5 p-3 h-auto min-h-0 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-100/95 dark:bg-zinc-800/90 [&_[role=tab]]:flex-none [&_[role=tab]]:grow-0 [&_[role=tab]]:shrink-0 [&_[role=tab]]:inline-flex [&_[role=tab]]:items-center [&_[role=tab]]:gap-1.5 [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:leading-normal [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab][data-state=active]]:shadow-sm";
 const DASHBOARD_TOP_TAB_TRIGGER_CLASS =
   "flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600";
 const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
@@ -3291,8 +3291,8 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-              <div className="-mx-1 sm:mx-0 overflow-x-visible overflow-y-visible pb-1">
-              <TabsList className="w-full bg-zinc-100/95 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 flex-wrap h-auto gap-2 p-2 rounded-xl [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab]]:leading-none [&_[role=tab]]:items-center [&_[role=tab]]:justify-center [&_[role=tab][data-state=active]]:shadow-sm">
+              <div className="-mx-1 sm:mx-0 flex flex-col gap-3 w-full overflow-x-visible overflow-y-visible pb-1">
+              <TabsList className={DASHBOARD_TOP_TABS_LIST_CLASS}>
                 {showTopTab("new") && (
                   <TabsTrigger value="new" className="flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
                 )}
@@ -3397,7 +3397,7 @@ export default function Dashboard() {
                 )}
               </TabsList>
               {(showTopTab("bsc") || showTopTab("watchlist") || showTopTab("nova-connect") || showTopTab("chris-clayton")) && (
-                <TabsList className={`${DASHBOARD_TOP_TABS_LIST_CLASS} mt-3 pt-3 border-t border-zinc-200/80 dark:border-zinc-700/80`}>
+                <TabsList className={`${DASHBOARD_TOP_TABS_LIST_CLASS} border-t border-zinc-200/80 dark:border-zinc-700/80 pt-3`}>
                   {showTopTab("bsc") && (
                     <TabsTrigger value="bsc" className="flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">BSC</TabsTrigger>
                   )}
