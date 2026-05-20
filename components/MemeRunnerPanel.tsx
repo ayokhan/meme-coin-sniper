@@ -366,8 +366,7 @@ export default function MemeRunnerPanel() {
     return (
       <Card>
         <CardContent className="py-8 text-sm text-muted-foreground text-center">
-          Meme Runner is turned off. Ask the site owner to enable{" "}
-          <span className="font-mono text-xs">nova_meme_runner</span> in Admin → Feature flags.
+          Meme Runner is not available on your account yet. Contact support if you need access.
         </CardContent>
       </Card>
     );

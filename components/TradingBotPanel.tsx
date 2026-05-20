@@ -1485,7 +1485,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-3 text-sm">
                     <p className="font-medium text-amber-800 dark:text-amber-200">VIP on-demand access required</p>
                     <p className="text-amber-700 dark:text-amber-300 mt-1">
-                      Ask admin to enable <strong>Nova Polymarket Pro (On demand)</strong> for your account.
+                      Contact support to enable <strong>Nova Polymarket Pro (On demand)</strong> on your account.
                     </p>
                   </div>
                 </CardContent>

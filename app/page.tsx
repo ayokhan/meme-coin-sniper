@@ -3367,8 +3367,11 @@ export default function Dashboard() {
                 {showTopTab("nova-forecast") && (
                   <TabsTrigger value="nova-forecast" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />NovaForecast Agent<TopTabNewPill show={isNewTopTab("nova-forecast")} /></TabsTrigger>
                 )}
-                {showTopTab("nova-forex") && vipFuturesAddons?.novaForexAgent && (
-                  <TabsTrigger value="nova-forex" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-700">Nova Forex Agent</TabsTrigger>
+                {showTopTab("nova-forex") && (
+                  <TabsTrigger value="nova-forex" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-700">
+                    Nova Forex Agent
+                    <TopTabNewPill show={isNewTopTab("nova-forex")} />
+                  </TabsTrigger>
                 )}
                 {showTopTab("nova-plus") && (
                   <TabsTrigger value="nova-plus" className="rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600"><Flame className="inline-block h-5 w-5 flame-hot-tab mr-1.5 -mt-0.5 animate-flame-flicker shrink-0" aria-hidden />Nova+<TopTabNewPill show={isNewTopTab("nova-plus")} /></TabsTrigger>
@@ -6304,7 +6307,7 @@ export default function Dashboard() {
                 }
                 return lockedCard({
                   title: "Nova Prop Firm Bot — On demand",
-                  body: "You have VIP. Ask an admin to enable Nova Prop Firm Bot on your account, or contact support.",
+                  body: "You have VIP. Nova Prop Firm Bot is not on your account yet — contact support if you need access.",
                   ctaHref: "/support?subject=Nova%20Prop%20Firm%20Bot%20access%20request",
                   ctaLabel: "Contact for access",
                 });
@@ -6365,7 +6368,7 @@ export default function Dashboard() {
                 }
                 return lockedCard({
                   title: "Nova Ultimate — On demand",
-                  body: "You have VIP. Ask an admin to enable Nova Ultimate for your account, or contact support.",
+                  body: "You have VIP. Nova Ultimate is not on your account yet — contact support if you need access.",
                   ctaHref: "/support?subject=Nova%20Ultimate%20access%20request",
                   ctaLabel: "Contact for access",
                 });

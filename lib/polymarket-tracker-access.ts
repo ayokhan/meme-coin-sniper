@@ -17,7 +17,7 @@ export async function getPolymarketTrackerAccess(session: Session | null): Promi
   }
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_POLYMARKET_TRACKER);
   if (!enabled) {
-    return { ok: false, status: 403, error: "Nova Polymarket Tracker is disabled by admin.", disabled: true };
+    return { ok: false, status: 403, error: "Nova Polymarket Tracker is not available on your account yet. Contact support if you need access.", disabled: true };
   }
   const userId = session.user.id;
   if (isOwnerSession(session)) {

@@ -18,7 +18,7 @@ export async function getDeepMemeAgentAccess(session: Session | null): Promise<D
   }
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_DEEP_MEME_AGENT);
   if (!enabled) {
-    return { ok: false, status: 403, error: "Deep Meme Agent is disabled by admin.", disabled: true };
+    return { ok: false, status: 403, error: "Deep Meme Agent is not available on your account yet. Contact support if you need access.", disabled: true };
   }
   if (isOwnerSession(session)) {
     return { ok: true, userId: session.user.id, isOwner: true };

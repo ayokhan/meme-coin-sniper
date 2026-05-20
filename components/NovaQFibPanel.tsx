@@ -53,7 +53,7 @@ export default function NovaQFibPanel({ enabled, isVip }: Props) {
 
   const run = useCallback(async () => {
     if (!enabled) {
-      setError("NovaQ Fib is disabled by admin. Ask an admin to enable it under Feature flags.");
+      setError("NovaQ Fib is not available on your account yet. Contact support if you need access.");
       return;
     }
     if (!isVip) {
@@ -111,7 +111,7 @@ export default function NovaQFibPanel({ enabled, isVip }: Props) {
       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
         <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaQ Fib</h2>
         <p className="text-sm text-muted-foreground">
-          This add-on is turned off. As an admin, enable <strong className="text-zinc-700 dark:text-zinc-300">NovaQ Fib (NovaForecast)</strong> in Admin → Feature flags.
+          NovaQ Fib is not available on your account yet. Contact support if you need access.
         </p>
       </div>
     );

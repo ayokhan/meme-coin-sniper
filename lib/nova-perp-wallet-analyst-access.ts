@@ -20,7 +20,7 @@ export async function getNovaPerpWalletAnalystAccess(session: Session | null): P
 
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_PERP_WALLET_ANALYST);
   if (!enabled) {
-    return { ok: false, status: 403, error: "Nova Perp Wallet Analyst Agent is disabled by admin.", disabled: true };
+    return { ok: false, status: 403, error: "Nova Perp Wallet Analyst Agent is not available on your account yet. Contact support if you need access.", disabled: true };
   }
 
   const userId = session.user.id;

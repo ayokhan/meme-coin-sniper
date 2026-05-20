@@ -17,7 +17,7 @@ export async function getPolymarketLeaderboardAccess(session: Session | null): P
     return {
       ok: false,
       status: 403,
-      error: "Nova Polymarket Leaderboard is disabled by admin.",
+      error: "Nova Polymarket Leaderboard is not available on your account yet. Contact support if you need access.",
       leaderboardDisabled: true,
     };
   }

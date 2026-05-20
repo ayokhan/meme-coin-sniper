@@ -17,7 +17,7 @@ export async function getPolymarketCopyBotAccess(session: Session | null): Promi
     return {
       ok: false,
       status: 403,
-      error: "Nova Polymarket Copy Trading Bot is disabled by admin.",
+      error: "Nova Polymarket Copy Trading Bot is not available on your account yet. Contact support if you need access.",
       copyBotDisabled: true,
     };
   }

@@ -326,11 +326,11 @@ export default function DeepMemeAgentPanel({ onAnalyzeWallet }: DeepMemeAgentPan
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
         <Bot className="h-10 w-10 text-violet-500 mb-3" />
         <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-          {disabled ? "Deep Meme Agent is disabled by admin." : "VIP required for Deep Meme Agent."}
+          {disabled ? "Deep Meme Agent is not available on your account yet. Contact support if you need access." : "VIP required for Deep Meme Agent."}
         </p>
         <p className="mt-2 text-sm text-muted-foreground max-w-md">
           {disabled
-            ? "Owner can re-enable this in Nova Admin → Feature flags."
+            ? "Contact support if you need this enabled on your account."
             : "Upgrade to VIP to scan any Solana, BSC, or Ethereum contract for honeypot/rug risk, security flags, top holders, dev wallet, and a buy / avoid verdict."}
         </p>
         {!disabled && (

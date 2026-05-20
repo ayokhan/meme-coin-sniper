@@ -7,7 +7,7 @@ export async function getMemeRunnerAccess(session: Session | null): Promise<VipF
   if (!base.ok) return base;
   const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_RUNNER);
   if (!on) {
-    return { ok: false, status: 403, error: "Meme Runner is disabled by admin.", disabled: true };
+    return { ok: false, status: 403, error: "Meme Runner is not available on your account yet. Contact support if you need access.", disabled: true };
   }
   return base;
 }

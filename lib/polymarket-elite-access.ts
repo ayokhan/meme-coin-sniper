@@ -17,7 +17,7 @@ export async function getPolymarketEliteAccess(session: Session | null): Promise
     return {
       ok: false,
       status: 403,
-      error: "Polymarket Elite is disabled by admin.",
+      error: "Polymarket Elite is not available on your account yet. Contact support if you need access.",
       eliteDisabled: true,
     };
   }

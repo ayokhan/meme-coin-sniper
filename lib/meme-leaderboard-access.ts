@@ -19,7 +19,7 @@ export async function getMemeLeaderboardAccess(session: Session | null): Promise
 
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_LEADERBOARD);
   if (!enabled) {
-    return { ok: false, status: 403, error: "Meme Coin Advantage Bundle is disabled by admin.", disabled: true };
+    return { ok: false, status: 403, error: "Meme Coin Advantage Bundle is not available on your account yet. Contact support if you need access.", disabled: true };
   }
 
   if (isOwnerSession(session)) {

@@ -445,29 +445,46 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
         {novaForexScalp && (
           <TabsContent value="nova-scalp" className="mt-0">
             <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-              <div className="flex flex-wrap gap-2 mb-3">
-                <select value={scalpTf} onChange={(e) => setScalpTf(e.target.value)} className="text-sm border rounded-md px-2 py-1.5">
-                  {SCALP_TIMEFRAMES.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  placeholder="Amount USD"
-                  value={scalpAmount}
-                  onChange={(e) => setScalpAmount(e.target.value)}
-                  className="text-sm border rounded-md px-2 py-1.5 w-28"
-                />
-                <input
-                  type="number"
-                  placeholder="Leverage"
-                  value={scalpLev}
-                  onChange={(e) => setScalpLev(e.target.value)}
-                  className="text-sm border rounded-md px-2 py-1.5 w-24"
-                />
-                <Button onClick={runScalp} disabled={scalpLoading}>
+              <p className="text-xs text-muted-foreground mb-3">
+                Short-hold scalp plan from structure and range position on your symbol (e.g. XAUUSD). Not financial advice.
+              </p>
+              <div className="flex flex-wrap items-end gap-3 mb-3">
+                <label className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Timeframe</span>
+                  <select
+                    value={scalpTf}
+                    onChange={(e) => setScalpTf(e.target.value)}
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 block min-w-[7rem]"
+                  >
+                    {SCALP_TIMEFRAMES.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Amount (USD margin)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={scalpAmount}
+                    onChange={(e) => setScalpAmount(e.target.value)}
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-28 bg-white dark:bg-zinc-800"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Leverage</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={125}
+                    value={scalpLev}
+                    onChange={(e) => setScalpLev(e.target.value)}
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-24 bg-white dark:bg-zinc-800"
+                  />
+                </label>
+                <Button onClick={runScalp} disabled={scalpLoading} className="mb-0.5">
                   {scalpLoading ? "Running…" : "Run Nova Forex Scalp"}
                 </Button>
               </div>

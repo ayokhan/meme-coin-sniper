@@ -38,7 +38,7 @@ async function authorize(request: Request): Promise<{ ok: true; isCron: boolean 
   if (!session?.user) return { ok: false, status: 401, error: "Sign in required." };
   if (!isOwnerSession(session)) return { ok: false, status: 403, error: "Owner only." };
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_LEADERBOARD);
-  if (!enabled) return { ok: false, status: 403, error: "Meme Coin Advantage Bundle is disabled by admin." };
+  if (!enabled) return { ok: false, status: 403, error: "Meme Coin Advantage Bundle is not available on your account yet. Contact support if you need access." };
   return { ok: true, isCron: false };
 }
 

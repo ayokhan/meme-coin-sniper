@@ -529,8 +529,7 @@ export default function NovaPolymarketTrackerPanel() {
     return (
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
         <CardContent className="pt-6 text-sm text-muted-foreground">
-          Nova Polymarket Tracker is turned off in Admin → Feature flags. Ask the site owner to enable{" "}
-          <span className="font-mono text-xs">nova_polymarket_tracker</span>.
+          Nova Polymarket Tracker is not available on your account yet. Contact support if you need access.
         </CardContent>
       </Card>
     );
@@ -618,7 +617,7 @@ export default function NovaPolymarketTrackerPanel() {
                 {sortedTraders.length === 0 && !listLoading ? (
                   <tr>
                     <td colSpan={tableColSpan} className="p-6 text-center text-muted-foreground">
-                      No tracked wallets yet. {isOwner ? "Add wallets in Admin → Polymarket Tracker." : "Ask admin to add global traders, or add your own below."}
+                      No tracked wallets yet. {isOwner ? "Add wallets in Admin → Polymarket Tracker." : "Contact support for global traders, or add your own below."}
                     </td>
                   </tr>
                 ) : (

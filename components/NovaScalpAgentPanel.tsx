@@ -245,7 +245,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
     return (
       <LockedMessage
         title="Nova Scalp Agent"
-        body="This feature is turned off. Ask an admin to enable Nova Scalp Agent under Admin → Feature Flags."
+        body="Nova Scalp Agent is not available on your account yet. Contact support if you need access."
       />
     );
   }

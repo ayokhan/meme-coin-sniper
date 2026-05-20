@@ -17,7 +17,7 @@ export async function getPolymarketFiveMinsAccess(session: Session | null): Prom
     return {
       ok: false,
       status: 403,
-      error: "Nova 5 mins is disabled by admin.",
+      error: "Nova 5 mins is not available on your account yet. Contact support if you need access.",
       fiveMinsDisabled: true,
     };
   }

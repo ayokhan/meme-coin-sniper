@@ -12,7 +12,7 @@ export async function assertNovaUltimateApiAccess(): Promise<
   if (tier !== "vip") return { ok: false, status: 403, error: "VIP subscription required for Nova Ultimate." };
   const u = await prisma.user.findUnique({ where: { id: userId } });
   if (!(u as { novaUltimateOnDemand?: boolean } | null)?.novaUltimateOnDemand) {
-    return { ok: false, status: 403, error: "Nova Ultimate is not enabled for your account. Ask an admin to turn it on." };
+    return { ok: false, status: 403, error: "Nova Ultimate is not available on your account yet. Contact support if you need access." };
   }
   return { ok: true, userId };
 }

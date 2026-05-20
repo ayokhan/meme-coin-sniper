@@ -728,7 +728,7 @@ export default function MemeLeaderboardPanel({
                         ? "Loading…"
                         : isOwner
                           ? "No snapshots yet. Click \"Recompute snapshots\" to build the first leaderboard."
-                          : "No snapshots yet. Ask admin to recompute."}
+                          : "No snapshots yet. Contact support if you need a refresh."}
                     </TableCell>
                   </TableRow>
                 ) : (

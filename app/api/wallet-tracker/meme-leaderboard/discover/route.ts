@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   }
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_LEADERBOARD);
   if (!enabled) {
-    return NextResponse.json({ success: false, error: "Meme Coin Advantage Bundle is disabled by admin." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "Meme Coin Advantage Bundle is not available on your account yet. Contact support if you need access." }, { status: 403 });
   }
 
   try {

@@ -335,7 +335,7 @@ export async function POST(request: Request) {
     const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_LIQUIDATION_MAP);
     if (!enabled) {
       return NextResponse.json(
-        { success: false, error: "Liquidation Map is disabled by admin.", disabled: true },
+        { success: false, error: "Liquidation Map is not available on your account yet. Contact support if you need access.", disabled: true },
         { status: 403 }
       );
     }
