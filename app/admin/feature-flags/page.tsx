@@ -204,6 +204,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users see the NovaQ Fib subtab under NovaForecast Agent: Fibonacci retracement levels from pivot swings (38.2%–88.6% pockets), separate from classic NovaQ. Supports XAU/XAG via Blofin. Default OFF until you enable it.",
   },
+  nova_extra: {
+    label: "Nova Extra (NovaForecast)",
+    description:
+      "When ON, VIP users see the Nova Extra subtab under NovaForecast Agent: UTC hour and time-range seasonality (when price tended to rise or fall) for BTC, XAU, forex symbols, etc. Helps time long vs short entries. Default OFF until you enable it.",
+  },
   nova_forex_agent: {
     label: "Nova Forex Agent",
     description:

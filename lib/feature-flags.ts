@@ -96,6 +96,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_SCALP_AGENT: 'nova_scalp_agent',
   /** VIP: NovaQ Fib subtab under NovaForecast Agent (Fibonacci retracement from pivot swings; classic NovaQ unchanged). Default OFF until admin enables. */
   NOVA_Q_FIB: 'nova_q_fib',
+  /** VIP: Nova Extra subtab under NovaForecast Agent (intraday UTC hour/range long-short seasonality). Default OFF until admin enables. */
+  NOVA_EXTRA: 'nova_extra',
   /** VIP: Nova Forex Agent tab + core subtabs (forecast, NovaQ, smart, radar). Default OFF until admin enables. */
   NOVA_FOREX_AGENT: 'nova_forex_agent',
   /** VIP: Nova Forex Fib subtab. Default OFF until admin enables. */
@@ -126,6 +128,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_MEME_RUNNER,
   FEATURE_FLAG_KEYS.NOVA_SCALP_AGENT,
   FEATURE_FLAG_KEYS.NOVA_Q_FIB,
+  FEATURE_FLAG_KEYS.NOVA_EXTRA,
   FEATURE_FLAG_KEYS.PAGE_TAB_NOVA_FOREX,
   FEATURE_FLAG_KEYS.NOVA_FOREX_AGENT,
   FEATURE_FLAG_KEYS.NOVA_FOREX_FIB,

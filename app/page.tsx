@@ -37,6 +37,7 @@ import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
 import NovaQFibPanel from "@/components/NovaQFibPanel";
+import NovaExtraPanel from "@/components/NovaExtraPanel";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import { TopTabNewPill } from "@/components/TopTabNewPill";
 import { isTabNewBadgeActive } from "@/lib/tab-new-badges";
@@ -722,6 +723,7 @@ export default function Dashboard() {
     novaMemeIntelligence: boolean;
     novaScalpAgent: boolean;
     novaQFib: boolean;
+    novaExtra: boolean;
     novaForexAgent: boolean;
     novaForexFib: boolean;
     novaForexScalpAgent: boolean;
@@ -747,6 +749,7 @@ export default function Dashboard() {
           novaMemeIntelligence: !!d.novaMemeIntelligence,
           novaScalpAgent: !!d.novaScalpAgent,
           novaQFib: !!d.novaQFib,
+          novaExtra: !!d.novaExtra,
           novaForexAgent: !!d.novaForexAgent,
           novaForexFib: !!d.novaForexFib,
           novaForexScalpAgent: !!d.novaForexScalpAgent,
@@ -762,6 +765,7 @@ export default function Dashboard() {
             novaMemeIntelligence: false,
             novaScalpAgent: false,
             novaQFib: false,
+            novaExtra: false,
             novaForexAgent: false,
             novaForexFib: false,
             novaForexScalpAgent: false,
@@ -1080,7 +1084,7 @@ export default function Dashboard() {
   const [novaForecastRange, setNovaForecastRange] = useState<string>("2w");
   const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
   const [novaForecastSubTab, setNovaForecastSubTab] = useState<
-    "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-radar" | "nova-scalp"
+    "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-radar" | "nova-scalp"
   >("agent");
   type NovaSmartTfResult = {
     id: string;
@@ -6399,7 +6403,7 @@ export default function Dashboard() {
               })()
             ) : activeTab === "nova-forecast" ? (
               <div className="mx-6 py-6">
-                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-radar" | "nova-scalp")} className="space-y-4">
+                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-radar" | "nova-scalp")} className="space-y-4">
                   <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg flex-wrap h-auto gap-1">
                     <TabsTrigger value="agent" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaForecast Agent
@@ -6413,6 +6417,11 @@ export default function Dashboard() {
                     {vipFuturesAddons?.novaQFib && (
                       <TabsTrigger value="nova-q-fib" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                         NovaQ Fib
+                      </TabsTrigger>
+                    )}
+                    {vipFuturesAddons?.novaExtra && (
+                      <TabsTrigger value="nova-extra" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                        Nova Extra
                       </TabsTrigger>
                     )}
                     <TabsTrigger value="nova-radar" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
@@ -6873,6 +6882,11 @@ export default function Dashboard() {
                   {vipFuturesAddons?.novaQFib && (
                     <TabsContent value="nova-q-fib" className="mt-0">
                       <NovaQFibPanel enabled={!!vipFuturesAddons.novaQFib} isVip={isVip || isOwner} />
+                    </TabsContent>
+                  )}
+                  {vipFuturesAddons?.novaExtra && (
+                    <TabsContent value="nova-extra" className="mt-0">
+                      <NovaExtraPanel enabled={!!vipFuturesAddons.novaExtra} isVip={isVip || isOwner} />
                     </TabsContent>
                   )}
                   <TabsContent value="nova-radar" className="mt-0">

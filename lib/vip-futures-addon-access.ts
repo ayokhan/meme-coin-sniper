@@ -130,6 +130,16 @@ export async function getNovaQFibAccess(session: Session | null): Promise<VipFut
   return base;
 }
 
+export async function getNovaExtraAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await assertVip(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_EXTRA);
+  if (!on) {
+    return { ok: false, status: 403, error: "Nova Extra is not available on your account yet. Contact support if you need access.", disabled: true };
+  }
+  return base;
+}
+
 export async function getNovaForexAgentAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
   const base = await assertVip(session);
   if (!base.ok) return base;
