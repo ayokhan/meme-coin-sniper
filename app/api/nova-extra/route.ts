@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { analyzeNovaExtra, NOVA_EXTRA_LOOKBACK_DAYS } from "@/lib/nova-extra";
+import {
+  analyzeNovaExtra,
+  isValidNovaExtraTimezone,
+  NOVA_EXTRA_LOOKBACK_OPTIONS,
+} from "@/lib/nova-extra";
 import { getNovaExtraAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +24,17 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const symbol = String(body.symbol ?? "BTC").trim();
-    const lookbackDays = Number(body.lookbackDays ?? NOVA_EXTRA_LOOKBACK_DAYS);
+    const lookbackId = String(body.lookbackId ?? "6w").trim();
+    const timezoneRaw = String(body.timezone ?? "UTC").trim();
 
-    const result = await analyzeNovaExtra(symbol, lookbackDays);
+    if (!NOVA_EXTRA_LOOKBACK_OPTIONS.some((o) => o.id === lookbackId)) {
+      return NextResponse.json({ success: false, error: "Invalid lookback period." }, { status: 400 });
+    }
+    if (!isValidNovaExtraTimezone(timezoneRaw)) {
+      return NextResponse.json({ success: false, error: "Invalid timezone." }, { status: 400 });
+    }
+
+    const result = await analyzeNovaExtra(symbol, { lookbackId, timezone: timezoneRaw });
     return NextResponse.json({ success: true, result });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Nova Extra analysis failed";

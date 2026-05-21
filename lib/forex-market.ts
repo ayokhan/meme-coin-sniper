@@ -126,13 +126,16 @@ function toHlCandle(ts: number, o: number, h: number, l: number, c: number, v: n
 export async function getForexCandles(
   symbol: string,
   hlInterval: string,
-  limit: number
+  limit: number,
+  rangeOverride?: string
 ): Promise<Candle[]> {
   const key = normalizeForexSymbol(symbol);
   const yahoo = resolveYahooTicker(key);
   if (!yahoo) throw new Error(`Unknown forex symbol: ${symbol}. Pick from Market Watch or try XAUUSD, EURUSD, NAS100.`);
 
-  const { yahooInterval, range } = mapHlIntervalToYahoo(hlInterval, limit);
+  const { yahooInterval, range } = rangeOverride
+    ? { yahooInterval: mapHlIntervalToYahoo(hlInterval, limit).yahooInterval, range: rangeOverride }
+    : mapHlIntervalToYahoo(hlInterval, limit);
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahoo)}?interval=${yahooInterval}&range=${range}`;
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; NovaStaris/1.0)" },

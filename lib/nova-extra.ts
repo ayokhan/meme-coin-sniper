@@ -1,9 +1,9 @@
 /**
  * Nova Extra — intraday time-of-day bias from hourly candle history.
- * Identifies UTC hours and ranges where price tended to rise (long) or fall (short).
+ * Buckets by local hour (IANA timezone) where price tended to rise (long) or fall (short).
  */
 import type { Candle } from "@/lib/hyperliquid";
-import { getCandles as getHlCandles, getPerpSpecFromMeta } from "@/lib/hyperliquid";
+import { getPerpSpecFromMeta, instIdToCoin, toHyperliquidInterval } from "@/lib/hyperliquid";
 import {
   blofinMetalContractDescription,
   getBlofinMetalCandles,
@@ -19,13 +19,55 @@ import {
   resolveYahooTicker,
 } from "@/lib/forex-market";
 
+const HL_INFO_BASE = "https://api.hyperliquid.xyz/info";
+
 export const NOVA_EXTRA_LOOKBACK_DAYS = 35;
 export const NOVA_EXTRA_MIN_SAMPLES_PER_HOUR = 4;
+export const NOVA_EXTRA_HIGH_WIN_RATE_PCT = 58;
+
+export type NovaExtraLookbackId =
+  | "24h"
+  | "48h"
+  | "72h"
+  | "5d"
+  | "1w"
+  | "2w"
+  | "6w"
+  | "1y"
+  | "2y";
+
+export const NOVA_EXTRA_LOOKBACK_OPTIONS: { id: NovaExtraLookbackId; label: string; hours: number }[] = [
+  { id: "24h", label: "24 hours", hours: 24 },
+  { id: "48h", label: "48 hours", hours: 48 },
+  { id: "72h", label: "72 hours", hours: 72 },
+  { id: "5d", label: "5 days", hours: 120 },
+  { id: "1w", label: "1 week", hours: 168 },
+  { id: "2w", label: "2 weeks", hours: 336 },
+  { id: "6w", label: "6 weeks", hours: 1008 },
+  { id: "1y", label: "1 year", hours: 8760 },
+  { id: "2y", label: "2 years", hours: 17520 },
+];
+
+export const NOVA_EXTRA_TIMEZONE_OPTIONS: { id: string; label: string }[] = [
+  { id: "UTC", label: "UTC" },
+  { id: "America/New_York", label: "Eastern (US)" },
+  { id: "America/Chicago", label: "Central (US)" },
+  { id: "America/Denver", label: "Mountain (US)" },
+  { id: "America/Los_Angeles", label: "Pacific (US)" },
+  { id: "Europe/London", label: "London" },
+  { id: "Europe/Paris", label: "Paris / CET" },
+  { id: "Europe/Berlin", label: "Berlin" },
+  { id: "Asia/Dubai", label: "Dubai" },
+  { id: "Asia/Singapore", label: "Singapore" },
+  { id: "Asia/Tokyo", label: "Tokyo" },
+  { id: "Asia/Hong_Kong", label: "Hong Kong" },
+  { id: "Australia/Sydney", label: "Sydney" },
+];
 
 export type HourBias = "long" | "short" | "neutral";
 
 export type NovaExtraHourStat = {
-  hourUtc: number;
+  hourLocal: number;
   label: string;
   avgReturnPct: number;
   medianReturnPct: number;
@@ -33,11 +75,12 @@ export type NovaExtraHourStat = {
   samples: number;
   bias: HourBias;
   strength: "strong" | "moderate" | "weak";
+  highSuccessRate: boolean;
 };
 
 export type NovaExtraTimeWindow = {
-  startHourUtc: number;
-  endHourUtc: number;
+  startHourLocal: number;
+  endHourLocal: number;
   label: string;
   bias: "long" | "short";
   avgReturnPct: number;
@@ -49,7 +92,10 @@ export type NovaExtraTimeWindow = {
 
 export type NovaExtraResult = {
   symbol: string;
-  lookbackDays: number;
+  timezone: string;
+  lookbackId: NovaExtraLookbackId;
+  lookbackLabel: string;
+  lookbackHours: number;
   totalCandles: number;
   timezoneNote: string;
   dataSource: string;
@@ -63,13 +109,67 @@ export type NovaExtraResult = {
   disclaimer: string;
 };
 
-function hourLabel(h: number): string {
-  return `${String(h).padStart(2, "0")}:00 UTC`;
+export function isValidNovaExtraTimezone(tz: string): boolean {
+  const t = String(tz ?? "").trim();
+  if (!t || t.length > 64) return false;
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone: t });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-function windowLabel(start: number, end: number): string {
-  if (start === end) return hourLabel(start);
-  return `${hourLabel(start)} – ${hourLabel(end)}`;
+export function resolveNovaExtraLookback(id: string): { id: NovaExtraLookbackId; label: string; hours: number } {
+  const found = NOVA_EXTRA_LOOKBACK_OPTIONS.find((o) => o.id === id);
+  return found ?? NOVA_EXTRA_LOOKBACK_OPTIONS.find((o) => o.id === "6w")!;
+}
+
+function minSamplesForLookbackHours(hours: number): number {
+  if (hours <= 72) return 1;
+  if (hours <= 168) return 2;
+  if (hours <= 24 * 14) return 3;
+  return NOVA_EXTRA_MIN_SAMPLES_PER_HOUR;
+}
+
+function yahooRangeForLookbackHours(hours: number): string {
+  if (hours <= 168) return "1mo";
+  if (hours <= 24 * 90) return "3mo";
+  if (hours <= 24 * 180) return "6mo";
+  if (hours <= 24 * 365) return "1y";
+  return "2y";
+}
+
+function timezoneShortName(timeZone: string): string {
+  try {
+    return (
+      new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "short" })
+        .formatToParts(new Date())
+        .find((p) => p.type === "timeZoneName")?.value ?? timeZone
+    );
+  } catch {
+    return timeZone;
+  }
+}
+
+export function getLocalHour(ts: number, timeZone: string): number {
+  const h = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    hour12: false,
+  }).format(new Date(ts));
+  return parseInt(h, 10) % 24;
+}
+
+function formatLocalHourLabel(hourLocal: number, timeZone: string): string {
+  const period = hourLocal < 12 ? "AM" : "PM";
+  const h12 = hourLocal % 12 || 12;
+  return `${h12}:00 ${period} (${timezoneShortName(timeZone)})`;
+}
+
+function windowLabel(start: number, end: number, timeZone: string): string {
+  if (start === end) return formatLocalHourLabel(start, timeZone);
+  return `${formatLocalHourLabel(start, timeZone)} – ${formatLocalHourLabel(end, timeZone)}`;
 }
 
 function median(values: number[]): number {
@@ -93,20 +193,75 @@ function classifyBias(avgReturnPct: number, winRatePct: number): HourBias {
   return "neutral";
 }
 
+function isHighSuccessRate(bias: HourBias, winRatePct: number, samples: number, minSamples: number): boolean {
+  if (samples < minSamples || bias === "neutral") return false;
+  if (bias === "long") return winRatePct >= NOVA_EXTRA_HIGH_WIN_RATE_PCT;
+  return winRatePct <= 100 - NOVA_EXTRA_HIGH_WIN_RATE_PCT;
+}
+
+async function fetchHlHourlyCandles(coin: string, hoursNeeded: number): Promise<Candle[]> {
+  const interval = toHyperliquidInterval("1h");
+  const intervalMs = 3_600_000;
+  const maxPerShot = 4000;
+  let end = Date.now();
+  const startCutoff = end - hoursNeeded * intervalMs;
+  const merged: Candle[] = [];
+  const seen = new Set<string>();
+
+  while (end > startCutoff && merged.length < hoursNeeded + 96) {
+    const span = Math.min(maxPerShot, Math.ceil((end - startCutoff) / intervalMs) + 4);
+    const start = Math.max(startCutoff, end - span * intervalMs);
+    const res = await fetch(HL_INFO_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "candleSnapshot",
+        req: { coin, interval, startTime: start, endTime: end },
+      }),
+      cache: "no-store",
+    });
+    if (!res.ok) break;
+    const raw = (await res.json()) as Array<{ t?: number; T?: number; o: string; h: string; l: string; c: string; v: string }>;
+    if (!Array.isArray(raw) || raw.length === 0) break;
+
+    let oldest = end;
+    for (const c of raw) {
+      const ts = Number(c.T ?? c.t ?? 0);
+      if (!Number.isFinite(ts) || ts < startCutoff) continue;
+      const key = String(ts);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push([key, c.o, c.h, c.l, c.c, c.v, "USDC", "USDC", "1"]);
+      if (ts < oldest) oldest = ts;
+    }
+    if (oldest <= start || raw.length < 10) break;
+    end = oldest - 1;
+  }
+
+  merged.sort((a, b) => Number(b[0]) - Number(a[0]));
+  return merged;
+}
+
+function filterCandlesByLookback(candles: Candle[], lookbackHours: number): Candle[] {
+  const cutoff = Date.now() - lookbackHours * 3_600_000;
+  return candles.filter((c) => Number(c[0]) >= cutoff);
+}
+
 async function fetchHourlyCandles(
   rawSymbol: string,
-  lookbackDays: number
+  lookbackHours: number
 ): Promise<{ candles: Candle[]; dataSource: string; contractNote: string; symbol: string }> {
   const sym = String(rawSymbol ?? "").trim().toUpperCase();
   if (!sym) throw new Error("Enter a symbol (e.g. BTC, XAU, XAUUSD).");
 
-  const limit = Math.min(1200, lookbackDays * 24 + 48);
+  const limit = Math.min(20_000, lookbackHours + 96);
+  const yahooRange = yahooRangeForLookbackHours(lookbackHours);
   const metal = normalizeMetalBase(sym);
 
   if (isBlofinMetal(metal)) {
-    const candles = await getBlofinMetalCandles(metal as BlofinMetal, "1h", limit);
+    const raw = await getBlofinMetalCandles(metal as BlofinMetal, "1h", Math.min(1440, limit));
     return {
-      candles,
+      candles: filterCandlesByLookback(raw, lookbackHours),
       dataSource: "Blofin (1h)",
       contractNote: blofinMetalContractDescription(metal as BlofinMetal),
       symbol: metal,
@@ -116,9 +271,9 @@ async function fetchHourlyCandles(
   const forexKey = normalizeForexSymbol(sym);
   const forexEntry = resolveForexEntry(forexKey);
   if (forexEntry) {
-    const candles = await getForexCandles(forexKey, "1h", limit);
+    const raw = await getForexCandles(forexKey, "1h", limit, yahooRange);
     return {
-      candles,
+      candles: filterCandlesByLookback(raw, lookbackHours),
       dataSource: "Yahoo Finance (1h)",
       contractNote: forexContractDescription(forexKey),
       symbol: forexKey,
@@ -126,32 +281,33 @@ async function fetchHourlyCandles(
   }
 
   try {
+    const coin = instIdToCoin(sym);
     const spec = await getPerpSpecFromMeta(sym);
-    const candles = await getHlCandles(sym, "1h", limit);
-    if (candles.length > 0 && spec) {
+    const raw = await fetchHlHourlyCandles(coin, lookbackHours);
+    if (raw.length > 0 && spec) {
       return {
-        candles,
+        candles: filterCandlesByLookback(raw, lookbackHours),
         dataSource: "Hyperliquid (1h)",
         contractNote: `${spec.name}: Hyperliquid USDC-margined perpetual.`,
         symbol: sym,
       };
     }
-    if (candles.length > 0) {
+    if (raw.length > 0) {
       return {
-        candles,
+        candles: filterCandlesByLookback(raw, lookbackHours),
         dataSource: "Hyperliquid (1h)",
         contractNote: `${sym}: Hyperliquid perpetual.`,
         symbol: sym,
       };
     }
   } catch {
-    // fall through to Yahoo for typed FX pairs
+    // fall through to Yahoo
   }
 
   if (resolveYahooTicker(forexKey) && forexKey.length >= 6) {
-    const candles = await getForexCandles(forexKey, "1h", limit);
+    const raw = await getForexCandles(forexKey, "1h", limit, yahooRange);
     return {
-      candles,
+      candles: filterCandlesByLookback(raw, lookbackHours),
       dataSource: "Yahoo Finance (1h)",
       contractNote: forexContractDescription(forexKey),
       symbol: forexKey,
@@ -166,12 +322,14 @@ async function fetchHourlyCandles(
 function buildTimeWindows(
   hours: NovaExtraHourStat[],
   bias: "long" | "short",
-  minHoursInWindow: number
+  minHoursInWindow: number,
+  timeZone: string,
+  minSamples: number
 ): NovaExtraTimeWindow[] {
-  const eligible = hours.filter((h) => h.bias === bias && h.strength !== "weak" && h.samples >= NOVA_EXTRA_MIN_SAMPLES_PER_HOUR);
+  const eligible = hours.filter((h) => h.bias === bias && h.strength !== "weak" && h.samples >= minSamples);
   if (eligible.length === 0) return [];
 
-  const sorted = [...eligible].sort((a, b) => a.hourUtc - b.hourUtc);
+  const sorted = [...eligible].sort((a, b) => a.hourLocal - b.hourLocal);
 
   type Run = { start: number; end: number; items: NovaExtraHourStat[] };
   const runs: Run[] = [];
@@ -183,7 +341,7 @@ function buildTimeWindows(
   };
 
   for (const s of sorted) {
-    const h = s.hourUtc;
+    const h = s.hourLocal;
     if (!open) {
       open = { start: h, end: h, items: [s] };
       continue;
@@ -207,9 +365,9 @@ function buildTimeWindows(
       const confidence: NovaExtraTimeWindow["confidence"] =
         strengthScore >= 2 && samples >= 40 ? "high" : samples >= 20 ? "medium" : "low";
       return {
-        startHourUtc: run.start,
-        endHourUtc: run.end,
-        label: windowLabel(run.start, run.end),
+        startHourLocal: run.start,
+        endHourLocal: run.end,
+        label: windowLabel(run.start, run.end, timeZone),
         bias,
         avgReturnPct: Math.round(avgReturnPct * 1000) / 1000,
         avgWinRatePct: Math.round(avgWinRatePct * 10) / 10,
@@ -224,10 +382,29 @@ function buildTimeWindows(
 
 export async function analyzeNovaExtra(
   rawSymbol: string,
-  lookbackDays = NOVA_EXTRA_LOOKBACK_DAYS
+  options?: {
+    lookbackId?: string;
+    lookbackDays?: number;
+    timezone?: string;
+  }
 ): Promise<NovaExtraResult> {
-  const days = Math.min(90, Math.max(14, Math.floor(lookbackDays)));
-  const { candles, dataSource, contractNote, symbol } = await fetchHourlyCandles(rawSymbol, days);
+  const lookback = options?.lookbackId
+    ? resolveNovaExtraLookback(options.lookbackId)
+    : options?.lookbackDays
+      ? {
+          id: "6w" as NovaExtraLookbackId,
+          label: `~${Math.floor(options.lookbackDays)} days`,
+          hours: Math.min(17520, Math.max(24, Math.floor(options.lookbackDays) * 24)),
+        }
+      : resolveNovaExtraLookback("6w");
+
+  const lookbackHours = lookback.hours;
+  const minSamples = minSamplesForLookbackHours(lookbackHours);
+
+  const tzRaw = String(options?.timezone ?? "UTC").trim();
+  const timeZone = isValidNovaExtraTimezone(tzRaw) ? tzRaw : "UTC";
+
+  const { candles, dataSource, contractNote, symbol } = await fetchHourlyCandles(rawSymbol, lookbackHours);
 
   const returnsByHour: number[][] = Array.from({ length: 24 }, () => []);
 
@@ -236,24 +413,25 @@ export async function analyzeNovaExtra(
     const open = Number(c[1]);
     const close = Number(c[4]);
     if (!Number.isFinite(ts) || !Number.isFinite(open) || !Number.isFinite(close) || open <= 0) continue;
-    const hourUtc = new Date(ts).getUTCHours();
+    const hourLocal = getLocalHour(ts, timeZone);
     const retPct = ((close - open) / open) * 100;
-    returnsByHour[hourUtc]!.push(retPct);
+    returnsByHour[hourLocal]!.push(retPct);
   }
 
   const hours: NovaExtraHourStat[] = [];
   for (let h = 0; h < 24; h++) {
     const rets = returnsByHour[h]!;
-    if (rets.length < NOVA_EXTRA_MIN_SAMPLES_PER_HOUR) {
+    if (rets.length < minSamples) {
       hours.push({
-        hourUtc: h,
-        label: hourLabel(h),
+        hourLocal: h,
+        label: formatLocalHourLabel(h, timeZone),
         avgReturnPct: 0,
         medianReturnPct: 0,
         winRatePct: 50,
         samples: rets.length,
         bias: "neutral",
         strength: "weak",
+        highSuccessRate: false,
       });
       continue;
     }
@@ -263,28 +441,30 @@ export async function analyzeNovaExtra(
     const bias = classifyBias(avgReturnPct, winRatePct);
     const strength = classifyStrength(avgReturnPct, winRatePct);
     hours.push({
-      hourUtc: h,
-      label: hourLabel(h),
+      hourLocal: h,
+      label: formatLocalHourLabel(h, timeZone),
       avgReturnPct: Math.round(avgReturnPct * 1000) / 1000,
       medianReturnPct: Math.round(medianReturnPct * 1000) / 1000,
       winRatePct: Math.round(winRatePct * 10) / 10,
       samples: rets.length,
       bias,
       strength,
+      highSuccessRate: isHighSuccessRate(bias, winRatePct, rets.length, minSamples),
     });
   }
 
-  const bestLongWindows = buildTimeWindows(hours, "long", 2);
-  const bestShortWindows = buildTimeWindows(hours, "short", 2);
+  const bestLongWindows = buildTimeWindows(hours, "long", 2, timeZone, minSamples);
+  const bestShortWindows = buildTimeWindows(hours, "short", 2, timeZone, minSamples);
 
   const topLong = [...hours]
-    .filter((h) => h.bias === "long" && h.samples >= NOVA_EXTRA_MIN_SAMPLES_PER_HOUR)
+    .filter((h) => h.bias === "long" && h.samples >= minSamples)
     .sort((a, b) => b.avgReturnPct - a.avgReturnPct)[0];
   const topShort = [...hours]
-    .filter((h) => h.bias === "short" && h.samples >= NOVA_EXTRA_MIN_SAMPLES_PER_HOUR)
+    .filter((h) => h.bias === "short" && h.samples >= minSamples)
     .sort((a, b) => a.avgReturnPct - b.avgReturnPct)[0];
 
-  let summary = `Based on ~${days} days of 1-hour candles, ${symbol} shows mixed intraday seasonality (UTC).`;
+  const tzLabel = timezoneShortName(timeZone);
+  let summary = `Based on ${lookback.label} of 1-hour candles, ${symbol} intraday seasonality in ${tzLabel}.`;
   if (bestLongWindows.length > 0) {
     summary += ` Strongest long-bias window: ${bestLongWindows[0]!.label} (avg ${bestLongWindows[0]!.avgReturnPct >= 0 ? "+" : ""}${bestLongWindows[0]!.avgReturnPct}% per hour).`;
   } else if (topLong) {
@@ -298,24 +478,28 @@ export async function analyzeNovaExtra(
 
   const longTradeHint =
     bestLongWindows.length > 0
-      ? `Consider long exposure during ${bestLongWindows.map((w) => w.label).join(", ")} (UTC) when your higher-timeframe bias agrees.`
+      ? `Consider long exposure during ${bestLongWindows.map((w) => w.label).join(", ")} when your higher-timeframe bias agrees.`
       : topLong
         ? `Lean long around ${topLong.label} if structure supports it — historical avg +${topLong.avgReturnPct}% that hour.`
         : "No reliable long-bias hour cluster in this sample; use NovaQ / NovaSmart for direction.";
 
   const shortTradeHint =
     bestShortWindows.length > 0
-      ? `Consider short exposure during ${bestShortWindows.map((w) => w.label).join(", ")} (UTC) when your higher-timeframe bias agrees.`
+      ? `Consider short exposure during ${bestShortWindows.map((w) => w.label).join(", ")} when your higher-timeframe bias agrees.`
       : topShort
         ? `Lean short around ${topShort.label} if structure supports it — historical avg ${topShort.avgReturnPct}% that hour.`
         : "No reliable short-bias hour cluster in this sample; use NovaQ / NovaSmart for direction.";
 
+  const highSuccessHours = hours.filter((h) => h.highSuccessRate);
+
   return {
     symbol,
-    lookbackDays: days,
+    timezone: timeZone,
+    lookbackId: lookback.id,
+    lookbackLabel: lookback.label,
+    lookbackHours,
     totalCandles: candles.length,
-    timezoneNote:
-      "All times are UTC (Coordinated Universal Time). Crypto perps trade 24/7; forex/metals sessions still show hour-of-day patterns in this reference data.",
+    timezoneNote: `All times are in ${timeZone} (${tzLabel}). Hours follow your selected timezone (including DST where applicable).${highSuccessHours.length > 0 ? ` ${highSuccessHours.length} hour(s) hit ≥${NOVA_EXTRA_HIGH_WIN_RATE_PCT}% directional success in this sample.` : ""}`,
     dataSource,
     contractNote,
     hours,
