@@ -39,6 +39,9 @@ import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
 import NovaQFibPanel from "@/components/NovaQFibPanel";
 import NovaExtraPanel from "@/components/NovaExtraPanel";
 import NovaSmartHighLowTable from "@/components/NovaSmartHighLowTable";
+import NovaTimeframeCheckboxPicker from "@/components/NovaTimeframeCheckboxPicker";
+import NovaQTimeframeTable from "@/components/NovaQTimeframeTable";
+import { NOVA_FORECAST_RANGES } from "@/lib/nova-timeframes";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import { TopTabNewPill } from "@/components/TopTabNewPill";
 import { isTabNewBadgeActive } from "@/lib/tab-new-badges";
@@ -6454,21 +6457,11 @@ export default function Dashboard() {
                             }}
                             className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
                           >
-                            <option value="15m">Last 15 mins</option>
-                            <option value="1h">1 hour</option>
-                            <option value="2h">2 hours</option>
-                            <option value="4h">4 hours</option>
-                            <option value="6h">6 hours</option>
-                            <option value="10h">10 hours</option>
-                            <option value="12h">12 hours</option>
-                            <option value="24h">24 hours</option>
-                            <option value="48h">48 hours</option>
-                            <option value="1w">1 week</option>
-                            <option value="2w">2 weeks</option>
-                            <option value="3w">3 weeks</option>
-                            <option value="4w">4 weeks</option>
-                            <option value="5w">5 weeks</option>
-                            <option value="6w">6 weeks</option>
+                            {NOVA_FORECAST_RANGES.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.label}
+                              </option>
+                            ))}
                           </select>
                           <input
                             type="text"
@@ -6530,26 +6523,11 @@ export default function Dashboard() {
                       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaSmart Analysis</h2>
                       <p className="text-xs text-muted-foreground mb-4">Compare timeframes to see high/low per period, smart short/long entries, and whether to scalp (quick profit) or swing (hold for bigger move). Enter any symbol(s)—BTC, BTC/USDT, ETH all work (pairs are normalized to base symbol). For metals, use <strong className="text-zinc-700 dark:text-zinc-300">XAU</strong>/<strong className="text-zinc-700 dark:text-zinc-300">GOLD</strong> or <strong className="text-zinc-700 dark:text-zinc-300">XAG</strong>/<strong className="text-zinc-700 dark:text-zinc-300">SILVER</strong> (Blofin <span className="font-mono">XAU-USDT</span> / <span className="font-mono">XAG-USDT</span> feeds).</p>
                       <div className="flex flex-wrap items-center gap-4 mb-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
-                          {["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w", "52w", "104w"].map((tf) => (
-                            <label key={tf} className="flex items-center gap-1.5 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={novaSmartTimeframes.includes(tf)}
-                                onChange={() => {
-                          const order = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w", "52w", "104w"];
-                          setNovaSmartTimeframes((prev) => {
-                            const next = prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf];
-                            return next.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-                          });
-                        }}
-                                className="rounded border-zinc-400 dark:border-zinc-500"
-                              />
-                              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{tf}</span>
-                            </label>
-                          ))}
-                        </div>
+                        <NovaTimeframeCheckboxPicker
+                          idPrefix="nova-smart"
+                          selected={novaSmartTimeframes}
+                          onChange={setNovaSmartTimeframes}
+                        />
                         <input
                           type="text"
                           placeholder="Symbol(s) e.g. BTC, ETH or INJ, SUI (optional; default: BTC, ETH, SOL)"
@@ -6708,26 +6686,11 @@ export default function Dashboard() {
                         <strong className="text-zinc-700 dark:text-zinc-300">S/R touches</strong> count how many candles in that window wicked near the period low (support) or period high (resistance).
                       </p>
                       <div className="flex flex-wrap items-center gap-4 mb-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">Timeframes:</span>
-                          {["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w", "52w", "104w"].map((tf) => (
-                            <label key={`nova-q-${tf}`} className="flex items-center gap-1.5 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={novaQTimeframes.includes(tf)}
-                                onChange={() => {
-                                  const order = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "10h", "12h", "24h", "48h", "72h", "1w", "2w", "3w", "4w", "5w", "6w", "52w", "104w"];
-                                  setNovaQTimeframes((prev) => {
-                                    const next = prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf];
-                                    return next.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-                                  });
-                                }}
-                                className="rounded border-zinc-400 dark:border-zinc-500"
-                              />
-                              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{tf}</span>
-                            </label>
-                          ))}
-                        </div>
+                        <NovaTimeframeCheckboxPicker
+                          idPrefix="nova-q"
+                          selected={novaQTimeframes}
+                          onChange={setNovaQTimeframes}
+                        />
                         <input
                           type="text"
                           placeholder="Contract symbol e.g. BTC"
@@ -6800,87 +6763,10 @@ export default function Dashboard() {
                           {novaQResult.timeframes.length === 0 ? (
                             <p className="text-xs text-muted-foreground">No timeframe data returned. Try another symbol or timeframe mix.</p>
                           ) : (
-                            <div className="overflow-x-auto">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="text-xs">Timeframe</TableHead>
-                                    <TableHead className="text-right text-xs">Support</TableHead>
-                                    <TableHead className="text-right text-xs" title="Bars in window with low near period support">
-                                      S touches
-                                    </TableHead>
-                                    <TableHead className="text-right text-xs">Resistance</TableHead>
-                                    <TableHead className="text-right text-xs" title="Bars in window with high near period resistance">
-                                      R touches
-                                    </TableHead>
-                                    <TableHead className="text-left text-xs" title="Half-window average close drift">
-                                      Structure
-                                    </TableHead>
-                                    <TableHead className="text-left text-xs" title="Least-squares line through closes in window (trendline-style proxy)">
-                                      Trendline
-                                    </TableHead>
-                                    <TableHead className="text-left text-xs max-w-[200px]" title="Retest frequency near window low / high">
-                                      Demand / supply
-                                    </TableHead>
-                                    <TableHead className="text-left text-xs" title="Structure + trendline; disagreement → sideways">
-                                      Blended
-                                    </TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {novaQResult.timeframes.map((tf) => {
-                                    const struct = tf.structureDirection ?? tf.direction;
-                                    const tlBias = tf.trendlineBias ?? "flat";
-                                    const tlSlope = typeof tf.trendlineSlopePctWindow === "number" ? tf.trendlineSlopePctWindow : null;
-                                    const tlRead = tf.trendlineRead ?? "";
-                                    const ds = tf.demandSupplyRead ?? "";
-                                    return (
-                                    <TableRow key={`nova-q-row-${tf.id}`}>
-                                      <TableCell className="text-xs font-medium">{tf.label}</TableCell>
-                                      <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">${tf.support.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
-                                      <TableCell className="text-right font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
-                                        {typeof tf.supportTouches === "number" ? tf.supportTouches : "—"}
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">${tf.resistance.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
-                                      <TableCell className="text-right font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
-                                        {typeof tf.resistanceTouches === "number" ? tf.resistanceTouches : "—"}
-                                      </TableCell>
-                                      <TableCell className="text-xs">
-                                        <Badge variant="outline" className={struct === "bullish" ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300" : struct === "bearish" ? "border-rose-500/60 text-rose-700 dark:text-rose-300" : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"}>
-                                          {struct}
-                                        </Badge>
-                                      </TableCell>
-                                      <TableCell className="text-xs align-top" title={tlRead || undefined}>
-                                        <div className="flex flex-col gap-0.5">
-                                          <Badge
-                                            variant="outline"
-                                            className={
-                                              tlBias === "up"
-                                                ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300 w-fit"
-                                                : tlBias === "down"
-                                                  ? "border-rose-500/60 text-rose-700 dark:text-rose-300 w-fit"
-                                                  : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300 w-fit"
-                                            }
-                                          >
-                                            {tlBias === "up" ? "up" : tlBias === "down" ? "down" : "flat"}
-                                            {tlSlope != null ? ` · ${tlSlope >= 0 ? "+" : ""}${tlSlope.toFixed(2)}%` : ""}
-                                          </Badge>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-xs text-zinc-600 dark:text-zinc-400 max-w-[220px] truncate align-top" title={ds || undefined}>
-                                        {ds || "—"}
-                                      </TableCell>
-                                      <TableCell className="text-xs">
-                                        <Badge variant="outline" className={tf.direction === "bullish" ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300" : tf.direction === "bearish" ? "border-rose-500/60 text-rose-700 dark:text-rose-300" : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"}>
-                                          {tf.direction}
-                                        </Badge>
-                                      </TableCell>
-                                    </TableRow>
-                                    );
-                                  })}
-                                </TableBody>
-                              </Table>
-                            </div>
+                            <NovaQTimeframeTable
+                              timeframes={novaQResult.timeframes}
+                              currentPrice={novaQResult.currentPrice}
+                            />
                           )}
                         </div>
                       )}

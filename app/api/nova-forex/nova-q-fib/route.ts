@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
     const selected = NOVA_Q_FIB_TIMEFRAMES.filter((t) => requestedTf.includes(t.id));
     const effectiveTf =
-      selected.length > 0 ? selected : [NOVA_Q_FIB_TIMEFRAMES[1], NOVA_Q_FIB_TIMEFRAMES[3], NOVA_Q_FIB_TIMEFRAMES[8]];
+      selected.length > 0 ? selected : NOVA_Q_FIB_TIMEFRAMES.filter((t) => ["15m", "1h", "1w"].includes(t.id));
 
     const ticker = await getForexTicker(symbol);
     const currentPrice = ticker?.last ? Number(ticker.last) : null;

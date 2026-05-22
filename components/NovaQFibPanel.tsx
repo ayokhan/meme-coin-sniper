@@ -6,21 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { NovaQFibResult, NovaQFibTimeframeResult } from "@/lib/nova-q-fib";
 
-const FIB_TIMEFRAME_OPTIONS = [
-  "5m",
-  "15m",
-  "30m",
-  "1h",
-  "2h",
-  "4h",
-  "6h",
-  "12h",
-  "24h",
-  "48h",
-  "1w",
-  "2w",
-  "4w",
-] as const;
+import { NOVA_UI_TIMEFRAME_IDS, sortNovaTimeframeIds } from "@/lib/nova-timeframes";
+
+const FIB_TIMEFRAME_OPTIONS = NOVA_UI_TIMEFRAME_IDS.filter((id) =>
+  ["1m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "24h", "48h", "1w", "2w", "4w"].includes(id)
+);
 
 type Props = {
   enabled: boolean;
@@ -102,7 +92,7 @@ export default function NovaQFibPanel({ enabled, isVip }: Props) {
   const toggleTf = (tf: string) => {
     setTimeframes((prev) => {
       const next = prev.includes(tf) ? prev.filter((t) => t !== tf) : [...prev, tf];
-      return next.sort((a, b) => FIB_TIMEFRAME_OPTIONS.indexOf(a as (typeof FIB_TIMEFRAME_OPTIONS)[number]) - FIB_TIMEFRAME_OPTIONS.indexOf(b as (typeof FIB_TIMEFRAME_OPTIONS)[number]));
+      return sortNovaTimeframeIds(next);
     });
   };
 

@@ -8,16 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ForexSymbolEntry } from "@/lib/forex-market";
 import { NOVA_SCALP_DISCLAIMER, SCALP_TIMEFRAMES, type NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
 
-const Q_TF = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "24h", "1w", "2w", "4w"];
-const FORECAST_RANGES = [
-  { id: "15m", label: "Last 15 mins" },
-  { id: "1h", label: "1 hour" },
-  { id: "4h", label: "4 hours" },
-  { id: "24h", label: "24 hours" },
-  { id: "1w", label: "1 week" },
-  { id: "2w", label: "2 weeks" },
-  { id: "4w", label: "4 weeks" },
-];
+import { NOVA_FORECAST_RANGES, NOVA_FOREX_Q_TIMEFRAMES } from "@/lib/nova-forex-timeframes";
+
+const Q_TF = NOVA_FOREX_Q_TIMEFRAMES.map((t) => t.id);
+const FORECAST_RANGES = NOVA_FORECAST_RANGES.map((r) => ({ id: r.id, label: r.label }));
 
 type NovaQResult = {
   symbol: string;

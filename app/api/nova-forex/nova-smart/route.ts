@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     const effectiveTf =
       NOVA_FOREX_Q_TIMEFRAMES.filter((t) => requestedTf.includes(t.id)).length > 0
         ? NOVA_FOREX_Q_TIMEFRAMES.filter((t) => requestedTf.includes(t.id))
-        : [NOVA_FOREX_Q_TIMEFRAMES[1], NOVA_FOREX_Q_TIMEFRAMES[3], NOVA_FOREX_Q_TIMEFRAMES[9]];
+        : NOVA_FOREX_Q_TIMEFRAMES.filter((t) => ["15m", "1h", "1w"].includes(t.id));
 
     const results = [];
     for (const symbol of symbols.slice(0, 5)) {

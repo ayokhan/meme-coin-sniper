@@ -16,33 +16,12 @@ import {
   structureDirectionFromCloses,
   trendlineRegressionFromCloses,
 } from "@/lib/nova-q-analytics";
+import { NOVA_STANDARD_TIMEFRAMES } from "@/lib/nova-timeframes";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
 
-/** Timeframe config for NovaSmart: id, label, interval, bar count. */
-const NOVA_SMART_TIMEFRAMES = [
-  { id: "5m", label: "5 mins", interval: "1m", limit: 5 },
-  { id: "15m", label: "15 mins", interval: "1m", limit: 15 },
-  { id: "30m", label: "30 mins", interval: "1m", limit: 30 },
-  { id: "1h", label: "1 hour", interval: "1m", limit: 60 },
-  { id: "2h", label: "2 hours", interval: "5m", limit: 24 },
-  { id: "4h", label: "4 hours", interval: "5m", limit: 48 },
-  { id: "6h", label: "6 hours", interval: "15m", limit: 24 },
-  { id: "10h", label: "10 hours", interval: "15m", limit: 40 },
-  { id: "12h", label: "12 hours", interval: "15m", limit: 48 },
-  { id: "24h", label: "24 hours", interval: "1h", limit: 24 },
-  { id: "48h", label: "48 hours", interval: "1h", limit: 48 },
-  { id: "72h", label: "72 hours", interval: "1h", limit: 72 },
-  { id: "1w", label: "1 week", interval: "1d", limit: 7 },
-  { id: "2w", label: "2 weeks", interval: "1d", limit: 14 },
-  { id: "3w", label: "3 weeks", interval: "1d", limit: 21 },
-  { id: "4w", label: "4 weeks", interval: "1d", limit: 28 },
-  { id: "5w", label: "5 weeks", interval: "1d", limit: 35 },
-  { id: "6w", label: "6 weeks", interval: "1d", limit: 42 },
-  { id: "52w", label: "52 weeks", interval: "1d", limit: 364 },
-  { id: "104w", label: "104 weeks", interval: "1d", limit: 728 },
-] as const;
+const NOVA_SMART_TIMEFRAMES = NOVA_STANDARD_TIMEFRAMES;
 
 function normalizeSymbol(raw: string): string {
   return normalizeMetalBase(raw) || "BTC";
@@ -345,7 +324,10 @@ export async function POST(request: Request) {
       : timeframesParam
     ).filter(Boolean);
     const timeframes = NOVA_SMART_TIMEFRAMES.filter((t) => requestedTf.includes(t.id));
-    const effectiveTf = timeframes.length > 0 ? timeframes : [NOVA_SMART_TIMEFRAMES[0], NOVA_SMART_TIMEFRAMES[1], NOVA_SMART_TIMEFRAMES[4]]; // 15m, 1h, 1w default
+    const effectiveTf =
+      timeframes.length > 0
+        ? timeframes
+        : NOVA_SMART_TIMEFRAMES.filter((t) => ["15m", "1h", "1w"].includes(t.id)); // default
 
     const results: NovaSmartResult[] = [];
     const limit = Math.min(symbols.length, 10);
