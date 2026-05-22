@@ -38,6 +38,7 @@ import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
 import NovaQFibPanel from "@/components/NovaQFibPanel";
 import NovaExtraPanel from "@/components/NovaExtraPanel";
+import NovaSmartHighLowTable from "@/components/NovaSmartHighLowTable";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import { TopTabNewPill } from "@/components/TopTabNewPill";
 import { isTabNewBadgeActive } from "@/lib/tab-new-badges";
@@ -6622,14 +6623,16 @@ export default function Dashboard() {
                                   </span>
                                 </div>
                                 {r.timeframes.length > 0 && (
-                                  <div>
-                                    <span className="text-muted-foreground block mb-1">High / low per timeframe</span>
-                                    <div className="flex flex-wrap gap-2">
-                                      {r.timeframes.map((t) => (
-                                        <span key={t.id} className="text-xs font-mono px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800"> {t.label}: H ${t.high.toLocaleString(undefined, { maximumFractionDigits: 4 })} / L ${t.low.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
-                                      ))}
-                                    </div>
-                                  </div>
+                                  <NovaSmartHighLowTable
+                                    timeframes={r.timeframes.map((t) => ({
+                                      id: t.id,
+                                      label: t.label,
+                                      high: t.high,
+                                      low: t.low,
+                                      direction: t.direction,
+                                    }))}
+                                    currentPrice={r.currentPrice}
+                                  />
                                 )}
                                 {(r.suggestedLongEntry > 0 || r.suggestedShortEntry > 0) && (
                                   <div className="rounded-md bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 p-2">
