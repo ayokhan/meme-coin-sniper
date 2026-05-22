@@ -22,9 +22,13 @@ export function countSupportResistanceTouches(
   if (!candles.length || !Number.isFinite(support) || !Number.isFinite(resistance)) {
     return { supportTouches: 0, resistanceTouches: 0 };
   }
-  const range = resistance - support;
+  const range = Math.max(resistance - support, 0);
   const mid = (resistance + support) / 2;
-  const tol = Math.min(Math.max(mid * 0.0008, range * 0.012, 1e-12), Math.max(range * 0.2, mid * 0.002));
+  // ~0.03% of price or 4% of range (whichever is larger), capped at 25% of range
+  const tol = Math.min(
+    Math.max(mid * 0.0003, range * 0.04, 1e-12),
+    range > 0 ? range * 0.25 : mid * 0.001
+  );
   let supportTouches = 0;
   let resistanceTouches = 0;
   for (const c of candles) {

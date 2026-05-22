@@ -449,6 +449,8 @@ export async function POST(request: Request) {
             label: t.label,
             high: t.high,
             low: t.low,
+            highTouches: t.highTouches,
+            lowTouches: t.lowTouches,
             structureDirection: t.structureDirection,
             trendlineBias: t.trendlineBias,
             direction: t.direction,
