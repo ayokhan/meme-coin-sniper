@@ -11,6 +11,7 @@ import {
 import {
   type CandleTuple,
   combineStructureAndTrendline,
+  countSupportResistanceTouches,
   highLowFromCandles,
   structureDirectionFromCloses,
   trendlineRegressionFromCloses,
@@ -356,6 +357,8 @@ export async function POST(request: Request) {
           label: string;
           high: number;
           low: number;
+          highTouches: number;
+          lowTouches: number;
           structureDirection: "bullish" | "bearish" | "sideways";
           trendlineBias: "up" | "down" | "flat";
           direction: "bullish" | "bearish" | "sideways";
@@ -369,6 +372,11 @@ export async function POST(request: Request) {
           const hl = highLowFromCandles(candles as CandleTuple[]);
           if (!hl) continue;
           const rows = candles as CandleTuple[];
+          const { supportTouches, resistanceTouches } = countSupportResistanceTouches(
+            rows,
+            hl.low,
+            hl.high
+          );
           const structureDirection = structureDirectionFromCloses(rows);
           const tl =
             trendlineRegressionFromCloses(rows) ?? {
@@ -383,6 +391,8 @@ export async function POST(request: Request) {
             label: tf.label,
             high: hl.high,
             low: hl.low,
+            highTouches: resistanceTouches,
+            lowTouches: supportTouches,
             structureDirection,
             trendlineBias: tl.bias,
             direction,

@@ -1092,6 +1092,8 @@ export default function Dashboard() {
     label: string;
     high: number;
     low: number;
+    highTouches?: number;
+    lowTouches?: number;
     structureDirection: "bullish" | "bearish" | "sideways";
     trendlineBias: "up" | "down" | "flat";
     direction: "bullish" | "bearish" | "sideways";
@@ -6629,6 +6631,8 @@ export default function Dashboard() {
                                       label: t.label,
                                       high: t.high,
                                       low: t.low,
+                                      highTouches: t.highTouches ?? 0,
+                                      lowTouches: t.lowTouches ?? 0,
                                       direction: t.direction,
                                     }))}
                                     currentPrice={r.currentPrice}

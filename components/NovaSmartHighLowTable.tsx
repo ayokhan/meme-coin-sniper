@@ -7,8 +7,15 @@ export type NovaSmartHighLowTf = {
   label: string;
   high: number;
   low: number;
+  highTouches: number;
+  lowTouches: number;
   direction: "bullish" | "bearish" | "sideways";
 };
+
+function touchLabel(count: number): string {
+  if (count <= 0) return "No touches";
+  return `${count} touch${count === 1 ? "" : "es"}`;
+}
 
 type Props = {
   timeframes: NovaSmartHighLowTf[];
@@ -33,7 +40,8 @@ export default function NovaSmartHighLowTable({ timeframes, currentPrice }: Prop
       <div>
         <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">High / low per timeframe</h4>
         <p className="text-[11px] text-muted-foreground mt-0.5">
-          Period high and low on each selected timeframe. Bar shows where price sits between low and high.
+          Period high and low on each selected timeframe, with how often price traded near those levels (touches). Bar
+          shows where price sits between low and high.
         </p>
       </div>
 
@@ -82,11 +90,31 @@ export default function NovaSmartHighLowTable({ timeframes, currentPrice }: Prop
                     <p className="font-mono text-base md:text-sm font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
                       ${formatPrice(t.high)}
                     </p>
+                    <p
+                      className={`text-[10px] mt-0.5 tabular-nums ${
+                        t.highTouches > 0
+                          ? "text-amber-700 dark:text-amber-300 font-medium"
+                          : "text-muted-foreground"
+                      }`}
+                      title="Bars whose high traded near this period high"
+                    >
+                      {touchLabel(t.highTouches)}
+                    </p>
                   </div>
                   <div className="md:text-right">
                     <span className="text-[10px] uppercase text-muted-foreground md:hidden block mb-0.5">Low</span>
                     <p className="font-mono text-base md:text-sm font-semibold text-rose-600 dark:text-rose-400 tabular-nums">
                       ${formatPrice(t.low)}
+                    </p>
+                    <p
+                      className={`text-[10px] mt-0.5 tabular-nums ${
+                        t.lowTouches > 0
+                          ? "text-amber-700 dark:text-amber-300 font-medium"
+                          : "text-muted-foreground"
+                      }`}
+                      title="Bars whose low traded near this period low"
+                    >
+                      {touchLabel(t.lowTouches)}
                     </p>
                   </div>
                 </div>
