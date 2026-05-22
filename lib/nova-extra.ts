@@ -76,6 +76,23 @@ export type NovaExtraHourStat = {
   bias: HourBias;
   strength: "strong" | "moderate" | "weak";
   highSuccessRate: boolean;
+  /** Average hour open → close in price terms (symbol units). */
+  avgOpen: number;
+  avgClose: number;
+  typicalPriceRange: string;
+};
+
+/** Best single-hour (or window) entry timing with typical price path. */
+export type NovaExtraLockInTime = {
+  side: "long" | "short";
+  timeLabel: string;
+  avgReturnPct: number;
+  winRatePct: number;
+  samples: number;
+  avgOpen: number;
+  avgClose: number;
+  priceRange: string;
+  confidence: "high" | "medium" | "low";
 };
 
 export type NovaExtraTimeWindow = {
@@ -103,11 +120,117 @@ export type NovaExtraResult = {
   hours: NovaExtraHourStat[];
   bestLongWindows: NovaExtraTimeWindow[];
   bestShortWindows: NovaExtraTimeWindow[];
+  /** Headline copy for suggested entry hours (with typical price move). */
+  recommendedLockInSummary: string;
+  recommendedLong: NovaExtraLockInTime | null;
+  recommendedShort: NovaExtraLockInTime | null;
   summary: string;
   longTradeHint: string;
   shortTradeHint: string;
   disclaimer: string;
 };
+
+type HourBucket = {
+  returns: number[];
+  opens: number[];
+  closes: number[];
+};
+
+export function formatNovaExtraPrice(symbol: string, price: number): string {
+  if (!Number.isFinite(price)) return "—";
+  const s = symbol.toUpperCase();
+  if (s === "BTC" || s === "ETH" || s === "SOL" || s === "BNB") {
+    return price >= 100 ? Math.round(price).toLocaleString("en-US") : price.toFixed(2);
+  }
+  if (s === "XAU" || s === "XAG" || s.includes("XAU") || s.includes("XAG")) {
+    return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  if (price >= 100) return price.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  if (price < 1) return price.toFixed(5);
+  return price.toFixed(2);
+}
+
+function buildPriceMoveLabel(symbol: string, avgOpen: number, avgClose: number): string {
+  return `${formatNovaExtraPrice(symbol, avgOpen)} → ${formatNovaExtraPrice(symbol, avgClose)}`;
+}
+
+function confidenceFromSamples(samples: number): NovaExtraLockInTime["confidence"] {
+  if (samples >= 20) return "high";
+  if (samples >= 5) return "medium";
+  return "low";
+}
+
+function avg(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+function hourInWindow(hourLocal: number, start: number, end: number): boolean {
+  if (start <= end) return hourLocal >= start && hourLocal <= end;
+  return hourLocal >= start || hourLocal <= end;
+}
+
+function lockInFromHour(h: NovaExtraHourStat, symbol: string, side: "long" | "short"): NovaExtraLockInTime | null {
+  if (h.samples < 1 || !Number.isFinite(h.avgOpen) || h.avgOpen <= 0) return null;
+  return {
+    side,
+    timeLabel: h.label,
+    avgReturnPct: h.avgReturnPct,
+    winRatePct: h.winRatePct,
+    samples: h.samples,
+    avgOpen: h.avgOpen,
+    avgClose: h.avgClose,
+    priceRange: h.typicalPriceRange || buildPriceMoveLabel(symbol, h.avgOpen, h.avgClose),
+    confidence: confidenceFromSamples(h.samples),
+  };
+}
+
+function lockInFromWindow(
+  w: NovaExtraTimeWindow,
+  buckets: HourBucket[],
+  symbol: string,
+  side: "long" | "short"
+): NovaExtraLockInTime | null {
+  const opens: number[] = [];
+  const closes: number[] = [];
+  for (let h = 0; h < 24; h++) {
+    if (!hourInWindow(h, w.startHourLocal, w.endHourLocal)) continue;
+    opens.push(...buckets[h]!.opens);
+    closes.push(...buckets[h]!.closes);
+  }
+  if (opens.length === 0) return null;
+  const avgOpen = avg(opens);
+  const avgClose = avg(closes);
+  return {
+    side,
+    timeLabel: w.label,
+    avgReturnPct: w.avgReturnPct,
+    winRatePct: w.avgWinRatePct,
+    samples: w.samples,
+    avgOpen,
+    avgClose,
+    priceRange: buildPriceMoveLabel(symbol, avgOpen, avgClose),
+    confidence: w.confidence,
+  };
+}
+
+function buildRecommendedLockInSummary(
+  symbol: string,
+  lookbackLabel: string,
+  tzLabel: string,
+  longLock: NovaExtraLockInTime | null,
+  shortLock: NovaExtraLockInTime | null
+): string {
+  let s = `Based on ${lookbackLabel} of 1-hour candles, ${symbol} intraday seasonality in ${tzLabel}.`;
+  if (longLock) {
+    s += ` Recommended lock-in for long: ${longLock.timeLabel} — price tended ${longLock.priceRange} (avg +${longLock.avgReturnPct}% / ${longLock.winRatePct}% up, ${longLock.samples} sample${longLock.samples === 1 ? "" : "s"}).`;
+  }
+  if (shortLock) {
+    const downPct = Math.round(100 - shortLock.winRatePct);
+    s += ` Recommended lock-in for short: ${shortLock.timeLabel} — price tended ${shortLock.priceRange} (avg ${shortLock.avgReturnPct}% / ${downPct}% down, ${shortLock.samples} sample${shortLock.samples === 1 ? "" : "s"}).`;
+  }
+  return s;
+}
 
 export function isValidNovaExtraTimezone(tz: string): boolean {
   const t = String(tz ?? "").trim();
@@ -406,7 +529,11 @@ export async function analyzeNovaExtra(
 
   const { candles, dataSource, contractNote, symbol } = await fetchHourlyCandles(rawSymbol, lookbackHours);
 
-  const returnsByHour: number[][] = Array.from({ length: 24 }, () => []);
+  const buckets: HourBucket[] = Array.from({ length: 24 }, () => ({
+    returns: [],
+    opens: [],
+    closes: [],
+  }));
 
   for (const c of candles) {
     const ts = Number(c[0]);
@@ -415,12 +542,22 @@ export async function analyzeNovaExtra(
     if (!Number.isFinite(ts) || !Number.isFinite(open) || !Number.isFinite(close) || open <= 0) continue;
     const hourLocal = getLocalHour(ts, timeZone);
     const retPct = ((close - open) / open) * 100;
-    returnsByHour[hourLocal]!.push(retPct);
+    const b = buckets[hourLocal]!;
+    b.returns.push(retPct);
+    b.opens.push(open);
+    b.closes.push(close);
   }
 
   const hours: NovaExtraHourStat[] = [];
   for (let h = 0; h < 24; h++) {
-    const rets = returnsByHour[h]!;
+    const rets = buckets[h]!.returns;
+    const opens = buckets[h]!.opens;
+    const closes = buckets[h]!.closes;
+    const avgOpenVal = avg(opens);
+    const avgCloseVal = avg(closes);
+    const priceRange =
+      opens.length > 0 ? buildPriceMoveLabel(symbol, avgOpenVal, avgCloseVal) : "—";
+
     if (rets.length < minSamples) {
       hours.push({
         hourLocal: h,
@@ -432,6 +569,9 @@ export async function analyzeNovaExtra(
         bias: "neutral",
         strength: "weak",
         highSuccessRate: false,
+        avgOpen: avgOpenVal,
+        avgClose: avgCloseVal,
+        typicalPriceRange: priceRange,
       });
       continue;
     }
@@ -450,6 +590,9 @@ export async function analyzeNovaExtra(
       bias,
       strength,
       highSuccessRate: isHighSuccessRate(bias, winRatePct, rets.length, minSamples),
+      avgOpen: Math.round(avgOpenVal * 100) / 100,
+      avgClose: Math.round(avgCloseVal * 100) / 100,
+      typicalPriceRange: priceRange,
     });
   }
 
@@ -464,31 +607,53 @@ export async function analyzeNovaExtra(
     .sort((a, b) => a.avgReturnPct - b.avgReturnPct)[0];
 
   const tzLabel = timezoneShortName(timeZone);
-  let summary = `Based on ${lookback.label} of 1-hour candles, ${symbol} intraday seasonality in ${tzLabel}.`;
-  if (bestLongWindows.length > 0) {
+
+  const recommendedLong =
+    bestLongWindows.length > 0 && bestLongWindows[0]!.confidence !== "low"
+      ? lockInFromWindow(bestLongWindows[0]!, buckets, symbol, "long")
+      : topLong
+        ? lockInFromHour(topLong, symbol, "long")
+        : null;
+  const recommendedShort =
+    bestShortWindows.length > 0 && bestShortWindows[0]!.confidence !== "low"
+      ? lockInFromWindow(bestShortWindows[0]!, buckets, symbol, "short")
+      : topShort
+        ? lockInFromHour(topShort, symbol, "short")
+        : null;
+
+  const recommendedLockInSummary = buildRecommendedLockInSummary(
+    symbol,
+    lookback.label,
+    tzLabel,
+    recommendedLong,
+    recommendedShort
+  );
+
+  let summary = recommendedLockInSummary;
+  if (bestLongWindows.length > 0 && !recommendedLong) {
     summary += ` Strongest long-bias window: ${bestLongWindows[0]!.label} (avg ${bestLongWindows[0]!.avgReturnPct >= 0 ? "+" : ""}${bestLongWindows[0]!.avgReturnPct}% per hour).`;
-  } else if (topLong) {
-    summary += ` Best single hour to lean long: ${topLong.label} (avg +${topLong.avgReturnPct}% / ${topLong.winRatePct}% up).`;
   }
-  if (bestShortWindows.length > 0) {
+  if (bestShortWindows.length > 0 && !recommendedShort) {
     summary += ` Strongest short-bias window: ${bestShortWindows[0]!.label} (avg ${bestShortWindows[0]!.avgReturnPct}% per hour).`;
-  } else if (topShort) {
-    summary += ` Best single hour to lean short: ${topShort.label} (avg ${topShort.avgReturnPct}% / ${(100 - topShort.winRatePct).toFixed(0)}% down).`;
   }
 
   const longTradeHint =
-    bestLongWindows.length > 0
-      ? `Consider long exposure during ${bestLongWindows.map((w) => w.label).join(", ")} when your higher-timeframe bias agrees.`
-      : topLong
-        ? `Lean long around ${topLong.label} if structure supports it — historical avg +${topLong.avgReturnPct}% that hour.`
-        : "No reliable long-bias hour cluster in this sample; use NovaQ / NovaSmart for direction.";
+    recommendedLong
+      ? `Suggested long lock-in: ${recommendedLong.timeLabel}. In this sample, that hour averaged ${recommendedLong.priceRange} (open → close) with +${recommendedLong.avgReturnPct}% and ${recommendedLong.winRatePct}% up bars (${recommendedLong.confidence} confidence, ${recommendedLong.samples} samples).`
+      : bestLongWindows.length > 0
+        ? `Consider long exposure during ${bestLongWindows.map((w) => w.label).join(", ")} when your higher-timeframe bias agrees.`
+        : topLong
+          ? `Lean long around ${topLong.label} if structure supports it — typical move ${topLong.typicalPriceRange}, avg +${topLong.avgReturnPct}% that hour.`
+          : "No reliable long-bias hour cluster in this sample; use NovaQ / NovaSmart for direction.";
 
   const shortTradeHint =
-    bestShortWindows.length > 0
-      ? `Consider short exposure during ${bestShortWindows.map((w) => w.label).join(", ")} when your higher-timeframe bias agrees.`
-      : topShort
-        ? `Lean short around ${topShort.label} if structure supports it — historical avg ${topShort.avgReturnPct}% that hour.`
-        : "No reliable short-bias hour cluster in this sample; use NovaQ / NovaSmart for direction.";
+    recommendedShort
+      ? `Suggested short lock-in: ${recommendedShort.timeLabel}. In this sample, that hour averaged ${recommendedShort.priceRange} (open → close) with ${recommendedShort.avgReturnPct}% and ${Math.round(100 - recommendedShort.winRatePct)}% down bars (${recommendedShort.confidence} confidence, ${recommendedShort.samples} samples).`
+      : bestShortWindows.length > 0
+        ? `Consider short exposure during ${bestShortWindows.map((w) => w.label).join(", ")} when your higher-timeframe bias agrees.`
+        : topShort
+          ? `Lean short around ${topShort.label} if structure supports it — typical move ${topShort.typicalPriceRange}, avg ${topShort.avgReturnPct}% that hour.`
+          : "No reliable short-bias hour cluster in this sample; use NovaQ / NovaSmart for direction.";
 
   const highSuccessHours = hours.filter((h) => h.highSuccessRate);
 
@@ -505,6 +670,9 @@ export async function analyzeNovaExtra(
     hours,
     bestLongWindows,
     bestShortWindows,
+    recommendedLockInSummary,
+    recommendedLong,
+    recommendedShort,
     summary,
     longTradeHint,
     shortTradeHint,

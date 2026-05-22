@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { NovaExtraHourStat, NovaExtraLookbackId, NovaExtraResult, NovaExtraTimeWindow } from "@/lib/nova-extra";
+import type {
+  NovaExtraHourStat,
+  NovaExtraLockInTime,
+  NovaExtraLookbackId,
+  NovaExtraResult,
+  NovaExtraTimeWindow,
+} from "@/lib/nova-extra";
 import {
   NOVA_EXTRA_HIGH_WIN_RATE_PCT,
   NOVA_EXTRA_LOOKBACK_OPTIONS,
@@ -22,6 +28,40 @@ function biasBadge(bias: string): string {
   if (bias === "long") return "border-emerald-500/60 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10";
   if (bias === "short") return "border-rose-500/60 text-rose-700 dark:text-rose-300 bg-rose-500/10";
   return "border-zinc-400/60 text-zinc-600 dark:text-zinc-400";
+}
+
+function confidenceLabel(c: NovaExtraLockInTime["confidence"]): string {
+  if (c === "high") return "Higher confidence";
+  if (c === "medium") return "Moderate confidence";
+  return "Low confidence — few samples";
+}
+
+function lockInCard(lock: NovaExtraLockInTime) {
+  const isLong = lock.side === "long";
+  return (
+    <div
+      className={`rounded-lg border p-3 ${
+        isLong
+          ? "border-emerald-500/40 bg-emerald-500/10"
+          : "border-rose-500/40 bg-rose-500/10"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2 mb-1">
+        <Badge variant="outline" className={biasBadge(lock.side)}>
+          {isLong ? "Long lock-in" : "Short lock-in"}
+        </Badge>
+        <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{lock.timeLabel}</span>
+      </div>
+      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100 tabular-nums">
+        Typical move: <span className={isLong ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{lock.priceRange}</span>
+      </p>
+      <p className="text-xs text-muted-foreground mt-1">
+        Avg hour open → close in this lookback · {lock.avgReturnPct >= 0 ? "+" : ""}
+        {lock.avgReturnPct}% · {lock.winRatePct}% up · {lock.samples} sample{lock.samples === 1 ? "" : "s"}
+      </p>
+      <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wide">{confidenceLabel(lock.confidence)}</p>
+    </div>
+  );
 }
 
 function windowCard(w: NovaExtraTimeWindow) {
@@ -215,7 +255,21 @@ export default function NovaExtraPanel({ enabled, isVip }: Props) {
 
       {result && (
         <div className="space-y-4">
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">{result.summary}</p>
+          <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 p-3 space-y-2">
+            <h3 className="text-sm font-semibold text-violet-800 dark:text-violet-200">Suggested lock-in times</h3>
+            <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+              {result.recommendedLockInSummary || result.summary}
+            </p>
+            {(result.recommendedLong || result.recommendedShort) && (
+              <div className="grid gap-3 sm:grid-cols-2 pt-1">
+                {result.recommendedLong && lockInCard(result.recommendedLong)}
+                {result.recommendedShort && lockInCard(result.recommendedShort)}
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Typical move = average price at the start of that local hour → average price at the end (from past 1h candles). Not a target or guarantee.
+            </p>
+          </div>
           <p className="text-xs text-muted-foreground">{result.contractNote}</p>
           <p className="text-xs text-muted-foreground">
             Data: {result.dataSource} · {result.lookbackLabel} · {result.totalCandles} hourly bars · {result.timezoneNote}
@@ -255,6 +309,7 @@ export default function NovaExtraPanel({ enabled, isVip }: Props) {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs">Local hour</TableHead>
+                    <TableHead className="text-xs">Typical move</TableHead>
                     <TableHead className="text-xs text-right">Avg %</TableHead>
                     <TableHead className="text-xs text-right">Up %</TableHead>
                     <TableHead className="text-xs text-right">Samples</TableHead>
@@ -271,6 +326,9 @@ export default function NovaExtraPanel({ enabled, isVip }: Props) {
                             High success
                           </Badge>
                         )}
+                      </TableCell>
+                      <TableCell className="text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                        {h.samples > 0 && h.typicalPriceRange !== "—" ? h.typicalPriceRange : "—"}
                       </TableCell>
                       <TableCell
                         className={`text-xs text-right tabular-nums ${h.avgReturnPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
