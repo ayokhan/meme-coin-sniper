@@ -46,9 +46,6 @@ function isSupportIntent(text: string): boolean {
 function isSubscriptionQuestion(text: string): boolean {
   return SUBSCRIPTION_KEYWORDS.some((k) => text.trim().toLowerCase().includes(k));
 }
-function isOutOfScope(text: string): boolean {
-  return !isGreeting(text) && !isProductQuestion(text) && !isSupportIntent(text) && !isSubscriptionQuestion(text);
-}
 
 type Message = { id: string; role: string; content: string; createdAt: string };
 
@@ -177,29 +174,15 @@ export default function ChatPage() {
         await fetchMessages();
         return;
       }
-      if (customerCount === 0) {
-        if (isSubscriptionQuestion(trimmed)) {
-          await fetch("/api/chat/message", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sessionId, role: "nja", content: NJA_SUBSCRIPTION_REPLY }),
-          });
-          await fetchMessages();
-          return;
-        }
-        if (isOutOfScope(trimmed)) {
-          const onlineNow = await checkPresenceNow();
-          setAgentOnline(onlineNow);
-          setShowOutOfScopeChoice(true);
-          const outOfScopeContent = onlineNow ? NJA_OUT_OF_SCOPE_LIVE : NJA_OUT_OF_SCOPE_OFFLINE;
-          await fetch("/api/chat/message", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sessionId, role: "nja", content: outOfScopeContent }),
-          });
-          await fetchMessages();
-          return;
-        }
+      // Intake (name / email / issue): accept any reply — do not run out-of-scope on a name like "Elon Musk"
+      if (step === "name" && isSubscriptionQuestion(trimmed)) {
+        await fetch("/api/chat/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, role: "nja", content: NJA_SUBSCRIPTION_REPLY }),
+        });
+        await fetchMessages();
+        return;
       }
       if (step === "name") setCustomerName(trimmed);
       if (step === "email") setCustomerEmail(trimmed);
