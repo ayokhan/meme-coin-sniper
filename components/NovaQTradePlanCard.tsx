@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import type { NovaQTradePlan } from "@/lib/nova-q-trade-plan";
+import type { NovaQTradePlan, NovaQVoteStrength } from "@/lib/nova-q-trade-plan";
 import { formatNovaQEntryType } from "@/lib/nova-q-trade-plan";
 
 function fmt(n: number | null): string {
@@ -12,6 +12,12 @@ function fmt(n: number | null): string {
 function confidenceClass(c: NovaQTradePlan["confidence"]): string {
   if (c === "high") return "border-emerald-500/50 text-emerald-800 dark:text-emerald-200";
   if (c === "medium") return "border-amber-500/50 text-amber-800 dark:text-amber-200";
+  return "border-zinc-400/50 text-zinc-600 dark:text-zinc-400";
+}
+
+function voteStrengthClass(v: NovaQVoteStrength): string {
+  if (v === "strong") return "border-emerald-500/50 text-emerald-800 dark:text-emerald-200";
+  if (v === "mixed") return "border-amber-500/50 text-amber-800 dark:text-amber-200";
   return "border-zinc-400/50 text-zinc-600 dark:text-zinc-400";
 }
 
@@ -36,10 +42,15 @@ export default function NovaQTradePlanCard({ plan }: { plan: NovaQTradePlan }) {
         <Badge variant="outline" className={`text-[10px] ${confidenceClass(plan.confidence)}`}>
           {plan.confidence} conviction
         </Badge>
+        <Badge variant="outline" className={`text-[10px] ${voteStrengthClass(plan.voteStrength)}`}>
+          {plan.voteStrength} vote
+        </Badge>
         {plan.executionTimeframeLabel ? (
           <span className="text-[10px] text-muted-foreground">Timing: {plan.executionTimeframeLabel}</span>
         ) : null}
       </div>
+
+      <p className="text-[11px] text-muted-foreground">Vote: {plan.voteSummary}</p>
 
       <p className="text-sm text-violet-950 dark:text-violet-50 leading-relaxed">{plan.headline}</p>
 
@@ -58,6 +69,42 @@ export default function NovaQTradePlanCard({ plan }: { plan: NovaQTradePlan }) {
             <span className="font-mono font-medium">{fmt(plan.takeProfitPrice)}</span>
           </div>
         </div>
+      )}
+
+      {plan.riskRewardRatio != null && plan.entryType !== "wait" && (
+        <p className="text-xs font-mono text-violet-900 dark:text-violet-100">
+          Reward vs risk: ~{plan.riskRewardRatio.toFixed(2)}:1
+          {plan.riskRewardRatio < 1 ? " (target closer than stop)" : null}
+        </p>
+      )}
+
+      {plan.riskRewardWarning && (
+        <div className="rounded-md border border-amber-300/70 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/40 px-3 py-2">
+          <p className="text-xs font-medium text-amber-950 dark:text-amber-100">R:R warning</p>
+          <p className="text-xs text-amber-900/95 dark:text-amber-100/90 mt-0.5">{plan.riskRewardWarning}</p>
+        </div>
+      )}
+
+      {(plan.invalidatedAbove != null || plan.invalidatedBelow != null) && (
+        <div className="rounded-md border border-zinc-300/70 dark:border-zinc-600/60 bg-zinc-50/80 dark:bg-zinc-900/50 px-3 py-2 text-xs">
+          <p className="font-medium text-zinc-800 dark:text-zinc-200">Invalidation (re-run NovaQ after)</p>
+          {plan.invalidatedAbove != null && (
+            <p className="text-rose-700 dark:text-rose-300 mt-0.5">
+              Short thesis off if price holds above <span className="font-mono">{fmt(plan.invalidatedAbove)}</span>
+            </p>
+          )}
+          {plan.invalidatedBelow != null && (
+            <p className="text-rose-700 dark:text-rose-300 mt-0.5">
+              Long thesis off if price holds below <span className="font-mono">{fmt(plan.invalidatedBelow)}</span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {plan.leverageNote && (
+        <p className="text-xs text-violet-900/90 dark:text-violet-100/90 border-l-2 border-violet-400/60 pl-2">
+          {plan.leverageNote}
+        </p>
       )}
 
       <ul className="text-xs text-violet-900/90 dark:text-violet-100/90 list-disc pl-4 space-y-1">
