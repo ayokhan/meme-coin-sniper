@@ -1,15 +1,21 @@
 import {
   type CandleTuple,
   combineStructureAndTrendline,
+  countSupportResistanceTouches,
   highLowFromCandles,
   overallTrendlineSummary,
   structureDirectionFromCloses,
   trendlineRegressionFromCloses,
 } from "@/lib/nova-q-analytics";
 
+/** Structure table timeframes (short → long). */
 export const NOVA_RADAR_STRUCTURE_TFS = [
+  { id: "5m", label: "5 mins", interval: "1m", limit: 5 },
   { id: "15m", label: "15 mins", interval: "1m", limit: 15 },
+  { id: "40m", label: "40 mins", interval: "1m", limit: 40 },
   { id: "1h", label: "1 hour", interval: "1m", limit: 60 },
+  { id: "4h", label: "4 hours", interval: "5m", limit: 48 },
+  { id: "24h", label: "24 hours", interval: "1h", limit: 24 },
   { id: "1w", label: "1 week", interval: "1d", limit: 7 },
   { id: "4w", label: "4 weeks", interval: "1d", limit: 28 },
 ] as const;
@@ -19,6 +25,8 @@ export type NovaRadarTfRow = {
   label: string;
   support: number;
   resistance: number;
+  supportTouches: number;
+  resistanceTouches: number;
   structureDirection: "bullish" | "bearish" | "sideways";
   trendlineBias: "up" | "down" | "flat";
   trendlineRead: string;
@@ -226,6 +234,7 @@ export function buildStructureTimeframes(
         const candles = await fetchCandles(tf.interval, tf.limit);
         const hl = highLowFromCandles(candles);
         if (!hl) continue;
+        const { supportTouches, resistanceTouches } = countSupportResistanceTouches(candles, hl.low, hl.high);
         const structureDirection = structureDirectionFromCloses(candles);
         const tl =
           trendlineRegressionFromCloses(candles) ?? {
@@ -239,6 +248,8 @@ export function buildStructureTimeframes(
           label: tf.label,
           support: hl.low,
           resistance: hl.high,
+          supportTouches,
+          resistanceTouches,
           structureDirection,
           trendlineBias: tl.bias,
           trendlineRead: tl.read,

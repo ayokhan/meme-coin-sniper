@@ -22,7 +22,7 @@ import {
 import { overallTrendlineSummary, type CandleTuple } from "@/lib/nova-q-analytics";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 45;
+export const maxDuration = 60;
 
 function normalizeSymbol(raw: string): string {
   return normalizeMetalBase(raw) || "BTC";

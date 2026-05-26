@@ -334,13 +334,17 @@ export default function NovaRadarPanel() {
 
           {sharedTfs && sharedTfs.length > 0 && (
             <div className="overflow-x-auto">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Structure timeframes (sampled)</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Structure timeframes (5m → 4w) · touches = retests near period low (S) / high (R)
+              </p>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs">TF</TableHead>
                     <TableHead className="text-right text-xs">Support</TableHead>
+                    <TableHead className="text-right text-xs">S touches</TableHead>
                     <TableHead className="text-right text-xs">Resistance</TableHead>
+                    <TableHead className="text-right text-xs">R touches</TableHead>
                     <TableHead className="text-left text-xs">Bias</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -351,8 +355,14 @@ export default function NovaRadarPanel() {
                       <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">
                         ${tf.support.toLocaleString(undefined, { maximumFractionDigits: 4 })}
                       </TableCell>
+                      <TableCell className="text-right text-xs tabular-nums text-muted-foreground">
+                        {tf.supportTouches ?? 0}
+                      </TableCell>
                       <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">
                         ${tf.resistance.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                      </TableCell>
+                      <TableCell className="text-right text-xs tabular-nums text-muted-foreground">
+                        {tf.resistanceTouches ?? 0}
                       </TableCell>
                       <TableCell className="text-xs capitalize">{tf.direction}</TableCell>
                     </TableRow>
