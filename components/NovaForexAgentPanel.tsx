@@ -8,7 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ForexSymbolEntry } from "@/lib/forex-market";
 import { NOVA_SCALP_DISCLAIMER, SCALP_TIMEFRAMES, type NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
 
+import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
 import { NOVA_FORECAST_RANGES, NOVA_FOREX_Q_TIMEFRAMES } from "@/lib/nova-forex-timeframes";
+import type { NovaQAlignment, NovaQTradePlan } from "@/lib/nova-q-trade-plan";
 
 const Q_TF = NOVA_FOREX_Q_TIMEFRAMES.map((t) => t.id);
 const FORECAST_RANGES = NOVA_FORECAST_RANGES.map((r) => ({ id: r.id, label: r.label }));
@@ -19,6 +21,8 @@ type NovaQResult = {
   marketDirection: string;
   overallTrendlineSummary?: string;
   contractDescription?: string;
+  alignment?: NovaQAlignment | null;
+  tradePlan?: NovaQTradePlan | null;
   timeframes: Array<{
     id: string;
     label: string;
@@ -349,6 +353,7 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
                 {qResult.contractDescription && (
                   <p className="text-xs text-muted-foreground">{qResult.contractDescription}</p>
                 )}
+                {qResult.tradePlan ? <NovaQTradePlanCard plan={qResult.tradePlan} /> : null}
                 <Table>
                   <TableHeader>
                     <TableRow>

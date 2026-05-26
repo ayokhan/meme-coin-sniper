@@ -19,6 +19,7 @@ import {
   type CandleTuple,
 } from "@/lib/nova-q-analytics";
 import { getNovaForexAgentAccess } from "@/lib/vip-futures-addon-access";
+import { buildNovaQTradePlan, computeNovaQAlignment } from "@/lib/nova-q-trade-plan";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
@@ -97,15 +98,23 @@ export async function POST(request: Request) {
 
     const ticker = await getForexTicker(symbol);
     const currentPrice = ticker?.last ? Number(ticker.last) : null;
+    const marketDirection = getOverallDirection(tfResults);
+    const alignment = computeNovaQAlignment(tfResults);
+    const tradePlan =
+      currentPrice != null
+        ? buildNovaQTradePlan({ marketDirection, timeframes: tfResults, currentPrice })
+        : null;
 
     return NextResponse.json({
       success: true,
       result: {
         symbol,
         currentPrice,
-        marketDirection: getOverallDirection(tfResults),
+        marketDirection,
         overallTrendlineSummary: overallTrendlineSummary(tfResults),
         contractDescription: forexContractDescription(symbol),
+        alignment,
+        tradePlan,
         timeframes: tfResults,
       },
     });

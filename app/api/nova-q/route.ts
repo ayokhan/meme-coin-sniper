@@ -31,6 +31,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 45;
 
 import { NOVA_STANDARD_TIMEFRAMES } from "@/lib/nova-timeframes";
+import { buildNovaQTradePlan, computeNovaQAlignment } from "@/lib/nova-q-trade-plan";
 
 const NOVA_Q_TIMEFRAMES = NOVA_STANDARD_TIMEFRAMES;
 
@@ -164,6 +165,15 @@ export async function POST(request: Request) {
     const currentPrice = ticker?.last ? Number(ticker.last) : null;
     const marketDirection = getOverallDirection(tfResults);
     const overallTrendlineSummaryText = overallTrendlineSummary(tfResults);
+    const alignment = computeNovaQAlignment(tfResults);
+    const tradePlan =
+      currentPrice != null
+        ? buildNovaQTradePlan({
+            marketDirection,
+            timeframes: tfResults,
+            currentPrice,
+          })
+        : null;
 
     return NextResponse.json({
       success: true,
@@ -173,6 +183,8 @@ export async function POST(request: Request) {
         marketDirection,
         overallTrendlineSummary: overallTrendlineSummaryText,
         contractDescription,
+        alignment,
+        tradePlan,
         timeframes: tfResults,
       },
     });
