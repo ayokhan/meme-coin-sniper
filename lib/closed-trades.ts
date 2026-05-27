@@ -1,5 +1,52 @@
 /** Parse Blofin fills / order history into closed round-trips for PNL share cards. */
 
+export type ClosedTradesPeriod = "1d" | "3d" | "7d" | "30d";
+
+export const CLOSED_TRADES_PERIOD_OPTIONS: { value: ClosedTradesPeriod; label: string }[] = [
+  { value: "1d", label: "Last 1 day" },
+  { value: "3d", label: "Last 3 days" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+];
+
+export function closedTradesPeriodDays(period: ClosedTradesPeriod): number {
+  switch (period) {
+    case "1d":
+      return 1;
+    case "3d":
+      return 3;
+    case "7d":
+      return 7;
+    case "30d":
+      return 30;
+  }
+}
+
+export function closedTradesPeriodLabel(period: ClosedTradesPeriod): string {
+  return CLOSED_TRADES_PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Last 7 days";
+}
+
+export function closedTradesPeriodBeginMs(period: ClosedTradesPeriod, now = Date.now()): number {
+  return now - closedTradesPeriodDays(period) * 24 * 60 * 60 * 1000;
+}
+
+export function filterClosedTradesByPeriod<T extends { closedAt: string | null }>(
+  trades: T[],
+  period: ClosedTradesPeriod,
+  now = Date.now()
+): T[] {
+  const begin = closedTradesPeriodBeginMs(period, now);
+  return trades.filter((t) => {
+    if (t.closedAt == null || t.closedAt === "") return false;
+    const ts = Number(t.closedAt);
+    return Number.isFinite(ts) && ts >= begin;
+  });
+}
+
+export function sumClosedTradesRealized(trades: { realizedPnlUsdt: number }[]): number {
+  return trades.reduce((s, t) => s + t.realizedPnlUsdt, 0);
+}
+
 export type BlofinFillRow = {
   instId: string;
   tradeId?: string;

@@ -14,6 +14,11 @@ export type ClosedTradeShareInput = {
   modeLabel?: "Live" | "Demo";
 };
 
+export type ClosedTradeShareOptions = {
+  /** When false, share card shows ROI % only (no USDT line). Default true. */
+  showRealizedUsdt?: boolean;
+};
+
 const W = 1080;
 const H = 1080;
 const GREEN = "#0ecb81";
@@ -63,7 +68,11 @@ function formatPrice(n: number): string {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 }
 
-export function drawClosedTradeShareCard(input: ClosedTradeShareInput): Promise<Blob> {
+export function drawClosedTradeShareCard(
+  input: ClosedTradeShareInput,
+  options?: ClosedTradeShareOptions
+): Promise<Blob> {
+  const showUsdt = options?.showRealizedUsdt !== false;
   const profit = input.roiPct >= 0;
   const accent = profit ? GREEN : RED;
   const sharedDate =
@@ -147,14 +156,16 @@ export function drawClosedTradeShareCard(input: ClosedTradeShareInput): Promise<
   ctx.fillText(roiStr, pad, roiY + 28);
   ctx.shadowBlur = 0;
 
-  // Realized USDT
-  ctx.font = "600 22px system-ui, sans-serif";
-  ctx.fillStyle = "#94a3b8";
-  const usdtStr = `${input.realizedPnlUsdt >= 0 ? "+" : ""}${input.realizedPnlUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT realized`;
-  ctx.fillText(usdtStr, pad, roiY + 140);
+  let priceY = roiY + 120;
+  if (showUsdt) {
+    ctx.font = "600 22px system-ui, sans-serif";
+    ctx.fillStyle = "#94a3b8";
+    const usdtStr = `${input.realizedPnlUsdt >= 0 ? "+" : ""}${input.realizedPnlUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT realized`;
+    ctx.fillText(usdtStr, pad, roiY + 140);
+    priceY = roiY + 200;
+  }
 
   // Prices
-  const priceY = roiY + 200;
   const colW = 220;
   ctx.font = "500 14px system-ui, sans-serif";
   ctx.fillStyle = "#64748b";
@@ -188,8 +199,10 @@ export function drawClosedTradeShareCard(input: ClosedTradeShareInput): Promise<
 /** Summary card for multiple closed trades. */
 export function drawClosedTradesSummaryCard(
   trades: ClosedTradeShareInput[],
-  totalRealized: number
+  totalRealized: number,
+  options?: ClosedTradeShareOptions & { periodLabel?: string }
 ): Promise<Blob> {
+  const showUsdt = options?.showRealizedUsdt !== false;
   const items = trades.slice(0, 8);
   const profit = totalRealized >= 0;
   const H2 = 520 + items.length * 100;
@@ -208,7 +221,8 @@ export function drawClosedTradesSummaryCard(
   ctx.fillText("NovaStaris — Closed PNL", pad, pad);
   ctx.font = "500 15px system-ui, sans-serif";
   ctx.fillStyle = "#94a3b8";
-  ctx.fillText(new Date().toLocaleString(), pad, pad + 44);
+  const sub = options?.periodLabel ? `${options.periodLabel} · ${new Date().toLocaleString()}` : new Date().toLocaleString();
+  ctx.fillText(sub, pad, pad + 44);
 
   let y = pad + 88;
   for (const t of items) {
@@ -223,25 +237,33 @@ export function drawClosedTradesSummaryCard(
     ctx.font = "700 28px system-ui, sans-serif";
     ctx.fillStyle = col;
     ctx.fillText(`${t.roiPct >= 0 ? "+" : ""}${t.roiPct.toFixed(2)}%`, W - pad - 20, y + 14);
-    ctx.font = "600 14px system-ui, sans-serif";
-    ctx.fillStyle = "#94a3b8";
-    ctx.fillText(
-      `${t.realizedPnlUsdt >= 0 ? "+" : ""}${t.realizedPnlUsdt.toFixed(2)} USDT · ${formatPrice(t.openPrice)} → ${formatPrice(t.closePrice)}`,
-      W - pad - 20,
-      y + 48
-    );
+    if (showUsdt) {
+      ctx.font = "600 14px system-ui, sans-serif";
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillText(
+        `${t.realizedPnlUsdt >= 0 ? "+" : ""}${t.realizedPnlUsdt.toFixed(2)} USDT · ${formatPrice(t.openPrice)} → ${formatPrice(t.closePrice)}`,
+        W - pad - 20,
+        y + 48
+      );
+    } else {
+      ctx.font = "600 14px system-ui, sans-serif";
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillText(`${formatPrice(t.openPrice)} → ${formatPrice(t.closePrice)}`, W - pad - 20, y + 48);
+    }
     ctx.textAlign = "left";
     y += 100;
   }
 
   y += 12;
-  ctx.font = "700 26px system-ui, sans-serif";
-  ctx.fillStyle = profit ? GREEN : RED;
-  ctx.fillText(
-    `Total realized: ${totalRealized >= 0 ? "+" : ""}${totalRealized.toFixed(2)} USDT`,
-    pad,
-    y
-  );
+  if (showUsdt) {
+    ctx.font = "700 26px system-ui, sans-serif";
+    ctx.fillStyle = profit ? GREEN : RED;
+    ctx.fillText(
+      `Total realized: ${totalRealized >= 0 ? "+" : ""}${totalRealized.toFixed(2)} USDT`,
+      pad,
+      y
+    );
+  }
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Failed"))), "image/jpeg", 0.94);
@@ -257,14 +279,22 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function downloadClosedTradeShareCard(input: ClosedTradeShareInput, filename?: string) {
-  const blob = await drawClosedTradeShareCard(input);
+export async function downloadClosedTradeShareCard(
+  input: ClosedTradeShareInput,
+  filename?: string,
+  options?: ClosedTradeShareOptions
+) {
+  const blob = await drawClosedTradeShareCard(input, options);
   const sym = input.displaySymbol.replace(/[^a-zA-Z0-9]/g, "_");
   downloadBlob(blob, filename ?? `NovaStaris_Closed_${sym}_${new Date().toISOString().slice(0, 10)}.jpg`);
 }
 
-export async function downloadClosedTradesSummaryCard(trades: ClosedTradeShareInput[], filename?: string) {
-  const total = trades.reduce((s, t) => s + t.realizedPnlUsdt, 0);
-  const blob = await drawClosedTradesSummaryCard(trades, total);
+export async function downloadClosedTradesSummaryCard(
+  trades: ClosedTradeShareInput[],
+  filename?: string,
+  options?: ClosedTradeShareOptions & { periodLabel?: string; totalRealized?: number }
+) {
+  const total = options?.totalRealized ?? trades.reduce((s, t) => s + t.realizedPnlUsdt, 0);
+  const blob = await drawClosedTradesSummaryCard(trades, total, options);
   downloadBlob(blob, filename ?? `NovaStaris_Closed_Summary_${new Date().toISOString().slice(0, 10)}.jpg`);
 }

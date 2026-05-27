@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import type { ClosedTradesPeriod } from "@/lib/closed-trades";
+import { CLOSED_TRADES_PERIOD_OPTIONS } from "@/lib/closed-trades";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -269,6 +271,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [closedTrades, setClosedTrades] = useState<ClosedTradeRow[]>([]);
   const [closedTradesLoading, setClosedTradesLoading] = useState(false);
   const [closedTradesTotal, setClosedTradesTotal] = useState(0);
+  const [closedTradesPeriod, setClosedTradesPeriod] = useState<ClosedTradesPeriod>("7d");
+  const [closedTradesPeriodLabel, setClosedTradesPeriodLabel] = useState("Last 7 days");
+  const [shareShowRealizedUsdt, setShareShowRealizedUsdt] = useState(true);
   const [sharingClosedTradeId, setSharingClosedTradeId] = useState<string | null>(null);
   const [monitorBoardSymbols, setMonitorBoardSymbols] = useState<string[]>([]);
   const [monitorBoardInput, setMonitorBoardInput] = useState("");
@@ -819,14 +824,15 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     }
   }, []);
 
-  const fetchClosedTrades = useCallback(async () => {
+  const fetchClosedTrades = useCallback(async (period: ClosedTradesPeriod = closedTradesPeriod) => {
     try {
       setClosedTradesLoading(true);
-      const res = await fetch("/api/admin/trading-bot/closed-trades?limit=80");
+      const res = await fetch(`/api/admin/trading-bot/closed-trades?limit=100&period=${period}`);
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.closedTrades)) {
         setClosedTrades(data.closedTrades);
         setClosedTradesTotal(typeof data.totalRealized === "number" ? data.totalRealized : 0);
+        if (typeof data.periodLabel === "string") setClosedTradesPeriodLabel(data.periodLabel);
         if (data.blofin) setBlofinPanelMeta(data.blofin);
       } else {
         setClosedTrades([]);
@@ -838,7 +844,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     } finally {
       setClosedTradesLoading(false);
     }
-  }, []);
+  }, [closedTradesPeriod]);
 
   const fetchOpenOrders = useCallback(async () => {
     try {
@@ -939,9 +945,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   useEffect(() => {
     if (activeTab === "orders") {
       fetchOrderHistory();
-      fetchClosedTrades();
+      fetchClosedTrades(closedTradesPeriod);
     }
-  }, [activeTab, fetchOrderHistory, fetchClosedTrades]);
+  }, [activeTab, fetchOrderHistory, fetchClosedTrades, closedTradesPeriod]);
 
   const VALID_TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1D"];
   const validateForm = (): string | null => {
@@ -3057,6 +3063,31 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   {blofinPanelMeta.modeMismatchHint}
                 </p>
               )}
+              <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-zinc-200/80 dark:border-zinc-600/80">
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  Closed PNL period
+                  <select
+                    value={closedTradesPeriod}
+                    onChange={(e) => setClosedTradesPeriod(e.target.value as ClosedTradesPeriod)}
+                    className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-zinc-800 dark:text-zinc-100"
+                  >
+                    {CLOSED_TRADES_PERIOD_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareShowRealizedUsdt}
+                    onChange={(e) => setShareShowRealizedUsdt(e.target.checked)}
+                    className="rounded"
+                  />
+                  Show USDT on share cards (ROI % always shown)
+                </label>
+              </div>
               {activeTab === "open_orders" && (
                 <div className="mt-2 max-h-64 overflow-auto">
                   {openOrdersLoading ? (
@@ -3208,6 +3239,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                 items,
                                 totalLabel: "Total unrealized",
                                 totalValue: positionsData.totalUnrealizedPnl,
+                                showUsdt: shareShowRealizedUsdt,
                               });
                               const url = URL.createObjectURL(blob);
                               const a = document.createElement("a");
@@ -3255,7 +3287,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                     {closedTradesLoading ? (
                       <p className="text-muted-foreground text-xs">Loading closed trades…</p>
                     ) : closedTrades.length === 0 ? (
-                      <p className="text-muted-foreground text-xs">No closed trades with PNL in recent history. Close a position on Blofin, then Refresh.</p>
+                      <p className="text-muted-foreground text-xs">No closed trades with PNL in {closedTradesPeriodLabel.toLowerCase()}. Close a position on Blofin or try a longer period, then Refresh.</p>
                     ) : (
                       <div className="space-y-2 max-h-52 overflow-auto pr-1">
                         {closedTrades.map((t) => {
@@ -3300,7 +3332,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                   setSharingClosedTradeId(t.id);
                                   try {
                                     await downloadClosedTradeShareCard(
-                                      closedTradeToShareInput(t, config?.mode ?? "live")
+                                      closedTradeToShareInput(t, config?.mode ?? "live"),
+                                      undefined,
+                                      { showRealizedUsdt: shareShowRealizedUsdt }
                                     );
                                   } finally {
                                     setSharingClosedTradeId(null);
@@ -3316,10 +3350,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                     )}
                     {closedTrades.length > 0 && (
                       <p className="text-xs font-semibold mt-2 tabular-nums">
-                        Total realized:{" "}
+                        Total realized ({closedTradesPeriodLabel.toLowerCase()}):{" "}
                         <span className={closedTradesTotal >= 0 ? "text-emerald-600 dark:text-[#0ecb81]" : "text-rose-600 dark:text-[#f6465d]"}>
                           {closedTradesTotal >= 0 ? "+" : ""}{closedTradesTotal.toFixed(2)} USDT
                         </span>
+                        <span className="text-muted-foreground font-normal ml-1">· {closedTrades.length} trade{closedTrades.length === 1 ? "" : "s"}</span>
                       </p>
                     )}
                   </div>
@@ -3364,7 +3399,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                       className="h-7 text-xs"
                       onClick={() => {
                         fetchOrderHistory();
-                        fetchClosedTrades();
+                        fetchClosedTrades(closedTradesPeriod);
                       }}
                       disabled={orderHistoryLoading || closedTradesLoading}
                     >
@@ -3382,7 +3417,13 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                             setDownloadingClosedPnlImage(true);
                             try {
                               await downloadClosedTradesSummaryCard(
-                                closedTrades.map((t) => closedTradeToShareInput(t, config?.mode ?? "live"))
+                                closedTrades.map((t) => closedTradeToShareInput(t, config?.mode ?? "live")),
+                                undefined,
+                                {
+                                  showRealizedUsdt: shareShowRealizedUsdt,
+                                  periodLabel: closedTradesPeriodLabel,
+                                  totalRealized: closedTradesTotal,
+                                }
                               );
                             } finally {
                               setDownloadingClosedPnlImage(false);
@@ -3403,7 +3444,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                             setSharingClosedTradeId(latest.id);
                             try {
                               await downloadClosedTradeShareCard(
-                                closedTradeToShareInput(latest, config?.mode ?? "live")
+                                closedTradeToShareInput(latest, config?.mode ?? "live"),
+                                undefined,
+                                { showRealizedUsdt: shareShowRealizedUsdt }
                               );
                             } finally {
                               setSharingClosedTradeId(null);

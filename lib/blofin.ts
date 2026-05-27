@@ -455,6 +455,8 @@ export async function getOrderHistory(options?: {
   demo?: boolean;
   instId?: string;
   limit?: number;
+  /** Unix ms — only records after this time (Blofin `begin`). */
+  beginMs?: number;
   config?: BlofinConfig | null;
 }): Promise<
   {
@@ -473,9 +475,10 @@ export async function getOrderHistory(options?: {
   }[]
 > {
   const limit = options?.limit ?? 50;
-  const path = options?.instId
-    ? `/api/v1/trade/orders-history?instId=${encodeURIComponent(options.instId)}&limit=${limit}`
-    : `/api/v1/trade/orders-history?limit=${limit}`;
+  const q = new URLSearchParams({ limit: String(limit) });
+  if (options?.instId) q.set("instId", options.instId);
+  if (options?.beginMs != null && Number.isFinite(options.beginMs)) q.set("begin", String(Math.floor(options.beginMs)));
+  const path = `/api/v1/trade/orders-history?${q.toString()}`;
   const out = await privateRequest<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createTime?: string; pnl?: string }[]>(
     "GET",
     path,
@@ -534,11 +537,13 @@ export async function getFillsHistory(options?: {
   demo?: boolean;
   instId?: string;
   limit?: number;
+  beginMs?: number;
   config?: BlofinConfig | null;
 }): Promise<BlofinFillHistoryRow[]> {
   const limit = Math.min(100, options?.limit ?? 50);
   const q = new URLSearchParams({ limit: String(limit) });
   if (options?.instId) q.set("instId", options.instId);
+  if (options?.beginMs != null && Number.isFinite(options.beginMs)) q.set("begin", String(Math.floor(options.beginMs)));
   const path = `/api/v1/trade/fills-history?${q.toString()}`;
   const out = await privateRequest<unknown>("GET", path, undefined, options?.demo, options?.config);
   assertBlofinOk(out, "fills history");

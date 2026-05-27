@@ -5,7 +5,13 @@ import { getFillsHistory, getOrderHistory } from "@/lib/blofin";
 import {
   closedTradesFromFills,
   closedTradesFromOrders,
+  closedTradesPeriodBeginMs,
+  closedTradesPeriodDays,
+  closedTradesPeriodLabel,
+  filterClosedTradesByPeriod,
   mergeClosedTrades,
+  sumClosedTradesRealized,
+  type ClosedTradesPeriod,
 } from "@/lib/closed-trades";
 import { getTradingBotBlofinMeta, resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
 import { prisma } from "@/lib/db";
@@ -35,11 +41,15 @@ export async function GET(req: Request) {
     const blofin = await getTradingBotBlofinMeta(config, credentialSource);
     const leverage = await getBotLeverage();
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "80", 10) || 80));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "100", 10) || 100));
+    const periodRaw = searchParams.get("period") ?? "7d";
+    const period: ClosedTradesPeriod =
+      periodRaw === "1d" || periodRaw === "3d" || periodRaw === "7d" || periodRaw === "30d" ? periodRaw : "7d";
+    const beginMs = closedTradesPeriodBeginMs(period);
 
     const [fills, orders] = await Promise.all([
-      getFillsHistory({ demo: blofin.blofinDemo, limit, config }).catch(() => []),
-      getOrderHistory({ demo: blofin.blofinDemo, limit, config }),
+      getFillsHistory({ demo: blofin.blofinDemo, limit, beginMs, config }).catch(() => []),
+      getOrderHistory({ demo: blofin.blofinDemo, limit, beginMs, config }),
     ]);
 
     const leverageByInst = new Map<string, number>();
@@ -50,14 +60,17 @@ export async function GET(req: Request) {
 
     const fromFills = closedTradesFromFills(fills, leverage, leverageByInst);
     const fromOrders = closedTradesFromOrders(orders, leverage);
-    const closedTrades = mergeClosedTrades(fromFills, fromOrders);
-
-    const totalRealized = closedTrades.reduce((s, t) => s + t.realizedPnlUsdt, 0);
+    const allClosedTrades = mergeClosedTrades(fromFills, fromOrders);
+    const closedTrades = filterClosedTradesByPeriod(allClosedTrades, period);
+    const totalRealized = sumClosedTradesRealized(closedTrades);
 
     return NextResponse.json({
       success: true,
       closedTrades,
       totalRealized,
+      period,
+      periodLabel: closedTradesPeriodLabel(period),
+      periodDays: closedTradesPeriodDays(period),
       leverageUsed: leverage,
       blofin,
     });

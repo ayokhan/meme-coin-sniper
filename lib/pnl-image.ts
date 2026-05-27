@@ -23,6 +23,8 @@ export type PnlImageOptions = {
   totalLabel: string;
   totalValue: number;
   dateLabel?: string;
+  /** When false, cards show ROI % only (no USDT lines or total). Default true. */
+  showUsdt?: boolean;
 };
 
 const W = 960;
@@ -79,7 +81,7 @@ function formatPct(n: number | null | undefined): string {
 }
 
 export function drawPnlToJpegBlob(options: PnlImageOptions): Promise<Blob> {
-  const { title, subtitle, items, totalLabel, totalValue, dateLabel } = options;
+  const { title, subtitle, items, totalLabel, totalValue, dateLabel, showUsdt = true } = options;
   const dateStr = dateLabel ?? new Date().toLocaleString();
   const itemCount = Math.min(items.length, 10);
   const isProfit = totalValue >= 0;
@@ -194,16 +196,22 @@ export function drawPnlToJpegBlob(options: PnlImageOptions): Promise<Blob> {
     }
 
     ctx.textAlign = "right";
-    if (hasUsdt && item.pnlPct != null) {
+    if (item.pnlPct != null) {
       ctx.shadowColor = color;
       ctx.shadowBlur = 14;
       ctx.font = `700 36px system-ui, sans-serif`;
       ctx.fillStyle = color;
       ctx.fillText(formatPct(item.pnlPct), W - PAD - 16, innerY - 2);
       ctx.shadowBlur = 0;
-      ctx.font = `600 15px system-ui, sans-serif`;
-      ctx.fillStyle = SLATE_MUTED;
-      ctx.fillText(formatUsdt(pnlUsdt), W - PAD - 16, innerY + 38);
+      if (showUsdt && hasUsdt) {
+        ctx.font = `600 15px system-ui, sans-serif`;
+        ctx.fillStyle = SLATE_MUTED;
+        ctx.fillText(formatUsdt(pnlUsdt), W - PAD - 16, innerY + 38);
+      }
+    } else if (hasUsdt && showUsdt) {
+      ctx.font = `700 28px system-ui, sans-serif`;
+      ctx.fillStyle = color;
+      ctx.fillText(formatUsdt(pnlUsdt), W - PAD - 16, innerY + 8);
     } else {
       ctx.font = `700 28px system-ui, sans-serif`;
       ctx.fillStyle = color;
@@ -221,14 +229,16 @@ export function drawPnlToJpegBlob(options: PnlImageOptions): Promise<Blob> {
   ctx.stroke();
   y += 22;
 
-  const totalStr = `${totalLabel}: ${formatUsdt(totalValue)}`;
-  ctx.font = `700 22px system-ui, sans-serif`;
-  ctx.fillStyle = isProfit ? GREEN : RED;
-  ctx.shadowColor = isProfit ? "rgba(0,212,255,0.4)" : "rgba(246,70,93,0.35)";
-  ctx.shadowBlur = 12;
-  ctx.fillText(totalStr, PAD, y);
-  ctx.shadowBlur = 0;
-  y += 36;
+  if (showUsdt) {
+    const totalStr = `${totalLabel}: ${formatUsdt(totalValue)}`;
+    ctx.font = `700 22px system-ui, sans-serif`;
+    ctx.fillStyle = isProfit ? GREEN : RED;
+    ctx.shadowColor = isProfit ? "rgba(0,212,255,0.4)" : "rgba(246,70,93,0.35)";
+    ctx.shadowBlur = 12;
+    ctx.fillText(totalStr, PAD, y);
+    ctx.shadowBlur = 0;
+    y += 36;
+  }
 
   ctx.font = `600 ${FOOTER_SIZE}px system-ui, sans-serif`;
   ctx.fillStyle = isProfit ? GREEN : SLATE_MUTED;
