@@ -182,7 +182,8 @@ function roiFromPrices(
 export function closedTradesFromFills(
   fills: BlofinFillRow[],
   defaultLeverage: number,
-  leverageByInst?: Map<string, number>
+  leverageByInst?: Map<string, number>,
+  leverageByOrderId?: Map<string, number>
 ): ClosedTrade[] {
   const sorted = [...fills].sort((a, b) => Number(a.ts ?? 0) - Number(b.ts ?? 0));
   const closed: ClosedTrade[] = [];
@@ -208,7 +209,8 @@ export function closedTradesFromFills(
     }
     if (openPrice == null || openPrice <= 0) continue;
 
-    const lev = leverageByInst?.get(f.instId) ?? defaultLeverage;
+    const ordLev = f.orderId ? leverageByOrderId?.get(f.orderId) : undefined;
+    const lev = ordLev ?? leverageByInst?.get(f.instId) ?? defaultLeverage;
 
     closed.push({
       id: f.tradeId ?? f.orderId ?? `fill-${i}`,
@@ -276,11 +278,48 @@ export function closedTradesFromOrders(orders: BlofinOrderRow[], defaultLeverage
   return closed.reverse();
 }
 
-export function mergeClosedTrades(fillsTrades: ClosedTrade[], orderTrades: ClosedTrade[]): ClosedTrade[] {
-  const byId = new Map<string, ClosedTrade>();
-  for (const t of [...orderTrades, ...fillsTrades]) {
-    const key = `${t.instId}-${t.closedAt}-${t.realizedPnlUsdt.toFixed(4)}`;
-    if (!byId.has(key)) byId.set(key, t);
+/** Same round-trip from fills vs orders-history often differs by ms timestamp or leverage — bucket for dedupe. */
+export function closedTradeDedupeKey(t: ClosedTrade): string {
+  const ts =
+    t.closedAt != null && Number.isFinite(Number(t.closedAt))
+      ? Math.floor(Number(t.closedAt) / 60_000)
+      : 0;
+  return [
+    t.instId,
+    t.direction,
+    t.openPrice.toFixed(4),
+    t.closePrice.toFixed(4),
+    t.realizedPnlUsdt.toFixed(2),
+    String(ts),
+  ].join("|");
+}
+
+function enrichFillWithOrderLeverage(fillsTrade: ClosedTrade, orderTrade: ClosedTrade): ClosedTrade {
+  const lev = orderTrade.leverage > 0 ? orderTrade.leverage : fillsTrade.leverage;
+  if (lev === fillsTrade.leverage) return fillsTrade;
+  return {
+    ...fillsTrade,
+    leverage: lev,
+    roiPct: roiFromPrices(fillsTrade.direction, fillsTrade.openPrice, fillsTrade.closePrice, lev),
+  };
+}
+
+function preferClosedTrade(existing: ClosedTrade, candidate: ClosedTrade): ClosedTrade {
+  if (existing.source === "fills" && candidate.source === "orders") {
+    return enrichFillWithOrderLeverage(existing, candidate);
   }
-  return [...byId.values()].sort((a, b) => Number(b.closedAt ?? 0) - Number(a.closedAt ?? 0));
+  if (candidate.source === "fills" && existing.source === "orders") {
+    return enrichFillWithOrderLeverage(candidate, existing);
+  }
+  return existing;
+}
+
+export function mergeClosedTrades(fillsTrades: ClosedTrade[], orderTrades: ClosedTrade[]): ClosedTrade[] {
+  const byKey = new Map<string, ClosedTrade>();
+  for (const t of [...orderTrades, ...fillsTrades]) {
+    const key = closedTradeDedupeKey(t);
+    const prev = byKey.get(key);
+    byKey.set(key, prev ? preferClosedTrade(prev, t) : t);
+  }
+  return [...byKey.values()].sort((a, b) => Number(b.closedAt ?? 0) - Number(a.closedAt ?? 0));
 }

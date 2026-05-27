@@ -67,12 +67,14 @@ export async function GET(req: Request) {
     ]);
 
     const leverageByInst = new Map<string, number>();
+    const leverageByOrderId = new Map<string, number>();
     for (const o of orders) {
       const lev = Number(o.leverage);
       if (o.instId && Number.isFinite(lev) && lev > 0) leverageByInst.set(o.instId, lev);
+      if (o.orderId && Number.isFinite(lev) && lev > 0) leverageByOrderId.set(o.orderId, lev);
     }
 
-    const fromFills = closedTradesFromFills(fills, leverage, leverageByInst);
+    const fromFills = closedTradesFromFills(fills, leverage, leverageByInst, leverageByOrderId);
     const fromOrders = closedTradesFromOrders(orders, leverage);
     const allClosedTrades = mergeClosedTrades(fromFills, fromOrders);
     const closedTrades = filterClosedTradesByPeriod(allClosedTrades, period);
