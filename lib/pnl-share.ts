@@ -2,6 +2,28 @@
 
 export type SharePnlResult = "native" | "download" | "cancelled" | "unsupported";
 
+import type { ClosedTradesAnalysis } from "@/lib/closed-trades";
+
+export function buildAnalysisShareCaption(parts: {
+  periodLabel: string;
+  analysis: ClosedTradesAnalysis;
+  showPnlDetails: boolean;
+}): string {
+  const { analysis: a, periodLabel, showPnlDetails } = parts;
+  const lines = [
+    `NovaStaris trading results · ${periodLabel}`,
+    `${a.totalTrades} trades · ${a.wins}W / ${a.losses}L · ${a.winRatePct.toFixed(1)}% win rate`,
+  ];
+  if (showPnlDetails) {
+    const sign = a.totalRealizedUsdt >= 0 ? "+" : "";
+    lines.push(`Total PNL: ${sign}${a.totalRealizedUsdt.toFixed(2)} USDT`);
+    if (a.avgWinUsdt != null) lines.push(`Avg win: +${a.avgWinUsdt.toFixed(2)} USDT`);
+    if (a.avgLossUsdt != null) lines.push(`Avg loss: ${a.avgLossUsdt.toFixed(2)} USDT`);
+  }
+  lines.push("", "https://novastaris.ai");
+  return lines.join("\n");
+}
+
 export function buildPnlShareCaption(parts: {
   symbol: string;
   roiPct: number;

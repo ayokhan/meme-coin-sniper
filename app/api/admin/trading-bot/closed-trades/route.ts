@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "100", 10) || 100));
     const periodRaw = searchParams.get("period") ?? "7d";
     const normalized = periodRaw === "1d" ? "24h" : periodRaw;
-    const valid: ClosedTradesPeriod[] = ["24h", "3d", "7d", "14d", "30d", "90d", "all"];
+    const valid: ClosedTradesPeriod[] = ["24h", "3d", "7d", "14d", "30d", "60d", "90d", "all"];
     const period: ClosedTradesPeriod = valid.includes(normalized as ClosedTradesPeriod)
       ? (normalized as ClosedTradesPeriod)
       : "7d";

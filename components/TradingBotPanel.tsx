@@ -15,12 +15,14 @@ import NovaPolymarketFiveMinsPanel from "@/components/NovaPolymarketFiveMinsPane
 import NovaPolymarketElitePanel from "@/components/NovaPolymarketElitePanel";
 import { formatBlofinPnlLine } from "@/lib/blofin-position-pnl";
 import {
+  drawAnalysisShareCard,
   drawClosedTradeShareCard,
   drawClosedTradesSummaryCard,
   drawOpenPositionShareCard,
   type ClosedTradeShareInput,
 } from "@/lib/closed-pnl-share-image";
 import PnlShareButtons from "@/components/PnlShareButtons";
+import { buildAnalysisShareCaption } from "@/lib/pnl-share";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
 
@@ -275,6 +277,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [closedTradesPeriodLabel, setClosedTradesPeriodLabel] = useState("Last 7 days");
   const [shareShowRealizedUsdt, setShareShowRealizedUsdt] = useState(true);
   const [showClosedAnalysis, setShowClosedAnalysis] = useState(false);
+  /** Analysis share card: stats-only vs stats + total PNL / avg win / avg loss. */
+  const [shareAnalysisShowPnlDetails, setShareAnalysisShowPnlDetails] = useState(false);
   const [monitorBoardSymbols, setMonitorBoardSymbols] = useState<string[]>([]);
   const [monitorBoardInput, setMonitorBoardInput] = useState("");
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
@@ -827,6 +831,16 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const closedTradesAnalysis = useMemo(
     () => analyzeClosedTrades(closedTrades),
     [closedTrades]
+  );
+
+  const analysisShareCaption = useMemo(
+    () =>
+      buildAnalysisShareCaption({
+        periodLabel: closedTradesPeriodLabel,
+        analysis: closedTradesAnalysis,
+        showPnlDetails: shareAnalysisShowPnlDetails,
+      }),
+    [closedTradesPeriodLabel, closedTradesAnalysis, shareAnalysisShowPnlDetails]
   );
 
   const fetchClosedTrades = useCallback(async (period: ClosedTradesPeriod = closedTradesPeriod) => {
@@ -3427,6 +3441,44 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                           </span>
                         </p>
                       )}
+                      <div className="pt-2 border-t border-cyan-500/20 space-y-2">
+                        <p className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Share analysis card</p>
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 text-[11px]">
+                          <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground">
+                            <input
+                              type="radio"
+                              name="analysis-share-layout"
+                              checked={!shareAnalysisShowPnlDetails}
+                              onChange={() => setShareAnalysisShowPnlDetails(false)}
+                              className="rounded-full"
+                            />
+                            Stats only — trades, wins, losses, win rate
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground">
+                            <input
+                              type="radio"
+                              name="analysis-share-layout"
+                              checked={shareAnalysisShowPnlDetails}
+                              onChange={() => setShareAnalysisShowPnlDetails(true)}
+                              className="rounded-full"
+                            />
+                            Stats + PNL — total PNL, avg win, avg loss
+                          </label>
+                        </div>
+                        <PnlShareButtons
+                          compact
+                          primaryLabel="Analysis card"
+                          filename={`NovaStaris_Analysis_${closedTradesPeriod}_${new Date().toISOString().slice(0, 10)}.jpg`}
+                          caption={analysisShareCaption}
+                          getBlob={() =>
+                            drawAnalysisShareCard(closedTradesAnalysis, {
+                              periodLabel: closedTradesPeriodLabel,
+                              modeLabel: config?.mode === "demo" ? "Demo" : "Live",
+                              showPnlDetails: shareAnalysisShowPnlDetails,
+                            })
+                          }
+                        />
+                      </div>
                     </div>
                   )}
 

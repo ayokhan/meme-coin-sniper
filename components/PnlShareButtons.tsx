@@ -13,11 +13,14 @@ import {
 type PnlShareButtonsProps = {
   getBlob: () => Promise<Blob>;
   filename: string;
-  symbol: string;
-  roiPct: number;
-  pnlUsdt: number;
-  showUsdt: boolean;
-  kind: "open" | "closed";
+  /** Used for default caption when `caption` is omitted. */
+  symbol?: string;
+  roiPct?: number;
+  pnlUsdt?: number;
+  showUsdt?: boolean;
+  kind?: "open" | "closed";
+  /** Override caption (e.g. analysis share). */
+  caption?: string;
   disabled?: boolean;
   compact?: boolean;
   primaryLabel?: string;
@@ -26,18 +29,21 @@ type PnlShareButtonsProps = {
 export default function PnlShareButtons({
   getBlob,
   filename,
-  symbol,
-  roiPct,
-  pnlUsdt,
-  showUsdt,
-  kind,
+  symbol = "",
+  roiPct = 0,
+  pnlUsdt = 0,
+  showUsdt = true,
+  kind = "closed",
+  caption: captionOverride,
   disabled,
   compact,
   primaryLabel = "Card",
 }: PnlShareButtonsProps) {
   const [busy, setBusy] = useState<string | null>(null);
 
-  const caption = buildPnlShareCaption({ symbol, roiPct, pnlUsdt, showUsdt, kind });
+  const caption =
+    captionOverride ??
+    buildPnlShareCaption({ symbol, roiPct, pnlUsdt, showUsdt, kind });
   const h = compact ? "h-6 text-[10px] px-1.5" : "h-7 text-xs";
 
   const run = async (key: string, fn: () => Promise<void>) => {

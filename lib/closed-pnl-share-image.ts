@@ -2,6 +2,7 @@
  * Premium PNL share cards (closed & open) — social / CT. Browser-only (canvas).
  */
 
+import type { ClosedTradesAnalysis } from "@/lib/closed-trades";
 import { downloadBlob } from "@/lib/pnl-share";
 
 export type ClosedTradeShareInput = {
@@ -374,6 +375,101 @@ export async function downloadOpenPositionShareCard(
   const blob = await drawOpenPositionShareCard(input, options);
   const sym = input.displaySymbol.replace(/[^a-zA-Z0-9]/g, "_");
   downloadBlob(blob, filename ?? `NovaStaris_Open_${sym}_${new Date().toISOString().slice(0, 10)}.jpg`);
+}
+
+export type AnalysisShareCardOptions = {
+  periodLabel: string;
+  modeLabel?: "Live" | "Demo";
+  /** When true, include total PNL, avg win, and avg loss on the card. */
+  showPnlDetails: boolean;
+};
+
+export function drawAnalysisShareCard(
+  analysis: ClosedTradesAnalysis,
+  options: AnalysisShareCardOptions
+): Promise<Blob> {
+  const { periodLabel, modeLabel, showPnlDetails } = options;
+  const profit = analysis.totalRealizedUsdt >= 0;
+  const H2 = showPnlDetails ? 920 : 780;
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H2;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return Promise.reject(new Error("Canvas not supported"));
+
+  const bg = ctx.createLinearGradient(0, 0, W, H2);
+  bg.addColorStop(0, "#05080f");
+  bg.addColorStop(0.5, "#0a1220");
+  bg.addColorStop(1, "#05080f");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H2);
+
+  const pad = 56;
+  ctx.fillStyle = CYAN;
+  ctx.font = "700 14px system-ui, sans-serif";
+  ctx.fillText("NOVASTARIS AI", pad, pad + 8);
+  ctx.fillStyle = "#fff";
+  ctx.font = "700 42px system-ui, sans-serif";
+  ctx.fillText("Trading results", pad, pad + 58);
+  ctx.font = "500 18px system-ui, sans-serif";
+  ctx.fillStyle = "#94a3b8";
+  const sub = [periodLabel, modeLabel, new Date().toLocaleDateString()].filter(Boolean).join(" · ");
+  ctx.fillText(sub, pad, pad + 96);
+
+  const statW = (W - 2 * pad - 36) / 4;
+  const statY = pad + 140;
+  const stats: { label: string; value: string; color: string }[] = [
+    { label: "TRADES", value: String(analysis.totalTrades), color: "#f8fafc" },
+    { label: "WINS", value: String(analysis.wins), color: GREEN },
+    { label: "LOSSES", value: String(analysis.losses), color: RED },
+    { label: "WIN RATE", value: `${analysis.winRatePct.toFixed(1)}%`, color: "#f8fafc" },
+  ];
+  stats.forEach((s, i) => {
+    const x = pad + i * (statW + 12);
+    roundRect(ctx, x, statY, statW, 120, 16);
+    ctx.fillStyle = "rgba(15,23,42,0.85)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,212,255,0.2)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.font = "600 13px system-ui, sans-serif";
+    ctx.fillStyle = "#64748b";
+    ctx.fillText(s.label, x + 20, statY + 32);
+    ctx.font = "700 40px system-ui, sans-serif";
+    ctx.fillStyle = s.color;
+    ctx.fillText(s.value, x + 20, statY + 88);
+  });
+
+  let y = statY + 160;
+  if (showPnlDetails) {
+    roundRect(ctx, pad, y, W - 2 * pad, 200, 20);
+    ctx.fillStyle = "rgba(15,23,42,0.9)";
+    ctx.fill();
+    ctx.font = "600 14px system-ui, sans-serif";
+    ctx.fillStyle = "#64748b";
+    ctx.fillText("PNL SUMMARY", pad + 28, y + 40);
+    ctx.font = "700 36px system-ui, sans-serif";
+    ctx.fillStyle = profit ? GREEN : RED;
+    const sign = analysis.totalRealizedUsdt >= 0 ? "+" : "";
+    ctx.fillText(`Total PNL  ${sign}${analysis.totalRealizedUsdt.toFixed(2)} USDT`, pad + 28, y + 92);
+    ctx.font = "600 20px system-ui, sans-serif";
+    ctx.fillStyle = "#94a3b8";
+    const avgParts: string[] = [];
+    if (analysis.avgWinUsdt != null) avgParts.push(`Avg win +${analysis.avgWinUsdt.toFixed(2)} USDT`);
+    if (analysis.avgLossUsdt != null) avgParts.push(`Avg loss ${analysis.avgLossUsdt.toFixed(2)} USDT`);
+    if (avgParts.length) ctx.fillText(avgParts.join("   ·   "), pad + 28, y + 140);
+    y += 230;
+  }
+
+  ctx.font = "500 15px system-ui, sans-serif";
+  ctx.fillStyle = "#475569";
+  ctx.fillText("novastaris.ai", pad, H2 - pad);
+
+  drawGlowArrow(ctx, profit && showPnlDetails);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Failed"))), "image/jpeg", 0.94);
+  });
 }
 
 export async function downloadClosedTradesSummaryCard(

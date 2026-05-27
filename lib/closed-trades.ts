@@ -1,7 +1,7 @@
 /** Parse Blofin fills / order history into closed round-trips for PNL share cards. */
 
 /** Time window for closed-trade list & totals. `all` = no time filter (up to API limit). */
-export type ClosedTradesPeriod = "24h" | "3d" | "7d" | "14d" | "30d" | "90d" | "all";
+export type ClosedTradesPeriod = "24h" | "3d" | "7d" | "14d" | "30d" | "60d" | "90d" | "all";
 
 export const CLOSED_TRADES_PERIOD_OPTIONS: { value: ClosedTradesPeriod; label: string }[] = [
   { value: "24h", label: "Last 24 hours" },
@@ -9,6 +9,7 @@ export const CLOSED_TRADES_PERIOD_OPTIONS: { value: ClosedTradesPeriod; label: s
   { value: "7d", label: "Last 7 days" },
   { value: "14d", label: "Last 14 days" },
   { value: "30d", label: "Last 30 days" },
+  { value: "60d", label: "Last 60 days" },
   { value: "90d", label: "Last 90 days" },
   { value: "all", label: "Show all" },
 ];
@@ -25,6 +26,8 @@ export function closedTradesPeriodDays(period: ClosedTradesPeriod): number | nul
       return 14;
     case "30d":
       return 30;
+    case "60d":
+      return 60;
     case "90d":
       return 90;
     case "all":
