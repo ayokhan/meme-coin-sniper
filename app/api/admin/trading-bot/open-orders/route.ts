@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getOpenOrders } from "@/lib/blofin";
-import { getTradingBotBlofinDemoFlag, resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
+import { getTradingBotBlofinMeta, resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +14,13 @@ export async function GET(req: Request) {
     if (!resolved.ok) {
       return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
-    const { config } = resolved;
-    const isDemo = await getTradingBotBlofinDemoFlag(config.demo);
+    const { config, credentialSource } = resolved;
+    const blofin = await getTradingBotBlofinMeta(config, credentialSource);
     const { searchParams } = new URL(req.url);
     const instId = searchParams.get("instId") ?? undefined;
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10) || 50));
-    const orders = await getOpenOrders({ demo: isDemo, instId, limit, config });
-    return NextResponse.json({ success: true, orders });
+    const orders = await getOpenOrders({ demo: blofin.blofinDemo, instId, limit, config });
+    return NextResponse.json({ success: true, orders, blofin });
   } catch (e) {
     console.error("Trading bot open-orders:", e);
     return NextResponse.json(

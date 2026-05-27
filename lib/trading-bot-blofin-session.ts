@@ -5,8 +5,15 @@ import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
 import { prisma } from "@/lib/db";
 
 export type TradingBotBlofinResolveResult =
-  | { ok: true; config: BlofinConfig }
+  | { ok: true; config: BlofinConfig; credentialSource: "saved" | "server" }
   | { ok: false; status: number; error: string };
+
+export type TradingBotBlofinMeta = {
+  blofinDemo: boolean;
+  credentialSource: "saved" | "server";
+  /** When server env demo flag disagrees with bot mode — common after aligning UI to bot mode. */
+  modeMismatchHint?: string;
+};
 
 /**
  * Resolve Blofin credentials for Trading Bot UI and Blofin-backed actions.
@@ -24,9 +31,12 @@ export async function resolveBlofinConfigForTradingBotSession(
   if (!userId || typeof userId !== "string") {
     return { ok: false, status: 401, error: "Sign in required." };
   }
-  let config = await getBlofinConfigForUser(userId);
+  const saved = await getBlofinConfigForUser(userId);
+  let config = saved;
+  let credentialSource: "saved" | "server" = saved ? "saved" : "server";
   if (!config && isOwnerSession(session)) {
     config = getConfig();
+    credentialSource = "server";
   }
   if (!config) {
     return {
@@ -37,7 +47,22 @@ export async function resolveBlofinConfigForTradingBotSession(
         : "Add your Blofin API keys in Trading Bot settings. Your account only uses your keys—not the server’s.",
     };
   }
-  return { ok: true, config };
+  return { ok: true, config, credentialSource };
+}
+
+/** Demo/live + credential source for Blofin panel APIs. */
+export async function getTradingBotBlofinMeta(
+  config: BlofinConfig,
+  credentialSource: "saved" | "server"
+): Promise<TradingBotBlofinMeta> {
+  const blofinDemo = await getTradingBotBlofinDemoFlag(config.demo);
+  const envDemo = process.env.BLOFIN_DEMO_MODE === "true";
+  let modeMismatchHint: string | undefined;
+  if (credentialSource === "server" && blofinDemo !== envDemo) {
+    modeMismatchHint =
+      `Panels query Blofin ${blofinDemo ? "Demo" : "Live"} (bot Config mode). Vercel BLOFIN_DEMO_MODE is ${envDemo ? "true" : "false"} — before a recent fix, lists may have shown the other environment. Set Config → Mode to match where you trade, or align BLOFIN_DEMO_MODE.`;
+  }
+  return { blofinDemo, credentialSource, modeMismatchHint };
 }
 
 /** Demo vs live for Blofin API — matches bot config mode (same as Run bot), not only key demo flag. */

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPositions as getPositionsBlofin, getTicker, getInstrument } from "@/lib/blofin";
-import { getTradingBotBlofinDemoFlag, resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
+import { getTradingBotBlofinMeta, resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +19,9 @@ export async function GET() {
     if (!resolved.ok) {
       return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
-    const { config } = resolved;
-    const isDemo = await getTradingBotBlofinDemoFlag(config.demo);
-    const positions = await getPositionsBlofin(undefined, { demo: isDemo, config });
+    const { config, credentialSource } = resolved;
+    const blofin = await getTradingBotBlofinMeta(config, credentialSource);
+    const positions = await getPositionsBlofin(undefined, { demo: blofin.blofinDemo, config });
 
     if (!positions.length) {
       return NextResponse.json({
@@ -29,6 +29,7 @@ export async function GET() {
         positions: [],
         totalUnrealizedPnl: 0,
         markPrice: null,
+        blofin,
       });
     }
 
@@ -36,8 +37,8 @@ export async function GET() {
     const instData = await Promise.all(
       uniqueInstIds.map(async (id) => {
         const [instrument, ticker] = await Promise.all([
-          getInstrument(id, { demo: isDemo, config }),
-          getTicker(id, isDemo, { config }),
+          getInstrument(id, { demo: blofin.blofinDemo, config }),
+          getTicker(id, blofin.blofinDemo, { config }),
         ]);
         return {
           instId: id,
@@ -92,6 +93,7 @@ export async function GET() {
       positions: withPnl,
       totalUnrealizedPnl,
       markPrice: singleMark,
+      blofin,
     });
   } catch (e) {
     console.error("Trading bot positions:", e);

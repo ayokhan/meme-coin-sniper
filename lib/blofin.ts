@@ -78,6 +78,12 @@ async function privateRequest<T>(
   return { code: json.code ?? String(res.status), msg: json.msg ?? "", data: json.data };
 }
 
+function assertBlofinOk(out: { code: string; msg: string }, label: string): void {
+  if (out.code !== "0") {
+    throw new Error(out.msg?.trim() || `Blofin ${label} failed (code ${out.code}). Check API keys and Demo/Live mode.`);
+  }
+}
+
 /** Public request (no auth). demoOverride: use bot's mode when provided. configOverride: use this instead of env. */
 async function publicRequest<T>(path: string, demoOverride?: boolean, configOverride?: BlofinConfig | null): Promise<{ code: string; msg: string; data?: T }> {
   const config = configOverride ?? getConfig();
@@ -196,7 +202,8 @@ export async function getPositions(instId?: string, options?: { demo?: boolean; 
   // For non-broker and some accounts, filtered-by-instId returns empty. Fetch all first, then filter.
   const path = "/api/v1/account/positions";
   const out = await privateRequest<unknown>("GET", path, undefined, options?.demo, options?.config);
-  if (out.code !== "0" || out.data == null) return [];
+  assertBlofinOk(out, "positions");
+  if (out.data == null) return [];
   const all = extractPositionsList(out.data);
   if (!instId) return all;
   const target = normInstId(instId);
@@ -411,9 +418,13 @@ export async function getOpenOrders(options?: {
   const limit = options?.limit ?? 50;
   const base = options?.instId ? `instId=${encodeURIComponent(options.instId)}&limit=${limit}` : `limit=${limit}`;
   const paths = [`/api/v1/trade/orders?${base}`, `/api/v1/trade/orders-pending?${base}`];
+  let lastErr = "";
   for (const path of paths) {
     const out = await privateRequest<unknown>("GET", path, undefined, options?.demo, options?.config);
-    if (out.code !== "0") continue;
+    if (out.code !== "0") {
+      lastErr = out.msg?.trim() || out.code;
+      continue;
+    }
     const raw = out.data;
     const list: Record<string, unknown>[] = Array.isArray(raw)
       ? (raw as Record<string, unknown>[])
@@ -424,6 +435,7 @@ export async function getOpenOrders(options?: {
           : [];
     return list.map((o) => mapOpenOrder(o));
   }
+  if (lastErr) throw new Error(`${lastErr} (open orders). Check API keys and Demo/Live mode.`);
   return [];
 }
 
@@ -447,7 +459,8 @@ export async function getOrderHistory(options?: {
     options?.demo,
     options?.config
   );
-  if (out.code !== "0" || !out.data) return [];
+  assertBlofinOk(out, "order history");
+  if (!out.data) return [];
   type OrderRow = { orderId?: string; instId?: string; side?: string; orderType?: string; size?: string; price?: string; state?: string; fillPrice?: string; createTime?: string; pnl?: string };
   const list: OrderRow[] = Array.isArray(out.data) ? (out.data as OrderRow[]) : ((out.data as { data?: OrderRow[] })?.data ?? []);
   return list.map((o) => ({

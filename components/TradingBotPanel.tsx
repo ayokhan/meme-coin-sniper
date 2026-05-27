@@ -200,6 +200,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [openOrdersError, setOpenOrdersError] = useState<string | null>(null);
   const [positionsFetchError, setPositionsFetchError] = useState<string | null>(null);
   const [orderHistoryError, setOrderHistoryError] = useState<string | null>(null);
+  const [blofinPanelMeta, setBlofinPanelMeta] = useState<{
+    blofinDemo?: boolean;
+    credentialSource?: string;
+    modeMismatchHint?: string;
+  } | null>(null);
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"open_orders" | "positions" | "orders">("positions");
   const [limitOrderPrice, setLimitOrderPrice] = useState("");
@@ -615,6 +620,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       const res = await fetch("/api/admin/trading-bot/positions");
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.positions)) {
+        if (data.blofin) setBlofinPanelMeta(data.blofin);
         setPositionsData({
           positions: data.positions,
           totalUnrealizedPnl: data.totalUnrealizedPnl ?? 0,
@@ -624,9 +630,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         setPositionsData(null);
         setPositionsFetchError(data.error ?? (res.ok ? "Could not load positions." : `Error ${res.status}`));
       }
-    } catch {
+    } catch (e) {
       setPositionsData(null);
-      setPositionsFetchError("Network error loading positions.");
+      setPositionsFetchError(e instanceof Error ? e.message : "Network error loading positions.");
     } finally {
       setPositionsLoading(false);
     }
@@ -753,14 +759,15 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       const res = await fetch("/api/admin/trading-bot/orders-history?limit=50");
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.orders)) {
+        if (data.blofin) setBlofinPanelMeta(data.blofin);
         setOrderHistory(data.orders);
       } else {
         setOrderHistory([]);
         setOrderHistoryError(data.error ?? (res.ok ? "Could not load order history." : `Error ${res.status}`));
       }
-    } catch {
+    } catch (e) {
       setOrderHistory([]);
-      setOrderHistoryError("Network error loading order history.");
+      setOrderHistoryError(e instanceof Error ? e.message : "Network error loading order history.");
     } finally {
       setOrderHistoryLoading(false);
     }
@@ -773,14 +780,15 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       const res = await fetch("/api/admin/trading-bot/open-orders?limit=50");
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.orders)) {
+        if (data.blofin) setBlofinPanelMeta(data.blofin);
         setOpenOrders(data.orders);
       } else {
         setOpenOrders([]);
         setOpenOrdersError(data.error ?? (res.ok ? "Could not load open orders." : `Error ${res.status}`));
       }
-    } catch {
+    } catch (e) {
       setOpenOrders([]);
-      setOpenOrdersError("Network error loading open orders.");
+      setOpenOrdersError(e instanceof Error ? e.message : "Network error loading open orders.");
     } finally {
       setOpenOrdersLoading(false);
     }
@@ -2968,6 +2976,17 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
               <p className="text-xs text-muted-foreground mb-2 -mt-1">
                 Open orders = pending (unfilled). Positions = open positions only. Order history = filled/canceled. Data comes from Blofin using your saved API keys and the bot&apos;s <strong>Demo/Live</strong> mode in config.
               </p>
+              {blofinPanelMeta && (
+                <p className="text-xs text-muted-foreground mb-1">
+                  Querying Blofin <strong>{blofinPanelMeta.blofinDemo ? "Demo" : "Live"}</strong>
+                  {blofinPanelMeta.credentialSource === "server" ? " · server env keys" : blofinPanelMeta.credentialSource === "saved" ? " · keys saved in settings" : null}
+                </p>
+              )}
+              {blofinPanelMeta?.modeMismatchHint && (
+                <p className="text-xs text-amber-700 dark:text-amber-300 mb-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5">
+                  {blofinPanelMeta.modeMismatchHint}
+                </p>
+              )}
               {activeTab === "open_orders" && (
                 <div className="mt-2 max-h-64 overflow-auto">
                   {openOrdersLoading ? (
