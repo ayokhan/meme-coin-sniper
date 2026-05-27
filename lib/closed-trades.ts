@@ -1,24 +1,34 @@
 /** Parse Blofin fills / order history into closed round-trips for PNL share cards. */
 
-export type ClosedTradesPeriod = "1d" | "3d" | "7d" | "30d";
+/** Time window for closed-trade list & totals. `all` = no time filter (up to API limit). */
+export type ClosedTradesPeriod = "24h" | "3d" | "7d" | "14d" | "30d" | "90d" | "all";
 
 export const CLOSED_TRADES_PERIOD_OPTIONS: { value: ClosedTradesPeriod; label: string }[] = [
-  { value: "1d", label: "Last 1 day" },
+  { value: "24h", label: "Last 24 hours" },
   { value: "3d", label: "Last 3 days" },
   { value: "7d", label: "Last 7 days" },
+  { value: "14d", label: "Last 14 days" },
   { value: "30d", label: "Last 30 days" },
+  { value: "90d", label: "Last 90 days" },
+  { value: "all", label: "Show all" },
 ];
 
-export function closedTradesPeriodDays(period: ClosedTradesPeriod): number {
+export function closedTradesPeriodDays(period: ClosedTradesPeriod): number | null {
   switch (period) {
-    case "1d":
+    case "24h":
       return 1;
     case "3d":
       return 3;
     case "7d":
       return 7;
+    case "14d":
+      return 14;
     case "30d":
       return 30;
+    case "90d":
+      return 90;
+    case "all":
+      return null;
   }
 }
 
@@ -26,8 +36,11 @@ export function closedTradesPeriodLabel(period: ClosedTradesPeriod): string {
   return CLOSED_TRADES_PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Last 7 days";
 }
 
-export function closedTradesPeriodBeginMs(period: ClosedTradesPeriod, now = Date.now()): number {
-  return now - closedTradesPeriodDays(period) * 24 * 60 * 60 * 1000;
+export function closedTradesPeriodBeginMs(period: ClosedTradesPeriod, now = Date.now()): number | null {
+  const days = closedTradesPeriodDays(period);
+  if (days == null) return null;
+  if (period === "24h") return now - 24 * 60 * 60 * 1000;
+  return now - days * 24 * 60 * 60 * 1000;
 }
 
 export function filterClosedTradesByPeriod<T extends { closedAt: string | null }>(
@@ -36,11 +49,55 @@ export function filterClosedTradesByPeriod<T extends { closedAt: string | null }
   now = Date.now()
 ): T[] {
   const begin = closedTradesPeriodBeginMs(period, now);
+  if (begin == null) return trades.filter((t) => t.closedAt != null && t.closedAt !== "");
   return trades.filter((t) => {
     if (t.closedAt == null || t.closedAt === "") return false;
     const ts = Number(t.closedAt);
     return Number.isFinite(ts) && ts >= begin;
   });
+}
+
+export type ClosedTradesAnalysis = {
+  totalTrades: number;
+  wins: number;
+  losses: number;
+  breakeven: number;
+  winRatePct: number;
+  totalRealizedUsdt: number;
+  avgWinUsdt: number | null;
+  avgLossUsdt: number | null;
+  bestTrade: { displaySymbol: string; realizedPnlUsdt: number; roiPct: number } | null;
+  worstTrade: { displaySymbol: string; realizedPnlUsdt: number; roiPct: number } | null;
+};
+
+export function analyzeClosedTrades(
+  trades: { displaySymbol: string; realizedPnlUsdt: number; roiPct: number }[]
+): ClosedTradesAnalysis {
+  const active = trades.filter((t) => Math.abs(t.realizedPnlUsdt) > 1e-8);
+  const wins = active.filter((t) => t.realizedPnlUsdt > 0);
+  const losses = active.filter((t) => t.realizedPnlUsdt < 0);
+  const breakeven = active.length - wins.length - losses.length;
+  const winRatePct = active.length > 0 ? Math.round((wins.length / active.length) * 10000) / 100 : 0;
+  const totalRealizedUsdt = active.reduce((s, t) => s + t.realizedPnlUsdt, 0);
+  const avgWinUsdt =
+    wins.length > 0 ? wins.reduce((s, t) => s + t.realizedPnlUsdt, 0) / wins.length : null;
+  const avgLossUsdt =
+    losses.length > 0 ? losses.reduce((s, t) => s + t.realizedPnlUsdt, 0) / losses.length : null;
+  const sorted = [...active].sort((a, b) => b.realizedPnlUsdt - a.realizedPnlUsdt);
+  const best = sorted[0] ?? null;
+  const worst = sorted.length ? sorted[sorted.length - 1] : null;
+  return {
+    totalTrades: active.length,
+    wins: wins.length,
+    losses: losses.length,
+    breakeven,
+    winRatePct,
+    totalRealizedUsdt,
+    avgWinUsdt,
+    avgLossUsdt,
+    bestTrade: best ? { displaySymbol: best.displaySymbol, realizedPnlUsdt: best.realizedPnlUsdt, roiPct: best.roiPct } : null,
+    worstTrade: worst ? { displaySymbol: worst.displaySymbol, realizedPnlUsdt: worst.realizedPnlUsdt, roiPct: worst.roiPct } : null,
+  };
 }
 
 export function sumClosedTradesRealized(trades: { realizedPnlUsdt: number }[]): number {

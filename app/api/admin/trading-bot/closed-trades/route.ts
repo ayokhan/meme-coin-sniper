@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getFillsHistory, getOrderHistory } from "@/lib/blofin";
 import {
+  analyzeClosedTrades,
   closedTradesFromFills,
   closedTradesFromOrders,
   closedTradesPeriodBeginMs,
@@ -43,13 +44,26 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "100", 10) || 100));
     const periodRaw = searchParams.get("period") ?? "7d";
-    const period: ClosedTradesPeriod =
-      periodRaw === "1d" || periodRaw === "3d" || periodRaw === "7d" || periodRaw === "30d" ? periodRaw : "7d";
+    const normalized = periodRaw === "1d" ? "24h" : periodRaw;
+    const valid: ClosedTradesPeriod[] = ["24h", "3d", "7d", "14d", "30d", "90d", "all"];
+    const period: ClosedTradesPeriod = valid.includes(normalized as ClosedTradesPeriod)
+      ? (normalized as ClosedTradesPeriod)
+      : "7d";
     const beginMs = closedTradesPeriodBeginMs(period);
 
     const [fills, orders] = await Promise.all([
-      getFillsHistory({ demo: blofin.blofinDemo, limit, beginMs, config }).catch(() => []),
-      getOrderHistory({ demo: blofin.blofinDemo, limit, beginMs, config }),
+      getFillsHistory({
+        demo: blofin.blofinDemo,
+        limit,
+        beginMs: beginMs ?? undefined,
+        config,
+      }).catch(() => []),
+      getOrderHistory({
+        demo: blofin.blofinDemo,
+        limit,
+        beginMs: beginMs ?? undefined,
+        config,
+      }),
     ]);
 
     const leverageByInst = new Map<string, number>();
@@ -63,11 +77,13 @@ export async function GET(req: Request) {
     const allClosedTrades = mergeClosedTrades(fromFills, fromOrders);
     const closedTrades = filterClosedTradesByPeriod(allClosedTrades, period);
     const totalRealized = sumClosedTradesRealized(closedTrades);
+    const analysis = analyzeClosedTrades(closedTrades);
 
     return NextResponse.json({
       success: true,
       closedTrades,
       totalRealized,
+      analysis,
       period,
       periodLabel: closedTradesPeriodLabel(period),
       periodDays: closedTradesPeriodDays(period),

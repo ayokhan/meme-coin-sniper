@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { ClosedTradesPeriod } from "@/lib/closed-trades";
-import { CLOSED_TRADES_PERIOD_OPTIONS } from "@/lib/closed-trades";
+import { analyzeClosedTrades, CLOSED_TRADES_PERIOD_OPTIONS, formatInstDisplay } from "@/lib/closed-trades";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,11 +15,12 @@ import NovaPolymarketFiveMinsPanel from "@/components/NovaPolymarketFiveMinsPane
 import NovaPolymarketElitePanel from "@/components/NovaPolymarketElitePanel";
 import { formatBlofinPnlLine } from "@/lib/blofin-position-pnl";
 import {
-  downloadClosedTradeShareCard,
-  downloadClosedTradesSummaryCard,
+  drawClosedTradeShareCard,
+  drawClosedTradesSummaryCard,
+  drawOpenPositionShareCard,
   type ClosedTradeShareInput,
 } from "@/lib/closed-pnl-share-image";
-import { drawPnlToJpegBlob } from "@/lib/pnl-image";
+import PnlShareButtons from "@/components/PnlShareButtons";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
 
@@ -70,6 +71,7 @@ function closedTradeToShareInput(t: ClosedTradeRow, mode: "demo" | "live"): Clos
     realizedPnlUsdt: t.realizedPnlUsdt,
     closedAt: t.closedAt,
     modeLabel: mode === "demo" ? "Demo" : "Live",
+    leverage: t.leverage,
   };
 }
 
@@ -266,15 +268,13 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [lastBoardMonitorReasons, setLastBoardMonitorReasons] = useState<string[]>([]);
   const [lastBoardMonitorRunAt, setLastBoardMonitorRunAt] = useState<string | null>(null);
   const [suggestedClosesBoard, setSuggestedClosesBoard] = useState<SuggestedClose[]>([]);
-  const [downloadingPnlImage, setDownloadingPnlImage] = useState(false);
-  const [downloadingClosedPnlImage, setDownloadingClosedPnlImage] = useState(false);
   const [closedTrades, setClosedTrades] = useState<ClosedTradeRow[]>([]);
   const [closedTradesLoading, setClosedTradesLoading] = useState(false);
   const [closedTradesTotal, setClosedTradesTotal] = useState(0);
   const [closedTradesPeriod, setClosedTradesPeriod] = useState<ClosedTradesPeriod>("7d");
   const [closedTradesPeriodLabel, setClosedTradesPeriodLabel] = useState("Last 7 days");
   const [shareShowRealizedUsdt, setShareShowRealizedUsdt] = useState(true);
-  const [sharingClosedTradeId, setSharingClosedTradeId] = useState<string | null>(null);
+  const [showClosedAnalysis, setShowClosedAnalysis] = useState(false);
   const [monitorBoardSymbols, setMonitorBoardSymbols] = useState<string[]>([]);
   const [monitorBoardInput, setMonitorBoardInput] = useState("");
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
@@ -823,6 +823,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       setOrderHistoryLoading(false);
     }
   }, []);
+
+  const closedTradesAnalysis = useMemo(
+    () => analyzeClosedTrades(closedTrades),
+    [closedTrades]
+  );
 
   const fetchClosedTrades = useCallback(async (period: ClosedTradesPeriod = closedTradesPeriod) => {
     try {
@@ -3138,7 +3143,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                         const instIdNorm = (p.instId ?? "").trim().toUpperCase().replace("/", "-");
                         const isPinned = instIdNorm && monitorBoardSymbols.includes(instIdNorm);
                         return (
-                          <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs p-2 rounded border border-zinc-200 dark:border-zinc-600">
+                          <div key={i} className="text-xs p-2 rounded border border-zinc-200 dark:border-zinc-600 space-y-1">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                             <span className="text-zinc-600 dark:text-zinc-400 font-medium">{p.instId}</span>
                             <span className={p.posSide === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{p.posSide.toUpperCase()}</span>
                             {p.leverage != null && p.leverage > 0 && (
@@ -3201,6 +3207,31 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                               Close
                             </Button>
                           </div>
+                          <PnlShareButtons
+                            compact
+                            kind="open"
+                            showUsdt={shareShowRealizedUsdt}
+                            symbol={formatInstDisplay(p.instId ?? "")}
+                            roiPct={p.pnlPct ?? 0}
+                            pnlUsdt={p.unrealizedPnl}
+                            filename={`NovaStaris_Open_${formatInstDisplay(p.instId ?? "").replace(/[^a-zA-Z0-9]/g, "_")}.jpg`}
+                            getBlob={() =>
+                              drawOpenPositionShareCard(
+                                {
+                                  displaySymbol: formatInstDisplay(p.instId ?? ""),
+                                  direction: (p.posSide === "short" ? "short" : "long") as "long" | "short",
+                                  entryPrice: p.entryPrice,
+                                  markPrice: p.markPrice ?? p.entryPrice,
+                                  roiPct: p.pnlPct ?? 0,
+                                  unrealizedPnlUsdt: p.unrealizedPnl,
+                                  leverage: p.leverage ?? null,
+                                  modeLabel: config?.mode === "demo" ? "Demo" : "Live",
+                                },
+                                { showRealizedUsdt: shareShowRealizedUsdt }
+                              )
+                            }
+                          />
+                          </div>
                         );
                       })}
                       <p className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-600 font-semibold">
@@ -3213,47 +3244,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                         <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => fetchPositions()} disabled={positionsLoading}>
                           {positionsLoading ? "Refreshing…" : "Refresh PNL"}
                         </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
-                          disabled={downloadingPnlImage}
-                          onClick={async () => {
-                            if (!positionsData?.positions?.length) return;
-                            setDownloadingPnlImage(true);
-                            try {
-                              const items = positionsData.positions.map((p) => ({
-                                name: p.instId ?? "",
-                                side: p.posSide ?? "",
-                                pnlUsdt: p.unrealizedPnl,
-                                pnlPct: p.pnlPct ?? null,
-                                leverage: p.leverage ?? null,
-                                marginMode: p.marginMode ?? null,
-                                entryPrice: p.entryPrice,
-                                markPrice: p.markPrice,
-                              }));
-                              const blob = await drawPnlToJpegBlob({
-                                title: "NovaStaris AI — PNL Report",
-                                subtitle: "Open positions",
-                                items,
-                                totalLabel: "Total unrealized",
-                                totalValue: positionsData.totalUnrealizedPnl,
-                                showUsdt: shareShowRealizedUsdt,
-                              });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = `NovaStaris_PNL_Open_${new Date().toISOString().slice(0, 10)}.jpg`;
-                              a.click();
-                              URL.revokeObjectURL(url);
-                            } finally {
-                              setDownloadingPnlImage(false);
-                            }
-                          }}
-                        >
-                          {downloadingPnlImage ? "Creating…" : "Share PNL (JPEG)"}
-                        </Button>
+                        <p className="text-[10px] text-muted-foreground">Share each position with Card / TG / IG below.</p>
                         <Button
                           type="button"
                           variant="outline"
@@ -3322,27 +3313,20 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                   </p>
                                 </div>
                               </div>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-[11px] mt-2 w-full border-cyan-500/60 text-cyan-700 dark:text-cyan-300"
-                                disabled={sharingClosedTradeId === t.id}
-                                onClick={async () => {
-                                  setSharingClosedTradeId(t.id);
-                                  try {
-                                    await downloadClosedTradeShareCard(
-                                      closedTradeToShareInput(t, config?.mode ?? "live"),
-                                      undefined,
-                                      { showRealizedUsdt: shareShowRealizedUsdt }
-                                    );
-                                  } finally {
-                                    setSharingClosedTradeId(null);
-                                  }
-                                }}
-                              >
-                                {sharingClosedTradeId === t.id ? "Creating card…" : "Share PNL card (JPEG)"}
-                              </Button>
+                              <PnlShareButtons
+                                compact
+                                kind="closed"
+                                showUsdt={shareShowRealizedUsdt}
+                                symbol={t.displaySymbol}
+                                roiPct={t.roiPct}
+                                pnlUsdt={t.realizedPnlUsdt}
+                                filename={`NovaStaris_Closed_${t.displaySymbol.replace(/[^a-zA-Z0-9]/g, "_")}.jpg`}
+                                getBlob={() =>
+                                  drawClosedTradeShareCard(closedTradeToShareInput(t, config?.mode ?? "live"), {
+                                    showRealizedUsdt: shareShowRealizedUsdt,
+                                  })
+                                }
+                              />
                             </div>
                           );
                         })}
@@ -3391,6 +3375,61 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                     </div>
                   </details>
 
+                  {showClosedAnalysis && closedTrades.length > 0 && (
+                    <div className="rounded-lg border border-cyan-500/35 bg-gradient-to-br from-cyan-500/10 to-transparent p-3 text-xs space-y-2">
+                      <p className="font-semibold text-zinc-800 dark:text-zinc-100">
+                        Analyze results · {closedTradesPeriodLabel}
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Trades</p>
+                          <p className="font-bold text-xl tabular-nums">{closedTradesAnalysis.totalTrades}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Wins</p>
+                          <p className="font-bold text-xl tabular-nums text-emerald-600 dark:text-[#0ecb81]">{closedTradesAnalysis.wins}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Losses</p>
+                          <p className="font-bold text-xl tabular-nums text-rose-600 dark:text-[#f6465d]">{closedTradesAnalysis.losses}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Win rate</p>
+                          <p className="font-bold text-xl tabular-nums">{closedTradesAnalysis.winRatePct.toFixed(1)}%</p>
+                        </div>
+                      </div>
+                      <p className="text-muted-foreground tabular-nums">
+                        Total PNL:{" "}
+                        <span className={closedTradesAnalysis.totalRealizedUsdt >= 0 ? "text-emerald-600 dark:text-[#0ecb81] font-medium" : "text-rose-600 dark:text-[#f6465d] font-medium"}>
+                          {closedTradesAnalysis.totalRealizedUsdt >= 0 ? "+" : ""}
+                          {closedTradesAnalysis.totalRealizedUsdt.toFixed(2)} USDT
+                        </span>
+                        {closedTradesAnalysis.avgWinUsdt != null && (
+                          <span className="ml-2">· Avg win +{closedTradesAnalysis.avgWinUsdt.toFixed(2)}</span>
+                        )}
+                        {closedTradesAnalysis.avgLossUsdt != null && (
+                          <span className="ml-2">· Avg loss {closedTradesAnalysis.avgLossUsdt.toFixed(2)}</span>
+                        )}
+                      </p>
+                      {closedTradesAnalysis.bestTrade && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Best: {closedTradesAnalysis.bestTrade.displaySymbol}{" "}
+                          <span className="text-emerald-600 dark:text-[#0ecb81]">
+                            +{closedTradesAnalysis.bestTrade.realizedPnlUsdt.toFixed(2)} USDT ({closedTradesAnalysis.bestTrade.roiPct.toFixed(2)}%)
+                          </span>
+                        </p>
+                      )}
+                      {closedTradesAnalysis.worstTrade && closedTradesAnalysis.worstTrade.realizedPnlUsdt < 0 && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Worst: {closedTradesAnalysis.worstTrade.displaySymbol}{" "}
+                          <span className="text-rose-600 dark:text-[#f6465d]">
+                            {closedTradesAnalysis.worstTrade.realizedPnlUsdt.toFixed(2)} USDT ({closedTradesAnalysis.worstTrade.roiPct.toFixed(2)}%)
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
@@ -3411,50 +3450,53 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
-                          disabled={downloadingClosedPnlImage}
-                          onClick={async () => {
-                            setDownloadingClosedPnlImage(true);
-                            try {
-                              await downloadClosedTradesSummaryCard(
-                                closedTrades.map((t) => closedTradeToShareInput(t, config?.mode ?? "live")),
-                                undefined,
-                                {
-                                  showRealizedUsdt: shareShowRealizedUsdt,
-                                  periodLabel: closedTradesPeriodLabel,
-                                  totalRealized: closedTradesTotal,
-                                }
-                              );
-                            } finally {
-                              setDownloadingClosedPnlImage(false);
-                            }
-                          }}
+                          className="h-7 text-xs border-violet-500/60 text-violet-700 dark:text-violet-300"
+                          onClick={() => setShowClosedAnalysis((v) => !v)}
                         >
-                          {downloadingClosedPnlImage ? "Creating…" : "Share all closed (JPEG)"}
+                          {showClosedAnalysis ? "Hide analysis" : "Analyze results"}
                         </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs border-zinc-500"
-                          disabled={downloadingClosedPnlImage || closedTrades.length === 0}
-                          onClick={async () => {
-                            const latest = closedTrades[0];
-                            if (!latest) return;
-                            setSharingClosedTradeId(latest.id);
-                            try {
-                              await downloadClosedTradeShareCard(
-                                closedTradeToShareInput(latest, config?.mode ?? "live"),
-                                undefined,
-                                { showRealizedUsdt: shareShowRealizedUsdt }
-                              );
-                            } finally {
-                              setSharingClosedTradeId(null);
+                        {closedTrades[0] && (
+                          <PnlShareButtons
+                            compact
+                            kind="closed"
+                            showUsdt={shareShowRealizedUsdt}
+                            symbol={closedTrades[0].displaySymbol}
+                            roiPct={closedTrades[0].roiPct}
+                            pnlUsdt={closedTrades[0].realizedPnlUsdt}
+                            primaryLabel="Latest card"
+                            filename={`NovaStaris_Closed_Latest.jpg`}
+                            getBlob={() =>
+                              drawClosedTradeShareCard(closedTradeToShareInput(closedTrades[0], config?.mode ?? "live"), {
+                                showRealizedUsdt: shareShowRealizedUsdt,
+                              })
                             }
+                          />
+                        )}
+                        <PnlShareButtons
+                          compact
+                          kind="closed"
+                          showUsdt={shareShowRealizedUsdt}
+                          symbol="Summary"
+                          roiPct={
+                            closedTradesAnalysis.totalTrades > 0
+                              ? closedTrades.reduce((s, t) => s + t.roiPct, 0) / closedTrades.length
+                              : 0
+                          }
+                          pnlUsdt={closedTradesTotal}
+                          primaryLabel="All closed"
+                          filename={`NovaStaris_Closed_Summary_${new Date().toISOString().slice(0, 10)}.jpg`}
+                          getBlob={async () => {
+                            const blob = await drawClosedTradesSummaryCard(
+                              closedTrades.map((t) => closedTradeToShareInput(t, config?.mode ?? "live")),
+                              closedTradesTotal,
+                              {
+                                showRealizedUsdt: shareShowRealizedUsdt,
+                                periodLabel: closedTradesPeriodLabel,
+                              }
+                            );
+                            return blob;
                           }}
-                        >
-                          Latest trade card
-                        </Button>
+                        />
                       </>
                     )}
                   </div>
