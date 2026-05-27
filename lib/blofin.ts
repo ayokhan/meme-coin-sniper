@@ -457,7 +457,20 @@ export async function getOrderHistory(options?: {
   limit?: number;
   config?: BlofinConfig | null;
 }): Promise<
-  { orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string; pnl?: string }[]
+  {
+    orderId: string;
+    instId: string;
+    side: string;
+    orderType: string;
+    size: string;
+    price: string;
+    state: string;
+    fillPrice?: string;
+    averagePrice?: string;
+    leverage?: string;
+    createdAt?: string;
+    pnl?: string;
+  }[]
 > {
   const limit = options?.limit ?? 50;
   const path = options?.instId
@@ -472,7 +485,20 @@ export async function getOrderHistory(options?: {
   );
   assertBlofinOk(out, "order history");
   if (!out.data) return [];
-  type OrderRow = { orderId?: string; instId?: string; side?: string; orderType?: string; size?: string; price?: string; state?: string; fillPrice?: string; createTime?: string; pnl?: string };
+  type OrderRow = {
+    orderId?: string;
+    instId?: string;
+    side?: string;
+    orderType?: string;
+    size?: string;
+    price?: string;
+    state?: string;
+    fillPrice?: string;
+    averagePrice?: string;
+    leverage?: string;
+    createTime?: string;
+    pnl?: string;
+  };
   const list: OrderRow[] = Array.isArray(out.data) ? (out.data as OrderRow[]) : ((out.data as { data?: OrderRow[] })?.data ?? []);
   return list.map((o) => ({
     orderId: String(o.orderId ?? ""),
@@ -482,9 +508,65 @@ export async function getOrderHistory(options?: {
     size: String(o.size ?? "0"),
     price: String(o.price ?? "0"),
     state: String(o.state ?? ""),
-    fillPrice: o.fillPrice != null ? String(o.fillPrice) : undefined,
+    fillPrice: o.fillPrice != null && o.fillPrice !== "" ? String(o.fillPrice) : undefined,
+    averagePrice: o.averagePrice != null && o.averagePrice !== "" ? String(o.averagePrice) : undefined,
+    leverage: o.leverage != null && o.leverage !== "" ? String(o.leverage) : undefined,
     createdAt: o.createTime != null ? String(o.createTime) : undefined,
     pnl: o.pnl != null && o.pnl !== "" ? String(o.pnl) : undefined,
+  }));
+}
+
+export type BlofinFillHistoryRow = {
+  instId: string;
+  tradeId: string;
+  orderId: string;
+  fillPrice: string;
+  fillSize: string;
+  fillPnl: string;
+  positionSide: string;
+  side: string;
+  fee: string;
+  ts: string;
+};
+
+/** GET /api/v1/trade/fills-history — closing fills include fillPnl. */
+export async function getFillsHistory(options?: {
+  demo?: boolean;
+  instId?: string;
+  limit?: number;
+  config?: BlofinConfig | null;
+}): Promise<BlofinFillHistoryRow[]> {
+  const limit = Math.min(100, options?.limit ?? 50);
+  const q = new URLSearchParams({ limit: String(limit) });
+  if (options?.instId) q.set("instId", options.instId);
+  const path = `/api/v1/trade/fills-history?${q.toString()}`;
+  const out = await privateRequest<unknown>("GET", path, undefined, options?.demo, options?.config);
+  assertBlofinOk(out, "fills history");
+  if (!out.data) return [];
+  type Row = {
+    instId?: string;
+    tradeId?: string;
+    orderId?: string;
+    fillPrice?: string;
+    fillSize?: string;
+    fillPnl?: string;
+    positionSide?: string;
+    side?: string;
+    fee?: string;
+    ts?: string;
+  };
+  const list: Row[] = Array.isArray(out.data) ? (out.data as Row[]) : ((out.data as { data?: Row[] })?.data ?? []);
+  return list.map((r) => ({
+    instId: String(r.instId ?? ""),
+    tradeId: String(r.tradeId ?? ""),
+    orderId: String(r.orderId ?? ""),
+    fillPrice: String(r.fillPrice ?? "0"),
+    fillSize: String(r.fillSize ?? "0"),
+    fillPnl: String(r.fillPnl ?? "0"),
+    positionSide: String(r.positionSide ?? ""),
+    side: String(r.side ?? ""),
+    fee: String(r.fee ?? "0"),
+    ts: String(r.ts ?? ""),
   }));
 }
 

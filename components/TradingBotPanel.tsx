@@ -12,6 +12,11 @@ import NovaPolymarketLeaderboardPanel from "@/components/NovaPolymarketLeaderboa
 import NovaPolymarketFiveMinsPanel from "@/components/NovaPolymarketFiveMinsPanel";
 import NovaPolymarketElitePanel from "@/components/NovaPolymarketElitePanel";
 import { formatBlofinPnlLine } from "@/lib/blofin-position-pnl";
+import {
+  downloadClosedTradeShareCard,
+  downloadClosedTradesSummaryCard,
+  type ClosedTradeShareInput,
+} from "@/lib/closed-pnl-share-image";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
@@ -31,6 +36,40 @@ type PositionWithPnl = {
   marginRatioBlofin?: number | null;
   initialMarginPct?: number | null;
 };
+
+type ClosedTradeRow = {
+  id: string;
+  instId: string;
+  displaySymbol: string;
+  direction: "long" | "short";
+  openPrice: number;
+  closePrice: number;
+  realizedPnlUsdt: number;
+  roiPct: number;
+  leverage: number;
+  closedAt: string | null;
+  source: "fills" | "orders";
+};
+
+function formatOrderSize(size: string): string {
+  const n = parseFloat(size);
+  if (!Number.isFinite(n)) return size;
+  if (Math.abs(n) >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return n.toPrecision(4);
+}
+
+function closedTradeToShareInput(t: ClosedTradeRow, mode: "demo" | "live"): ClosedTradeShareInput {
+  return {
+    displaySymbol: t.displaySymbol,
+    direction: t.direction,
+    openPrice: t.openPrice,
+    closePrice: t.closePrice,
+    roiPct: t.roiPct,
+    realizedPnlUsdt: t.realizedPnlUsdt,
+    closedAt: t.closedAt,
+    modeLabel: mode === "demo" ? "Demo" : "Live",
+  };
+}
 
 type Strategy = "simple" | "indicators" | "ai" | "hybrid";
 
@@ -227,6 +266,10 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [suggestedClosesBoard, setSuggestedClosesBoard] = useState<SuggestedClose[]>([]);
   const [downloadingPnlImage, setDownloadingPnlImage] = useState(false);
   const [downloadingClosedPnlImage, setDownloadingClosedPnlImage] = useState(false);
+  const [closedTrades, setClosedTrades] = useState<ClosedTradeRow[]>([]);
+  const [closedTradesLoading, setClosedTradesLoading] = useState(false);
+  const [closedTradesTotal, setClosedTradesTotal] = useState(0);
+  const [sharingClosedTradeId, setSharingClosedTradeId] = useState<string | null>(null);
   const [monitorBoardSymbols, setMonitorBoardSymbols] = useState<string[]>([]);
   const [monitorBoardInput, setMonitorBoardInput] = useState("");
   const [savingMonitorBoard, setSavingMonitorBoard] = useState(false);
@@ -776,6 +819,27 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     }
   }, []);
 
+  const fetchClosedTrades = useCallback(async () => {
+    try {
+      setClosedTradesLoading(true);
+      const res = await fetch("/api/admin/trading-bot/closed-trades?limit=80");
+      const data = await res.json().catch(() => ({}));
+      if (data.success && Array.isArray(data.closedTrades)) {
+        setClosedTrades(data.closedTrades);
+        setClosedTradesTotal(typeof data.totalRealized === "number" ? data.totalRealized : 0);
+        if (data.blofin) setBlofinPanelMeta(data.blofin);
+      } else {
+        setClosedTrades([]);
+        setClosedTradesTotal(0);
+      }
+    } catch {
+      setClosedTrades([]);
+      setClosedTradesTotal(0);
+    } finally {
+      setClosedTradesLoading(false);
+    }
+  }, []);
+
   const fetchOpenOrders = useCallback(async () => {
     try {
       setOpenOrdersLoading(true);
@@ -873,8 +937,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   }, [boardMonitorIntervalMins, fetchPositions]);
 
   useEffect(() => {
-    if (activeTab === "orders") fetchOrderHistory();
-  }, [activeTab, fetchOrderHistory]);
+    if (activeTab === "orders") {
+      fetchOrderHistory();
+      fetchClosedTrades();
+    }
+  }, [activeTab, fetchOrderHistory, fetchClosedTrades]);
 
   const VALID_TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1D"];
   const validateForm = (): string | null => {
@@ -3179,75 +3246,173 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 </>
               )}
               {activeTab === "orders" && (
-                <div className="mt-2 max-h-64 overflow-auto">
-                  {orderHistoryLoading ? (
-                    <p className="text-muted-foreground text-xs">Loading order history…</p>
-                  ) : orderHistoryError ? (
-                    <p className="text-rose-600 dark:text-rose-400 text-xs">{orderHistoryError}</p>
-                  ) : orderHistory.length === 0 ? (
-                    <p className="text-muted-foreground text-xs">No orders in history on this Blofin account ({config.mode === "demo" ? "Demo" : "Live"}). Filled/canceled orders appear here after they complete.</p>
-                  ) : (
-                    <div className="space-y-1 text-xs">
-                      {orderHistory.map((o, i) => (
-                        <div key={o.orderId || i} className="flex flex-wrap gap-x-2 gap-y-0.5 p-1.5 rounded border border-zinc-200 dark:border-zinc-600">
-                          <span className="font-medium">{o.instId}</span>
-                          <span className={o.side === "buy" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{o.side.toUpperCase()}</span>
-                          <span>{o.orderType}</span>
-                          <span>size {o.size}</span>
-                          {o.fillPrice != null && <span>@ {o.fillPrice}</span>}
-                          {o.pnl != null && o.pnl !== "" && (
-                            <span className={Number(o.pnl) >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
-                              PNL: {Number(o.pnl) >= 0 ? "+" : ""}{Number(o.pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} USDT
-                            </span>
-                          )}
-                          <span className="text-muted-foreground">{o.state}</span>
-                          {o.createdAt != null && <span className="text-muted-foreground">{new Date(Number(o.createdAt)).toLocaleString()}</span>}
+                <div className="mt-2 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-200 mb-1.5">Closed positions</p>
+                    <p className="text-[11px] text-muted-foreground mb-2">
+                      Round-trips with realized PNL — open → close prices and ROI % (leverage from bot config). Share a premium card per trade or a summary.
+                    </p>
+                    {closedTradesLoading ? (
+                      <p className="text-muted-foreground text-xs">Loading closed trades…</p>
+                    ) : closedTrades.length === 0 ? (
+                      <p className="text-muted-foreground text-xs">No closed trades with PNL in recent history. Close a position on Blofin, then Refresh.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-52 overflow-auto pr-1">
+                        {closedTrades.map((t) => {
+                          const profit = t.realizedPnlUsdt >= 0;
+                          return (
+                            <div
+                              key={t.id}
+                              className="rounded-lg border border-zinc-200/90 dark:border-zinc-600/90 bg-gradient-to-br from-zinc-50/90 to-zinc-100/40 dark:from-zinc-900/80 dark:to-zinc-950/60 p-2.5 text-xs"
+                            >
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                  <span className="font-bold text-sm text-zinc-800 dark:text-zinc-100">{t.displaySymbol}</span>
+                                  <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold ${t.direction === "long" ? "bg-emerald-500/15 text-emerald-700 dark:text-[#0ecb81]" : "bg-rose-500/15 text-rose-700 dark:text-[#f6465d]"}`}>
+                                    {t.direction.toUpperCase()}
+                                  </span>
+                                  {t.leverage > 0 && (
+                                    <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300">{Math.round(t.leverage)}X</span>
+                                  )}
+                                  <p className="text-muted-foreground mt-1 tabular-nums">
+                                    {t.openPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })} → {t.closePrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                  </p>
+                                  {t.closedAt && (
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(Number(t.closedAt)).toLocaleString()}</p>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <p className={`text-lg font-bold tabular-nums ${profit ? "text-emerald-600 dark:text-[#0ecb81]" : "text-rose-600 dark:text-[#f6465d]"}`}>
+                                    {t.roiPct >= 0 ? "+" : ""}{t.roiPct.toFixed(2)}%
+                                  </p>
+                                  <p className={`text-xs font-medium tabular-nums ${profit ? "text-emerald-600/90 dark:text-[#0ecb81]/90" : "text-rose-600/90 dark:text-[#f6465d]/90"}`}>
+                                    {t.realizedPnlUsdt >= 0 ? "+" : ""}{t.realizedPnlUsdt.toFixed(2)} USDT
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[11px] mt-2 w-full border-cyan-500/60 text-cyan-700 dark:text-cyan-300"
+                                disabled={sharingClosedTradeId === t.id}
+                                onClick={async () => {
+                                  setSharingClosedTradeId(t.id);
+                                  try {
+                                    await downloadClosedTradeShareCard(
+                                      closedTradeToShareInput(t, config?.mode ?? "live")
+                                    );
+                                  } finally {
+                                    setSharingClosedTradeId(null);
+                                  }
+                                }}
+                              >
+                                {sharingClosedTradeId === t.id ? "Creating card…" : "Share PNL card (JPEG)"}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {closedTrades.length > 0 && (
+                      <p className="text-xs font-semibold mt-2 tabular-nums">
+                        Total realized:{" "}
+                        <span className={closedTradesTotal >= 0 ? "text-emerald-600 dark:text-[#0ecb81]" : "text-rose-600 dark:text-[#f6465d]"}>
+                          {closedTradesTotal >= 0 ? "+" : ""}{closedTradesTotal.toFixed(2)} USDT
+                        </span>
+                      </p>
+                    )}
+                  </div>
+
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300">Raw order history</summary>
+                    <div className="mt-2 max-h-40 overflow-auto">
+                      {orderHistoryLoading ? (
+                        <p className="text-muted-foreground">Loading…</p>
+                      ) : orderHistoryError ? (
+                        <p className="text-rose-600 dark:text-rose-400">{orderHistoryError}</p>
+                      ) : orderHistory.length === 0 ? (
+                        <p className="text-muted-foreground">No orders in history.</p>
+                      ) : (
+                        <div className="space-y-1">
+                          {orderHistory.map((o, i) => (
+                            <div key={o.orderId || i} className="flex flex-wrap gap-x-2 gap-y-0.5 p-1.5 rounded border border-zinc-200 dark:border-zinc-600">
+                              <span className="font-medium">{o.instId}</span>
+                              <span className={o.side === "buy" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{o.side.toUpperCase()}</span>
+                              <span>{o.orderType}</span>
+                              <span>size {formatOrderSize(o.size)}</span>
+                              {o.fillPrice != null && <span>@ {o.fillPrice}</span>}
+                              {o.pnl != null && o.pnl !== "" && Number(o.pnl) !== 0 && (
+                                <span className={Number(o.pnl) >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
+                                  PNL: {Number(o.pnl) >= 0 ? "+" : ""}{Number(o.pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+                                </span>
+                              )}
+                              <span className="text-muted-foreground">{o.state}</span>
+                              {o.createdAt != null && <span className="text-muted-foreground">{new Date(Number(o.createdAt)).toLocaleString()}</span>}
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={fetchOrderHistory} disabled={orderHistoryLoading}>
-                      {orderHistoryLoading ? "Refreshing…" : "Refresh"}
+                  </details>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        fetchOrderHistory();
+                        fetchClosedTrades();
+                      }}
+                      disabled={orderHistoryLoading || closedTradesLoading}
+                    >
+                      {orderHistoryLoading || closedTradesLoading ? "Refreshing…" : "Refresh"}
                     </Button>
-                    {orderHistory.some((o) => o.pnl != null && o.pnl !== "") && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
-                        disabled={downloadingClosedPnlImage}
-                        onClick={async () => {
-                          const withPnl = orderHistory.filter((o) => o.pnl != null && o.pnl !== "");
-                          if (withPnl.length === 0) return;
-                          setDownloadingClosedPnlImage(true);
-                          try {
-                            const totalClosed = withPnl.reduce((sum, o) => sum + Number(o.pnl ?? 0), 0);
-                            const items = withPnl.map((o) => {
-                              const pnlNum = Number(o.pnl ?? 0);
-                              const sign = pnlNum >= 0 ? "+" : "";
-                              return { name: o.instId ?? "", side: o.side ?? "", pnlDisplay: `$${sign}${pnlNum.toFixed(2)}` };
-                            });
-                            const blob = await drawPnlToJpegBlob({
-                              title: "NovaStaris AI — Closed PNL",
-                              subtitle: "Closed positions (order history)",
-                              items,
-                              totalLabel: "Total realized",
-                              totalValue: totalClosed,
-                            });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `NovaStaris_PNL_Closed_${new Date().toISOString().slice(0, 10)}.jpg`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                          } finally {
-                            setDownloadingClosedPnlImage(false);
-                          }
-                        }}
-                      >
-                        {downloadingClosedPnlImage ? "Creating…" : "Download closed PNL (JPEG)"}
-                      </Button>
+                    {closedTrades.length > 0 && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
+                          disabled={downloadingClosedPnlImage}
+                          onClick={async () => {
+                            setDownloadingClosedPnlImage(true);
+                            try {
+                              await downloadClosedTradesSummaryCard(
+                                closedTrades.map((t) => closedTradeToShareInput(t, config?.mode ?? "live"))
+                              );
+                            } finally {
+                              setDownloadingClosedPnlImage(false);
+                            }
+                          }}
+                        >
+                          {downloadingClosedPnlImage ? "Creating…" : "Share all closed (JPEG)"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs border-zinc-500"
+                          disabled={downloadingClosedPnlImage || closedTrades.length === 0}
+                          onClick={async () => {
+                            const latest = closedTrades[0];
+                            if (!latest) return;
+                            setSharingClosedTradeId(latest.id);
+                            try {
+                              await downloadClosedTradeShareCard(
+                                closedTradeToShareInput(latest, config?.mode ?? "live")
+                              );
+                            } finally {
+                              setSharingClosedTradeId(null);
+                            }
+                          }}
+                        >
+                          Latest trade card
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
