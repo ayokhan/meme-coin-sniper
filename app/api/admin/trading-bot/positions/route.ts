@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPositions as getPositionsBlofin, getTicker, getInstrument } from "@/lib/blofin";
+import { resolveBlofinPositionPnl } from "@/lib/blofin-position-pnl";
 import { getTradingBotBlofinMeta, resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
 
 export const dynamic = "force-dynamic";
@@ -52,32 +53,29 @@ export async function GET() {
     const withPnl = positions.map((pos) => {
       const size = Math.abs(parseNum(pos.pos));
       const entryPrice = parseNum(pos.avgPx);
-      const posSide = (pos.posSide ?? "").toLowerCase();
       const d = byInst[pos.instId] ?? { contractValue: 0, markPrice: 0 };
       const contractValue = d.contractValue ?? 0;
-      const unrealizedPnl =
-        contractValue > 0 && posSide === "long"
-          ? (d.markPrice - entryPrice) * size * contractValue
-          : contractValue > 0
-            ? (entryPrice - d.markPrice) * size * contractValue
-            : 0;
+      const markFromRow = pos.markPx != null && pos.markPx !== "" ? parseNum(pos.markPx) : null;
+      const markPrice = markFromRow != null && Number.isFinite(markFromRow) && markFromRow > 0 ? markFromRow : d.markPrice;
+      const pnl = resolveBlofinPositionPnl(pos, { markPrice, contractValue });
       const notional = size * entryPrice * contractValue;
-      const pnlPct = notional > 0 ? (unrealizedPnl / notional) * 100 : null;
       const liqPrice = pos.liqPx != null && pos.liqPx !== "" ? parseNum(pos.liqPx) : null;
       const marginNum = pos.margin != null && pos.margin !== "" ? parseNum(pos.margin) : null;
-      const mgnRatioRaw = (pos as { mgnRatio?: string | null }).mgnRatio;
+      const mgnRatioRaw = pos.mgnRatio;
       const marginRatioBlofin = mgnRatioRaw != null && mgnRatioRaw !== "" ? parseNum(mgnRatioRaw) : null;
-      const initialMarginPct = notional > 0 && Number.isFinite(marginNum) && marginNum != null
-        ? (marginNum / notional) * 100
-        : null;
+      const initialMarginPct =
+        notional > 0 && Number.isFinite(marginNum) && marginNum != null ? (marginNum / notional) * 100 : null;
       return {
         instId: pos.instId,
         posSide: pos.posSide,
         size,
         entryPrice,
-        markPrice: d.markPrice,
-        unrealizedPnl,
-        pnlPct: pnlPct != null ? Math.round(pnlPct * 100) / 100 : null,
+        markPrice: pnl.markPrice,
+        unrealizedPnl: pnl.unrealizedPnl,
+        pnlPct: pnl.pnlPct,
+        leverage: pnl.leverage,
+        marginMode: pos.marginMode ?? null,
+        pnlSource: pnl.source,
         liqPrice: Number.isFinite(liqPrice) ? liqPrice : null,
         margin: Number.isFinite(marginNum) ? marginNum : null,
         marginRatioBlofin: marginRatioBlofin != null && Number.isFinite(marginRatioBlofin) ? marginRatioBlofin : null,

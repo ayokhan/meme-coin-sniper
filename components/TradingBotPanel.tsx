@@ -11,6 +11,7 @@ import NovaPolymarketCopyBotPanel from "@/components/NovaPolymarketCopyBotPanel"
 import NovaPolymarketLeaderboardPanel from "@/components/NovaPolymarketLeaderboardPanel";
 import NovaPolymarketFiveMinsPanel from "@/components/NovaPolymarketFiveMinsPanel";
 import NovaPolymarketElitePanel from "@/components/NovaPolymarketElitePanel";
+import { formatBlofinPnlLine } from "@/lib/blofin-position-pnl";
 import { drawPnlToJpegBlob } from "@/lib/pnl-image";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
@@ -23,6 +24,8 @@ type PositionWithPnl = {
   markPrice: number;
   unrealizedPnl: number;
   pnlPct?: number | null;
+  leverage?: number | null;
+  marginMode?: string | null;
   liqPrice?: number | null;
   margin?: number | null;
   marginRatioBlofin?: number | null;
@@ -3040,6 +3043,12 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                           <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs p-2 rounded border border-zinc-200 dark:border-zinc-600">
                             <span className="text-zinc-600 dark:text-zinc-400 font-medium">{p.instId}</span>
                             <span className={p.posSide === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{p.posSide.toUpperCase()}</span>
+                            {p.leverage != null && p.leverage > 0 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300">{Math.round(p.leverage)}X</span>
+                            )}
+                            {p.marginMode && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-500 dark:text-zinc-400 capitalize">{p.marginMode}</span>
+                            )}
                             <span className="text-muted-foreground">Entry: {p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             {(p.markPrice ?? positionsData.markPrice) != null && <span className="text-muted-foreground">Mark: {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {(() => {
@@ -3070,11 +3079,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                               <span className="text-muted-foreground" title="Margin ratio from exchange when available">Margin ratio: —</span>
                             )}
                             <span className="text-muted-foreground" title="Quantity of the asset (contracts). Long = positive, Short = negative.">Size: {(p.posSide === "short" ? -p.size : p.size).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
-                            <span className={p.unrealizedPnl >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
-                              PNL: {p.unrealizedPnl >= 0 ? "+" : ""}{p.unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
-                              {p.pnlPct != null && Number.isFinite(p.pnlPct) && (
-                                <span className="ml-1">({p.pnlPct >= 0 ? "+" : ""}{p.pnlPct.toFixed(2)}%)</span>
-                              )}
+                            <span
+                              className={`font-semibold tabular-nums ${p.unrealizedPnl >= 0 ? "text-emerald-600 dark:text-[#0ecb81]" : "text-rose-600 dark:text-[#f6465d]"}`}
+                              title="Matches Blofin ROE % (margin × leverage)"
+                            >
+                              PNL: {formatBlofinPnlLine(p.unrealizedPnl, p.pnlPct ?? null)}
                             </span>
                             {instIdNorm && (
                               <Button
@@ -3119,7 +3128,12 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                               const items = positionsData.positions.map((p) => ({
                                 name: p.instId ?? "",
                                 side: p.posSide ?? "",
-                                pnlDisplay: p.pnlPct != null ? `${p.pnlPct >= 0 ? "+" : ""}${p.pnlPct.toFixed(2)}%` : "—",
+                                pnlUsdt: p.unrealizedPnl,
+                                pnlPct: p.pnlPct ?? null,
+                                leverage: p.leverage ?? null,
+                                marginMode: p.marginMode ?? null,
+                                entryPrice: p.entryPrice,
+                                markPrice: p.markPrice,
                               }));
                               const blob = await drawPnlToJpegBlob({
                                 title: "NovaStaris AI — PNL Report",

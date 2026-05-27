@@ -146,6 +146,10 @@ export type PositionRow = {
   mgnRatio?: string | null;
   /** Unrealized PnL in quote (e.g. USDT) when Blofin returns it */
   upl?: string | null;
+  /** ROE ratio as decimal (e.g. -0.2623 → -26.23% on Blofin UI) */
+  unrealizedPnlRatio?: string | null;
+  leverage?: string | null;
+  marginMode?: string | null;
   /** Mark / last price on position row when API returns it */
   markPx?: string | null;
 };
@@ -177,6 +181,10 @@ function extractPositionsList(data: unknown): PositionRow[] {
     const mgnRatio = obj.mgnRatio ?? obj.marginRatio ?? obj.margin_ratio ?? null;
     const uplRaw =
       obj.upl ?? obj.unrealizedPnl ?? obj.unrealizedPnL ?? obj.unrealized_pnl ?? obj.uPnl ?? obj.profit ?? null;
+    const ratioRaw =
+      obj.unrealizedPnlRatio ?? obj.uplRatio ?? obj.unrealized_pnl_ratio ?? obj.pnlRatio ?? null;
+    const leverageRaw = obj.leverage ?? obj.lever ?? null;
+    const marginModeRaw = obj.marginMode ?? obj.margin_mode ?? null;
     const markPxRaw = obj.markPx ?? obj.mark_px ?? obj.markPrice ?? obj.last ?? obj.lastPrice ?? null;
     result.push({
       instId,
@@ -189,6 +197,9 @@ function extractPositionsList(data: unknown): PositionRow[] {
       imr: imr != null ? String(imr) : undefined,
       mgnRatio: mgnRatio != null ? String(mgnRatio) : undefined,
       upl: uplRaw != null && uplRaw !== "" ? String(uplRaw) : undefined,
+      unrealizedPnlRatio: ratioRaw != null && ratioRaw !== "" ? String(ratioRaw) : undefined,
+      leverage: leverageRaw != null && leverageRaw !== "" ? String(leverageRaw) : undefined,
+      marginMode: marginModeRaw != null && marginModeRaw !== "" ? String(marginModeRaw) : undefined,
       markPx: markPxRaw != null && markPxRaw !== "" ? String(markPxRaw) : undefined,
     });
   }
