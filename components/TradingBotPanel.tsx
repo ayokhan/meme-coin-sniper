@@ -197,6 +197,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [orderHistoryLoading, setOrderHistoryLoading] = useState(false);
   const [openOrders, setOpenOrders] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; createdAt?: string }[]>([]);
   const [openOrdersLoading, setOpenOrdersLoading] = useState(false);
+  const [openOrdersError, setOpenOrdersError] = useState<string | null>(null);
+  const [positionsFetchError, setPositionsFetchError] = useState<string | null>(null);
+  const [orderHistoryError, setOrderHistoryError] = useState<string | null>(null);
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"open_orders" | "positions" | "orders">("positions");
   const [limitOrderPrice, setLimitOrderPrice] = useState("");
@@ -608,6 +611,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const fetchPositions = useCallback(async () => {
     try {
       setPositionsLoading(true);
+      setPositionsFetchError(null);
       const res = await fetch("/api/admin/trading-bot/positions");
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.positions)) {
@@ -618,9 +622,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         });
       } else {
         setPositionsData(null);
+        setPositionsFetchError(data.error ?? (res.ok ? "Could not load positions." : `Error ${res.status}`));
       }
     } catch {
       setPositionsData(null);
+      setPositionsFetchError("Network error loading positions.");
     } finally {
       setPositionsLoading(false);
     }
@@ -743,12 +749,18 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const fetchOrderHistory = useCallback(async () => {
     try {
       setOrderHistoryLoading(true);
+      setOrderHistoryError(null);
       const res = await fetch("/api/admin/trading-bot/orders-history?limit=50");
       const data = await res.json().catch(() => ({}));
-      if (data.success && Array.isArray(data.orders)) setOrderHistory(data.orders);
-      else setOrderHistory([]);
+      if (data.success && Array.isArray(data.orders)) {
+        setOrderHistory(data.orders);
+      } else {
+        setOrderHistory([]);
+        setOrderHistoryError(data.error ?? (res.ok ? "Could not load order history." : `Error ${res.status}`));
+      }
     } catch {
       setOrderHistory([]);
+      setOrderHistoryError("Network error loading order history.");
     } finally {
       setOrderHistoryLoading(false);
     }
@@ -757,12 +769,18 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const fetchOpenOrders = useCallback(async () => {
     try {
       setOpenOrdersLoading(true);
+      setOpenOrdersError(null);
       const res = await fetch("/api/admin/trading-bot/open-orders?limit=50");
       const data = await res.json().catch(() => ({}));
-      if (data.success && Array.isArray(data.orders)) setOpenOrders(data.orders);
-      else setOpenOrders([]);
+      if (data.success && Array.isArray(data.orders)) {
+        setOpenOrders(data.orders);
+      } else {
+        setOpenOrders([]);
+        setOpenOrdersError(data.error ?? (res.ok ? "Could not load open orders." : `Error ${res.status}`));
+      }
     } catch {
       setOpenOrders([]);
+      setOpenOrdersError("Network error loading open orders.");
     } finally {
       setOpenOrdersLoading(false);
     }
@@ -2947,13 +2965,17 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mb-2 -mt-1">Open orders = pending (unfilled). Positions = open positions only. Order history = filled/canceled.</p>
+              <p className="text-xs text-muted-foreground mb-2 -mt-1">
+                Open orders = pending (unfilled). Positions = open positions only. Order history = filled/canceled. Data comes from Blofin using your saved API keys and the bot&apos;s <strong>Demo/Live</strong> mode in config.
+              </p>
               {activeTab === "open_orders" && (
                 <div className="mt-2 max-h-64 overflow-auto">
                   {openOrdersLoading ? (
                     <p className="text-muted-foreground text-xs">Loading open orders…</p>
+                  ) : openOrdersError ? (
+                    <p className="text-rose-600 dark:text-rose-400 text-xs">{openOrdersError}</p>
                   ) : openOrders.length === 0 ? (
-                    <p className="text-muted-foreground text-xs">No open (pending) orders.</p>
+                    <p className="text-muted-foreground text-xs">No open (pending) orders on this Blofin account ({config.mode === "demo" ? "Demo" : "Live"}).</p>
                   ) : (
                     <div className="space-y-1 text-xs">
                       {openOrders.map((o, i) => (
@@ -2988,6 +3010,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 <>
                   {positionsLoading && !positionsData ? (
                     <p className="text-muted-foreground text-xs">Loading…</p>
+                  ) : positionsFetchError ? (
+                    <p className="text-rose-600 dark:text-rose-400 text-xs">{positionsFetchError}</p>
                   ) : positionsData && positionsData.positions.length > 0 ? (
                     <div className="mt-2 space-y-2">
                       {positionsData.positions.map((p, i) => {
@@ -3115,7 +3139,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                       </div>
                     </div>
                   ) : positionsData && positionsData.positions.length === 0 ? (
-                    <p className="text-muted-foreground text-xs">No open positions on exchange.</p>
+                    <p className="text-muted-foreground text-xs">No open positions on this Blofin account ({config.mode === "demo" ? "Demo" : "Live"}).</p>
+                  ) : !positionsLoading ? (
+                    <p className="text-muted-foreground text-xs">Click Refresh PNL below after Blofin keys are saved.</p>
                   ) : null}
                 </>
               )}
@@ -3123,8 +3149,10 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 <div className="mt-2 max-h-64 overflow-auto">
                   {orderHistoryLoading ? (
                     <p className="text-muted-foreground text-xs">Loading order history…</p>
+                  ) : orderHistoryError ? (
+                    <p className="text-rose-600 dark:text-rose-400 text-xs">{orderHistoryError}</p>
                   ) : orderHistory.length === 0 ? (
-                    <p className="text-muted-foreground text-xs">No orders in history.</p>
+                    <p className="text-muted-foreground text-xs">No orders in history on this Blofin account ({config.mode === "demo" ? "Demo" : "Live"}). Filled/canceled orders appear here after they complete.</p>
                   ) : (
                     <div className="space-y-1 text-xs">
                       {orderHistory.map((o, i) => (

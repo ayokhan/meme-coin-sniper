@@ -2,6 +2,7 @@ import type { Session } from "next-auth";
 import { canAccessTradingBot, isOwnerSession } from "@/lib/auth";
 import { getConfig, type BlofinConfig } from "@/lib/blofin";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
+import { prisma } from "@/lib/db";
 
 export type TradingBotBlofinResolveResult =
   | { ok: true; config: BlofinConfig }
@@ -37,4 +38,17 @@ export async function resolveBlofinConfigForTradingBotSession(
     };
   }
   return { ok: true, config };
+}
+
+/** Demo vs live for Blofin API — matches bot config mode (same as Run bot), not only key demo flag. */
+export async function getTradingBotBlofinDemoFlag(fallbackFromKeys: boolean): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bot = await (prisma as any).tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
+    if (bot?.mode === "live") return false;
+    if (bot?.mode === "demo") return true;
+  } catch {
+    /* use fallback */
+  }
+  return fallbackFromKeys;
 }

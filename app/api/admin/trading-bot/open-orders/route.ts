@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getOpenOrders } from "@/lib/blofin";
-import { resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
+import { getTradingBotBlofinDemoFlag, resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
     const { config } = resolved;
-    const isDemo = config.demo;
+    const isDemo = await getTradingBotBlofinDemoFlag(config.demo);
     const { searchParams } = new URL(req.url);
     const instId = searchParams.get("instId") ?? undefined;
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10) || 50));
