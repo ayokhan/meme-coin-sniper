@@ -17,12 +17,21 @@ import { isValidNovaExtraTimezone } from "@/lib/nova-extra";
 
 type CandleTuple = [string, string, string, string, string, string, string, string, string];
 
-export const NOVA_PATTERN_LOOKBACK_OPTIONS: { id: string; label: string; weeks: number; hours: number }[] = [
-  { id: "4w", label: "4 weeks", weeks: 4, hours: 4 * 7 * 24 },
-  { id: "6w", label: "6 weeks", weeks: 6, hours: 6 * 7 * 24 },
-  { id: "8w", label: "8 weeks", weeks: 8, hours: 8 * 7 * 24 },
-  { id: "12w", label: "12 weeks", weeks: 12, hours: 12 * 7 * 24 },
+export const NOVA_PATTERN_LOOKBACK_OPTIONS: { id: string; label: string; hours: number }[] = [
+  { id: "48h", label: "48 hours", hours: 48 },
+  { id: "72h", label: "72 hours", hours: 72 },
+  { id: "1w", label: "1 week", hours: 7 * 24 },
+  { id: "2w", label: "2 weeks", hours: 14 * 24 },
+  { id: "4w", label: "4 weeks", hours: 4 * 7 * 24 },
+  { id: "6w", label: "6 weeks", hours: 6 * 7 * 24 },
+  { id: "8w", label: "8 weeks", hours: 8 * 7 * 24 },
+  { id: "12w", label: "12 weeks", hours: 12 * 7 * 24 },
 ];
+
+/** Day-of-week stats need ~1 sample per weekday; shorter windows are best for 48h-cycle focus. */
+export function isShortPatternLookback(hours: number): boolean {
+  return hours < 14 * 24;
+}
 
 export const NOVA_PATTERN_TYPE_OPTIONS: { id: NovaPatternTypeId; label: string }[] = [
   { id: "playbook", label: "Full playbook (all patterns)" },
@@ -210,7 +219,7 @@ function pickBestDays(rows: NovaPatternWeekdayRow[]): {
   bestLongDay: NovaPatternWeekdayRow | null;
   bestShortDay: NovaPatternWeekdayRow | null;
 } {
-  const withSamples = rows.filter((r) => r.samples >= 2);
+  const withSamples = rows.filter((r) => r.samples >= 3);
   const longCandidates = withSamples.filter((r) => r.bias === "long").sort((a, b) => b.avgReturnPct - a.avgReturnPct);
   const shortCandidates = withSamples.filter((r) => r.bias === "short").sort((a, b) => a.avgReturnPct - b.avgReturnPct);
   return {
@@ -427,23 +436,23 @@ function buildTraderBrief(params: {
 
   let headline = `${symbol} behavioral playbook (${lookbackLabel})`;
   if (bestLongDay && bestShortDay) {
-    headline = `Favor longs into ${bestLongDay.label}, shorts into ${bestShortDay.label} (${lookbackLabel})`;
+    headline = `Historical lean: long bias ${bestLongDay.label}, short/fade bias ${bestShortDay.label} (${lookbackLabel})`;
   } else if (bestLongDay) {
-    headline = `${bestLongDay.label} is the strongest long bias day (${lookbackLabel})`;
+    headline = `${bestLongDay.label} showed the strongest long bias (${lookbackLabel})`;
   } else if (bestShortDay) {
-    headline = `${bestShortDay.label} is the strongest short / fade day (${lookbackLabel})`;
+    headline = `${bestShortDay.label} showed the strongest short / fade bias (${lookbackLabel})`;
   }
 
   const priceBit =
     currentPrice != null ? ` Spot ${formatQuotePriceUsd(currentPrice)}.` : "";
 
   const traderBrief = [
-    `Nova studied ${lookbackLabel} of ${symbol} candles in ${tzLabel}.${priceBit}`,
+    `Nova Agent studied ${lookbackLabel} of ${symbol} candles in ${tzLabel}.${priceBit}`,
     bestLongDay
-      ? ` Long edge: ${bestLongDay.label} (avg ${bestLongDay.avgReturnPct >= 0 ? "+" : ""}${bestLongDay.avgReturnPct}%, ${bestLongDay.winRatePct}% up).`
+      ? ` Days that tended to rise: ${bestLongDay.label} (avg ${bestLongDay.avgReturnPct >= 0 ? "+" : ""}${bestLongDay.avgReturnPct}%, ${bestLongDay.winRatePct}% green days, n=${bestLongDay.samples}) — not a guaranteed long signal.`
       : "",
     bestShortDay
-      ? ` Short / fade edge: ${bestShortDay.label} (avg ${bestShortDay.avgReturnPct}%).`
+      ? ` Days that tended to fall: ${bestShortDay.label} (avg ${bestShortDay.avgReturnPct}%, n=${bestShortDay.samples}) — consider shorts or taking profit, not blind entries.`
       : "",
     cycle48h && cycle48h.samplesAfterRally >= 2
       ? ` 48h cycle: after a sharp 48h rally, next 48h retraced ${cycle48h.afterRallyRetraceRatePct}% of the time.`
@@ -483,7 +492,7 @@ export async function analyzeNovaPattern(
     : `${symbol}: Hyperliquid USDC-margined perpetual candles.`;
   const dataSource = useBlofin ? "Blofin" : "Hyperliquid";
 
-  const dailyLimit = Math.min(400, lookback.weeks * 7 + 14);
+  const dailyLimit = Math.min(400, Math.ceil(lookback.hours / 24) + 14);
   const hourlyLimit = Math.min(1440, lookback.hours + 48);
 
   const [dailyCandles, hourlyCandles, currentPrice] = await Promise.all([

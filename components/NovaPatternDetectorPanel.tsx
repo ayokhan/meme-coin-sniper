@@ -79,7 +79,7 @@ export default function NovaPatternDetectorPanel({ enabled, isVip }: Props) {
   if (!enabled) {
     return (
       <p className="text-sm text-muted-foreground">
-        Nova Pattern Detector is not enabled for this site yet. Ask an admin to turn on the feature flag.
+        Nova Playbook is not enabled for this site yet. Ask an admin to turn on the feature flag.
       </p>
     );
   }
@@ -109,11 +109,12 @@ export default function NovaPatternDetectorPanel({ enabled, isVip }: Props) {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Pattern Detector</h2>
+        <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Playbook</h2>
         <p className="text-xs text-muted-foreground mt-1 max-w-3xl">
-          Behavioral playbook — not NovaQ support/resistance. Learn from history: which weekdays tend to rally or fade,
-          whether sharp 48h moves often retrace in the next 48h, and weekly rhythms (e.g. Monday up → Tuesday down).
-          Pick how far back to study; pattern type narrows the report. XAU/XAG use Blofin; others use Hyperliquid.
+          Behavioral playbook — not NovaQ support/resistance. Nova Agent learns from history: which weekdays tended to
+          rally or fade, whether sharp 48h moves often retrace, and weekly rhythms. Use 4w+ for weekday stats; 48h–2w is
+          best for recent 48h-cycle behavior. Results are tendencies, not trade orders. XAU/XAG use Blofin; others use
+          Hyperliquid.
         </p>
       </div>
 
@@ -198,19 +199,19 @@ export default function NovaPatternDetectorPanel({ enabled, isVip }: Props) {
               <div className="grid sm:grid-cols-2 gap-3">
                 {result.bestLongDay && (
                   <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs">
-                    <p className="font-semibold text-emerald-700 dark:text-emerald-300">Best long day</p>
+                    <p className="font-semibold text-emerald-700 dark:text-emerald-300">Strongest long bias (historical)</p>
                     <p className="mt-1 text-zinc-800 dark:text-zinc-200">
                       {result.bestLongDay.label} · avg +{result.bestLongDay.avgReturnPct}% ·{" "}
-                      {result.bestLongDay.winRatePct}% green ({result.bestLongDay.samples} samples)
+                      {result.bestLongDay.winRatePct}% green ({result.bestLongDay.samples} samples) — tendency, not a buy signal
                     </p>
                   </div>
                 )}
                 {result.bestShortDay && (
                   <div className="rounded-md border border-rose-500/40 bg-rose-500/10 p-3 text-xs">
-                    <p className="font-semibold text-rose-700 dark:text-rose-300">Best short / fade day</p>
+                    <p className="font-semibold text-rose-700 dark:text-rose-300">Strongest short / fade bias (historical)</p>
                     <p className="mt-1 text-zinc-800 dark:text-zinc-200">
                       {result.bestShortDay.label} · avg {result.bestShortDay.avgReturnPct}% ·{" "}
-                      {Math.round(100 - result.bestShortDay.winRatePct)}% red ({result.bestShortDay.samples} samples)
+                      {Math.round(100 - result.bestShortDay.winRatePct)}% red ({result.bestShortDay.samples} samples) — consider fade, not blind short
                     </p>
                   </div>
                 )}

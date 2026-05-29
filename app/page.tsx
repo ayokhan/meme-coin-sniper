@@ -6338,7 +6338,7 @@ export default function Dashboard() {
                     )}
                     {vipFuturesAddons?.novaPatternDetector && (
                       <TabsTrigger value="nova-pattern" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
-                        Nova Pattern
+                        Nova Playbook
                       </TabsTrigger>
                     )}
                     <TabsTrigger value="nova-radar" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
