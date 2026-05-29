@@ -6,7 +6,6 @@ import {
   analyzeClosedTrades,
   closedTradesFromFills,
   closedTradesFromOrders,
-  closedTradesPeriodBeginMs,
   closedTradesPeriodDays,
   closedTradesPeriodLabel,
   filterClosedTradesByPeriod,
@@ -49,19 +48,17 @@ export async function GET(req: Request) {
     const period: ClosedTradesPeriod = valid.includes(normalized as ClosedTradesPeriod)
       ? (normalized as ClosedTradesPeriod)
       : "7d";
-    const beginMs = closedTradesPeriodBeginMs(period);
-
+    // Fetch recent fills/orders without Blofin `begin` — short windows (24h) were returning
+    // empty sets from the API; period filtering is applied client-side below.
     const [fills, orders] = await Promise.all([
       getFillsHistory({
         demo: blofin.blofinDemo,
         limit,
-        beginMs: beginMs ?? undefined,
         config,
       }).catch(() => []),
       getOrderHistory({
         demo: blofin.blofinDemo,
         limit,
-        beginMs: beginMs ?? undefined,
         config,
       }),
     ]);

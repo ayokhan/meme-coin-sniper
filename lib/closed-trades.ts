@@ -46,6 +46,14 @@ export function closedTradesPeriodBeginMs(period: ClosedTradesPeriod, now = Date
   return now - days * 24 * 60 * 60 * 1000;
 }
 
+/** Blofin uses ms; some rows may be seconds — normalize for period filters. */
+export function normalizeUnixMs(raw: string | number | null | undefined): number | null {
+  if (raw == null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return n < 1e12 ? Math.round(n * 1000) : Math.round(n);
+}
+
 export function filterClosedTradesByPeriod<T extends { closedAt: string | null }>(
   trades: T[],
   period: ClosedTradesPeriod,
@@ -54,9 +62,8 @@ export function filterClosedTradesByPeriod<T extends { closedAt: string | null }
   const begin = closedTradesPeriodBeginMs(period, now);
   if (begin == null) return trades.filter((t) => t.closedAt != null && t.closedAt !== "");
   return trades.filter((t) => {
-    if (t.closedAt == null || t.closedAt === "") return false;
-    const ts = Number(t.closedAt);
-    return Number.isFinite(ts) && ts >= begin;
+    const ts = normalizeUnixMs(t.closedAt);
+    return ts != null && ts >= begin;
   });
 }
 
@@ -266,7 +273,7 @@ export function closedTradesFromFills(
       realizedPnlUsdt: pnl,
       roiPct: roiFromPrices(direction, openPrice, closePrice, lev),
       leverage: lev,
-      closedAt: f.ts ?? null,
+      closedAt: f.ts != null ? String(normalizeUnixMs(f.ts) ?? f.ts) : null,
       source: "fills",
     });
   }
@@ -314,7 +321,7 @@ export function closedTradesFromOrders(orders: BlofinOrderRow[], defaultLeverage
       realizedPnlUsdt: pnl,
       roiPct: roiFromPrices(direction, openPrice, closePrice, lev),
       leverage: lev,
-      closedAt: o.createdAt ?? null,
+      closedAt: o.createdAt != null ? String(normalizeUnixMs(o.createdAt) ?? o.createdAt) : null,
       source: "orders",
     });
   }
@@ -327,10 +334,8 @@ export function closedTradesFromOrders(orders: BlofinOrderRow[], defaultLeverage
  * Ignores close price / USDT deltas from partial fills or fills vs orders mismatch.
  */
 export function closedTradeLooseDedupeKey(t: ClosedTrade): string {
-  const ts =
-    t.closedAt != null && Number.isFinite(Number(t.closedAt))
-      ? Math.floor(Number(t.closedAt) / 60_000)
-      : 0;
+  const ms = normalizeUnixMs(t.closedAt);
+  const ts = ms != null ? Math.floor(ms / 60_000) : 0;
   return [t.instId, t.direction, t.openPrice.toFixed(2), String(ts)].join("|");
 }
 
