@@ -44,14 +44,45 @@ export type NovaPatternTypeId = "playbook" | "day_of_week" | "cycle_48h" | "week
 
 const WEEKDAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
 
+export type NovaPatternWeekdaySample = {
+  ts: number;
+  dateLabel: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  returnPct: number;
+  rangePct: number;
+  moveLabel: string;
+};
+
 export type NovaPatternWeekdayRow = {
   dayIndex: number;
   label: string;
   avgReturnPct: number;
   winRatePct: number;
+  avgRangePct: number;
+  typicalRangeLabel: string;
   samples: number;
   bias: "long" | "short" | "neutral";
   strength: "strong" | "moderate" | "weak";
+  /** Calendar dates in the lookback that fell on this weekday (newest first). */
+  sampleDetails: NovaPatternWeekdaySample[];
+};
+
+export type NovaPlaybookTradeIdea = {
+  style: "scalp" | "swing";
+  side: "long" | "short";
+  biasDay: string;
+  timing: string;
+  entry: string;
+  entryPrice: number;
+  takeProfit: string;
+  takeProfitPrice: number;
+  stopLoss: string;
+  stopLossPrice: number;
+  rationale: string;
+  confidence: "low" | "medium" | "high";
 };
 
 export type NovaPattern48hCycleStats = {
@@ -93,6 +124,9 @@ export type NovaPatternResult = {
   bestShortDay: NovaPatternWeekdayRow | null;
   cycle48h: NovaPattern48hCycleStats | null;
   weeklyRhythm: NovaPatternWeeklyRhythmRow[];
+  tradeIdeas: NovaPlaybookTradeIdea[];
+  howToUse: string[];
+  lookbackWarning: string | null;
   observations: string[];
   disclaimer: string;
 };
@@ -132,6 +166,20 @@ export function getLocalWeekdayIndex(ts: number, timeZone: string): number {
   const wd = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(new Date(ts));
   const map: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
   return map[wd] ?? 0;
+}
+
+function formatWeekdayDateLabel(ts: number, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(ts));
+}
+
+function buildMoveLabel(open: number, close: number): string {
+  return `${formatQuotePriceUsd(open)} → ${formatQuotePriceUsd(close)}`;
 }
 
 function getIsoWeekKey(ts: number, timeZone: string): string {
@@ -184,33 +232,57 @@ function analyzeDayOfWeek(
   timeZone: string,
   cutoffTs: number
 ): NovaPatternWeekdayRow[] {
-  const buckets: number[][] = Array.from({ length: 7 }, () => []);
+  const buckets: NovaPatternWeekdaySample[][] = Array.from({ length: 7 }, () => []);
 
   for (const c of dailyCandles) {
     const ts = Number(c[0]);
     if (!Number.isFinite(ts) || ts < cutoffTs) continue;
     const o = Number(c[1]);
+    const hi = Number(c[2]);
+    const lo = Number(c[3]);
     const cl = Number(c[4]);
     if (!Number.isFinite(o) || !Number.isFinite(cl) || o <= 0) continue;
     const ret = ((cl - o) / o) * 100;
+    const rangePct =
+      Number.isFinite(hi) && Number.isFinite(lo) && hi >= lo && o > 0 ? ((hi - lo) / o) * 100 : Math.abs(ret);
     const day = getLocalWeekdayIndex(ts, timeZone);
-    buckets[day].push(ret);
+    buckets[day].push({
+      ts,
+      dateLabel: formatWeekdayDateLabel(ts, timeZone),
+      open: o,
+      high: Number.isFinite(hi) ? hi : Math.max(o, cl),
+      low: Number.isFinite(lo) ? lo : Math.min(o, cl),
+      close: cl,
+      returnPct: Math.round(ret * 100) / 100,
+      rangePct: Math.round(rangePct * 100) / 100,
+      moveLabel: buildMoveLabel(o, cl),
+    });
   }
 
   return WEEKDAY_LABELS.map((label, dayIndex) => {
-    const returns = buckets[dayIndex];
+    const details = [...buckets[dayIndex]].sort((a, b) => b.ts - a.ts);
+    const returns = details.map((d) => d.returnPct);
+    const ranges = details.map((d) => d.rangePct);
     const samples = returns.length;
     const avgReturnPct = samples > 0 ? avg(returns) : 0;
+    const avgRangePct = samples > 0 ? avg(ranges) : 0;
     const winRatePct = samples > 0 ? (returns.filter((r) => r > 0).length / samples) * 100 : 50;
     const bias = classifyBias(avgReturnPct, winRatePct);
+    const rawStrength = classifyStrength(avgReturnPct, winRatePct);
+    const strength = samples < 3 ? "weak" : rawStrength;
+    const typicalRangeLabel =
+      samples > 0 ? `Avg H–L ${(Math.round(avgRangePct * 100) / 100).toFixed(2)}% of open` : "—";
     return {
       dayIndex,
       label,
       avgReturnPct: Math.round(avgReturnPct * 100) / 100,
       winRatePct: Math.round(winRatePct * 10) / 10,
+      avgRangePct: Math.round(avgRangePct * 100) / 100,
+      typicalRangeLabel,
       samples,
       bias,
-      strength: classifyStrength(avgReturnPct, winRatePct),
+      strength,
+      sampleDetails: details,
     };
   });
 }
@@ -387,6 +459,117 @@ function analyzeWeeklyRhythm(
   return rows;
 }
 
+function buildTradeIdeas(params: {
+  symbol: string;
+  currentPrice: number;
+  dayOfWeek: NovaPatternWeekdayRow[];
+  bestLongDay: NovaPatternWeekdayRow | null;
+  bestShortDay: NovaPatternWeekdayRow | null;
+  cycle48h: NovaPattern48hCycleStats | null;
+  tzLabel: string;
+}): NovaPlaybookTradeIdea[] {
+  const { symbol, currentPrice, dayOfWeek, bestLongDay, bestShortDay, cycle48h, tzLabel } = params;
+  const ideas: NovaPlaybookTradeIdea[] = [];
+
+  const longDay =
+    bestLongDay ??
+    [...dayOfWeek].filter((r) => r.bias === "long" && r.samples >= 1).sort((a, b) => b.avgReturnPct - a.avgReturnPct)[0] ??
+    null;
+  const shortDay =
+    bestShortDay ??
+    [...dayOfWeek].filter((r) => r.bias === "short" && r.samples >= 1).sort((a, b) => a.avgReturnPct - b.avgReturnPct)[0] ??
+    null;
+
+  function addPlan(row: NovaPatternWeekdayRow, side: "long" | "short", style: "scalp" | "swing") {
+    if (row.samples < 1 || row.bias === "neutral") return;
+    const conf: NovaPlaybookTradeIdea["confidence"] =
+      row.samples >= 5 && row.strength !== "weak" ? "high" : row.samples >= 3 ? "medium" : "low";
+    const ret = Math.max(0.08, Math.abs(row.avgReturnPct));
+    const range = Math.max(0.25, row.avgRangePct || ret);
+    const targetPct = style === "scalp" ? Math.min(1.2, ret * 0.55) : Math.min(2.8, ret * 1.15);
+    const stopPct = style === "scalp" ? Math.max(0.22, range * 0.38) : Math.max(0.42, range * 0.55);
+
+    const pullbackPct = style === "scalp" ? 0.06 : 0.12;
+    let entryPrice: number;
+    let takeProfitPrice: number;
+    let stopLossPrice: number;
+
+    if (side === "long") {
+      entryPrice = currentPrice * (1 - pullbackPct / 100);
+      takeProfitPrice = entryPrice * (1 + targetPct / 100);
+      stopLossPrice = entryPrice * (1 - stopPct / 100);
+    } else {
+      entryPrice = currentPrice * (1 + pullbackPct / 100);
+      takeProfitPrice = entryPrice * (1 - targetPct / 100);
+      stopLossPrice = entryPrice * (1 + stopPct / 100);
+    }
+
+    const lastSample = row.sampleDetails[0];
+    const dateHint = lastSample ? ` Last ${row.label} in sample: ${lastSample.dateLabel}.` : "";
+
+    ideas.push({
+      style,
+      side,
+      biasDay: row.label,
+      timing: `Bias ${row.label} session (${tzLabel}) — plan before that day’s open; confirm on your Blofin chart.`,
+      entry: formatQuotePriceUsd(entryPrice),
+      entryPrice: Math.round(entryPrice * 100) / 100,
+      takeProfit: formatQuotePriceUsd(takeProfitPrice),
+      takeProfitPrice: Math.round(takeProfitPrice * 100) / 100,
+      stopLoss: formatQuotePriceUsd(stopLossPrice),
+      stopLossPrice: Math.round(stopLossPrice * 100) / 100,
+      rationale: `${symbol} ${row.label}s averaged ${row.avgReturnPct >= 0 ? "+" : ""}${row.avgReturnPct}% over ${row.samples} sample(s); avg day range ${row.avgRangePct}%. Heuristic ${style} levels from spot — not a live order.${dateHint}`,
+      confidence: conf,
+    });
+  }
+
+  if (longDay) {
+    addPlan(longDay, "long", "scalp");
+    addPlan(longDay, "long", "swing");
+  }
+  if (shortDay) {
+    addPlan(shortDay, "short", "scalp");
+    addPlan(shortDay, "short", "swing");
+  }
+
+  if (cycle48h && cycle48h.samplesAfterRally >= 2 && cycle48h.afterRallyRetraceRatePct >= 55) {
+    const stopPct = 0.35;
+    const targetPct = 0.45;
+    const entryPrice = currentPrice;
+    ideas.push({
+      style: "scalp",
+      side: "short",
+      biasDay: "48h fade",
+      timing: `After a +${cycle48h.rallyThresholdPct}% or greater 48h rally (${tzLabel} candles).`,
+      entry: formatQuotePriceUsd(entryPrice),
+      entryPrice,
+      takeProfit: formatQuotePriceUsd(entryPrice * (1 - targetPct / 100)),
+      takeProfitPrice: Math.round(entryPrice * (1 - targetPct / 100) * 100) / 100,
+      stopLoss: formatQuotePriceUsd(entryPrice * (1 + stopPct / 100)),
+      stopLossPrice: Math.round(entryPrice * (1 + stopPct / 100) * 100) / 100,
+      rationale: `Next 48h retraced ${cycle48h.afterRallyRetraceRatePct}% of the time after sharp rallies (n=${cycle48h.samplesAfterRally}). Mean-reversion scalp only.`,
+      confidence: cycle48h.samplesAfterRally >= 5 ? "medium" : "low",
+    });
+  }
+
+  return ideas.slice(0, 6);
+}
+
+function buildHowToUse(
+  lookbackLabel: string,
+  tzLabel: string,
+  lookbackWarning: string | null
+): string[] {
+  const tips = [
+    `Each row is a weekday label in ${tzLabel}, not “every future Monday.” The Sample dates column lists the actual calendar days in your ${lookbackLabel} window.`,
+    "Use Avg % and Green % to see which sessions tended to rise or fall; use Avg H–L range for how far price typically swung that day.",
+    "Suggested plans are heuristic entry / TP / SL from spot and historical averages — confirm with NovaQ, your chart, and risk size before trading.",
+    "Prefer Learn from 4w+ for weekday stats; 1w only gives one date per weekday (n=1) and overstates “strong edge.”",
+  ];
+  if (lookbackWarning) tips.unshift(lookbackWarning);
+  return tips;
+}
+
 function buildTraderBrief(params: {
   symbol: string;
   lookbackLabel: string;
@@ -515,6 +698,25 @@ export async function analyzeNovaPattern(
   const dailyBars = includeWeekly ? buildDailyBars(dailyCandles, timezone, cutoffTs) : [];
   const weeklyRhythm = includeWeekly ? analyzeWeeklyRhythm(dailyBars, timezone) : [];
 
+  const lookbackWarning = isShortPatternLookback(lookback.hours)
+    ? `⚠ ${lookback.label} lookback: only ~1 calendar day per weekday — expand to 4w+ for reliable day-of-week stats. Sample dates show which Mondays/Tuesdays were counted.`
+    : null;
+
+  const tradeIdeas =
+    currentPrice != null && currentPrice > 0
+      ? buildTradeIdeas({
+          symbol,
+          currentPrice,
+          dayOfWeek,
+          bestLongDay,
+          bestShortDay,
+          cycle48h,
+          tzLabel,
+        })
+      : [];
+
+  const howToUse = buildHowToUse(lookback.label, tzLabel, lookbackWarning);
+
   const { traderBrief, playbookHeadline, observations } = buildTraderBrief({
     symbol,
     lookbackLabel: lookback.label,
@@ -545,6 +747,9 @@ export async function analyzeNovaPattern(
     bestShortDay,
     cycle48h,
     weeklyRhythm,
+    tradeIdeas,
+    howToUse,
+    lookbackWarning,
     observations,
     disclaimer:
       "Historical calendar and cycle statistics on OHLC data — not financial advice. Past weekday or 48h behavior does not guarantee future results. Use with your exchange chart and risk controls.",
