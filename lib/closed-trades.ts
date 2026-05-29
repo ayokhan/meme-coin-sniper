@@ -178,6 +178,57 @@ function roiFromPrices(
   return Math.round(move * leverage * 10000) / 100;
 }
 
+/** Closing fills that belong to one reduce-only close (partials share orderId or timestamp). */
+function shouldMergeClosingFills(a: BlofinFillRow, b: BlofinFillRow): boolean {
+  if (a.instId !== b.instId) return false;
+  if (a.orderId && b.orderId && a.orderId === b.orderId) return true;
+  const ta = Number(a.ts ?? 0);
+  const tb = Number(b.ts ?? 0);
+  return Number.isFinite(ta) && Number.isFinite(tb) && Math.abs(ta - tb) <= 3000;
+}
+
+function groupClosingFills(sorted: BlofinFillRow[]): BlofinFillRow[][] {
+  const groups: BlofinFillRow[][] = [];
+  let current: BlofinFillRow[] | null = null;
+
+  for (const f of sorted) {
+    const pnl = num(f.fillPnl);
+    if (pnl == null || Math.abs(pnl) < 1e-10) continue;
+    if (!current) {
+      current = [f];
+      continue;
+    }
+    const last = current[current.length - 1];
+    if (shouldMergeClosingFills(last, f)) current.push(f);
+    else {
+      groups.push(current);
+      current = [f];
+    }
+  }
+  if (current) groups.push(current);
+  return groups;
+}
+
+/** One representative fill per close (largest |fillPnl| — avoids double-counting partials). */
+function pickRepresentativeClosingFill(group: BlofinFillRow[]): BlofinFillRow {
+  return group.reduce((best, f) => {
+    const p = Math.abs(num(f.fillPnl) ?? 0);
+    const bp = Math.abs(num(best.fillPnl) ?? 0);
+    return p > bp ? f : best;
+  });
+}
+
+function findOpenPriceBeforeFill(sorted: BlofinFillRow[], fillIndex: number): number | null {
+  const f = sorted[fillIndex];
+  for (let j = fillIndex - 1; j >= 0; j--) {
+    const prev = sorted[j];
+    if (prev.instId !== f.instId) continue;
+    const prevPnl = num(prev.fillPnl) ?? 0;
+    if (Math.abs(prevPnl) < 1e-10) return num(prev.fillPrice);
+  }
+  return null;
+}
+
 /** Closed trades from fills-history (fillPnl on closing fills). */
 export function closedTradesFromFills(
   fills: BlofinFillRow[],
@@ -187,33 +238,26 @@ export function closedTradesFromFills(
 ): ClosedTrade[] {
   const sorted = [...fills].sort((a, b) => Number(a.ts ?? 0) - Number(b.ts ?? 0));
   const closed: ClosedTrade[] = [];
+  const groups = groupClosingFills(sorted);
 
-  for (let i = 0; i < sorted.length; i++) {
-    const f = sorted[i];
+  for (const group of groups) {
+    const f = pickRepresentativeClosingFill(group);
+    const fillIndex = sorted.indexOf(f);
     const pnl = num(f.fillPnl);
     if (pnl == null || Math.abs(pnl) < 1e-10) continue;
 
     const closePrice = num(f.fillPrice);
     if (closePrice == null || closePrice <= 0) continue;
 
-    const direction = inferDirectionFromCloseSide(f.side, f.positionSide);
-    let openPrice: number | null = null;
-    for (let j = i - 1; j >= 0; j--) {
-      const prev = sorted[j];
-      if (prev.instId !== f.instId) continue;
-      const prevPnl = num(prev.fillPnl) ?? 0;
-      if (Math.abs(prevPnl) < 1e-10) {
-        openPrice = num(prev.fillPrice);
-        break;
-      }
-    }
+    const openPrice = findOpenPriceBeforeFill(sorted, fillIndex);
     if (openPrice == null || openPrice <= 0) continue;
 
+    const direction = inferDirectionFromCloseSide(f.side, f.positionSide);
     const ordLev = f.orderId ? leverageByOrderId?.get(f.orderId) : undefined;
     const lev = ordLev ?? leverageByInst?.get(f.instId) ?? defaultLeverage;
 
     closed.push({
-      id: f.tradeId ?? f.orderId ?? `fill-${i}`,
+      id: f.tradeId ?? f.orderId ?? `fill-${fillIndex}`,
       instId: f.instId,
       displaySymbol: formatInstDisplay(f.instId),
       direction,
@@ -278,20 +322,16 @@ export function closedTradesFromOrders(orders: BlofinOrderRow[], defaultLeverage
   return closed.reverse();
 }
 
-/** Same round-trip from fills vs orders-history often differs by ms timestamp or leverage — bucket for dedupe. */
-export function closedTradeDedupeKey(t: ClosedTrade): string {
+/**
+ * Loose dedupe: same instrument + direction + entry + minute = one round-trip.
+ * Ignores close price / USDT deltas from partial fills or fills vs orders mismatch.
+ */
+export function closedTradeLooseDedupeKey(t: ClosedTrade): string {
   const ts =
     t.closedAt != null && Number.isFinite(Number(t.closedAt))
       ? Math.floor(Number(t.closedAt) / 60_000)
       : 0;
-  return [
-    t.instId,
-    t.direction,
-    t.openPrice.toFixed(4),
-    t.closePrice.toFixed(4),
-    t.realizedPnlUsdt.toFixed(2),
-    String(ts),
-  ].join("|");
+  return [t.instId, t.direction, t.openPrice.toFixed(2), String(ts)].join("|");
 }
 
 function enrichFillWithOrderLeverage(fillsTrade: ClosedTrade, orderTrade: ClosedTrade): ClosedTrade {
@@ -316,10 +356,20 @@ function preferClosedTrade(existing: ClosedTrade, candidate: ClosedTrade): Close
 
 export function mergeClosedTrades(fillsTrades: ClosedTrade[], orderTrades: ClosedTrade[]): ClosedTrade[] {
   const byKey = new Map<string, ClosedTrade>();
-  for (const t of [...orderTrades, ...fillsTrades]) {
-    const key = closedTradeDedupeKey(t);
+  // Orders-history pnl per close is authoritative; fills are fallback only.
+  for (const t of orderTrades) {
+    const key = closedTradeLooseDedupeKey(t);
     const prev = byKey.get(key);
-    byKey.set(key, prev ? preferClosedTrade(prev, t) : t);
+    if (!prev || Math.abs(t.realizedPnlUsdt) > Math.abs(prev.realizedPnlUsdt)) {
+      byKey.set(key, t);
+    }
+  }
+  for (const t of fillsTrades) {
+    const key = closedTradeLooseDedupeKey(t);
+    const prev = byKey.get(key);
+    if (!prev) byKey.set(key, t);
+    else if (prev.source === "orders") continue;
+    else byKey.set(key, preferClosedTrade(prev, t));
   }
   return [...byKey.values()].sort((a, b) => Number(b.closedAt ?? 0) - Number(a.closedAt ?? 0));
 }
