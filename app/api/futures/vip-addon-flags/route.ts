@@ -10,7 +10,7 @@ export async function GET() {
   try {
     // Session read kept for parity/auditing, but visibility is flag-driven for all users.
     await getServerSession(authOptions);
-    const [novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaQFib, novaExtra, novaForexAgent, novaForexFib, novaForexScalpAgent] = await Promise.all([
+    const [novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent] = await Promise.all([
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_EAGLE),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_LIQUIDATION_MAP),
@@ -24,11 +24,12 @@ export async function GET() {
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_SCALP_AGENT),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_Q_FIB),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_EXTRA),
+      getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_PATTERN_DETECTOR),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FOREX_AGENT),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FOREX_FIB),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_AGENT),
     ]);
-    return NextResponse.json({ success: true, novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaQFib, novaExtra, novaForexAgent, novaForexFib, novaForexScalpAgent });
+    return NextResponse.json({ success: true, novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to read flags";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

@@ -140,6 +140,21 @@ export async function getNovaExtraAccess(session: Session | null): Promise<VipFu
   return base;
 }
 
+export async function getNovaPatternDetectorAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await assertVip(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_PATTERN_DETECTOR);
+  if (!on) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Nova Pattern Detector is not available on your account yet. Contact support if you need access.",
+      disabled: true,
+    };
+  }
+  return base;
+}
+
 export async function getNovaForexAgentAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
   const base = await assertVip(session);
   if (!base.ok) return base;

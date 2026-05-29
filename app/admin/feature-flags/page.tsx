@@ -209,6 +209,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users see the Nova Extra subtab under NovaForecast Agent: UTC hour and time-range seasonality (when price tended to rise or fall) for BTC, XAU, forex symbols, etc. Helps time long vs short entries. Default OFF until you enable it.",
   },
+  nova_pattern_detector: {
+    label: "Nova Pattern Detector (NovaForecast)",
+    description:
+      "When ON, VIP users see the Nova Pattern Detector subtab under NovaForecast Agent: swing high/low zones, typical range ceilings and floors, cycle spacing, and multi-timeframe snapshots for XAU, BTC, etc. Default OFF until you enable it.",
+  },
   nova_forex_agent: {
     label: "Nova Forex Agent",
     description:
