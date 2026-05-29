@@ -1,6 +1,6 @@
 /**
- * Nova Pattern Detector — swing / range pattern heuristics from OHLC candles.
- * Helps VIP users see recurring highs, lows, and cycle timing (e.g. XAU weekly swings).
+ * Nova Pattern Detector v2 — behavioral / calendar edges (day-of-week, 48h cycles, weekly rhythm).
+ * Distinct from NovaQ (S/R levels) and Nova Extra (hour-of-day seasonality).
  */
 
 import {
@@ -13,206 +13,134 @@ import {
 } from "@/lib/blofin-metals";
 import { formatQuotePriceUsd } from "@/lib/format-quote-price";
 import { getCandles as getHlCandles, getTicker as getHlTicker } from "@/lib/hyperliquid";
-import { highLowFromCandles, type CandleTuple } from "@/lib/nova-q-analytics";
-import { NOVA_STANDARD_TIMEFRAMES, type NovaTimeframeConfig } from "@/lib/nova-timeframes";
+import { isValidNovaExtraTimezone } from "@/lib/nova-extra";
 
-export const NOVA_PATTERN_LOOKBACK_OPTIONS: { id: string; label: string; interval: string; limit: number }[] = [
-  { id: "2w", label: "2 weeks", interval: "1d", limit: 14 },
-  { id: "4w", label: "4 weeks", interval: "1d", limit: 28 },
-  { id: "6w", label: "6 weeks", interval: "1d", limit: 42 },
-  { id: "8w", label: "8 weeks", interval: "1d", limit: 56 },
+type CandleTuple = [string, string, string, string, string, string, string, string, string];
+
+export const NOVA_PATTERN_LOOKBACK_OPTIONS: { id: string; label: string; weeks: number; hours: number }[] = [
+  { id: "4w", label: "4 weeks", weeks: 4, hours: 4 * 7 * 24 },
+  { id: "6w", label: "6 weeks", weeks: 6, hours: 6 * 7 * 24 },
+  { id: "8w", label: "8 weeks", weeks: 8, hours: 8 * 7 * 24 },
+  { id: "12w", label: "12 weeks", weeks: 12, hours: 12 * 7 * 24 },
 ];
 
-export type NovaPatternSwingPoint = {
-  kind: "high" | "low";
-  price: number;
-  ts: number;
+export const NOVA_PATTERN_TYPE_OPTIONS: { id: NovaPatternTypeId; label: string }[] = [
+  { id: "playbook", label: "Full playbook (all patterns)" },
+  { id: "day_of_week", label: "Day of week" },
+  { id: "cycle_48h", label: "48-hour cycle" },
+  { id: "weekly_rhythm", label: "Weekly rhythm" },
+];
+
+export type NovaPatternTypeId = "playbook" | "day_of_week" | "cycle_48h" | "weekly_rhythm";
+
+const WEEKDAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+
+export type NovaPatternWeekdayRow = {
+  dayIndex: number;
   label: string;
+  avgReturnPct: number;
+  winRatePct: number;
+  samples: number;
+  bias: "long" | "short" | "neutral";
+  strength: "strong" | "moderate" | "weak";
 };
 
-export type NovaPatternTimeframeRow = {
+export type NovaPattern48hCycleStats = {
+  rallyThresholdPct: number;
+  samplesAfterRally: number;
+  samplesAfterDrop: number;
+  afterRallyNext48hAvgPct: number;
+  afterRallyRetraceRatePct: number;
+  afterDropNext48hAvgPct: number;
+  afterDropBounceRatePct: number;
+  median48hReturnPct: number;
+  total48hWindows: number;
+};
+
+export type NovaPatternWeeklyRhythmRow = {
   id: string;
   label: string;
-  support: number;
-  resistance: number;
-  currentPrice: number | null;
-  rangePct: number;
-  positionInRangePct: number;
-  changePctWindow: number | null;
-  swingCount: number;
-  patternHint: string;
+  description: string;
+  samples: number;
+  hitRatePct: number;
+  avgFollowThroughPct: number | null;
 };
 
 export type NovaPatternResult = {
   symbol: string;
-  dataSource: "blofin" | "hyperliquid";
+  dataSource: string;
   contractNote: string;
   lookbackId: string;
   lookbackLabel: string;
+  patternTypeId: NovaPatternTypeId;
+  patternTypeLabel: string;
+  timezone: string;
+  timezoneLabel: string;
   currentPrice: number | null;
-  periodHigh: number;
-  periodLow: number;
-  positionInRangePct: number;
-  patternType: "range" | "uptrend" | "downtrend" | "mixed";
-  patternLabel: string;
-  /** Typical ceiling from recent swing highs (≈75th percentile). */
-  typicalHighZone: number;
-  /** Typical floor from recent swing lows (≈25th percentile). */
-  typicalLowZone: number;
-  medianSwingUpPct: number | null;
-  medianSwingDownPct: number | null;
-  medianDaysBetweenSwings: number | null;
-  recent48hChangePct: number | null;
-  swings: NovaPatternSwingPoint[];
-  summaryParagraph: string;
+  traderBrief: string;
+  playbookHeadline: string;
+  dayOfWeek: NovaPatternWeekdayRow[];
+  bestLongDay: NovaPatternWeekdayRow | null;
+  bestShortDay: NovaPatternWeekdayRow | null;
+  cycle48h: NovaPattern48hCycleStats | null;
+  weeklyRhythm: NovaPatternWeeklyRhythmRow[];
   observations: string[];
-  timeframes: NovaPatternTimeframeRow[];
   disclaimer: string;
 };
 
-function percentile(sorted: number[], p: number): number {
-  if (sorted.length === 0) return 0;
-  const idx = (sorted.length - 1) * p;
-  const lo = Math.floor(idx);
-  const hi = Math.ceil(idx);
-  if (lo === hi) return sorted[lo];
-  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+function avg(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
-function findSwings(candles: CandleTuple[], left = 2, right = 2): NovaPatternSwingPoint[] {
-  const swings: NovaPatternSwingPoint[] = [];
-  for (let i = left; i < candles.length - right; i++) {
-    const hi = Number(candles[i][2]);
-    const lo = Number(candles[i][3]);
-    const ts = Number(candles[i][0]);
-    if (!Number.isFinite(hi) || !Number.isFinite(lo)) continue;
-
-    let isHigh = true;
-    let isLow = true;
-    for (let j = i - left; j <= i + right; j++) {
-      if (j === i) continue;
-      const h = Number(candles[j][2]);
-      const l = Number(candles[j][3]);
-      if (Number.isFinite(h) && h > hi) isHigh = false;
-      if (Number.isFinite(l) && l < lo) isLow = false;
-    }
-    const dateLabel = Number.isFinite(ts) ? new Date(ts).toLocaleDateString() : "";
-    if (isHigh) swings.push({ kind: "high", price: hi, ts, label: dateLabel });
-    if (isLow) swings.push({ kind: "low", price: lo, ts, label: dateLabel });
-  }
-  swings.sort((a, b) => a.ts - b.ts);
-  return swings;
+function classifyStrength(avgReturnPct: number, winRatePct: number): NovaPatternWeekdayRow["strength"] {
+  const edge = Math.abs(avgReturnPct);
+  const wrEdge = Math.abs(winRatePct - 50);
+  if (edge >= 0.12 && wrEdge >= 12) return "strong";
+  if (edge >= 0.04 && wrEdge >= 6) return "moderate";
+  return "weak";
 }
 
-function classifyPattern(swings: NovaPatternSwingPoint[]): {
-  patternType: NovaPatternResult["patternType"];
-  patternLabel: string;
-} {
-  const highs = swings.filter((s) => s.kind === "high").map((s) => s.price);
-  const lows = swings.filter((s) => s.kind === "low").map((s) => s.price);
-  if (highs.length < 2 || lows.length < 2) {
-    return { patternType: "mixed", patternLabel: "Insufficient swing history — widen lookback or add timeframes." };
-  }
-  const last2High = highs.slice(-2);
-  const last2Low = lows.slice(-2);
-  const hh = last2High[1] > last2High[0];
-  const hl = last2Low[1] > last2Low[0];
-  const lh = last2High[1] < last2High[0];
-  const ll = last2Low[1] < last2Low[0];
-
-  if (hh && hl) return { patternType: "uptrend", patternLabel: "Higher highs & higher lows (uptrend structure)" };
-  if (lh && ll) return { patternType: "downtrend", patternLabel: "Lower highs & lower lows (downtrend structure)" };
-
-  const highBand = percentile([...highs].sort((a, b) => a - b), 0.75) - percentile([...highs].sort((a, b) => a - b), 0.25);
-  const lowBand = percentile([...lows].sort((a, b) => a - b), 0.75) - percentile([...lows].sort((a, b) => a - b), 0.25);
-  const avgMid = (percentile(highs, 0.5) + percentile(lows, 0.5)) / 2;
-  const bandPct = avgMid > 0 ? ((highBand + lowBand) / 2 / avgMid) * 100 : 0;
-
-  if (bandPct < 8 && highs.length >= 2 && lows.length >= 2) {
-    return { patternType: "range", patternLabel: "Range / oscillation — price swings between recurring high and low zones" };
-  }
-  return { patternType: "mixed", patternLabel: "Mixed structure — partial range with trend elements" };
+function classifyBias(avgReturnPct: number, winRatePct: number): NovaPatternWeekdayRow["bias"] {
+  if (avgReturnPct >= 0.03 && winRatePct >= 52) return "long";
+  if (avgReturnPct <= -0.03 && winRatePct <= 48) return "short";
+  return "neutral";
 }
 
-function median(nums: number[]): number | null {
-  const v = nums.filter((n) => Number.isFinite(n));
-  if (v.length === 0) return null;
-  const s = [...v].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-}
-
-function buildSummary(params: {
-  symbol: string;
-  lookbackLabel: string;
-  currentPrice: number | null;
-  typicalHighZone: number;
-  typicalLowZone: number;
-  medianDaysBetweenSwings: number | null;
-  medianSwingUpPct: number | null;
-  medianSwingDownPct: number | null;
-  recent48hChangePct: number | null;
-  patternLabel: string;
-  positionInRangePct: number;
-}): { summaryParagraph: string; observations: string[] } {
-  const obs: string[] = [];
-  const {
-    symbol,
-    lookbackLabel,
-    currentPrice,
-    typicalHighZone,
-    typicalLowZone,
-    medianDaysBetweenSwings,
-    medianSwingUpPct,
-    medianSwingDownPct,
-    recent48hChangePct,
-    patternLabel,
-    positionInRangePct,
-  } = params;
-
-  obs.push(patternLabel);
-
-  if (currentPrice != null) {
-    obs.push(
-      `Now ${formatQuotePriceUsd(currentPrice)} — about ${positionInRangePct.toFixed(0)}% up from the ${lookbackLabel} low toward the high.`
+function timezoneShortName(timeZone: string): string {
+  try {
+    return (
+      new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "short" })
+        .formatToParts(new Date())
+        .find((p) => p.type === "timeZoneName")?.value ?? timeZone
     );
+  } catch {
+    return timeZone;
   }
+}
 
-  obs.push(
-    `Typical swing high zone (recent peaks): ${formatQuotePriceUsd(typicalHighZone)} · Typical swing low zone (recent troughs): ${formatQuotePriceUsd(typicalLowZone)}.`
-  );
+export function getLocalWeekdayIndex(ts: number, timeZone: string): number {
+  const wd = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(new Date(ts));
+  const map: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+  return map[wd] ?? 0;
+}
 
-  if (medianSwingUpPct != null && medianSwingDownPct != null) {
-    obs.push(
-      `Median leg up from a swing low to the next high: ~${medianSwingUpPct.toFixed(2)}%. Median leg down from a swing high to the next low: ~${medianSwingDownPct.toFixed(2)}%.`
-    );
-  }
-
-  if (medianDaysBetweenSwings != null) {
-    obs.push(`Rough median spacing between swing turns: ~${medianDaysBetweenSwings.toFixed(1)} days (daily candles).`);
-  }
-
-  if (recent48hChangePct != null) {
-    const sign = recent48hChangePct >= 0 ? "+" : "";
-    obs.push(`Last ~48 hours (hourly): ${sign}${recent48hChangePct.toFixed(2)}% — compare to your Blofin chart.`);
-  }
-
-  const summaryParagraph = [
-    `${symbol} over ${lookbackLabel}: ${patternLabel.toLowerCase()}.`,
-    `Price has often tagged ${formatQuotePriceUsd(typicalHighZone)} on rallies and ${formatQuotePriceUsd(typicalLowZone)} on pullbacks.`,
-    medianDaysBetweenSwings != null
-      ? `Swing turns are spaced about ${Math.round(medianDaysBetweenSwings)} day(s) apart on average — useful for timing mean-reversion vs breakout plays.`
-      : "",
-    currentPrice != null && currentPrice >= typicalHighZone * 0.98
-      ? "Price is near the upper part of the recent range — watch for rejection or breakout above the typical high zone."
-      : currentPrice != null && currentPrice <= typicalLowZone * 1.02
-        ? "Price is near the lower part of the recent range — watch for bounce or breakdown below the typical low zone."
-        : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return { summaryParagraph, observations: obs };
+function getIsoWeekKey(ts: number, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(ts));
+  const y = Number(parts.find((p) => p.type === "year")?.value);
+  const m = Number(parts.find((p) => p.type === "month")?.value);
+  const d = Number(parts.find((p) => p.type === "day")?.value);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
 async function fetchCandles(symbol: string, interval: string, limit: number): Promise<CandleTuple[]> {
@@ -237,189 +165,379 @@ async function fetchTicker(symbol: string): Promise<number | null> {
   }
 }
 
-function analyzeSwingLegs(swings: NovaPatternSwingPoint[]): {
-  medianSwingUpPct: number | null;
-  medianSwingDownPct: number | null;
-  medianDaysBetweenSwings: number | null;
-} {
-  const ups: number[] = [];
-  const downs: number[] = [];
-  const gaps: number[] = [];
+/** Oldest → newest. */
+function sortCandlesAsc(candles: CandleTuple[]): CandleTuple[] {
+  return [...candles].sort((a, b) => Number(a[0]) - Number(b[0]));
+}
 
-  for (let i = 1; i < swings.length; i++) {
-    const prev = swings[i - 1];
-    const cur = swings[i];
-    const days = (cur.ts - prev.ts) / (24 * 60 * 60 * 1000);
-    if (days > 0 && days < 60) gaps.push(days);
+function analyzeDayOfWeek(
+  dailyCandles: CandleTuple[],
+  timeZone: string,
+  cutoffTs: number
+): NovaPatternWeekdayRow[] {
+  const buckets: number[][] = Array.from({ length: 7 }, () => []);
 
-    if (prev.kind === "low" && cur.kind === "high" && prev.price > 0) {
-      ups.push(((cur.price - prev.price) / prev.price) * 100);
-    }
-    if (prev.kind === "high" && cur.kind === "low" && prev.price > 0) {
-      downs.push(((prev.price - cur.price) / prev.price) * 100);
-    }
+  for (const c of dailyCandles) {
+    const ts = Number(c[0]);
+    if (!Number.isFinite(ts) || ts < cutoffTs) continue;
+    const o = Number(c[1]);
+    const cl = Number(c[4]);
+    if (!Number.isFinite(o) || !Number.isFinite(cl) || o <= 0) continue;
+    const ret = ((cl - o) / o) * 100;
+    const day = getLocalWeekdayIndex(ts, timeZone);
+    buckets[day].push(ret);
   }
 
+  return WEEKDAY_LABELS.map((label, dayIndex) => {
+    const returns = buckets[dayIndex];
+    const samples = returns.length;
+    const avgReturnPct = samples > 0 ? avg(returns) : 0;
+    const winRatePct = samples > 0 ? (returns.filter((r) => r > 0).length / samples) * 100 : 50;
+    const bias = classifyBias(avgReturnPct, winRatePct);
+    return {
+      dayIndex,
+      label,
+      avgReturnPct: Math.round(avgReturnPct * 100) / 100,
+      winRatePct: Math.round(winRatePct * 10) / 10,
+      samples,
+      bias,
+      strength: classifyStrength(avgReturnPct, winRatePct),
+    };
+  });
+}
+
+function pickBestDays(rows: NovaPatternWeekdayRow[]): {
+  bestLongDay: NovaPatternWeekdayRow | null;
+  bestShortDay: NovaPatternWeekdayRow | null;
+} {
+  const withSamples = rows.filter((r) => r.samples >= 2);
+  const longCandidates = withSamples.filter((r) => r.bias === "long").sort((a, b) => b.avgReturnPct - a.avgReturnPct);
+  const shortCandidates = withSamples.filter((r) => r.bias === "short").sort((a, b) => a.avgReturnPct - b.avgReturnPct);
   return {
-    medianSwingUpPct: median(ups),
-    medianSwingDownPct: median(downs),
-    medianDaysBetweenSwings: median(gaps),
+    bestLongDay: longCandidates[0] ?? null,
+    bestShortDay: shortCandidates[0] ?? null,
   };
 }
 
-function analyzeTimeframeRow(
-  tf: NovaTimeframeConfig,
-  candles: CandleTuple[],
-  currentPrice: number | null
-): NovaPatternTimeframeRow | null {
-  const hl = highLowFromCandles(candles);
-  if (!hl) return null;
-  const { high: resistance, low: support } = hl;
-  const range = resistance - support;
-  const rangePct = support > 0 ? (range / support) * 100 : 0;
-  let positionInRangePct = 50;
-  if (currentPrice != null && range > 0) {
-    positionInRangePct = Math.min(100, Math.max(0, ((currentPrice - support) / range) * 100));
+function analyze48hCycles(hourlyCandles: CandleTuple[], cutoffTs: number): NovaPattern48hCycleStats | null {
+  const sorted = sortCandlesAsc(hourlyCandles).filter((c) => Number(c[0]) >= cutoffTs);
+  if (sorted.length < 96) return null;
+
+  const windowReturns: number[] = [];
+  for (let i = 0; i + 47 < sorted.length; i += 48) {
+    const o = Number(sorted[i][1]);
+    const cl = Number(sorted[i + 47][4]);
+    if (!Number.isFinite(o) || !Number.isFinite(cl) || o <= 0) continue;
+    windowReturns.push(((cl - o) / o) * 100);
   }
-  const firstClose = Number(candles[0]?.[4]);
-  const lastClose = Number(candles[candles.length - 1]?.[4]);
-  let changePctWindow: number | null = null;
-  if (Number.isFinite(firstClose) && Number.isFinite(lastClose) && firstClose > 0) {
-    changePctWindow = ((lastClose - firstClose) / firstClose) * 100;
+  if (windowReturns.length < 3) return null;
+
+  const rallyThresholdPct = 0.35;
+  const afterRallyNext: number[] = [];
+  const afterDropNext: number[] = [];
+
+  for (let i = 0; i < windowReturns.length - 1; i++) {
+    const cur = windowReturns[i];
+    const next = windowReturns[i + 1];
+    if (cur >= rallyThresholdPct) afterRallyNext.push(next);
+    if (cur <= -rallyThresholdPct) afterDropNext.push(next);
   }
-  const swings = findSwings(candles, 1, 1);
-  let patternHint = "Sideways chop in window";
-  if (changePctWindow != null) {
-    if (changePctWindow > 1.5) patternHint = "Net rise in window";
-    else if (changePctWindow < -1.5) patternHint = "Net drop in window";
-  }
-  if (positionInRangePct >= 75) patternHint += " · price upper range";
-  else if (positionInRangePct <= 25) patternHint += " · price lower range";
+
+  const median48h =
+    [...windowReturns].sort((a, b) => a - b)[Math.floor(windowReturns.length / 2)] ?? 0;
 
   return {
-    id: tf.id,
-    label: tf.label,
-    support,
-    resistance,
-    currentPrice,
-    rangePct,
-    positionInRangePct,
-    changePctWindow,
-    swingCount: swings.length,
-    patternHint,
+    rallyThresholdPct,
+    samplesAfterRally: afterRallyNext.length,
+    samplesAfterDrop: afterDropNext.length,
+    afterRallyNext48hAvgPct: afterRallyNext.length ? Math.round(avg(afterRallyNext) * 100) / 100 : 0,
+    afterRallyRetraceRatePct: afterRallyNext.length
+      ? Math.round((afterRallyNext.filter((r) => r < 0).length / afterRallyNext.length) * 1000) / 10
+      : 0,
+    afterDropNext48hAvgPct: afterDropNext.length ? Math.round(avg(afterDropNext) * 100) / 100 : 0,
+    afterDropBounceRatePct: afterDropNext.length
+      ? Math.round((afterDropNext.filter((r) => r > 0).length / afterDropNext.length) * 1000) / 10
+      : 0,
+    median48hReturnPct: Math.round(median48h * 100) / 100,
+    total48hWindows: windowReturns.length,
   };
+}
+
+type DailyBar = { ts: number; open: number; close: number; weekday: number };
+
+function buildDailyBars(dailyCandles: CandleTuple[], timeZone: string, cutoffTs: number): DailyBar[] {
+  return sortCandlesAsc(dailyCandles)
+    .map((c) => {
+      const ts = Number(c[0]);
+      const open = Number(c[1]);
+      const close = Number(c[4]);
+      if (!Number.isFinite(ts) || ts < cutoffTs || !Number.isFinite(open) || !Number.isFinite(close)) return null;
+      return { ts, open, close, weekday: getLocalWeekdayIndex(ts, timeZone) };
+    })
+    .filter((b): b is DailyBar => b != null);
+}
+
+function analyzeWeeklyRhythm(
+  dailyBars: DailyBar[],
+  timeZone: string
+): NovaPatternWeeklyRhythmRow[] {
+  const byWeek = new Map<string, DailyBar[]>();
+  for (const bar of dailyBars) {
+    const key = getIsoWeekKey(bar.ts, timeZone);
+    const list = byWeek.get(key) ?? [];
+    list.push(bar);
+    byWeek.set(key, list);
+  }
+
+  const rows: NovaPatternWeeklyRhythmRow[] = [];
+
+  let monUpTueDown = 0;
+  let monUpTueDownTotal = 0;
+  let earlyUpLateFade = 0;
+  let earlyUpLateFadeTotal = 0;
+  let greenWeekAfterRedStart = 0;
+  let greenWeekAfterRedStartTotal = 0;
+
+  for (const bars of byWeek.values()) {
+    if (bars.length < 4) continue;
+    bars.sort((a, b) => a.ts - b.ts);
+
+    const mon = bars.find((b) => b.weekday === 0);
+    const tue = bars.find((b) => b.weekday === 1);
+    if (mon && tue && mon.open > 0) {
+      const monRet = ((mon.close - mon.open) / mon.open) * 100;
+      const tueRet = ((tue.close - tue.open) / tue.open) * 100;
+      if (monRet > 0.05) {
+        monUpTueDownTotal++;
+        if (tueRet < 0) monUpTueDown++;
+      }
+    }
+
+    const early = bars.filter((b) => b.weekday <= 2);
+    const late = bars.filter((b) => b.weekday >= 3);
+    if (early.length >= 2 && late.length >= 1) {
+      const earlyOpen = early[0].open;
+      const earlyClose = early[early.length - 1].close;
+      const weekOpen = bars[0].open;
+      const weekClose = bars[bars.length - 1].close;
+      if (earlyOpen > 0 && weekOpen > 0) {
+        const earlyRet = ((earlyClose - earlyOpen) / earlyOpen) * 100;
+        const weekRet = ((weekClose - weekOpen) / weekOpen) * 100;
+        if (earlyRet > 0.2) {
+          earlyUpLateFadeTotal++;
+          if (weekRet < earlyRet * 0.5) earlyUpLateFade++;
+        }
+      }
+    }
+
+    const first = bars[0];
+    const last = bars[bars.length - 1];
+    if (first.open > 0) {
+      const firstDayRet = ((first.close - first.open) / first.open) * 100;
+      const weekRet = ((last.close - first.open) / first.open) * 100;
+      if (firstDayRet < -0.1) {
+        greenWeekAfterRedStartTotal++;
+        if (weekRet > 0) greenWeekAfterRedStart++;
+      }
+    }
+  }
+
+  if (monUpTueDownTotal >= 3) {
+    rows.push({
+      id: "mon_up_tue_fade",
+      label: "Monday up → Tuesday fade",
+      description: "Weeks where Monday closed green, how often Tuesday closed red.",
+      samples: monUpTueDownTotal,
+      hitRatePct: Math.round((monUpTueDown / monUpTueDownTotal) * 1000) / 10,
+      avgFollowThroughPct: null,
+    });
+  }
+
+  if (earlyUpLateFadeTotal >= 3) {
+    rows.push({
+      id: "early_rally_late_fade",
+      label: "Mon–Wed rally, week gives back",
+      description: "When Mon–Wed gained >0.2%, full week return was less than half the early leg (fade).",
+      samples: earlyUpLateFadeTotal,
+      hitRatePct: Math.round((earlyUpLateFade / earlyUpLateFadeTotal) * 1000) / 10,
+      avgFollowThroughPct: null,
+    });
+  }
+
+  if (greenWeekAfterRedStartTotal >= 3) {
+    rows.push({
+      id: "red_monday_green_week",
+      label: "Red Monday → green week",
+      description: "Weeks that opened weak on day one but finished the week positive.",
+      samples: greenWeekAfterRedStartTotal,
+      hitRatePct: Math.round((greenWeekAfterRedStart / greenWeekAfterRedStartTotal) * 1000) / 10,
+      avgFollowThroughPct: null,
+    });
+  }
+
+  return rows;
+}
+
+function buildTraderBrief(params: {
+  symbol: string;
+  lookbackLabel: string;
+  tzLabel: string;
+  dayOfWeek: NovaPatternWeekdayRow[];
+  bestLongDay: NovaPatternWeekdayRow | null;
+  bestShortDay: NovaPatternWeekdayRow | null;
+  cycle48h: NovaPattern48hCycleStats | null;
+  weeklyRhythm: NovaPatternWeeklyRhythmRow[];
+  currentPrice: number | null;
+}): { traderBrief: string; playbookHeadline: string; observations: string[] } {
+  const obs: string[] = [];
+  const { symbol, lookbackLabel, tzLabel, dayOfWeek, bestLongDay, bestShortDay, cycle48h, weeklyRhythm, currentPrice } =
+    params;
+
+  if (bestLongDay) {
+    obs.push(
+      `${bestLongDay.label}s averaged ${bestLongDay.avgReturnPct >= 0 ? "+" : ""}${bestLongDay.avgReturnPct}% (${bestLongDay.winRatePct}% green days, n=${bestLongDay.samples}) in ${tzLabel}.`
+    );
+  }
+  if (bestShortDay) {
+    const downPct = Math.round(100 - bestShortDay.winRatePct);
+    obs.push(
+      `${bestShortDay.label}s averaged ${bestShortDay.avgReturnPct}% (${downPct}% red days, n=${bestShortDay.samples}) — lean short or take profit into that session.`
+    );
+  }
+
+  if (cycle48h && cycle48h.samplesAfterRally >= 2) {
+    obs.push(
+      `After a +${cycle48h.rallyThresholdPct}% (or more) 48h rally, the next 48h averaged ${cycle48h.afterRallyNext48hAvgPct}% with a ${cycle48h.afterRallyRetraceRatePct}% retrace rate (n=${cycle48h.samplesAfterRally}).`
+    );
+  }
+  if (cycle48h && cycle48h.samplesAfterDrop >= 2) {
+    obs.push(
+      `After a −${cycle48h.rallyThresholdPct}% (or more) 48h drop, the next 48h averaged ${cycle48h.afterDropNext48hAvgPct}% with a ${cycle48h.afterDropBounceRatePct}% bounce rate (n=${cycle48h.samplesAfterDrop}).`
+    );
+  }
+
+  for (const w of weeklyRhythm.slice(0, 3)) {
+    obs.push(`${w.label}: ${w.hitRatePct}% of cases (${w.samples} samples) — ${w.description}`);
+  }
+
+  const weakDays = dayOfWeek.filter((d) => d.samples >= 2 && d.strength === "weak");
+  if (weakDays.length >= 5) {
+    obs.push("No single weekday shows a strong edge — size down or rely on other Nova tools for entries.");
+  }
+
+  let headline = `${symbol} behavioral playbook (${lookbackLabel})`;
+  if (bestLongDay && bestShortDay) {
+    headline = `Favor longs into ${bestLongDay.label}, shorts into ${bestShortDay.label} (${lookbackLabel})`;
+  } else if (bestLongDay) {
+    headline = `${bestLongDay.label} is the strongest long bias day (${lookbackLabel})`;
+  } else if (bestShortDay) {
+    headline = `${bestShortDay.label} is the strongest short / fade day (${lookbackLabel})`;
+  }
+
+  const priceBit =
+    currentPrice != null ? ` Spot ${formatQuotePriceUsd(currentPrice)}.` : "";
+
+  const traderBrief = [
+    `Nova studied ${lookbackLabel} of ${symbol} candles in ${tzLabel}.${priceBit}`,
+    bestLongDay
+      ? ` Long edge: ${bestLongDay.label} (avg ${bestLongDay.avgReturnPct >= 0 ? "+" : ""}${bestLongDay.avgReturnPct}%, ${bestLongDay.winRatePct}% up).`
+      : "",
+    bestShortDay
+      ? ` Short / fade edge: ${bestShortDay.label} (avg ${bestShortDay.avgReturnPct}%).`
+      : "",
+    cycle48h && cycle48h.samplesAfterRally >= 2
+      ? ` 48h cycle: after a sharp 48h rally, next 48h retraced ${cycle48h.afterRallyRetraceRatePct}% of the time.`
+      : "",
+    " Compare with your Blofin chart and risk plan — patterns are historical tendencies, not guarantees.",
+  ]
+    .filter(Boolean)
+    .join("");
+
+  return { traderBrief, playbookHeadline: headline, observations: obs };
+}
+
+export function resolveNovaPatternLookback(id: string) {
+  return NOVA_PATTERN_LOOKBACK_OPTIONS.find((o) => o.id === id) ?? NOVA_PATTERN_LOOKBACK_OPTIONS.find((o) => o.id === "6w")!;
+}
+
+export function resolveNovaPatternType(id: string): { id: NovaPatternTypeId; label: string } {
+  return NOVA_PATTERN_TYPE_OPTIONS.find((o) => o.id === id) ?? NOVA_PATTERN_TYPE_OPTIONS[0];
 }
 
 export async function analyzeNovaPattern(
   rawSymbol: string,
-  options: { lookbackId: string; timeframeIds: string[] }
+  options: { lookbackId: string; patternTypeId: string; timezone?: string }
 ): Promise<NovaPatternResult> {
   const symbol = normalizeMetalBase(rawSymbol) || "BTC";
-  const lookback =
-    NOVA_PATTERN_LOOKBACK_OPTIONS.find((o) => o.id === options.lookbackId) ??
-    NOVA_PATTERN_LOOKBACK_OPTIONS.find((o) => o.id === "6w")!;
+  const lookback = resolveNovaPatternLookback(options.lookbackId);
+  const patternType = resolveNovaPatternType(options.patternTypeId);
+  const timezone = isValidNovaExtraTimezone(options.timezone ?? "")
+    ? String(options.timezone).trim()
+    : "America/New_York";
+  const tzLabel = timezoneShortName(timezone);
+  const cutoffTs = Date.now() - lookback.hours * 3_600_000;
 
   const useBlofin = isBlofinMetal(symbol);
   const contractNote = useBlofin
     ? blofinMetalContractDescription(symbol as BlofinMetal)
     : `${symbol}: Hyperliquid USDC-margined perpetual candles.`;
+  const dataSource = useBlofin ? "Blofin" : "Hyperliquid";
 
-  const [lookbackCandles, currentPrice] = await Promise.all([
-    fetchCandles(symbol, lookback.interval, lookback.limit),
+  const dailyLimit = Math.min(400, lookback.weeks * 7 + 14);
+  const hourlyLimit = Math.min(1440, lookback.hours + 48);
+
+  const [dailyCandles, hourlyCandles, currentPrice] = await Promise.all([
+    fetchCandles(symbol, "1d", dailyLimit),
+    fetchCandles(symbol, "1h", hourlyLimit),
     fetchTicker(symbol),
   ]);
 
-  const hl = highLowFromCandles(lookbackCandles);
-  if (!hl) {
-    throw new Error(`Not enough candle data for ${symbol}. Try another symbol or lookback.`);
+  if (dailyCandles.length < 5 && hourlyCandles.length < 48) {
+    throw new Error(`Not enough candle data for ${symbol}. Try another symbol or a shorter lookback.`);
   }
 
-  const swings = findSwings(lookbackCandles, 2, 2);
-  const swingHighs = swings.filter((s) => s.kind === "high").map((s) => s.price);
-  const swingLows = swings.filter((s) => s.kind === "low").map((s) => s.price);
-  const sortedHighs = [...swingHighs].sort((a, b) => a - b);
-  const sortedLows = [...swingLows].sort((a, b) => a - b);
+  const includeDow = patternType.id === "playbook" || patternType.id === "day_of_week";
+  const include48h = patternType.id === "playbook" || patternType.id === "cycle_48h";
+  const includeWeekly = patternType.id === "playbook" || patternType.id === "weekly_rhythm";
 
-  const typicalHighZone =
-    sortedHighs.length > 0 ? percentile(sortedHighs, 0.75) : hl.high;
-  const typicalLowZone = sortedLows.length > 0 ? percentile(sortedLows, 0.25) : hl.low;
+  const dayOfWeek = includeDow ? analyzeDayOfWeek(dailyCandles, timezone, cutoffTs) : [];
+  const { bestLongDay, bestShortDay } = includeDow ? pickBestDays(dayOfWeek) : { bestLongDay: null, bestShortDay: null };
+  const cycle48h = include48h ? analyze48hCycles(hourlyCandles, cutoffTs) : null;
+  const dailyBars = includeWeekly ? buildDailyBars(dailyCandles, timezone, cutoffTs) : [];
+  const weeklyRhythm = includeWeekly ? analyzeWeeklyRhythm(dailyBars, timezone) : [];
 
-  const { patternType, patternLabel } = classifyPattern(swings);
-  const { medianSwingUpPct, medianSwingDownPct, medianDaysBetweenSwings } = analyzeSwingLegs(swings);
-
-  const range = hl.high - hl.low;
-  const positionInRangePct =
-    currentPrice != null && range > 0
-      ? Math.min(100, Math.max(0, ((currentPrice - hl.low) / range) * 100))
-      : 50;
-
-  let recent48hChangePct: number | null = null;
-  try {
-    const h48 = await fetchCandles(symbol, "1h", 48);
-    if (h48.length >= 2) {
-      const oldC = Number(h48[0][4]);
-      const newC = Number(h48[h48.length - 1][4]);
-      if (Number.isFinite(oldC) && Number.isFinite(newC) && oldC > 0) {
-        recent48hChangePct = ((newC - oldC) / oldC) * 100;
-      }
-    }
-  } catch {
-    // optional
-  }
-
-  const tfIds = options.timeframeIds.length > 0 ? options.timeframeIds : ["24h", "1w"];
-  const selectedTfs = NOVA_STANDARD_TIMEFRAMES.filter((t) => tfIds.includes(t.id));
-  const effectiveTfs =
-    selectedTfs.length > 0 ? selectedTfs : NOVA_STANDARD_TIMEFRAMES.filter((t) => ["24h", "48h", "1w"].includes(t.id));
-
-  const timeframes: NovaPatternTimeframeRow[] = [];
-  for (const tf of effectiveTfs) {
-    try {
-      const candles = await fetchCandles(symbol, tf.interval, tf.limit);
-      const row = analyzeTimeframeRow(tf, candles, currentPrice);
-      if (row) timeframes.push(row);
-    } catch {
-      // skip failed tf
-    }
-  }
-
-  const { summaryParagraph, observations } = buildSummary({
+  const { traderBrief, playbookHeadline, observations } = buildTraderBrief({
     symbol,
     lookbackLabel: lookback.label,
+    tzLabel,
+    dayOfWeek,
+    bestLongDay,
+    bestShortDay,
+    cycle48h,
+    weeklyRhythm,
     currentPrice,
-    typicalHighZone,
-    typicalLowZone,
-    medianDaysBetweenSwings,
-    medianSwingUpPct,
-    medianSwingDownPct,
-    recent48hChangePct,
-    patternLabel,
-    positionInRangePct,
   });
 
   return {
     symbol,
-    dataSource: useBlofin ? "blofin" : "hyperliquid",
+    dataSource,
     contractNote,
     lookbackId: lookback.id,
     lookbackLabel: lookback.label,
+    patternTypeId: patternType.id,
+    patternTypeLabel: patternType.label,
+    timezone,
+    timezoneLabel: tzLabel,
     currentPrice,
-    periodHigh: hl.high,
-    periodLow: hl.low,
-    positionInRangePct,
-    patternType,
-    patternLabel,
-    typicalHighZone,
-    typicalLowZone,
-    medianSwingUpPct,
-    medianSwingDownPct,
-    medianDaysBetweenSwings,
-    recent48hChangePct,
-    swings: swings.slice(-12),
-    summaryParagraph,
+    traderBrief,
+    playbookHeadline,
+    dayOfWeek,
+    bestLongDay,
+    bestShortDay,
+    cycle48h,
+    weeklyRhythm,
     observations,
-    timeframes,
     disclaimer:
-      "Heuristic swing detection on OHLC candles — not financial advice. Levels are statistical summaries of recent swings; compare with your exchange (e.g. Blofin) and manage risk.",
+      "Historical calendar and cycle statistics on OHLC data — not financial advice. Past weekday or 48h behavior does not guarantee future results. Use with your exchange chart and risk controls.",
   };
 }
