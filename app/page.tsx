@@ -44,6 +44,7 @@ import NovaTimeframeCheckboxPicker from "@/components/NovaTimeframeCheckboxPicke
 import NovaQTimeframeTable from "@/components/NovaQTimeframeTable";
 import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
 import type { NovaQAlignment, NovaQTradePlan } from "@/lib/nova-q-trade-plan";
+import { formatQuotePriceUsd } from "@/lib/format-quote-price";
 import { NOVA_FORECAST_RANGES } from "@/lib/nova-timeframes";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import { TopTabNewPill } from "@/components/TopTabNewPill";
@@ -6617,7 +6618,7 @@ export default function Dashboard() {
                           <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/60 dark:bg-zinc-900/30">
                             <div className="flex flex-wrap items-center gap-3">
                               <span className="font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">{novaQResult.symbol}</span>
-                              <span className="text-xs text-muted-foreground">Price: {novaQResult.currentPrice != null ? `$${novaQResult.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}` : "—"}</span>
+                              <span className="text-xs text-muted-foreground">Price: {formatQuotePriceUsd(novaQResult.currentPrice)}</span>
                               <Badge
                                 variant="outline"
                                 className={

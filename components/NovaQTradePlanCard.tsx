@@ -2,11 +2,11 @@
 
 import { Badge } from "@/components/ui/badge";
 import type { NovaQTradePlan, NovaQVoteStrength } from "@/lib/nova-q-trade-plan";
+import { formatQuotePriceUsd } from "@/lib/format-quote-price";
 import { formatNovaQEntryType } from "@/lib/nova-q-trade-plan";
 
 function fmt(n: number | null): string {
-  if (n == null || !Number.isFinite(n)) return "—";
-  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}`;
+  return formatQuotePriceUsd(n);
 }
 
 function confidenceClass(c: NovaQTradePlan["confidence"]): string {

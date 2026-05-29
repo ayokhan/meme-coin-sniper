@@ -9,6 +9,7 @@ import type {
   NovaRadarPlanResult,
   NovaRadarRecommendation,
 } from "@/lib/nova-radar";
+import { formatQuotePrice } from "@/lib/format-quote-price";
 
 type PlanForm = {
   symbol: string;
@@ -353,13 +354,13 @@ export default function NovaRadarPanel() {
                     <TableRow key={tf.id}>
                       <TableCell className="text-xs">{tf.label}</TableCell>
                       <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">
-                        ${tf.support.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                        ${formatQuotePrice(tf.support)}
                       </TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-muted-foreground">
                         {tf.supportTouches ?? 0}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">
-                        ${tf.resistance.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                        ${formatQuotePrice(tf.resistance)}
                       </TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-muted-foreground">
                         {tf.resistanceTouches ?? 0}

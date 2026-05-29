@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { formatQuotePrice } from "@/lib/format-quote-price";
 
 export type NovaQTimeframeRow = {
   id: string;
@@ -21,10 +22,6 @@ type Props = {
   timeframes: NovaQTimeframeRow[];
   currentPrice: number | null;
 };
-
-function formatPrice(n: number): string {
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function touchLabel(count: number): string {
   if (count <= 0) return "No touches";
@@ -92,7 +89,7 @@ export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props)
                 <div>
                   <span className="text-[10px] uppercase text-muted-foreground block">Support</span>
                   <p className="font-mono text-sm font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                    ${formatPrice(t.support)}
+                    ${formatQuotePrice(t.support)}
                   </p>
                   <p
                     className={`text-[10px] mt-0.5 ${t.supportTouches > 0 ? "text-amber-700 dark:text-amber-300 font-medium" : "text-muted-foreground"}`}
@@ -103,7 +100,7 @@ export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props)
                 <div>
                   <span className="text-[10px] uppercase text-muted-foreground block">Resistance</span>
                   <p className="font-mono text-sm font-semibold text-rose-600 dark:text-rose-400 tabular-nums">
-                    ${formatPrice(t.resistance)}
+                    ${formatQuotePrice(t.resistance)}
                   </p>
                   <p
                     className={`text-[10px] mt-0.5 ${t.resistanceTouches > 0 ? "text-amber-700 dark:text-amber-300 font-medium" : "text-muted-foreground"}`}
@@ -113,7 +110,7 @@ export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props)
                 </div>
                 <div className="col-span-2 md:col-span-2">
                   <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                    <span>Range ${formatPrice(range)}</span>
+                    <span>Range ${formatQuotePrice(range)}</span>
                     {currentPrice != null && range > 0 && <span>{posPct.toFixed(0)}% of range</span>}
                   </div>
                   <div className="relative h-2.5 rounded-full bg-zinc-200/80 dark:bg-zinc-700/80 overflow-hidden">
@@ -127,7 +124,7 @@ export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props)
                   </div>
                   {currentPrice != null && range > 0 && (
                     <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-                      Now ${formatPrice(currentPrice)}
+                      Now ${formatQuotePrice(currentPrice)}
                     </p>
                   )}
                 </div>

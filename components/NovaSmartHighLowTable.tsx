@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { formatQuotePrice } from "@/lib/format-quote-price";
 
 export type NovaSmartHighLowTf = {
   id: string;
@@ -21,10 +22,6 @@ type Props = {
   timeframes: NovaSmartHighLowTf[];
   currentPrice: number | null;
 };
-
-function formatPrice(n: number): string {
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function directionBadgeClass(direction: NovaSmartHighLowTf["direction"]): string {
   if (direction === "bullish") return "border-emerald-500/60 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10";
@@ -66,7 +63,7 @@ export default function NovaSmartHighLowTable({ timeframes, currentPrice }: Prop
         <div className="divide-y divide-zinc-200/80 dark:divide-zinc-700/80">
           {timeframes.map((t) => {
             const range = t.high - t.low;
-            const rangeLabel = range > 0 ? `$${formatPrice(range)}` : "—";
+            const rangeLabel = range > 0 ? `$${formatQuotePrice(range)}` : "—";
             let posPct = 50;
             if (currentPrice != null && range > 0) {
               posPct = Math.min(100, Math.max(0, ((currentPrice - t.low) / range) * 100));
@@ -88,7 +85,7 @@ export default function NovaSmartHighLowTable({ timeframes, currentPrice }: Prop
                   <div className="md:text-right">
                     <span className="text-[10px] uppercase text-muted-foreground md:hidden block mb-0.5">High</span>
                     <p className="font-mono text-base md:text-sm font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                      ${formatPrice(t.high)}
+                      ${formatQuotePrice(t.high)}
                     </p>
                     <p
                       className={`text-[10px] mt-0.5 tabular-nums ${
@@ -104,7 +101,7 @@ export default function NovaSmartHighLowTable({ timeframes, currentPrice }: Prop
                   <div className="md:text-right">
                     <span className="text-[10px] uppercase text-muted-foreground md:hidden block mb-0.5">Low</span>
                     <p className="font-mono text-base md:text-sm font-semibold text-rose-600 dark:text-rose-400 tabular-nums">
-                      ${formatPrice(t.low)}
+                      ${formatQuotePrice(t.low)}
                     </p>
                     <p
                       className={`text-[10px] mt-0.5 tabular-nums ${
@@ -137,13 +134,13 @@ export default function NovaSmartHighLowTable({ timeframes, currentPrice }: Prop
                       <div
                         className="absolute top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-white dark:border-zinc-900 bg-violet-500 shadow-sm"
                         style={{ left: `clamp(0px, calc(${posPct}% - 7px), calc(100% - 14px))` }}
-                        title={currentPrice != null ? `Current: $${formatPrice(currentPrice)}` : undefined}
+                        title={currentPrice != null ? `Current: $${formatQuotePrice(currentPrice)}` : undefined}
                       />
                     )}
                   </div>
                   <p className="hidden md:block text-[10px] text-muted-foreground mt-1 tabular-nums">
                     {currentPrice != null && range > 0
-                      ? `Now $${formatPrice(currentPrice)} · ${posPct.toFixed(0)}%`
+                      ? `Now $${formatQuotePrice(currentPrice)} · ${posPct.toFixed(0)}%`
                       : "—"}
                   </p>
                 </div>

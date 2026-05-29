@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { NovaQFibResult, NovaQFibTimeframeResult } from "@/lib/nova-q-fib";
 
+import { formatQuotePriceUsd } from "@/lib/format-quote-price";
 import { NOVA_UI_TIMEFRAME_IDS, sortNovaTimeframeIds } from "@/lib/nova-timeframes";
 
 const FIB_TIMEFRAME_OPTIONS = NOVA_UI_TIMEFRAME_IDS.filter((id) =>
@@ -28,10 +29,6 @@ function fibBiasBadgeClass(bias: NovaQFibTimeframeResult["fibBias"] | NovaQFibRe
 
 function formatFibBiasLabel(bias: string): string {
   return bias.replace(/_/g, " ");
-}
-
-function formatPrice(n: number): string {
-  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}`;
 }
 
 export default function NovaQFibPanel({ enabled, isVip }: Props) {
@@ -155,7 +152,7 @@ export default function NovaQFibPanel({ enabled, isVip }: Props) {
             <div className="flex flex-wrap items-center gap-3">
               <span className="font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">{result.symbol}</span>
               <span className="text-xs text-muted-foreground">
-                Price: {result.currentPrice != null ? formatPrice(result.currentPrice) : "—"}
+                Price: {result.currentPrice != null ? formatQuotePriceUsd(result.currentPrice) : "—"}
               </span>
               <Badge variant="outline" className={fibBiasBadgeClass(result.overallFibBias)}>
                 Overall: {formatFibBiasLabel(result.overallFibBias)}
@@ -200,10 +197,10 @@ export default function NovaQFibPanel({ enabled, isVip }: Props) {
                             {tf.swingLeg === "up" ? "up leg" : "down leg"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">{formatPrice(tf.swingHigh)}</TableCell>
-                        <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">{formatPrice(tf.swingLow)}</TableCell>
-                        <TableCell className="text-right font-mono text-xs">{formatPrice(tf.periodSupport)}</TableCell>
-                        <TableCell className="text-right font-mono text-xs">{formatPrice(tf.periodResistance)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs text-rose-600 dark:text-rose-400">{formatQuotePriceUsd(tf.swingHigh)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs text-emerald-600 dark:text-emerald-400">{formatQuotePriceUsd(tf.swingLow)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatQuotePriceUsd(tf.periodSupport)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatQuotePriceUsd(tf.periodResistance)}</TableCell>
                         <TableCell className="text-right font-mono text-xs tabular-nums">
                           {tf.retracementPct != null ? `${tf.retracementPct.toFixed(1)}%` : "—"}
                         </TableCell>
@@ -229,7 +226,7 @@ export default function NovaQFibPanel({ enabled, isVip }: Props) {
                   <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {tf.levels.map((lv) => (
                       <div key={`${tf.id}-${lv.key}`} className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
-                        <span className="text-muted-foreground">{lv.key}</span> {formatPrice(lv.price)}
+                        <span className="text-muted-foreground">{lv.key}</span> {formatQuotePriceUsd(lv.price)}
                       </div>
                     ))}
                   </div>
