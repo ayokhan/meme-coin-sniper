@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
+import { getInstrument } from "@/lib/blofin";
 import {
   getBlofinMetalCandles,
   getBlofinMetalInstId,
@@ -9,6 +10,7 @@ import {
   normalizeMetalBase,
   type BlofinMetal,
 } from "@/lib/blofin-metals";
+import { resolveBlofinMaintenanceMargin } from "@/lib/blofin-margin-tiers";
 import {
   analyzeNovaRadarPlan,
   buildNovaRadarRecommendation,
@@ -16,8 +18,10 @@ import {
   getOverallDirection,
   NOVA_RADAR_DISCLAIMER,
   parseNovaRadarPlansFromBody,
+  parseNovaRadarRunOptions,
   type NovaRadarMarketContext,
   type NovaRadarPlanInput,
+  type NovaRadarRunOptions,
 } from "@/lib/nova-radar";
 import { overallTrendlineSummary, type CandleTuple } from "@/lib/nova-q-analytics";
 
@@ -93,6 +97,46 @@ async function loadMarketContext(symbolRaw: string): Promise<
   };
 }
 
+async function enrichRunOptionsForSymbol(
+  base: NovaRadarRunOptions,
+  symbol: string,
+  markPrice: number
+): Promise<NovaRadarRunOptions> {
+  if (base.leverage == null || base.maintenanceMarginRate != null) return base;
+
+  const sym = normalizeSymbol(symbol);
+  let contractValue: number | null = null;
+  if (isBlofinMetal(sym)) {
+    const instId = getBlofinMetalInstId(sym);
+    if (instId) {
+      try {
+        const inst = await getInstrument(instId);
+        const cv = inst ? Number(inst.contractValue) : NaN;
+        if (Number.isFinite(cv) && cv > 0) contractValue = cv;
+      } catch {
+        /* public instrument lookup optional */
+      }
+    }
+  }
+
+  const resolved = resolveBlofinMaintenanceMargin({
+    symbol: sym,
+    markPrice,
+    positionNotionalUsdt: base.positionNotionalUsdt,
+    positionContracts: base.positionContracts,
+    contractValue,
+  });
+
+  return {
+    ...base,
+    maintenanceMarginRate: resolved.maintenanceMarginRate,
+    maintenanceMarginNote:
+      resolved.contracts != null
+        ? `Blofin ${resolved.tierLabel}, ~${resolved.contracts.toLocaleString(undefined, { maximumFractionDigits: 2 })} contracts`
+        : `Blofin ${resolved.tierLabel}`,
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const { tier } = await getSessionAndSubscription();
@@ -104,7 +148,9 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { plans, error: parseError } = parseNovaRadarPlansFromBody(body as Record<string, unknown>);
+    const bodyRec = body as Record<string, unknown>;
+    const { plans, error: parseError } = parseNovaRadarPlansFromBody(bodyRec);
+    const runOptions = parseNovaRadarRunOptions(bodyRec);
     if (parseError || plans.length === 0) {
       return NextResponse.json({ success: false, error: parseError ?? "Invalid request." }, { status: 400 });
     }
@@ -114,7 +160,7 @@ export async function POST(request: Request) {
     }
 
     const contexts = new Map<string, NovaRadarMarketContext>();
-    const planResults = [];
+    const normalizedPlans: NovaRadarPlanInput[] = [];
 
     for (const plan of plans) {
       const symKey = normalizeSymbol(plan.symbol);
@@ -127,9 +173,27 @@ export async function POST(request: Request) {
         ctx = loaded.ctx;
         contexts.set(symKey, ctx);
       }
-      const normalizedPlan: NovaRadarPlanInput = { ...plan, symbol: ctx.symbol };
-      planResults.push(analyzeNovaRadarPlan(normalizedPlan, ctx));
+      normalizedPlans.push({ ...plan, symbol: contexts.get(symKey)!.symbol });
     }
+
+    const mmrBySymbol = new Map<string, NovaRadarRunOptions>();
+    if (runOptions.leverage != null) {
+      for (const [symKey, ctx] of contexts.entries()) {
+        mmrBySymbol.set(symKey, await enrichRunOptionsForSymbol(runOptions, ctx.symbol, ctx.currentPrice));
+      }
+    }
+
+    const planResults = normalizedPlans.map((p) => {
+      const symKey = normalizeSymbol(p.symbol);
+      const ctx = contexts.get(symKey)!;
+      const opts =
+        runOptions.leverage != null
+          ? mmrBySymbol.get(symKey) ?? runOptions
+          : Object.keys(runOptions).length > 0
+            ? runOptions
+            : undefined;
+      return analyzeNovaRadarPlan(p, ctx, opts, normalizedPlans);
+    });
 
     const recommendation = buildNovaRadarRecommendation(planResults);
     const primarySymbol = planResults[0]?.symbol ?? normalizeSymbol(plans[0].symbol);
@@ -149,6 +213,7 @@ export async function POST(request: Request) {
         : null,
       /** @deprecated use plans[0] — kept for older clients */
       result: planResults[0] ?? null,
+      runOptions: Object.keys(runOptions).length > 0 ? runOptions : null,
       disclaimer: NOVA_RADAR_DISCLAIMER,
     });
   } catch (e) {

@@ -7,6 +7,17 @@ import {
   structureDirectionFromCloses,
   trendlineRegressionFromCloses,
 } from "@/lib/nova-q-analytics";
+import {
+  computeNovaRadarLeverageMetrics,
+  parseLeverage,
+  type NovaRadarLeverageMetrics,
+  type NovaRadarLeverageRisk,
+  type NovaRadarStressSource,
+} from "@/lib/nova-radar-leverage";
+import {
+  parsePositionContracts,
+  parsePositionNotionalUsdt,
+} from "@/lib/blofin-margin-tiers";
 
 /** Structure table timeframes (short → long). */
 export const NOVA_RADAR_STRUCTURE_TFS = [
@@ -40,6 +51,8 @@ export type NovaRadarPlanInput = {
   symbol: string;
   targetPrice: number;
   side: "long" | "short";
+  takeProfitPrice?: number;
+  stopLossPrice?: number;
 };
 
 export type NovaRadarPlanResult = {
@@ -67,7 +80,22 @@ export type NovaRadarPlanResult = {
   summary: string;
   orderIntentNote: string;
   score: number;
+  leverage?: NovaRadarLeverageMetrics | null;
 };
+
+export type NovaRadarRunOptions = {
+  leverage?: number;
+  takeProfitPrice?: number;
+  stopLossPrice?: number;
+  /** Position size in USDT notional (Blofin tier MMR). */
+  positionNotionalUsdt?: number;
+  /** Alternative: number of contracts (uses Blofin contractValue when available). */
+  positionContracts?: number;
+  maintenanceMarginRate?: number;
+  maintenanceMarginNote?: string;
+};
+
+export type { NovaRadarLeverageMetrics, NovaRadarLeverageRisk, NovaRadarStressSource };
 
 export type NovaRadarRecommendation = {
   bestPlanId: NovaRadarPlanId;
@@ -114,7 +142,16 @@ function parsePlanBlock(
   const symbol = String(o.symbol ?? fallbackSymbol ?? "").trim();
   const targetPrice = parseTargetPrice(o.targetPrice ?? o.price ?? o.limitPrice);
   if (!symbol || targetPrice == null) return null;
-  return { id, symbol, targetPrice, side: parseSide(o.side ?? o.direction) };
+  const takeProfitPrice = parseTargetPrice(o.takeProfitPrice ?? o.takeProfit ?? o.tp) ?? undefined;
+  const stopLossPrice = parseTargetPrice(o.stopLossPrice ?? o.stopLoss ?? o.sl) ?? undefined;
+  return {
+    id,
+    symbol,
+    targetPrice,
+    side: parseSide(o.side ?? o.direction),
+    ...(takeProfitPrice != null ? { takeProfitPrice } : {}),
+    ...(stopLossPrice != null ? { stopLossPrice } : {}),
+  };
 }
 
 /** Accept plan1/plan2, plans[], or legacy single fields. */
@@ -162,6 +199,94 @@ export function parseNovaRadarPlansFromBody(
       },
     ],
   };
+}
+
+/** Shared leverage / TP / SL for the NovaRadar run (optional). */
+export function parseNovaRadarRunOptions(body: Record<string, unknown>): NovaRadarRunOptions {
+  const leverage = parseLeverage(body.leverage ?? body.lev);
+  const takeProfitPrice = parseTargetPrice(body.takeProfitPrice ?? body.takeProfit ?? body.tp);
+  const stopLossPrice = parseTargetPrice(body.stopLossPrice ?? body.stopLoss ?? body.sl);
+  const opts: NovaRadarRunOptions = {};
+  if (leverage != null) opts.leverage = leverage;
+  if (takeProfitPrice != null) opts.takeProfitPrice = takeProfitPrice;
+  if (stopLossPrice != null) opts.stopLossPrice = stopLossPrice;
+  const positionNotionalUsdt = parsePositionNotionalUsdt(
+    body.positionNotionalUsdt ?? body.positionNotional ?? body.notionalUsdt
+  );
+  const positionContracts = parsePositionContracts(
+    body.positionContracts ?? body.contracts ?? body.positionSize
+  );
+  if (positionNotionalUsdt != null) opts.positionNotionalUsdt = positionNotionalUsdt;
+  if (positionContracts != null) opts.positionContracts = positionContracts;
+  if (typeof body.maintenanceMarginRate === "number" && Number.isFinite(body.maintenanceMarginRate)) {
+    opts.maintenanceMarginRate = body.maintenanceMarginRate;
+  }
+  if (typeof body.maintenanceMarginNote === "string") {
+    opts.maintenanceMarginNote = body.maintenanceMarginNote;
+  }
+  return opts;
+}
+
+/** Nearest structure level adverse to entry (support below long, resistance above short). */
+export function nearestStructureStressPrice(
+  entry: number,
+  side: "long" | "short",
+  rows: NovaRadarTfRow[]
+): number | null {
+  if (rows.length === 0 || entry <= 0) return null;
+  if (side === "long") {
+    const supports = rows.map((r) => r.support).filter((s) => s > 0 && s < entry * 0.9995);
+    if (supports.length === 0) return null;
+    return Math.max(...supports);
+  }
+  const resistances = rows.map((r) => r.resistance).filter((r) => r > entry * 1.0005);
+  if (resistances.length === 0) return null;
+  return Math.min(...resistances);
+}
+
+export function resolvePlanLeverageTargets(
+  plan: NovaRadarPlanInput,
+  run?: NovaRadarRunOptions
+): { takeProfitPrice?: number; stopLossPrice?: number } {
+  return {
+    takeProfitPrice: plan.takeProfitPrice ?? run?.takeProfitPrice,
+    stopLossPrice: plan.stopLossPrice ?? run?.stopLossPrice,
+  };
+}
+
+export function resolveStressForPlan(
+  plan: NovaRadarPlanInput,
+  allPlans: NovaRadarPlanInput[] | undefined,
+  tfRows: NovaRadarTfRow[]
+): { price: number | null; source: NovaRadarStressSource } {
+  if (allPlans && allPlans.length > 1) {
+    const other = pickStressPriceForPlan(plan, allPlans);
+    if (other != null) return { price: other, source: "other_plan" };
+  }
+  const structure = nearestStructureStressPrice(plan.targetPrice, plan.side, tfRows);
+  if (structure != null) return { price: structure, source: "structure" };
+  return { price: null, source: "none" };
+}
+
+/** Adverse price for the other limit: deeper long or higher short among compared plans. */
+export function pickStressPriceForPlan(
+  plan: NovaRadarPlanInput,
+  allPlans: NovaRadarPlanInput[]
+): number | null {
+  const same = allPlans.filter(
+    (p) => p.symbol.toUpperCase() === plan.symbol.toUpperCase() && p.side === plan.side
+  );
+  if (same.length < 2) return null;
+  if (plan.side === "long") {
+    const deeper = same
+      .filter((p) => p.id !== plan.id && p.targetPrice < plan.targetPrice)
+      .map((p) => p.targetPrice);
+    return deeper.length > 0 ? Math.min(...deeper) : null;
+  }
+  const higher = same
+    .filter((p) => p.id !== plan.id && p.targetPrice > plan.targetPrice)
+    .map((p) => p.targetPrice);
+  return higher.length > 0 ? Math.max(...higher) : null;
 }
 
 export function getOverallDirection(rows: NovaRadarTfRow[]): "bullish" | "bearish" | "sideways" {
@@ -285,6 +410,16 @@ export function scoreNovaRadarPlan(r: NovaRadarPlanResult): number {
   if (r.side === "short" && r.marketDirection === "bearish") s += 8;
 
   s -= Math.min(25, r.pctMoveFromSpot / 4);
+
+  const lev = r.leverage;
+  if (lev) {
+    if (lev.leverageRisk === "extreme") s -= 22;
+    else if (lev.leverageRisk === "high") s -= 12;
+    else if (lev.leverageRisk === "moderate") s -= 4;
+    if (lev.riskRewardToTp != null && lev.riskRewardToTp < 1) s -= 10;
+    else if (lev.riskRewardToTp != null && lev.riskRewardToTp >= 2) s += 6;
+  }
+
   return s;
 }
 
@@ -331,6 +466,16 @@ export function buildNovaRadarRecommendation(
         `Illustrative reach window: ~${p.optimisticDays}–${p.pessimisticDays} calendar days (${p.estimatedReachDateEarly ?? "?"} → ${p.estimatedReachDateLate ?? "?"}).`
       );
     }
+    if (p.leverage) {
+      if (p.leverage.roeAtTpPct != null) {
+        reasons.push(
+          `At ${p.leverage.leverage}×, TP ≈ ${p.leverage.roeAtTpPct >= 0 ? "+" : ""}${p.leverage.roeAtTpPct.toFixed(1)}% ROE; leverage risk ${p.leverage.leverageRisk}.`
+        );
+      }
+      if (p.leverage.riskRewardToTp != null && p.leverage.riskRewardToTp < 1) {
+        reasons.push("ROE reward to TP is smaller than risk to SL/stress—consider lower leverage or a deeper limit.");
+      }
+    }
     reasons.push(p.orderIntentNote);
 
     return {
@@ -376,6 +521,30 @@ export function buildNovaRadarRecommendation(
   if (best.side !== other.side) {
     reasons.push(`Sides differ (${best.side} vs ${other.side})—comparison favors fit with current structure, not direction alone.`);
   }
+  if (best.leverage && other.leverage) {
+    if (best.leverage.riskRewardToTp != null && other.leverage.riskRewardToTp != null) {
+      if (best.leverage.riskRewardToTp > other.leverage.riskRewardToTp * 1.15) {
+        reasons.push(
+          `${best.planLabel} has better ROE risk/reward to TP (~${best.leverage.riskRewardToTp.toFixed(2)}:1 vs ~${other.leverage.riskRewardToTp.toFixed(2)}:1) at ${best.leverage.leverage}×.`
+        );
+      }
+    }
+    if (best.leverage.leverageRisk !== other.leverage.leverageRisk) {
+      reasons.push(
+        `Leverage risk: ${best.planLabel} ${best.leverage.leverageRisk} vs ${other.planLabel} ${other.leverage.leverageRisk} (entry distance changes drawdown).`
+      );
+    }
+    if (
+      best.pctMoveFromSpot < other.pctMoveFromSpot &&
+      best.leverage.roeAtStressPct != null &&
+      other.leverage.roeAtStressPct != null &&
+      best.leverage.roeAtStressPct < other.leverage.roeAtStressPct - 15
+    ) {
+      reasons.push(
+        `${best.planLabel} is closer to spot but suffers more ROE if price reaches ${other.planLabel}'s limit (~${best.leverage.roeAtStressPct.toFixed(0)}% vs ~${other.leverage.roeAtStressPct.toFixed(0)}% ROE)—not always the safer fill at ${best.leverage.leverage}×.`
+      );
+    }
+  }
   reasons.push(best.orderIntentNote);
 
   const headline =
@@ -394,7 +563,9 @@ export function buildNovaRadarRecommendation(
 
 export function analyzeNovaRadarPlan(
   plan: NovaRadarPlanInput,
-  ctx: NovaRadarMarketContext
+  ctx: NovaRadarMarketContext,
+  runOptions?: NovaRadarRunOptions,
+  allPlans?: NovaRadarPlanInput[]
 ): NovaRadarPlanResult {
   const { currentPrice, marketDirection, structureTimeframes: tfRows, dailyCandles } = ctx;
   const targetPrice = plan.targetPrice;
@@ -511,6 +682,42 @@ export function analyzeNovaRadarPlan(
     summaryParts.push("No ETA needed—level is already near current trading.");
   }
 
+  let leverageMetrics: NovaRadarLeverageMetrics | null = null;
+  if (runOptions?.leverage != null && runOptions.leverage >= 1) {
+    const targets = resolvePlanLeverageTargets(plan, runOptions);
+    const stress = resolveStressForPlan(plan, allPlans, tfRows);
+    leverageMetrics = computeNovaRadarLeverageMetrics(
+      targetPrice,
+      side,
+      {
+        leverage: runOptions.leverage,
+        takeProfitPrice: targets.takeProfitPrice,
+        stopLossPrice: targets.stopLossPrice,
+        maintenanceMarginRate: runOptions.maintenanceMarginRate,
+      },
+      {
+        stressPrice: stress.price,
+        stressSource: stress.source,
+        maintenanceMarginNote: runOptions.maintenanceMarginNote ?? null,
+      }
+    );
+    if (leverageMetrics) {
+      if (leverageMetrics.leverageRisk === "extreme" || leverageMetrics.leverageRisk === "high") {
+        caveats.push(
+          leverageMetrics.leverageRisk === "extreme"
+            ? `At ${leverageMetrics.leverage}×, drawdown to stress/SL can approach liquidation band—verify Est. Liq. on your exchange.`
+            : `At ${leverageMetrics.leverage}×, adverse moves before fill can stress margin even when structure is aligned.`
+        );
+      }
+      summaryParts.push(leverageMetrics.notes[0] ?? "");
+      if (leverageMetrics.roeAtTpPct != null && targets.takeProfitPrice != null) {
+        summaryParts.push(
+          `TP $${fmtMoney(targets.takeProfitPrice)}: ~${leverageMetrics.roeAtTpPct >= 0 ? "+" : ""}${leverageMetrics.roeAtTpPct.toFixed(1)}% ROE at ${leverageMetrics.leverage}×.`
+        );
+      }
+    }
+  }
+
   const result: NovaRadarPlanResult = {
     planId: plan.id,
     planLabel,
@@ -536,10 +743,11 @@ export function analyzeNovaRadarPlan(
     summary: summaryParts.join(" "),
     orderIntentNote: orderNotes,
     score: 0,
+    leverage: leverageMetrics,
   };
   result.score = scoreNovaRadarPlan(result);
   return result;
 }
 
 export const NOVA_RADAR_DISCLAIMER =
-  "NovaRadar estimates structure, trend, and typical daily ranges from recent history. This is not financial advice; markets can gap, liquidate crowds, and invalidate levels quickly.";
+  "NovaRadar estimates structure, trend, and typical daily ranges from recent history. Optional leverage/TP/SL math is illustrative (isolated-margin ROE and approximate liquidation)—use your exchange’s Est. Liq. Price and margin ratio before trading. This is not financial advice; markets can gap, liquidate, and invalidate levels quickly.";

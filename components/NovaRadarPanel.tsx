@@ -15,12 +15,16 @@ type PlanForm = {
   symbol: string;
   limitPrice: string;
   side: "long" | "short";
+  takeProfit: string;
+  stopLoss: string;
 };
 
 const emptyPlan = (symbol = "BTC"): PlanForm => ({
   symbol,
   limitPrice: "",
   side: "long",
+  takeProfit: "",
+  stopLoss: "",
 });
 
 function realismBadgeClass(realism: NovaRadarPlanResult["realism"]) {
@@ -33,6 +37,13 @@ function realismLabel(realism: NovaRadarPlanResult["realism"]) {
   if (realism === "unrealistic") return "Unrealistic";
   if (realism === "stretched") return "Stretched";
   return "Plausible";
+}
+
+function leverageRiskBadgeClass(risk: NonNullable<NovaRadarPlanResult["leverage"]>["leverageRisk"]) {
+  if (risk === "extreme") return "border-rose-600/80 text-rose-800 dark:text-rose-200";
+  if (risk === "high") return "border-orange-500/70 text-orange-800 dark:text-orange-200";
+  if (risk === "moderate") return "border-amber-500/60 text-amber-800 dark:text-amber-200";
+  return "border-sky-500/60 text-sky-800 dark:text-sky-200";
 }
 
 function SideToggle({
@@ -127,6 +138,70 @@ function PlanCard({
           <span className="capitalize">{plan.structureAlignment.replace("_", " ")}</span>
         </div>
       </div>
+      {plan.leverage && (
+        <div className="rounded-md border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/40 dark:bg-sky-950/25 p-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-sky-900 dark:text-sky-100">
+              Leverage · {plan.leverage.leverage}×
+            </span>
+            <Badge variant="outline" className={leverageRiskBadgeClass(plan.leverage.leverageRisk)}>
+              {plan.leverage.leverageRisk} risk
+            </Badge>
+            {plan.leverage.riskRewardToTp != null && (
+              <span className="text-xs text-muted-foreground">
+                R:R to TP ~{plan.leverage.riskRewardToTp.toFixed(2)}:1 (ROE)
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            {plan.leverage.roeAtTpPct != null && (
+              <div>
+                <span className="text-muted-foreground block">ROE @ TP</span>
+                <span className={plan.leverage.roeAtTpPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600"}>
+                  {plan.leverage.roeAtTpPct >= 0 ? "+" : ""}
+                  {plan.leverage.roeAtTpPct.toFixed(1)}%
+                </span>
+              </div>
+            )}
+            {plan.leverage.roeAtSlPct != null && (
+              <div>
+                <span className="text-muted-foreground block">ROE @ SL</span>
+                <span className="text-rose-600 dark:text-rose-400">{plan.leverage.roeAtSlPct.toFixed(1)}%</span>
+              </div>
+            )}
+            {plan.leverage.roeAtStressPct != null && plan.leverage.stressPrice != null && (
+              <div>
+                <span className="text-muted-foreground block">ROE @ stress</span>
+                <span className="text-rose-600 dark:text-rose-400">
+                  {plan.leverage.roeAtStressPct.toFixed(1)}% (${plan.leverage.stressPrice.toLocaleString()})
+                </span>
+              </div>
+            )}
+            {plan.leverage.estimatedLiqPrice != null && (
+              <div>
+                <span className="text-muted-foreground block">Est. liq.</span>
+                <span className="font-mono text-rose-700 dark:text-rose-300">
+                  ${plan.leverage.estimatedLiqPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
+            {plan.leverage.maintenanceMarginRate > 0 && (
+              <div className="col-span-2 sm:col-span-4">
+                <span className="text-muted-foreground block">Blofin MMR (est.)</span>
+                <span className="text-xs">
+                  {(plan.leverage.maintenanceMarginRate * 100).toFixed(2)}%
+                  {plan.leverage.maintenanceMarginNote ? ` · ${plan.leverage.maintenanceMarginNote}` : ""}
+                </span>
+              </div>
+            )}
+          </div>
+          <ul className="text-[11px] text-sky-900/90 dark:text-sky-100/90 list-disc pl-4 space-y-0.5">
+            {plan.leverage.notes.slice(1).map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {plan.estimatedReachDateEarly && plan.estimatedReachDateLate && plan.optimisticDays != null && plan.pessimisticDays != null && (
         <p className="text-xs font-mono text-violet-800 dark:text-violet-200">
           ETA band: {plan.estimatedReachDateEarly} → {plan.estimatedReachDateLate}{" "}
@@ -147,6 +222,16 @@ export default function NovaRadarPanel() {
   const [recommendation, setRecommendation] = useState<NovaRadarRecommendation | null>(null);
   const [sharedTfs, setSharedTfs] = useState<NovaRadarPlanResult["structureTimeframes"] | null>(null);
   const [disclaimer, setDisclaimer] = useState<string | null>(null);
+  const [leverage, setLeverage] = useState("30");
+  const [takeProfit, setTakeProfit] = useState("");
+  const [stopLoss, setStopLoss] = useState("");
+  const [useLeverage, setUseLeverage] = useState(true);
+  const [positionNotional, setPositionNotional] = useState("");
+
+  const appendPlanExits = (block: Record<string, unknown>, form: PlanForm) => {
+    if (form.takeProfit.trim()) block.takeProfitPrice = form.takeProfit.trim();
+    if (form.stopLoss.trim()) block.stopLossPrice = form.stopLoss.trim();
+  };
 
   const run = async () => {
     setLoading(true);
@@ -163,20 +248,29 @@ export default function NovaRadarPanel() {
       return;
     }
 
-    const payload: Record<string, unknown> = {
-      plan1: {
-        symbol: plan1.symbol.trim().toUpperCase(),
-        targetPrice: p1Price,
-        side: plan1.side,
-      },
+    const plan1Block: Record<string, unknown> = {
+      symbol: plan1.symbol.trim().toUpperCase(),
+      targetPrice: p1Price,
+      side: plan1.side,
     };
+    appendPlanExits(plan1Block, plan1);
+    const payload: Record<string, unknown> = { plan1: plan1Block };
 
     if (usePlan2 && plan2.limitPrice.trim()) {
-      payload.plan2 = {
+      const plan2Block: Record<string, unknown> = {
         symbol: (plan2.symbol.trim() || plan1.symbol.trim()).toUpperCase(),
         targetPrice: plan2.limitPrice.trim(),
         side: plan2.side,
       };
+      appendPlanExits(plan2Block, plan2);
+      payload.plan2 = plan2Block;
+    }
+
+    if (useLeverage && leverage.trim()) {
+      payload.leverage = leverage.trim();
+      if (takeProfit.trim()) payload.takeProfitPrice = takeProfit.trim();
+      if (stopLoss.trim()) payload.stopLossPrice = stopLoss.trim();
+      if (positionNotional.trim()) payload.positionNotionalUsdt = positionNotional.trim();
     }
 
     try {
@@ -216,8 +310,77 @@ export default function NovaRadarPanel() {
       <p className="text-xs text-muted-foreground mb-4">
         VIP only. Set <strong className="font-medium text-zinc-700 dark:text-zinc-300">trade plan 1</strong> (required) and optionally{" "}
         <strong className="font-medium text-zinc-700 dark:text-zinc-300">trade plan 2</strong> to compare two limits on the same or different
-        contracts. NovaRadar scores structure alignment, realism, and illustrative timing—then recommends the stronger plan with reasons.
+        contracts. NovaRadar scores structure alignment, realism, and illustrative timing—optionally with leverage, TP, and SL for ROE and risk/reward—then recommends the stronger plan with reasons.
       </p>
+
+      <div className="rounded-lg border border-sky-200/70 dark:border-sky-800/50 bg-sky-50/30 dark:bg-sky-950/20 p-4 mb-4">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <p className="text-sm font-semibold text-sky-900 dark:text-sky-100">Leverage &amp; exits (optional)</p>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={useLeverage}
+              onChange={(e) => setUseLeverage(e.target.checked)}
+              className="rounded border-zinc-400"
+            />
+            Include ROE / liq estimates
+          </label>
+        </div>
+        {useLeverage ? (
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Leverage (×)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="30"
+                value={leverage}
+                onChange={(e) => setLeverage(e.target.value)}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-20 bg-white dark:bg-zinc-800"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Take profit ($)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="e.g. 4540"
+                value={takeProfit}
+                onChange={(e) => setTakeProfit(e.target.value)}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-28 bg-white dark:bg-zinc-800"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Stop loss ($)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="e.g. 4470"
+                value={stopLoss}
+                onChange={(e) => setStopLoss(e.target.value)}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-28 bg-white dark:bg-zinc-800"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Position (USDT)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="e.g. 5000"
+                value={positionNotional}
+                onChange={(e) => setPositionNotional(e.target.value)}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-28 bg-white dark:bg-zinc-800"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground max-w-lg">
+              Default TP/SL apply to both plans unless you set per-plan exits below. Stress: other limit, else nearest structure support/resistance.
+              Position USDT sets Blofin MMR tier for XAU/XAG liq estimates.
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Enable to see ROE at TP/SL, risk/reward, and approximate liquidation per plan.</p>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <div className="rounded-lg border border-violet-200/80 dark:border-violet-800/60 bg-violet-50/30 dark:bg-violet-950/20 p-4">
@@ -248,6 +411,32 @@ export default function NovaRadarPanel() {
               <span className="text-xs text-muted-foreground block mb-1">Side</span>
               <SideToggle side={plan1.side} onChange={(side) => setPlan1((p) => ({ ...p, side }))} />
             </div>
+            {useLeverage && (
+              <>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">TP ($)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder={takeProfit || "optional"}
+                    value={plan1.takeProfit}
+                    onChange={(e) => setPlan1((p) => ({ ...p, takeProfit: e.target.value }))}
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-24 bg-white dark:bg-zinc-800"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">SL ($)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder={stopLoss || "optional"}
+                    value={plan1.stopLoss}
+                    onChange={(e) => setPlan1((p) => ({ ...p, stopLoss: e.target.value }))}
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-24 bg-white dark:bg-zinc-800"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -297,6 +486,32 @@ export default function NovaRadarPanel() {
                 <span className="text-xs text-muted-foreground block mb-1">Side</span>
                 <SideToggle side={plan2.side} onChange={(side) => setPlan2((p) => ({ ...p, side }))} />
               </div>
+              {useLeverage && (
+                <>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">TP ($)</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder={takeProfit || "optional"}
+                      value={plan2.takeProfit}
+                      onChange={(e) => setPlan2((p) => ({ ...p, takeProfit: e.target.value }))}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-24 bg-white dark:bg-zinc-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">SL ($)</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder={stopLoss || "optional"}
+                      value={plan2.stopLoss}
+                      onChange={(e) => setPlan2((p) => ({ ...p, stopLoss: e.target.value }))}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-24 bg-white dark:bg-zinc-800"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">Optional—enable to compare two limits (e.g. 4475 vs 4495 long on XAU).</p>
