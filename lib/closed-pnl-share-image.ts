@@ -66,6 +66,14 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
+/** Green arrow when win rate is healthy or PnL is positive; red when losses dominate. */
+function analysisShareArrowUp(analysis: ClosedTradesAnalysis, showPnlDetails: boolean): boolean {
+  if (analysis.totalTrades === 0) return true;
+  const strongWinRate = analysis.winRatePct >= 50 || analysis.wins > analysis.losses;
+  if (!showPnlDetails) return strongWinRate;
+  return analysis.totalRealizedUsdt >= 0 || strongWinRate;
+}
+
 function drawGlowArrow(ctx: CanvasRenderingContext2D, profit: boolean) {
   const cx = W * 0.78;
   const cy = H * 0.48;
@@ -390,6 +398,7 @@ export function drawAnalysisShareCard(
 ): Promise<Blob> {
   const { periodLabel, modeLabel, showPnlDetails } = options;
   const profit = analysis.totalRealizedUsdt >= 0;
+  const arrowUp = analysisShareArrowUp(analysis, showPnlDetails);
   const H2 = showPnlDetails ? 920 : 780;
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -465,7 +474,7 @@ export function drawAnalysisShareCard(
   ctx.fillStyle = "#475569";
   ctx.fillText("novastaris.ai", pad, H2 - pad);
 
-  drawGlowArrow(ctx, profit && showPnlDetails);
+  drawGlowArrow(ctx, arrowUp);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Failed"))), "image/jpeg", 0.94);
