@@ -38,6 +38,19 @@ import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
 import NovaRadarPanel from "@/components/NovaRadarPanel";
 import FuturesOnboardingModal, { useFuturesOnboarding } from "@/components/FuturesOnboardingModal";
+import DashboardPathPickerModal from "@/components/DashboardPathPickerModal";
+import DashboardPathHintBanner from "@/components/DashboardPathHintBanner";
+import {
+  loadDashboardPath,
+  saveDashboardPath,
+  URL_TAB_IDS,
+  URL_FUTURES_VIEWS,
+  defaultFilterForTier,
+  FIRST_VISIT_LEGACY_KEY,
+  type DashboardPath,
+  type DashboardPathApplyResult,
+} from "@/lib/dashboard-onboarding";
+import { ADMIN_NAV_ITEMS } from "@/lib/admin-nav-config";
 import NovaQFibPanel from "@/components/NovaQFibPanel";
 import NovaPatternDetectorPanel from "@/components/NovaPatternDetectorPanel";
 import NovaExtraPanel from "@/components/NovaExtraPanel";
@@ -126,7 +139,7 @@ const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
 /** Main dashboard top nav — flex-none overrides default TabsTrigger flex-1 so wrapped tabs do not overlap. */
 const DASHBOARD_TOP_TABS_LIST_CLASS =
-  "!flex !h-auto !min-h-0 w-full flex-wrap content-start items-start gap-x-3 gap-y-2.5 p-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-100/95 dark:bg-zinc-800/90 [&_[role=tab]]:!h-auto [&_[role=tab]]:flex-none [&_[role=tab]]:grow-0 [&_[role=tab]]:shrink-0 [&_[role=tab]]:inline-flex [&_[role=tab]]:items-center [&_[role=tab]]:gap-1.5 [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:leading-normal [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab][data-state=active]]:shadow-sm";
+  "!flex !h-auto !min-h-0 w-full flex-wrap content-start items-start gap-x-2 gap-y-2 p-3 sm:p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-gradient-to-br from-zinc-50/95 via-white/90 to-zinc-100/80 dark:from-zinc-900/95 dark:via-zinc-800/90 dark:to-zinc-900/80 shadow-inner [&_[role=tab]]:!h-auto [&_[role=tab]]:flex-none [&_[role=tab]]:grow-0 [&_[role=tab]]:shrink-0 [&_[role=tab]]:inline-flex [&_[role=tab]]:items-center [&_[role=tab]]:gap-1.5 [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:leading-normal [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab][data-state=active]]:shadow-md";
 const DASHBOARD_TOP_TAB_TRIGGER_CLASS =
   "!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600";
 const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
@@ -328,9 +341,9 @@ export default function Dashboard() {
 
   const matchesTopTabFilter = (tab: TabId) => {
     if (topTabFilter === "all") return true;
-    const coreTabs: TabId[] = ["new", "trending", "bsc", "watchlist"];
+    const coreTabs: TabId[] = ["new", "trending", "bsc", "watchlist", "nova-connect"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
-    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
+    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence", "chris-clayton"];
     const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-ultimate"];
     if (topTabFilter === "core") return coreTabs.includes(tab);
     if (topTabFilter === "pro") return proTabs.includes(tab);
@@ -412,15 +425,6 @@ export default function Dashboard() {
     }
   }, [status, router, fetchSubscription]);
 
-  // Open NovaConnect tab when visiting /?tab=nova-connect or /nova-connect (redirects here with ?tab=nova-connect)
-  useEffect(() => {
-    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-    if (params?.get("tab") !== "nova-connect") return;
-    if (!pageTabFlagsLoaded) return;
-    if (!isTabVisibleInGui("nova-connect")) return;
-    setActiveTab("nova-connect");
-  }, [pageTabFlagsLoaded, isTabVisibleInGui]);
-
   // If the owner turns a tab OFF while the user is on it, move them to the first visible tab.
   useEffect(() => {
     if (!pageTabFlagsLoaded) return;
@@ -486,6 +490,9 @@ export default function Dashboard() {
   const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
 
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [dashboardPath, setDashboardPath] = useState<DashboardPath | null>(null);
+  const [pathPickerOpen, setPathPickerOpen] = useState(false);
+  const [defaultFilterApplied, setDefaultFilterApplied] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const adminMenuRef = useRef<HTMLDivElement>(null);
@@ -493,6 +500,7 @@ export default function Dashboard() {
     setMounted(true);
     try {
       setOnboardingDismissed(localStorage.getItem("novastaris_onboarding_dismissed") === "1");
+      setDashboardPath(loadDashboardPath());
       const raw = localStorage.getItem(WATCHLIST_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -1113,6 +1121,46 @@ export default function Dashboard() {
   const [novaForecastSubTab, setNovaForecastSubTab] = useState<
     "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-radar" | "nova-scalp"
   >("agent");
+
+  const applyDashboardPathResult = useCallback((result: DashboardPathApplyResult) => {
+    setTopTabFilter(result.filter);
+    if (URL_TAB_IDS.has(result.tab)) setActiveTab(result.tab as TabId);
+    if (result.futuresView && URL_FUTURES_VIEWS.has(result.futuresView)) {
+      setFuturesView(result.futuresView);
+    }
+    if (result.novaForecastSubTab) {
+      setNovaForecastSubTab(result.novaForecastSubTab);
+    }
+    setDashboardPath(loadDashboardPath());
+    setOnboardingDismissed(true);
+  }, []);
+
+  useEffect(() => {
+    if (!pageTabFlagsLoaded || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab && URL_TAB_IDS.has(tab) && isTabVisibleInGui(tab as TabId)) {
+      setActiveTab(tab as TabId);
+    }
+    const fv = params.get("futures");
+    if (fv && URL_FUTURES_VIEWS.has(fv)) {
+      setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map");
+    }
+  }, [pageTabFlagsLoaded, isTabVisibleInGui]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !pageTabFlagsLoaded || typeof window === "undefined") return;
+    if (loadDashboardPath()) return;
+    setPathPickerOpen(true);
+  }, [status, pageTabFlagsLoaded]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || defaultFilterApplied || loadDashboardPath()) return;
+    if (subscriptionPaid === null && subscriptionTier === null) return;
+    setTopTabFilter(defaultFilterForTier(subscriptionTier, !!subscriptionPaid));
+    setDefaultFilterApplied(true);
+  }, [status, subscriptionPaid, subscriptionTier, defaultFilterApplied]);
+
   type NovaSmartTfResult = {
     id: string;
     label: string;
@@ -1388,17 +1436,6 @@ export default function Dashboard() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [novaConnectAvatarLightbox]);
-
-  // First-time visit (already registered): direct to NovaConnect for privacy & community rules
-  useEffect(() => {
-    if (status !== "authenticated" || !novaConnectEnabled) return;
-    if (!pageTabFlagsLoaded) return;
-    if (!isTabVisibleInGui("nova-connect")) return;
-    if (typeof window === "undefined") return;
-    if (window.localStorage.getItem("firstVisitDashboard") === "1") return;
-    window.localStorage.setItem("firstVisitDashboard", "1");
-    setActiveTab("nova-connect");
-  }, [status, novaConnectEnabled, pageTabFlagsLoaded, isTabVisibleInGui]);
 
   useEffect(() => {
     const onOpenAiAgent = (e: Event) => {
@@ -2967,18 +3004,17 @@ export default function Dashboard() {
                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${adminMenuOpen ? "rotate-180" : ""}`} />
                   </Button>
                   {adminMenuOpen && (
-                    <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1">
-                      <Link href="/admin" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Nova Admin hub</Link>
-                      <Link href="/admin/insights" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">App insights</Link>
-                      <Link href="/admin/metrics" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Metrics</Link>
-                      <Link href="/admin/customers" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Customers</Link>
-                      <Link href="/admin/wallet-tracker" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Wallet Tracker</Link>
-                      <Link href="/admin/leverage-wallet-tracker" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Leverage Wallet Tracker</Link>
-                      <Link href="/admin/polymarket-tracker" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Polymarket Tracker</Link>
-                      <Link href="/admin/feature-flags" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Feature flags</Link>
-                      <Link href="/admin/support" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Support tickets</Link>
-                      <Link href="/admin/chat" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">Live chat</Link>
-                      <Link href="/admin/ai-feedback" onClick={() => setAdminMenuOpen(false)} className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">AI Feedback</Link>
+                    <div className="absolute top-full left-0 mt-1 z-50 min-w-[220px] max-h-[70vh] overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1">
+                      {ADMIN_NAV_ITEMS.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setAdminMenuOpen(false)}
+                          className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -3102,12 +3138,26 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-8 pb-20 sm:pb-8">
-        {mounted && !onboardingDismissed && (
-          <div className="mb-6 rounded-xl border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/90 dark:bg-cyan-950/40 px-4 py-3 text-sm text-cyan-800 dark:text-cyan-200 shadow-sm flex items-center justify-between gap-3 flex-wrap">
-            <span><strong>New here?</strong> Start with <strong>Go Hunting</strong> or <strong>Trending</strong>, then use <strong>NovaStaris AI Agent</strong> on tokens you like.</span>
-            <Button variant="ghost" size="sm" onClick={dismissOnboarding} className="shrink-0 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-200/50 dark:hover:bg-cyan-800/50">Dismiss</Button>
-          </div>
+        {mounted && (
+          <DashboardPathHintBanner
+            path={dashboardPath}
+            dismissed={onboardingDismissed}
+            onDismiss={dismissOnboarding}
+            onChangePath={() => setPathPickerOpen(true)}
+          />
         )}
+        <DashboardPathPickerModal
+          open={pathPickerOpen}
+          onClose={() => {
+            setPathPickerOpen(false);
+            if (!loadDashboardPath()) {
+              saveDashboardPath("all");
+              setDashboardPath("all");
+              dismissOnboarding();
+            }
+          }}
+          onApply={applyDashboardPathResult}
+        />
         {error && (
           <div className="mb-6 rounded-xl border border-amber-200/80 dark:border-amber-800/80 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2">
             <span className="flex-1">{error}</span>
@@ -3202,6 +3252,7 @@ export default function Dashboard() {
             </p>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4 gap-3">
               <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mr-1">Focus</span>
                 {([
                   { id: "all", label: "All" },
                   { id: "core", label: "Core" },
@@ -3213,15 +3264,24 @@ export default function Dashboard() {
                     key={f.id}
                     type="button"
                     onClick={() => setTopTabFilter(f.id)}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
                       topTabFilter === f.id
-                        ? "bg-cyan-500 text-white dark:bg-cyan-600"
-                        : "bg-zinc-200/80 dark:bg-zinc-700/70 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                        ? "bg-cyan-500 text-white shadow-sm dark:bg-cyan-600"
+                        : "bg-white/80 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-600/80 hover:border-cyan-400/50"
                     }`}
                   >
                     {f.label}
                   </button>
                 ))}
+                {dashboardPath && (
+                  <button
+                    type="button"
+                    onClick={() => setPathPickerOpen(true)}
+                    className="ml-auto text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline"
+                  >
+                    Path: {dashboardPath === "meme" ? "Meme" : dashboardPath === "futures" ? "Futures" : dashboardPath === "wallets" ? "Wallets" : "All"}
+                  </button>
+                )}
               </div>
               <div className="-mx-1 sm:mx-0 flex flex-col gap-3 w-full overflow-x-visible overflow-y-visible pb-1">
               <TabsList className={DASHBOARD_TOP_TABS_LIST_CLASS}>

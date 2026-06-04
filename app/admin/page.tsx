@@ -4,17 +4,10 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Zap,
-  BarChart3,
-  Users,
-  Wallet,
-  Flag,
-  MessageCircle,
-  Lightbulb,
-  Headphones,
-  Activity,
-} from "lucide-react";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import { adminNavByGroup, ADMIN_NAV_GROUPS } from "@/lib/admin-nav-config";
+import { Headphones, MessageCircle } from "lucide-react";
 
 type Ticket = {
   id: string;
@@ -30,6 +23,7 @@ export default function AdminHubPage() {
   const { data: session, status } = useSession();
   const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
+  const grouped = adminNavByGroup();
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -51,115 +45,101 @@ export default function AdminHubPage() {
 
   if (status === "loading" || !session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
-        <Card className="w-full max-w-4xl">
-          <CardContent className="py-8 text-center text-muted-foreground">
-            {status === "loading" ? "Loading…" : "Sign in to view Nova Admin."}
-            {!session && (
-              <p className="mt-2">
-                <Link href="/signin" className="underline">
-                  Sign in
-                </Link>
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="max-w-lg mx-auto border-zinc-200 dark:border-zinc-800">
+        <CardContent className="py-10 text-center text-muted-foreground">
+          {status === "loading" ? "Loading…" : "Sign in to view Nova Admin."}
+          {!session && (
+            <p className="mt-2">
+              <Link href="/signin" className="underline text-cyan-600">
+                Sign in
+              </Link>
+            </p>
+          )}
+        </CardContent>
+      </Card>
     );
   }
 
-  const links = [
-    { href: "/admin/insights", label: "App insights", icon: BarChart3 },
-    { href: "/admin/metrics", label: "Metrics", icon: BarChart3 },
-    { href: "/admin/customers", label: "Customers", icon: Users },
-    { href: "/admin/nova-scalper", label: "NovaScalper", icon: Activity },
-    { href: "/admin/wallet-tracker", label: "Wallet Tracker", icon: Wallet },
-    { href: "/admin/leverage-wallet-tracker", label: "Leverage Wallet Tracker", icon: Wallet },
-    { href: "/admin/polymarket-tracker", label: "Polymarket Tracker", icon: Wallet },
-    { href: "/admin/feature-flags", label: "Feature flags", icon: Flag },
-    { href: "/admin/meme-runner", label: "Meme Runner config", icon: Zap },
-    { href: "/admin/support", label: "Support", icon: Headphones },
-    { href: "/admin/chat", label: "Chat", icon: MessageCircle },
-    { href: "/admin/ai-feedback", label: "AI Feedback", icon: Lightbulb },
-  ];
-
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-6"
-        >
-          <Zap className="h-5 w-5 text-amber-500" />
-          NovaStaris
-        </Link>
-        <Card className="border-zinc-200 dark:border-zinc-800 mb-6">
-          <CardHeader>
-            <CardTitle className="text-xl">Nova Admin hub</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Central links for insights, metrics, customers, NovaScalper, wallet tracking, feature flags, support, and chat.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {links.map(({ href, label, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-3 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                >
-                  <Icon className="h-5 w-5 text-cyan-500 shrink-0" />
-                  <span className="font-medium">{label}</span>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+    <div className="max-w-4xl">
+      <AdminPageHeader
+        title="Hub"
+        description="Shortcuts to analytics, customers, trackers, feature flags, and support tools. Use the sidebar on desktop or the menu on mobile."
+      />
 
-        <Card className="border-zinc-200 dark:border-zinc-800">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg">Recent support tickets</CardTitle>
-            <Link
-              href="/admin/support"
-              className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
-            >
-              View all
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {ticketsLoading ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
-            ) : recentTickets.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No tickets yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {recentTickets.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-2 text-sm">
+      <div className="grid gap-4 sm:grid-cols-2 mb-8">
+        {ADMIN_NAV_GROUPS.filter((g) => g.id !== "overview").map((g) => {
+          const items = grouped[g.id];
+          if (!items.length) return null;
+          return (
+            <Card key={g.id} className="border-zinc-200 dark:border-zinc-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">{g.label}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  return (
                     <Link
-                      href="/admin/support"
-                      className="text-zinc-700 dark:text-zinc-300 hover:underline truncate min-w-0"
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
                     >
-                      <span className="font-mono text-zinc-500 dark:text-zinc-400 mr-2 shrink-0">
-                        #{t.supportNumber}
-                      </span>
-                      <span className="truncate">{t.title || "No title"}</span>
+                      <Icon className="h-4 w-4 text-cyan-500 shrink-0" />
+                      {item.label}
                     </Link>
-                    <span
-                      className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${
-                        t.status === "resolved"
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200"
-                          : "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200"
-                      }`}
-                    >
-                      {t.status}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
+
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-base">Recent support tickets</CardTitle>
+          <Link href="/admin/support" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline">
+            View all
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {ticketsLoading ? (
+            <p className="text-sm text-muted-foreground">Loading tickets…</p>
+          ) : recentTickets.length === 0 ? (
+            <AdminEmptyState
+              icon={Headphones}
+              title="No support tickets yet"
+              description="When users submit tickets from the app, they will appear here and on the Support page."
+              actionLabel="Open support"
+              actionHref="/admin/support"
+            />
+          ) : (
+            <ul className="space-y-2">
+              {recentTickets.map((t) => (
+                <li
+                  key={t.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                    {t.supportNumber} — {t.title}
+                  </span>
+                  <span className="text-xs text-muted-foreground capitalize">{t.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+            <Link
+              href="/admin/chat"
+              className="inline-flex items-center gap-2 text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Open live chat
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
