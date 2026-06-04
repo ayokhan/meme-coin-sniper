@@ -22,6 +22,9 @@ import {
   type ClosedTradeShareInput,
 } from "@/lib/closed-pnl-share-image";
 import PnlShareButtons from "@/components/PnlShareButtons";
+import PlatformHealthStrip from "@/components/PlatformHealthStrip";
+import TradingRiskDisclaimer from "@/components/TradingRiskDisclaimer";
+import TradeJournalPanel from "@/components/TradeJournalPanel";
 import { buildAnalysisShareCaption } from "@/lib/pnl-share";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
@@ -3011,8 +3014,12 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           <CardTitle className="text-base font-semibold">Bot control</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {config?.enabled ? "Bot is running." : "Bot is stopped. Start to begin automated trading."}
+          <PlatformHealthStrip className="mb-2" />
+          <TradingRiskDisclaimer compact context="bot" />
+          <p className="text-sm text-muted-foreground mt-2">
+            {config?.enabled
+              ? "Bot is enabled — Vercel cron runs cycles when scheduled (daily on main cron; hourly if configured). Use Run now for immediate cycle."
+              : "Bot is stopped. Start to allow automated cycles when cron runs."}
           </p>
           {config?.lastRunAt && (
             <p className="text-xs text-muted-foreground">Last run: {new Date(config.lastRunAt).toLocaleString()}</p>
@@ -3479,6 +3486,13 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                           }
                         />
                       </div>
+                      {showClosedAnalysis && (
+                        <TradeJournalPanel
+                          periodLabel={closedTradesPeriodLabel}
+                          modeLabel={config?.mode === "demo" ? "Demo" : "Live"}
+                          analysis={closedTradesAnalysis}
+                        />
+                      )}
                     </div>
                   )}
 

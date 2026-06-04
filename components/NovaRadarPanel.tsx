@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import NovaRadarPreTradeChecklist from "@/components/NovaRadarPreTradeChecklist";
+import PlatformHealthStrip from "@/components/PlatformHealthStrip";
+import TradingRiskDisclaimer from "@/components/TradingRiskDisclaimer";
 import type {
   NovaRadarPlanId,
   NovaRadarPlanResult,
@@ -394,11 +396,14 @@ export default function NovaRadarPanel() {
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaRadar (limit orders)</h2>
-      <p className="text-xs text-muted-foreground mb-4">
+      <p className="text-xs text-muted-foreground mb-2">
         VIP only. Set <strong className="font-medium text-zinc-700 dark:text-zinc-300">trade plan 1</strong> (required) and optionally{" "}
         <strong className="font-medium text-zinc-700 dark:text-zinc-300">trade plan 2</strong> to compare two limits on the same or different
         contracts. NovaRadar scores structure alignment, realism, and illustrative timing—optionally with leverage, TP, and SL for ROE and risk/reward—then recommends the stronger plan with reasons.
       </p>
+      <PlatformHealthStrip className="mb-2" />
+      <TradingRiskDisclaimer compact context="radar" />
+      <div className="mb-4" />
 
       <div className="rounded-lg border border-sky-200/70 dark:border-sky-800/50 bg-sky-50/30 dark:bg-sky-950/20 p-4 mb-4">
         <div className="flex items-center justify-between gap-2 mb-3">

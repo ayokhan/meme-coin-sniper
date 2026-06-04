@@ -332,8 +332,13 @@ export async function POST(request: Request) {
       where: { id: bot.id },
       data: { enabled, lastError: enabled ? null : bot.lastError },
     });
-    // TODO: Trigger worker/cron when enabled=true; stop when enabled=false
-    return NextResponse.json({ success: true, enabled });
+    return NextResponse.json({
+      success: true,
+      enabled,
+      cronNote: enabled
+        ? "Enabled. Automated cycles run via /api/cron (daily) and /api/cron/trading-bot when scheduled on Vercel. Use Run now for an immediate cycle."
+        : "Stopped. Cron will skip until you start again.",
+    });
   } catch (e) {
     console.error('Admin trading-bot POST:', e);
     return NextResponse.json({ success: false, error: 'Failed to update bot state.' }, { status: 500 });

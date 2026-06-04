@@ -274,6 +274,16 @@ function SubscribeContent() {
             <li>VIP adds NovaForecast, Nova Forex Agent, Nova Polymarket Pro, and on-demand workspaces for deeper edge</li>
           </ul>
         </div>
+        <div className="rounded-lg border border-violet-300/60 dark:border-violet-700/50 bg-violet-50/40 dark:bg-violet-950/25 p-4 mb-4">
+          <p className="text-sm font-semibold text-violet-900 dark:text-violet-100 mb-1">VIP Futures stack (popular upgrade)</p>
+          <p className="text-xs text-violet-950/90 dark:text-violet-100/90">
+            <strong className="text-violet-900 dark:text-violet-100">NovaForecast → NovaRadar</strong> — compare two limit orders with fill odds, leverage ROE, split sizing, and Blofin-style risk.
+            {" "}
+            <strong>AI Trading Bot</strong> (on-demand) — Blofin execution with closed-trade journal and share cards.
+            {" "}
+            Plus NovaQ, liquidation map, hot perps, and more when enabled in your account.
+          </p>
+        </div>
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 mb-6">
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">What&apos;s in each plan?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -283,7 +293,7 @@ function SubscribeContent() {
             </div>
             <div>
               <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, <strong className="text-zinc-800 dark:text-zinc-200">NovaForecast</strong> (crypto perps + NovaRadar), <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (Market Watch for XAUUSD, FX, indices—NovaQ, Smart, Fib, Radar, and Scalp), NovaQ, Nova Investment Agent, VIP Crypto Futures add-ons, on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate. Pay by card or USDC.</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, <strong className="text-zinc-800 dark:text-zinc-200">NovaForecast</strong> (crypto perps + NovaRadar), <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (Market Watch for XAUUSD, FX, indices—NovaQ, Smart, Fib, Radar, and Scalp), NovaQ, Nova Investment Agent, VIP Crypto Futures add-ons, on-demand AI Trading Bot, Nova Polymarket Pro, and Nova Ultimate. Pay by card or USDC.</p>
             </div>
           </div>
         </div>
