@@ -46,6 +46,7 @@ import {
   URL_TAB_IDS,
   URL_FUTURES_VIEWS,
   defaultFilterForTier,
+  pathDisplayLabel,
   FIRST_VISIT_LEGACY_KEY,
   type DashboardPath,
   type DashboardPathApplyResult,
@@ -3148,6 +3149,7 @@ export default function Dashboard() {
         )}
         <DashboardPathPickerModal
           open={pathPickerOpen}
+          pathOptions={{ subscriptionTier: tier, isPaid }}
           onClose={() => {
             setPathPickerOpen(false);
             if (!loadDashboardPath()) {
@@ -3279,7 +3281,7 @@ export default function Dashboard() {
                     onClick={() => setPathPickerOpen(true)}
                     className="ml-auto text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline"
                   >
-                    Path: {dashboardPath === "meme" ? "Meme" : dashboardPath === "futures" ? "Futures" : dashboardPath === "wallets" ? "Wallets" : "All"}
+                    Path: {pathDisplayLabel(dashboardPath)}
                   </button>
                 )}
               </div>

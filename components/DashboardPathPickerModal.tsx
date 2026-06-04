@@ -8,15 +8,17 @@ import {
   saveDashboardPath,
   type DashboardPath,
   type DashboardPathApplyResult,
+  type DashboardPathApplyOptions,
 } from "@/lib/dashboard-onboarding";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   onApply: (result: DashboardPathApplyResult) => void;
+  pathOptions?: DashboardPathApplyOptions;
 };
 
-export default function DashboardPathPickerModal({ open, onClose, onApply }: Props) {
+export default function DashboardPathPickerModal({ open, onClose, onApply, pathOptions }: Props) {
   const [selected, setSelected] = useState<DashboardPath | null>(null);
 
   if (!open) return null;
@@ -24,7 +26,7 @@ export default function DashboardPathPickerModal({ open, onClose, onApply }: Pro
   const confirm = () => {
     const path = selected ?? "all";
     saveDashboardPath(path);
-    onApply(applyDashboardPath(path));
+    onApply(applyDashboardPath(path, pathOptions));
     onClose();
   };
 

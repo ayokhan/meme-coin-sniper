@@ -1,6 +1,6 @@
 /** User-chosen focus path + shared onboarding storage keys. */
 
-export type DashboardPath = "meme" | "futures" | "wallets" | "all";
+export type DashboardPath = "meme" | "futures" | "wallet-tracking" | "polymarket" | "all";
 
 export const DASHBOARD_PATH_KEY = "novastaris-dashboard-path-v1";
 export const ONBOARDING_DISMISSED_KEY = "novastaris_onboarding_dismissed";
@@ -14,27 +14,43 @@ export type DashboardPathApplyResult = {
   novaForecastSubTab?: "nova-radar" | "nova-q" | "nova-smart" | "agent";
 };
 
-export const DASHBOARD_PATH_OPTIONS = [
+export type DashboardPathApplyOptions = {
+  subscriptionTier?: "pro" | "vip" | null;
+  isPaid?: boolean;
+};
+
+export const DASHBOARD_PATH_OPTIONS: Array<{
+  id: DashboardPath;
+  title: string;
+  description: string;
+  emoji: string;
+}> = [
   {
-    id: "meme" as DashboardPath,
+    id: "meme",
     title: "Meme coin hunter",
     description: "Go Hunting, Trending, and AI analysis on Solana & BSC.",
     emoji: "🎯",
   },
   {
-    id: "futures" as DashboardPath,
+    id: "futures",
     title: "Futures & metals trader",
-    description: "Crypto Futures, NovaRadar, NovaQ, and the trading bot.",
+    description: "VIP: NovaForecast, NovaRadar, Nova Forex, addons. Pro: Crypto Futures chart AI.",
     emoji: "📈",
   },
   {
-    id: "wallets" as DashboardPath,
-    title: "Wallet & signals follower",
+    id: "wallet-tracking",
+    title: "Wallet tracking",
     description: "Wallet Tracker, CT Scan, and coach signals.",
     emoji: "👛",
   },
   {
-    id: "all" as DashboardPath,
+    id: "polymarket",
+    title: "Prediction markets",
+    description: "Nova Polymarket Pro — on-demand Polymarket workflows.",
+    emoji: "🎲",
+  },
+  {
+    id: "all",
     title: "Show everything",
     description: "All tabs — best if you already know the platform.",
     emoji: "✨",
@@ -45,7 +61,16 @@ export function loadDashboardPath(): DashboardPath | null {
   if (typeof window === "undefined") return null;
   try {
     const v = localStorage.getItem(DASHBOARD_PATH_KEY);
-    if (v === "meme" || v === "futures" || v === "wallets" || v === "all") return v;
+    if (v === "wallets") return "wallet-tracking";
+    if (
+      v === "meme" ||
+      v === "futures" ||
+      v === "wallet-tracking" ||
+      v === "polymarket" ||
+      v === "all"
+    ) {
+      return v;
+    }
   } catch {
     /* ignore */
   }
@@ -63,22 +88,52 @@ export function saveDashboardPath(path: DashboardPath): void {
   }
 }
 
-export function applyDashboardPath(path: DashboardPath): DashboardPathApplyResult {
+export function applyDashboardPath(
+  path: DashboardPath,
+  options?: DashboardPathApplyOptions
+): DashboardPathApplyResult {
+  const tier = options?.subscriptionTier ?? null;
+  const isVip = tier === "vip";
+
   switch (path) {
     case "meme":
       return { filter: "core", tab: "new" };
     case "futures":
+      // Most futures power tools (NovaRadar, NovaForecast, Forex, addons) are VIP tabs.
+      if (isVip) {
+        return {
+          filter: "vip",
+          tab: "nova-forecast",
+          novaForecastSubTab: "nova-radar",
+        };
+      }
       return {
         filter: "pro",
-        tab: "nova-forecast",
-        novaForecastSubTab: "nova-radar",
+        tab: "futures",
         futuresView: "workflow",
       };
-    case "wallets":
+    case "wallet-tracking":
       return { filter: "vip", tab: "wallets" };
+    case "polymarket":
+      return { filter: "bots", tab: "polymarket-bot" };
     case "all":
     default:
       return { filter: "all", tab: "new" };
+  }
+}
+
+export function pathDisplayLabel(path: DashboardPath): string {
+  switch (path) {
+    case "meme":
+      return "Meme";
+    case "futures":
+      return "Futures";
+    case "wallet-tracking":
+      return "Wallet tracking";
+    case "polymarket":
+      return "Prediction markets";
+    case "all":
+      return "All";
   }
 }
 
@@ -93,13 +148,15 @@ export function pathHintCopy(path: DashboardPath | null): string {
     case "meme":
       return "Your path: Meme hunter — start with Go Hunting or Trending, then run AI analysis on a contract.";
     case "futures":
-      return "Your path: Futures — open NovaForecast → NovaRadar for limits, or Crypto Futures for chart AI and the bot.";
-    case "wallets":
-      return "Your path: Wallets — track smart money in Wallet Tracker; enable alerts in your account settings.";
+      return "Your path: Futures — VIP filter shows NovaForecast/NovaRadar, Forex, and addons; switch to Pro for Crypto Futures chart AI if you have Pro.";
+    case "wallet-tracking":
+      return "Your path: Wallet tracking — use Wallet Tracker and CT Scan; enable alerts in your account settings.";
+    case "polymarket":
+      return "Your path: Prediction markets — open Nova Polymarket Pro under Bots (on-demand access may apply).";
     case "all":
       return "Showing all tools. Use Core / Pro / VIP / Bots filters above to focus.";
     default:
-      return "New here? Pick a focus path (Meme, Futures, or Wallets) to reduce tab clutter.";
+      return "New here? Pick a focus path (Meme, Futures, Wallet tracking, or Prediction markets) to reduce tab clutter.";
   }
 }
 
