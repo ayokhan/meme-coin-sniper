@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { runFuturesAnalysis } from '@/lib/ai-analyze-futures';
+import { fetchUnifiedMarketReadForSymbol } from '@/lib/nova-market-read-snapshot';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
@@ -89,10 +90,8 @@ export async function POST(request: Request) {
       directionRaw === 'long' || directionRaw === 'short' ? directionRaw : null;
     const imageMediaType = mediaType as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
 
-    const result = await runFuturesAnalysis(
-      base64,
-      imageMediaType,
-      {
+    const [result, marketRead] = await Promise.all([
+      runFuturesAnalysis(base64, imageMediaType, {
         symbol,
         margin: marginVal,
         leverage: leverageVal,
@@ -100,8 +99,9 @@ export async function POST(request: Request) {
         chartTimeframe,
         riskAmount: riskAmount != null && riskAmount > 0 ? riskAmount : null,
         direction,
-      }
-    );
+      }),
+      fetchUnifiedMarketReadForSymbol(symbol).catch(() => null),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -110,6 +110,7 @@ export async function POST(request: Request) {
       tradeDirection: result.tradeDirection,
       reasons: result.reasons,
       recommendations: result.recommendations,
+      marketRead,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Futures analysis failed';

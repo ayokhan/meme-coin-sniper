@@ -20,6 +20,7 @@ import {
   type NovaRadarSavedSetup,
 } from "@/lib/nova-radar-setups";
 import type { UnifiedMarketRead } from "@/lib/nova-market-read";
+import { buildNovaRadarLastRunSnapshot, saveNovaRadarLastRun } from "@/lib/nova-radar-last-run";
 import { formatQuotePrice } from "@/lib/format-quote-price";
 
 type PlanForm = {
@@ -253,6 +254,8 @@ export default function NovaRadarPanel() {
   const [splitDeepPct, setSplitDeepPct] = useState(70);
   const [savedSetups, setSavedSetups] = useState<NovaRadarSavedSetup[]>([]);
   const [setupName, setSetupName] = useState("");
+  const [liqPreview, setLiqPreview] = useState<{ liquidationPrice: number; note?: string } | null>(null);
+  const [liqPreviewLoading, setLiqPreviewLoading] = useState(false);
 
   useEffect(() => {
     setSavedSetups(loadNovaRadarSetups());
@@ -261,6 +264,55 @@ export default function NovaRadarPanel() {
       .then((d) => setBlofinKeysConfigured(d.success && d.configured === true))
       .catch(() => setBlofinKeysConfigured(null));
   }, []);
+
+  useEffect(() => {
+    if (!useLeverage) {
+      setLiqPreview(null);
+      return;
+    }
+    const entry = Number(plan1.limitPrice.trim());
+    const lev = Number(leverage.trim());
+    const notional = Number(positionNotional.trim());
+    if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(lev) || lev < 1) {
+      setLiqPreview(null);
+      return;
+    }
+    if (!Number.isFinite(notional) || notional <= 0) {
+      setLiqPreview(null);
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      setLiqPreviewLoading(true);
+      try {
+        const res = await fetch("/api/nova-radar/blofin-liq", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            symbol: plan1.symbol.trim().toUpperCase() || "BTC",
+            entryPrice: entry,
+            leverage: lev,
+            side: plan1.side,
+            positionNotionalUsdt: notional,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.estimate?.liquidationPrice != null) {
+          setLiqPreview({
+            liquidationPrice: data.estimate.liquidationPrice,
+            note: data.estimate.note,
+          });
+        } else {
+          setLiqPreview(null);
+        }
+      } catch {
+        setLiqPreview(null);
+      } finally {
+        setLiqPreviewLoading(false);
+      }
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [useLeverage, plan1.limitPrice, plan1.symbol, plan1.side, leverage, positionNotional]);
 
   const appendPlanExits = (block: Record<string, unknown>, form: PlanForm) => {
     if (form.takeProfit.trim()) block.takeProfitPrice = form.takeProfit.trim();
@@ -326,6 +378,16 @@ export default function NovaRadarPanel() {
         if (typeof data.blofinKeysConfigured === "boolean") {
           setBlofinKeysConfigured(data.blofinKeysConfigured);
         }
+        saveNovaRadarLastRun(
+          buildNovaRadarLastRunSnapshot({
+            plans: data.plans as NovaRadarPlanResult[],
+            recommendation: (data.recommendation as NovaRadarRecommendation) ?? null,
+            marketRead: (data.marketRead as UnifiedMarketRead) ?? null,
+            leverage: useLeverage ? leverage : undefined,
+            takeProfit: takeProfit || undefined,
+            stopLoss: stopLoss || undefined,
+          })
+        );
       } else {
         setPlans(null);
         setRecommendation(null);
@@ -473,6 +535,13 @@ export default function NovaRadarPanel() {
               : per-plan TP/SL override defaults. Position USDT sets Blofin tier
               {blofinKeysConfigured ? " (your API keys → live contract size)" : ""}.
             </p>
+            {(liqPreviewLoading || liqPreview) && (
+              <p className="text-[11px] text-amber-800 dark:text-amber-200 w-full">
+                {liqPreviewLoading
+                  ? "Est. liquidation (plan 1 entry)…"
+                  : `Est. liquidation @ plan 1 entry: ~$${liqPreview!.liquidationPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}${liqPreview!.note ? ` · ${liqPreview!.note}` : ""}`}
+              </p>
+            )}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">Enable to see ROE at TP/SL, risk/reward, and approximate liquidation per plan.</p>

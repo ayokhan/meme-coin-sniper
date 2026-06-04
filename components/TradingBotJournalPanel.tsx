@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { JournalEntryDto } from "@/lib/trading-bot-journal";
+import { loadNovaRadarLastRun, type NovaRadarLastRunSnapshot } from "@/lib/nova-radar-last-run";
 
 type ClosedTradeForSync = {
   id: string;
@@ -29,6 +30,11 @@ export default function TradingBotJournalPanel({ closedTrades, blofinMode }: Pro
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [lastRadar, setLastRadar] = useState<NovaRadarLastRunSnapshot | null>(null);
+
+  useEffect(() => {
+    setLastRadar(loadNovaRadarLastRun());
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,7 +68,12 @@ export default function TradingBotJournalPanel({ closedTrades, blofinMode }: Pro
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ action: "sync", trades: closedTrades, blofinMode }),
+        body: JSON.stringify({
+          action: "sync",
+          trades: closedTrades,
+          blofinMode,
+          novaRadarSnapshot: lastRadar,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -107,7 +118,7 @@ export default function TradingBotJournalPanel({ closedTrades, blofinMode }: Pro
         <div>
           <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Trade journal</p>
           <p className="text-xs text-muted-foreground">
-            Track closed trades and notes — sync from Blofin closed list or review history here.
+            Track closed trades and notes — sync from Blofin closed list. Your last NovaRadar run attaches to matching symbols when you sync.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -125,6 +136,14 @@ export default function TradingBotJournalPanel({ closedTrades, blofinMode }: Pro
           </Button>
         </div>
       </div>
+      {lastRadar && (
+        <p className="text-xs text-violet-800 dark:text-violet-200 rounded border border-violet-200/80 dark:border-violet-800/60 bg-violet-50/50 dark:bg-violet-950/30 px-2 py-1.5">
+          Last NovaRadar ({lastRadar.symbol}):{" "}
+          {lastRadar.recommendation?.headline ?? "—"}
+          {lastRadar.plans.length > 0 &&
+            ` · plans @ ${lastRadar.plans.map((p) => `$${p.targetPrice.toLocaleString()}`).join(", ")}`}
+        </p>
+      )}
       {message && <p className="text-xs text-emerald-700 dark:text-emerald-300">{message}</p>}
       {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
       {entries.length === 0 && !loading ? (
@@ -143,7 +162,19 @@ export default function TradingBotJournalPanel({ closedTrades, blofinMode }: Pro
               </tr>
             </thead>
             <tbody>
-              {entries.map((e) => (
+              {entries.map((e) => {
+                let radarNote: string | null = null;
+                if (e.novaRadarSnapshot) {
+                  try {
+                    const snap = JSON.parse(e.novaRadarSnapshot) as NovaRadarLastRunSnapshot;
+                    if (snap.recommendation?.headline) {
+                      radarNote = snap.recommendation.headline;
+                    }
+                  } catch {
+                    /* ignore */
+                  }
+                }
+                return (
                 <tr key={e.id} className="border-b border-zinc-100 dark:border-zinc-800">
                   <td className="py-1.5 pr-2 whitespace-nowrap text-muted-foreground">
                     {e.closedAt ? new Date(e.closedAt).toLocaleDateString() : new Date(e.createdAt).toLocaleDateString()}
@@ -182,7 +213,8 @@ export default function TradingBotJournalPanel({ closedTrades, blofinMode }: Pro
                     </button>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>

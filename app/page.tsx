@@ -721,6 +721,13 @@ export default function Dashboard() {
       takeProfitPct?: string;
       stopLossPct?: string;
     };
+    marketRead?: {
+      direction: "bullish" | "bearish" | "sideways";
+      headline: string;
+      bullets: string[];
+      nearestSupport: number | null;
+      nearestResistance: number | null;
+    } | null;
   } | null>(null);
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
@@ -2508,6 +2515,7 @@ export default function Dashboard() {
           tradeDirection: data.tradeDirection === "long" || data.tradeDirection === "short" ? data.tradeDirection : undefined,
           reasons: data.reasons ?? [],
           recommendations: data.recommendations,
+          marketRead: data.marketRead ?? null,
         });
       } else {
         if (res.status === 403 && data.locked) setFuturesAnalysisError(data.error || "Subscribe to use Crypto Futures.");
@@ -5088,6 +5096,19 @@ export default function Dashboard() {
                           : (futuresAnalysisResult.tradeDirection === "long" ? "NO BUY (bias: Long)" : futuresAnalysisResult.tradeDirection === "short" ? "NO BUY (bias: Short)" : "NO BUY")}
                       </Badge>
                     </div>
+                    {futuresAnalysisResult.marketRead && (
+                      <div className="mt-4 rounded-lg border border-violet-200/80 dark:border-violet-800/60 bg-violet-50/40 dark:bg-violet-950/25 p-4 space-y-1.5 text-sm">
+                        <p className="font-semibold text-violet-900 dark:text-violet-100">
+                          Structure read (NovaQ-style, same as NovaRadar)
+                        </p>
+                        <p className="text-violet-950/90 dark:text-violet-100/90">{futuresAnalysisResult.marketRead.headline}</p>
+                        <ul className="list-disc list-inside text-xs text-violet-900/80 dark:text-violet-200/90 space-y-0.5">
+                          {futuresAnalysisResult.marketRead.bullets.map((b, i) => (
+                            <li key={i}>{b}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     {futuresAnalysisResult.recommendations && (futuresAnalysisResult.recommendations.supportResistance || futuresAnalysisResult.recommendations.marketStructure || futuresAnalysisResult.recommendations.entryZone || futuresAnalysisResult.recommendations.takeProfitPct || futuresAnalysisResult.recommendations.stopLossPct) && (
                       <div className="mt-4 rounded-lg border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/50 dark:bg-cyan-950/30 p-4 space-y-2 text-sm">
                         <p className="font-semibold text-cyan-800 dark:text-cyan-200">Trading levels (futures — use risk management)</p>

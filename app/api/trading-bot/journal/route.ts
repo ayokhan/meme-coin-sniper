@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { canAccessTradingBot } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { closedTradeToJournalPayload } from "@/lib/trading-bot-journal";
+import { radarSnapshotMatchesTrade } from "@/lib/nova-radar-last-run";
+import type { NovaRadarLastRunSnapshot } from "@/lib/nova-radar-last-run";
 import { normalizeUnixMs, type ClosedTrade } from "@/lib/closed-trades";
 
 function parseClosedAt(raw: string | null | undefined): Date | null {
@@ -100,9 +102,14 @@ export async function POST(req: Request) {
       let created = 0;
       let skipped = 0;
       const mode = body.blofinMode === "live" ? "live" : "demo";
+      const snapshotRaw = body.novaRadarSnapshot as NovaRadarLastRunSnapshot | null | undefined;
+      const snapshotJson =
+        snapshotRaw != null && typeof snapshotRaw === "object" ? JSON.stringify(snapshotRaw) : null;
       for (const raw of body.trades as ClosedTrade[]) {
         if (!raw?.id || !raw.displaySymbol) continue;
         const payload = closedTradeToJournalPayload(raw, mode);
+        const attachSnapshot =
+          snapshotJson != null && radarSnapshotMatchesTrade(snapshotRaw ?? null, payload.symbol);
         try {
           await prisma.tradingBotJournalEntry.upsert({
             where: {
@@ -124,6 +131,7 @@ export async function POST(req: Request) {
               blofinMode: payload.blofinMode,
               closedAt: parseClosedAt(payload.closedAt),
               notes: payload.notes,
+              novaRadarSnapshot: attachSnapshot ? snapshotJson : null,
             },
             update: {
               exitPrice: payload.exitPrice,
@@ -131,6 +139,7 @@ export async function POST(req: Request) {
               roiPct: payload.roiPct,
               outcome: payload.outcome,
               closedAt: parseClosedAt(payload.closedAt),
+              ...(attachSnapshot ? { novaRadarSnapshot: snapshotJson } : {}),
             },
           });
           created++;
