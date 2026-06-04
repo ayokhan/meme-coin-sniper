@@ -26,6 +26,16 @@ function fromDatetimeLocalValue(value: string): string | null {
 
 const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean }[] = [
   { id: "moralis", title: "API & notifications", match: (k) => k.startsWith("moralis_") || k.startsWith("telegram_") || k === "live_trades_enabled" },
+  {
+    id: "wallet-subs",
+    title: "Wallet Tracker subtabs",
+    match: (k) =>
+      k === "page_tab_meme_coins_traders" ||
+      k === "page_tab_leverage_traders" ||
+      k === "nova_perp_wallet_analyst" ||
+      k === "nova_meme_leaderboard" ||
+      k === "nova_deep_meme_agent",
+  },
   { id: "tabs", title: "Dashboard tabs", match: (k) => k.startsWith("page_tab_") },
   { id: "other", title: "Other", match: () => true },
 ];
@@ -137,8 +147,8 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description: "Show/hide the Watchlist tab in the main GUI.",
   },
   page_tab_nova_connect: {
-    label: "Tab: NovaConnect",
-    description: "Show/hide the NovaConnect tab in the main GUI.",
+    label: "Tab: Community (NovaConnect)",
+    description: "Show/hide the Community tab (NovaConnect social feed and chat) in the main dashboard nav.",
   },
   page_tab_chris_clayton: {
     label: "Tab: Online Boss Strategy",
@@ -281,9 +291,14 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
       "When ON, any VIP user (including coach users) and the owner see this Wallet Tracker subtab to analyze a pasted perp wallet, review open positions and win/loss profile, and add wallets to personal/global lists.",
   },
   page_tab_meme_coins_traders: {
-    label: "Meme Coins Traders (Wallet Tracker sub-tab)",
+    label: "Meme coins — Meme Coins Traders",
     description:
-      "When ON, the Meme Coins Traders sub-tab is visible under Wallet Tracker (per-user wallet tracking + 3-buyer alerts). Turn OFF to hide the sub-tab without affecting the rest of Wallet Tracker.",
+      "When ON, the Meme Coins Traders sub-tab is visible under Wallet Tracker → Meme coins (per-user wallet tracking + 3-buyer alerts). Turn OFF to hide without affecting futures/perps subtabs.",
+  },
+  page_tab_leverage_traders: {
+    label: "Futures & perps — Top Leverage Traders",
+    description:
+      "When ON, the Top Leverage Traders sub-tab is visible under Wallet Tracker → Futures & perps. Turn OFF to hide leverage rankings while keeping meme or perp-analyst subtabs.",
   },
   nova_meme_leaderboard: {
     label: "Meme Coin Advantage Bundle (Wallet Tracker)",

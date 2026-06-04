@@ -837,10 +837,13 @@ export default function Dashboard() {
   }, [status, isVip, isOwner]);
 
   useEffect(() => {
-    if (walletTrackerView === "nova-perp-wallet-analyst" && !showNovaPerpWalletAnalyst) {
-      setWalletTrackerView("leverage");
-    }
-  }, [walletTrackerView, showNovaPerpWalletAnalyst]);
+    if (walletTrackerView !== "nova-perp-wallet-analyst" || showNovaPerpWalletAnalyst) return;
+    const leverageOn = !pageTabFlagsLoaded || pageTabFlags?.page_tab_leverage_traders !== false;
+    const memeOn = !pageTabFlagsLoaded || pageTabFlags?.page_tab_meme_coins_traders !== false;
+    setWalletTrackerView(
+      leverageOn ? "leverage" : memeOn ? "meme" : showMemeLeaderboard ? "meme-leaderboard" : "deep-meme-agent"
+    );
+  }, [walletTrackerView, showNovaPerpWalletAnalyst, pageTabFlags, pageTabFlagsLoaded, showMemeLeaderboard, showDeepMemeAgent]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -878,13 +881,33 @@ export default function Dashboard() {
       pageTabFlags &&
       pageTabFlags.page_tab_meme_coins_traders === false
     ) {
+      const leverageOn = pageTabFlags.page_tab_leverage_traders !== false;
       const next: WalletTrackerView = showMemeLeaderboard
         ? "meme-leaderboard"
         : showDeepMemeAgent
           ? "deep-meme-agent"
           : showNovaPerpWalletAnalyst
             ? "nova-perp-wallet-analyst"
-            : "leverage";
+            : leverageOn
+              ? "leverage"
+              : "meme";
+      setWalletTrackerView(next);
+    }
+    if (
+      walletTrackerView === "leverage" &&
+      pageTabFlagsLoaded &&
+      pageTabFlags &&
+      pageTabFlags.page_tab_leverage_traders === false
+    ) {
+      const next: WalletTrackerView = showNovaPerpWalletAnalyst
+        ? "nova-perp-wallet-analyst"
+        : pageTabFlags.page_tab_meme_coins_traders !== false
+          ? "meme"
+          : showMemeLeaderboard
+            ? "meme-leaderboard"
+            : showDeepMemeAgent
+              ? "deep-meme-agent"
+              : "meme";
       setWalletTrackerView(next);
     }
   }, [walletTrackerView, showMemeLeaderboard, showDeepMemeAgent, showNovaPerpWalletAnalyst, pageTabFlags, pageTabFlagsLoaded]);
@@ -3389,8 +3412,16 @@ export default function Dashboard() {
                     <TopTabNewPill show={isNewTopTab("nova-investment")} />
                   </TabsTrigger>
                 )}
+                {showTopTab("nova-connect") && (
+                  <TabsTrigger value="nova-connect" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600 gap-1`}>
+                    <span>Community</span>
+                    {novaConnectHasUnreadDm && (
+                      <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 dark:bg-emerald-300" aria-hidden />
+                    )}
+                  </TabsTrigger>
+                )}
               </TabsList>
-              {(showTopTab("bsc") || showTopTab("watchlist") || showTopTab("nova-connect") || showTopTab("chris-clayton")) && (
+              {(showTopTab("bsc") || showTopTab("watchlist") || showTopTab("chris-clayton")) && (
                 <div className="w-full shrink-0 border-t border-zinc-200/80 dark:border-zinc-700/80 pt-3">
                   <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     More
@@ -3407,14 +3438,6 @@ export default function Dashboard() {
                             {watchlist.length}
                           </span>
                         ) : null}
-                      </TabsTrigger>
-                    )}
-                    {showTopTab("nova-connect") && (
-                      <TabsTrigger value="nova-connect" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600 gap-1`}>
-                        <span>NovaConnect</span>
-                        {novaConnectHasUnreadDm && (
-                          <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 dark:bg-emerald-300" aria-hidden />
-                        )}
                       </TabsTrigger>
                     )}
                     {showTopTab("chris-clayton") && (
@@ -7214,36 +7237,65 @@ export default function Dashboard() {
             ) : activeTab === "wallets" ? (
               <div className="px-3 sm:px-6 pt-2 space-y-6">
                 <Tabs value={walletTrackerView} onValueChange={(v) => setWalletTrackerView(v as WalletTrackerView)} className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <TabsList className="bg-zinc-100/95 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 p-1.5 rounded-xl flex-nowrap overflow-x-auto max-w-full gap-1.5 snap-x snap-mandatory [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&_[role=tab]]:snap-start">
-                      {(pageTabFlags?.page_tab_meme_coins_traders ?? true) && (
-                        <TabsTrigger value="meme" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
-                          Meme Coins Traders
-                        </TabsTrigger>
-                      )}
-                      <TabsTrigger value="leverage" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
-                        Top Leverage Traders
-                      </TabsTrigger>
-                      {showNovaPerpWalletAnalyst && (
-                        <TabsTrigger value="nova-perp-wallet-analyst" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
-                          Nova Perp Wallet Analyst Agent
-                        </TabsTrigger>
-                      )}
-                      {showMemeLeaderboard && (
-                        <TabsTrigger value="meme-leaderboard" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600" title="Wallet tracker + Wallet Analyzer + Leaderboard">
-                          Meme Coin Advantage Bundle
-                        </TabsTrigger>
-                      )}
-                      {showDeepMemeAgent && (
-                        <TabsTrigger value="deep-meme-agent" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600" title="Deep Meme Agent — contract security + top holder report (SOL · BSC · ETH)">
-                          Deep Meme Agent
-                        </TabsTrigger>
-                      )}
-                    </TabsList>
+                  {(() => {
+                    const showMemeCoinsTraders = pageTabFlags?.page_tab_meme_coins_traders ?? true;
+                    const showLeverageTraders = pageTabFlags?.page_tab_leverage_traders ?? true;
+                    const hasMemeWalletGroup =
+                      showMemeCoinsTraders || showMemeLeaderboard || showDeepMemeAgent;
+                    const hasFuturesWalletGroup = showLeverageTraders || showNovaPerpWalletAnalyst;
+                    const walletSubTabListClass =
+                      "bg-zinc-100/95 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 p-1.5 rounded-xl flex-nowrap overflow-x-auto max-w-full gap-1.5 snap-x snap-mandatory [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&_[role=tab]]:snap-start";
+                    return (
+                  <div className="flex flex-col gap-3">
+                    {hasMemeWalletGroup && (
+                      <div className="space-y-1.5">
+                        <p className="px-0.5 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          Meme coins
+                        </p>
+                        <TabsList className={walletSubTabListClass}>
+                          {showMemeCoinsTraders && (
+                            <TabsTrigger value="meme" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
+                              Meme Coins Traders
+                            </TabsTrigger>
+                          )}
+                          {showMemeLeaderboard && (
+                            <TabsTrigger value="meme-leaderboard" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600" title="Wallet tracker + Wallet Analyzer + Leaderboard">
+                              Meme Coin Advantage Bundle
+                            </TabsTrigger>
+                          )}
+                          {showDeepMemeAgent && (
+                            <TabsTrigger value="deep-meme-agent" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600" title="Deep Meme Agent — contract security + top holder report (SOL · BSC · ETH)">
+                              Deep Meme Agent
+                            </TabsTrigger>
+                          )}
+                        </TabsList>
+                      </div>
+                    )}
+                    {hasFuturesWalletGroup && (
+                      <div className="space-y-1.5">
+                        <p className="px-0.5 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          Futures &amp; perps
+                        </p>
+                        <TabsList className={walletSubTabListClass}>
+                          {showLeverageTraders && (
+                            <TabsTrigger value="leverage" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
+                              Top Leverage Traders
+                            </TabsTrigger>
+                          )}
+                          {showNovaPerpWalletAnalyst && (
+                            <TabsTrigger value="nova-perp-wallet-analyst" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                              Nova Perp Wallet Analyst Agent
+                            </TabsTrigger>
+                          )}
+                        </TabsList>
+                      </div>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {walletTrackerView === "meme" && "When 3+ tracked wallets buy same token → alert. First-buy alerts (owner)."}
                     </span>
                   </div>
+                    );
+                  })()}
                   <TabsContent value="meme" className="mt-0 space-y-4">
                 {!canAccessMemeCoinsTraderEffective ? (
                   <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
