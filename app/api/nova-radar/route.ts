@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { getSessionAndSubscription } from "@/lib/auth-server";
+import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
+import { buildUnifiedMarketRead } from "@/lib/nova-market-read";
+import { buildSplitOrderSuggestion } from "@/lib/nova-radar-split";
 import { getCandles, getTicker } from "@/lib/hyperliquid";
 import { getInstrument } from "@/lib/blofin";
 import {
@@ -100,7 +105,8 @@ async function loadMarketContext(symbolRaw: string): Promise<
 async function enrichRunOptionsForSymbol(
   base: NovaRadarRunOptions,
   symbol: string,
-  markPrice: number
+  markPrice: number,
+  userBlofinConfig: Awaited<ReturnType<typeof getBlofinConfigForUser>>
 ): Promise<NovaRadarRunOptions> {
   if (base.leverage == null || base.maintenanceMarginRate != null) return base;
 
@@ -110,7 +116,10 @@ async function enrichRunOptionsForSymbol(
     const instId = getBlofinMetalInstId(sym);
     if (instId) {
       try {
-        const inst = await getInstrument(instId);
+        const inst = await getInstrument(instId, {
+          config: userBlofinConfig ?? undefined,
+          demo: userBlofinConfig?.demo,
+        });
         const cv = inst ? Number(inst.contractValue) : NaN;
         if (Number.isFinite(cv) && cv > 0) contractValue = cv;
       } catch {
@@ -132,8 +141,8 @@ async function enrichRunOptionsForSymbol(
     maintenanceMarginRate: resolved.maintenanceMarginRate,
     maintenanceMarginNote:
       resolved.contracts != null
-        ? `Blofin ${resolved.tierLabel}, ~${resolved.contracts.toLocaleString(undefined, { maximumFractionDigits: 2 })} contracts`
-        : `Blofin ${resolved.tierLabel}`,
+        ? `Blofin ${resolved.tierLabel}${userBlofinConfig ? " (your API keys)" : ""}, ~${resolved.contracts.toLocaleString(undefined, { maximumFractionDigits: 2 })} contracts${contractValue != null ? `, ${contractValue} per contract` : ""}`
+        : `Blofin ${resolved.tierLabel}${userBlofinConfig ? " (your API keys)" : ""}`,
   };
 }
 
@@ -176,10 +185,18 @@ export async function POST(request: Request) {
       normalizedPlans.push({ ...plan, symbol: contexts.get(symKey)!.symbol });
     }
 
+    const session = await getServerSession(authOptions);
+    const userBlofinConfig = session?.user?.id
+      ? await getBlofinConfigForUser(session.user.id)
+      : null;
+
     const mmrBySymbol = new Map<string, NovaRadarRunOptions>();
     if (runOptions.leverage != null) {
       for (const [symKey, ctx] of contexts.entries()) {
-        mmrBySymbol.set(symKey, await enrichRunOptionsForSymbol(runOptions, ctx.symbol, ctx.currentPrice));
+        mmrBySymbol.set(
+          symKey,
+          await enrichRunOptionsForSymbol(runOptions, ctx.symbol, ctx.currentPrice, userBlofinConfig)
+        );
       }
     }
 
@@ -199,10 +216,31 @@ export async function POST(request: Request) {
     const primarySymbol = planResults[0]?.symbol ?? normalizeSymbol(plans[0].symbol);
     const sharedCtx = contexts.get(normalizeSymbol(primarySymbol));
 
+    const marketRead = sharedCtx
+      ? buildUnifiedMarketRead(
+          sharedCtx.structureTimeframes,
+          sharedCtx.currentPrice,
+          sharedCtx.overallTrendlineSummary
+        )
+      : null;
+
+    const tpForSplit =
+      runOptions.takeProfitPrice ??
+      planResults[0]?.leverage?.takeProfitPrice ??
+      planResults[1]?.leverage?.takeProfitPrice ??
+      null;
+    const splitSuggestion =
+      runOptions.leverage != null
+        ? buildSplitOrderSuggestion(planResults, tpForSplit, runOptions.leverage)
+        : null;
+
     return NextResponse.json({
       success: true,
       plans: planResults,
       recommendation,
+      marketRead,
+      splitSuggestion,
+      blofinKeysConfigured: !!userBlofinConfig,
       shared: sharedCtx
         ? {
             symbol: sharedCtx.symbol,

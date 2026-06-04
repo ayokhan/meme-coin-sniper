@@ -37,6 +37,7 @@ import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
 import NovaRadarPanel from "@/components/NovaRadarPanel";
+import FuturesOnboardingModal, { useFuturesOnboarding } from "@/components/FuturesOnboardingModal";
 import NovaQFibPanel from "@/components/NovaQFibPanel";
 import NovaPatternDetectorPanel from "@/components/NovaPatternDetectorPanel";
 import NovaExtraPanel from "@/components/NovaExtraPanel";
@@ -724,6 +725,13 @@ export default function Dashboard() {
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
   const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map">("ai");
+  const { shouldShow: showFuturesOnboardingPrompt, dismiss: dismissFuturesOnboarding } = useFuturesOnboarding();
+  const [futuresOnboardingOpen, setFuturesOnboardingOpen] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "futures" && showFuturesOnboardingPrompt) setFuturesOnboardingOpen(true);
+  }, [activeTab, showFuturesOnboardingPrompt]);
+
   const [vipFuturesAddons, setVipFuturesAddons] = useState<{
     novaEagle: boolean;
     cryptoBuddie: boolean;
@@ -4520,7 +4528,18 @@ export default function Dashboard() {
               <NovaMemeIntelligencePanel />
             ) : activeTab === "futures" ? (
               <div className="mx-3 sm:mx-6 py-6 sm:py-8">
-                <div className="flex flex-wrap gap-2 mb-6">
+                <FuturesOnboardingModal
+                  open={futuresOnboardingOpen}
+                  onClose={() => {
+                    dismissFuturesOnboarding();
+                    setFuturesOnboardingOpen(false);
+                  }}
+                  onGoNovaRadar={() => {
+                    setActiveTab("nova-forecast");
+                    setNovaForecastSubTab("nova-radar");
+                  }}
+                />
+                <div className="flex flex-wrap items-center gap-2 mb-6">
                   <Button
                     variant={futuresView === "ai" ? "default" : "outline"}
                     size="sm"
@@ -4563,6 +4582,15 @@ export default function Dashboard() {
                       Liquidation Map
                     </Button>
                   )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-cyan-700 dark:text-cyan-300"
+                    onClick={() => setFuturesOnboardingOpen(true)}
+                  >
+                    Quick start
+                  </Button>
                 </div>
                 {futuresView === "workflow" ? (
                   <FuturesWorkflow />

@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import NovaRadarPreTradeChecklist from "@/components/NovaRadarPreTradeChecklist";
 import type {
   NovaRadarPlanId,
   NovaRadarPlanResult,
   NovaRadarRecommendation,
 } from "@/lib/nova-radar";
+import { buildSplitOrderSuggestion, type NovaRadarSplitSuggestion } from "@/lib/nova-radar-split";
+import {
+  deleteNovaRadarSetup,
+  loadNovaRadarSetups,
+  saveNovaRadarSetup,
+  type NovaRadarSavedSetup,
+} from "@/lib/nova-radar-setups";
+import type { UnifiedMarketRead } from "@/lib/nova-market-read";
 import { formatQuotePrice } from "@/lib/format-quote-price";
 
 type PlanForm = {
@@ -109,6 +118,15 @@ function PlanCard({
         <Badge variant="outline" className={realismBadgeClass(plan.realism)}>
           {realismLabel(plan.realism)}
         </Badge>
+        {plan.fillProbability && (
+          <Badge
+            variant="outline"
+            className="border-indigo-400/60 text-indigo-800 dark:text-indigo-200"
+            title={plan.fillProbability.note}
+          >
+            Fill ~{plan.fillProbability.probabilityPct}% ({plan.fillProbability.label})
+          </Badge>
+        )}
       </div>
       <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{plan.summary}</p>
       {plan.caveats.length > 0 && (
@@ -227,6 +245,20 @@ export default function NovaRadarPanel() {
   const [stopLoss, setStopLoss] = useState("");
   const [useLeverage, setUseLeverage] = useState(true);
   const [positionNotional, setPositionNotional] = useState("");
+  const [marketRead, setMarketRead] = useState<UnifiedMarketRead | null>(null);
+  const [splitSuggestion, setSplitSuggestion] = useState<NovaRadarSplitSuggestion | null>(null);
+  const [blofinKeysConfigured, setBlofinKeysConfigured] = useState<boolean | null>(null);
+  const [splitDeepPct, setSplitDeepPct] = useState(70);
+  const [savedSetups, setSavedSetups] = useState<NovaRadarSavedSetup[]>([]);
+  const [setupName, setSetupName] = useState("");
+
+  useEffect(() => {
+    setSavedSetups(loadNovaRadarSetups());
+    fetch("/api/user/blofin-config", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setBlofinKeysConfigured(d.success && d.configured === true))
+      .catch(() => setBlofinKeysConfigured(null));
+  }, []);
 
   const appendPlanExits = (block: Record<string, unknown>, form: PlanForm) => {
     if (form.takeProfit.trim()) block.takeProfitPrice = form.takeProfit.trim();
@@ -287,10 +319,17 @@ export default function NovaRadarPanel() {
         const first = (data.plans as NovaRadarPlanResult[])[0];
         setSharedTfs(first?.structureTimeframes ?? null);
         setDisclaimer(typeof data.disclaimer === "string" ? data.disclaimer : null);
+        setMarketRead(data.marketRead ?? null);
+        setSplitSuggestion(data.splitSuggestion ?? null);
+        if (typeof data.blofinKeysConfigured === "boolean") {
+          setBlofinKeysConfigured(data.blofinKeysConfigured);
+        }
       } else {
         setPlans(null);
         setRecommendation(null);
         setSharedTfs(null);
+        setMarketRead(null);
+        setSplitSuggestion(null);
         setError(data?.locked ? "NovaRadar is for VIP subscribers." : (data?.error ?? `Error ${res.status}`));
       }
     } catch (e) {
@@ -303,6 +342,54 @@ export default function NovaRadarPanel() {
   };
 
   const bestId: NovaRadarPlanId | null = recommendation?.bestPlanId ?? null;
+  const leverageNum = useLeverage && leverage.trim() ? Number(leverage) : null;
+  const tpPrice =
+    takeProfit.trim() ||
+    plan1.takeProfit.trim() ||
+    plan2.takeProfit.trim() ||
+    null;
+  const liveSplit =
+    plans && plans.length >= 2 && leverageNum != null && Number.isFinite(leverageNum)
+      ? buildSplitOrderSuggestion(
+          plans,
+          tpPrice ? Number(tpPrice) : null,
+          leverageNum,
+          splitDeepPct
+        )
+      : splitSuggestion;
+
+  const handleSaveSetup = () => {
+    const name = setupName.trim() || `${plan1.symbol} ${new Date().toLocaleDateString()}`;
+    const next = saveNovaRadarSetup({
+      name,
+      plan1: { ...plan1 },
+      plan2: usePlan2 && plan2.limitPrice.trim() ? { ...plan2 } : undefined,
+      usePlan2,
+      leverage: useLeverage ? leverage : undefined,
+      takeProfit: takeProfit || undefined,
+      stopLoss: stopLoss || undefined,
+      positionNotional: positionNotional || undefined,
+    });
+    setSavedSetups(next);
+    setSetupName("");
+  };
+
+  const applySetup = (s: NovaRadarSavedSetup) => {
+    setPlan1({ ...s.plan1, takeProfit: s.plan1.takeProfit ?? "", stopLoss: s.plan1.stopLoss ?? "" });
+    if (s.plan2 && s.usePlan2) {
+      setPlan2({ ...s.plan2, takeProfit: s.plan2.takeProfit ?? "", stopLoss: s.plan2.stopLoss ?? "" });
+      setUsePlan2(true);
+    } else {
+      setUsePlan2(false);
+    }
+    if (s.leverage) {
+      setUseLeverage(true);
+      setLeverage(s.leverage);
+    }
+    if (s.takeProfit) setTakeProfit(s.takeProfit);
+    if (s.stopLoss) setStopLoss(s.stopLoss);
+    if (s.positionNotional) setPositionNotional(s.positionNotional);
+  };
 
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
@@ -373,8 +460,13 @@ export default function NovaRadarPanel() {
               />
             </div>
             <p className="text-[11px] text-muted-foreground max-w-lg">
-              Default TP/SL apply to both plans unless you set per-plan exits below. Stress: other limit, else nearest structure support/resistance.
-              Position USDT sets Blofin MMR tier for XAU/XAG liq estimates.
+              <span title="Return on equity — PnL as % of margin, ≈ price move % × leverage">ROE</span>
+              {" · "}
+              <span title="Maintenance margin rate — Blofin tier by position size">MMR</span>
+              {" · "}
+              <span title="Aligned = limit path matches bearish/bullish structure sample">Aligned</span>
+              : per-plan TP/SL override defaults. Position USDT sets Blofin tier
+              {blofinKeysConfigured ? " (your API keys → live contract size)" : ""}.
             </p>
           </div>
         ) : (
@@ -519,9 +611,60 @@ export default function NovaRadarPanel() {
         </div>
       </div>
 
-      <Button onClick={run} disabled={loading || !plan1.symbol.trim()} className="mb-4">
-        {loading ? "Running…" : "Run NovaRadar"}
-      </Button>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Button onClick={run} disabled={loading || !plan1.symbol.trim()}>
+          {loading ? "Running…" : "Run NovaRadar"}
+        </Button>
+        <input
+          type="text"
+          placeholder="Setup name"
+          value={setupName}
+          onChange={(e) => setSetupName(e.target.value)}
+          className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-36 bg-white dark:bg-zinc-800"
+        />
+        <Button type="button" variant="outline" size="sm" onClick={handleSaveSetup} disabled={!plan1.limitPrice.trim()}>
+          Save setup
+        </Button>
+        {savedSetups.length > 0 && (
+          <select
+            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 max-w-[200px]"
+            defaultValue=""
+            onChange={(e) => {
+              const id = e.target.value;
+              if (!id) return;
+              const s = savedSetups.find((x) => x.id === id);
+              if (s) applySetup(s);
+              e.target.value = "";
+            }}
+          >
+            <option value="">Load saved…</option>
+            {savedSetups.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      {savedSetups.length > 0 && (
+        <ul className="text-[11px] text-muted-foreground mb-3 flex flex-wrap gap-2">
+          {savedSetups.slice(0, 6).map((s) => (
+            <li key={s.id} className="flex items-center gap-1">
+              <button type="button" className="underline" onClick={() => applySetup(s)}>
+                {s.name}
+              </button>
+              <button
+                type="button"
+                className="text-rose-600"
+                onClick={() => setSavedSetups(deleteNovaRadarSetup(s.id))}
+                aria-label={`Delete ${s.name}`}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {error && <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{error}</p>}
       {!loading && !error && !plans && (
@@ -530,17 +673,62 @@ export default function NovaRadarPanel() {
 
       {recommendation && plans && (
         <div className="space-y-4">
+          {marketRead && (
+            <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/60 dark:bg-zinc-900/40 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400 mb-1">
+                Market read (unified)
+              </p>
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-2">{marketRead.headline}</p>
+              <ul className="text-xs text-zinc-700 dark:text-zinc-300 list-disc pl-4 space-y-1">
+                {marketRead.bullets.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <NovaRadarPreTradeChecklist
+            plans={plans}
+            leverage={leverageNum != null && Number.isFinite(leverageNum) ? leverageNum : null}
+          />
           <div className="rounded-md border border-violet-300 dark:border-violet-700 bg-violet-50/60 dark:bg-violet-950/40 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-violet-800 dark:text-violet-200 mb-1">
               {recommendation.compareMode ? "Best trade (comparison)" : "Assessment"}
             </p>
-            <p className="text-sm text-violet-950 dark:text-violet-50 mb-2">{recommendation.headline}</p>
+            <p className="text-sm text-violet-950 dark:text-violet-50 mb-1">{recommendation.headline}</p>
+            {recommendation.subheadline && (
+              <p className="text-xs text-violet-800/95 dark:text-violet-200/95 mb-2 font-medium">{recommendation.subheadline}</p>
+            )}
             <ul className="text-xs text-violet-900/95 dark:text-violet-100/95 list-disc pl-4 space-y-1">
               {recommendation.reasons.map((r) => (
                 <li key={r}>{r}</li>
               ))}
             </ul>
           </div>
+
+          {plans.length >= 2 && liveSplit && useLeverage && (
+            <div className="rounded-md border border-emerald-200/80 dark:border-emerald-800/50 bg-emerald-50/30 dark:bg-emerald-950/20 p-4">
+              <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-100 mb-2">Split-order idea</p>
+              <label className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
+                Deeper limit allocation: {splitDeepPct}%
+                <input
+                  type="range"
+                  min={40}
+                  max={90}
+                  value={splitDeepPct}
+                  onChange={(e) => setSplitDeepPct(Number(e.target.value))}
+                  className="flex-1 max-w-xs"
+                />
+                {100 - splitDeepPct}% shallower
+              </label>
+              <p className="text-xs text-emerald-950/90 dark:text-emerald-50/90">{liveSplit.note}</p>
+              {liveSplit.roeAtTpPct != null && (
+                <p className="text-xs mt-1 text-muted-foreground">
+                  Blended entry ~${liveSplit.blendedEntry.toFixed(2)}
+                  {liveSplit.roeAtTpPct != null && ` · TP ROE ~${liveSplit.roeAtTpPct.toFixed(1)}%`}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-3">
             {plans.map((p) => (

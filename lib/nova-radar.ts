@@ -18,6 +18,10 @@ import {
   parsePositionContracts,
   parsePositionNotionalUsdt,
 } from "@/lib/blofin-margin-tiers";
+import {
+  estimateLimitFillProbability,
+  type NovaRadarFillProbability,
+} from "@/lib/nova-radar-fill-probability";
 
 /** Structure table timeframes (short → long). */
 export const NOVA_RADAR_STRUCTURE_TFS = [
@@ -81,7 +85,10 @@ export type NovaRadarPlanResult = {
   orderIntentNote: string;
   score: number;
   leverage?: NovaRadarLeverageMetrics | null;
+  fillProbability?: NovaRadarFillProbability | null;
 };
+
+export type { NovaRadarFillProbability };
 
 export type NovaRadarRunOptions = {
   leverage?: number;
@@ -97,12 +104,18 @@ export type NovaRadarRunOptions = {
 
 export type { NovaRadarLeverageMetrics, NovaRadarLeverageRisk, NovaRadarStressSource };
 
+export type NovaRadarRecommendationKind = "best_rr" | "best_fill" | "balanced" | "single";
+
 export type NovaRadarRecommendation = {
   bestPlanId: NovaRadarPlanId;
   bestPlanLabel: string;
   reasons: string[];
   headline: string;
+  subheadline: string | null;
   compareMode: boolean;
+  kind: NovaRadarRecommendationKind;
+  alternatePlanId: NovaRadarPlanId | null;
+  alternatePlanLabel: string | null;
 };
 
 export type NovaRadarMarketContext = {
@@ -420,6 +433,10 @@ export function scoreNovaRadarPlan(r: NovaRadarPlanResult): number {
     else if (lev.riskRewardToTp != null && lev.riskRewardToTp >= 2) s += 6;
   }
 
+  if (r.fillProbability) {
+    s += Math.min(12, Math.floor(r.fillProbability.probabilityPct / 8));
+  }
+
   return s;
 }
 
@@ -438,7 +455,11 @@ export function buildNovaRadarRecommendation(
       bestPlanLabel: NOVA_RADAR_PLAN_LABELS.plan1,
       reasons: ["No plans to compare."],
       headline: "Add trade plan 1 to run NovaRadar.",
+      subheadline: null,
       compareMode: false,
+      kind: "single",
+      alternatePlanId: null,
+      alternatePlanLabel: null,
     };
   }
 
@@ -478,12 +499,21 @@ export function buildNovaRadarRecommendation(
     }
     reasons.push(p.orderIntentNote);
 
+    if (p.fillProbability) {
+      reasons.push(p.fillProbability.note);
+    }
     return {
       bestPlanId: p.planId,
       bestPlanLabel: p.planLabel,
       reasons,
       headline: `${p.planLabel} (${p.symbol} ${p.side} @ $${fmtMoney(p.targetPrice)}) — ${realismLabel(p.realism)}, structure ${p.structureAlignment.replace("_", " ")}.`,
+      subheadline: p.fillProbability
+        ? `Illustrative fill odds: ~${p.fillProbability.probabilityPct}% (${p.fillProbability.label}).`
+        : null,
       compareMode: false,
+      kind: "single",
+      alternatePlanId: null,
+      alternatePlanLabel: null,
     };
   }
 
@@ -545,19 +575,57 @@ export function buildNovaRadarRecommendation(
       );
     }
   }
+  if (best.fillProbability) reasons.push(best.fillProbability.note);
+  if (other.fillProbability && best.planId !== other.planId) {
+    reasons.push(
+      `${other.planLabel} illustrative fill ~${other.fillProbability.probabilityPct}% vs ${best.planLabel} ~${best.fillProbability?.probabilityPct ?? "?"}%.`
+    );
+  }
   reasons.push(best.orderIntentNote);
 
+  const scoreGap = scoreNovaRadarPlan(best) - scoreNovaRadarPlan(other);
+  const closerIsOther = other.pctMoveFromSpot < best.pctMoveFromSpot;
+  const betterFillOther =
+    (other.fillProbability?.probabilityPct ?? 0) >
+    (best.fillProbability?.probabilityPct ?? 0) + 12;
+  const betterRrBest =
+    best.leverage?.riskRewardToTp != null &&
+    other.leverage?.riskRewardToTp != null &&
+    best.leverage.riskRewardToTp > other.leverage.riskRewardToTp * 1.2;
+
+  let kind: NovaRadarRecommendationKind = scoreGap < 8 ? "balanced" : "best_rr";
+  let subheadline: string | null = null;
+  let alternatePlanId: NovaRadarPlanId | null = null;
+  let alternatePlanLabel: string | null = null;
+
+  if (closerIsOther && betterFillOther && betterRrBest) {
+    kind = "best_rr";
+    subheadline = `Recommended for risk/reward and structure — not the easiest fill. For higher fill odds, consider ${other.planLabel} (~${other.fillProbability?.probabilityPct ?? "?"}% illustrative).`;
+    alternatePlanId = other.planId;
+    alternatePlanLabel = other.planLabel;
+  } else if (best.pctMoveFromSpot < other.pctMoveFromSpot && betterRrBest) {
+    subheadline = `${best.planLabel} is farther from spot but scores better on R:R and structure—${other.planLabel} is closer if you fear missing the dip.`;
+    alternatePlanId = other.planId;
+    alternatePlanLabel = other.planLabel;
+  }
+
   const headline =
-    scoreNovaRadarPlan(best) - scoreNovaRadarPlan(other) < 8
+    scoreGap < 8
       ? `${best.planLabel} edges ${other.planLabel}—both are workable; review flags on each card.`
-      : `Recommended: ${best.planLabel} over ${other.planLabel} for this structure snapshot.`;
+      : kind === "best_rr" && subheadline
+        ? `Recommended for R:R: ${best.planLabel} over ${other.planLabel}`
+        : `Recommended: ${best.planLabel} over ${other.planLabel} for this structure snapshot.`;
 
   return {
     bestPlanId: best.planId,
     bestPlanLabel: best.planLabel,
     reasons,
     headline,
+    subheadline,
     compareMode: true,
+    kind,
+    alternatePlanId,
+    alternatePlanLabel,
   };
 }
 
@@ -682,6 +750,16 @@ export function analyzeNovaRadarPlan(
     summaryParts.push("No ETA needed—level is already near current trading.");
   }
 
+  const fillProbability = estimateLimitFillProbability({
+    currentPrice,
+    targetPrice,
+    side,
+    avgDailyRangeUsd: avgRange > 0 ? avgRange : null,
+    pessimisticDays,
+    pricePath,
+    structureAlignment: alignment,
+  });
+
   let leverageMetrics: NovaRadarLeverageMetrics | null = null;
   if (runOptions?.leverage != null && runOptions.leverage >= 1) {
     const targets = resolvePlanLeverageTargets(plan, runOptions);
@@ -744,6 +822,7 @@ export function analyzeNovaRadarPlan(
     orderIntentNote: orderNotes,
     score: 0,
     leverage: leverageMetrics,
+    fillProbability,
   };
   result.score = scoreNovaRadarPlan(result);
   return result;
