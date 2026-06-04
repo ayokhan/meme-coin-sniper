@@ -1,4 +1,8 @@
-import type { NovaRadarTfRow } from "@/lib/nova-radar";
+export type StructureLevelRow = {
+  support: number;
+  resistance: number;
+  direction: "bullish" | "bearish" | "sideways";
+};
 
 export type UnifiedMarketRead = {
   direction: "bullish" | "bearish" | "sideways";
@@ -9,7 +13,7 @@ export type UnifiedMarketRead = {
 };
 
 export function buildUnifiedMarketRead(
-  tfRows: NovaRadarTfRow[],
+  tfRows: StructureLevelRow[],
   currentPrice: number,
   trendlineSummary: string
 ): UnifiedMarketRead {

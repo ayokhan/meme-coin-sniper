@@ -1,6 +1,8 @@
+import { estimateBlofinIsolatedLiquidation } from "@/lib/blofin-estimated-liq";
+
 /**
  * Illustrative leverage / ROE / liquidation helpers for NovaRadar.
- * Estimates follow isolated-margin perpetual math (e.g. Blofin-style), not exchange-specific liq prices.
+ * Uses Blofin-style isolated formulas when symbol is provided.
  */
 
 export type NovaRadarLeverageRisk = "low" | "moderate" | "high" | "extreme";
@@ -9,6 +11,11 @@ export type NovaRadarLeverageInput = {
   leverage: number;
   takeProfitPrice?: number | null;
   stopLossPrice?: number | null;
+  /** Symbol for Blofin tier MMR + liq (e.g. XAU). */
+  symbol?: string;
+  side?: "long" | "short";
+  positionNotionalUsdt?: number | null;
+  contractValue?: number | null;
   /** Maintenance margin rate (decimal). XAU small tiers often ~0.005 on Blofin. */
   maintenanceMarginRate?: number;
   /** Taker fee per side (decimal). */
@@ -127,21 +134,38 @@ export function computeNovaRadarLeverageMetrics(
   const leverage = input.leverage;
   if (!Number.isFinite(leverage) || leverage < 1) return null;
 
-  const mmr = input.maintenanceMarginRate ?? DEFAULT_MMR;
-  const fee = input.takerFeeRate ?? DEFAULT_FEE;
   const tp = input.takeProfitPrice ?? null;
   const sl = input.stopLossPrice ?? null;
   const stressPrice = options?.stressPrice ?? null;
   const stressSource = options?.stressSource ?? (stressPrice != null ? "structure" : "none");
   const mmrNote = options?.maintenanceMarginNote ?? null;
 
+  const blofinLiq =
+    input.symbol && input.symbol.trim()
+      ? estimateBlofinIsolatedLiquidation({
+          symbol: input.symbol,
+          side: input.side ?? side,
+          entryPrice: entry,
+          leverage,
+          positionNotionalUsdt: input.positionNotionalUsdt,
+          contractValue: input.contractValue,
+          maintenanceMarginRate: input.maintenanceMarginRate,
+          takerFeeRate: input.takerFeeRate,
+        })
+      : null;
+
+  const mmr = blofinLiq?.maintenanceMarginRate ?? input.maintenanceMarginRate ?? DEFAULT_MMR;
+  const fee = input.takerFeeRate ?? DEFAULT_FEE;
+
   const liq =
-    side === "long"
+    blofinLiq?.liquidationPrice ??
+    (side === "long"
       ? estimateIsolatedLiqPriceLong(entry, leverage, mmr, fee)
-      : estimateIsolatedLiqPriceShort(entry, leverage, mmr, fee);
+      : estimateIsolatedLiqPriceShort(entry, leverage, mmr, fee));
 
   const liqDistancePct =
-    liq != null && entry > 0 ? (Math.abs(liq - entry) / entry) * 100 : null;
+    blofinLiq?.liqDistancePct ??
+    (liq != null && entry > 0 ? (Math.abs(liq - entry) / entry) * 100 : null);
 
   const roeAtTp =
     tp != null ? roePct(spotMovePctFromEntry(entry, tp, side), leverage) : null;
@@ -162,8 +186,12 @@ export function computeNovaRadarLeverageMetrics(
 
   const notes: string[] = [];
   notes.push(
-    `${leverage}× isolated estimate (MMR ${(mmr * 100).toFixed(2)}%${mmrNote ? `, ${mmrNote}` : ""}): ROE ≈ spot move % × ${leverage}. Confirm Est. Liq. on Blofin.`
+    blofinLiq?.note ??
+      `${leverage}× isolated estimate (MMR ${(mmr * 100).toFixed(2)}%${mmrNote ? `, ${mmrNote}` : ""}): ROE ≈ spot move % × ${leverage}. Confirm Est. Liq. on Blofin.`
   );
+  if (blofinLiq?.marginUsdt != null) {
+    notes.push(`Est. margin ~$${blofinLiq.marginUsdt.toFixed(2)} USDT at ${leverage}×.`);
+  }
   if (stressSource === "other_plan" && stressPrice != null) {
     notes.push(`Stress uses the other trade plan’s limit ($${stressPrice.toFixed(2)}).`);
   } else if (stressSource === "structure" && stressPrice != null) {

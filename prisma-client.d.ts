@@ -182,5 +182,13 @@ declare module '@prisma/client' {
       }) => Promise<MemeTraderStatsRow>;
       deleteMany: (args: { where?: unknown }) => Promise<unknown>;
     };
+    tradingBotJournalEntry: {
+      findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<unknown[]>;
+      findUnique: (args: { where: { id: string } }) => Promise<unknown | null>;
+      create: (args: { data: unknown }) => Promise<unknown>;
+      upsert: (args: { where: { userId_externalId: { userId: string; externalId: string } }; create: unknown; update: unknown }) => Promise<unknown>;
+      updateMany: (args: { where: unknown; data: unknown }) => Promise<{ count: number }>;
+      deleteMany: (args: { where: unknown }) => Promise<unknown>;
+    };
   }
 }

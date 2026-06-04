@@ -136,6 +136,7 @@ model User {
   userPolymarketTrackedWallets UserPolymarketTrackedWallet[]
   userMemeCoinWallets  UserMemeCoinWallet[]
   userBlofinConfig     UserBlofinConfig?
+  tradingBotJournalEntries TradingBotJournalEntry[]
   userPolymarketConfig UserPolymarketConfig?
   perpAlerts           PerpAlert[]
   /** Eligible (e.g. VIP) users can set 2–5; alert when this many tracked wallets buy same token. */
@@ -163,6 +164,37 @@ model UsageThisMonth {
 }
 
 // Per-user Blofin API keys (encrypted at rest). When set, trading bot uses these for that user.
+/** User trading journal — closed trades, NovaRadar snapshots, manual notes. */
+model TradingBotJournalEntry {
+  id                   String    @id @default(cuid())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** Blofin fill/order id for dedup when syncing closed trades */
+  externalId           String?
+  source               String    @default("manual") // manual | closed_trade | nova_radar
+  instId               String?
+  symbol               String
+  side                 String    // long | short
+  entryPrice           Float
+  exitPrice            Float?
+  takeProfitPrice      Float?
+  stopLossPrice        Float?
+  leverage             Int?
+  positionNotionalUsdt Float?
+  realizedPnlUsdt      Float?
+  roiPct               Float?
+  outcome              String    @default("open") // win | loss | breakeven | open
+  blofinMode           String?   // demo | live
+  novaRadarSnapshot    String?   // JSON
+  notes                String?
+  closedAt             DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([userId, externalId])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
 model UserBlofinConfig {
   id                   String   @id @default(cuid())
   userId               String   @unique

@@ -32,6 +32,7 @@ export const maxDuration = 45;
 
 import { NOVA_STANDARD_TIMEFRAMES } from "@/lib/nova-timeframes";
 import { buildNovaQTradePlan, computeNovaQAlignment } from "@/lib/nova-q-trade-plan";
+import { buildUnifiedMarketRead } from "@/lib/nova-market-read";
 
 const NOVA_Q_TIMEFRAMES = NOVA_STANDARD_TIMEFRAMES;
 
@@ -175,6 +176,11 @@ export async function POST(request: Request) {
           })
         : null;
 
+    const marketRead =
+      currentPrice != null
+        ? buildUnifiedMarketRead(tfResults, currentPrice, overallTrendlineSummaryText)
+        : null;
+
     return NextResponse.json({
       success: true,
       result: {
@@ -182,6 +188,7 @@ export async function POST(request: Request) {
         currentPrice,
         marketDirection,
         overallTrendlineSummary: overallTrendlineSummaryText,
+        marketRead,
         contractDescription,
         alignment,
         tradePlan,

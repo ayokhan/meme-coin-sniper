@@ -25,6 +25,7 @@ import PnlShareButtons from "@/components/PnlShareButtons";
 import PlatformHealthStrip from "@/components/PlatformHealthStrip";
 import TradingRiskDisclaimer from "@/components/TradingRiskDisclaimer";
 import TradeJournalPanel from "@/components/TradeJournalPanel";
+import TradingBotJournalPanel from "@/components/TradingBotJournalPanel";
 import { buildAnalysisShareCaption } from "@/lib/pnl-share";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
@@ -3495,6 +3496,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                       )}
                     </div>
                   )}
+
+                  <TradingBotJournalPanel
+                    closedTrades={closedTrades}
+                    blofinMode={config?.mode === "live" ? "live" : "demo"}
+                  />
 
                   <div className="flex flex-wrap items-center gap-2">
                     <Button

@@ -139,6 +139,7 @@ async function enrichRunOptionsForSymbol(
   return {
     ...base,
     maintenanceMarginRate: resolved.maintenanceMarginRate,
+    contractValue: contractValue ?? undefined,
     maintenanceMarginNote:
       resolved.contracts != null
         ? `Blofin ${resolved.tierLabel}${userBlofinConfig ? " (your API keys)" : ""}, ~${resolved.contracts.toLocaleString(undefined, { maximumFractionDigits: 2 })} contracts${contractValue != null ? `, ${contractValue} per contract` : ""}`

@@ -100,6 +100,7 @@ export type NovaRadarRunOptions = {
   positionContracts?: number;
   maintenanceMarginRate?: number;
   maintenanceMarginNote?: string;
+  contractValue?: number;
 };
 
 export type { NovaRadarLeverageMetrics, NovaRadarLeverageRisk, NovaRadarStressSource };
@@ -771,6 +772,10 @@ export function analyzeNovaRadarPlan(
         leverage: runOptions.leverage,
         takeProfitPrice: targets.takeProfitPrice,
         stopLossPrice: targets.stopLossPrice,
+        symbol,
+        side,
+        positionNotionalUsdt: runOptions.positionNotionalUsdt,
+        contractValue: runOptions.contractValue,
         maintenanceMarginRate: runOptions.maintenanceMarginRate,
       },
       {
