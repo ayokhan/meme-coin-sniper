@@ -1,9 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+
+type BlofinPosition = {
+  id: string;
+  instId: string;
+  symbol: string;
+  side: "long" | "short";
+  entryPrice: number | null;
+  markPrice: number | null;
+  leverage: number | null;
+  liquidationPrice: number | null;
+  marginMode: string | null;
+  unrealizedPnl: number | null;
+  label: string;
+};
 
 type Cluster = {
   label: string;
@@ -111,6 +125,12 @@ function tradeAreaLabels(bias: Result["bias"]) {
   };
 }
 
+function bufferToLiquidationPct(side: "long" | "short", mark: number, liq: number): number | null {
+  if (!Number.isFinite(mark) || mark <= 0 || !Number.isFinite(liq)) return null;
+  if (side === "long") return ((mark - liq) / mark) * 100;
+  return ((liq - mark) / mark) * 100;
+}
+
 export default function FuturesLiquidationMapPanel() {
   const [symbol, setSymbol] = useState("BTC");
   const [traderType, setTraderType] = useState<"long" | "short">("long");
@@ -120,26 +140,78 @@ export default function FuturesLiquidationMapPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  const [blofinConfigured, setBlofinConfigured] = useState<boolean | null>(null);
+  const [positions, setPositions] = useState<BlofinPosition[]>([]);
+  const [positionsLoading, setPositionsLoading] = useState(false);
+  const [positionsError, setPositionsError] = useState<string | null>(null);
+  const [selectedPositionId, setSelectedPositionId] = useState("");
+  const [linkedPosition, setLinkedPosition] = useState<BlofinPosition | null>(null);
 
-  const run = async () => {
+  const selectedPosition = useMemo(
+    () => positions.find((p) => p.id === selectedPositionId) ?? linkedPosition,
+    [positions, selectedPositionId, linkedPosition]
+  );
+
+  const loadPositions = useCallback(async () => {
+    setPositionsLoading(true);
+    setPositionsError(null);
+    try {
+      const res = await fetch("/api/futures/liquidation-map/positions", { credentials: "include" });
+      const data = await res.json();
+      if (!data.success) {
+        setBlofinConfigured(data.configured === true);
+        if (data.configured === false) {
+          setPositions([]);
+          setBlofinConfigured(false);
+        } else {
+          setPositionsError(data.error ?? "Failed to load Blofin positions.");
+        }
+        return;
+      }
+      setBlofinConfigured(true);
+      setPositions(Array.isArray(data.positions) ? data.positions : []);
+    } catch {
+      setPositionsError("Failed to load Blofin positions.");
+    } finally {
+      setPositionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPositions();
+  }, [loadPositions]);
+
+  const applyPosition = useCallback((p: BlofinPosition) => {
+    setLinkedPosition(p);
+    setSelectedPositionId(p.id);
+    setSymbol(p.symbol);
+    setTraderType(p.side);
+    if (p.entryPrice != null) setEntry(String(p.entryPrice));
+    if (p.leverage != null && p.leverage > 0) setLeverage(String(Math.round(p.leverage)));
+  }, []);
+
+  const run = async (positionOverride?: BlofinPosition | null) => {
     const s = symbol.trim();
     if (!s) {
       setError("Enter a contract symbol.");
       return;
     }
+    const activePosition = positionOverride ?? linkedPosition;
     setLoading(true);
     setError(null);
     setResult(null);
     try {
+      const entryVal = entry.trim() ? Number(entry) : activePosition?.entryPrice ?? undefined;
+      const levVal = leverage.trim() ? Number(leverage) : activePosition?.leverage ?? undefined;
       const res = await fetch("/api/futures/liquidation-map", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           symbol: s,
           traderType,
-          entry: entry.trim() ? Number(entry) : undefined,
+          entry: entryVal,
           exit: exit.trim() ? Number(exit) : undefined,
-          leverage: leverage.trim() ? Number(leverage) : undefined,
+          leverage: levVal,
         }),
       });
       const data = await res.json();
@@ -155,16 +227,143 @@ export default function FuturesLiquidationMapPanel() {
     }
   };
 
+  const personalLiqRead = useMemo(() => {
+    const p = selectedPosition;
+    if (!p?.liquidationPrice) return null;
+    const mark = p.markPrice ?? result?.markPrice ?? null;
+    if (mark == null) {
+      return {
+        liq: p.liquidationPrice,
+        bufferPct: null,
+        risk: "unknown" as const,
+        note: "Liquidation price from Blofin. Run the map to compare vs current mark.",
+      };
+    }
+    const bufferPct = bufferToLiquidationPct(p.side, mark, p.liquidationPrice);
+    if (bufferPct == null) return null;
+    const risk = bufferPct <= 3 ? "critical" : bufferPct <= 8 ? "high" : bufferPct <= 15 ? "medium" : "low";
+    const adverseClusters =
+      result?.clusters.filter((c) => {
+        if (p.side === "long" && c.side === "long_liq_below") {
+          return c.price >= p.liquidationPrice && c.price <= mark;
+        }
+        if (p.side === "short" && c.side === "short_liq_above") {
+          return c.price <= p.liquidationPrice && c.price >= mark;
+        }
+        return false;
+      }) ?? [];
+    return {
+      liq: p.liquidationPrice,
+      mark,
+      bufferPct,
+      risk,
+      adverseClusters,
+      note:
+        bufferPct <= 3
+          ? "Very close to liquidation — consider de-risking or adding margin."
+          : bufferPct <= 8
+            ? "Tight buffer — watch for sweeps into nearby liquidation clusters."
+            : "Healthy buffer to liquidation for now — still monitor cluster magnets.",
+    };
+  }, [selectedPosition, result]);
+
   return (
     <div className="space-y-4 max-w-5xl">
       <Card className="border-zinc-200 dark:border-zinc-700">
         <CardHeader>
           <CardTitle className="text-lg">Liquidation Map</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Enter a contract (BTC, ETH, SOL, XAU-style symbol) to view likely liquidity pools, liquidation bands, and trade area guidance.
+            Enter a contract manually, or import an open Blofin position to see liquidation clusters vs your liq price.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
+          {blofinConfigured === false && (
+            <p className="text-xs rounded-md border border-amber-300/50 dark:border-amber-700/50 bg-amber-50/80 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100 px-3 py-2">
+              Connect Blofin in <strong>NovaStaris AI Trading Bots</strong> → save API keys to import live positions here.
+            </p>
+          )}
+          {blofinConfigured && (
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="min-w-[260px] flex-1">
+                <label htmlFor="liq-blofin-pos" className="block text-xs text-muted-foreground mb-1">
+                  Your Blofin position
+                </label>
+                <select
+                  id="liq-blofin-pos"
+                  value={selectedPositionId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setSelectedPositionId(id);
+                    const p = positions.find((x) => x.id === id);
+                    if (p) {
+                      applyPosition(p);
+                    } else {
+                      setLinkedPosition(null);
+                    }
+                  }}
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm"
+                >
+                  <option value="">
+                    {positionsLoading ? "Loading positions…" : positions.length ? "Select a position…" : "No open positions"}
+                  </option>
+                  {positions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => loadPositions()} disabled={positionsLoading}>
+                {positionsLoading ? "Refreshing…" : "Refresh"}
+              </Button>
+              {selectedPosition && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600"
+                  disabled={loading}
+                  onClick={() => run(selectedPosition)}
+                >
+                  Analyze my position
+                </Button>
+              )}
+            </div>
+          )}
+          {positionsError && <p className="text-xs text-rose-600 dark:text-rose-400">{positionsError}</p>}
+          {personalLiqRead && (
+            <div
+              className={`rounded-md border px-3 py-2 text-xs space-y-1 ${
+                personalLiqRead.risk === "critical"
+                  ? "border-rose-400/60 bg-rose-50/90 dark:bg-rose-950/40"
+                  : personalLiqRead.risk === "high"
+                    ? "border-amber-400/60 bg-amber-50/90 dark:bg-amber-950/40"
+                    : "border-cyan-400/40 bg-cyan-50/80 dark:bg-cyan-950/30"
+              }`}
+            >
+              <p className="font-semibold text-zinc-900 dark:text-zinc-100">Your position liquidation</p>
+              <p>
+                Liq price: <strong>{fmtPrice(personalLiqRead.liq)}</strong>
+                {personalLiqRead.mark != null && (
+                  <>
+                    {" "}
+                    · Mark: <strong>{fmtPrice(personalLiqRead.mark)}</strong>
+                  </>
+                )}
+                {personalLiqRead.bufferPct != null && (
+                  <>
+                    {" "}
+                    · Buffer: <strong>{personalLiqRead.bufferPct.toFixed(2)}%</strong>
+                  </>
+                )}
+              </p>
+              <p className="text-muted-foreground">{personalLiqRead.note}</p>
+              {personalLiqRead.adverseClusters && personalLiqRead.adverseClusters.length > 0 && (
+                <p className="text-muted-foreground">
+                  {personalLiqRead.adverseClusters.length} market cluster(s) sit between mark and your liquidation zone.
+                </p>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 items-end">
             <div className="min-w-[220px] flex-1">
               <label htmlFor="liq-symbol" className="block text-xs text-muted-foreground mb-1">
@@ -178,7 +377,7 @@ export default function FuturesLiquidationMapPanel() {
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
               />
             </div>
-            <Button onClick={run} disabled={loading} className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700">
+            <Button onClick={() => run()} disabled={loading} className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700">
               {loading ? "Analyzing…" : "Search liquidation map"}
             </Button>
           </div>
