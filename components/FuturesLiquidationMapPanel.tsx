@@ -229,8 +229,8 @@ export default function FuturesLiquidationMapPanel() {
 
   const personalLiqRead = useMemo(() => {
     const p = selectedPosition;
-    const liq = p?.liquidationPrice;
-    if (liq == null) return null;
+    if (!p || p.liquidationPrice == null) return null;
+    const liq = p.liquidationPrice;
     const mark = p.markPrice ?? result?.markPrice ?? null;
     if (mark == null) {
       return {
