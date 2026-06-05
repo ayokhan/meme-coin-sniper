@@ -55,24 +55,31 @@ export function WelcomeVoice() {
 
     const runWelcome = () => {
       if (sessionStorage.getItem(SESSION_KEY)) return;
+      if (!("speechSynthesis" in window)) return;
+
       const doSpeak = () => {
         try {
-          const voices = speechSynthesis.getVoices();
+          const voices = window.speechSynthesis.getVoices();
           const voice = pickFemaleVoice(voices);
           const utterance = new SpeechSynthesisUtterance(WELCOME_SCRIPT);
           utterance.rate = 1.12;
           utterance.pitch = 1.25;
           utterance.volume = 1;
           if (voice) utterance.voice = voice;
-          speechSynthesis.speak(utterance);
+          window.speechSynthesis.speak(utterance);
           sessionStorage.setItem(SESSION_KEY, "1");
         } catch {
           // Speech not supported or blocked
         }
       };
-      const voices = speechSynthesis.getVoices();
-      if (voices.length > 0) doSpeak();
-      else speechSynthesis.onvoiceschanged = () => doSpeak();
+
+      try {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) doSpeak();
+        else window.speechSynthesis.onvoiceschanged = () => doSpeak();
+      } catch {
+        // Speech not supported or blocked
+      }
     };
 
     const startOnInteraction = () => {
