@@ -45,3 +45,13 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+# Android / Capacitor (keep android/ source; ignore local build artifacts)
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+*.jks
+*.keystore
+android/keystore.properties

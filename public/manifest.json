@@ -1,0 +1,11 @@
+{
+  "name": "NovaStaris",
+  "short_name": "NovaStaris",
+  "description": "AI crypto sniper, futures, and prediction market intelligence.",
+  "start_url": "https://novastaris.ai/",
+  "scope": "https://novastaris.ai/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#0891b2",
+  "orientation": "portrait-primary"
+}

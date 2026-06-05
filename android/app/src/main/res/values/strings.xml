@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NovaStaris</string>
+    <string name="title_activity_main">NovaStaris</string>
+    <string name="package_name">ai.novastaris.app</string>
+    <string name="custom_url_scheme">ai.novastaris.app</string>
+</resources>
