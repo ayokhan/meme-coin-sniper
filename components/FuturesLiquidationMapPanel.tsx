@@ -229,31 +229,33 @@ export default function FuturesLiquidationMapPanel() {
 
   const personalLiqRead = useMemo(() => {
     const p = selectedPosition;
-    if (!p?.liquidationPrice) return null;
+    const liq = p?.liquidationPrice;
+    if (liq == null) return null;
     const mark = p.markPrice ?? result?.markPrice ?? null;
     if (mark == null) {
       return {
-        liq: p.liquidationPrice,
+        liq,
         bufferPct: null,
         risk: "unknown" as const,
         note: "Liquidation price from Blofin. Run the map to compare vs current mark.",
+        adverseClusters: [] as Cluster[],
       };
     }
-    const bufferPct = bufferToLiquidationPct(p.side, mark, p.liquidationPrice);
+    const bufferPct = bufferToLiquidationPct(p.side, mark, liq);
     if (bufferPct == null) return null;
     const risk = bufferPct <= 3 ? "critical" : bufferPct <= 8 ? "high" : bufferPct <= 15 ? "medium" : "low";
     const adverseClusters =
       result?.clusters.filter((c) => {
         if (p.side === "long" && c.side === "long_liq_below") {
-          return c.price >= p.liquidationPrice && c.price <= mark;
+          return c.price >= liq && c.price <= mark;
         }
         if (p.side === "short" && c.side === "short_liq_above") {
-          return c.price <= p.liquidationPrice && c.price >= mark;
+          return c.price <= liq && c.price >= mark;
         }
         return false;
       }) ?? [];
     return {
-      liq: p.liquidationPrice,
+      liq,
       mark,
       bufferPct,
       risk,
