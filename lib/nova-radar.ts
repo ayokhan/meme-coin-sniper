@@ -22,6 +22,13 @@ import {
   estimateLimitFillProbability,
   type NovaRadarFillProbability,
 } from "@/lib/nova-radar-fill-probability";
+import {
+  computeNovaRadarCapitalGuard,
+  parseCapitalRiskTolerance,
+  parseInvestmentAmountUsdt,
+  type NovaRadarCapitalGuard,
+  type NovaRadarCapitalRiskTolerance,
+} from "@/lib/nova-radar-capital-guard";
 
 /** Structure table timeframes (short → long). */
 export const NOVA_RADAR_STRUCTURE_TFS = [
@@ -86,6 +93,8 @@ export type NovaRadarPlanResult = {
   score: number;
   leverage?: NovaRadarLeverageMetrics | null;
   fillProbability?: NovaRadarFillProbability | null;
+  /** Defined-risk stop + loss math when investment + risk tolerance set. */
+  capitalGuard?: NovaRadarCapitalGuard | null;
 };
 
 export type { NovaRadarFillProbability };
@@ -101,7 +110,13 @@ export type NovaRadarRunOptions = {
   maintenanceMarginRate?: number;
   maintenanceMarginNote?: string;
   contractValue?: number;
+  /** Nova Capital Guard — margin/capital allocated to this trade (USDT). */
+  investmentAmountUsdt?: number;
+  /** Nova Capital Guard — max % of investment willing to lose at SL. */
+  capitalRiskTolerance?: NovaRadarCapitalRiskTolerance;
 };
+
+export type { NovaRadarCapitalGuard, NovaRadarCapitalRiskTolerance };
 
 export type { NovaRadarLeverageMetrics, NovaRadarLeverageRisk, NovaRadarStressSource };
 
@@ -238,6 +253,14 @@ export function parseNovaRadarRunOptions(body: Record<string, unknown>): NovaRad
   if (typeof body.maintenanceMarginNote === "string") {
     opts.maintenanceMarginNote = body.maintenanceMarginNote;
   }
+  const investmentAmountUsdt = parseInvestmentAmountUsdt(
+    body.investmentAmountUsdt ?? body.investmentAmount ?? body.capitalAtRiskUsdt ?? body.marginUsdt
+  );
+  const capitalRiskTolerance = parseCapitalRiskTolerance(
+    body.capitalRiskTolerance ?? body.riskLevel ?? body.riskTolerance
+  );
+  if (investmentAmountUsdt != null) opts.investmentAmountUsdt = investmentAmountUsdt;
+  if (capitalRiskTolerance != null) opts.capitalRiskTolerance = capitalRiskTolerance;
   return opts;
 }
 
@@ -438,6 +461,13 @@ export function scoreNovaRadarPlan(r: NovaRadarPlanResult): number {
     s += Math.min(12, Math.floor(r.fillProbability.probabilityPct / 8));
   }
 
+  if (r.capitalGuard) {
+    s += 8;
+    if (r.capitalGuard.riskTolerance === "low" || r.capitalGuard.riskTolerance === "medium") {
+      s += 4;
+    }
+  }
+
   return s;
 }
 
@@ -502,6 +532,14 @@ export function buildNovaRadarRecommendation(
 
     if (p.fillProbability) {
       reasons.push(p.fillProbability.note);
+    }
+    if (p.capitalGuard) {
+      reasons.push(
+        `Nova Capital Guard (${p.capitalGuard.riskToleranceLabel}): place SL @ $${p.capitalGuard.finalStopLossPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })} — max ~$${p.capitalGuard.lossAtSlUsdt.toFixed(2)} loss (${p.capitalGuard.maxLossPctOfInvestment}% cap on $${p.capitalGuard.investmentAmountUsdt.toLocaleString()} margin).`
+      );
+      if (p.capitalGuard.flipSuggestion) {
+        reasons.push(p.capitalGuard.flipSuggestion.triggerCondition + " → " + p.capitalGuard.flipSuggestion.headline);
+      }
     }
     return {
       bestPlanId: p.planId,
@@ -801,6 +839,39 @@ export function analyzeNovaRadarPlan(
     }
   }
 
+  let capitalGuard: NovaRadarCapitalGuard | null = null;
+  if (
+    runOptions?.capitalRiskTolerance &&
+    runOptions.investmentAmountUsdt != null &&
+    runOptions.investmentAmountUsdt > 0 &&
+    runOptions.leverage != null &&
+    runOptions.leverage >= 1
+  ) {
+    const targets = resolvePlanLeverageTargets(plan, runOptions);
+    capitalGuard = computeNovaRadarCapitalGuard({
+      riskTolerance: runOptions.capitalRiskTolerance,
+      investmentAmountUsdt: runOptions.investmentAmountUsdt,
+      leverage: runOptions.leverage,
+      entryPrice: targetPrice,
+      side,
+      structureRows: tfRows,
+      userStopLossPrice: targets.stopLossPrice ?? null,
+    });
+    if (capitalGuard) {
+      summaryParts.push(
+        `Capital Guard SL $${fmtMoney(capitalGuard.finalStopLossPrice)} — max ~$${fmtMoney(capitalGuard.lossAtSlUsdt)} loss (${capitalGuard.lossAtSlPctOfInvestment.toFixed(1)}% of margin) at ${runOptions.leverage}×.`
+      );
+      if (capitalGuard.usesStructureTightening) {
+        caveats.push("Capital Guard tightened SL to structure while staying inside your risk budget.");
+      }
+      if (!targets.stopLossPrice) {
+        caveats.push(
+          `No manual SL entered — Nova Capital Guard recommends $${fmtMoney(capitalGuard.finalStopLossPrice)} (${capitalGuard.riskToleranceLabel}, max ${capitalGuard.maxLossPctOfInvestment}% of investment).`
+        );
+      }
+    }
+  }
+
   const result: NovaRadarPlanResult = {
     planId: plan.id,
     planLabel,
@@ -828,6 +899,7 @@ export function analyzeNovaRadarPlan(
     score: 0,
     leverage: leverageMetrics,
     fillProbability,
+    capitalGuard,
   };
   result.score = scoreNovaRadarPlan(result);
   return result;

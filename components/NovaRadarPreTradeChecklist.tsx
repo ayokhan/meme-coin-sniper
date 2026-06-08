@@ -39,7 +39,12 @@ export default function NovaRadarPreTradeChecklist({ plans, leverage }: Props) {
     {
       id: "sl",
       label: "Define a stop loss on the exchange — do not rely on structure alone.",
-      ok: plans.some((p) => p.leverage?.stopLossPrice != null),
+      ok: plans.some((p) => p.leverage?.stopLossPrice != null || p.capitalGuard != null),
+    },
+    {
+      id: "guard",
+      label: "Nova Capital Guard: place recommended SL on-exchange before adding margin on dips.",
+      ok: plans.every((p) => !p.capitalGuard || p.capitalGuard.lossAtSlPctOfInvestment <= p.capitalGuard.maxLossPctOfInvestment + 0.5),
     },
   ];
 

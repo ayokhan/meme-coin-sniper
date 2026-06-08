@@ -12,6 +12,11 @@ import type {
   NovaRadarPlanResult,
   NovaRadarRecommendation,
 } from "@/lib/nova-radar";
+import {
+  CAPITAL_GUARD_LABELS,
+  CAPITAL_GUARD_MAX_LOSS_PCT,
+  type NovaRadarCapitalRiskTolerance,
+} from "@/lib/nova-radar-capital-guard";
 import { buildSplitOrderSuggestion, type NovaRadarSplitSuggestion } from "@/lib/nova-radar-split";
 import {
   deleteNovaRadarSetup,
@@ -223,6 +228,61 @@ function PlanCard({
           </ul>
         </div>
       )}
+      {plan.capitalGuard && (
+        <div className="rounded-md border border-emerald-200/80 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/25 p-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">
+              Nova Capital Guard
+            </span>
+            <Badge variant="outline" className="border-emerald-500/60 text-emerald-800 dark:text-emerald-200">
+              {plan.capitalGuard.riskToleranceLabel}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              Max {plan.capitalGuard.maxLossPctOfInvestment}% of ${plan.capitalGuard.investmentAmountUsdt.toLocaleString()} margin
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div>
+              <span className="text-muted-foreground block">Recommended SL</span>
+              <span className="font-mono text-emerald-800 dark:text-emerald-200">
+                ${plan.capitalGuard.finalStopLossPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">Loss if SL hits</span>
+              <span className="text-rose-600 dark:text-rose-400 font-mono">
+                ~${plan.capitalGuard.lossAtSlUsdt.toFixed(2)}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">Loss % of margin</span>
+              <span className="text-rose-600 dark:text-rose-400">
+                ~{plan.capitalGuard.lossAtSlPctOfInvestment.toFixed(1)}%
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">ROE @ SL</span>
+              <span className="text-rose-600 dark:text-rose-400">
+                {plan.capitalGuard.roeAtSlPct.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+          {plan.capitalGuard.flipSuggestion && (
+            <div className="rounded border border-emerald-300/50 dark:border-emerald-700/50 bg-white/50 dark:bg-zinc-900/40 p-2 text-xs">
+              <p className="font-semibold text-emerald-900 dark:text-emerald-100">
+                {plan.capitalGuard.flipSuggestion.headline}
+              </p>
+              <p className="text-muted-foreground mt-0.5">{plan.capitalGuard.flipSuggestion.triggerCondition}</p>
+              <p className="mt-1 text-emerald-950/90 dark:text-emerald-50/90">{plan.capitalGuard.flipSuggestion.note}</p>
+            </div>
+          )}
+          <ul className="text-[11px] text-emerald-900/90 dark:text-emerald-100/90 list-disc pl-4 space-y-0.5">
+            {plan.capitalGuard.notes.slice(0, 3).map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {plan.estimatedReachDateEarly && plan.estimatedReachDateLate && plan.optimisticDays != null && plan.pessimisticDays != null && (
         <p className="text-xs font-mono text-violet-800 dark:text-violet-200">
           ETA band: {plan.estimatedReachDateEarly} → {plan.estimatedReachDateLate}{" "}
@@ -256,6 +316,9 @@ export default function NovaRadarPanel() {
   const [setupName, setSetupName] = useState("");
   const [liqPreview, setLiqPreview] = useState<{ liquidationPrice: number; note?: string } | null>(null);
   const [liqPreviewLoading, setLiqPreviewLoading] = useState(false);
+  const [investmentAmount, setInvestmentAmount] = useState("");
+  const [capitalRiskTolerance, setCapitalRiskTolerance] = useState<NovaRadarCapitalRiskTolerance | "">("");
+  const [useCapitalGuard, setUseCapitalGuard] = useState(false);
 
   useEffect(() => {
     setSavedSetups(loadNovaRadarSetups());
@@ -359,6 +422,14 @@ export default function NovaRadarPanel() {
       if (positionNotional.trim()) payload.positionNotionalUsdt = positionNotional.trim();
     }
 
+    if (useCapitalGuard && capitalRiskTolerance && investmentAmount.trim()) {
+      payload.capitalRiskTolerance = capitalRiskTolerance;
+      payload.investmentAmountUsdt = investmentAmount.trim();
+      if (!useLeverage && leverage.trim()) {
+        payload.leverage = leverage.trim();
+      }
+    }
+
     try {
       const res = await fetch("/api/nova-radar", {
         method: "POST",
@@ -433,6 +504,8 @@ export default function NovaRadarPanel() {
       takeProfit: takeProfit || undefined,
       stopLoss: stopLoss || undefined,
       positionNotional: positionNotional || undefined,
+      investmentAmount: investmentAmount || undefined,
+      capitalRiskTolerance: capitalRiskTolerance || undefined,
     });
     setSavedSetups(next);
     setSetupName("");
@@ -453,13 +526,21 @@ export default function NovaRadarPanel() {
     if (s.takeProfit) setTakeProfit(s.takeProfit);
     if (s.stopLoss) setStopLoss(s.stopLoss);
     if (s.positionNotional) setPositionNotional(s.positionNotional);
+    if (s.investmentAmount) {
+      setInvestmentAmount(s.investmentAmount);
+      setUseCapitalGuard(true);
+    }
+    if (s.capitalRiskTolerance) {
+      setCapitalRiskTolerance(s.capitalRiskTolerance);
+      setUseCapitalGuard(true);
+    }
   };
 
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-      <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaRadar (limit orders)</h2>
+      <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaRadar · NovaForecast Agent</h2>
       <p className="text-xs text-muted-foreground mb-2">
-        VIP only. Set <strong className="font-medium text-zinc-700 dark:text-zinc-300">trade plan 1</strong> (required) and optionally{" "}
+        VIP · NovaForecast Agent sub-tab. Set <strong className="font-medium text-zinc-700 dark:text-zinc-300">trade plan 1</strong> (required) and optionally{" "}
         <strong className="font-medium text-zinc-700 dark:text-zinc-300">trade plan 2</strong> to compare two limits on the same or different
         contracts. NovaRadar scores structure alignment, realism, and illustrative timing—optionally with leverage, TP, and SL for ROE and risk/reward—then recommends the stronger plan with reasons.
       </p>
@@ -545,6 +626,89 @@ export default function NovaRadarPanel() {
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">Enable to see ROE at TP/SL, risk/reward, and approximate liquidation per plan.</p>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-emerald-200/70 dark:border-emerald-800/50 bg-emerald-50/30 dark:bg-emerald-950/20 p-4 mb-4">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div>
+            <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">Nova Capital Guard (optional)</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Defined-risk mode — caps loss at your chosen level and recommends a stop loss + flip-ready plan if stopped out.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer shrink-0">
+            <input
+              type="checkbox"
+              checked={useCapitalGuard}
+              onChange={(e) => setUseCapitalGuard(e.target.checked)}
+              className="rounded border-zinc-400"
+            />
+            Enable
+          </label>
+        </div>
+        {useCapitalGuard ? (
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Risk level</label>
+              <select
+                value={capitalRiskTolerance}
+                onChange={(e) => setCapitalRiskTolerance(e.target.value as NovaRadarCapitalRiskTolerance | "")}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 min-w-[160px] bg-white dark:bg-zinc-800"
+              >
+                <option value="">Select…</option>
+                {(Object.keys(CAPITAL_GUARD_LABELS) as NovaRadarCapitalRiskTolerance[]).map((key) => (
+                  <option key={key} value={key}>
+                    {CAPITAL_GUARD_LABELS[key]} (~{CAPITAL_GUARD_MAX_LOSS_PCT[key]}% max loss)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Investment / margin (USDT)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="e.g. 500"
+                value={investmentAmount}
+                onChange={(e) => setInvestmentAmount(e.target.value)}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-28 bg-white dark:bg-zinc-800"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Leverage (×)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="30"
+                value={leverage}
+                onChange={(e) => setLeverage(e.target.value)}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-20 bg-white dark:bg-zinc-800"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground max-w-xl">
+              Nova recommends SL price, $ loss, and % of margin at risk.{" "}
+              <strong className="font-medium text-emerald-800 dark:text-emerald-200">Extreme high</strong> still uses a stop — it caps loss (~20% of margin), unlike trading with no SL.
+              After a stop, see <strong className="font-medium">Flip-Ready play</strong> for the opposite direction.
+            </p>
+            {plans?.[0]?.capitalGuard && !stopLoss.trim() && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs border-emerald-400 text-emerald-800 dark:text-emerald-200"
+                onClick={() =>
+                  setStopLoss(String(plans[0].capitalGuard!.finalStopLossPrice))
+                }
+              >
+                Apply recommended SL (${plans[0].capitalGuard.finalStopLossPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })})
+              </Button>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Set risk level + investment to get a stop loss recommendation and max loss in $ and % — protects capital during dips.
+          </p>
         )}
       </div>
 

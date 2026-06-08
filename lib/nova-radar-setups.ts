@@ -1,5 +1,7 @@
 /** Client-side saved NovaRadar setups (localStorage). */
 
+import type { NovaRadarCapitalRiskTolerance } from "@/lib/nova-radar-capital-guard";
+
 export type NovaRadarSavedSetup = {
   id: string;
   name: string;
@@ -11,6 +13,8 @@ export type NovaRadarSavedSetup = {
   takeProfit?: string;
   stopLoss?: string;
   positionNotional?: string;
+  investmentAmount?: string;
+  capitalRiskTolerance?: NovaRadarCapitalRiskTolerance | "";
 };
 
 const STORAGE_KEY = "novastaris-nova-radar-setups-v1";
