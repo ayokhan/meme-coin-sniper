@@ -1,20 +1,29 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, isOwnerSession } from "@/lib/auth";
+import { getConfig } from "@/lib/blofin";
 import { getBlofinConfigForUser, saveBlofinConfigForUser, deleteBlofinConfigForUser } from "@/lib/blofin-user-config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-/** GET: whether current user has Blofin keys configured (no keys returned). */
+/** GET: whether current user has Blofin keys configured (no keys returned). Owners may use server BLOFIN_* env. */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
     }
-    const config = await getBlofinConfigForUser(session.user.id);
-    return NextResponse.json({ success: true, configured: !!config });
+    const saved = await getBlofinConfigForUser(session.user.id);
+    if (saved) {
+      return NextResponse.json({ success: true, configured: true, credentialSource: "saved" });
+    }
+    const isOwner = isOwnerSession(session);
+    const serverConfig = isOwner ? getConfig() : null;
+    if (serverConfig) {
+      return NextResponse.json({ success: true, configured: true, credentialSource: "server" });
+    }
+    return NextResponse.json({ success: true, configured: false, credentialSource: null });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to check config";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

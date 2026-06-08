@@ -323,6 +323,7 @@ export default function NovaRadarPanel() {
   const [marketRead, setMarketRead] = useState<UnifiedMarketRead | null>(null);
   const [splitSuggestion, setSplitSuggestion] = useState<NovaRadarSplitSuggestion | null>(null);
   const [blofinKeysConfigured, setBlofinKeysConfigured] = useState<boolean | null>(null);
+  const [blofinCredentialSource, setBlofinCredentialSource] = useState<"saved" | "server" | null>(null);
   const [splitDeepPct, setSplitDeepPct] = useState(70);
   const [savedSetups, setSavedSetups] = useState<NovaRadarSavedSetup[]>([]);
   const [setupName, setSetupName] = useState("");
@@ -364,8 +365,16 @@ export default function NovaRadarPanel() {
     setSavedSetups(loadNovaRadarSetups());
     fetch("/api/user/blofin-config", { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => setBlofinKeysConfigured(d.success && d.configured === true))
-      .catch(() => setBlofinKeysConfigured(null));
+      .then((d) => {
+        setBlofinKeysConfigured(d.success && d.configured === true);
+        setBlofinCredentialSource(
+          d.credentialSource === "saved" || d.credentialSource === "server" ? d.credentialSource : null
+        );
+      })
+      .catch(() => {
+        setBlofinKeysConfigured(null);
+        setBlofinCredentialSource(null);
+      });
   }, []);
 
   useEffect(() => {
@@ -676,6 +685,16 @@ export default function NovaRadarPanel() {
           <p className="text-xs text-amber-900 dark:text-amber-100">
             Save your Blofin API keys once under{" "}
             <strong className="font-medium">NovaStaris AI Trading Bots → Blofin keys</strong> — then return here; no second Blofin login.
+          </p>
+        )}
+        {blofinKeysConfigured === true && blofinCredentialSource === "server" && (
+          <p className="text-xs text-emerald-800 dark:text-emerald-200">
+            Owner: using server Blofin keys (Vercel <code className="text-[10px]">BLOFIN_*</code>) — positions sync automatically; no Trading Bot key setup needed.
+          </p>
+        )}
+        {blofinKeysConfigured === true && blofinCredentialSource === "saved" && (
+          <p className="text-xs text-emerald-800 dark:text-emerald-200">
+            Blofin connected via your saved API keys — syncs each visit; no Blofin website login.
           </p>
         )}
         {blofinKeysConfigured === null && (
