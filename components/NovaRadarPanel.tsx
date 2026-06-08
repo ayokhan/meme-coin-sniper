@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,8 +15,10 @@ import type {
 import {
   CAPITAL_GUARD_LABELS,
   CAPITAL_GUARD_MAX_LOSS_PCT,
+  type NovaRadarCapitalGuard,
   type NovaRadarCapitalRiskTolerance,
 } from "@/lib/nova-radar-capital-guard";
+import type { NovaRadarBlofinOpenPosition } from "@/lib/nova-radar-blofin-positions";
 import { buildSplitOrderSuggestion, type NovaRadarSplitSuggestion } from "@/lib/nova-radar-split";
 import {
   deleteNovaRadarSetup,
@@ -86,6 +88,70 @@ function SideToggle({
       >
         Short
       </button>
+    </div>
+  );
+}
+
+function CapitalGuardCard({
+  guard,
+  onApplySl,
+}: {
+  guard: NovaRadarCapitalGuard;
+  onApplySl?: () => void;
+}) {
+  return (
+    <div className="rounded-md border border-emerald-200/80 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/25 p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">Nova Capital Guard</span>
+        {guard.openPosition?.missingStopAlert && (
+          <Badge variant="outline" className="border-rose-500/70 text-rose-800 dark:text-rose-200">
+            No SL on Blofin
+          </Badge>
+        )}
+        <Badge variant="outline" className="border-emerald-500/60 text-emerald-800 dark:text-emerald-200">
+          {guard.riskToleranceLabel}
+        </Badge>
+        <span className="text-xs text-muted-foreground">
+          Max {guard.maxLossPctOfInvestment}% of ${guard.investmentAmountUsdt.toLocaleString()} margin
+        </span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        <div>
+          <span className="text-muted-foreground block">Recommended SL</span>
+          <span className="font-mono text-emerald-800 dark:text-emerald-200">
+            ${guard.finalStopLossPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+          </span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block">Loss if SL hits</span>
+          <span className="text-rose-600 dark:text-rose-400 font-mono">~${guard.lossAtSlUsdt.toFixed(2)}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block">Loss % of margin</span>
+          <span className="text-rose-600 dark:text-rose-400">~{guard.lossAtSlPctOfInvestment.toFixed(1)}%</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block">ROE @ SL</span>
+          <span className="text-rose-600 dark:text-rose-400">{guard.roeAtSlPct.toFixed(1)}%</span>
+        </div>
+      </div>
+      {onApplySl && (
+        <Button type="button" variant="outline" size="sm" className="text-xs h-8" onClick={onApplySl}>
+          Apply recommended SL to form
+        </Button>
+      )}
+      {guard.flipSuggestion && (
+        <div className="rounded border border-emerald-300/50 dark:border-emerald-700/50 bg-white/50 dark:bg-zinc-900/40 p-2 text-xs">
+          <p className="font-semibold text-emerald-900 dark:text-emerald-100">{guard.flipSuggestion.headline}</p>
+          <p className="text-muted-foreground mt-0.5">{guard.flipSuggestion.triggerCondition}</p>
+          <p className="mt-1 text-emerald-950/90 dark:text-emerald-50/90">{guard.flipSuggestion.note}</p>
+        </div>
+      )}
+      <ul className="text-[11px] text-emerald-900/90 dark:text-emerald-100/90 list-disc pl-4 space-y-0.5">
+        {guard.notes.slice(0, 4).map((n) => (
+          <li key={n}>{n}</li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -228,61 +294,7 @@ function PlanCard({
           </ul>
         </div>
       )}
-      {plan.capitalGuard && (
-        <div className="rounded-md border border-emerald-200/80 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/25 p-3 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">
-              Nova Capital Guard
-            </span>
-            <Badge variant="outline" className="border-emerald-500/60 text-emerald-800 dark:text-emerald-200">
-              {plan.capitalGuard.riskToleranceLabel}
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              Max {plan.capitalGuard.maxLossPctOfInvestment}% of ${plan.capitalGuard.investmentAmountUsdt.toLocaleString()} margin
-            </span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-            <div>
-              <span className="text-muted-foreground block">Recommended SL</span>
-              <span className="font-mono text-emerald-800 dark:text-emerald-200">
-                ${plan.capitalGuard.finalStopLossPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block">Loss if SL hits</span>
-              <span className="text-rose-600 dark:text-rose-400 font-mono">
-                ~${plan.capitalGuard.lossAtSlUsdt.toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block">Loss % of margin</span>
-              <span className="text-rose-600 dark:text-rose-400">
-                ~{plan.capitalGuard.lossAtSlPctOfInvestment.toFixed(1)}%
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block">ROE @ SL</span>
-              <span className="text-rose-600 dark:text-rose-400">
-                {plan.capitalGuard.roeAtSlPct.toFixed(1)}%
-              </span>
-            </div>
-          </div>
-          {plan.capitalGuard.flipSuggestion && (
-            <div className="rounded border border-emerald-300/50 dark:border-emerald-700/50 bg-white/50 dark:bg-zinc-900/40 p-2 text-xs">
-              <p className="font-semibold text-emerald-900 dark:text-emerald-100">
-                {plan.capitalGuard.flipSuggestion.headline}
-              </p>
-              <p className="text-muted-foreground mt-0.5">{plan.capitalGuard.flipSuggestion.triggerCondition}</p>
-              <p className="mt-1 text-emerald-950/90 dark:text-emerald-50/90">{plan.capitalGuard.flipSuggestion.note}</p>
-            </div>
-          )}
-          <ul className="text-[11px] text-emerald-900/90 dark:text-emerald-100/90 list-disc pl-4 space-y-0.5">
-            {plan.capitalGuard.notes.slice(0, 3).map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {plan.capitalGuard && <CapitalGuardCard guard={plan.capitalGuard} />}
       {plan.estimatedReachDateEarly && plan.estimatedReachDateLate && plan.optimisticDays != null && plan.pessimisticDays != null && (
         <p className="text-xs font-mono text-violet-800 dark:text-violet-200">
           ETA band: {plan.estimatedReachDateEarly} → {plan.estimatedReachDateLate}{" "}
@@ -319,6 +331,34 @@ export default function NovaRadarPanel() {
   const [investmentAmount, setInvestmentAmount] = useState("");
   const [capitalRiskTolerance, setCapitalRiskTolerance] = useState<NovaRadarCapitalRiskTolerance | "">("");
   const [useCapitalGuard, setUseCapitalGuard] = useState(false);
+  const [blofinPositions, setBlofinPositions] = useState<NovaRadarBlofinOpenPosition[]>([]);
+  const [positionsLoading, setPositionsLoading] = useState(false);
+  const [positionsError, setPositionsError] = useState<string | null>(null);
+  const [selectedPositionId, setSelectedPositionId] = useState("");
+  const [openPositionGuard, setOpenPositionGuard] = useState<NovaRadarCapitalGuard | null>(null);
+  const [openGuardLoading, setOpenGuardLoading] = useState(false);
+
+  const loadBlofinPositions = useCallback(async () => {
+    setPositionsLoading(true);
+    setPositionsError(null);
+    try {
+      const res = await fetch("/api/nova-radar/blofin-positions", { credentials: "include" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setBlofinPositions(data.positions as NovaRadarBlofinOpenPosition[]);
+        if (typeof data.configured === "boolean") setBlofinKeysConfigured(data.configured);
+      } else {
+        setBlofinPositions([]);
+        setPositionsError(data?.error ?? `Error ${res.status}`);
+        if (data?.configured === false) setBlofinKeysConfigured(false);
+      }
+    } catch (e) {
+      setBlofinPositions([]);
+      setPositionsError(e instanceof Error ? e.message : "Failed to load positions");
+    } finally {
+      setPositionsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     setSavedSetups(loadNovaRadarSetups());
@@ -327,6 +367,10 @@ export default function NovaRadarPanel() {
       .then((d) => setBlofinKeysConfigured(d.success && d.configured === true))
       .catch(() => setBlofinKeysConfigured(null));
   }, []);
+
+  useEffect(() => {
+    if (blofinKeysConfigured === true) loadBlofinPositions();
+  }, [blofinKeysConfigured, loadBlofinPositions]);
 
   useEffect(() => {
     if (!useLeverage) {
@@ -536,6 +580,71 @@ export default function NovaRadarPanel() {
     }
   };
 
+  const applyOpenPosition = (p: NovaRadarBlofinOpenPosition) => {
+    setSelectedPositionId(p.id);
+    setOpenPositionGuard(null);
+    setPlan1({
+      symbol: p.symbol,
+      limitPrice: p.entryPrice != null ? String(p.entryPrice) : "",
+      side: p.side,
+      takeProfit: p.exchangeTakeProfitPrice != null ? String(p.exchangeTakeProfitPrice) : "",
+      stopLoss: p.exchangeStopLossPrice != null ? String(p.exchangeStopLossPrice) : "",
+    });
+    if (p.leverage != null && p.leverage >= 1) setLeverage(String(Math.round(p.leverage)));
+    if (p.marginUsdt != null && p.marginUsdt > 0) {
+      setInvestmentAmount(String(Math.round(p.marginUsdt * 100) / 100));
+    }
+    setUseCapitalGuard(true);
+    setUseLeverage(true);
+    if (!capitalRiskTolerance) setCapitalRiskTolerance("extreme_high");
+  };
+
+  const runOpenPositionGuard = async () => {
+    if (!selectedPositionId) {
+      setError("Select an open Blofin position.");
+      return;
+    }
+    if (!capitalRiskTolerance) {
+      setError("Select a Capital Guard risk level.");
+      return;
+    }
+    setOpenGuardLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/nova-radar/open-position-guard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          positionId: selectedPositionId,
+          capitalRiskTolerance,
+          investmentAmountUsdt: investmentAmount.trim() || undefined,
+          leverage: leverage.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.capitalGuard) {
+        setOpenPositionGuard(data.capitalGuard as NovaRadarCapitalGuard);
+        if (data.position?.entryPrice != null) {
+          setPlan1((prev) => ({
+            ...prev,
+            symbol: data.position.symbol,
+            limitPrice: String(data.position.entryPrice),
+            side: data.position.side,
+          }));
+        }
+      } else {
+        setOpenPositionGuard(null);
+        setError(data?.error ?? `Error ${res.status}`);
+      }
+    } catch (e) {
+      setOpenPositionGuard(null);
+      setError(e instanceof Error ? e.message : "Capital Guard failed");
+    } finally {
+      setOpenGuardLoading(false);
+    }
+  };
+
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
       <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaRadar · NovaForecast Agent</h2>
@@ -547,6 +656,76 @@ export default function NovaRadarPanel() {
       <PlatformHealthStrip className="mb-2" />
       <TradingRiskDisclaimer compact context="radar" />
       <div className="mb-4" />
+
+      <div className="rounded-lg border border-amber-200/70 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-950/20 p-4 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div>
+            <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">Open Blofin position · Capital Guard</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Link a live trade from your Blofin account (same keys as Trading Bot — connect once, syncs each visit).
+              Detects missing stop loss and recommends SL + max loss in $ and %.
+            </p>
+          </div>
+          {blofinKeysConfigured === true && (
+            <Button type="button" variant="outline" size="sm" disabled={positionsLoading} onClick={loadBlofinPositions}>
+              {positionsLoading ? "Refreshing…" : "Refresh positions"}
+            </Button>
+          )}
+        </div>
+        {blofinKeysConfigured === false && (
+          <p className="text-xs text-amber-900 dark:text-amber-100">
+            Save your Blofin API keys once under{" "}
+            <strong className="font-medium">NovaStaris AI Trading Bots → Blofin keys</strong> — then return here; no second Blofin login.
+          </p>
+        )}
+        {blofinKeysConfigured === null && (
+          <p className="text-xs text-muted-foreground">Checking Blofin connection…</p>
+        )}
+        {blofinKeysConfigured === true && (
+          <div className="flex flex-wrap items-end gap-3 mt-2">
+            <div className="min-w-[220px] flex-1">
+              <label className="text-xs text-muted-foreground block mb-1">Your open position</label>
+              <select
+                value={selectedPositionId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedPositionId(id);
+                  const p = blofinPositions.find((x) => x.id === id);
+                  if (p) applyOpenPosition(p);
+                }}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-full bg-white dark:bg-zinc-800"
+              >
+                <option value="">
+                  {positionsLoading
+                    ? "Loading…"
+                    : blofinPositions.length === 0
+                      ? "No open positions on Blofin"
+                      : "Select position…"}
+                </option>
+                {blofinPositions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+        {positionsError && <p className="text-xs text-rose-600 dark:text-rose-400 mt-2">{positionsError}</p>}
+        {blofinPositions.some((p) => p.missingStopAlert) && (
+          <p className="text-xs text-rose-700 dark:text-rose-300 mt-2 font-medium">
+            {blofinPositions.filter((p) => p.missingStopAlert).length} position(s) have no stop on Blofin — select one and run Capital Guard.
+          </p>
+        )}
+        {openPositionGuard && (
+          <div className="mt-3">
+            <CapitalGuardCard
+              guard={openPositionGuard}
+              onApplySl={() => setStopLoss(String(openPositionGuard.finalStopLossPrice))}
+            />
+          </div>
+        )}
+      </div>
 
       <div className="rounded-lg border border-sky-200/70 dark:border-sky-800/50 bg-sky-50/30 dark:bg-sky-950/20 p-4 mb-4">
         <div className="flex items-center justify-between gap-2 mb-3">
@@ -702,6 +881,17 @@ export default function NovaRadarPanel() {
                 }
               >
                 Apply recommended SL (${plans[0].capitalGuard.finalStopLossPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })})
+              </Button>
+            )}
+            {selectedPositionId && (
+              <Button
+                type="button"
+                size="sm"
+                disabled={openGuardLoading || !capitalRiskTolerance}
+                onClick={runOpenPositionGuard}
+                className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-8"
+              >
+                {openGuardLoading ? "Analyzing open position…" : "Run Capital Guard on Blofin position"}
               </Button>
             )}
           </div>

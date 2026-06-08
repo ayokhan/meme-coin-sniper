@@ -450,6 +450,52 @@ export async function getOpenOrders(options?: {
   return [];
 }
 
+export type PendingTPSLRow = {
+  tpslId: string;
+  instId: string;
+  side: string;
+  tpTriggerPrice: number | null;
+  slTriggerPrice: number | null;
+  size: string;
+  state: string;
+};
+
+function parseTpslPrice(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** GET pending TP/SL orders (Blofin orders-tpsl-pending). */
+export async function getPendingTPSLOrders(options?: {
+  demo?: boolean;
+  instId?: string;
+  limit?: number;
+  config?: BlofinConfig | null;
+}): Promise<PendingTPSLRow[]> {
+  const limit = options?.limit ?? 100;
+  const q = new URLSearchParams({ limit: String(limit) });
+  if (options?.instId) q.set("instId", options.instId);
+  const path = `/api/v1/trade/orders-tpsl-pending?${q.toString()}`;
+  const out = await privateRequest<unknown>("GET", path, undefined, options?.demo, options?.config);
+  assertBlofinOk(out, "pending TP/SL");
+  const raw = out.data;
+  const list: Record<string, unknown>[] = Array.isArray(raw)
+    ? (raw as Record<string, unknown>[])
+    : raw && typeof raw === "object" && Array.isArray((raw as { data?: unknown[] }).data)
+      ? (raw as { data: Record<string, unknown>[] }).data
+      : [];
+  return list.map((o) => ({
+    tpslId: String(o.tpslId ?? o.orderId ?? ""),
+    instId: String(o.instId ?? o.inst_id ?? ""),
+    side: String(o.side ?? ""),
+    tpTriggerPrice: parseTpslPrice(o.tpTriggerPrice ?? o.tp_trigger_price),
+    slTriggerPrice: parseTpslPrice(o.slTriggerPrice ?? o.sl_trigger_price),
+    size: String(o.size ?? o.sz ?? "0"),
+    state: String(o.state ?? "live"),
+  }));
+}
+
 /** GET order history (filled/canceled). options.demo: use bot mode. options.config: per-user keys. Includes pnl when present (e.g. closing orders). */
 export async function getOrderHistory(options?: {
   demo?: boolean;

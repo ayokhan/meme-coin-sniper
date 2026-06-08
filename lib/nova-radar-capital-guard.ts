@@ -31,6 +31,8 @@ export type NovaRadarCapitalGuardInput = {
   structureRows?: NovaRadarTfRow[];
   /** User-entered SL — if tighter than guard SL, we note it. */
   userStopLossPrice?: number | null;
+  /** Live Blofin position context (open-position mode). */
+  openPosition?: NovaRadarCapitalGuard["openPosition"];
 };
 
 export type NovaRadarFlipSuggestion = {
@@ -58,6 +60,20 @@ export type NovaRadarCapitalGuard = {
   usesStructureTightening: boolean;
   flipSuggestion: NovaRadarFlipSuggestion | null;
   notes: string[];
+  /** Set when guard runs against a live Blofin position. */
+  openPosition?: {
+    instId: string;
+    symbol: string;
+    side: "long" | "short";
+    entryPrice: number;
+    markPrice: number | null;
+    leverage: number | null;
+    liquidationPrice: number | null;
+    marginUsdt: number | null;
+    hasExchangeStopLoss: boolean;
+    exchangeStopLossPrice: number | null;
+    missingStopAlert: boolean;
+  };
 };
 
 export function parseCapitalRiskTolerance(raw: unknown): NovaRadarCapitalRiskTolerance | null {
@@ -161,6 +177,17 @@ export function computeNovaRadarCapitalGuard(input: NovaRadarCapitalGuardInput):
   const lossAtSlPctOfInvestment = (lossAtSlUsdt / investmentAmountUsdt) * 100;
 
   const notes: string[] = [];
+
+  if (input.openPosition?.missingStopAlert) {
+    notes.push(
+      "⚠ No stop loss detected on Blofin for this position — Capital Guard recommends placing a stop on-exchange before the next dip (do not rely on hope or margin adds)."
+    );
+  } else if (input.openPosition?.hasExchangeStopLoss && input.openPosition.exchangeStopLossPrice != null) {
+    notes.push(
+      `Blofin SL already set @ $${fmtMoney(input.openPosition.exchangeStopLossPrice)} — compare with Capital Guard recommendation below.`
+    );
+  }
+
   notes.push(
     `Nova Capital Guard (${CAPITAL_GUARD_LABELS[riskTolerance]}): cap loss at ~${maxLossPct}% of $${fmtMoney(investmentAmountUsdt)} margin (≈ $${fmtMoney(maxLossAmountUsdt)} max).`
   );
@@ -220,5 +247,6 @@ export function computeNovaRadarCapitalGuard(input: NovaRadarCapitalGuardInput):
     usesStructureTightening,
     flipSuggestion,
     notes,
+    ...(input.openPosition ? { openPosition: input.openPosition } : {}),
   };
 }
