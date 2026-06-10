@@ -108,6 +108,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_FOREX_FIB: 'nova_forex_fib',
   /** VIP: Nova Forex Scalp Agent subtab. Default OFF until admin enables. */
   NOVA_FOREX_SCALP_AGENT: 'nova_forex_scalp_agent',
+  /** Owner-only: RAG retrieval over past Solana token analyses (requires OPENAI_API_KEY). Default OFF. */
+  AI_ANALYSIS_RAG: 'ai_analysis_rag',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -138,6 +140,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_FOREX_AGENT,
   FEATURE_FLAG_KEYS.NOVA_FOREX_FIB,
   FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_AGENT,
+  FEATURE_FLAG_KEYS.AI_ANALYSIS_RAG,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {

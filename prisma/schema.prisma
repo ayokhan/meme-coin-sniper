@@ -675,6 +675,22 @@ model AiAnalysisFeedback {
   @@index([createdAt])
 }
 
+// Owner-only RAG corpus: embedded token analysis summaries for retrieval (feature-flagged)
+model AiAnalysisEmbedding {
+  id              String   @id @default(cuid())
+  contractAddress String
+  chain           String   @default("solana")
+  symbol          String?
+  summaryText     String   @db.Text
+  embedding       Json     // number[] from OpenAI text-embedding-3-small
+  score           Int?
+  signal          String?
+  feedbackOutcome String?  // good | bad from AiAnalysisFeedback when stored
+  createdAt       DateTime @default(now())
+  @@index([contractAddress])
+  @@index([createdAt])
+}
+
 // Owner-only feedback on NovaSmart Analysis (did the suggestion work?)
 model NovaSmartFeedback {
   id        String   @id @default(cuid())

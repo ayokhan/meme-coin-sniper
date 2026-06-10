@@ -111,7 +111,45 @@ declare module '@prisma/client' {
     };
     aiAnalysisFeedback: {
       create: (args: { data: { contractAddress: string; outcome: string; note?: string | null; score?: number | null; signal?: string | null; userId?: string | null } }) => Promise<unknown>;
+      findFirst: (args?: { where?: { contractAddress?: string }; orderBy?: { createdAt?: 'asc' | 'desc' }; select?: { outcome?: true } }) => Promise<{ outcome: string } | null>;
       findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<unknown[]>;
+    };
+    aiAnalysisEmbedding: {
+      findMany: (args?: {
+        orderBy?: { createdAt?: 'asc' | 'desc' };
+        take?: number;
+        select?: {
+          contractAddress?: true;
+          symbol?: true;
+          summaryText?: true;
+          embedding?: true;
+          score?: true;
+          signal?: true;
+          feedbackOutcome?: true;
+        };
+      }) => Promise<
+        Array<{
+          contractAddress: string;
+          symbol: string | null;
+          summaryText: string;
+          embedding: unknown;
+          score: number | null;
+          signal: string | null;
+          feedbackOutcome: string | null;
+        }>
+      >;
+      create: (args: {
+        data: {
+          contractAddress: string;
+          chain?: string;
+          symbol?: string | null;
+          summaryText: string;
+          embedding: unknown;
+          score?: number | null;
+          signal?: string | null;
+          feedbackOutcome?: string | null;
+        };
+      }) => Promise<unknown>;
     };
     novaFiveMinsOwnerFeedback: {
       create: (args: {

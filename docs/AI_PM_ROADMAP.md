@@ -86,6 +86,13 @@ You already have **implicit labels**: Admin → AI Feedback stores `outcome` (go
    - Append to the prompt: “Relevant past analyses or similar tokens:\n…” and then the current token.
 4. **Where in code:** In `lib/ai-analyze.ts`, after building `tokenSummary`, call a `retrieveRelevantAnalyses(tokenSummary, k = 3)` (or similar), then add the retrieved blobs to the prompt string before the JSON block.
 
+### Rollout policy (agreed)
+
+- **Feature flag:** `ai_analysis_rag` in `lib/feature-flags.ts` — add to `DEFAULT_DISABLED_KEYS` so it starts **OFF**.
+- **Owner-only:** In `/api/ai-analyze`, call RAG only when `getFeatureFlag('ai_analysis_rag')` **and** `isOwnerSession()` — Pro/VIP users always get the current analysis path until you widen access.
+- **Admin:** Toggle under Admin → Feature Flags; no redeploy needed to turn off.
+- See `docs/RAG_AND_EVALS_LEARNING_GUIDE.md` for full safety + eval workflow.
+
 ### Resume / interview angle
 
 - “I added RAG over our historical analyses so the model stays consistent and can reference similar tokens, improving reliability and reducing contradictory advice.”

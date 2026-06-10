@@ -25,6 +25,7 @@ function fromDatetimeLocalValue(value: string): string | null {
 }
 
 const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean }[] = [
+  { id: "ai", title: "AI experiments", match: (k) => k.startsWith("ai_") },
   { id: "moralis", title: "API & notifications", match: (k) => k.startsWith("moralis_") || k.startsWith("telegram_") || k === "live_trades_enabled" },
   {
     id: "wallet-subs",
@@ -41,6 +42,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
 ];
 
 const FLAG_LABELS: Record<string, { label: string; description: string }> = {
+  ai_analysis_rag: {
+    label: "AI Analysis RAG (owner-only)",
+    description:
+      "When ON, owner Solana AI analyses retrieve similar past analyses from the embedding corpus before Claude runs. Requires OPENAI_API_KEY. Pro/VIP users are unaffected. Default OFF.",
+  },
   moralis_go_hunting: {
     label: "Go Hunting (Moralis)",
     description: "Use Moralis for New pairs and Scan fallback. When OFF, no Moralis API calls for Go Hunting or Scan.",

@@ -693,6 +693,19 @@ export default function Dashboard() {
       stopLossPct?: string;
     };
     tokenInfo: { symbol?: string; name?: string; contractAddress?: string; liquidityUsd?: number; volume24h?: number; priceUsd?: number | null; priceChange24hPct?: number; marketCapUsd?: number | null; securityIssues?: string[]; securityWarnings?: string[] };
+    ragEnabled?: boolean;
+    ragUsed?: boolean;
+    ragConfigured?: boolean;
+    ragSnippets?: Array<{
+      contractAddress: string;
+      symbol?: string | null;
+      score?: number | null;
+      signal?: string | null;
+      feedbackOutcome?: string | null;
+      summaryText: string;
+      similarity: number;
+      sameToken?: boolean;
+    }>;
   } | null>(null);
   const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
   type PinnedItem = { contractAddress: string; chain?: string; symbol?: string | null; name?: string | null; pinnedAt: string; lastAnalyzedAt: string | null; analysisResult: Record<string, unknown> | null };
@@ -2419,6 +2432,10 @@ export default function Dashboard() {
           amountRiskNote: data.amountRiskNote,
           recommendations: data.recommendations,
           tokenInfo: { ...data.tokenInfo, contractAddress: ca },
+          ragEnabled: data.ragEnabled === true,
+          ragUsed: data.ragUsed === true,
+          ragConfigured: data.ragConfigured === true,
+          ragSnippets: Array.isArray(data.ragSnippets) ? data.ragSnippets : undefined,
         });
       } else {
         if (res.status === 403 && data.locked) setAiAnalysisError(data.error || "Subscribe to access NovaStaris AI Agent.");
@@ -3829,7 +3846,47 @@ export default function Dashboard() {
                           </Badge>
                         );
                       })()}
+                      {isOwner && aiAnalysisResult.ragEnabled && (
+                        <Badge
+                          variant="outline"
+                          className="text-sm font-semibold px-3 py-1 border-violet-400/60 bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200"
+                          title="Owner-only RAG experiment (Admin → Feature Flags → AI Analysis RAG)"
+                        >
+                          {aiAnalysisResult.ragUsed ? "RAG context used" : "RAG experiment on"}
+                        </Badge>
+                      )}
                     </div>
+                    {isOwner && aiAnalysisResult.ragEnabled && !aiAnalysisResult.ragConfigured && (
+                      <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                        RAG flag is on but OPENAI_API_KEY is not set — analysis ran without retrieval. Add the key in Vercel env to enable embeddings.
+                      </p>
+                    )}
+                    {isOwner && aiAnalysisResult.ragEnabled && aiAnalysisResult.ragConfigured && !aiAnalysisResult.ragUsed && (
+                      <p className="mt-2 text-xs text-violet-700 dark:text-violet-300">
+                        RAG is on — corpus is still building. Run a few more analyses; similar past tokens will appear here.
+                      </p>
+                    )}
+                    {isOwner && aiAnalysisResult.ragUsed && (aiAnalysisResult.ragSnippets?.length ?? 0) > 0 && (
+                      <details className="mt-3 rounded-lg border border-violet-200/80 dark:border-violet-800/80 bg-violet-50/40 dark:bg-violet-950/20 p-3 text-sm">
+                        <summary className="cursor-pointer font-medium text-violet-800 dark:text-violet-200">
+                          Retrieved context ({aiAnalysisResult.ragSnippets!.length} past analyses)
+                        </summary>
+                        <ul className="mt-2 space-y-2 text-violet-900/90 dark:text-violet-100/90">
+                          {aiAnalysisResult.ragSnippets!.map((s, i) => (
+                            <li key={`${s.contractAddress}-${i}`} className="text-xs leading-relaxed">
+                              <span className="font-medium">{s.symbol ?? s.contractAddress.slice(0, 8)}</span>
+                              {s.score != null && ` · score ${s.score}`}
+                              {s.signal && ` · ${s.signal}`}
+                              {s.feedbackOutcome && ` · feedback: ${s.feedbackOutcome}`}
+                              {s.sameToken && " · same token"}
+                              {" · "}
+                              {(s.similarity * 100).toFixed(0)}% match
+                              <span className="block text-muted-foreground mt-0.5">{s.summaryText}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                     <details className="mt-3 text-sm text-muted-foreground">
                       <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">Why 0–100?</summary>
                       <p className="mt-2 pl-2 border-l-2 border-cyan-300 dark:border-cyan-700">

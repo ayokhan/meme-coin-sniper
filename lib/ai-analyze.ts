@@ -1,6 +1,14 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getSolanaToken, extractSocials } from '@/lib/api-clients/dexscreener';
 import { checkSolanaTokenSecurity, getSecuritySummary, getTopHolderPercentage } from '@/lib/api-clients/goplus';
+import {
+  formatRagPromptBlock,
+  isRagConfigured,
+  retrieveRelevantAnalyses,
+  storeAnalysisEmbedding,
+  type RagSnippet,
+  type TokenSummaryForRag,
+} from '@/lib/ai-rag';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -37,9 +45,17 @@ export type AnalysisResult = {
     securityIssues?: string[];
     securityWarnings?: string[];
   };
+  rag?: {
+    used: boolean;
+    configured: boolean;
+    snippets: RagSnippet[];
+  };
 };
 
-export async function runAiAnalysis(contractAddress: string, options?: { amountUsd?: number }): Promise<AnalysisResult> {
+export async function runAiAnalysis(
+  contractAddress: string,
+  options?: { amountUsd?: number; useRag?: boolean },
+): Promise<AnalysisResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('NovaStaris AI Agent is not configured.');
   }
@@ -92,11 +108,24 @@ export async function runAiAnalysis(contractAddress: string, options?: { amountU
     ? `\nThe user is considering investing $${amountUsd.toLocaleString()}. Add a field "amountRiskNote": one short line saying whether this amount is too risky given liquidity/mcap (e.g. "Investing $500 in a $20k liquidity pool is very risky — consider a smaller size" or "Amount is reasonable relative to liquidity").\n`
     : '';
 
+  const ragConfigured = isRagConfigured();
+  let ragSnippets: RagSnippet[] = [];
+  let ragUsed = false;
+  if (options?.useRag && ragConfigured) {
+    try {
+      ragSnippets = await retrieveRelevantAnalyses(tokenSummary as TokenSummaryForRag);
+      ragUsed = ragSnippets.length > 0;
+    } catch (e) {
+      console.warn('RAG retrieve failed:', e);
+    }
+  }
+  const ragBlock = ragUsed ? formatRagPromptBlock(ragSnippets) : '';
+
   const prompt = `You are an expert meme-coin analyst. Analyze this Solana token and provide a score, signal, reasons, narrative assessment, AND trading levels.
 
 Token data (JSON):
 ${JSON.stringify(tokenSummary, null, 2)}
-${amountBlock}
+${ragBlock}${amountBlock}
 
 NARRATIVE MATTERS: Meme coins are driven by narratives. A strong, viral narrative (viral tweet, community buzz, KOL endorsement, cultural moment, clear theme) often leads to massive volume and market cap. When scoring, treat narrative strength as a core factor: infer from token name/symbol, socials presence (Twitter, Telegram, website), and volume/activity as proxies for buzz. Weak or absent narrative = cap upside; strong narrative = higher potential.
 
@@ -170,6 +199,15 @@ Keep reasons short. Include at least one reason that references narrative/viral 
   const amountRiskNote = typeof parsed.amountRiskNote === 'string' ? parsed.amountRiskNote.trim().slice(0, 500) : undefined;
   const recommendations = parsed.recommendations && typeof parsed.recommendations === 'object' ? parsed.recommendations : undefined;
 
+  if (options?.useRag && ragConfigured) {
+    void storeAnalysisEmbedding({
+      summary: tokenSummary as TokenSummaryForRag,
+      score,
+      signal,
+      reasons,
+    }).catch((e) => console.warn('RAG store failed:', e));
+  }
+
   return {
     score,
     signal,
@@ -177,6 +215,13 @@ Keep reasons short. Include at least one reason that references narrative/viral 
     narrativeAssessment: narrativeAssessment || undefined,
     amountRiskNote: amountRiskNote || undefined,
     recommendations,
+    rag: options?.useRag
+      ? {
+          used: ragUsed,
+          configured: ragConfigured,
+          snippets: ragSnippets,
+        }
+      : undefined,
     tokenInfo: {
       symbol: tokenSummary.symbol,
       name: tokenSummary.name,
