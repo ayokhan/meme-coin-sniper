@@ -54,7 +54,7 @@ export type AnalysisResult = {
 
 export async function runAiAnalysis(
   contractAddress: string,
-  options?: { amountUsd?: number; useRag?: boolean },
+  options?: { amountUsd?: number; useRag?: boolean; ragUserId?: string | null },
 ): Promise<AnalysisResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('NovaStaris AI Agent is not configured.');
@@ -111,9 +111,10 @@ export async function runAiAnalysis(
   const ragConfigured = isRagConfigured();
   let ragSnippets: RagSnippet[] = [];
   let ragUsed = false;
-  if (options?.useRag && ragConfigured) {
+  const ragUserId = options?.ragUserId?.trim() ?? null;
+  if (options?.useRag && ragConfigured && ragUserId) {
     try {
-      ragSnippets = await retrieveRelevantAnalyses(tokenSummary as TokenSummaryForRag);
+      ragSnippets = await retrieveRelevantAnalyses(tokenSummary as TokenSummaryForRag, { userId: ragUserId });
       ragUsed = ragSnippets.length > 0;
     } catch (e) {
       console.warn('RAG retrieve failed:', e);
@@ -199,8 +200,9 @@ Keep reasons short. Include at least one reason that references narrative/viral 
   const amountRiskNote = typeof parsed.amountRiskNote === 'string' ? parsed.amountRiskNote.trim().slice(0, 500) : undefined;
   const recommendations = parsed.recommendations && typeof parsed.recommendations === 'object' ? parsed.recommendations : undefined;
 
-  if (options?.useRag && ragConfigured) {
+  if (options?.useRag && ragConfigured && ragUserId) {
     void storeAnalysisEmbedding({
+      userId: ragUserId,
       summary: tokenSummary as TokenSummaryForRag,
       score,
       signal,

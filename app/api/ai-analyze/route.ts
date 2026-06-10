@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { getSessionAndSubscription } from '@/lib/auth-server';
-import { authOptions, isOwnerSession } from '@/lib/auth';
 import { runAiAnalysis } from '@/lib/ai-analyze';
 import { recordAiAnalysis } from '@/lib/usage';
-import { getFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
+import { canUseAiAnalysisRag } from '@/lib/ai-analysis-rag-access';
 
 function isValidSolanaAddress(address: string): boolean {
   if (!address || typeof address !== 'string') return false;
@@ -13,7 +11,7 @@ function isValidSolanaAddress(address: string): boolean {
 
 export async function POST(request: Request) {
   try {
-    const { isPaid, userId } = await getSessionAndSubscription();
+    const { session, isPaid, userId, tier } = await getSessionAndSubscription();
     if (!isPaid) {
       return NextResponse.json({ success: false, error: 'Subscribe to use NovaStaris AI Agent.', locked: true }, { status: 403 });
     }
@@ -35,13 +33,11 @@ export async function POST(request: Request) {
 
     const amountUsd = typeof body.amountUsd === 'number' && Number.isFinite(body.amountUsd) && body.amountUsd > 0 ? body.amountUsd : undefined;
 
-    const session = await getServerSession(authOptions);
-    const ragFlagOn = await getFeatureFlag(FEATURE_FLAG_KEYS.AI_ANALYSIS_RAG);
-    const useRag = ragFlagOn && isOwnerSession(session);
+    const useRag = await canUseAiAnalysisRag(session, tier);
 
     const result = await runAiAnalysis(contractAddress, {
       ...(amountUsd != null ? { amountUsd } : {}),
-      ...(useRag ? { useRag: true } : {}),
+      ...(useRag && userId ? { useRag: true, ragUserId: userId } : {}),
     });
 
     if (userId) await recordAiAnalysis(userId).catch(() => {});

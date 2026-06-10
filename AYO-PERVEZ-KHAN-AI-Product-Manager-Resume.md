@@ -1,116 +1,102 @@
 # AYO PERVEZ KHAN
 
-**1179 Peelar Cres. Innisfil ON** | ayokhan2006@gmail.com | 905-904-3654 or 807-632-2376
+**Senior AI Product Manager · Product Owner · PMP® · CSPO®**  
+Innisfil, ON · ayokhan2006@gmail.com · 905-904-3654 · [LinkedIn](https://www.linkedin.com/in/ayo-khan-mba-pmp-cspo-ctfl%C2%AE-55a34444/)
 
 ---
 
 ## SUMMARY
 
-**AI Product Manager** with 14+ years in product development and quality engineering, specializing in **AI-native product strategy**, **Jobs-to-be-Done (JTBD)**, **PRD development**, and **go-to-market execution**. Founder of **NovaStaris** (novastaris.ai), an AI-powered crypto discovery and analysis platform. Experienced in **building AI agents** (voice, chat, and automation) and shipping products using **Claude**, **Cursor**, **Vercel**, and modern AI tooling end-to-end—from market research and JTBD framing through PRDs, roadmaps, and launch. Led product delivery for enterprise platforms (Enercare, healthcare systems serving 14M+ residents) while building and scaling AI products and agents from zero to live production.
+Product leader with **14+ years** shipping enterprise and consumer platforms, now focused on **AI-native products** from strategy through production. I combine **JTBD, PRD, and GTM** discipline with hands-on delivery using **Claude, LLM evals, RAG, and agent design**—and I ship: founder of **NovaStaris** (novastaris.ai), a live AI trading-intelligence SaaS, while leading product delivery at **Enercare** (500K+ customers). Seeking **AI Product Manager, Product Manager, or Product Owner** roles where I can own roadmap, AI feature quality, and cross-functional launch.
+
+---
+
+## SIGNATURE IMPACT
+
+- **0→1 AI SaaS:** Built and launched NovaStaris—multi-surface product (web + mobile) with AI analysis, subscriptions, admin ops, and feature-flagged rollouts in production.
+- **Production AI agents:** Shipped **voice and chat agents** (Vapi, N8N) at Enercare, replacing failing legacy systems for a utility serving **~1/5 of Ontario homes**.
+- **Enterprise scale:** Led **22-person** distributed delivery across Dynamics 365, Salesforce, and billing migrations; QA/PO for healthcare systems touching **14M+** residents.
+- **AI quality mindset:** Shipped **per-user RAG** and **eval loops** from production good/bad feedback—AI outputs are measurable in prod, not demo-only.
 
 ---
 
 ## PROFESSIONAL EXPERIENCE
 
-### **Founder & AI Product Manager, NovaStaris** (novastaris.ai)  
-*Ongoing*
+### **Founder & AI Product Manager — NovaStaris** (novastaris.ai)  
+*2024 – Present · AI crypto trading intelligence SaaS*
 
-- **Product strategy & JTBD:** Defined and documented Jobs-to-be-Done for discovery, wallet tracking, watchlist, crypto futures, and trading automation; aligned feature roadmap and prioritization to user jobs (“When … I want to … so that …”).
-- **PRD & go-to-market:** Owned end-to-end product lifecycle: PRDs, user stories, acceptance criteria, and go-to-market strategy for Pro/VIP tiers; launched AI analysis (Solana & BSC), Crypto Futures workflow, Wallet Tracker, CT Scan, and Coach Calls + Telegram Signals.
-- **Building AI agents:** Designed and shipped AI agents for analysis (viral scoring, chart analysis), trading (bot with AI monitor for entries/exits), and user-facing workflows; defined agent behavior, guardrails, and quality criteria.
-- **AI product delivery:** Shipped AI-powered features using **Claude**, **Cursor**, **Vercel**, **Bit**, **Next.js**, and integrated AI APIs; iterated on UX and positioning based on user feedback. Applied **RAG**, **fine-tuning**, and **evals** (LLM evaluation) in product specs and quality criteria for AI features.
-- **Platform scope:** NovaStaris combines real-time on-chain data, social signals, and NovaStaris AI Analysis for meme coins (Solana, BSC) and crypto futures—enabling users to discover and evaluate tokens and run an automated Crypto Futures Trading Bot in one platform.
-
----
-
-### **Product Owner & QA Team Lead, Enercare Inc.**  
-*March 2021 – Present*
-
-- Spearheaded Project Maple data migration from Salesforce to Clarify CRM under critical Enbridge deadline, owning the full product lifecycle and stakeholder alignment.
-- Orchestrated dual Scrum Master/Product Owner role for rental water heater platform serving 1/5 of Ontario homes (500K+ customers): product strategy, roadmap milestones, deliverables, risk mitigation, and non-functional requirements.
-- Architected web-based tenant and agent portal from market research through functional Figma prototype: competitive analysis, **ICP**, **JTBD**, customer journey mapping, and end-to-end user flows.
-- **Building AI agents:** Built and shipped **voice agents** and **chat agents** at Enercare using **N8N** and **Vapi**—designed conversational AI solutions for production (calls and chat), authored PRDs and technical specs, and replaced failing AI call systems with N8N workflow automation and Vapi-powered agents.
-- Engineered AI-powered N8N automation integrating OpenAI GPT-4 for real-time cryptocurrency market analysis (e.g. 15-min Bitcoin/USDC chart analysis via Telegram); defined product requirements and technical architecture.
-- **AI-augmented product work:** Leveraged **Claude**, **Cursor**, **Figma AI**, and related tools for PRD drafting, solution design, and faster iteration with engineering.
-- Directed 22-member distributed product delivery teams (Canada, India, USA) for Microsoft Dynamics 365 (CE and F&O), Salesforce, and Zuora Billings Migration: sprint planning, stakeholder meetings, UAT, and cross-functional alignment.
+- **Product vision & JTBD:** Framed jobs for discovery, wallet tracking, futures/perps, prediction markets, and community; prioritized roadmap across Pro/VIP tiers with **user stories, backlog refinement, and sprint-ready acceptance criteria**.
+- **Shipped AI product surface:** Launched **NovaStaris AI Analysis** (Solana/BSC token scoring), **Crypto Futures workflow**, **Nova Radar**, **Liquidation Map** (market + user-position risk), wallet trackers, and Telegram/coach signals—structured LLM outputs with user **good/bad feedback** for continuous improvement.
+- **Mobile & GTM:** Took product **web → Google Play** (Capacitor Android app, closed testing, store listing, data safety, app-access review); web app remains source of truth on Vercel—enabling fast iteration without native release cycles for most features.
+- **Monetization & ops:** Owned **Stripe subscription** flow, admin customer hub, support tooling, and analytics; balanced web billing with mobile access patterns aligned to store policy.
+- **AI PM craft:** Shipped **RAG** for Solana token AI (OpenAI embeddings + Postgres, per-user retrieval, feature-flagged VIP rollout); built **eval datasets** from `good/bad` production feedback; prompt iteration and guardrails (e.g. mobile WebView edge cases).
+- **Stack (product + ship):** Next.js, Prisma, Postgres, Anthropic Claude, Vercel, Capacitor, GitHub—using **Cursor** for rapid PRD-to-production iteration.
 
 ---
 
-### **Product Manager / QA Lead, Mackenzie Health**  
-*June 2020 – March 2021*
+### **Product Owner & QA Team Lead — Enercare Inc.**  
+*March 2021 – Present · Enterprise utilities & CRM*
 
-- Drove product strategy for Canada’s first SMART Hospital platform, integrating 6 mission-critical systems (Vocera, RTLS, Epic, Austco Nursecall, Getwell Network, Hillrom); defined product requirements, acceptance criteria, and **go-to-market validation**.
-- Brokered multi-vendor integration requirements with US partners (Epic, Vocera, Hillrom, Getwell Network); translated technical constraints into product specifications.
-- Led user research and validation for smart bed, RTLS, and nurse call systems; super user training and feedback loops to refine features and clinical workflows before launch.
-- Instituted product documentation framework: feature specs, integration requirements, and release validation criteria.
-
----
-
-### **Product/Program Lead, CB2 Insights (now Skylight Health Group)**  
-*October 2018 – May 2020*
-
-- Built product strategy and QA framework for 6 concurrent healthcare SaaS platforms (SAIL CMR, CMR Patient, E-Booking, Dynamics CRM, Token CRM/Mobile); feature roadmaps, user research, backlog prioritization for 200+ healthcare providers.
-- Delivered CI/CD automation (Selenium, Jenkins, TestNG) that cut deployment cycles by ~70%; enabled faster product iteration and feature delivery.
-- Evangelized Agile product practices: sprint planning, backlog refinement, retrospectives (JIRA, Confluence); API validation with Postman/JMeter for third-party integrations.
-- Drove product quality via user feedback analysis, cross-browser and mobile UX validation, and close partnership with design and engineering.
+- **Dual PO / Scrum Master:** Own **product backlog**, roadmap, and delivery for rental water-heater platform (**500K+** customers); run **refinement**, write **user stories**, and align stakeholders on milestones, NFRs, and release risk.
+- **AI agents in production:** Designed, specified, and shipped **voice agents (Vapi)** and **chat agents (N8N)**—authored PRDs, replaced underperforming legacy AI call flows, and defined conversational quality criteria for live customer traffic.
+- **High-stakes migration:** Led **Project Maple** (Salesforce → Clarify CRM) under fixed Enbridge deadline—full lifecycle, cutover planning, and stakeholder sign-off.
+- **0→1 portal:** Drove tenant/agent portal from **competitive research, ICP, JTBD, and Figma prototype** through functional requirements and UAT.
+- **AI automation product:** Built N8N + **GPT-4** workflow for real-time crypto chart analysis via Telegram—requirements, architecture, and rollout.
+- **Scale & leadership:** Direct **22-member** distributed team (Canada, India, USA) across **Dynamics 365, Salesforce, Zuora**; sprint planning, UAT, and cross-functional alignment.
+- **AI-augmented PM:** Use **Claude, Cursor, Figma AI** for PRDs, solution design, and faster iteration with engineering.
 
 ---
 
-### **QA/BA Analyst, Cancer Care Ontario**  
-*February 2012 – October 2018*
+### **Product Manager / QA Lead — Mackenzie Health**  
+*June 2020 – March 2021 · SMART Hospital (first in Canada)*
 
-- Anchored QA for Ontario’s largest healthcare integration systems (Wait Times, Cardiac Care Network, Ontario Renal Network, Emergency Triage); master test plans and strategies for multi-release programs serving 14M residents.
-- Executed functional, systems, regression, integration, and UAT using HP Quality Center, Azure DevOps, Microsoft Test Manager; HL7/MLLP and BizTalk integrations.
-- Catalyzed Agile transformation from Waterfall; QA estimates, impediment reporting, BRDs, use case diagrams; mentored junior QA analysts and led vendor triage.
+- Defined product requirements and **go-to-market validation** for integrated platform across **6 mission-critical systems** (Epic, Vocera, RTLS, nurse call, patient engagement).
+- Brokered multi-vendor integration specs with US partners; translated clinical and technical constraints into release-ready acceptance criteria.
+- Led super-user research, training, and feedback loops for smart bed, RTLS, and nurse call workflows pre-launch.
+
+---
+
+### **Product / Program Lead — CB2 Insights (Skylight Health Group)**  
+*October 2018 – May 2020 · Healthcare SaaS*
+
+- Owned product strategy and QA for **6 concurrent SaaS platforms** (200+ providers): roadmaps, backlog prioritization, and release quality.
+- Delivered CI/CD automation that **cut deployment cycles ~70%**, enabling faster feature iteration.
+- Evangelized Agile (JIRA, Confluence); API validation (Postman/JMeter) for third-party integrations.
+
+---
+
+### **QA / Business Analyst — Cancer Care Ontario**  
+*February 2012 – October 2018 · Provincial healthcare*
+
+- Led QA strategy for Ontario’s largest integration programs (Wait Times, Cardiac, Renal, Emergency Triage)—systems serving **14M residents**.
+- Drove **Waterfall → Agile** transformation; mentored analysts; owned BRDs, test strategy, and vendor triage for HL7/BizTalk integrations.
 
 ---
 
 ## EDUCATION
 
-- **University of Cumbria** — Master of Business Administration, Information Technology  
-- **University of Lagos** — Advanced Diploma, Social Works  
-- **University of California, Irvine** — Introduction to Project Management Principles and Practices Specialization  
+- **MBA, Information Technology** — University of Cumbria  
+- **Advanced Diploma, Social Works** — University of Lagos  
+- **Project Management Specialization** — University of California, Irvine  
 
 ---
 
-## SKILLS
+## CORE COMPETENCIES
 
-**AI Product Management:**  
-Jobs-to-be-Done (JTBD), PRD development, Go-to-Market Strategy, Product Strategy, Roadmap Planning, User Research, Requirements Gathering, Backlog Prioritization, Stakeholder Management, Feature Definition, User Stories, Acceptance Criteria
+**Product:** JTBD · PRD · **User stories & acceptance criteria** · **Backlog grooming & refinement** · Roadmap & prioritization · GTM & pricing · Stakeholder management · UAT & launch · Feature flags · Subscription SaaS  
 
-**AI/LLM concepts & quality:**  
-RAG (Retrieval-Augmented Generation), Fine-tuning, Evals (LLM evaluation), AI agent quality criteria
+**AI / LLM:** Agent design (voice, chat, workflow) · Prompt engineering · **Evals & regression metrics** · **RAG (embeddings, retrieval, per-user corpus)** · Fine-tuning strategy · Guardrails & responsible AI · AI quality metrics  
 
-**Building AI agents:**  
-Voice agents, Chat agents, Conversational AI, N8N workflow automation, Vapi, Agent design & PRDs, Guardrails & quality criteria
+**Tools:** Claude · Cursor · OpenAI API · N8N · Vapi · Figma · JIRA · Confluence · Vercel · Next.js · Git/GitHub · Postman · Azure DevOps  
 
-**AI & product tools:**  
-Claude, Cursor, OpenAI GPT-4 API, N8N Workflow Automation, Vapi (voice/chat agents), Figma / Figma AI, Telegram Bot Integration
-
-**Build & deploy:**  
-Vercel, Bit, Git/GitHub, Next.js, React, CI/CD (Jenkins, Selenium, TestNG)
-
-**Design & prototyping:**  
-Figma, UX/UI Design, User Flows, Wireframing, Prototype Development, User Testing, Customer Journey Mapping
-
-**Agile & collaboration:**  
-JIRA, Confluence, Azure DevOps, Sprint Planning, Backlog Refinement, Daily Standups, Sprint Reviews, Retrospectives, Scrum, Kanban, SAFe
-
-**Technical:**  
-API Testing (Postman, JMeter), SQL, HL7 Healthcare Standards, MongoDB, Salesforce, Microsoft Dynamics 365, Epic Systems
+**Domains:** Fintech/crypto intelligence · Utilities & CRM · Healthcare (Epic, HL7) · Enterprise agile at scale  
 
 ---
 
-## LICENSES AND CERTIFICATIONS
+## CERTIFICATIONS
 
-- Certified Tester Foundation Level (CTFL), ISTQB-CSTB-CCTL  
-- Project Management Professional (PMP)  
-- Certified Scrum Product Owner (CSPO), Scrum Alliance  
-- Scrum Master Accredited Certification, International Scrum Institute  
-- Agile Scrum Foundation, EXIN  
-- Business Analyst RPA Certified, UiPath  
-- Accredited Software Test Manager Certification, International Software Test Institute  
+PMP® · CSPO® (Scrum Alliance) · CTFL® (ISTQB) · Scrum Master Accredited · Agile Scrum Foundation (EXIN) · Business Analyst RPA (UiPath) · Accredited Software Test Manager  
 
 ---
 
-*Current full-time role: Product Owner & QA Team Lead, Enercare Inc. NovaStaris is an independent product initiative.*
+*NovaStaris is an independent product initiative alongside full-time role at Enercare Inc.*

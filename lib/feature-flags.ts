@@ -108,7 +108,7 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_FOREX_FIB: 'nova_forex_fib',
   /** VIP: Nova Forex Scalp Agent subtab. Default OFF until admin enables. */
   NOVA_FOREX_SCALP_AGENT: 'nova_forex_scalp_agent',
-  /** Owner-only: RAG retrieval over past Solana token analyses (requires OPENAI_API_KEY). Default OFF. */
+  /** VIP + owner: per-user RAG over past Solana token analyses (requires OPENAI_API_KEY). Default OFF. */
   AI_ANALYSIS_RAG: 'ai_analysis_rag',
 } as const;
 

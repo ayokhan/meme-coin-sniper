@@ -3846,30 +3846,30 @@ export default function Dashboard() {
                           </Badge>
                         );
                       })()}
-                      {isOwner && aiAnalysisResult.ragEnabled && (
+                      {(isOwner || isVip) && aiAnalysisResult.ragEnabled && (
                         <Badge
                           variant="outline"
                           className="text-sm font-semibold px-3 py-1 border-violet-400/60 bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200"
-                          title="Owner-only RAG experiment (Admin → Feature Flags → AI Analysis RAG)"
+                          title={isOwner ? "VIP feature: personal analysis history informs Claude (Admin → Feature Flags → AI Analysis RAG)" : "NovaStaris uses your past analyses on similar tokens for more consistent scoring"}
                         >
-                          {aiAnalysisResult.ragUsed ? "RAG context used" : "RAG experiment on"}
+                          {aiAnalysisResult.ragUsed ? "Informed by your history" : "Personal context active"}
                         </Badge>
                       )}
                     </div>
                     {isOwner && aiAnalysisResult.ragEnabled && !aiAnalysisResult.ragConfigured && (
                       <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                        RAG flag is on but OPENAI_API_KEY is not set — analysis ran without retrieval. Add the key in Vercel env to enable embeddings.
+                        Personal context is enabled but OPENAI_API_KEY is not set — analysis ran without retrieval. Add the key in Vercel env to enable embeddings.
                       </p>
                     )}
-                    {isOwner && aiAnalysisResult.ragEnabled && aiAnalysisResult.ragConfigured && !aiAnalysisResult.ragUsed && (
+                    {(isOwner || isVip) && aiAnalysisResult.ragEnabled && aiAnalysisResult.ragConfigured && !aiAnalysisResult.ragUsed && (
                       <p className="mt-2 text-xs text-violet-700 dark:text-violet-300">
-                        RAG is on — corpus is still building. Run a few more analyses; similar past tokens will appear here.
+                        Your analysis history is building — after a few runs, similar tokens will inform new scores.
                       </p>
                     )}
-                    {isOwner && aiAnalysisResult.ragUsed && (aiAnalysisResult.ragSnippets?.length ?? 0) > 0 && (
+                    {(isOwner || isVip) && aiAnalysisResult.ragUsed && (aiAnalysisResult.ragSnippets?.length ?? 0) > 0 && (
                       <details className="mt-3 rounded-lg border border-violet-200/80 dark:border-violet-800/80 bg-violet-50/40 dark:bg-violet-950/20 p-3 text-sm">
                         <summary className="cursor-pointer font-medium text-violet-800 dark:text-violet-200">
-                          Retrieved context ({aiAnalysisResult.ragSnippets!.length} past analyses)
+                          Your similar past analyses ({aiAnalysisResult.ragSnippets!.length})
                         </summary>
                         <ul className="mt-2 space-y-2 text-violet-900/90 dark:text-violet-100/90">
                           {aiAnalysisResult.ragSnippets!.map((s, i) => (

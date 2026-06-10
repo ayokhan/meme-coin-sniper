@@ -43,9 +43,9 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
 
 const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   ai_analysis_rag: {
-    label: "AI Analysis RAG (owner-only)",
+    label: "AI Analysis RAG (VIP + owner)",
     description:
-      "When ON, owner Solana AI analyses retrieve similar past analyses from the embedding corpus before Claude runs. Requires OPENAI_API_KEY. Pro/VIP users are unaffected. Default OFF.",
+      "When ON, VIP and owner Solana AI analyses retrieve similar past analyses from each user's private embedding history before Claude runs. Requires OPENAI_API_KEY. Pro users unaffected. Default OFF.",
   },
   moralis_go_hunting: {
     label: "Go Hunting (Moralis)",

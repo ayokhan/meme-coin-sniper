@@ -116,6 +116,7 @@ declare module '@prisma/client' {
     };
     aiAnalysisEmbedding: {
       findMany: (args?: {
+        where?: { userId?: string };
         orderBy?: { createdAt?: 'asc' | 'desc' };
         take?: number;
         select?: {
@@ -140,6 +141,7 @@ declare module '@prisma/client' {
       >;
       create: (args: {
         data: {
+          userId?: string | null;
           contractAddress: string;
           chain?: string;
           symbol?: string | null;

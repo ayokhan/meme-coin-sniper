@@ -122,14 +122,18 @@ function parseEmbedding(raw: unknown): number[] | null {
 
 export async function retrieveRelevantAnalyses(
   summary: TokenSummaryForRag,
-  options?: { topK?: number },
+  options?: { topK?: number; userId?: string | null },
 ): Promise<RagSnippet[]> {
+  const userId = options?.userId?.trim();
+  if (!userId) return [];
+
   const topK = options?.topK ?? DEFAULT_TOP_K;
   const queryText = buildRagSummaryText(summary);
   const queryEmb = await embedText(queryText);
   if (!queryEmb) return [];
 
   const rows = await prisma.aiAnalysisEmbedding.findMany({
+    where: { userId },
     orderBy: { createdAt: 'desc' },
     take: MAX_CANDIDATES,
     select: {
@@ -172,7 +176,7 @@ export async function retrieveRelevantAnalyses(
 export function formatRagPromptBlock(snippets: RagSnippet[]): string {
   if (!snippets.length) return '';
   const lines = snippets.map((s, i) => {
-    const fb = s.feedbackOutcome ? ` owner feedback: ${s.feedbackOutcome}` : '';
+    const fb = s.feedbackOutcome ? ` prior feedback: ${s.feedbackOutcome}` : '';
     const meta = [s.symbol, `score ${s.score ?? '?'}`, `signal ${s.signal ?? '?'}`, fb].filter(Boolean).join(', ');
     return `${i + 1}. (${meta}) ${s.summaryText}`;
   });
@@ -180,12 +184,13 @@ export function formatRagPromptBlock(snippets: RagSnippet[]): string {
 }
 
 export async function storeAnalysisEmbedding(args: {
+  userId: string;
   summary: TokenSummaryForRag;
   score: number;
   signal: string;
   reasons: string[];
 }): Promise<void> {
-  if (!isRagConfigured()) return;
+  if (!isRagConfigured() || !args.userId.trim()) return;
 
   const summaryText = buildRagSummaryText(args.summary, {
     score: args.score,
@@ -209,6 +214,7 @@ export async function storeAnalysisEmbedding(args: {
 
   await prisma.aiAnalysisEmbedding.create({
     data: {
+      userId: args.userId.trim(),
       contractAddress: args.summary.contractAddress,
       chain: 'solana',
       symbol: args.summary.symbol ?? null,
