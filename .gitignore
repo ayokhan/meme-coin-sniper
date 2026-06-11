@@ -55,3 +55,7 @@ android/capacitor-cordova-android-plugins/build/
 *.jks
 *.keystore
 android/keystore.properties
+
+# Offline AI eval exports (contract addresses from production feedback)
+data/eval-*.jsonl
+data/eval-results.json

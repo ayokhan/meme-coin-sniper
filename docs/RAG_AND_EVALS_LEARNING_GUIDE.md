@@ -156,7 +156,7 @@ Each row should include:
 
 - Admin → AI Feedback (UI)
 - Direct DB query on `AiAnalysisFeedback`
-- Future script: `scripts/export-ai-feedback-eval.ts`
+- Run: `npm run eval:export-feedback` → `data/eval-ai-feedback.jsonl`
 
 ### Step 2 — Metrics to report (interview gold)
 
@@ -179,10 +179,10 @@ Each row should include:
 
 **Tier B — Local script (no prod code change)**
 
-- Add `scripts/eval-ai-analyze.ts` (not deployed)
-- Load JSONL, call `runAiAnalysis(contractAddress)` locally with `.env` keys
-- Print accuracy + score histograms
-- Run before/after any prompt experiment on a branch
+- Run: `npm run eval:ai-analyze` (not deployed; uses `.env.local` + Anthropic)
+- Loads JSONL, calls `runAiAnalysis(contractAddress)` without RAG for baseline
+- Prints signal accuracy, buy precision/recall, score calibration → `data/eval-results.json`
+- Re-run before/after any prompt or RAG change for regression comparison
 
 **Tier C — CI / framework (optional later)**
 

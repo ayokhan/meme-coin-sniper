@@ -16,7 +16,9 @@
     "cap:open:android": "npx cap open android",
     "cap:run:android": "npx cap run android",
     "cap:bundle:android": "npm run cap:sync && cd android && .\\gradlew.bat bundleRelease",
-    "export-docs": "npx --yes @mohtasham/md-to-docx TECH_STACK_AND_APIS.md docs-word/NovaStaris-Tech-Stack-and-APIs.docx && npx --yes @mohtasham/md-to-docx PRD.md docs-word/NovaStaris-PRD.docx && npx --yes @mohtasham/md-to-docx GO_TO_MARKET.md docs-word/NovaStaris-Go-to-Market.docx && npx --yes @mohtasham/md-to-docx JOBS_TO_BE_DONE.md docs-word/NovaStaris-Jobs-to-be-Done.docx && npx --yes @mohtasham/md-to-docx AUTH_SETUP.md docs-word/NovaStaris-Auth-Setup.docx"
+    "export-docs": "npx --yes @mohtasham/md-to-docx TECH_STACK_AND_APIS.md docs-word/NovaStaris-Tech-Stack-and-APIs.docx && npx --yes @mohtasham/md-to-docx PRD.md docs-word/NovaStaris-PRD.docx && npx --yes @mohtasham/md-to-docx GO_TO_MARKET.md docs-word/NovaStaris-Go-to-Market.docx && npx --yes @mohtasham/md-to-docx JOBS_TO_BE_DONE.md docs-word/NovaStaris-Jobs-to-be-Done.docx && npx --yes @mohtasham/md-to-docx AUTH_SETUP.md docs-word/NovaStaris-Auth-Setup.docx",
+    "eval:export-feedback": "npx --yes tsx scripts/export-ai-feedback-eval.ts",
+    "eval:ai-analyze": "npx --yes tsx scripts/eval-ai-analyze.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",

@@ -112,7 +112,16 @@ declare module '@prisma/client' {
     aiAnalysisFeedback: {
       create: (args: { data: { contractAddress: string; outcome: string; note?: string | null; score?: number | null; signal?: string | null; userId?: string | null } }) => Promise<unknown>;
       findFirst: (args?: { where?: { contractAddress?: string }; orderBy?: { createdAt?: 'asc' | 'desc' }; select?: { outcome?: true } }) => Promise<{ outcome: string } | null>;
-      findMany: (args?: { where?: unknown; orderBy?: unknown; take?: number }) => Promise<unknown[]>;
+      findMany: (args?: { where?: unknown; orderBy?: { createdAt?: 'asc' | 'desc' }; take?: number }) => Promise<
+        Array<{
+          id: string;
+          contractAddress: string;
+          outcome: string;
+          score: number | null;
+          signal: string | null;
+          createdAt: Date;
+        }>
+      >;
     };
     aiAnalysisEmbedding: {
       findMany: (args?: {
