@@ -114,6 +114,8 @@ export type NovaRadarRunOptions = {
   investmentAmountUsdt?: number;
   /** Nova Capital Guard — max % of investment willing to lose at SL. */
   capitalRiskTolerance?: NovaRadarCapitalRiskTolerance;
+  /** Forex / MT5: use generic isolated liq formula (skip Blofin tiers). */
+  forexReferenceOnly?: boolean;
 };
 
 export type { NovaRadarCapitalGuard, NovaRadarCapitalRiskTolerance };
@@ -810,7 +812,7 @@ export function analyzeNovaRadarPlan(
         leverage: runOptions.leverage,
         takeProfitPrice: targets.takeProfitPrice,
         stopLossPrice: targets.stopLossPrice,
-        symbol,
+        symbol: runOptions.forexReferenceOnly ? undefined : symbol,
         side,
         positionNotionalUsdt: runOptions.positionNotionalUsdt,
         contractValue: runOptions.contractValue,

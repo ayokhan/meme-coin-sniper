@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { normalizeForexSymbol, type ForexSymbolEntry } from "@/lib/forex-market";
 import { NOVA_SCALP_DISCLAIMER, SCALP_TIMEFRAMES, type NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
 
+import NovaForexRadarPanel from "@/components/NovaForexRadarPanel";
 import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
 import { NOVA_FORECAST_RANGES, NOVA_FOREX_Q_TIMEFRAMES } from "@/lib/nova-forex-timeframes";
 import type { NovaQAlignment, NovaQTradePlan } from "@/lib/nova-q-trade-plan";
@@ -74,11 +75,6 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
   const [smartResults, setSmartResults] = useState<Array<Record<string, unknown>>>([]);
   const [smartLoading, setSmartLoading] = useState(false);
   const [smartError, setSmartError] = useState<string | null>(null);
-  const [radarLimit, setRadarLimit] = useState("");
-  const [radarSide, setRadarSide] = useState<"long" | "short">("long");
-  const [radarResult, setRadarResult] = useState<Record<string, unknown> | null>(null);
-  const [radarLoading, setRadarLoading] = useState(false);
-  const [radarError, setRadarError] = useState<string | null>(null);
   const [scalpTf, setScalpTf] = useState("5m");
   const [scalpAmount, setScalpAmount] = useState("100");
   const [scalpLev, setScalpLev] = useState("20");
@@ -171,30 +167,6 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
       setSmartError("Request failed");
     } finally {
       setSmartLoading(false);
-    }
-  };
-
-  const runRadar = async () => {
-    setRadarLoading(true);
-    setRadarError(null);
-    try {
-      const res = await fetch("/api/nova-forex/nova-radar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ symbol: symbol.trim(), targetPrice: radarLimit, side: radarSide }),
-      });
-      const d = await res.json();
-      if (!res.ok || !d.success) {
-        setRadarError(d.error ?? "Radar failed");
-        setRadarResult(null);
-        return;
-      }
-      setRadarResult(d.result);
-    } catch {
-      setRadarError("Request failed");
-    } finally {
-      setRadarLoading(false);
     }
   };
 
@@ -416,35 +388,7 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
         )}
 
         <TabsContent value="nova-radar" className="mt-0">
-          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-            <div className="flex flex-wrap gap-3 mb-3">
-              <input
-                type="text"
-                placeholder="Limit price"
-                value={radarLimit}
-                onChange={(e) => setRadarLimit(e.target.value)}
-                className="text-sm border rounded-md px-2 py-1.5 w-36"
-              />
-              <select
-                value={radarSide}
-                onChange={(e) => setRadarSide(e.target.value as "long" | "short")}
-                className="text-sm border rounded-md px-2 py-1.5"
-              >
-                <option value="long">Long</option>
-                <option value="short">Short</option>
-              </select>
-              <Button onClick={runRadar} disabled={radarLoading}>
-                {radarLoading ? "Running…" : "Run NovaForex Radar"}
-              </Button>
-            </div>
-            {radarError && <p className="text-sm text-rose-600">{radarError}</p>}
-            {radarResult && (
-              <div className="text-xs space-y-2">
-                <p>{String(radarResult.summary)}</p>
-                <p className="text-muted-foreground">{String(radarResult.disclaimer)}</p>
-              </div>
-            )}
-          </div>
+          <NovaForexRadarPanel symbol={symbol} />
         </TabsContent>
 
         {novaForexScalp && (
