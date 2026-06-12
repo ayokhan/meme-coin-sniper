@@ -14,8 +14,8 @@ export type ForexSymbolEntry = {
 
 /** Curated list — expandable; user can also type any symbol we can map. */
 export const FOREX_MARKET_WATCH: ForexSymbolEntry[] = [
-  { symbol: "XAUUSD", label: "Gold vs US Dollar", category: "metal", yahoo: "XAUUSD=X", venueNote: "Spot gold (Yahoo FX). Compare with broker XAUUSD." },
-  { symbol: "XAGUSD", label: "Silver vs US Dollar", category: "metal", yahoo: "XAGUSD=X", venueNote: "Spot silver (Yahoo FX)." },
+  { symbol: "XAUUSD", label: "Gold vs US Dollar", category: "metal", yahoo: "GC=F", venueNote: "Gold futures proxy (COMEX GC). Compare with broker XAUUSD spot." },
+  { symbol: "XAGUSD", label: "Silver vs US Dollar", category: "metal", yahoo: "SI=F", venueNote: "Silver futures proxy (COMEX SI). Compare with broker XAGUSD spot." },
   { symbol: "EURUSD", label: "Euro vs US Dollar", category: "forex", yahoo: "EURUSD=X", venueNote: "Major FX pair." },
   { symbol: "GBPUSD", label: "British Pound vs USD", category: "forex", yahoo: "GBPUSD=X", venueNote: "Major FX pair." },
   { symbol: "USDJPY", label: "US Dollar vs Yen", category: "forex", yahoo: "USDJPY=X", venueNote: "Major FX pair." },

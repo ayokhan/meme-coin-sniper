@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { ForexSymbolEntry } from "@/lib/forex-market";
+import { normalizeForexSymbol, type ForexSymbolEntry } from "@/lib/forex-market";
 import { NOVA_SCALP_DISCLAIMER, SCALP_TIMEFRAMES, type NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
 
 import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
@@ -259,10 +259,16 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
             list="nova-forex-symbols"
             value={symbol}
             onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            placeholder="XAUUSD"
+            onBlur={() => {
+              const normalized = normalizeForexSymbol(symbol);
+              if (normalized) setSymbol(normalized);
+            }}
+            placeholder="XAUUSD or XAU"
             className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-40 bg-white dark:bg-zinc-800"
           />
           <datalist id="nova-forex-symbols">
+            <option value="XAU">Gold (XAUUSD)</option>
+            <option value="XAG">Silver (XAGUSD)</option>
             {catalog.map((c) => (
               <option key={c.symbol} value={c.symbol}>
                 {c.label}

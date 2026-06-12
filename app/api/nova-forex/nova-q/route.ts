@@ -96,6 +96,16 @@ export async function POST(request: Request) {
       }
     }
 
+    if (tfResults.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `No candle data for ${symbol}. Yahoo Finance may be unavailable—try XAUUSD, EURUSD, or NAS100, or retry in a minute.`,
+        },
+        { status: 502 },
+      );
+    }
+
     const ticker = await getForexTicker(symbol);
     const currentPrice = ticker?.last ? Number(ticker.last) : null;
     const marketDirection = getOverallDirection(tfResults);
