@@ -1,11 +1,5 @@
-import { getCandles as getHlCandles, getTicker as getHlTicker } from "@/lib/hyperliquid";
-import {
-  getBlofinMetalCandles,
-  getBlofinMetalTicker,
-  isBlofinMetal,
-  normalizeMetalBase,
-  type BlofinMetal,
-} from "@/lib/blofin-metals";
+import { normalizeMetalBase } from "@/lib/blofin-metals";
+import { getNovaPerpCandles, getNovaPerpTicker, resolveNovaPerpVenue } from "@/lib/nova-perp-market";
 import { NOVA_STANDARD_TIMEFRAMES } from "@/lib/nova-timeframes";
 import {
   combineStructureAndTrendline,
@@ -30,16 +24,15 @@ export function normalizeSymbolForMarketRead(raw: string): string {
 /** Structure-based market read for a symbol (same logic as NovaQ / NovaRadar). */
 export async function fetchUnifiedMarketReadForSymbol(rawSymbol: string): Promise<UnifiedMarketRead | null> {
   const symbol = normalizeSymbolForMarketRead(rawSymbol);
-  const useBlofinMetal = isBlofinMetal(symbol);
+  const venue = await resolveNovaPerpVenue(symbol);
+  if (!venue) return null;
   const tfList = NOVA_STANDARD_TIMEFRAMES.filter((t) => DEFAULT_TF_IDS.includes(t.id));
   const tfRows: StructureLevelRow[] = [];
   const trendlineRows: Array<{ trendlineBias: "up" | "down" | "flat" }> = [];
 
   for (const tf of tfList) {
     try {
-      const candles = useBlofinMetal
-        ? await getBlofinMetalCandles(symbol as BlofinMetal, tf.interval, tf.limit)
-        : await getHlCandles(symbol, tf.interval, tf.limit);
+      const candles = await getNovaPerpCandles(symbol, venue, tf.interval, tf.limit);
       const candleRows = candles as CandleTuple[];
       const hl = highLowFromCandles(candleRows);
       if (!hl) continue;
@@ -67,9 +60,7 @@ export async function fetchUnifiedMarketReadForSymbol(rawSymbol: string): Promis
 
   if (tfRows.length === 0) return null;
 
-  const ticker = useBlofinMetal
-    ? await getBlofinMetalTicker(symbol as BlofinMetal)
-    : await getHlTicker(symbol);
+  const ticker = await getNovaPerpTicker(symbol, venue);
   const currentPrice = ticker?.last ? Number(ticker.last) : null;
   if (currentPrice == null || !Number.isFinite(currentPrice)) return null;
 

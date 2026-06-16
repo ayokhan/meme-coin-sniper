@@ -16,6 +16,6 @@ export async function GET() {
     success: true,
     symbols: FOREX_MARKET_WATCH,
     dataNote:
-      "Prices and candles use Yahoo Finance chart data as a reference feed (similar symbols to TradingView / FOREX.com). Your broker may quote different bid/ask.",
+      "XAUUSD/XAGUSD: spot mid (Swissquote) aligned with TradingView/FOREX.com-style gold; other symbols via Yahoo Finance.",
   });
 }

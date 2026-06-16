@@ -36,6 +36,14 @@ export function getBlofinMetalInstId(symbol: string): string | null {
   return null;
 }
 
+/** Blofin swap instId for any base symbol (e.g. SPCX → SPCX-USDT). */
+export function toBlofinInstId(symbol: string): string {
+  const metalInst = getBlofinMetalInstId(symbol);
+  if (metalInst) return metalInst;
+  const base = normalizeMetalBase(symbol) || String(symbol ?? "").trim().toUpperCase().replace(/-USDT$/i, "");
+  return `${base}-USDT`;
+}
+
 export function blofinMetalContractDescription(symbol: BlofinMetal): string {
   const inst = BLOFIN_METAL_INST[symbol];
   const label = symbol === "XAU" ? "gold" : "silver";
@@ -43,7 +51,7 @@ export function blofinMetalContractDescription(symbol: BlofinMetal): string {
 }
 
 export function novaQUnknownHlSymbolMessage(symbol: string): string {
-  return `${symbol} is not listed as a USDC-margined perpetual in Hyperliquid’s meta. NovaQ uses Hyperliquid for most symbols—try the exact HL coin name (for gold on HL, use PAXG), or enter XAU or XAG for Blofin metals (XAU-USDT, XAG-USDT).`;
+  return `${symbol} is not on Hyperliquid or Blofin USDT perps. Try the exact HL coin name (gold on HL: PAXG), Blofin symbols like SPCX, or metals XAU / XAG (XAU-USDT, XAG-USDT).`;
 }
 
 export async function getBlofinMetalCandles(

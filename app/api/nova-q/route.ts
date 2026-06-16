@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
-import { getCandles as getHlCandles, getPerpSpecFromMeta, getTicker as getHlTicker, type HyperliquidPerpSpec } from "@/lib/hyperliquid";
 import {
-  blofinMetalContractDescription,
-  getBlofinMetalCandles,
-  getBlofinMetalTicker,
-  isBlofinMetal,
-  normalizeMetalBase,
-  novaQUnknownHlSymbolMessage,
-  type BlofinMetal,
-} from "@/lib/blofin-metals";
+  buildNovaPerpContractDescription,
+  getNovaPerpCandles,
+  getNovaPerpTicker,
+  resolveNovaPerpVenue,
+} from "@/lib/nova-perp-market";
+import { normalizeMetalBase } from "@/lib/blofin-metals";
 import {
   type CandleTuple,
   combineStructureAndTrendline,
@@ -61,16 +58,6 @@ function normalizeSymbol(raw: string): string {
   return normalizeMetalBase(raw) || "BTC";
 }
 
-function buildContractDescription(symbol: string, spec: HyperliquidPerpSpec | null): string {
-  if (!spec) {
-    return novaQUnknownHlSymbolMessage(symbol);
-  }
-  const minStep = Math.pow(10, -spec.szDecimals);
-  const base = `${spec.name}: Hyperliquid USDC-margined perpetual, max leverage ${spec.maxLeverage}x, minimum size step about ${minStep} ${spec.name}.`;
-  const extra = NOVA_Q_KNOWN_ASSET_NOTES[spec.name];
-  return extra ? `${base} ${extra}` : base;
-}
-
 function getOverallDirection(timeframes: NovaQTfResult[]): "bullish" | "bearish" | "sideways" {
   if (timeframes.length === 0) return "sideways";
   let score = 0;
@@ -107,26 +94,32 @@ export async function POST(request: Request) {
     const effectiveTf =
       selected.length > 0 ? selected : NOVA_Q_TIMEFRAMES.filter((t) => ["15m", "1h", "1w"].includes(t.id));
 
-    const useBlofinMetal = isBlofinMetal(symbol);
-
-    let contractDescription = "";
-    if (useBlofinMetal) {
-      contractDescription = blofinMetalContractDescription(symbol as BlofinMetal);
-    } else {
-      try {
-        const spec = await getPerpSpecFromMeta(symbol);
-        contractDescription = buildContractDescription(symbol, spec);
-      } catch {
-        contractDescription = `${symbol}: contract details temporarily unavailable (Hyperliquid meta).`;
-      }
+    const venue = await resolveNovaPerpVenue(symbol);
+    let contractDescription = await buildNovaPerpContractDescription(symbol, venue);
+    if (venue === "hyperliquid" && NOVA_Q_KNOWN_ASSET_NOTES[symbol]) {
+      contractDescription = `${contractDescription} ${NOVA_Q_KNOWN_ASSET_NOTES[symbol]}`;
+    }
+    if (!venue) {
+      return NextResponse.json({
+        success: true,
+        result: {
+          symbol,
+          currentPrice: null,
+          marketDirection: "sideways" as const,
+          overallTrendlineSummary: "",
+          marketRead: null,
+          contractDescription,
+          alignment: null,
+          tradePlan: null,
+          timeframes: [],
+        },
+      });
     }
 
     const tfResults: NovaQTfResult[] = [];
     for (const tf of effectiveTf) {
       try {
-        const candles = useBlofinMetal
-          ? await getBlofinMetalCandles(symbol as BlofinMetal, tf.interval, tf.limit)
-          : await getHlCandles(symbol, tf.interval, tf.limit);
+        const candles = await getNovaPerpCandles(symbol, venue, tf.interval, tf.limit);
         const candleRows = candles as CandleTuple[];
         const hl = highLowFromCandles(candleRows);
         if (!hl) continue;
@@ -160,9 +153,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const ticker = useBlofinMetal
-      ? await getBlofinMetalTicker(symbol as BlofinMetal)
-      : await getHlTicker(symbol);
+    const ticker = await getNovaPerpTicker(symbol, venue);
     const currentPrice = ticker?.last ? Number(ticker.last) : null;
     const marketDirection = getOverallDirection(tfResults);
     const overallTrendlineSummaryText = overallTrendlineSummary(tfResults);

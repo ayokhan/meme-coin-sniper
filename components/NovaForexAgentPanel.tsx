@@ -223,7 +223,7 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
         <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Nova Forex Agent</h2>
         <p className="text-xs text-muted-foreground mb-3">
-          Forex, indices, and equities from a Market Watch catalog (XAUUSD, EURUSD, NAS100, TSLA, etc.). OHLC reference via Yahoo Finance chart API—similar symbols to TradingView / FOREX.com; your broker bid/ask may differ.
+          Forex, indices, and equities from a Market Watch catalog (XAUUSD, EURUSD, NAS100, TSLA, etc.). Gold/silver use **spot-calibrated** prices (Swissquote mid, TradingView/FOREX.com–style); other symbols via Yahoo Finance.
         </p>
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className="text-xs text-muted-foreground">Symbol:</span>

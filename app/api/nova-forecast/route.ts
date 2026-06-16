@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
-import { getCandles, getTicker } from "@/lib/hyperliquid";
-import {
-  getBlofinMetalCandles,
-  getBlofinMetalTicker,
-  isBlofinMetal,
-  normalizeMetalBase,
-  type BlofinMetal,
-} from "@/lib/blofin-metals";
+import { normalizeMetalBase } from "@/lib/blofin-metals";
+import { getNovaPerpCandles, getNovaPerpTicker, resolveNovaPerpVenue } from "@/lib/nova-perp-market";
 import {
   type CandleTuple,
   combineStructureAndTrendline,
@@ -70,12 +64,22 @@ export async function GET(request: Request) {
     for (const requestedSymbol of toFetch) {
       try {
         const symbol = requestedSymbol;
-        const useBlofin = isBlofinMetal(symbol);
+        const venue = await resolveNovaPerpVenue(symbol);
+        if (!venue) {
+          forecasts.push({
+            symbol,
+            high: 0,
+            low: 0,
+            shortEntry: 0,
+            longEntry: 0,
+            currentPrice: null,
+            insight: `${symbol} is not on Hyperliquid or Blofin USDT perps.`,
+          });
+          continue;
+        }
         const [candles, ticker] = await Promise.all([
-          useBlofin
-            ? getBlofinMetalCandles(symbol as BlofinMetal, interval, candleLimit)
-            : getCandles(symbol, interval, candleLimit),
-          useBlofin ? getBlofinMetalTicker(symbol as BlofinMetal) : getTicker(symbol),
+          getNovaPerpCandles(symbol, venue, interval, candleLimit),
+          getNovaPerpTicker(symbol, venue),
         ]);
         const rows = candles as CandleTuple[];
         const hl = highLowFromCandles(rows);
@@ -110,7 +114,7 @@ export async function GET(request: Request) {
           insight = `Short entry at ${rangeLabel} high; long entry at ${rangeLabel} low.`;
         }
         insight += ` Structure ${structureDirection}, trendline ${trendlineBias}, blended ${blendedDirection}.`;
-        if (useBlofin) {
+        if (venue === "blofin") {
           insight += ` Data from Blofin ${symbol}-USDT.`;
         }
         forecasts.push({

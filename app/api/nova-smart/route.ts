@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
-import { getCandles, getTicker } from "@/lib/hyperliquid";
-import {
-  getBlofinMetalCandles,
-  getBlofinMetalTicker,
-  isBlofinMetal,
-  normalizeMetalBase,
-  type BlofinMetal,
-} from "@/lib/blofin-metals";
+import { normalizeMetalBase } from "@/lib/blofin-metals";
+import { getNovaPerpCandles, getNovaPerpTicker, resolveNovaPerpVenue } from "@/lib/nova-perp-market";
 import {
   type CandleTuple,
   combineStructureAndTrendline,
@@ -346,11 +340,33 @@ export async function POST(request: Request) {
           direction: "bullish" | "bearish" | "sideways";
           trendlineRead: string;
         }[] = [];
-        const useBlofinMetal = isBlofinMetal(symbol);
+        const venue = await resolveNovaPerpVenue(symbol);
+        if (!venue) {
+          results.push({
+            symbol,
+            timeframes: [],
+            smartShortEntry: 0,
+            smartLongEntry: 0,
+            currentPrice: null,
+            strategy: "swing",
+            strategyNote: `${symbol} is not on Hyperliquid or Blofin USDT perps.`,
+            suggestedLongEntry: 0,
+            suggestedLongExit: 0,
+            suggestedShortEntry: 0,
+            suggestedShortExit: 0,
+            entryExitNote: "",
+            trendlineEntryLong: null,
+            trendlineEntryShort: null,
+            trendlineEntryNote: "Symbol not found on supported venues.",
+            trendlineConfidence: "low",
+            trendlineConfidenceNote: "Low confidence — symbol unavailable.",
+            recommendedDirection: "neutral",
+            recommendationNote: "Try a Hyperliquid or Blofin USDT perp symbol (e.g. BTC, SPCX, XAU).",
+          });
+          continue;
+        }
         for (const tf of effectiveTf) {
-          const candles = useBlofinMetal
-            ? await getBlofinMetalCandles(symbol as BlofinMetal, tf.interval, tf.limit)
-            : await getCandles(symbol, tf.interval, tf.limit);
+          const candles = await getNovaPerpCandles(symbol, venue, tf.interval, tf.limit);
           const hl = highLowFromCandles(candles as CandleTuple[]);
           if (!hl) continue;
           const rows = candles as CandleTuple[];
@@ -382,9 +398,7 @@ export async function POST(request: Request) {
           });
         }
 
-        const ticker = useBlofinMetal
-          ? await getBlofinMetalTicker(symbol as BlofinMetal)
-          : await getTicker(symbol);
+        const ticker = await getNovaPerpTicker(symbol, venue);
         const currentPrice = ticker?.last ? Number(ticker.last) : null;
 
         if (tfData.length === 0) {

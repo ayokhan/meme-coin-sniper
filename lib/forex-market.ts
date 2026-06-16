@@ -1,8 +1,13 @@
 /**
- * Forex / CFD / index symbols (Market Watch style) with OHLC via Yahoo Finance chart API.
- * Aligns with common FOREX.com / TradingView tickers where possible.
+ * Forex / CFD / index symbols with OHLC via Yahoo Finance, with **spot calibration**
+ * for XAUUSD / XAGUSD (Swissquote live mid) so levels align with TradingView / broker spot.
  */
 import type { Candle } from "@/lib/hyperliquid";
+import {
+  calibrateCandlesToSpotMid,
+  getForexSpotMid,
+  usesSpotCalibration,
+} from "@/lib/forex-spot-feed";
 
 export type ForexSymbolEntry = {
   symbol: string;
@@ -14,8 +19,8 @@ export type ForexSymbolEntry = {
 
 /** Curated list — expandable; user can also type any symbol we can map. */
 export const FOREX_MARKET_WATCH: ForexSymbolEntry[] = [
-  { symbol: "XAUUSD", label: "Gold vs US Dollar", category: "metal", yahoo: "GC=F", venueNote: "Gold futures proxy (COMEX GC). Compare with broker XAUUSD spot." },
-  { symbol: "XAGUSD", label: "Silver vs US Dollar", category: "metal", yahoo: "SI=F", venueNote: "Silver futures proxy (COMEX SI). Compare with broker XAGUSD spot." },
+  { symbol: "XAUUSD", label: "Gold vs US Dollar", category: "metal", yahoo: "GC=F", venueNote: "Spot XAUUSD (Swissquote mid, TradingView/FOREX.com–style). OHLC shape from Yahoo GC=F, level-adjusted to live spot." },
+  { symbol: "XAGUSD", label: "Silver vs US Dollar", category: "metal", yahoo: "SI=F", venueNote: "Spot XAGUSD (Swissquote mid). OHLC shape from Yahoo SI=F, level-adjusted to live spot." },
   { symbol: "EURUSD", label: "Euro vs US Dollar", category: "forex", yahoo: "EURUSD=X", venueNote: "Major FX pair." },
   { symbol: "GBPUSD", label: "British Pound vs USD", category: "forex", yahoo: "GBPUSD=X", venueNote: "Major FX pair." },
   { symbol: "USDJPY", label: "US Dollar vs Yen", category: "forex", yahoo: "USDJPY=X", venueNote: "Major FX pair." },
@@ -79,7 +84,12 @@ export function resolveYahooTicker(symbol: string): string | null {
 
 export function forexContractDescription(symbol: string): string {
   const entry = resolveForexEntry(symbol);
-  if (entry) return `${entry.symbol} (${entry.label}): ${entry.venueNote} Data via Yahoo Finance chart API (reference prices; your broker may differ).`;
+  if (entry) {
+    const via = usesSpotCalibration(entry.symbol)
+      ? "Yahoo OHLC + Swissquote spot calibration"
+      : "Yahoo Finance chart API";
+    return `${entry.symbol} (${entry.label}): ${entry.venueNote} Data via ${via}.`;
+  }
   const yahoo = resolveYahooTicker(symbol);
   if (yahoo) return `${symbol}: OHLC from Yahoo (${yahoo}). Reference only—not live FOREX.com feed.`;
   return `${symbol}: Symbol not in the Market Watch catalog. Try XAUUSD, EURUSD, NAS100, TSLA, etc.`;
@@ -166,7 +176,14 @@ export async function getForexCandles(
     rows.push(toHlCandle(timestamps[i]! * 1000, o, h, l, c, quote.volume?.[i] ?? 0));
   }
   rows.reverse();
-  return rows.slice(0, Math.max(1, limit));
+  let out = rows.slice(0, Math.max(1, limit));
+
+  if (usesSpotCalibration(key)) {
+    const spotMid = await getForexSpotMid(key);
+    if (spotMid != null) out = calibrateCandlesToSpotMid(out, spotMid);
+  }
+
+  return out;
 }
 
 export async function getForexTicker(symbol: string): Promise<{ last: string } | null> {
