@@ -1140,7 +1140,7 @@ export default function Dashboard() {
   const [perpRadarItems, setPerpRadarItems] = useState<PerpRadarItem[]>([]);
   const [perpRadarLoading, setPerpRadarLoading] = useState(false);
   const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
-  const [perpRadarView, setPerpRadarView] = useState<"all" | "macro" | "metals" | "hyperliquid">("all");
+  const [perpRadarView, setPerpRadarView] = useState<"all" | "macro" | "metals" | "hyperliquid" | "blofin">("all");
   const [perpRadarPreset, setPerpRadarPreset] = useState<"all" | "24h_up" | "24h_down" | "momentum_bull" | "momentum_bear" | "fresh_accel">("fresh_accel");
   const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
   const [perpRadarOnlySurge, setPerpRadarOnlySurge] = useState(false);
@@ -1921,7 +1921,7 @@ export default function Dashboard() {
     }
   };
 
-  const fetchPerpRadar = async (view?: "all" | "macro" | "metals" | "hyperliquid") => {
+  const fetchPerpRadar = async (view?: "all" | "macro" | "metals" | "hyperliquid" | "blofin") => {
     const v = view ?? perpRadarView;
     setPerpRadarLoading(true);
     setPerpRadarError(null);
@@ -1930,6 +1930,11 @@ export default function Dashboard() {
       if (v === "hyperliquid") {
         params.set("category", "hyperliquid");
         params.set("limit", "200");
+      } else if (v === "blofin") {
+        params.set("category", "blofin");
+        params.set("minChangePct", "3");
+        params.set("minQuoteVolume", "50000");
+        params.set("limit", "150");
       } else if (v === "macro" || v === "metals") {
         params.set("category", v);
         params.set("limit", "50");
@@ -4119,6 +4124,13 @@ export default function Dashboard() {
                       >
                         Apex/Hype perps
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => { setPerpRadarView("blofin"); fetchPerpRadar("blofin"); }}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarView === "blofin" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                      >
+                        Blofin perps
+                      </button>
                       <span className="text-xs text-muted-foreground ml-1">Preset:</span>
                       <select
                         value={perpRadarPreset}
@@ -4160,6 +4172,8 @@ export default function Dashboard() {
                   <p className="text-xs text-muted-foreground mb-3">
                     {perpRadarView === "hyperliquid"
                       ? "Hyperliquid (ApexLiquid) perp universe — same style of contracts as ApexLiquid/Blofin listings. Top rows get 5m–4h % from Hyperliquid candles so you can sort by 1h/15m (early push) instead of only chasing the 24h print."
+                      : perpRadarView === "blofin"
+                      ? "Blofin USDT-margined swaps (e.g. SPCX, XAU, XAG). SPCX/XAU/XAG are pinned so they always show. Top rows get 5m–4h % from Blofin candles — same symbols work in NovaQ when you type the base ticker."
                       : perpRadarView === "macro"
                       ? "Macro perps from Binance USDT-M: energy, metals, and indices (e.g. XAU, XAG, SPX, BRENT). We pin XAU/XAG/SPX so they show even when they are not top 24h movers."
                       : perpRadarView === "metals"
@@ -4182,7 +4196,7 @@ export default function Dashboard() {
                   {perpRadarLoading && perpRadarItems.length === 0 && !perpRadarError ? (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                   ) : perpRadarItems.length === 0 && !perpRadarError ? (
-                    <p className="text-xs text-muted-foreground">{perpRadarView === "macro" ? "No macro perps found. Binance may not list them in your region, or try Refresh." : perpRadarView === "metals" ? "No metals perps found. Try Refresh, or check if XAU/XAG are listed in your region." : "No big movers right now. Hit Refresh to try again."}</p>
+                    <p className="text-xs text-muted-foreground">{perpRadarView === "macro" ? "No macro perps found. Binance may not list them in your region, or try Refresh." : perpRadarView === "metals" ? "No metals perps found. Try Refresh, or check if XAU/XAG are listed in your region." : perpRadarView === "blofin" ? "No Blofin movers right now. Try Refresh." : "No big movers right now. Hit Refresh to try again."}</p>
                   ) : perpRadarItems.length > 0 ? (
                     <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                       <Table>
@@ -4341,7 +4355,13 @@ export default function Dashboard() {
                                 <TableCell className="text-center">{renderPerpAiSignalCell(p.base)}</TableCell>
                                 <TableCell className="text-right">
                                   <a
-                                    href={p.exchange === "hyperliquid" ? `https://app.hyperliquid.xyz/trade/${p.base}` : `https://www.binance.com/en/futures/${p.symbol}`}
+                                    href={
+                                      p.exchange === "hyperliquid"
+                                        ? `https://app.hyperliquid.xyz/trade/${p.base}`
+                                        : p.exchange === "blofin"
+                                          ? `https://www.blofin.com/futures/${p.base}-USDT`
+                                          : `https://www.binance.com/en/futures/${p.symbol}`
+                                    }
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline"

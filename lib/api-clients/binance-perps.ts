@@ -10,7 +10,7 @@ export type BinancePerpTicker = {
 };
 
 export type PerpRadarItem = {
-  exchange: "binance" | "hyperliquid";
+  exchange: "binance" | "hyperliquid" | "blofin";
   symbol: string;
   base: string;
   quote: string;

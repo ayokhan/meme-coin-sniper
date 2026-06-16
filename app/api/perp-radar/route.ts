@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getBinancePerpRadar, enrichPerpRadarWithKlines, type PerpRadarItem } from "@/lib/api-clients/binance-perps";
+import { enrichBlofinPerpRadarWithKlines, getBlofinPerpRadar } from "@/lib/api-clients/blofin-perps";
+import { getCandles as getBlofinCandles } from "@/lib/blofin";
 import { getTrendingPerps } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
 import {
@@ -41,7 +43,10 @@ async function enrichOneItemFromHl(item: PerpRadarItem): Promise<PerpRadarItem> 
 
 async function enrichTrendlineOne(item: PerpRadarItem): Promise<PerpRadarItem> {
   try {
-    const trendCandles = (await getCandles(item.base, "15m", 8)) as CandleTuple[];
+    const trendCandles =
+      item.exchange === "blofin"
+        ? ((await getBlofinCandles(`${item.base}-USDT`, "15m", 8)) as CandleTuple[])
+        : ((await getCandles(item.base, "15m", 8)) as CandleTuple[]);
     const struct = structureDirectionFromCloses(trendCandles);
     const tl =
       trendlineRegressionFromCloses(trendCandles) ?? {
@@ -116,7 +121,36 @@ export async function GET(request: Request) {
     const limit = Math.min(Number(searchParams.get("limit") ?? "150"), 200);
     const categoryParam = searchParams.get("category");
     const category =
-      categoryParam === "macro" || categoryParam === "metals" ? categoryParam : categoryParam === "hyperliquid" ? "hyperliquid" : undefined;
+      categoryParam === "macro" || categoryParam === "metals"
+        ? categoryParam
+        : categoryParam === "hyperliquid"
+          ? "hyperliquid"
+          : categoryParam === "blofin"
+            ? "blofin"
+            : undefined;
+
+    if (category === "blofin") {
+      let items = await getBlofinPerpRadar({
+        minChangePct: Number.isFinite(minChangePct) ? minChangePct : 3,
+        minQuoteVolume: Number.isFinite(minQuoteVolume) ? minQuoteVolume : 50_000,
+        limit: Number.isFinite(limit) ? limit : 150,
+      });
+      try {
+        items = await enrichBlofinPerpRadarWithKlines(items, Math.min(60, items.length));
+      } catch {
+        /* keep 24h-only rows */
+      }
+      try {
+        items = await enrichPerpRadarTrendlineBatched(items, Math.min(50, items.length), 10);
+      } catch {
+        /* keep rows without trendline */
+      }
+      return NextResponse.json({
+        success: true,
+        items,
+        exchanges: ["blofin"],
+      });
+    }
 
     if (category === "hyperliquid") {
       const perps = await getTrendingPerps(Math.min(200, Math.max(20, limit)));
