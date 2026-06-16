@@ -132,24 +132,29 @@ export async function GET(request: Request) {
 
     if (category === "blofin") {
       const mode = searchParams.get("mode");
-      let items =
-        mode === "early_breakout"
-          ? await scanBlofinEarlyBreakouts(Number.isFinite(limit) ? limit : 80)
-          : await getBlofinPerpRadar({
-              minChangePct: Number.isFinite(minChangePct) ? minChangePct : 3,
-              minQuoteVolume: Number.isFinite(minQuoteVolume) ? minQuoteVolume : 50_000,
-              limit: Number.isFinite(limit) ? limit : 150,
-            });
+      let items: PerpRadarItem[] = [];
+      let stale = false;
 
-      if (mode !== "early_breakout") {
+      if (mode === "early_breakout") {
+        const scan = await scanBlofinEarlyBreakouts(Number.isFinite(limit) ? limit : 80);
+        items = scan.items;
+        stale = scan.stale;
+      } else {
+        const radar = await getBlofinPerpRadar({
+          minChangePct: Number.isFinite(minChangePct) ? minChangePct : 3,
+          minQuoteVolume: Number.isFinite(minQuoteVolume) ? minQuoteVolume : 50_000,
+          limit: Number.isFinite(limit) ? limit : 150,
+        });
+        items = radar.items;
+        stale = radar.stale;
         try {
-          items = await enrichBlofinPerpRadarWithKlines(items, Math.min(60, items.length));
+          items = await enrichBlofinPerpRadarWithKlines(items, Math.min(35, items.length));
         } catch {
           /* keep 24h-only rows */
         }
       }
       try {
-        items = await enrichPerpRadarTrendlineBatched(items, Math.min(50, items.length), 10);
+        items = await enrichPerpRadarTrendlineBatched(items, Math.min(30, items.length), 8);
       } catch {
         /* keep rows without trendline */
       }
@@ -158,6 +163,8 @@ export async function GET(request: Request) {
         items,
         exchanges: ["blofin"],
         mode: mode === "early_breakout" ? "early_breakout" : "default",
+        stale,
+        staleNote: stale ? "Showing cached Blofin data — API rate limit (429). Data may be up to ~90s old." : undefined,
       });
     }
 

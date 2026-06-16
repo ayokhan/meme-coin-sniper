@@ -1,17 +1,11 @@
-import { getCandles as getBlofinCandles } from "@/lib/blofin";
 import type { PerpRadarItem } from "@/lib/api-clients/binance-perps";
+import {
+  fetchBlofinCandlesCached,
+  fetchBlofinSwapTickersCached,
+  type BlofinSwapTicker,
+} from "@/lib/blofin-public-cache";
 
-const BLOFIN_SWAP_TICKERS = "https://openapi.blofin.com/api/v1/market/tickers?instType=SWAP";
-
-export type BlofinSwapTicker = {
-  instId: string;
-  last: string;
-  open24h: string;
-  high24h: string;
-  low24h: string;
-  volCurrency24h: string;
-  vol24h: string;
-};
+export type { BlofinSwapTicker };
 
 /** Always visible in Blofin Perp Radar (even when not top movers). */
 const PINNED_BLOFIN_BASES = new Set(["SPCX", "XAU", "XAG"]);
@@ -31,15 +25,13 @@ function blofinCandlePct(candles: Array<[string, string, string, string, string,
   return open > 0 ? ((close - open) / open) * 100 : null;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 export async function fetchBlofinSwapTickers(): Promise<BlofinSwapTicker[]> {
-  const res = await fetch(BLOFIN_SWAP_TICKERS, {
-    cache: "no-store",
-    headers: { "User-Agent": "NovaStaris/1.0 (https://novastaris.ai)" },
-  });
-  if (!res.ok) throw new Error(`Blofin tickers error: ${res.status}`);
-  const json = (await res.json()) as { code?: string; data?: BlofinSwapTicker[] };
-  if (json.code !== "0" || !Array.isArray(json.data)) return [];
-  return json.data;
+  const { data } = await fetchBlofinSwapTickersCached();
+  return data;
 }
 
 /** Blofin USDT-margined swap movers for Perp Radar. */
@@ -47,12 +39,12 @@ export async function getBlofinPerpRadar(options?: {
   minChangePct?: number;
   minQuoteVolume?: number;
   limit?: number;
-}): Promise<PerpRadarItem[]> {
+}): Promise<{ items: PerpRadarItem[]; stale: boolean }> {
   const minChangePct = options?.minChangePct ?? 3;
   const minQuoteVolume = options?.minQuoteVolume ?? 50_000;
   const limit = Math.min(options?.limit ?? 150, 200);
 
-  const tickers = await fetchBlofinSwapTickers();
+  const { data: tickers, stale } = await fetchBlofinSwapTickersCached();
   const movers: PerpRadarItem[] = [];
   const pinned: PerpRadarItem[] = [];
 
@@ -92,35 +84,44 @@ export async function getBlofinPerpRadar(options?: {
     seen.add(row.base);
     merged.push(row);
   }
-  return merged.slice(0, limit);
+  return { items: merged.slice(0, limit), stale };
 }
 
-/** Enrich top rows with 5m–4h % from Blofin candles. */
+async function enrichOneBlofinItem(item: PerpRadarItem): Promise<PerpRadarItem> {
+  const instId = `${item.base}-USDT`;
+  const intervals = ["5m", "15m", "30m", "1h", "4h"] as const;
+  const pcts: Partial<Record<(typeof intervals)[number], number | null>> = {};
+  for (const int of intervals) {
+    try {
+      const candles = await fetchBlofinCandlesCached(instId, int, 1);
+      pcts[int] = blofinCandlePct(candles);
+    } catch {
+      pcts[int] = null;
+    }
+  }
+  return {
+    ...item,
+    pct5m: pcts["5m"] ?? undefined,
+    pct15m: pcts["15m"] ?? undefined,
+    pct30m: pcts["30m"] ?? undefined,
+    pct1h: pcts["1h"] ?? undefined,
+    pct4h: pcts["4h"] ?? undefined,
+  };
+}
+
+/** Enrich top rows with 5m–4h % from Blofin candles (batched to avoid 429). */
 export async function enrichBlofinPerpRadarWithKlines(items: PerpRadarItem[], maxItems: number): Promise<PerpRadarItem[]> {
   const head = items.slice(0, maxItems);
-  const intervals = ["5m", "15m", "30m", "1h", "4h"] as const;
-  const enriched = await Promise.all(
-    head.map(async (item) => {
-      const instId = `${item.base}-USDT`;
-      const [pct5m, pct15m, pct30m, pct1h, pct4h] = await Promise.all(
-        intervals.map(async (int) => {
-          try {
-            const candles = await getBlofinCandles(instId, int, 1);
-            return blofinCandlePct(candles);
-          } catch {
-            return null;
-          }
-        })
-      );
-      return {
-        ...item,
-        pct5m: pct5m ?? undefined,
-        pct15m: pct15m ?? undefined,
-        pct30m: pct30m ?? undefined,
-        pct1h: pct1h ?? undefined,
-        pct4h: pct4h ?? undefined,
-      };
-    })
-  );
-  return [...enriched, ...items.slice(maxItems)];
+  const tail = items.slice(maxItems);
+  const enriched: PerpRadarItem[] = [];
+  const batchSize = 4;
+
+  for (let i = 0; i < head.length; i += batchSize) {
+    const batch = head.slice(i, i + batchSize);
+    const part = await Promise.all(batch.map((item) => enrichOneBlofinItem(item)));
+    enriched.push(...part);
+    if (i + batchSize < head.length) await sleep(120);
+  }
+
+  return [...enriched, ...tail];
 }

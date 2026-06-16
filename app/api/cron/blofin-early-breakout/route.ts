@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, triggered: 0, skipped: "no_subscribers" });
     }
 
-    const matches = await scanBlofinEarlyBreakouts(40);
+    const { items: matches, stale } = await scanBlofinEarlyBreakouts(25);
     let triggered = 0;
     const now = new Date();
 
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
       await new Promise((r) => setTimeout(r, 400));
     }
 
-    return NextResponse.json({ success: true, triggered, scanned: matches.length });
+    return NextResponse.json({ success: true, triggered, scanned: matches.length, stale });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Blofin early breakout cron failed";
     console.error("Cron blofin-early-breakout:", e);

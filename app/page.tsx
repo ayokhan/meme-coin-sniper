@@ -1145,6 +1145,7 @@ export default function Dashboard() {
   const [perpRadarItems, setPerpRadarItems] = useState<PerpRadarItem[]>([]);
   const [perpRadarLoading, setPerpRadarLoading] = useState(false);
   const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
+  const [perpRadarStaleNote, setPerpRadarStaleNote] = useState<string | null>(null);
   const [perpRadarView, setPerpRadarView] = useState<"all" | "macro" | "metals" | "hyperliquid" | "blofin">("all");
   const [perpRadarPreset, setPerpRadarPreset] = useState<
     "all" | "24h_up" | "24h_down" | "momentum_bull" | "momentum_bear" | "fresh_accel" | "early_breakout"
@@ -1935,6 +1936,7 @@ export default function Dashboard() {
     const v = view ?? perpRadarView;
     setPerpRadarLoading(true);
     setPerpRadarError(null);
+    setPerpRadarStaleNote(null);
     try {
       const params = new URLSearchParams();
       if (v === "hyperliquid") {
@@ -1962,9 +1964,16 @@ export default function Dashboard() {
       const data = await res.json();
       if (res.ok && data.success && Array.isArray(data.items)) {
         setPerpRadarItems(data.items);
+        if (data.staleNote) setPerpRadarStaleNote(String(data.staleNote));
+        else if (data.stale) setPerpRadarStaleNote("Showing cached Blofin data — API rate limit. Try again in ~1 min.");
       } else {
         setPerpRadarItems([]);
-        setPerpRadarError(data?.error ?? (res.ok ? "No data" : `Error ${res.status}`));
+        const err = data?.error ?? (res.ok ? "No data" : `Error ${res.status}`);
+        setPerpRadarError(
+          String(err).includes("429")
+            ? "Blofin rate limit (429). Wait ~1 min, turn off auto-refresh, or hit Refresh."
+            : err
+        );
       }
     } catch (e) {
       setPerpRadarItems([]);
@@ -2417,9 +2426,10 @@ export default function Dashboard() {
   // Perp Radar auto-refresh (optional, e.g. Blofin early breakout)
   useEffect(() => {
     if (activeTab !== "perp-radar" || !isPaid || !perpRadarAutoRefresh) return;
+    const refreshMs = perpRadarView === "blofin" ? 120_000 : 60_000;
     const interval = setInterval(() => {
       fetchPerpRadar();
-    }, 60_000);
+    }, refreshMs);
     return () => clearInterval(interval);
   }, [activeTab, isPaid, perpRadarAutoRefresh, perpRadarView, perpRadarPreset]);
 
@@ -4226,7 +4236,7 @@ export default function Dashboard() {
                         type="button"
                         onClick={() => setPerpRadarAutoRefresh((v) => !v)}
                         className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
-                        title="Refresh Perp Radar every 60 seconds"
+                        title="Refresh Perp Radar every 60–120s (Blofin uses 120s to avoid rate limits)"
                       >
                         {perpRadarAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
                       </button>
@@ -4349,6 +4359,9 @@ export default function Dashboard() {
                         </>
                       )}
                     </div>
+                  )}
+                  {perpRadarStaleNote && (
+                    <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">{perpRadarStaleNote}</p>
                   )}
                   {perpRadarError && (
                     <div className="mb-3">

@@ -75,16 +75,19 @@ export function earlyBreakoutDirection(item: EarlyBreakoutInput): "up" | "down" 
 }
 
 /** Blofin USDT perps matching early-breakout criteria (intraday-led, 24h still 1–32%). */
-export async function scanBlofinEarlyBreakouts(limit = 80): Promise<PerpRadarItem[]> {
-  const candidates = await getBlofinPerpRadar({
+export async function scanBlofinEarlyBreakouts(limit = 80): Promise<{ items: PerpRadarItem[]; stale: boolean }> {
+  const { items: candidates, stale } = await getBlofinPerpRadar({
     minChangePct: 0.5,
     minQuoteVolume: 30_000,
-    limit: 200,
+    limit: 120,
   });
-  const enriched = await enrichBlofinPerpRadarWithKlines(candidates, Math.min(100, candidates.length));
-  const matches = enriched.filter((p) => earlyBreakoutDirection(p) != null);
+  const enrichCount = Math.min(35, candidates.length);
+  const enriched = await enrichBlofinPerpRadarWithKlines(candidates, enrichCount);
+  const rest = candidates.slice(enrichCount);
+  const merged = [...enriched, ...rest];
+  const matches = merged.filter((p) => earlyBreakoutDirection(p) != null);
   matches.sort((a, b) => earlyBreakoutScore(b) - earlyBreakoutScore(a));
-  return matches.slice(0, limit);
+  return { items: matches.slice(0, limit), stale };
 }
 
 export function formatEarlyBreakoutTelegram(item: PerpRadarItem, direction: "up" | "down"): string {
