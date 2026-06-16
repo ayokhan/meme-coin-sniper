@@ -82,6 +82,12 @@ export function isLateChase(item: EarlyBreakoutInput): boolean {
   return ch24 >= 35 && p5 < 1.2 && p15 < 1.5;
 }
 
+/** Early breakout quality: intraday-led, 24h still modest, not a late chase. */
+export function isNovaPick(item: EarlyBreakoutInput): boolean {
+  if (isLateChase(item)) return false;
+  return earlyBreakoutDirection(item) != null;
+}
+
 /** Blofin USDT perps matching early-breakout criteria (intraday-led, 24h still 1–32%). */
 export async function scanBlofinEarlyBreakouts(limit = 80): Promise<{ items: PerpRadarItem[]; stale: boolean }> {
   const { items: candidates, stale } = await getBlofinPerpRadar({

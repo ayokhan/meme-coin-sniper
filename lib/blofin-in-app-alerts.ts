@@ -1,4 +1,5 @@
 export const BLOFIN_IN_APP_ALERTS_ENABLED_KEY = "novastaris-blofin-in-app-alerts-enabled";
+export const BLOFIN_BROWSER_NOTIFY_PREF_KEY = "novastaris-blofin-browser-notify-enabled";
 export const BLOFIN_ALERT_COOLDOWN_KEY = "novastaris-blofin-alert-cooldowns";
 
 export type BlofinInAppAlert = {
@@ -27,6 +28,24 @@ export function loadBlofinInAppAlertsEnabled(): boolean {
 export function saveBlofinInAppAlertsEnabled(on: boolean): void {
   try {
     localStorage.setItem(BLOFIN_IN_APP_ALERTS_ENABLED_KEY, on ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function loadBlofinBrowserNotifyPref(): boolean {
+  try {
+    const raw = localStorage.getItem(BLOFIN_BROWSER_NOTIFY_PREF_KEY);
+    if (raw === "0" || raw === "false") return false;
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+export function saveBlofinBrowserNotifyPref(on: boolean): void {
+  try {
+    localStorage.setItem(BLOFIN_BROWSER_NOTIFY_PREF_KEY, on ? "1" : "0");
   } catch {
     /* ignore */
   }
@@ -73,6 +92,7 @@ export function markBlofinAlertFired(key: string, now = Date.now()): void {
 export function notifyBlofinBreakoutBrowser(alert: BlofinInAppAlert): void {
   if (typeof window === "undefined" || !("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
+  if (!loadBlofinBrowserNotifyPref()) return;
   const dir = alert.direction === "up" ? "LONG setup" : "SHORT setup";
   const p15 = alert.pct15m != null ? `${alert.pct15m >= 0 ? "+" : ""}${alert.pct15m.toFixed(2)}% 15m` : "";
   const ch24 = `${alert.change24hPct >= 0 ? "+" : ""}${alert.change24hPct.toFixed(1)}% 24h`;

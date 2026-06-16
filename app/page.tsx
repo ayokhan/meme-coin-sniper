@@ -7,12 +7,15 @@ import {
   isEarlyBreakoutDown,
   isEarlyBreakoutUp,
   isLateChase,
+  isNovaPick,
 } from "@/lib/blofin-early-breakout";
 import {
   blofinAlertCooldownAllows,
   loadBlofinInAppAlertsEnabled,
+  loadBlofinBrowserNotifyPref,
   markBlofinAlertFired,
   notifyBlofinBreakoutBrowser,
+  saveBlofinBrowserNotifyPref,
   saveBlofinInAppAlertsEnabled,
   type BlofinInAppAlert,
 } from "@/lib/blofin-in-app-alerts";
@@ -1175,12 +1178,21 @@ export default function Dashboard() {
   const [perpRadarFavoriteKeys, setPerpRadarFavoriteKeys] = useState<string[]>([]);
   const [blofinInAppAlertsEnabled, setBlofinInAppAlertsEnabled] = useState(true);
   const [blofinInAppAlertFeed, setBlofinInAppAlertFeed] = useState<BlofinInAppAlert[]>([]);
+  const [blofinBrowserNotifyPref, setBlofinBrowserNotifyPref] = useState(true);
+  const [blofinBrowserNotifyMsg, setBlofinBrowserNotifyMsg] = useState<string | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">("default");
   const blofinBreakoutPrevRef = useRef<Set<string>>(new Set());
   const blofinBreakoutScanReadyRef = useRef(false);
   useEffect(() => {
     setPerpRadarFavoriteKeys(loadPerpContractFavorites());
     setPerpTablesAutoRefresh(loadPerpTablesAutoRefresh());
     setBlofinInAppAlertsEnabled(loadBlofinInAppAlertsEnabled());
+    setBlofinBrowserNotifyPref(loadBlofinBrowserNotifyPref());
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    } else {
+      setNotificationPermission("unsupported");
+    }
   }, []);
   const [perpAlertAddType, setPerpAlertAddType] = useState<
     "new_listing" | "5m_pct_above" | "5m_pct_below" | "blofin_early_breakout" | "blofin_5m_pct_above" | "blofin_5m_pct_below"
@@ -2051,14 +2063,54 @@ export default function Dashboard() {
     });
   }, []);
 
-  const requestBlofinBrowserNotifications = useCallback(async () => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    try {
-      await Notification.requestPermission();
-    } catch {
-      /* ignore */
+  const toggleBlofinBrowserNotifications = useCallback(async () => {
+    setBlofinBrowserNotifyMsg(null);
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setBlofinBrowserNotifyMsg("Desktop notifications are not supported in this browser.");
+      return;
     }
-  }, []);
+    const granted = Notification.permission === "granted";
+    if (granted && blofinBrowserNotifyPref) {
+      saveBlofinBrowserNotifyPref(false);
+      setBlofinBrowserNotifyPref(false);
+      setBlofinBrowserNotifyMsg("Desktop popups off. In-app alerts still work.");
+      return;
+    }
+    if (granted && !blofinBrowserNotifyPref) {
+      saveBlofinBrowserNotifyPref(true);
+      setBlofinBrowserNotifyPref(true);
+      setBlofinBrowserNotifyMsg("Desktop popups on.");
+      try {
+        new Notification("NovaStaris", { body: "Browser alerts on for Blofin early breakouts.", tag: "novastaris-browser-notify-test" });
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    if (Notification.permission === "denied") {
+      setBlofinBrowserNotifyMsg("Blocked in browser — click the lock icon in the address bar → Notifications → Allow for novastaris.ai.");
+      return;
+    }
+    try {
+      const result = await Notification.requestPermission();
+      setNotificationPermission(result);
+      if (result === "granted") {
+        saveBlofinBrowserNotifyPref(true);
+        setBlofinBrowserNotifyPref(true);
+        setBlofinBrowserNotifyMsg("Desktop popups on. You’ll get a system notification when a new breakout appears (even if this tab is in the background).");
+        new Notification("NovaStaris", { body: "Browser alerts on for Blofin early breakouts.", tag: "novastaris-browser-notify-test" });
+      } else if (result === "denied") {
+        setBlofinBrowserNotifyMsg("Blocked — allow notifications in your browser’s site settings for novastaris.ai.");
+      } else {
+        setBlofinBrowserNotifyMsg("Permission dismissed — click again and choose Allow.");
+      }
+    } catch {
+      setBlofinBrowserNotifyMsg("Could not request notification permission.");
+    }
+  }, [blofinBrowserNotifyPref]);
+
+  const blofinBrowserNotifyActive =
+    notificationPermission === "granted" && blofinBrowserNotifyPref;
 
   const MACRO_BASES_REGEX = /^(CRUDE|XBR|OIL|WTI|BRENT|CL|NG|NATURALGAS|GAS|XAU|GOLD|XAG|SILVER|SPX|SPX500|SP500|NDX|NAS100|DJI|US30)$/i;
   const MACRO_PINNED_REGEX = /^(XAU|XAG|SPX)$/i;
@@ -4446,11 +4498,15 @@ export default function Dashboard() {
                           </button>
                           <button
                             type="button"
-                            onClick={requestBlofinBrowserNotifications}
-                            className="px-2 py-1.5 rounded-md text-xs font-medium border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 hover:bg-violet-100/50 dark:hover:bg-violet-900/30"
-                            title="Optional desktop notification when a new breakout appears (tab can be in background)"
+                            onClick={toggleBlofinBrowserNotifications}
+                            className={`px-2 py-1.5 rounded-md text-xs font-medium border ${
+                              blofinBrowserNotifyActive
+                                ? "bg-cyan-600 text-white border-cyan-600"
+                                : "border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 hover:bg-violet-100/50 dark:hover:bg-violet-900/30"
+                            }`}
+                            title="Optional Windows/macOS popup when a new breakout appears (works when tab is in background). Click to turn on/off."
                           >
-                            Browser notify
+                            {blofinBrowserNotifyActive ? "Desktop: On" : notificationPermission === "denied" ? "Desktop: Blocked" : "Desktop: Off"}
                           </button>
                           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setBlofinInAppAlertFeed([])}>
                             Clear
@@ -4458,8 +4514,11 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground mb-2">
-                        Scalp-focused: alerts when <strong className="text-zinc-700 dark:text-zinc-300">5m/15m lead</strong> while <strong className="text-zinc-700 dark:text-zinc-300">24h is still ~1–32%</strong> (not exhausted +45% moves). Fires on each refresh while this tab is open — turn on <strong className="text-zinc-700 dark:text-zinc-300">Auto-refresh</strong> (120s on Blofin). Same symbol+direction won&apos;t repeat for ~45 min.
+                        Scalp-focused: alerts when <strong className="text-zinc-700 dark:text-zinc-300">5m/15m lead</strong> while <strong className="text-zinc-700 dark:text-zinc-300">24h is still ~1–32%</strong> (not exhausted +45% moves). Fires on each refresh while this tab is open — turn on <strong className="text-zinc-700 dark:text-zinc-300">Auto-refresh</strong> (120s on Blofin). Rows tagged <strong className="text-cyan-700 dark:text-cyan-300">NovaPick</strong> match the early scalp setup; skip <strong className="text-amber-700 dark:text-amber-300">LATE CHASE</strong>.
                       </p>
+                      {blofinBrowserNotifyMsg && (
+                        <p className="text-xs text-cyan-700 dark:text-cyan-300 mb-2">{blofinBrowserNotifyMsg}</p>
+                      )}
                       {blofinInAppAlertFeed.length === 0 ? (
                         <p className="text-xs text-muted-foreground">No new breakouts yet. Use preset <strong>Early breakout</strong>, enable auto-refresh, and keep this view open.</p>
                       ) : (
@@ -4535,7 +4594,7 @@ export default function Dashboard() {
                       <summary className="cursor-pointer font-medium text-zinc-700 dark:text-zinc-300">Scalp playbook (Blofin)</summary>
                       <ul className="mt-2 space-y-1 list-disc pl-4">
                         <li>Preset <strong className="text-zinc-700 dark:text-zinc-300">Early breakout</strong> · sort <strong className="text-zinc-700 dark:text-zinc-300">15m</strong> · Only surge on · Auto-refresh on.</li>
-                        <li>Enter only when 24h &lt; ~32% and 5m+15m are pushing — skip rows tagged <strong className="text-amber-700 dark:text-amber-300">LATE CHASE</strong>.</li>
+                        <li>Enter when row shows <strong className="text-cyan-700 dark:text-cyan-300">NovaPick</strong> (5m/15m lead, 24h still modest) — skip <strong className="text-amber-700 dark:text-amber-300">LATE CHASE</strong>.</li>
                         <li>Risk 0.5–1% per trade · stop below last 15m low (long) · target 1.5–2.5R — don&apos;t hold through a stalled 24h.</li>
                         <li>Star 3–5 names · NovaQ before size · AI Signal as veto if 24h already extended.</li>
                       </ul>
@@ -4689,6 +4748,7 @@ export default function Dashboard() {
                                   ? "bg-rose-50/70 dark:bg-rose-950/25"
                                   : "";
                               const lateChase = p.exchange === "blofin" && isLateChase(p);
+                              const novaPick = p.exchange === "blofin" && isNovaPick(p);
                               return (
                               <TableRow key={`${p.exchange}-${p.symbol}-${i}`} className={rowClass}>
                                 <TableCell className="font-mono text-xs">
@@ -4713,6 +4773,14 @@ export default function Dashboard() {
                                         title="24h extended but 5m/15m stalled — late chase / exhaustion risk for scalps"
                                       >
                                         LATE CHASE
+                                      </span>
+                                    )}
+                                    {novaPick && (
+                                      <span
+                                        className="ml-1 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-200"
+                                        title="Early breakout quality: 5m/15m leading, 24h still modest — scalp-friendly setup (not financial advice)"
+                                      >
+                                        NovaPick
                                       </span>
                                     )}
                                   </span>
