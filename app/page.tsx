@@ -4284,7 +4284,8 @@ export default function Dashboard() {
                           setPerpRadarPreset(v);
                           if (v === "early_breakout") {
                             setPerpRadarSortBy("15m");
-                            setPerpRadarAutoRefresh(true);
+                            setPerpTablesAutoRefresh(true);
+                            savePerpTablesAutoRefresh(true);
                             setPerpRadarView("blofin");
                             fetchPerpRadar("blofin");
                           }
