@@ -74,6 +74,14 @@ export function earlyBreakoutDirection(item: EarlyBreakoutInput): "up" | "down" 
   return null;
 }
 
+/** 24h extended but short windows stalled — late chase / exhaustion risk (scalp caution). */
+export function isLateChase(item: EarlyBreakoutInput): boolean {
+  const ch24 = Math.abs(item.change24hPct);
+  const p5 = Math.abs(item.pct5m ?? 0);
+  const p15 = Math.abs(item.pct15m ?? 0);
+  return ch24 >= 35 && p5 < 1.2 && p15 < 1.5;
+}
+
 /** Blofin USDT perps matching early-breakout criteria (intraday-led, 24h still 1–32%). */
 export async function scanBlofinEarlyBreakouts(limit = 80): Promise<{ items: PerpRadarItem[]; stale: boolean }> {
   const { items: candidates, stale } = await getBlofinPerpRadar({
