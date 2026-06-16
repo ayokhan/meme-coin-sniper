@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { CLAUDE_SONNET_MODEL } from '@/lib/anthropic-models';
 import axios from 'axios';
 import { ALL_CT_INFLUENCERS, getAccountWeight, MONITORED_CT_LIMIT } from '@/lib/config/ct-influencers';
 
@@ -209,7 +210,7 @@ Respond ONLY with valid JSON (no markdown):
 }`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: CLAUDE_SONNET_MODEL,
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }],
     });

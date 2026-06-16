@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { CLAUDE_SONNET_MODEL } from '@/lib/anthropic-models';
 import { getBscToken, extractSocials } from '@/lib/api-clients/dexscreener';
 import { checkBscTokenSecurity, getSecuritySummary, getTopHolderPercentage } from '@/lib/api-clients/goplus';
 
@@ -141,7 +142,7 @@ Respond ONLY with valid JSON (no markdown, no code block):
 Keep reasons short. Include at least one reason that references narrative/viral potential when relevant. Include positives and negatives.`;
 
   const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: CLAUDE_SONNET_MODEL,
     max_tokens: 700,
     messages: [{ role: 'user', content: prompt }],
   });

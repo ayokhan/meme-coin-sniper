@@ -4,6 +4,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { CLAUDE_SONNET_MODEL } from "@/lib/anthropic-models";
 
 const CFTC_TFF_BASE = "https://publicreporting.cftc.gov/resource/gpe5-46if.json";
 const TRADINGSTER_FIN_BASE = "https://www.tradingster.com/cot/futures/fin";
@@ -238,7 +239,7 @@ Respond with ONLY a JSON object (no markdown fences):
 Rules: "mixed" if headlines conflict. Do not promise profit. Be skeptical of single-source hype.`;
 
   const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: CLAUDE_SONNET_MODEL,
     max_tokens: 600,
     messages: [{ role: "user", content: prompt }],
   });

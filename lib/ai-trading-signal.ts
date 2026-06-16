@@ -3,6 +3,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { CLAUDE_SONNET_MODEL } from "@/lib/anthropic-models";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -56,7 +57,7 @@ REASON: one short sentence
 Rules: signal "long" or "short" only if score >= 55 and setup has clear edge; otherwise "no_buy". Be conservative.`;
 
   const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: CLAUDE_SONNET_MODEL,
     max_tokens: 150,
     messages: [{ role: "user", content: prompt }],
   });
@@ -168,7 +169,7 @@ Output exactly one line (no other lines):
 TACTIC_ONE_LINER: max 260 characters, plain text.`;
 
   const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: CLAUDE_SONNET_MODEL,
     max_tokens: 200,
     messages: [{ role: "user", content: prompt }],
   });
@@ -251,7 +252,7 @@ TACTIC_HINT: one sentence (max 220 chars)
 REASON: 2-4 sentences`;
 
   const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: CLAUDE_SONNET_MODEL,
     max_tokens: 500,
     messages: [{ role: "user", content: prompt }],
   });

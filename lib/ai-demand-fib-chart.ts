@@ -3,6 +3,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { CLAUDE_SONNET_MODEL } from "@/lib/anthropic-models";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -76,7 +77,7 @@ Respond ONLY with valid JSON (no markdown):
   ];
 
   const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: CLAUDE_SONNET_MODEL,
     max_tokens: 1200,
     messages: [{ role: "user", content }],
   });

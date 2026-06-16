@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { CLAUDE_SONNET_MODEL } from "@/lib/anthropic-models";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -120,7 +121,7 @@ FACTORS: bullet phrases separated by semicolons (max 6)
 RISK: one sentence on oracle mismatch / noise / not advice`;
 
   const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: CLAUDE_SONNET_MODEL,
     max_tokens: tradeCycle ? 650 : 400,
     messages: [{ role: "user", content: prompt }],
   });

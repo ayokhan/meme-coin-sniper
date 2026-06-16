@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { CLAUDE_SONNET_MODEL } from "@/lib/anthropic-models";
 import type { NovaFiveMinsTapeRegime } from "@/lib/ai-nova-five-mins";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -133,7 +134,7 @@ FACTORS: bullet phrases separated by semicolons (max 7)
 RISK: one sentence`;
 
   const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: CLAUDE_SONNET_MODEL,
     max_tokens: 720,
     messages: [{ role: "user", content: prompt }],
   });
