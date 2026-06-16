@@ -6,6 +6,15 @@ import {
   isEarlyBreakoutDown,
   isEarlyBreakoutUp,
 } from "@/lib/blofin-early-breakout";
+import {
+  loadPerpContractFavorites,
+  loadPerpTablesAutoRefresh,
+  perpContractFavoriteKey,
+  perpExchangeForRadarView,
+  savePerpContractFavorites,
+  savePerpTablesAutoRefresh,
+  sortRowsWithFavoriteContracts,
+} from "@/lib/perp-table-prefs";
 import { useTheme } from "next-themes";
 import { useSession, signOut, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -109,17 +118,6 @@ type WalletAlert = {
 
 const AUTO_REFRESH_SECONDS = 60;
 const LEVERAGE_TRADER_FAVORITES_LS_KEY = "novastaris-leverage-trader-favorites";
-const PERP_RADAR_FAVORITES_LS_KEY = "novastaris-perp-radar-favorites";
-
-function perpRadarFavoriteKey(exchange: string, base: string): string {
-  return `${exchange}:${base.trim().toUpperCase()}`;
-}
-
-function perpRadarExchangeForView(view: "all" | "macro" | "metals" | "hyperliquid" | "blofin"): string {
-  if (view === "blofin") return "blofin";
-  if (view === "hyperliquid") return "hyperliquid";
-  return "binance";
-}
 
 type TabId =
   | "new"
@@ -1163,18 +1161,11 @@ export default function Dashboard() {
   >("fresh_accel");
   const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
   const [perpRadarOnlySurge, setPerpRadarOnlySurge] = useState(false);
-  const [perpRadarAutoRefresh, setPerpRadarAutoRefresh] = useState(false);
+  const [perpTablesAutoRefresh, setPerpTablesAutoRefresh] = useState(false);
   const [perpRadarFavoriteKeys, setPerpRadarFavoriteKeys] = useState<string[]>([]);
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PERP_RADAR_FAVORITES_LS_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return;
-      setPerpRadarFavoriteKeys(parsed.filter((x): x is string => typeof x === "string"));
-    } catch {
-      /* ignore */
-    }
+    setPerpRadarFavoriteKeys(loadPerpContractFavorites());
+    setPerpTablesAutoRefresh(loadPerpTablesAutoRefresh());
   }, []);
   const [perpAlertAddType, setPerpAlertAddType] = useState<
     "new_listing" | "5m_pct_above" | "5m_pct_below" | "blofin_early_breakout" | "blofin_5m_pct_above" | "blofin_5m_pct_below"
@@ -1966,7 +1957,7 @@ export default function Dashboard() {
     try {
       const params = new URLSearchParams();
       const favKeys = favoriteKeysOverride ?? perpRadarFavoriteKeys;
-      const exchangeForView = perpRadarExchangeForView(v);
+      const exchangeForView = perpExchangeForRadarView(v);
       const includeBases = favKeys
         .filter((k) => k.startsWith(`${exchangeForView}:`))
         .map((k) => k.slice(exchangeForView.length + 1))
@@ -2017,21 +2008,25 @@ export default function Dashboard() {
   };
 
   const togglePerpRadarFavorite = useCallback((exchange: string, base: string) => {
-    const key = perpRadarFavoriteKey(exchange, base);
+    const key = perpContractFavoriteKey(exchange, base);
     setPerpRadarFavoriteKeys((prev) => {
       const adding = !prev.includes(key);
       const next = adding ? [key, ...prev] : prev.filter((k) => k !== key);
-      try {
-        localStorage.setItem(PERP_RADAR_FAVORITES_LS_KEY, JSON.stringify(next));
-      } catch {
-        /* ignore */
-      }
+      savePerpContractFavorites(next);
       if (adding && exchange === "blofin" && activeTab === "perp-radar") {
         void fetchPerpRadar(perpRadarView, next);
       }
       return next;
     });
   }, [activeTab, perpRadarView]);
+
+  const togglePerpTablesAutoRefresh = useCallback(() => {
+    setPerpTablesAutoRefresh((prev) => {
+      const next = !prev;
+      savePerpTablesAutoRefresh(next);
+      return next;
+    });
+  }, []);
 
   const MACRO_BASES_REGEX = /^(CRUDE|XBR|OIL|WTI|BRENT|CL|NG|NATURALGAS|GAS|XAU|GOLD|XAG|SILVER|SPX|SPX500|SP500|NDX|NAS100|DJI|US30)$/i;
   const MACRO_PINNED_REGEX = /^(XAU|XAG|SPX)$/i;
@@ -2421,6 +2416,27 @@ export default function Dashboard() {
     }
   };
 
+  const renderPerpContractStar = (exchange: string, base: string) => {
+    const key = perpContractFavoriteKey(exchange, base);
+    const fav = perpRadarFavoriteKeys.includes(key);
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          togglePerpRadarFavorite(exchange, base);
+        }}
+        className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-amber-500 dark:hover:text-amber-400 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
+        aria-label={fav ? "Remove contract favorite" : "Favorite contract (pin to top)"}
+        aria-pressed={fav}
+        title={fav ? "Remove favorite" : "Favorite — pinned to top"}
+      >
+        <Star className={`h-3.5 w-3.5 ${fav ? "fill-amber-400 text-amber-400" : ""}`} />
+      </button>
+    );
+  };
+
   const renderPerpAiSignalCell = (symbol: string, venue?: "hyperliquid" | "blofin") => {
     const v = perpAiSignals[symbol];
     if (v === "loading") return <span className="text-xs text-muted-foreground">…</span>;
@@ -2475,15 +2491,35 @@ export default function Dashboard() {
     }
   }, [activeTab, walletTrackerView, futuresView, isPaid, isVip, isOwner, canAccessMemeCoinsTraderEffective, perpRadarPreset]);
 
-  // Perp Radar auto-refresh (optional, e.g. Blofin early breakout)
+  // Perp contract tables auto-refresh (Perp Radar, Trending Perps, Top Altcoins, Hot Perps)
   useEffect(() => {
-    if (activeTab !== "perp-radar" || !isPaid || !perpRadarAutoRefresh) return;
-    const refreshMs = perpRadarView === "blofin" ? 120_000 : 60_000;
-    const interval = setInterval(() => {
-      fetchPerpRadar();
-    }, refreshMs);
-    return () => clearInterval(interval);
-  }, [activeTab, isPaid, perpRadarAutoRefresh, perpRadarView, perpRadarPreset]);
+    if (!isPaid || !perpTablesAutoRefresh) return;
+    if (activeTab === "perp-radar") {
+      const refreshMs = perpRadarView === "blofin" ? 120_000 : 60_000;
+      const interval = setInterval(() => {
+        fetchPerpRadar();
+      }, refreshMs);
+      return () => clearInterval(interval);
+    }
+    if (activeTab === "trending-perps") {
+      const interval = setInterval(() => {
+        fetchTrendingPerps(undefined, true);
+      }, 60_000);
+      return () => clearInterval(interval);
+    }
+    if (activeTab === "futures" && futuresView === "altcoins") {
+      const interval = setInterval(() => {
+        fetchTopAltcoins();
+      }, 60_000);
+      return () => clearInterval(interval);
+    }
+    if (activeTab === "futures" && futuresView === "hot-perps") {
+      const interval = setInterval(() => {
+        fetchHotPerps();
+      }, 60_000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, isPaid, perpTablesAutoRefresh, perpRadarView, perpRadarPreset, futuresView]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
@@ -4286,11 +4322,11 @@ export default function Dashboard() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setPerpRadarAutoRefresh((v) => !v)}
-                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
-                        title="Refresh Perp Radar every 60–120s (Blofin uses 120s to avoid rate limits)"
+                        onClick={togglePerpTablesAutoRefresh}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpTablesAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                        title="Refresh perp tables every 60s (Blofin Perp Radar: 120s). Saved in this browser."
                       >
-                        {perpRadarAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
+                        {perpTablesAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
                       </button>
                       <Button variant="outline" size="sm" onClick={() => fetchPerpRadar()} disabled={perpRadarLoading}>
                         {perpRadarLoading ? "Loading…" : "Refresh"}
@@ -4301,8 +4337,8 @@ export default function Dashboard() {
                       ? "Hyperliquid (ApexLiquid) perp universe — same style of contracts as ApexLiquid/Blofin listings. Top rows get 5m–4h % from Hyperliquid candles so you can sort by 1h/15m (early push) instead of only chasing the 24h print."
                       : perpRadarView === "blofin"
                       ? perpRadarPreset === "early_breakout"
-                        ? "Early breakout: Blofin USDT perps with 24h still ~1–32% while 5m/15m lead (catch moves before a +45% 24h print). Sort by 5m/15m, turn on Only surge, and enable auto-refresh. Star a row to pin it to the top (saved in this browser). Subscribe to Telegram alerts below."
-                        : "Blofin USDT-margined swaps (e.g. SPCX, XAU, XAG). SPCX/XAU/XAG are pinned so they always show. Star any contract to pin it to the top of your list. Top rows get 5m–4h % from Blofin candles — same symbols work in NovaQ when you type the base ticker."
+                        ? "Early breakout: Blofin USDT perps with 24h still ~1–32% while 5m/15m lead (catch moves before a +45% 24h print). Sort by 5m/15m, turn on Only surge, and enable auto-refresh. Star a row to pin it to the top — favorites sync across Perp Radar, Trending Perps, and Crypto Futures tables (saved in this browser). Subscribe to Telegram alerts below."
+                        : "Blofin USDT-margined swaps (e.g. SPCX, XAU, XAG). SPCX/XAU/XAG are pinned so they always show. Star any contract to pin it to the top — favorites sync across all perp tables in this browser."
                       : perpRadarView === "macro"
                       ? "Macro perps from Binance USDT-M: energy, metals, and indices (e.g. XAU, XAG, SPX, BRENT). We pin XAU/XAG/SPX so they show even when they are not top 24h movers."
                       : perpRadarView === "metals"
@@ -4519,8 +4555,8 @@ export default function Dashboard() {
                               return s.up || s.down;
                             }) : filtered;
                             const favKeySet = new Set(perpRadarFavoriteKeys);
-                            const itemKey = (p: PerpRadarItem) => perpRadarFavoriteKey(p.exchange, p.base);
-                            const viewExchange = perpRadarExchangeForView(perpRadarView);
+                            const itemKey = (p: PerpRadarItem) => perpContractFavoriteKey(p.exchange, p.base);
+                            const viewExchange = perpExchangeForRadarView(perpRadarView);
                             const favoriteRows = perpRadarFavoriteKeys
                               .map((key) => perpRadarItems.find((p) => itemKey(p) === key && p.exchange === viewExchange))
                               .filter((p): p is PerpRadarItem => !!p);
@@ -4563,20 +4599,7 @@ export default function Dashboard() {
                               <TableRow key={`${p.exchange}-${p.symbol}-${i}`} className={rowClass}>
                                 <TableCell className="font-mono text-xs">
                                   <span className="inline-flex items-center gap-1 flex-wrap">
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        togglePerpRadarFavorite(p.exchange, p.base);
-                                      }}
-                                      className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-amber-500 dark:hover:text-amber-400 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
-                                      aria-label={favKeySet.has(itemKey(p)) ? "Remove contract favorite" : "Favorite contract (pin to top)"}
-                                      aria-pressed={favKeySet.has(itemKey(p))}
-                                      title={favKeySet.has(itemKey(p)) ? "Remove favorite" : "Favorite — pinned to top"}
-                                    >
-                                      <Star className={`h-3.5 w-3.5 ${favKeySet.has(itemKey(p)) ? "fill-amber-400 text-amber-400" : ""}`} />
-                                    </button>
+                                    {renderPerpContractStar(p.exchange, p.base)}
                                     <span>{p.symbol}</span>
                                     {(surgeBull || surgeBear) && (
                                     <span
@@ -4688,12 +4711,20 @@ export default function Dashboard() {
                       >
                         {trendingPerpsOnlySurge ? "Only surge: On" : "Only surge: Off"}
                       </button>
+                      <button
+                        type="button"
+                        onClick={togglePerpTablesAutoRefresh}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpTablesAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                        title="Refresh every 60s. Saved in this browser."
+                      >
+                        {perpTablesAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
+                      </button>
                       <Button variant="outline" size="sm" onClick={() => fetchTrendingPerps(undefined, true)} disabled={trendingPerpsLoading}>
                         {trendingPerpsLoading ? "Loading…" : "Refresh"}
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Biggest movers by % change across 5m, 15m, 30m, 1h, 4h, and 24h. <strong>Direction</strong> is based on <strong>24h</strong> price change only: Long = price went up over 24h, Short = price went down (past move, not a forecast). <strong>Funding</strong> shows positioning: positive = long-heavy (longs pay shorts), negative = short-heavy. Pick one and use Crypto Futures (AI or Institutional Workflow) to analyze and trade.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Biggest movers by % change across 5m, 15m, 30m, 1h, 4h, and 24h. Star a contract to pin it to the top (saved in this browser). <strong>Direction</strong> is based on <strong>24h</strong> price change only: Long = price went up over 24h, Short = price went down (past move, not a forecast). <strong>Funding</strong> shows positioning: positive = long-heavy (longs pay shorts), negative = short-heavy. Pick one and use Crypto Futures (AI or Institutional Workflow) to analyze and trade.</p>
                   {isOwner && (
                     <div className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-800/30">
                       <h3 className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-2">Perp alerts (Telegram) — Owner only</h3>
@@ -4767,14 +4798,20 @@ export default function Dashboard() {
                                   return s.up || s.down;
                                 })
                               : base;
-                            return surgeFiltered;
-                          })()
-                            .sort((a, b) => {
+                            const sortedRest = [...surgeFiltered].sort((a, b) => {
                               const key = trendingPerpsSortBy;
                               const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : (a.pct4h ?? 0);
                               const vb = key === "24h" ? b.dayPct : key === "5m" ? (b.pct5m ?? 0) : key === "15m" ? (b.pct15m ?? 0) : key === "30m" ? (b.pct30m ?? 0) : key === "1h" ? (b.pct1h ?? 0) : (b.pct4h ?? 0);
                               return Math.abs(vb) - Math.abs(va);
-                            })
+                            });
+                            return sortRowsWithFavoriteContracts(
+                              perpRadarFavoriteKeys,
+                              "hyperliquid",
+                              trendingPerps,
+                              sortedRest,
+                              (p) => p.coin
+                            );
+                          })()
                             .map((p) => {
                             const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                             const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
@@ -4796,8 +4833,10 @@ export default function Dashboard() {
                             return (
                               <TableRow key={p.coin} className={rowClass}>
                                 <TableCell className="font-mono text-xs">
-                                  <span>{p.coin}</span>
-                                  {(surge.up || surge.down) && (
+                                  <span className="inline-flex items-center gap-1 flex-wrap">
+                                    {renderPerpContractStar("hyperliquid", p.coin)}
+                                    <span>{p.coin}</span>
+                                    {(surge.up || surge.down) && (
                                     <span
                                       className={`ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                                         surge.up
@@ -4809,6 +4848,7 @@ export default function Dashboard() {
                                       {surge.up ? "SURGE UP" : "SURGE DOWN"}
                                     </span>
                                   )}
+                                  </span>
                                 </TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>
@@ -4837,7 +4877,7 @@ export default function Dashboard() {
                                 <TableCell className={`text-right font-mono text-xs ${fundingNum != null ? (fundingNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400") : "text-muted-foreground"}`} title="Positive = long-heavy (longs pay shorts). Negative = short-heavy (shorts pay longs).">{fundingStr}</TableCell>
                                 <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-right font-mono text-xs text-muted-foreground" title="Total notional volume (buys + sells)">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                                <TableCell className="text-center">{renderPerpAiSignalCell(p.coin)}</TableCell>
+                                <TableCell className="text-center">{renderPerpAiSignalCell(p.coin, "hyperliquid")}</TableCell>
                                 <TableCell className="text-right">
                                   <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
                                 </TableCell>
@@ -5078,12 +5118,20 @@ export default function Dashboard() {
                         >
                           {topAltcoinsOnlySurge ? "Only surge: On" : "Only surge: Off"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={togglePerpTablesAutoRefresh}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpTablesAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                          title="Refresh every 60s. Saved in this browser."
+                        >
+                          {perpTablesAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
+                        </button>
                         <Button variant="outline" size="sm" onClick={fetchTopAltcoins} disabled={topAltcoinsLoading}>
                           {topAltcoinsLoading ? "Loading…" : "Refresh"}
                         </Button>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-3">BTC, ETH, SOL, DOGE and other major perps—same data as Trending perps (5m to 4h, 24h %, Trend, Direction, Funding). Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use AI Chart Analysis or Institutional Workflow to analyze and trade.</p>
+                    <p className="text-xs text-muted-foreground mb-3">BTC, ETH, SOL, DOGE and other major perps—same data as Trending perps (5m to 4h, 24h %, Trend, Direction, Funding). Star a contract to pin it to the top (saved in this browser). Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use AI Chart Analysis or Institutional Workflow to analyze and trade.</p>
                     {topAltcoinsLoading && topAltcoins.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Loading…</p>
                     ) : topAltcoins.length === 0 ? (
@@ -5119,14 +5167,20 @@ export default function Dashboard() {
                                     return s.up || s.down;
                                   })
                                 : base;
-                              return surgeFiltered;
-                            })()
-                              .sort((a, b) => {
+                              const sortedRest = [...surgeFiltered].sort((a, b) => {
                                 const key = topAltcoinsSortBy;
                                 const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : key === "4h" ? (a.pct4h ?? 0) : key === "48h" ? (a.pct48h ?? 0) : key === "72h" ? (a.pct72h ?? 0) : key === "1w" ? (a.pct1w ?? 0) : key === "2w" ? (a.pct2w ?? 0) : key === "3w" ? (a.pct3w ?? 0) : (a.pct4w ?? 0);
                                 const vb = key === "24h" ? b.dayPct : key === "5m" ? (b.pct5m ?? 0) : key === "15m" ? (b.pct15m ?? 0) : key === "30m" ? (b.pct30m ?? 0) : key === "1h" ? (b.pct1h ?? 0) : key === "4h" ? (b.pct4h ?? 0) : key === "48h" ? (b.pct48h ?? 0) : key === "72h" ? (b.pct72h ?? 0) : key === "1w" ? (b.pct1w ?? 0) : key === "2w" ? (b.pct2w ?? 0) : key === "3w" ? (b.pct3w ?? 0) : (b.pct4w ?? 0);
                                 return Math.abs(vb) - Math.abs(va);
-                              })
+                              });
+                              return sortRowsWithFavoriteContracts(
+                                perpRadarFavoriteKeys,
+                                "hyperliquid",
+                                topAltcoins,
+                                sortedRest,
+                                (p) => p.coin
+                              );
+                            })()
                               .map((p) => {
                                 const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                                 const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
@@ -5148,8 +5202,10 @@ export default function Dashboard() {
                                 return (
                                   <TableRow key={p.coin} className={rowClass}>
                                     <TableCell className="font-mono text-xs">
-                                      <span>{p.coin}</span>
-                                      {(surge.up || surge.down) && (
+                                      <span className="inline-flex items-center gap-1 flex-wrap">
+                                        {renderPerpContractStar("hyperliquid", p.coin)}
+                                        <span>{p.coin}</span>
+                                        {(surge.up || surge.down) && (
                                         <span
                                           className={`ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                                             surge.up
@@ -5161,6 +5217,7 @@ export default function Dashboard() {
                                           {surge.up ? "SURGE UP" : "SURGE DOWN"}
                                         </span>
                                       )}
+                                      </span>
                                     </TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>
@@ -5189,7 +5246,7 @@ export default function Dashboard() {
                                     <TableCell className={`text-right font-mono text-xs ${fundingNum != null ? (fundingNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400") : "text-muted-foreground"}`}>{fundingStr}</TableCell>
                                     <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right font-mono text-xs text-muted-foreground">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                                    <TableCell className="text-center">{renderPerpAiSignalCell(p.coin)}</TableCell>
+                                    <TableCell className="text-center">{renderPerpAiSignalCell(p.coin, "hyperliquid")}</TableCell>
                                     <TableCell className="text-right">
                                       <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
                                     </TableCell>
@@ -5244,6 +5301,14 @@ export default function Dashboard() {
                         >
                           {hotPerpsOnlySurge ? "Only surge: On" : "Only surge: Off"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={togglePerpTablesAutoRefresh}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpTablesAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                          title="Refresh every 60s. Saved in this browser."
+                        >
+                          {perpTablesAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
+                        </button>
                         <Button variant="outline" size="sm" onClick={fetchHotPerps} disabled={hotPerpsLoading}>
                           {hotPerpsLoading ? "Loading…" : "Refresh"}
                         </Button>
@@ -5253,7 +5318,7 @@ export default function Dashboard() {
                       {hotPerpsNewOnly
                         ? "New listings in the last 7 days with strong short-term momentum—sorted by 5m by default. When new perps are listed we show them here first."
                         : "No new listings in the last 7 days—showing top momentum perps instead. When new perps appear, we’ll show them here first."}
-                      {" "}Columns: 5m–4h, 24h %, Trend, Direction, Funding. Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use AI Chart Analysis or Institutional Workflow to analyze and trade.
+                      {" "}Columns: 5m–4h, 24h %, Trend, Direction, Funding. Star a contract to pin it to the top (saved in this browser). Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use AI Chart Analysis or Institutional Workflow to analyze and trade.
                     </p>
                     {hotPerpsLoading && hotPerps.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Loading…</p>
@@ -5290,14 +5355,20 @@ export default function Dashboard() {
                                     return s.up || s.down;
                                   })
                                 : base;
-                              return surgeFiltered;
-                            })()
-                              .sort((a, b) => {
+                              const sortedRest = [...surgeFiltered].sort((a, b) => {
                                 const key = hotPerpsSortBy;
                                 const va = key === "24h" ? a.dayPct : key === "5m" ? (a.pct5m ?? 0) : key === "15m" ? (a.pct15m ?? 0) : key === "30m" ? (a.pct30m ?? 0) : key === "1h" ? (a.pct1h ?? 0) : key === "4h" ? (a.pct4h ?? 0) : key === "48h" ? (a.pct48h ?? 0) : key === "72h" ? (a.pct72h ?? 0) : key === "1w" ? (a.pct1w ?? 0) : key === "2w" ? (a.pct2w ?? 0) : key === "3w" ? (a.pct3w ?? 0) : (a.pct4w ?? 0);
                                 const vb = key === "24h" ? b.dayPct : key === "5m" ? (b.pct5m ?? 0) : key === "15m" ? (b.pct15m ?? 0) : key === "30m" ? (b.pct30m ?? 0) : key === "1h" ? (b.pct1h ?? 0) : key === "4h" ? (b.pct4h ?? 0) : key === "48h" ? (b.pct48h ?? 0) : key === "72h" ? (b.pct72h ?? 0) : key === "1w" ? (b.pct1w ?? 0) : key === "2w" ? (b.pct2w ?? 0) : key === "3w" ? (b.pct3w ?? 0) : (b.pct4w ?? 0);
                                 return Math.abs(vb) - Math.abs(va);
-                              })
+                              });
+                              return sortRowsWithFavoriteContracts(
+                                perpRadarFavoriteKeys,
+                                "hyperliquid",
+                                hotPerps,
+                                sortedRest,
+                                (p) => p.coin
+                              );
+                            })()
                               .map((p) => {
                                 const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                                 const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
@@ -5319,8 +5390,10 @@ export default function Dashboard() {
                                 return (
                                   <TableRow key={p.coin} className={rowClass}>
                                     <TableCell className="font-mono text-xs">
-                                      <span>{p.coin}</span>
-                                      {(surge.up || surge.down) && (
+                                      <span className="inline-flex items-center gap-1 flex-wrap">
+                                        {renderPerpContractStar("hyperliquid", p.coin)}
+                                        <span>{p.coin}</span>
+                                        {(surge.up || surge.down) && (
                                         <span
                                           className={`ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                                             surge.up
@@ -5332,6 +5405,7 @@ export default function Dashboard() {
                                           {surge.up ? "SURGE UP" : "SURGE DOWN"}
                                         </span>
                                       )}
+                                      </span>
                                     </TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
                                     <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>
@@ -5360,7 +5434,7 @@ export default function Dashboard() {
                                     <TableCell className={`text-right font-mono text-xs ${fundingNum != null ? (fundingNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400") : "text-muted-foreground"}`}>{fundingStr}</TableCell>
                                     <TableCell className="text-right font-mono text-xs">${Number(p.markPx).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right font-mono text-xs text-muted-foreground">${Number(p.dayNtlVlm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                                    <TableCell className="text-center">{renderPerpAiSignalCell(p.coin)}</TableCell>
+                                    <TableCell className="text-center">{renderPerpAiSignalCell(p.coin, "hyperliquid")}</TableCell>
                                     <TableCell className="text-right">
                                       <a href={`https://app.hyperliquid.xyz/trade/${p.coin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">Trade</a>
                                     </TableCell>
