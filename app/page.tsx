@@ -109,6 +109,17 @@ type WalletAlert = {
 
 const AUTO_REFRESH_SECONDS = 60;
 const LEVERAGE_TRADER_FAVORITES_LS_KEY = "novastaris-leverage-trader-favorites";
+const PERP_RADAR_FAVORITES_LS_KEY = "novastaris-perp-radar-favorites";
+
+function perpRadarFavoriteKey(exchange: string, base: string): string {
+  return `${exchange}:${base.trim().toUpperCase()}`;
+}
+
+function perpRadarExchangeForView(view: "all" | "macro" | "metals" | "hyperliquid" | "blofin"): string {
+  if (view === "blofin") return "blofin";
+  if (view === "hyperliquid") return "hyperliquid";
+  return "binance";
+}
 
 type TabId =
   | "new"
@@ -1153,6 +1164,18 @@ export default function Dashboard() {
   const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
   const [perpRadarOnlySurge, setPerpRadarOnlySurge] = useState(false);
   const [perpRadarAutoRefresh, setPerpRadarAutoRefresh] = useState(false);
+  const [perpRadarFavoriteKeys, setPerpRadarFavoriteKeys] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PERP_RADAR_FAVORITES_LS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return;
+      setPerpRadarFavoriteKeys(parsed.filter((x): x is string => typeof x === "string"));
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const [perpAlertAddType, setPerpAlertAddType] = useState<
     "new_listing" | "5m_pct_above" | "5m_pct_below" | "blofin_early_breakout" | "blofin_5m_pct_above" | "blofin_5m_pct_below"
   >("new_listing");
@@ -1932,13 +1955,23 @@ export default function Dashboard() {
     }
   };
 
-  const fetchPerpRadar = async (view?: "all" | "macro" | "metals" | "hyperliquid" | "blofin") => {
+  const fetchPerpRadar = async (
+    view?: "all" | "macro" | "metals" | "hyperliquid" | "blofin",
+    favoriteKeysOverride?: string[]
+  ) => {
     const v = view ?? perpRadarView;
     setPerpRadarLoading(true);
     setPerpRadarError(null);
     setPerpRadarStaleNote(null);
     try {
       const params = new URLSearchParams();
+      const favKeys = favoriteKeysOverride ?? perpRadarFavoriteKeys;
+      const exchangeForView = perpRadarExchangeForView(v);
+      const includeBases = favKeys
+        .filter((k) => k.startsWith(`${exchangeForView}:`))
+        .map((k) => k.slice(exchangeForView.length + 1))
+        .filter(Boolean);
+      if (includeBases.length > 0) params.set("includeBases", includeBases.join(","));
       if (v === "hyperliquid") {
         params.set("category", "hyperliquid");
         params.set("limit", "200");
@@ -1982,6 +2015,23 @@ export default function Dashboard() {
       setPerpRadarLoading(false);
     }
   };
+
+  const togglePerpRadarFavorite = useCallback((exchange: string, base: string) => {
+    const key = perpRadarFavoriteKey(exchange, base);
+    setPerpRadarFavoriteKeys((prev) => {
+      const adding = !prev.includes(key);
+      const next = adding ? [key, ...prev] : prev.filter((k) => k !== key);
+      try {
+        localStorage.setItem(PERP_RADAR_FAVORITES_LS_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      if (adding && exchange === "blofin" && activeTab === "perp-radar") {
+        void fetchPerpRadar(perpRadarView, next);
+      }
+      return next;
+    });
+  }, [activeTab, perpRadarView]);
 
   const MACRO_BASES_REGEX = /^(CRUDE|XBR|OIL|WTI|BRENT|CL|NG|NATURALGAS|GAS|XAU|GOLD|XAG|SILVER|SPX|SPX500|SP500|NDX|NAS100|DJI|US30)$/i;
   const MACRO_PINNED_REGEX = /^(XAU|XAG|SPX)$/i;
@@ -4251,8 +4301,8 @@ export default function Dashboard() {
                       ? "Hyperliquid (ApexLiquid) perp universe — same style of contracts as ApexLiquid/Blofin listings. Top rows get 5m–4h % from Hyperliquid candles so you can sort by 1h/15m (early push) instead of only chasing the 24h print."
                       : perpRadarView === "blofin"
                       ? perpRadarPreset === "early_breakout"
-                        ? "Early breakout: Blofin USDT perps with 24h still ~1–32% while 5m/15m lead (catch moves before a +45% 24h print). Sort by 5m/15m, turn on Only surge, and enable auto-refresh. Subscribe to Telegram alerts below."
-                        : "Blofin USDT-margined swaps (e.g. SPCX, XAU, XAG). SPCX/XAU/XAG are pinned so they always show. Top rows get 5m–4h % from Blofin candles — same symbols work in NovaQ when you type the base ticker."
+                        ? "Early breakout: Blofin USDT perps with 24h still ~1–32% while 5m/15m lead (catch moves before a +45% 24h print). Sort by 5m/15m, turn on Only surge, and enable auto-refresh. Star a row to pin it to the top (saved in this browser). Subscribe to Telegram alerts below."
+                        : "Blofin USDT-margined swaps (e.g. SPCX, XAU, XAG). SPCX/XAU/XAG are pinned so they always show. Star any contract to pin it to the top of your list. Top rows get 5m–4h % from Blofin candles — same symbols work in NovaQ when you type the base ticker."
                       : perpRadarView === "macro"
                       ? "Macro perps from Binance USDT-M: energy, metals, and indices (e.g. XAU, XAG, SPX, BRENT). We pin XAU/XAG/SPX so they show even when they are not top 24h movers."
                       : perpRadarView === "metals"
@@ -4468,12 +4518,20 @@ export default function Dashboard() {
                               const s = isSurge(p);
                               return s.up || s.down;
                             }) : filtered;
+                            const favKeySet = new Set(perpRadarFavoriteKeys);
+                            const itemKey = (p: PerpRadarItem) => perpRadarFavoriteKey(p.exchange, p.base);
+                            const viewExchange = perpRadarExchangeForView(perpRadarView);
+                            const favoriteRows = perpRadarFavoriteKeys
+                              .map((key) => perpRadarItems.find((p) => itemKey(p) === key && p.exchange === viewExchange))
+                              .filter((p): p is PerpRadarItem => !!p);
+                            const nonFavoriteSurgeFiltered = surgeFiltered.filter((p) => !favKeySet.has(itemKey(p)));
                             const key = perpRadarSortBy;
                             const getVal = (p: PerpRadarItem) => key === "24h" ? p.change24hPct : key === "5m" ? (p.pct5m ?? 0) : key === "15m" ? (p.pct15m ?? 0) : key === "30m" ? (p.pct30m ?? 0) : key === "1h" ? (p.pct1h ?? 0) : (p.pct4h ?? 0);
-                            const sorted =
+                            const sortedRest =
                               perpRadarPreset === "early_breakout"
-                                ? [...surgeFiltered].sort((a, b) => earlyBreakoutScore(b) - earlyBreakoutScore(a))
-                                : [...surgeFiltered].sort((a, b) => Math.abs(getVal(b)) - Math.abs(getVal(a)));
+                                ? [...nonFavoriteSurgeFiltered].sort((a, b) => earlyBreakoutScore(b) - earlyBreakoutScore(a))
+                                : [...nonFavoriteSurgeFiltered].sort((a, b) => Math.abs(getVal(b)) - Math.abs(getVal(a)));
+                            const sorted = [...favoriteRows, ...sortedRest];
                             const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                             const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
                             return sorted.map((p, i) => {
@@ -4504,8 +4562,23 @@ export default function Dashboard() {
                               return (
                               <TableRow key={`${p.exchange}-${p.symbol}-${i}`} className={rowClass}>
                                 <TableCell className="font-mono text-xs">
-                                  <span>{p.symbol}</span>
-                                  {(surgeBull || surgeBear) && (
+                                  <span className="inline-flex items-center gap-1 flex-wrap">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        togglePerpRadarFavorite(p.exchange, p.base);
+                                      }}
+                                      className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-amber-500 dark:hover:text-amber-400 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
+                                      aria-label={favKeySet.has(itemKey(p)) ? "Remove contract favorite" : "Favorite contract (pin to top)"}
+                                      aria-pressed={favKeySet.has(itemKey(p))}
+                                      title={favKeySet.has(itemKey(p)) ? "Remove favorite" : "Favorite — pinned to top"}
+                                    >
+                                      <Star className={`h-3.5 w-3.5 ${favKeySet.has(itemKey(p)) ? "fill-amber-400 text-amber-400" : ""}`} />
+                                    </button>
+                                    <span>{p.symbol}</span>
+                                    {(surgeBull || surgeBear) && (
                                     <span
                                       className={`ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                                         surgeBull
@@ -4517,6 +4590,7 @@ export default function Dashboard() {
                                       {surgeBull ? "SURGE UP" : "SURGE DOWN"}
                                     </span>
                                   )}
+                                  </span>
                                 </TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct5m)}`}>{fmt(p.pct5m)}</TableCell>
                                 <TableCell className={`text-right font-mono text-xs font-medium ${cls(p.pct15m)}`}>{fmt(p.pct15m)}</TableCell>

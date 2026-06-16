@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getBinancePerpRadar, enrichPerpRadarWithKlines, type PerpRadarItem } from "@/lib/api-clients/binance-perps";
-import { enrichBlofinPerpRadarWithKlines, getBlofinPerpRadar } from "@/lib/api-clients/blofin-perps";
+import {
+  enrichBlofinPerpRadarWithKlines,
+  getBlofinPerpItemsByBases,
+  getBlofinPerpRadar,
+} from "@/lib/api-clients/blofin-perps";
 import { scanBlofinEarlyBreakouts } from "@/lib/blofin-early-breakout";
 import { getCandles as getBlofinCandles } from "@/lib/blofin";
 import { getTrendingPerps } from "@/lib/api-clients/hyperliquid";
@@ -132,6 +136,11 @@ export async function GET(request: Request) {
 
     if (category === "blofin") {
       const mode = searchParams.get("mode");
+      const includeBases = (searchParams.get("includeBases") ?? "")
+        .split(",")
+        .map((b) => b.trim().toUpperCase())
+        .filter(Boolean)
+        .slice(0, 20);
       let items: PerpRadarItem[] = [];
       let stale = false;
 
@@ -151,6 +160,23 @@ export async function GET(request: Request) {
           items = await enrichBlofinPerpRadarWithKlines(items, Math.min(35, items.length));
         } catch {
           /* keep 24h-only rows */
+        }
+      }
+
+      if (includeBases.length > 0) {
+        const have = new Set(items.map((i) => i.base));
+        const missing = includeBases.filter((b) => !have.has(b));
+        if (missing.length > 0) {
+          const extra = await getBlofinPerpItemsByBases(missing);
+          stale = stale || extra.stale;
+          if (extra.items.length > 0) {
+            try {
+              const enrichedExtra = await enrichBlofinPerpRadarWithKlines(extra.items, extra.items.length);
+              items = [...items, ...enrichedExtra];
+            } catch {
+              items = [...items, ...extra.items];
+            }
+          }
         }
       }
       try {

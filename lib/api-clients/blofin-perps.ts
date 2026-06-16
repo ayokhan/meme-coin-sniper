@@ -61,16 +61,8 @@ export async function getBlofinPerpRadar(options?: {
     const isPinned = PINNED_BLOFIN_BASES.has(parsed.base);
     if (!isPinned && (Math.abs(change24hPct) < minChangePct || quoteVol < minQuoteVolume)) continue;
 
-    const item: PerpRadarItem = {
-      exchange: "blofin",
-      symbol: `${parsed.base}/${parsed.quote}`,
-      base: parsed.base,
-      quote: parsed.quote,
-      change24hPct,
-      lastPrice: last,
-      volume24h: Number(t.vol24h ?? 0) || 0,
-      quoteVolume24h: quoteVol,
-    };
+    const item = blofinTickerToItem(t);
+    if (!item) continue;
     if (isPinned) pinned.push(item);
     else movers.push(item);
   }
@@ -85,6 +77,42 @@ export async function getBlofinPerpRadar(options?: {
     merged.push(row);
   }
   return { items: merged.slice(0, limit), stale };
+}
+
+function blofinTickerToItem(t: BlofinSwapTicker): PerpRadarItem | null {
+  const parsed = parseUsdtInstId(t.instId);
+  if (!parsed) return null;
+  const last = Number(t.last);
+  const open = Number(t.open24h);
+  const quoteVol = Number(t.volCurrency24h ?? 0);
+  if (!Number.isFinite(last) || last <= 0 || !Number.isFinite(open) || open <= 0) return null;
+  const change24hPct = ((last - open) / open) * 100;
+  return {
+    exchange: "blofin",
+    symbol: `${parsed.base}/${parsed.quote}`,
+    base: parsed.base,
+    quote: parsed.quote,
+    change24hPct,
+    lastPrice: last,
+    volume24h: Number(t.vol24h ?? 0) || 0,
+    quoteVolume24h: quoteVol,
+  };
+}
+
+/** Load specific Blofin bases (e.g. user favorites) even when they are not top movers. */
+export async function getBlofinPerpItemsByBases(bases: string[]): Promise<{ items: PerpRadarItem[]; stale: boolean }> {
+  const want = new Set(bases.map((b) => b.trim().toUpperCase()).filter(Boolean));
+  if (want.size === 0) return { items: [], stale: false };
+
+  const { data: tickers, stale } = await fetchBlofinSwapTickersCached();
+  const items: PerpRadarItem[] = [];
+  for (const t of tickers) {
+    const item = blofinTickerToItem(t);
+    if (!item || !want.has(item.base)) continue;
+    items.push(item);
+    want.delete(item.base);
+  }
+  return { items, stale };
 }
 
 async function enrichOneBlofinItem(item: PerpRadarItem): Promise<PerpRadarItem> {
