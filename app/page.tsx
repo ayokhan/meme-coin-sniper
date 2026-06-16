@@ -2261,13 +2261,13 @@ export default function Dashboard() {
     }
   };
 
-  const fetchPerpAiSignal = async (symbol: string) => {
+  const fetchPerpAiSignal = async (symbol: string, venue?: "hyperliquid" | "blofin") => {
     setPerpAiSignals((prev) => ({ ...prev, [symbol]: "loading" }));
     try {
       const res = await fetch("/api/ai-perp-signal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, timeframe: "15m" }),
+        body: JSON.stringify({ symbol, timeframe: "15m", ...(venue ? { venue } : {}) }),
       });
       const data = await res.json();
       if (res.status === 403 && data.locked) {
@@ -2282,6 +2282,7 @@ export default function Dashboard() {
       if (data.success && (data.signal === "long" || data.signal === "short" || data.signal === "no_buy")) {
         setPerpAiSignals((p) => ({ ...p, [symbol]: { signal: data.signal, score: data.score ?? 0, reason: data.reason ?? "" } }));
       } else {
+        alert(data.error || "AI Signal failed for this symbol.");
         setPerpAiSignals((p) => {
           const next = { ...p };
           delete next[symbol];
@@ -2289,6 +2290,7 @@ export default function Dashboard() {
         });
       }
     } catch {
+      alert("AI Signal request failed. Try again.");
       setPerpAiSignals((p) => {
         const next = { ...p };
         delete next[symbol];
@@ -2369,7 +2371,7 @@ export default function Dashboard() {
     }
   };
 
-  const renderPerpAiSignalCell = (symbol: string) => {
+  const renderPerpAiSignalCell = (symbol: string, venue?: "hyperliquid" | "blofin") => {
     const v = perpAiSignals[symbol];
     if (v === "loading") return <span className="text-xs text-muted-foreground">…</span>;
     if (v) {
@@ -2382,7 +2384,7 @@ export default function Dashboard() {
       );
     }
     return (
-      <Button variant="ghost" size="sm" className="h-7 text-xs text-cyan-600 dark:text-cyan-400 hover:underline" onClick={() => fetchPerpAiSignal(symbol)}>
+      <Button variant="ghost" size="sm" className="h-7 text-xs text-cyan-600 dark:text-cyan-400 hover:underline" onClick={() => fetchPerpAiSignal(symbol, venue)}>
         AI Signal
       </Button>
     );
@@ -4542,7 +4544,12 @@ export default function Dashboard() {
                                 <TableCell className={`text-center text-xs font-medium ${directionClass}`}>{directionLabel}</TableCell>
                                 <TableCell className="text-right font-mono text-xs">${Number(p.lastPrice).toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-right font-mono text-xs text-muted-foreground">${(p.quoteVolume24h / 1_000_000).toFixed(2)}M</TableCell>
-                                <TableCell className="text-center">{renderPerpAiSignalCell(p.base)}</TableCell>
+                                <TableCell className="text-center">
+                                  {renderPerpAiSignalCell(
+                                    p.base,
+                                    p.exchange === "blofin" ? "blofin" : p.exchange === "hyperliquid" ? "hyperliquid" : undefined
+                                  )}
+                                </TableCell>
                                 <TableCell className="text-right">
                                   <a
                                     href={

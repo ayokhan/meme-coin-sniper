@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getAITradingSignal, type MarketSummary } from "@/lib/ai-trading-signal";
-import { getCandles } from "@/lib/hyperliquid";
+import {
+  getNovaPerpCandles,
+  resolveNovaPerpVenue,
+  type NovaPerpVenue,
+} from "@/lib/nova-perp-market";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-/** Build MarketSummary from Hyperliquid 15m candles (newest first). Simple S/R from recent lows/highs. */
-async function buildMarketSummary(symbol: string, timeframe: string): Promise<MarketSummary | null> {
-  const candles = await getCandles(symbol, timeframe, 25);
+/** Build MarketSummary from perp candles (newest first). Simple S/R from recent lows/highs. */
+async function buildMarketSummary(
+  symbol: string,
+  timeframe: string,
+  venue: NovaPerpVenue
+): Promise<MarketSummary | null> {
+  const candles = await getNovaPerpCandles(symbol, venue, timeframe, 25);
   if (!candles.length) return null;
   const closes = candles.map((c) => Number(c[4])).filter((n) => Number.isFinite(n));
   const highs = candles.map((c) => Number(c[2])).filter((n) => Number.isFinite(n));
@@ -44,6 +52,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const symbol = (body.symbol as string)?.trim?.();
     const timeframe = (body.timeframe as string)?.trim?.() || "15m";
+    const venueHint = body.venue === "blofin" || body.venue === "hyperliquid" ? body.venue : null;
 
     if (!symbol) {
       return NextResponse.json(
@@ -52,7 +61,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const summary = await buildMarketSummary(symbol, timeframe);
+    const venue = venueHint ?? (await resolveNovaPerpVenue(symbol));
+    if (!venue) {
+      return NextResponse.json(
+        { success: false, error: "Symbol not found on Hyperliquid or Blofin." },
+        { status: 422 }
+      );
+    }
+
+    const summary = await buildMarketSummary(symbol, timeframe, venue);
     if (!summary) {
       return NextResponse.json(
         { success: false, error: "Could not load candle data for this symbol." },
