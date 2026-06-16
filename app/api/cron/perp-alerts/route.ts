@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUniverseSymbols } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
+import { getCandles as getBlofinCandles } from "@/lib/blofin";
 import { sendTelegramMessage } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
@@ -83,9 +84,11 @@ export async function GET(request: Request) {
       }
     }
 
-    // 5m_pct_above / 5m_pct_below: fetch candles per symbol
+    // 5m_pct_above / 5m_pct_below: Hyperliquid candles
     const pctAlerts = alerts.filter(
-      (a: { alertType: string }) => a.alertType === "5m_pct_above" || a.alertType === "5m_pct_below"
+      (a: { alertType: string; venue?: string }) =>
+        (a.alertType === "5m_pct_above" || a.alertType === "5m_pct_below") &&
+        (a.venue ?? "hyperliquid") === "hyperliquid"
     );
     const symbolsToFetch = [...new Set(pctAlerts.map((a: { symbol: string | null }) => a.symbol).filter(Boolean))] as string[];
     for (const sym of symbolsToFetch.slice(0, 30)) {
@@ -102,6 +105,38 @@ export async function GET(request: Request) {
               : false;
         if (match) {
           const text = `🔔 <b>Perp alert</b>: <b>${sym}</b> 5m ${pct >= 0 ? "+" : ""}${pct.toFixed(2)}% ${alert.alertType === "5m_pct_above" ? "≥" : "≤"} ${th}%\n🔗 <a href="https://app.hyperliquid.xyz/trade/${sym}">Trade</a>`;
+          const ok = await sendTelegramMessage(text);
+          if (ok) {
+            await db.perpAlert.update({ where: { id: alert.id }, data: { lastTriggeredAt: now } });
+            triggered++;
+          }
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      }
+    }
+
+    // Blofin 5m_pct_above / 5m_pct_below
+    const blofinPctAlerts = alerts.filter(
+      (a: { alertType: string; venue?: string }) =>
+        (a.alertType === "blofin_5m_pct_above" || a.alertType === "blofin_5m_pct_below") ||
+        ((a.alertType === "5m_pct_above" || a.alertType === "5m_pct_below") && a.venue === "blofin")
+    );
+    const blofinSymbols = [
+      ...new Set(blofinPctAlerts.map((a: { symbol: string | null }) => a.symbol).filter(Boolean)),
+    ] as string[];
+    for (const sym of blofinSymbols.slice(0, 30)) {
+      const instId = sym.includes("-") ? sym : `${sym}-USDT`;
+      const candles = await getBlofinCandles(instId, "5m", 1);
+      const pct = get5mPct(candles);
+      if (pct == null) continue;
+      for (const alert of blofinPctAlerts.filter((a: { symbol: string | null }) => a.symbol === sym)) {
+        const th = alert.threshold as number;
+        const isAbove = alert.alertType === "blofin_5m_pct_above" || alert.alertType === "5m_pct_above";
+        const isBelow = alert.alertType === "blofin_5m_pct_below" || alert.alertType === "5m_pct_below";
+        const match = isAbove ? pct >= th : isBelow ? pct <= th : false;
+        if (match) {
+          const base = sym.replace(/-USDT$/i, "");
+          const text = `🔔 <b>Blofin perp alert</b>: <b>${base}/USDT</b> 5m ${pct >= 0 ? "+" : ""}${pct.toFixed(2)}% ${isAbove ? "≥" : "≤"} ${th}%\n🔗 <a href="https://www.blofin.com/futures/${base}-USDT">Trade</a>`;
           const ok = await sendTelegramMessage(text);
           if (ok) {
             await db.perpAlert.update({ where: { id: alert.id }, data: { lastTriggeredAt: now } });

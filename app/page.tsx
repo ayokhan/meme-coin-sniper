@@ -1,6 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState, useRef, useMemo, type Dispatch, type SetStateAction } from "react";
+import {
+  earlyBreakoutScore,
+  isEarlyBreakoutDown,
+  isEarlyBreakoutUp,
+} from "@/lib/blofin-early-breakout";
 import { useTheme } from "next-themes";
 import { useSession, signOut, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -1141,10 +1146,15 @@ export default function Dashboard() {
   const [perpRadarLoading, setPerpRadarLoading] = useState(false);
   const [perpRadarError, setPerpRadarError] = useState<string | null>(null);
   const [perpRadarView, setPerpRadarView] = useState<"all" | "macro" | "metals" | "hyperliquid" | "blofin">("all");
-  const [perpRadarPreset, setPerpRadarPreset] = useState<"all" | "24h_up" | "24h_down" | "momentum_bull" | "momentum_bear" | "fresh_accel">("fresh_accel");
+  const [perpRadarPreset, setPerpRadarPreset] = useState<
+    "all" | "24h_up" | "24h_down" | "momentum_bull" | "momentum_bear" | "fresh_accel" | "early_breakout"
+  >("fresh_accel");
   const [perpRadarSortBy, setPerpRadarSortBy] = useState<"5m" | "15m" | "30m" | "1h" | "4h" | "24h">("24h");
   const [perpRadarOnlySurge, setPerpRadarOnlySurge] = useState(false);
-  const [perpAlertAddType, setPerpAlertAddType] = useState<"new_listing" | "5m_pct_above" | "5m_pct_below">("new_listing");
+  const [perpRadarAutoRefresh, setPerpRadarAutoRefresh] = useState(false);
+  const [perpAlertAddType, setPerpAlertAddType] = useState<
+    "new_listing" | "5m_pct_above" | "5m_pct_below" | "blofin_early_breakout" | "blofin_5m_pct_above" | "blofin_5m_pct_below"
+  >("new_listing");
   const [perpAlertAddSymbol, setPerpAlertAddSymbol] = useState("");
   const [perpAlertAddThreshold, setPerpAlertAddThreshold] = useState("");
   const [perpAlertAddError, setPerpAlertAddError] = useState<string | null>(null);
@@ -1932,9 +1942,14 @@ export default function Dashboard() {
         params.set("limit", "200");
       } else if (v === "blofin") {
         params.set("category", "blofin");
-        params.set("minChangePct", "3");
-        params.set("minQuoteVolume", "50000");
-        params.set("limit", "150");
+        if (perpRadarPreset === "early_breakout") {
+          params.set("mode", "early_breakout");
+          params.set("limit", "80");
+        } else {
+          params.set("minChangePct", "3");
+          params.set("minQuoteVolume", "50000");
+          params.set("limit", "150");
+        }
       } else if (v === "macro" || v === "metals") {
         params.set("category", v);
         params.set("limit", "50");
@@ -2289,21 +2304,34 @@ export default function Dashboard() {
 
   const addPerpAlert = async () => {
     setPerpAlertAddError(null);
-    const symbol = perpAlertAddType === "new_listing" ? null : perpAlertAddSymbol.trim().toUpperCase() || null;
-    const threshold = perpAlertAddType !== "new_listing" && perpAlertAddThreshold.trim() ? parseFloat(perpAlertAddThreshold) : null;
-    if (perpAlertAddType !== "new_listing" && !symbol) {
+    const noSymbolTypes = new Set(["new_listing", "blofin_early_breakout"]);
+    const symbol = noSymbolTypes.has(perpAlertAddType) ? null : perpAlertAddSymbol.trim().toUpperCase() || null;
+    const threshold =
+      perpAlertAddType !== "new_listing" &&
+      perpAlertAddType !== "blofin_early_breakout" &&
+      perpAlertAddThreshold.trim()
+        ? parseFloat(perpAlertAddThreshold)
+        : null;
+    if (!noSymbolTypes.has(perpAlertAddType) && !symbol) {
       setPerpAlertAddError("Symbol required for this alert type.");
       return;
     }
-    if ((perpAlertAddType === "5m_pct_above" || perpAlertAddType === "5m_pct_below") && (threshold == null || !Number.isFinite(threshold))) {
+    if (
+      (perpAlertAddType === "5m_pct_above" ||
+        perpAlertAddType === "5m_pct_below" ||
+        perpAlertAddType === "blofin_5m_pct_above" ||
+        perpAlertAddType === "blofin_5m_pct_below") &&
+      (threshold == null || !Number.isFinite(threshold))
+    ) {
       setPerpAlertAddError("Enter a number for threshold.");
       return;
     }
+    const venue = perpAlertAddType.startsWith("blofin_") ? "blofin" : "hyperliquid";
     try {
       const res = await fetch("/api/user/perp-alerts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alertType: perpAlertAddType, symbol, threshold }),
+        body: JSON.stringify({ alertType: perpAlertAddType, symbol, threshold, venue }),
       });
       const data = await res.json();
       if (data.success) {
@@ -2378,10 +2406,22 @@ export default function Dashboard() {
     if (activeTab === "perp-radar" && isPaid) {
       fetchPerpRadar();
     }
+    if (activeTab === "perp-radar" && isOwner) {
+      fetchPerpAlerts();
+    }
     if (activeTab === "nova-forecast" && isVip) {
       fetchNovaForecast();
     }
-  }, [activeTab, walletTrackerView, futuresView, isPaid, isVip, isOwner, canAccessMemeCoinsTraderEffective]);
+  }, [activeTab, walletTrackerView, futuresView, isPaid, isVip, isOwner, canAccessMemeCoinsTraderEffective, perpRadarPreset]);
+
+  // Perp Radar auto-refresh (optional, e.g. Blofin early breakout)
+  useEffect(() => {
+    if (activeTab !== "perp-radar" || !isPaid || !perpRadarAutoRefresh) return;
+    const interval = setInterval(() => {
+      fetchPerpRadar();
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [activeTab, isPaid, perpRadarAutoRefresh, perpRadarView, perpRadarPreset]);
 
   // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
   useEffect(() => {
@@ -4134,10 +4174,27 @@ export default function Dashboard() {
                       <span className="text-xs text-muted-foreground ml-1">Preset:</span>
                       <select
                         value={perpRadarPreset}
-                        onChange={(e) => setPerpRadarPreset(e.target.value as "all" | "24h_up" | "24h_down" | "momentum_bull" | "momentum_bear" | "fresh_accel")}
+                        onChange={(e) => {
+                          const v = e.target.value as
+                            | "all"
+                            | "24h_up"
+                            | "24h_down"
+                            | "momentum_bull"
+                            | "momentum_bear"
+                            | "fresh_accel"
+                            | "early_breakout";
+                          setPerpRadarPreset(v);
+                          if (v === "early_breakout") {
+                            setPerpRadarSortBy("15m");
+                            setPerpRadarAutoRefresh(true);
+                            setPerpRadarView("blofin");
+                            fetchPerpRadar("blofin");
+                          }
+                        }}
                         className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
                       >
                         <option value="all">All</option>
+                        <option value="early_breakout">Early breakout</option>
                         <option value="fresh_accel">Fresh acceleration</option>
                         <option value="momentum_bull">Momentum long setup</option>
                         <option value="momentum_bear">Momentum short setup</option>
@@ -4165,6 +4222,14 @@ export default function Dashboard() {
                       >
                         {perpRadarOnlySurge ? "Only surge: On" : "Only surge: Off"}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setPerpRadarAutoRefresh((v) => !v)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpRadarAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
+                        title="Refresh Perp Radar every 60 seconds"
+                      >
+                        {perpRadarAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
+                      </button>
                       <Button variant="outline" size="sm" onClick={() => fetchPerpRadar()} disabled={perpRadarLoading}>
                         {perpRadarLoading ? "Loading…" : "Refresh"}
                       </Button>
@@ -4173,13 +4238,118 @@ export default function Dashboard() {
                     {perpRadarView === "hyperliquid"
                       ? "Hyperliquid (ApexLiquid) perp universe — same style of contracts as ApexLiquid/Blofin listings. Top rows get 5m–4h % from Hyperliquid candles so you can sort by 1h/15m (early push) instead of only chasing the 24h print."
                       : perpRadarView === "blofin"
-                      ? "Blofin USDT-margined swaps (e.g. SPCX, XAU, XAG). SPCX/XAU/XAG are pinned so they always show. Top rows get 5m–4h % from Blofin candles — same symbols work in NovaQ when you type the base ticker."
+                      ? perpRadarPreset === "early_breakout"
+                        ? "Early breakout: Blofin USDT perps with 24h still ~1–32% while 5m/15m lead (catch moves before a +45% 24h print). Sort by 5m/15m, turn on Only surge, and enable auto-refresh. Subscribe to Telegram alerts below."
+                        : "Blofin USDT-margined swaps (e.g. SPCX, XAU, XAG). SPCX/XAU/XAG are pinned so they always show. Top rows get 5m–4h % from Blofin candles — same symbols work in NovaQ when you type the base ticker."
                       : perpRadarView === "macro"
                       ? "Macro perps from Binance USDT-M: energy, metals, and indices (e.g. XAU, XAG, SPX, BRENT). We pin XAU/XAG/SPX so they show even when they are not top 24h movers."
                       : perpRadarView === "metals"
                       ? "Metals-only view (XAU/XAG aliases). We pin XAU/XAG so they always show when listed."
                       : "Biggest 24h movers (≥3%, $100k+ vol). Use presets like Fresh acceleration / Momentum long / Momentum short to quickly isolate contracts with actionable movement."}
                   </p>
+                  {perpRadarView === "blofin" && isOwner && (
+                    <div className="mb-4 rounded-lg border border-violet-200 dark:border-violet-800 p-3 bg-violet-50/40 dark:bg-violet-950/20">
+                      <h3 className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-2">Blofin Telegram alerts — Owner only</h3>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Early breakout scanner runs on cron (~every few min). Alerts fire when 5m/15m push while 24h is still modest (not exhausted +45% moves).
+                      </p>
+                      {perpAlertsLoading ? (
+                        <p className="text-xs text-muted-foreground">Loading…</p>
+                      ) : (
+                        <>
+                          <ul className="text-xs space-y-1 mb-3">
+                            {perpAlertsList
+                              .filter((a) => a.alertType.startsWith("blofin_"))
+                              .map((a) => (
+                                <li key={a.id} className="flex items-center justify-between gap-2">
+                                  <span className="font-mono">
+                                    {a.alertType === "blofin_early_breakout"
+                                      ? "Blofin early breakout (all symbols)"
+                                      : `${a.symbol ?? ""} 5m ${a.alertType === "blofin_5m_pct_above" ? "≥" : "≤"} ${a.threshold ?? ""}%`}
+                                  </span>
+                                  <Button variant="ghost" size="sm" className="h-6 text-xs text-rose-600 hover:text-rose-700" onClick={() => deletePerpAlert(a.id)}>Remove</Button>
+                                </li>
+                              ))}
+                            {perpAlertsList.filter((a) => a.alertType.startsWith("blofin_")).length === 0 && (
+                              <li className="text-muted-foreground">No Blofin alerts yet.</li>
+                            )}
+                          </ul>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {!perpAlertsList.some((a) => a.alertType === "blofin_early_breakout") ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-violet-400 text-violet-700 dark:text-violet-300"
+                                onClick={async () => {
+                                  setPerpAlertAddError(null);
+                                  try {
+                                    const res = await fetch("/api/user/perp-alerts", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        alertType: "blofin_early_breakout",
+                                        symbol: null,
+                                        venue: "blofin",
+                                      }),
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) fetchPerpAlerts();
+                                    else setPerpAlertAddError(data.error || "Failed to subscribe.");
+                                  } catch {
+                                    setPerpAlertAddError("Request failed.");
+                                  }
+                                }}
+                              >
+                                Subscribe: early breakout scanner
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400">Early breakout scanner subscribed</span>
+                            )}
+                            <select
+                              value={perpAlertAddType.startsWith("blofin_") ? perpAlertAddType : "blofin_5m_pct_above"}
+                              onChange={(e) =>
+                                setPerpAlertAddType(
+                                  e.target.value as "blofin_early_breakout" | "blofin_5m_pct_above" | "blofin_5m_pct_below"
+                                )
+                              }
+                              className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                            >
+                              <option value="blofin_5m_pct_above">Blofin 5m % ≥</option>
+                              <option value="blofin_5m_pct_below">Blofin 5m % ≤</option>
+                            </select>
+                            <input
+                              type="text"
+                              placeholder="Symbol (PORTAL)"
+                              value={perpAlertAddSymbol}
+                              onChange={(e) => setPerpAlertAddSymbol(e.target.value)}
+                              className="w-24 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                            />
+                            <input
+                              type="number"
+                              step="any"
+                              placeholder="%"
+                              value={perpAlertAddThreshold}
+                              onChange={(e) => setPerpAlertAddThreshold(e.target.value)}
+                              className="w-16 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setPerpAlertAddType(
+                                  perpAlertAddType.startsWith("blofin_") ? perpAlertAddType : "blofin_5m_pct_above"
+                                );
+                                addPerpAlert();
+                              }}
+                            >
+                              Add Blofin alert
+                            </Button>
+                            {perpAlertAddError && <span className="text-xs text-rose-600">{perpAlertAddError}</span>}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                   {perpRadarError && (
                     <div className="mb-3">
                       <p className="text-sm text-rose-600 dark:text-rose-400">{perpRadarError.includes("451") || perpRadarError.includes("restricts") ? "Binance blocks API access from our server's region." : perpRadarError}</p>
@@ -4243,6 +4413,10 @@ export default function Dashboard() {
                               const vol = p.quoteVolume24h ?? 0;
                               const intradayAvailable = [p.pct5m, p.pct15m, p.pct30m, p.pct1h, p.pct4h].filter((v) => v != null).length;
                               if (perpRadarPreset === "all") return true;
+                              if (perpRadarPreset === "early_breakout") {
+                                if (perpRadarView === "blofin") return true;
+                                return isEarlyBreakoutUp(p) || isEarlyBreakoutDown(p);
+                              }
                               if (perpRadarPreset === "24h_up") return p.change24hPct > 0;
                               if (perpRadarPreset === "24h_down") return p.change24hPct < 0;
                               if (perpRadarPreset === "momentum_bull") {
@@ -4281,7 +4455,10 @@ export default function Dashboard() {
                             }) : filtered;
                             const key = perpRadarSortBy;
                             const getVal = (p: PerpRadarItem) => key === "24h" ? p.change24hPct : key === "5m" ? (p.pct5m ?? 0) : key === "15m" ? (p.pct15m ?? 0) : key === "30m" ? (p.pct30m ?? 0) : key === "1h" ? (p.pct1h ?? 0) : (p.pct4h ?? 0);
-                            const sorted = [...surgeFiltered].sort((a, b) => Math.abs(getVal(b)) - Math.abs(getVal(a)));
+                            const sorted =
+                              perpRadarPreset === "early_breakout"
+                                ? [...surgeFiltered].sort((a, b) => earlyBreakoutScore(b) - earlyBreakoutScore(a))
+                                : [...surgeFiltered].sort((a, b) => Math.abs(getVal(b)) - Math.abs(getVal(a)));
                             const fmt = (v: number | undefined) => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%");
                             const cls = (v: number | undefined) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
                             return sorted.map((p, i) => {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { getBinancePerpRadar, enrichPerpRadarWithKlines, type PerpRadarItem } from "@/lib/api-clients/binance-perps";
 import { enrichBlofinPerpRadarWithKlines, getBlofinPerpRadar } from "@/lib/api-clients/blofin-perps";
+import { scanBlofinEarlyBreakouts } from "@/lib/blofin-early-breakout";
 import { getCandles as getBlofinCandles } from "@/lib/blofin";
 import { getTrendingPerps } from "@/lib/api-clients/hyperliquid";
 import { getCandles } from "@/lib/hyperliquid";
@@ -130,15 +131,22 @@ export async function GET(request: Request) {
             : undefined;
 
     if (category === "blofin") {
-      let items = await getBlofinPerpRadar({
-        minChangePct: Number.isFinite(minChangePct) ? minChangePct : 3,
-        minQuoteVolume: Number.isFinite(minQuoteVolume) ? minQuoteVolume : 50_000,
-        limit: Number.isFinite(limit) ? limit : 150,
-      });
-      try {
-        items = await enrichBlofinPerpRadarWithKlines(items, Math.min(60, items.length));
-      } catch {
-        /* keep 24h-only rows */
+      const mode = searchParams.get("mode");
+      let items =
+        mode === "early_breakout"
+          ? await scanBlofinEarlyBreakouts(Number.isFinite(limit) ? limit : 80)
+          : await getBlofinPerpRadar({
+              minChangePct: Number.isFinite(minChangePct) ? minChangePct : 3,
+              minQuoteVolume: Number.isFinite(minQuoteVolume) ? minQuoteVolume : 50_000,
+              limit: Number.isFinite(limit) ? limit : 150,
+            });
+
+      if (mode !== "early_breakout") {
+        try {
+          items = await enrichBlofinPerpRadarWithKlines(items, Math.min(60, items.length));
+        } catch {
+          /* keep 24h-only rows */
+        }
       }
       try {
         items = await enrichPerpRadarTrendlineBatched(items, Math.min(50, items.length), 10);
@@ -149,6 +157,7 @@ export async function GET(request: Request) {
         success: true,
         items,
         exchanges: ["blofin"],
+        mode: mode === "early_breakout" ? "early_breakout" : "default",
       });
     }
 

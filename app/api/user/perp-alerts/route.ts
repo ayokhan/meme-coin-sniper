@@ -10,7 +10,16 @@ export const dynamic = "force-dynamic";
 const MAX_ALERTS_PRO = 5;
 const MAX_ALERTS_VIP = 20;
 
-const ALERT_TYPES = ["new_listing", "5m_pct_above", "5m_pct_below"] as const;
+const ALERT_TYPES = [
+  "new_listing",
+  "5m_pct_above",
+  "5m_pct_below",
+  "blofin_early_breakout",
+  "blofin_5m_pct_above",
+  "blofin_5m_pct_below",
+] as const;
+
+const BLOFIN_ALERT_TYPES = new Set(["blofin_early_breakout", "blofin_5m_pct_above", "blofin_5m_pct_below"]);
 
 function isTableMissingError(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : String(e);
@@ -74,18 +83,30 @@ export async function POST(request: Request) {
     const alertType = (body.alertType as string)?.trim();
     const symbol = (body.symbol as string)?.trim() || null;
     const threshold = typeof body.threshold === "number" && Number.isFinite(body.threshold) ? body.threshold : null;
+    const venueRaw = (body.venue as string)?.trim() || "hyperliquid";
+    const venue = venueRaw === "blofin" || BLOFIN_ALERT_TYPES.has(alertType as string) ? "blofin" : "hyperliquid";
 
-    if (!ALERT_TYPES.includes(alertType as any)) {
+    if (!ALERT_TYPES.includes(alertType as (typeof ALERT_TYPES)[number])) {
       return NextResponse.json(
-        { success: false, error: "alertType must be one of: new_listing, 5m_pct_above, 5m_pct_below" },
+        {
+          success: false,
+          error:
+            "alertType must be one of: new_listing, 5m_pct_above, 5m_pct_below, blofin_early_breakout, blofin_5m_pct_above, blofin_5m_pct_below",
+        },
         { status: 400 }
       );
     }
-    if (alertType !== "new_listing" && !symbol) {
+    if (alertType !== "new_listing" && alertType !== "blofin_early_breakout" && !symbol) {
       return NextResponse.json({ success: false, error: "symbol required for this alert type" }, { status: 400 });
     }
-    if ((alertType === "5m_pct_above" || alertType === "5m_pct_below") && threshold == null) {
-      return NextResponse.json({ success: false, error: "threshold required for 5m_pct_above / 5m_pct_below" }, { status: 400 });
+    if (
+      (alertType === "5m_pct_above" ||
+        alertType === "5m_pct_below" ||
+        alertType === "blofin_5m_pct_above" ||
+        alertType === "blofin_5m_pct_below") &&
+      threshold == null
+    ) {
+      return NextResponse.json({ success: false, error: "threshold required for 5m % alerts" }, { status: 400 });
     }
 
     const tier = await getSubscriptionTier(userId);
@@ -94,7 +115,16 @@ export async function POST(request: Request) {
     const db = prisma as unknown as {
       perpAlert?: {
         count: (args: { where: { userId: string } }) => Promise<number>;
-        create: (args: { data: { userId: string; symbol: string | null; alertType: string; threshold: number | null; channel: string } }) => Promise<{ id: string }>;
+        create: (args: {
+          data: {
+            userId: string;
+            symbol: string | null;
+            alertType: string;
+            threshold: number | null;
+            channel: string;
+            venue?: string;
+          };
+        }) => Promise<{ id: string }>;
       };
     };
     if (!db.perpAlert) {
@@ -115,6 +145,7 @@ export async function POST(request: Request) {
         symbol,
         alertType,
         threshold,
+        venue,
         channel: "telegram",
       },
     });

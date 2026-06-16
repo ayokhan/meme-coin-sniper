@@ -67,14 +67,25 @@ model PerpAlert {
   id              String    @id @default(cuid())
   userId          String
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  symbol          String?   // null for new_listing (any new perp)
-  alertType       String    // new_listing | 5m_pct_above | 5m_pct_below
+  symbol          String?   // null for new_listing / blofin_early_breakout (scanner)
+  alertType       String    // new_listing | 5m_pct_above | 5m_pct_below | blofin_early_breakout | blofin_5m_pct_above | blofin_5m_pct_below
   threshold       Float?    // for 5m_pct_above / 5m_pct_below
+  venue           String    @default("hyperliquid") // hyperliquid | blofin
   channel         String    @default("telegram")
   lastTriggeredAt DateTime?
   createdAt       DateTime  @default(now())
   @@index([userId])
   @@index([alertType])
+}
+
+/** Cooldown for broadcast scanner alerts (e.g. Blofin early breakout per symbol). */
+model ScanAlertCooldown {
+  venue           String
+  symbol          String
+  alertKey        String
+  lastTriggeredAt DateTime @default(now())
+
+  @@id([venue, symbol, alertKey])
 }
 
 // Auth & subscriptions

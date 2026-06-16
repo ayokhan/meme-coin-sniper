@@ -31,6 +31,7 @@ export async function GET(request: Request) {
     perpNewListing?: { ok: boolean; newListings?: number; sent?: number; message?: string };
     perpDigest?: { ok: boolean; message?: string };
     perpAlerts?: { ok: boolean; triggered?: number; message?: string };
+    blofinEarlyBreakout?: { ok: boolean; triggered?: number; skipped?: string; message?: string };
     novaScalper?: { ok: boolean; processed?: number; skipped?: boolean; message?: string };
     memeLeaderboard?: { ok: boolean; refreshed?: number; totalWallets?: number; skipped?: boolean; message?: string };
   } = {};
@@ -185,6 +186,23 @@ export async function GET(request: Request) {
     };
   } catch (e) {
     results.perpAlerts = { ok: false, message: e instanceof Error ? e.message : 'Perp alerts failed' };
+  }
+
+  try {
+    const authBlofin = request.headers.get('authorization');
+    const blofinRes = await fetch(`${base}/api/cron/blofin-early-breakout`, {
+      cache: 'no-store',
+      headers: authBlofin ? { Authorization: authBlofin } : {},
+    });
+    const blofinData = await blofinRes.json().catch(() => ({}));
+    results.blofinEarlyBreakout = {
+      ok: blofinData.success === true,
+      triggered: blofinData.triggered,
+      skipped: blofinData.skipped,
+      message: blofinData.error,
+    };
+  } catch (e) {
+    results.blofinEarlyBreakout = { ok: false, message: e instanceof Error ? e.message : 'Blofin early breakout failed' };
   }
 
   try {
