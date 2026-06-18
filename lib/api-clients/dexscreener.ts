@@ -13,7 +13,7 @@ export interface DexPair {
   priceUsd: string;
   txns?: { h24?: { buys: number; sells: number }; h6?: { buys: number; sells: number }; h1?: { buys: number; sells: number } };
   volume?: { h24: number; h6?: number; h1?: number };
-  priceChange?: { h24: number; h6?: number; h1?: number };
+  priceChange?: { h24: number; h6?: number; h1?: number; m5?: number };
   liquidity?: { usd: number; base?: number; quote?: number };
   fdv?: number;
   pairCreatedAt: number;
@@ -203,7 +203,9 @@ function wsPairToDexPair(p: WsPair): DexPair | null {
         }
       : undefined,
     volume: p.volume ? { h24: p.volume.h24 ?? 0, h6: p.volume?.h6, h1: p.volume?.h1 } : undefined,
-    priceChange: p.priceChange ? { h24: p.priceChange.h24 ?? 0, h6: p.priceChange.h6, h1: p.priceChange.h1 } : undefined,
+    priceChange: p.priceChange
+      ? { h24: p.priceChange.h24 ?? 0, h6: p.priceChange.h6, h1: p.priceChange.h1, m5: p.priceChange.m5 }
+      : undefined,
     liquidity: p.liquidity ? { usd: p.liquidity.usd ?? 0 } : undefined,
     fdv: p.marketCap,
     pairCreatedAt: createdAt,

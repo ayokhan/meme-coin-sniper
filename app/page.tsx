@@ -92,6 +92,13 @@ import { NOVA_FORECAST_RANGES } from "@/lib/nova-timeframes";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import { TopTabNewPill } from "@/components/TopTabNewPill";
 import { isTabNewBadgeActive } from "@/lib/tab-new-badges";
+import {
+  loadMemeTableSort,
+  saveMemeTableSort,
+  sortMemeTokens,
+  type MemeTableSortDir,
+  type MemeTableSortKey,
+} from "@/lib/meme-table-prefs";
 import { useDashboardScreenAnalytics } from "@/components/DashboardScreenContext";
 
 type Token = {
@@ -116,6 +123,11 @@ type Token = {
   volume30m?: number | null;
   txnsBuys24h?: number | null;
   txnsSells24h?: number | null;
+  pct5m?: number | null;
+  pct1h?: number | null;
+  pct6h?: number | null;
+  pct24h?: number | null;
+  dexId?: string | null;
 };
 
 type WalletAlert = {
@@ -510,6 +522,8 @@ export default function Dashboard() {
   const [surgeWindow, setSurgeWindow] = useState<"5m" | "15m" | "30m" | "1h" | "6h" | "24h">("24h");
   type GoHuntingView = "new_pairs" | "final_stretch" | "migrated";
   const [goHuntingView, setGoHuntingView] = useState<GoHuntingView>("new_pairs");
+  const [memeSortKey, setMemeSortKey] = useState<MemeTableSortKey>("age");
+  const [memeSortDir, setMemeSortDir] = useState<MemeTableSortDir>("desc");
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
   const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
@@ -1188,6 +1202,9 @@ export default function Dashboard() {
     setPerpTablesAutoRefresh(loadPerpTablesAutoRefresh());
     setBlofinInAppAlertsEnabled(loadBlofinInAppAlertsEnabled());
     setBlofinBrowserNotifyPref(loadBlofinBrowserNotifyPref());
+    const memeSort = loadMemeTableSort();
+    setMemeSortKey(memeSort.key);
+    setMemeSortDir(memeSort.dir);
     if (typeof window !== "undefined" && "Notification" in window) {
       setNotificationPermission(Notification.permission);
     } else {
@@ -2935,16 +2952,51 @@ export default function Dashboard() {
     setAiAnalysisCa(p.contractAddress);
   };
 
-  // Sort transactions tab by total txns (buys + sells) desc; dedupe by id so React keys are unique
+  const toggleMemeSort = useCallback((key: MemeTableSortKey) => {
+    setMemeSortKey((prevKey) => {
+      if (prevKey === key) {
+        setMemeSortDir((prevDir) => {
+          const next: MemeTableSortDir = prevDir === "desc" ? "asc" : "desc";
+          saveMemeTableSort(key, next);
+          return next;
+        });
+        return prevKey;
+      }
+      const nextDir: MemeTableSortDir = "desc";
+      setMemeSortDir(nextDir);
+      saveMemeTableSort(key, nextDir);
+      return key;
+    });
+  }, []);
+
+  const renderMemeSortHead = (key: MemeTableSortKey, label: string, align: "left" | "right" = "right") => (
+    <TableHead className={`font-semibold text-zinc-700 dark:text-zinc-300 ${align === "right" ? "text-right" : ""}`}>
+      <button
+        type="button"
+        onClick={() => toggleMemeSort(key)}
+        className={`inline-flex items-center gap-0.5 w-full ${align === "right" ? "justify-end" : "justify-start"} hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors`}
+        title={`Sort by ${label}`}
+      >
+        <span>{label}</span>
+        {memeSortKey === key && (
+          <span className="text-cyan-600 dark:text-cyan-400 text-[10px]">{memeSortDir === "desc" ? "▼" : "▲"}</span>
+        )}
+      </button>
+    </TableHead>
+  );
+
+  // Sort + dedupe token rows for meme tables
   const tokensForDisplay = (() => {
-    const base =
-      activeTab === "transactions" && tokens.length > 0
-        ? [...tokens].sort((a, b) => {
-            const ta = (a.txnsBuys24h ?? 0) + (a.txnsSells24h ?? 0);
-            const tb = (b.txnsBuys24h ?? 0) + (b.txnsSells24h ?? 0);
-            return tb - ta;
-          })
-        : tokens;
+    let base: Token[] = tokens;
+    if (activeTab === "transactions" && tokens.length > 0) {
+      base = [...tokens].sort((a, b) => {
+        const ta = (a.txnsBuys24h ?? 0) + (a.txnsSells24h ?? 0);
+        const tb = (b.txnsBuys24h ?? 0) + (b.txnsSells24h ?? 0);
+        return tb - ta;
+      });
+    } else if (activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") {
+      base = sortMemeTokens(tokens, memeSortKey, memeSortDir);
+    }
     const seen = new Set<string>();
     return base.filter((t) => {
       if (seen.has(t.id)) return false;
@@ -2952,6 +3004,11 @@ export default function Dashboard() {
       return true;
     });
   })();
+
+  const fmtPct = (v: number | null | undefined) =>
+    v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+  const pctCls = (v: number | null | undefined) =>
+    v == null ? "text-muted-foreground" : v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
 
   const formatVol = (v: number | null | undefined) =>
     v != null ? `$${(v / 1000).toFixed(1)}k` : "—";
@@ -3918,9 +3975,9 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <span className="mt-2 block text-xs text-muted-foreground">
-                  {goHuntingView === "new_pairs" && "All new pairs (last 60m — meme coins move fast)."}
-                  {goHuntingView === "final_stretch" && "Pump.fun tokens still on bonding curve."}
-                  {goHuntingView === "migrated" && "Recently migrated to Raydium/Orca."}
+                  {goHuntingView === "new_pairs" && "All new pairs (pump + migrated) — last ~3h. Click column headers to sort."}
+                  {goHuntingView === "final_stretch" && "Pump.fun / pumpswap still on bonding curve (not yet on Raydium)."}
+                  {goHuntingView === "migrated" && "Graduated to Raydium, Orca, or Meteora (or pumpswap past ~$69k MC)."}
                 </span>
               </div>
             )}
@@ -3946,9 +4003,9 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <span className="mt-2 block text-xs text-muted-foreground">
-                  {bscGoHuntingView === "new_pairs" && "New BSC pairs (PancakeSwap etc.)."}
-                  {bscGoHuntingView === "final_stretch" && "BSC pairs on main DEXs."}
-                  {bscGoHuntingView === "migrated" && "Migrated BSC pairs."}
+                  {bscGoHuntingView === "new_pairs" && "All new BSC pairs (Four.meme + PancakeSwap etc.). Click headers to sort."}
+                  {bscGoHuntingView === "final_stretch" && "Four.meme tokens still on bonding curve (pre-migration)."}
+                  {bscGoHuntingView === "migrated" && "Graduated to PancakeSwap and other BSC AMMs."}
                   {bscGoHuntingView === "trending" && "Trending BSC meme coins by volume and price change."}
                 </span>
               </div>
@@ -3961,6 +4018,10 @@ export default function Dashboard() {
                       <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Symbol</TableHead>
                       <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">Name</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Score</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">5m</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">1h</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">6h</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">24h</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Age</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
@@ -3973,6 +4034,10 @@ export default function Dashboard() {
                         <TableCell><div className="h-5 w-12 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" /></TableCell>
                         <TableCell className="hidden sm:table-cell"><div className="h-5 w-24 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" /></TableCell>
                         <TableCell className="text-right"><div className="h-5 w-8 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
+                        <TableCell className="text-right"><div className="h-5 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
+                        <TableCell className="text-right"><div className="h-5 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
+                        <TableCell className="text-right"><div className="h-5 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
+                        <TableCell className="text-right"><div className="h-5 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
                         <TableCell className="text-right"><div className="h-5 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
                         <TableCell className="text-right"><div className="h-5 w-14 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
                         <TableCell className="text-right"><div className="h-5 w-16 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-auto" /></TableCell>
@@ -8607,7 +8672,7 @@ export default function Dashboard() {
                       : activeTab === "ct"
                         ? "CT Scan: KOLs, smart money. When 3+ tweet the same coin → potential viral."
                         : activeTab === "new"
-                          ? "Go Hunting: newest pairs (last 2h). Each refresh shuffles order. Auto-refreshes every 60s."
+                          ? "Go Hunting: newest pairs (last ~3h). Click a column header to sort ▲▼. Auto-refreshes every 60s."
                           : "Trending = live movers. List auto-refreshes every 60s."}
                 </p>
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
@@ -8668,18 +8733,22 @@ export default function Dashboard() {
               </Table>
               </div>
             ) : (
-              <div className="mx-3 sm:mx-6 overflow-x-auto pb-8 sm:pb-10 [&_table]:w-full [&_table]:min-w-[720px]">
+              <div className="mx-3 sm:mx-6 overflow-x-auto pb-8 sm:pb-10 [&_table]:w-full [&_table]:min-w-[980px]">
               <Table>
                 <TableHeader>
                   <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
                     <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Symbol</TableHead>
                     <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">Name</TableHead>
-                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Score</TableHead>
+                    {renderMemeSortHead("score", "Score")}
                     {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol ({surgeWindow})</TableHead>}
                     {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">TXNS</TableHead>}
-                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Age</TableHead>
-                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
-                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
+                    {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && renderMemeSortHead("pct5m", "5m")}
+                    {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && renderMemeSortHead("pct1h", "1h")}
+                    {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && renderMemeSortHead("pct6h", "6h")}
+                    {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && renderMemeSortHead("pct24h", "24h")}
+                    {renderMemeSortHead("age", "Age")}
+                    {renderMemeSortHead("liquidity", "Liq")}
+                    {renderMemeSortHead("price", "Price")}
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -8732,6 +8801,18 @@ export default function Dashboard() {
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
+                      )}
+                      {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
+                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(t.pct5m)}`}>{fmtPct(t.pct5m)}</TableCell>
+                      )}
+                      {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
+                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(t.pct1h)}`}>{fmtPct(t.pct1h)}</TableCell>
+                      )}
+                      {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
+                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(t.pct6h)}`}>{fmtPct(t.pct6h)}</TableCell>
+                      )}
+                      {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
+                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(t.pct24h)}`}>{fmtPct(t.pct24h)}</TableCell>
                       )}
                       <TableCell className="text-right tabular-nums text-muted-foreground text-xs">
                         {formatAge(t.launchedAt)}
