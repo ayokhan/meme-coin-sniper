@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, BarChart3, Sparkles, Bell } from "lucide-react";
+import { PasswordInput } from "@/components/PasswordInput";
 
 type Profile = {
   name: string | null;
@@ -510,8 +511,7 @@ export default function AccountPage() {
                       />
                     </label>
                     {hasEmailPassword && (
-                      <input
-                        type="password"
+                      <PasswordInput
                         placeholder="Current password"
                         value={deletePassword}
                         onChange={(e) => setDeletePassword(e.target.value)}

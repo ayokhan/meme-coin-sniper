@@ -6,6 +6,7 @@ import NeedHelpWidget from "@/components/NeedHelpWidget";
 import AdminLiveTransferNotifier from "@/components/AdminLiveTransferNotifier";
 import { WelcomeVoice } from "@/components/WelcomeVoice";
 import AnalyticsPing from "@/components/AnalyticsPing";
+import CapacitorAuthBridge from "@/components/CapacitorAuthBridge";
 import { DashboardScreenProvider } from "@/components/DashboardScreenContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -13,6 +14,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <SessionProvider>
         <DashboardScreenProvider>
+          <CapacitorAuthBridge />
           <AnalyticsPing />
           <WelcomeVoice />
           {children}

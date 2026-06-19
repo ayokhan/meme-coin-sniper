@@ -135,6 +135,36 @@ function verifyWalletSignature(message: string, signature: string, walletAddress
   }
 }
 
+export async function buildJwtTokenForUserId(userId: string): Promise<string | null> {
+  const fresh = await getAuthUserStateById(userId);
+  if (!fresh) return null;
+  const maxAge = 30 * 24 * 60 * 60;
+  const { encode } = await import('next-auth/jwt');
+  return encode({
+    token: {
+      sub: fresh.id,
+      id: fresh.id,
+      email: fresh.email,
+      name: fresh.name,
+      picture: fresh.image,
+      walletAddress: fresh.walletAddress,
+      isPaid: fresh.isPaid,
+      tier: fresh.tier,
+      isCoachUser: fresh.isCoachUser,
+      tradingBotOnDemand: fresh.tradingBotOnDemand,
+      polymarketBotOnDemand: fresh.polymarketBotOnDemand,
+      propFirmBotOnDemand: fresh.propFirmBotOnDemand,
+      novaUltimateOnDemand: fresh.novaUltimateOnDemand,
+      ctScanOnDemand: fresh.ctScanOnDemand,
+      memeCoinsTraderOnDemand: fresh.memeCoinsTraderOnDemand,
+      novaConnectCommunityRep: fresh.novaConnectCommunityRep,
+      novaConnectAllowedByAdmin: fresh.novaConnectAllowedByAdmin,
+    },
+    secret: process.env.NEXTAUTH_SECRET!,
+    maxAge,
+  });
+}
+
 async function getAuthUserStateById(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return null;

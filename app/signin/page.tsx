@@ -7,6 +7,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
+import { PasswordInput } from "@/components/PasswordInput";
+import { signInWithGoogle } from "@/lib/google-oauth-client";
 
 function GoogleLogo() {
   return (
@@ -120,8 +122,7 @@ function SignInForm() {
               className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
               required
             />
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

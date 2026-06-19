@@ -2,13 +2,15 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { getProviders, signIn } from "next-auth/react";
+import { getProviders } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
 import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
 import type { PromoBannerAdmin } from "@/lib/promo-banner";
+import { PasswordInput } from "@/components/PasswordInput";
+import { signInWithGoogle } from "@/lib/google-oauth-client";
 
 function GoogleLogo() {
   return (
@@ -110,9 +112,10 @@ function RegisterForm() {
     setError("");
     setGoogleLoading(true);
     try {
-      await signIn("google", { callbackUrl });
+      await signInWithGoogle(callbackUrl);
     } catch {
       setError("Unable to continue with Google right now.");
+    } finally {
       setGoogleLoading(false);
     }
   };
@@ -211,8 +214,7 @@ function RegisterForm() {
                 <option value="intermediate">Intermediate</option>
                 <option value="expert">Expert</option>
               </select>
-              <input
-                type="password"
+              <PasswordInput
                 placeholder="Password (min 8 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

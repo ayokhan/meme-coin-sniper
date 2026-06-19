@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
+import { PasswordInput } from "@/components/PasswordInput";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -113,8 +114,7 @@ function ResetPasswordForm() {
             </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-3">
-            <input
-              type="password"
+            <PasswordInput
               placeholder="New password (min 8 characters)"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -122,8 +122,7 @@ function ResetPasswordForm() {
               required
               minLength={8}
             />
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Confirm new password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
