@@ -72,7 +72,7 @@ export default async function PromoTermsPage() {
         </Card>
         <p className="mt-4 text-sm text-muted-foreground">
           <Link href="/register" className="underline">
-            Join free
+            Sign up for free
           </Link>
           {" · "}
           <Link href="/" className="underline">

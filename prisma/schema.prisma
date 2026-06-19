@@ -436,11 +436,11 @@ model TabNewBadge {
 model PromoBanner {
   id              String    @id @default("default")
   enabled         Boolean   @default(false)
-  headline        String    @default("Join free for a chance to win")
+  headline        String    @default("Sign up for free for a chance to win")
   prizeLabel      String    @default("1 SOL")
   drawAt          DateTime?
   bodyText        String?
-  ctaLabel        String    @default("Join free")
+  ctaLabel        String    @default("Sign up for free")
   ctaHref         String    @default("/register")
   showOnDashboard Boolean   @default(true)
   showOnRegister  Boolean   @default(true)

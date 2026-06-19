@@ -92,7 +92,7 @@ function SignInForm() {
           <p className="text-sm text-muted-foreground">
             Welcome back. Don&apos;t have an account yet?{" "}
             <Link href={callbackUrl !== "/" ? `/register?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/register"} className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-              Join free
+              Sign up free
             </Link>{" "}
             — no credit card required.
           </p>
@@ -146,7 +146,7 @@ function SignInForm() {
             <div className="relative flex justify-center">
               <Button variant="ghost" size="sm" className="bg-white dark:bg-zinc-900 text-muted-foreground hover:text-zinc-900 dark:hover:text-zinc-100" asChild>
                 <Link href={callbackUrl !== "/" ? `/register?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/register"}>
-                  Don&apos;t have an account? Join free
+                  Don&apos;t have an account? Sign up free
                 </Link>
               </Button>
             </div>

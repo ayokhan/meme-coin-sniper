@@ -52,14 +52,14 @@ export function GuestRegistrationBanner({ onDismiss, engaged }: GuestRegistratio
             </p>
             <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">
               {engaged
-                ? "Join free in under a minute — save watchlists, track wallets, and unlock member features. No credit card required."
+                ? "Sign up free in under a minute — save watchlists, track wallets, and unlock member features. No credit card required."
                 : "Free to join · no credit card · save watchlists and get ready to upgrade when you want Pro or VIP tools."}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
           <Button asChild size="sm" className="bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500">
-            <Link href="/register">Join free</Link>
+            <Link href="/register">Sign up free</Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="border-zinc-300 dark:border-zinc-600">
             <Link href="/signin">Sign in</Link>
@@ -93,7 +93,7 @@ export function GuestAuthActions({
     <div className="mt-6 flex flex-col items-center gap-3 w-full max-w-sm mx-auto">
       <div className="flex flex-col sm:flex-row gap-2 w-full">
         <Button asChild className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500">
-          <Link href={registerHref}>Create free account</Link>
+          <Link href={registerHref}>Sign up free</Link>
         </Button>
         <Button asChild variant="outline" className="flex-1 border-zinc-300 dark:border-zinc-600">
           <Link href={signInHref}>Sign in</Link>

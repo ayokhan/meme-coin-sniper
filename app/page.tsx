@@ -3384,7 +3384,7 @@ export default function Dashboard() {
             {status !== "authenticated" && (
               <>
                 <Button size="sm" asChild className="bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500 font-medium">
-                  <Link href="/register">Join free</Link>
+                  <Link href="/register">Sign up free</Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
                   <Link href="/signin">Sign in</Link>
@@ -3516,7 +3516,7 @@ export default function Dashboard() {
               {status !== "authenticated" && (
                 <>
                   <Button size="sm" asChild className="justify-start h-12 bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500 font-medium">
-                    <Link href="/register" onClick={() => setMobileMenuOpen(false)}>Join free</Link>
+                    <Link href="/register" onClick={() => setMobileMenuOpen(false)}>Sign up free</Link>
                   </Button>
                   <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
                     <Link href="/signin" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
@@ -3926,7 +3926,7 @@ export default function Dashboard() {
                       {sitePromo?.active && (
                         <>
                           {" "}
-                          Join for a chance to win <strong>{sitePromo.prizeLabel}</strong> (draw{" "}
+                          Sign up for free for a chance to win <strong>{sitePromo.prizeLabel}</strong> (draw{" "}
                           {sitePromo.drawAt ? new Date(sitePromo.drawAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "TBA"}
                           ).{" "}
                           <Link href="/promo-terms" className="underline font-medium text-cyan-600 dark:text-cyan-400">
