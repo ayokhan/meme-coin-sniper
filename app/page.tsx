@@ -100,6 +100,14 @@ import {
   type MemeTableSortKey,
 } from "@/lib/meme-table-prefs";
 import { useDashboardScreenAnalytics } from "@/components/DashboardScreenContext";
+import {
+  GuestAuthActions,
+  GuestLockedFeatureCard,
+  GuestRegistrationBanner,
+  dismissGuestNudgeStorage,
+  readGuestNudgeDismissed,
+  registerGuestTabView,
+} from "@/components/GuestRegistrationNudge";
 
 type Token = {
   id: string;
@@ -530,6 +538,13 @@ export default function Dashboard() {
   type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst" | "meme-leaderboard" | "deep-meme-agent";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
   const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
+  const isGuest = status === "unauthenticated";
+  const isTabPaywalled =
+    onDemandLocked ||
+    (VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) ||
+    (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid));
+  const [guestNudgeDismissed, setGuestNudgeDismissed] = useState(true);
+  const [guestTabEngagement, setGuestTabEngagement] = useState(0);
 
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [dashboardPath, setDashboardPath] = useState<DashboardPath | null>(null);
@@ -538,6 +553,15 @@ export default function Dashboard() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const adminMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setGuestNudgeDismissed(readGuestNudgeDismissed());
+  }, []);
+
+  useEffect(() => {
+    if (!isGuest) return;
+    setGuestTabEngagement(registerGuestTabView(activeTab));
+  }, [activeTab, isGuest]);
+
   useEffect(() => {
     setMounted(true);
     try {
@@ -3339,8 +3363,8 @@ export default function Dashboard() {
             )}
             {status !== "authenticated" && (
               <>
-                <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-                  <Link href="/register">Register</Link>
+                <Button size="sm" asChild className="bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500 font-medium">
+                  <Link href="/register">Join free</Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
                   <Link href="/signin">Sign in</Link>
@@ -3471,8 +3495,8 @@ export default function Dashboard() {
               )}
               {status !== "authenticated" && (
                 <>
-                  <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                    <Link href="/register" onClick={() => setMobileMenuOpen(false)}>Register</Link>
+                  <Button size="sm" asChild className="justify-start h-12 bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500 font-medium">
+                    <Link href="/register" onClick={() => setMobileMenuOpen(false)}>Join free</Link>
                   </Button>
                   <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
                     <Link href="/signin" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
@@ -3523,6 +3547,15 @@ export default function Dashboard() {
             dismissed={onboardingDismissed}
             onDismiss={dismissOnboarding}
             onChangePath={() => setPathPickerOpen(true)}
+          />
+        )}
+        {isGuest && !guestNudgeDismissed && !isTabPaywalled && (
+          <GuestRegistrationBanner
+            engaged={guestTabEngagement >= 2}
+            onDismiss={() => {
+              dismissGuestNudgeStorage();
+              setGuestNudgeDismissed(true);
+            }}
           />
         )}
         <DashboardPathPickerModal
@@ -3810,7 +3843,13 @@ export default function Dashboard() {
             {(onDemandLocked || ((VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid)))) ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                  {onDemandLocked ? "On-demand access required" : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner ? "VIP required" : "Subscribe for access"}
+                  {isGuest
+                    ? "Create a free account to preview"
+                    : onDemandLocked
+                      ? "On-demand access required"
+                      : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner
+                        ? "VIP required"
+                        : "Subscribe for access"}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground max-w-md">
                   {activeTab === "surge" && "Surge shows tokens with high volume in 5m–24h windows."}
@@ -3838,28 +3877,39 @@ export default function Dashboard() {
                   {activeTab === "nova-plus" && "Nova+ provides risk-managed trade analysis with a recommended stop loss, take-profit target, and position sizing guidance. VIP only."}
                   {activeTab === "nova-investment" && "Nova Investment Agent builds leverage strategies from your amount, risk preset, and duration (support/resistance + direction, leverage, stop loss, entry/exit). VIP only."}
                   {activeTab === "nova-connect" && "NovaConnect: the first social platform for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}
-                  {" "}
-                  {onDemandLocked
-                    ? "Contact support to request access (enabled manually by admin)."
-                    : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner
-                      ? "Upgrade to VIP to use this feature."
-                      : activeTab === "nova-connect"
-                        ? "Upgrade to Pro or VIP, or ask an admin to allow NovaConnect for you."
-                        : "Upgrade to Pro or VIP to use this feature."}
+                  {!isGuest && " "}
+                  {!isGuest &&
+                    (onDemandLocked
+                      ? "Contact support to request access (enabled manually by admin)."
+                      : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner
+                        ? "Upgrade to VIP to use this feature."
+                        : activeTab === "nova-connect"
+                          ? "Upgrade to Pro or VIP, or ask an admin to allow NovaConnect for you."
+                          : "Upgrade to Pro or VIP to use this feature.")}
+                  {isGuest && (
+                    <>
+                      {" "}
+                      Registration is free and takes under a minute — no credit card required. Upgrade to Pro or VIP when you want full access.
+                    </>
+                  )}
                 </p>
-                <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
-                  <Link
-                    href={
-                      onDemandLocked
-                        ? activeTab === "ct"
-                          ? "/support?subject=CT%20Scan%20access%20request"
-                          : "/support?subject=Mem%20Coins%20Trader%20access%20request"
-                        : "/subscribe"
-                    }
-                  >
-                    {onDemandLocked ? "Contact for access" : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner ? "Upgrade to VIP" : "Subscribe to Pro"}
-                  </Link>
-                </Button>
+                {isGuest ? (
+                  <GuestAuthActions registerHref="/register" signInHref="/signin" />
+                ) : (
+                  <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
+                    <Link
+                      href={
+                        onDemandLocked
+                          ? activeTab === "ct"
+                            ? "/support?subject=CT%20Scan%20access%20request"
+                            : "/support?subject=Mem%20Coins%20Trader%20access%20request"
+                          : "/subscribe"
+                      }
+                    >
+                      {onDemandLocked ? "Contact for access" : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner ? "Upgrade to VIP" : "Subscribe to Pro"}
+                    </Link>
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="pt-4 sm:pt-6 pb-1">
@@ -7021,12 +7071,12 @@ export default function Dashboard() {
                   </div>
                 );
                 if (status !== "authenticated") {
-                  return lockedCard({
-                    title: "Nova Prop Firm Bot",
-                    body: "Sign in to continue. Full access is for VIP subscribers (with on-demand enabled by admin). Anyone can preview this tab and upgrade.",
-                    ctaHref: "/register",
-                    ctaLabel: "Sign in / Register",
-                  });
+                  return (
+                    <GuestLockedFeatureCard
+                      title="Nova Prop Firm Bot"
+                      body="Create a free account to explore this workspace. Full access is for VIP subscribers with on-demand enabled by admin — upgrade when you are ready."
+                    />
+                  );
                 }
                 if (!isVip) {
                   return lockedCard({
@@ -7082,12 +7132,12 @@ export default function Dashboard() {
                   </div>
                 );
                 if (status !== "authenticated") {
-                  return lockedCard({
-                    title: "Nova Ultimate",
-                    body: "Sign in to continue. Full access is for VIP subscribers with Nova Ultimate enabled by admin.",
-                    ctaHref: "/register",
-                    ctaLabel: "Sign in / Register",
-                  });
+                  return (
+                    <GuestLockedFeatureCard
+                      title="Nova Ultimate"
+                      body="Create a free account to explore Nova Ultimate. Full sniper and terminal access is for VIP subscribers with on-demand enabled by admin."
+                    />
+                  );
                 }
                 if (!isVip) {
                   return lockedCard({

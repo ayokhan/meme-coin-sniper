@@ -87,7 +87,13 @@ function SignInForm() {
             NovaStaris
           </Link>
           <CardTitle className="text-lg mt-2">Sign in</CardTitle>
-          <p className="text-sm text-muted-foreground">Enter your email and password to access your account.</p>
+          <p className="text-sm text-muted-foreground">
+            Welcome back. Don&apos;t have an account yet?{" "}
+            <Link href={callbackUrl !== "/" ? `/register?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/register"} className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+              Join free
+            </Link>{" "}
+            — no credit card required.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -139,7 +145,7 @@ function SignInForm() {
             <div className="relative flex justify-center">
               <Button variant="ghost" size="sm" className="bg-white dark:bg-zinc-900 text-muted-foreground hover:text-zinc-900 dark:hover:text-zinc-100" asChild>
                 <Link href={callbackUrl !== "/" ? `/register?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/register"}>
-                  Don&apos;t have an account? Register
+                  Don&apos;t have an account? Join free
                 </Link>
               </Button>
             </div>

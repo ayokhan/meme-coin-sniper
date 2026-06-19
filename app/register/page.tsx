@@ -113,8 +113,10 @@ function RegisterForm() {
             <Zap className="h-6 w-6 text-amber-500" />
             NovaStaris
           </Link>
-          <CardTitle className="text-lg mt-2">Create an account</CardTitle>
-          <p className="text-sm text-muted-foreground">Register with your email to get started.</p>
+          <CardTitle className="text-lg mt-2">Create a free account</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Join NovaStaris for free — no credit card required. Save watchlists, track wallets, and upgrade to Pro or VIP when you are ready.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -293,7 +295,7 @@ function RegisterFallback() {
             <Zap className="h-6 w-6 text-amber-500" />
             NovaStaris
           </Link>
-          <CardTitle className="text-lg mt-2">Create an account</CardTitle>
+          <CardTitle className="text-lg mt-2">Create a free account</CardTitle>
         </CardHeader>
       </Card>
     </div>
