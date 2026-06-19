@@ -690,7 +690,7 @@ export default function AdminFeatureFlagsPage() {
                   <span
                     className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
                       promo.active
-                        ? "bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/30"
+                        ? "bg-cyan-500/15 text-cyan-800 dark:text-cyan-200 border-cyan-500/30"
                         : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
                     }`}
                   >
@@ -718,7 +718,7 @@ export default function AdminFeatureFlagsPage() {
                 </div>
 
                 {promo.active && (
-                  <div className="rounded-lg border border-dashed border-amber-300/60 p-1">
+                  <div className="rounded-lg border border-dashed border-cyan-300/60 dark:border-cyan-700/50 p-1">
                     <PromoBannerDisplay promo={promo} />
                   </div>
                 )}

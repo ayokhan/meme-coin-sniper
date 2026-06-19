@@ -3929,7 +3929,7 @@ export default function Dashboard() {
                           Join for a chance to win <strong>{sitePromo.prizeLabel}</strong> (draw{" "}
                           {sitePromo.drawAt ? new Date(sitePromo.drawAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "TBA"}
                           ).{" "}
-                          <Link href="/promo-terms" className="underline font-medium text-amber-600 dark:text-amber-400">
+                          <Link href="/promo-terms" className="underline font-medium text-cyan-600 dark:text-cyan-400">
                             Terms
                           </Link>
                         </>

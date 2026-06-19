@@ -7,6 +7,13 @@ import { formatPromoDrawDate, type PromoBannerAdmin } from "@/lib/promo-banner";
 
 export const PROMO_BANNER_DISMISS_KEY = "novastaris_promo_banner_dismissed";
 
+/** Shared with guest registration banner — NovaStaris cyan/violet site accent. */
+const BANNER_SHELL =
+  "rounded-xl border border-cyan-200/80 dark:border-cyan-800/60 bg-gradient-to-r from-cyan-50/90 via-white to-violet-50/80 dark:from-cyan-950/40 dark:via-zinc-900/80 dark:to-violet-950/30 shadow-sm";
+const BANNER_ICON =
+  "shrink-0 rounded-full bg-cyan-100 dark:bg-cyan-900/50 p-2";
+const PRIZE_ACCENT = "text-cyan-600 dark:text-cyan-400";
+
 type PromoBannerDisplayProps = {
   promo: PromoBannerAdmin;
   onDismiss?: () => void;
@@ -20,13 +27,14 @@ export function PromoBannerDisplay({ promo, onDismiss, compact }: PromoBannerDis
 
   if (compact) {
     return (
-      <div className="rounded-lg border border-amber-300/70 dark:border-amber-700/60 bg-gradient-to-r from-amber-50 via-yellow-50/80 to-amber-50 dark:from-amber-950/50 dark:via-zinc-900 dark:to-amber-950/40 px-4 py-3 text-sm">
-        <p className="font-semibold text-amber-900 dark:text-amber-100">
-          {promo.headline} <span className="text-amber-600 dark:text-amber-400">{promo.prizeLabel}</span>
+      <div className={`rounded-lg px-4 py-3 text-sm ${BANNER_SHELL}`}>
+        <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {promo.headline}{" "}
+          <span className={PRIZE_ACCENT}>{promo.prizeLabel}</span>
         </p>
-        <p className="text-xs text-amber-800/80 dark:text-amber-200/80 mt-1">
+        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
           Draw: {drawLabel}. Free to join — no credit card.{" "}
-          <Link href="/promo-terms" className="underline font-medium">
+          <Link href="/promo-terms" className={`underline font-medium ${PRIZE_ACCENT}`}>
             Terms
           </Link>
         </p>
@@ -35,21 +43,21 @@ export function PromoBannerDisplay({ promo, onDismiss, compact }: PromoBannerDis
   }
 
   return (
-    <div className="mb-6 rounded-xl border border-amber-300/80 dark:border-amber-700/60 bg-gradient-to-r from-amber-50/95 via-yellow-50/90 to-orange-50/80 dark:from-amber-950/50 dark:via-zinc-900/90 dark:to-amber-950/40 px-4 py-3 sm:py-4 shadow-sm">
+    <div className={`mb-6 px-4 py-3 sm:py-4 ${BANNER_SHELL}`}>
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div className="shrink-0 rounded-full bg-amber-200/80 dark:bg-amber-900/60 p-2">
-            <Gift className="h-4 w-4 text-amber-700 dark:text-amber-300" aria-hidden />
+          <div className={BANNER_ICON}>
+            <Gift className={`h-4 w-4 ${PRIZE_ACCENT}`} aria-hidden />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-amber-950 dark:text-amber-50">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               {promo.headline}{" "}
-              <span className="text-amber-600 dark:text-amber-400">{promo.prizeLabel}</span>
+              <span className={PRIZE_ACCENT}>{promo.prizeLabel}</span>
             </p>
-            <p className="text-xs sm:text-sm text-amber-900/80 dark:text-amber-100/80 mt-0.5">
+            <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">
               {promo.bodyText ?? "Create your free account — no credit card required."}{" "}
               <span className="whitespace-nowrap">Draw: {drawLabel}.</span>{" "}
-              <Link href="/promo-terms" className="underline font-medium hover:no-underline">
+              <Link href="/promo-terms" className={`underline font-medium hover:no-underline ${PRIZE_ACCENT}`}>
                 Promo terms
               </Link>
             </p>
@@ -59,7 +67,7 @@ export function PromoBannerDisplay({ promo, onDismiss, compact }: PromoBannerDis
           <Button
             asChild
             size="sm"
-            className="bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-500"
+            className="bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500"
           >
             <Link href={promo.ctaHref}>{promo.ctaLabel}</Link>
           </Button>
@@ -67,7 +75,7 @@ export function PromoBannerDisplay({ promo, onDismiss, compact }: PromoBannerDis
             <button
               type="button"
               onClick={onDismiss}
-              className="rounded-md p-1.5 text-amber-700/60 hover:text-amber-900 hover:bg-amber-100 dark:text-amber-300/60 dark:hover:bg-amber-900/40"
+              className="rounded-md p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
               aria-label="Dismiss promo"
             >
               <X className="h-4 w-4" />
