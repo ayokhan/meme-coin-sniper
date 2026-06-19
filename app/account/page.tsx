@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, BarChart3, Sparkles, Bell } from "lucide-react";
@@ -16,9 +17,13 @@ type Profile = {
   preferredName: string | null;
   avatarUrl: string | null;
   usageThisMonth?: { aiAnalyses: number; alerts: number };
+  selfDeleteEnabled?: boolean;
+  hasPassword?: boolean;
+  isProtectedOwner?: boolean;
 };
 
 export default function AccountPage() {
+  const router = useRouter();
   const { data: session, status } = useSession();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,6 +44,10 @@ export default function AccountPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -128,6 +137,34 @@ export default function AccountPage() {
     }
   };
 
+  const onDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError("");
+    setDeleteLoading(true);
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirm: deleteConfirm,
+          password: deletePassword || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setDeleteError(data.error ?? "Failed to delete account.");
+        return;
+      }
+      await signOut({ redirect: false });
+      router.push("/");
+      router.refresh();
+    } catch {
+      setDeleteError("Something went wrong.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
@@ -167,7 +204,7 @@ export default function AccountPage() {
     );
   }
 
-  const hasEmailPassword = !!profile?.email;
+  const hasEmailPassword = !!profile?.hasPassword;
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6 sm:py-8">
@@ -430,7 +467,71 @@ export default function AccountPage() {
         )}
 
         {!hasEmailPassword && (
-          <p className="text-sm text-muted-foreground">You signed in with a wallet. Password change is only for email accounts.</p>
+          <p className="text-sm text-muted-foreground">You signed in with Google or a wallet. Password change is only for email/password accounts.</p>
+        )}
+
+        {profile?.selfDeleteEnabled && (
+          <Card className="border-rose-200 dark:border-rose-900/60 bg-white dark:bg-zinc-900">
+            <CardHeader>
+              <CardTitle className="text-lg text-rose-700 dark:text-rose-300">Delete account</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Permanently remove your NovaStaris account and associated data (profile, subscriptions, watchlists,
+                tracked wallets, NovaConnect, and saved settings). This cannot be undone.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {profile.isProtectedOwner ? (
+                <p className="text-sm text-muted-foreground">
+                  Owner accounts are protected and cannot be deleted here. Use Admin → Customers to remove other users,
+                  or contact support if you need help with your owner account.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Support tickets sent by email may be kept for compliance. Aggregated analytics without personal
+                    identifiers may be retained.
+                  </p>
+                  {deleteError && (
+                    <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2">
+                      {deleteError}
+                    </div>
+                  )}
+                  <form onSubmit={onDeleteAccount} className="space-y-3">
+                    <label className="block text-sm">
+                      <span className="text-muted-foreground">Type DELETE to confirm</span>
+                      <input
+                        type="text"
+                        value={deleteConfirm}
+                        onChange={(e) => setDeleteConfirm(e.target.value)}
+                        placeholder="DELETE"
+                        autoComplete="off"
+                        className="mt-1 w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-mono"
+                        required
+                      />
+                    </label>
+                    {hasEmailPassword && (
+                      <input
+                        type="password"
+                        placeholder="Current password"
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+                        required
+                      />
+                    )}
+                    <Button
+                      type="submit"
+                      variant="destructive"
+                      disabled={deleteLoading || deleteConfirm.trim() !== "DELETE"}
+                      className="bg-rose-600 hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-600"
+                    >
+                      {deleteLoading ? "Deleting…" : "Delete my account permanently"}
+                    </Button>
+                  </form>
+                </>
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

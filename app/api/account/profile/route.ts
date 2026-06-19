@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions, isOwnerEmail, isOwnerWallet } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getUsageThisMonth } from '@/lib/usage';
+import { FEATURE_FLAG_KEYS, getFeatureFlag } from '@/lib/feature-flags';
 
 function avatarUrlForClient(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -15,14 +16,25 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Sign in required.' }, { status: 401 });
   }
-  const [user, usageThisMonth] = await Promise.all([
+  const [user, usageThisMonth, selfDeleteEnabled] = await Promise.all([
     prisma.user.findUnique({ where: { id: session.user.id } }),
     getUsageThisMonth(session.user.id),
+    getFeatureFlag(FEATURE_FLAG_KEYS.ACCOUNT_SELF_DELETE),
   ]);
   if (!user) {
     return NextResponse.json({ error: 'User not found.' }, { status: 404 });
   }
-  const u = user as { name: string | null; email: string | null; phone: string | null; country: string | null; experienceTradingCrypto: string | null; novaConnectDisplayName?: string | null; novaConnectAvatarUrl?: string | null };
+  const u = user as {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    country: string | null;
+    experienceTradingCrypto: string | null;
+    novaConnectDisplayName?: string | null;
+    novaConnectAvatarUrl?: string | null;
+    hashedPassword?: string | null;
+    walletAddress?: string | null;
+  };
   return NextResponse.json({
     name: u.name,
     email: u.email,
@@ -32,6 +44,9 @@ export async function GET() {
     preferredName: u.novaConnectDisplayName ?? null,
     avatarUrl: u.novaConnectAvatarUrl ?? null,
     usageThisMonth,
+    selfDeleteEnabled,
+    hasPassword: !!u.hashedPassword,
+    isProtectedOwner: isOwnerEmail(u.email) || isOwnerWallet(u.walletAddress),
   });
 }
 

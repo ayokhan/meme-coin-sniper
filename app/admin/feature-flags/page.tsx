@@ -50,6 +50,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP and owner Solana AI analyses retrieve similar past analyses from each user's private embedding history before Claude runs. Requires OPENAI_API_KEY. Pro users unaffected. Default OFF.",
   },
+  account_self_delete: {
+    label: "Self-service Delete account",
+    description:
+      "When ON, signed-in users see Delete account on /account (web and Android app). Permanently removes profile, subscriptions, wallets, NovaConnect, and related data. Required for Google Play. Owner accounts are protected and cannot self-delete. Default ON.",
+  },
   moralis_go_hunting: {
     label: "Go Hunting (Moralis)",
     description: "Use Moralis for New pairs and Scan fallback. When OFF, no Moralis API calls for Go Hunting or Scan.",
