@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import type { TabNewBadgeAdminRow } from "@/lib/tab-new-badges";
+import type { PromoBannerAdmin } from "@/lib/promo-banner";
+import { formatPromoDrawDate } from "@/lib/promo-banner";
+import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
 
 function toDatetimeLocalValue(iso: string | null): string {
   if (!iso) return "";
@@ -329,13 +332,41 @@ export default function AdminFeatureFlagsPage() {
   const [tabNewLoading, setTabNewLoading] = useState(true);
   const [tabNewSaving, setTabNewSaving] = useState<string | null>(null);
   const [tabNewDraftDates, setTabNewDraftDates] = useState<Record<string, string>>({});
+  const [promo, setPromo] = useState<PromoBannerAdmin | null>(null);
+  const [promoLoading, setPromoLoading] = useState(true);
+  const [promoSaving, setPromoSaving] = useState(false);
+  const [promoDraft, setPromoDraft] = useState({
+    headline: "",
+    prizeLabel: "",
+    drawAtLocal: "",
+    bodyText: "",
+    ctaLabel: "",
+    ctaHref: "",
+    showOnDashboard: true,
+    showOnRegister: true,
+  });
+
+  const applyPromoDraft = (p: PromoBannerAdmin) => {
+    setPromo(p);
+    setPromoDraft({
+      headline: p.headline,
+      prizeLabel: p.prizeLabel,
+      drawAtLocal: toDatetimeLocalValue(p.drawAt),
+      bodyText: p.bodyText ?? "",
+      ctaLabel: p.ctaLabel,
+      ctaHref: p.ctaHref,
+      showOnDashboard: p.showOnDashboard,
+      showOnRegister: p.showOnRegister,
+    });
+  };
 
   const load = () =>
     Promise.all([
       fetch("/api/admin/feature-flags").then((r) => r.json()),
       fetch("/api/admin/tab-new-badges").then((r) => r.json()),
+      fetch("/api/admin/promo-banner").then((r) => r.json()),
     ])
-      .then(([flagsData, badgesData]) => {
+      .then(([flagsData, badgesData, promoData]) => {
         if (flagsData.success) setFlags(flagsData.flags ?? {});
         else setError(flagsData.error ?? "Failed to load");
         if (badgesData.success) {
@@ -347,11 +378,15 @@ export default function AdminFeatureFlagsPage() {
           }
           setTabNewDraftDates(drafts);
         }
+        if (promoData.success && promoData.promo) {
+          applyPromoDraft(promoData.promo as PromoBannerAdmin);
+        }
       })
       .catch(() => setError("Failed to load"))
       .finally(() => {
         setLoading(false);
         setTabNewLoading(false);
+        setPromoLoading(false);
       });
 
   useEffect(() => {
@@ -385,6 +420,29 @@ export default function AdminFeatureFlagsPage() {
       setError("Update failed");
     } finally {
       setTabNewSaving(null);
+    }
+  };
+
+  const patchPromo = async (body: Record<string, unknown>) => {
+    setPromoSaving(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const res = await fetch("/api/admin/promo-banner", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success && data.promo) {
+        applyPromoDraft(data.promo as PromoBannerAdmin);
+        setSuccessMessage("Promo banner updated.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Update failed");
+    } catch {
+      setError("Update failed");
+    } finally {
+      setPromoSaving(false);
     }
   };
 
@@ -612,6 +670,164 @@ export default function AdminFeatureFlagsPage() {
                 })}
               </ul>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6 border-zinc-200 dark:border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-base">Promo banner</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Site-wide giveaway / join-free promo shown to guests on the dashboard and register page.
+              Turn off anytime or update prize, draw date, and copy — no deploy needed.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {promoLoading ? (
+              <p className="text-muted-foreground text-sm">Loading promo banner…</p>
+            ) : promo ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                      promo.active
+                        ? "bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/30"
+                        : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                    }`}
+                  >
+                    {promo.active ? "LIVE on site" : promo.enabled ? "Enabled (draw passed)" : "OFF"}
+                    {promo.usesDefault ? " · code default" : ""}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant={promo.enabled ? "outline" : "default"}
+                      disabled={promoSaving}
+                      onClick={() => void patchPromo({ enabled: !promo.enabled })}
+                    >
+                      {promoSaving ? "…" : promo.enabled ? "Turn off" : "Turn on"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={promoSaving}
+                      onClick={() => void patchPromo({ resetToDefault: true })}
+                    >
+                      Reset defaults
+                    </Button>
+                  </div>
+                </div>
+
+                {promo.active && (
+                  <div className="rounded-lg border border-dashed border-amber-300/60 p-1">
+                    <PromoBannerDisplay promo={promo} />
+                  </div>
+                )}
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                    Headline
+                    <input
+                      value={promoDraft.headline}
+                      onChange={(e) => setPromoDraft((d) => ({ ...d, headline: e.target.value }))}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                    />
+                  </label>
+                  <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                    Prize (e.g. 1 SOL)
+                    <input
+                      value={promoDraft.prizeLabel}
+                      onChange={(e) => setPromoDraft((d) => ({ ...d, prizeLabel: e.target.value }))}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                    />
+                  </label>
+                  <label className="text-xs text-muted-foreground flex flex-col gap-1 sm:col-span-2">
+                    Draw date (local) — banner hides automatically after this time
+                    <input
+                      type="datetime-local"
+                      value={promoDraft.drawAtLocal}
+                      onChange={(e) => setPromoDraft((d) => ({ ...d, drawAtLocal: e.target.value }))}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 max-w-xs"
+                    />
+                    {promo.drawAt && (
+                      <span className="text-[11px]">Public: {formatPromoDrawDate(promo.drawAt)}</span>
+                    )}
+                  </label>
+                  <label className="text-xs text-muted-foreground flex flex-col gap-1 sm:col-span-2">
+                    Body text
+                    <textarea
+                      value={promoDraft.bodyText}
+                      onChange={(e) => setPromoDraft((d) => ({ ...d, bodyText: e.target.value }))}
+                      rows={2}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                    />
+                  </label>
+                  <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                    Button label
+                    <input
+                      value={promoDraft.ctaLabel}
+                      onChange={(e) => setPromoDraft((d) => ({ ...d, ctaLabel: e.target.value }))}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                    />
+                  </label>
+                  <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                    Button link
+                    <input
+                      value={promoDraft.ctaHref}
+                      onChange={(e) => setPromoDraft((d) => ({ ...d, ctaHref: e.target.value }))}
+                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 font-mono"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={promoDraft.showOnDashboard}
+                      onChange={(e) => setPromoDraft((d) => ({ ...d, showOnDashboard: e.target.checked }))}
+                    />
+                    Show on dashboard
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={promoDraft.showOnRegister}
+                      onChange={(e) => setPromoDraft((d) => ({ ...d, showOnRegister: e.target.checked }))}
+                    />
+                    Show on register page
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    disabled={promoSaving}
+                    onClick={() => {
+                      const iso = fromDatetimeLocalValue(promoDraft.drawAtLocal);
+                      void patchPromo({
+                        headline: promoDraft.headline,
+                        prizeLabel: promoDraft.prizeLabel,
+                        drawAt: iso,
+                        bodyText: promoDraft.bodyText || null,
+                        ctaLabel: promoDraft.ctaLabel,
+                        ctaHref: promoDraft.ctaHref,
+                        showOnDashboard: promoDraft.showOnDashboard,
+                        showOnRegister: promoDraft.showOnRegister,
+                      });
+                    }}
+                  >
+                    {promoSaving ? "Saving…" : "Save promo"}
+                  </Button>
+                  <Link
+                    href="/promo-terms"
+                    target="_blank"
+                    className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline self-center"
+                  >
+                    Preview promo terms →
+                  </Link>
+                </div>
+              </>
+            ) : null}
           </CardContent>
         </Card>
 

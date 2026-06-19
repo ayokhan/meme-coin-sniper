@@ -108,6 +108,8 @@ import {
   readGuestNudgeDismissed,
   registerGuestTabView,
 } from "@/components/GuestRegistrationNudge";
+import { PromoBannerDisplay, PROMO_BANNER_DISMISS_KEY } from "@/components/PromoBannerDisplay";
+import type { PromoBannerAdmin } from "@/lib/promo-banner";
 
 type Token = {
   id: string;
@@ -333,18 +335,22 @@ export default function Dashboard() {
   const [pageTabFlags, setPageTabFlags] = useState<Record<string, boolean> | null>(null);
   const [pageTabFlagsLoaded, setPageTabFlagsLoaded] = useState(false);
   const [tabNewBadges, setTabNewBadges] = useState<Record<string, string>>({});
+  const [sitePromo, setSitePromo] = useState<PromoBannerAdmin | null>(null);
+  const [promoBannerDismissed, setPromoBannerDismissed] = useState(false);
 
-  // Client-side: hide/show main GUI tabs based on owner feature flags + NEW badges.
+  // Client-side: hide/show main GUI tabs based on owner feature flags + NEW badges + promo.
   useEffect(() => {
     let cancelled = false;
     Promise.all([
       fetch("/api/feature-flags-public").then((r) => r.json()),
       fetch("/api/tab-new-badges").then((r) => r.json()),
+      fetch("/api/promo-banner").then((r) => r.json()),
     ])
-      .then(([flagsData, badgesData]) => {
+      .then(([flagsData, badgesData, promoData]) => {
         if (cancelled) return;
         if (flagsData?.success) setPageTabFlags(flagsData.flags ?? {});
         if (badgesData?.success) setTabNewBadges(badgesData.badges ?? {});
+        if (promoData?.success) setSitePromo(promoData.promo ?? null);
       })
       .catch(() => {})
       .finally(() => {
@@ -555,6 +561,11 @@ export default function Dashboard() {
   const adminMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setGuestNudgeDismissed(readGuestNudgeDismissed());
+    try {
+      setPromoBannerDismissed(sessionStorage.getItem(PROMO_BANNER_DISMISS_KEY) === "1");
+    } catch {
+      setPromoBannerDismissed(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -3269,6 +3280,15 @@ export default function Dashboard() {
     return { title, content: lines.join("\n") };
   };
 
+  const showSitePromo =
+    isGuest &&
+    sitePromo?.active &&
+    sitePromo.showOnDashboard &&
+    !promoBannerDismissed &&
+    !isTabPaywalled;
+  const showGuestRegistrationBanner =
+    isGuest && !guestNudgeDismissed && !isTabPaywalled && !showSitePromo;
+
   const dexUrl = (t: Token) =>
     t.pairAddress
       ? `https://dexscreener.com/solana/${t.pairAddress}`
@@ -3549,7 +3569,20 @@ export default function Dashboard() {
             onChangePath={() => setPathPickerOpen(true)}
           />
         )}
-        {isGuest && !guestNudgeDismissed && !isTabPaywalled && (
+        {showSitePromo && sitePromo && (
+          <PromoBannerDisplay
+            promo={sitePromo}
+            onDismiss={() => {
+              try {
+                sessionStorage.setItem(PROMO_BANNER_DISMISS_KEY, "1");
+              } catch {
+                /* ignore */
+              }
+              setPromoBannerDismissed(true);
+            }}
+          />
+        )}
+        {showGuestRegistrationBanner && (
           <GuestRegistrationBanner
             engaged={guestTabEngagement >= 2}
             onDismiss={() => {
@@ -3889,7 +3922,19 @@ export default function Dashboard() {
                   {isGuest && (
                     <>
                       {" "}
-                      Registration is free and takes under a minute — no credit card required. Upgrade to Pro or VIP when you want full access.
+                      Registration is free and takes under a minute — no credit card required.
+                      {sitePromo?.active && (
+                        <>
+                          {" "}
+                          Join for a chance to win <strong>{sitePromo.prizeLabel}</strong> (draw{" "}
+                          {sitePromo.drawAt ? new Date(sitePromo.drawAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "TBA"}
+                          ).{" "}
+                          <Link href="/promo-terms" className="underline font-medium text-amber-600 dark:text-amber-400">
+                            Terms
+                          </Link>
+                        </>
+                      )}
+                      {!sitePromo?.active && " Upgrade to Pro or VIP when you want full access."}
                     </>
                   )}
                 </p>

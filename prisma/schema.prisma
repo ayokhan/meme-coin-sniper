@@ -432,6 +432,21 @@ model TabNewBadge {
   updatedAt DateTime  @updatedAt
 }
 
+// Owner-managed site promo banner (giveaways, join-free campaigns). Single row id "default".
+model PromoBanner {
+  id              String    @id @default("default")
+  enabled         Boolean   @default(false)
+  headline        String    @default("Join free for a chance to win")
+  prizeLabel      String    @default("1 SOL")
+  drawAt          DateTime?
+  bodyText        String?
+  ctaLabel        String    @default("Join free")
+  ctaHref         String    @default("/register")
+  showOnDashboard Boolean   @default(true)
+  showOnRegister  Boolean   @default(true)
+  updatedAt       DateTime  @updatedAt
+}
+
 // Pinned tokens for AI re-analysis every ~3 min (Solana or BSC)
 model PinnedToken {
   id              String    @id @default(cuid())

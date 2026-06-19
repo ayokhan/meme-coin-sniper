@@ -7,6 +7,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
+import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
+import type { PromoBannerAdmin } from "@/lib/promo-banner";
 
 function GoogleLogo() {
   return (
@@ -40,6 +42,16 @@ function RegisterForm() {
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [sitePromo, setSitePromo] = useState<PromoBannerAdmin | null>(null);
+
+  useEffect(() => {
+    fetch("/api/promo-banner")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setSitePromo(data.promo ?? null);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -119,6 +131,9 @@ function RegisterForm() {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {sitePromo?.active && sitePromo.showOnRegister && (
+            <PromoBannerDisplay promo={sitePromo} compact />
+          )}
           {error && (
             <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2">
               {error}
