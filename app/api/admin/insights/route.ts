@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions, isOwnerSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import {
+  buildCityWhere,
+  formatAnalyticsPathLabel,
+  insightsDateFilterFromUrl,
+  parseCityLabel,
+} from '@/lib/analytics-insights';
 
 /** GET - Aggregated app insights (country, device, path). Owner-only. */
 export async function GET(req: Request) {
@@ -12,6 +18,72 @@ export async function GET(req: Request) {
     }
 
     const url = new URL(req.url);
+    const drill = url.searchParams.get('drill');
+    const cityLabelParam = url.searchParams.get('cityLabel');
+    if (drill === 'city' && cityLabelParam) {
+      const { city, country } = parseCityLabel(cityLabelParam);
+      const dateFilter = insightsDateFilterFromUrl(url);
+      const events = (await prisma.analyticsEvent.findMany({
+        where: { ...buildCityWhere(city, country), ...dateFilter },
+        orderBy: { createdAt: 'desc' },
+        take: 5000,
+      })) as Array<{
+        path: string;
+        createdAt: Date;
+        deviceType: string | null;
+        browser: string | null;
+        os: string | null;
+        userId: string | null;
+      }>;
+
+      const byPath: Record<string, { count: number; lastSeen: Date }> = {};
+      for (const e of events) {
+        const p = e.path || '/';
+        const cur = byPath[p];
+        if (!cur) byPath[p] = { count: 1, lastSeen: e.createdAt };
+        else {
+          cur.count++;
+          if (e.createdAt > cur.lastSeen) cur.lastSeen = e.createdAt;
+        }
+      }
+      const byPathSorted = Object.entries(byPath)
+        .sort((a, b) => b[1].count - a[1].count)
+        .map(([path, { count, lastSeen }]) => ({
+          path,
+          label: formatAnalyticsPathLabel(path),
+          count,
+          lastSeen: lastSeen.toISOString(),
+        }));
+
+      const userIds = [...new Set(events.map((e) => e.userId).filter(Boolean))] as string[];
+      const users = await Promise.all(
+        userIds.map(async (id) =>
+          (await prisma.user.findUnique({ where: { id } })) as { id: string; email: string | null } | null
+        )
+      );
+      const emailByUserId = new Map(
+        users.filter((u): u is { id: string; email: string | null } => u != null).map((u) => [u.id, u.email])
+      );
+
+      const recentEvents = events.slice(0, 50).map((e) => ({
+        path: e.path || '/',
+        pathLabel: formatAnalyticsPathLabel(e.path || '/'),
+        createdAt: e.createdAt.toISOString(),
+        deviceType: e.deviceType,
+        browser: e.browser,
+        os: e.os,
+        userEmail: e.userId ? emailByUserId.get(e.userId) ?? null : null,
+      }));
+
+      return NextResponse.json({
+        success: true,
+        drill: 'city',
+        cityLabel: cityLabelParam,
+        total: events.length,
+        byPath: byPathSorted,
+        recentEvents,
+      });
+    }
     const dateParam = url.searchParams.get('date'); // YYYY-MM-DD for single-day view
     let since: Date;
     let singleDate: string | null = null;
