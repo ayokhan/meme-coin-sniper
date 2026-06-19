@@ -440,7 +440,7 @@ model PromoBanner {
   prizeLabel      String    @default("1 SOL")
   drawAt          DateTime?
   bodyText        String?
-  ctaLabel        String    @default("Sign up for free")
+  ctaLabel        String    @default("Sign up free")
   ctaHref         String    @default("/register")
   showOnDashboard Boolean   @default(true)
   showOnRegister  Boolean   @default(true)

@@ -31,7 +31,7 @@ export const DEFAULT_PROMO_BANNER: PromoBannerConfig = {
   drawAt: "2026-08-31T23:59:59.000Z",
   bodyText:
     "Create your free NovaStaris account — no credit card. One random eligible member wins after the draw.",
-  ctaLabel: "Sign up for free",
+  ctaLabel: "Sign up free",
   ctaHref: "/register",
   showOnDashboard: true,
   showOnRegister: true,
