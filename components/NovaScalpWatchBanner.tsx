@@ -16,6 +16,8 @@ import {
   stopWatchingScalpPlan,
 } from "@/lib/nova-scalp-plan-watch";
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
+import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
+import { scalpPlanWatchLabel } from "@/lib/scalp-plan-market";
 
 function toneClass(tone: ReturnType<typeof planStatusTone>): string {
   switch (tone) {
@@ -35,6 +37,7 @@ export default function NovaScalpWatchBanner() {
   const [status, setStatus] = useState<ScalpPlanStatus>("active");
   const [analysis, setAnalysis] = useState<NovaScalpAnalysis | null>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
+  const [market, setMarket] = useState<ScalpPlanMarket>("crypto");
   const [dismissedAt, setDismissedAt] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,6 +51,7 @@ export default function NovaScalpWatchBanner() {
       setAnalysis(w.analysis);
       setStatus(w.lastStatus);
       setLivePrice(w.lastLivePrice);
+      setMarket(w.market ?? "crypto");
       if (dismissedAt === w.analysis.analyzedAt && w.lastStatus === "active") {
         setVisible(false);
         return;
@@ -97,7 +101,7 @@ export default function NovaScalpWatchBanner() {
         <Bell className="h-4 w-4 shrink-0 mt-0.5 opacity-80" aria-hidden />
         <div className="flex-1 min-w-0 text-xs">
           <p className="font-semibold">
-            Watching {analysis.symbol} · {analysis.timeframeLabel}
+            {scalpPlanWatchLabel(market)} · {analysis.symbol} · {analysis.timeframeLabel}
           </p>
           <p className="mt-0.5 opacity-90">{label}</p>
           {livePrice != null && (
@@ -108,7 +112,15 @@ export default function NovaScalpWatchBanner() {
           {(status === "invalidated" || status === "target_hit" || status === "stale") && (
             <div className="flex flex-wrap gap-2 mt-2">
               <Button asChild size="sm" variant="secondary" className="h-7 text-xs">
-                <Link href="/?tab=nova-forecast&forecast=nova-scalp#nova-scalp-quick-wins">Find quick wins</Link>
+                <Link
+                  href={
+                    market === "forex"
+                      ? "/?tab=nova-forex&forex=nova-scalp"
+                      : "/?tab=nova-forecast&forecast=nova-scalp#nova-scalp-quick-wins"
+                  }
+                >
+                  {market === "forex" ? "Open Forex Scalp" : "Find quick wins"}
+                </Link>
               </Button>
             </div>
           )}

@@ -32,6 +32,8 @@ import {
   stopWatchingScalpPlan,
   updateWatchedScalpPlan,
 } from "@/lib/nova-scalp-plan-watch";
+import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
+import { scalpPlanFeedbackApi } from "@/lib/scalp-plan-market";
 
 type BlofinPositionSummary = {
   symbol: string;
@@ -159,6 +161,7 @@ type Props = {
   refreshing: boolean;
   canShareCoach?: boolean;
   shareFooter?: React.ReactNode;
+  market?: ScalpPlanMarket;
 };
 
 export function NovaScalpPlanCard({
@@ -167,6 +170,7 @@ export function NovaScalpPlanCard({
   refreshing,
   canShareCoach = false,
   shareFooter,
+  market = "crypto",
 }: Props) {
   const [livePrice, setLivePrice] = useState<number | null>(result.currentPrice);
   const [priceError, setPriceError] = useState(false);
@@ -177,7 +181,8 @@ export function NovaScalpPlanCard({
   const [blofinConfigured, setBlofinConfigured] = useState<boolean | null>(null);
   const [, tick] = useState(0);
 
-  const planKey = scalpPlanKey(result);
+  const planKey = scalpPlanKey(result, market);
+  const showBlofin = market === "crypto";
 
   useEffect(() => {
     setLivePrice(result.currentPrice);
@@ -192,11 +197,11 @@ export function NovaScalpPlanCard({
   }, [planKey]);
 
   useEffect(() => {
-    const sync = () => setWatching(isWatchingScalpPlan(result));
+    const sync = () => setWatching(isWatchingScalpPlan(result, market));
     sync();
     window.addEventListener(SCALP_WATCH_EVENT, sync);
     return () => window.removeEventListener(SCALP_WATCH_EVENT, sync);
-  }, [result]);
+  }, [result, market]);
 
   useEffect(() => {
     if (result.side === "no_entry") return;
@@ -205,7 +210,7 @@ export function NovaScalpPlanCard({
 
     const fetchPrice = async () => {
       try {
-        const price = await fetchScalpLivePrice(result.symbol);
+        const price = await fetchScalpLivePrice(result.symbol, market);
         if (cancelled) return;
         if (price != null) {
           setLivePrice(price);
@@ -228,10 +233,10 @@ export function NovaScalpPlanCard({
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [result.symbol, result.side]);
+  }, [result.symbol, result.side, market]);
 
   useEffect(() => {
-    if (result.side === "no_entry") return;
+    if (!showBlofin || result.side === "no_entry") return;
     let cancelled = false;
 
     const loadBlofin = async () => {
@@ -259,7 +264,7 @@ export function NovaScalpPlanCard({
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [result.symbol, result.side]);
+  }, [result.symbol, result.side, showBlofin]);
 
   const submitFeedback = async (payload: {
     entered: boolean;
@@ -268,7 +273,7 @@ export function NovaScalpPlanCard({
     if (feedbackLoading) return;
     setFeedbackLoading(true);
     try {
-      const res = await fetch("/api/nova-scalp-agent/feedback", {
+      const res = await fetch(scalpPlanFeedbackApi(market), {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -338,7 +343,7 @@ export function NovaScalpPlanCard({
         /* ignore */
       }
     }
-    startWatchingScalpPlan(result, planStatus);
+    startWatchingScalpPlan(result, planStatus, market);
   };
 
   const getSharePayload = () =>
@@ -350,9 +355,11 @@ export function NovaScalpPlanCard({
 
   return (
     <Card
-      className={`border-violet-300/50 dark:border-violet-800/50 ${
-        planStatus === "invalidated" || planStatus === "target_hit" ? "opacity-80" : ""
-      }`}
+      className={`${
+        market === "forex"
+          ? "border-zinc-300/60 dark:border-zinc-700"
+          : "border-violet-300/50 dark:border-violet-800/50"
+      } ${planStatus === "invalidated" || planStatus === "target_hit" ? "opacity-80" : ""}`}
     >
       <CardHeader className="pb-2 space-y-2">
         <div className="flex flex-wrap items-center gap-2 justify-between">
@@ -573,7 +580,7 @@ export function NovaScalpPlanCard({
                   className="h-7 text-xs"
                   disabled={feedbackLoading}
                   onClick={() => {
-                    setScalpPlanEntryChoice(result, "entered");
+                    setScalpPlanEntryChoice(result, "entered", market);
                     setEntryRecord(readScalpPlanEntry(planKey));
                   }}
                 >
@@ -586,7 +593,7 @@ export function NovaScalpPlanCard({
                   className="h-7 text-xs"
                   disabled={feedbackLoading}
                   onClick={() => {
-                    setScalpPlanEntryChoice(result, "skipped");
+                    setScalpPlanEntryChoice(result, "skipped", market);
                     void submitFeedback({ entered: false, outcome: "skipped" });
                   }}
                 >
@@ -662,8 +669,14 @@ export function NovaScalpPlanCard({
                 Refresh plan
               </Button>
               <Button asChild variant="secondary" size="sm" className="h-8 text-xs">
-                <Link href="/?tab=nova-forecast&forecast=nova-scalp#nova-scalp-quick-wins">
-                  Find quick wins
+                <Link
+                  href={
+                    market === "forex"
+                      ? "/?tab=nova-forex&forex=nova-scalp"
+                      : "/?tab=nova-forecast&forecast=nova-scalp#nova-scalp-quick-wins"
+                  }
+                >
+                  {market === "forex" ? "Refresh symbol" : "Find quick wins"}
                 </Link>
               </Button>
             </div>

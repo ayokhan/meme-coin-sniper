@@ -15,10 +15,16 @@ import {
   writeWatchedScalpPlan,
   type WatchedScalpPlan,
 } from "@/lib/nova-scalp-plan-watch";
+import { scalpPlanWatchLabel } from "@/lib/scalp-plan-market";
 
 const NOTIFY_STATUSES: ScalpPlanStatus[] = ["at_entry", "invalidated", "target_hit", "stale"];
 
-function notifyScalpStatus(analysis: NovaScalpAnalysis, status: ScalpPlanStatus, livePrice: number | null) {
+function notifyScalpStatus(
+  analysis: NovaScalpAnalysis,
+  status: ScalpPlanStatus,
+  livePrice: number | null,
+  market: WatchedScalpPlan["market"]
+) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
   if (!NOTIFY_STATUSES.includes(status)) return;
@@ -31,7 +37,7 @@ function notifyScalpStatus(analysis: NovaScalpAnalysis, status: ScalpPlanStatus,
   });
   const priceBit = livePrice != null ? ` · ${livePrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : "";
   try {
-    new Notification(`Nova Scalp · ${analysis.symbol}`, {
+    new Notification(`${scalpPlanWatchLabel(market ?? "crypto")} · ${analysis.symbol}`, {
       body: `${label}${priceBit}`,
       tag: `scalp-watch-${analysis.symbol}-${analysis.analyzedAt}`,
     });
@@ -51,7 +57,8 @@ export default function NovaScalpPlanWatcher() {
       const watched = readWatchedScalpPlan();
       if (!watched || watched.analysis.side === "no_entry") return;
 
-      const livePrice = await fetchScalpLivePrice(watched.analysis.symbol);
+      const market = watched.market ?? "crypto";
+      const livePrice = await fetchScalpLivePrice(watched.analysis.symbol, market);
       if (cancelled) return;
 
       const status = planStatusFromAnalysis(watched.analysis, livePrice);
@@ -74,7 +81,7 @@ export default function NovaScalpPlanWatcher() {
       const notifyKey = `${watched.analysis.analyzedAt}:${status}`;
       if (status !== prev && lastNotified.current !== notifyKey) {
         lastNotified.current = notifyKey;
-        notifyScalpStatus(watched.analysis, status, livePrice);
+        notifyScalpStatus(watched.analysis, status, livePrice, market);
       }
     };
 

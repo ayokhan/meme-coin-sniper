@@ -1,5 +1,6 @@
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
 import type { ScalpPlanStatus } from "@/lib/nova-scalp-plan-status";
+import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 
 export const SCALP_WATCH_STORAGE_KEY = "novastaris_scalp_plan_watch";
 export const SCALP_WATCH_EVENT = "novastaris-scalp-watch-change";
@@ -7,6 +8,7 @@ export const SCALP_STATUS_EVENT = "novastaris-scalp-status-change";
 
 export type WatchedScalpPlan = {
   analysis: NovaScalpAnalysis;
+  market?: ScalpPlanMarket;
   watchedAt: string;
   lastStatus: ScalpPlanStatus;
   lastLivePrice: number | null;
@@ -36,9 +38,14 @@ export function writeWatchedScalpPlan(plan: WatchedScalpPlan | null): void {
   window.dispatchEvent(new CustomEvent(SCALP_WATCH_EVENT));
 }
 
-export function startWatchingScalpPlan(analysis: NovaScalpAnalysis, lastStatus: ScalpPlanStatus): void {
+export function startWatchingScalpPlan(
+  analysis: NovaScalpAnalysis,
+  lastStatus: ScalpPlanStatus,
+  market: ScalpPlanMarket = "crypto"
+): void {
   writeWatchedScalpPlan({
     analysis,
+    market,
     watchedAt: new Date().toISOString(),
     lastStatus,
     lastLivePrice: analysis.currentPrice,
@@ -57,10 +64,15 @@ export function updateWatchedScalpPlan(
   writeWatchedScalpPlan({ ...w, ...patch });
 }
 
-export function isWatchingScalpPlan(analysis: NovaScalpAnalysis): boolean {
+export function isWatchingScalpPlan(
+  analysis: NovaScalpAnalysis,
+  market: ScalpPlanMarket = "crypto"
+): boolean {
   const w = readWatchedScalpPlan();
+  const wMarket = w?.market ?? "crypto";
   return (
     !!w &&
+    wMarket === market &&
     w.analysis.symbol === analysis.symbol &&
     w.analysis.timeframeId === analysis.timeframeId &&
     w.analysis.analyzedAt === analysis.analyzedAt

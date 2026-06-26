@@ -1,7 +1,13 @@
+import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
+import { scalpPlanPriceApi } from "@/lib/scalp-plan-market";
+
 export const SCALP_LIVE_PRICE_MS = 12_000;
 
-export async function fetchScalpLivePrice(symbol: string): Promise<number | null> {
-  const res = await fetch(`/api/nova-scalp-agent/price?symbol=${encodeURIComponent(symbol)}`, {
+export async function fetchScalpLivePrice(
+  symbol: string,
+  market: ScalpPlanMarket = "crypto"
+): Promise<number | null> {
+  const res = await fetch(`${scalpPlanPriceApi(market)}?symbol=${encodeURIComponent(symbol)}`, {
     credentials: "include",
     cache: "no-store",
   });

@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { normalizeForexSymbol, type ForexSymbolEntry } from "@/lib/forex-market";
 import { NOVA_SCALP_DISCLAIMER, SCALP_TIMEFRAMES, type NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
+import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
 
 import NovaForexRadarPanel from "@/components/NovaForexRadarPanel";
 import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
@@ -78,10 +79,19 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
   const [scalpTf, setScalpTf] = useState("5m");
   const [scalpAmount, setScalpAmount] = useState("100");
   const [scalpLev, setScalpLev] = useState("20");
+  const [scalpMaxLoss, setScalpMaxLoss] = useState("5");
   const [scalpResult, setScalpResult] = useState<NovaScalpAnalysis | null>(null);
   const [scalpLoading, setScalpLoading] = useState(false);
   const [scalpError, setScalpError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === "nova-forex" && params.get("forex") === "nova-scalp") {
+      setSubTab("nova-scalp");
+    }
+  }, []);
 
   useEffect(() => {
     if (!enabled || !isVip) return;
@@ -170,7 +180,7 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
     }
   };
 
-  const runScalp = async () => {
+  const runScalp = useCallback(async () => {
     setScalpLoading(true);
     setScalpError(null);
     try {
@@ -183,6 +193,7 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
           timeframeId: scalpTf,
           amountUsd: Number(scalpAmount) || 100,
           leverage: Number(scalpLev) || 20,
+          maxLossPctOnMargin: Number(scalpMaxLoss) || 5,
         }),
       });
       const d = await res.json();
@@ -191,13 +202,13 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
         setScalpResult(null);
         return;
       }
-      setScalpResult(d.analysis);
+      setScalpResult(d.analysis as NovaScalpAnalysis);
     } catch {
       setScalpError("Request failed");
     } finally {
       setScalpLoading(false);
     }
-  };
+  }, [symbol, scalpTf, scalpAmount, scalpLev, scalpMaxLoss]);
 
   if (!enabled) {
     return (
@@ -433,20 +444,34 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
                     className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-24 bg-white dark:bg-zinc-800"
                   />
                 </label>
-                <Button onClick={runScalp} disabled={scalpLoading} className="mb-0.5">
+                <label className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Max loss (% margin)</span>
+                  <input
+                    type="number"
+                    min={0.5}
+                    max={100}
+                    step={0.5}
+                    value={scalpMaxLoss}
+                    onChange={(e) => setScalpMaxLoss(e.target.value)}
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-24 bg-white dark:bg-zinc-800"
+                    title="Used for optional risk stop alongside structural invalidation"
+                  />
+                </label>
+                <Button onClick={() => void runScalp()} disabled={scalpLoading} className="mb-0.5">
                   {scalpLoading ? "Running…" : "Run Nova Forex Scalp"}
                 </Button>
               </div>
               {scalpError && <p className="text-sm text-rose-600">{scalpError}</p>}
               {scalpResult && (
-                <div className="text-xs space-y-2">
-                  <p>
-                    <strong>{scalpResult.side.toUpperCase()}</strong> · Entry {fmtUsd(scalpResult.entryPrice)} · Exit{" "}
-                    {fmtUsd(scalpResult.exitPrice)} · Touches E{scalpResult.entryTouches ?? "—"} / X{scalpResult.exitTouches ?? "—"}
-                  </p>
-                  <p>{scalpResult.rationale}</p>
-                  <p className="text-muted-foreground">{NOVA_SCALP_DISCLAIMER}</p>
-                </div>
+                <NovaScalpPlanCard
+                  market="forex"
+                  result={scalpResult}
+                  onRefresh={() => void runScalp()}
+                  refreshing={scalpLoading}
+                />
+              )}
+              {!scalpResult && (
+                <p className="text-[11px] text-muted-foreground">{NOVA_SCALP_DISCLAIMER}</p>
               )}
             </div>
           </TabsContent>

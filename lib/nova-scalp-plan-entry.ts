@@ -1,4 +1,5 @@
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
+import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 
 export const SCALP_ENTRY_STORAGE_KEY = "novastaris_scalp_plan_entry";
 export const SCALP_ENTRY_EVENT = "novastaris-scalp-entry-change";
@@ -15,8 +16,8 @@ export type ScalpPlanEntryRecord = {
   feedbackSent?: boolean;
 };
 
-export function scalpPlanKey(analysis: NovaScalpAnalysis): string {
-  return `${analysis.symbol}:${analysis.timeframeId}:${analysis.analyzedAt}`;
+export function scalpPlanKey(analysis: NovaScalpAnalysis, market: ScalpPlanMarket = "crypto"): string {
+  return `${market}:${analysis.symbol}:${analysis.timeframeId}:${analysis.analyzedAt}`;
 }
 
 export function readScalpPlanEntry(planKey: string): ScalpPlanEntryRecord | null {
@@ -44,10 +45,11 @@ export function writeScalpPlanEntry(record: ScalpPlanEntryRecord | null): void {
 
 export function setScalpPlanEntryChoice(
   analysis: NovaScalpAnalysis,
-  choice: ScalpPlanEntryChoice
+  choice: ScalpPlanEntryChoice,
+  market: ScalpPlanMarket = "crypto"
 ): void {
   writeScalpPlanEntry({
-    planKey: scalpPlanKey(analysis),
+    planKey: scalpPlanKey(analysis, market),
     choice,
     symbol: analysis.symbol,
     timeframeId: analysis.timeframeId,
