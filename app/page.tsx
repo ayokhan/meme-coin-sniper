@@ -1287,6 +1287,19 @@ export default function Dashboard() {
     if (fv && URL_FUTURES_VIEWS.has(fv)) {
       setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map");
     }
+    const forecast = params.get("forecast");
+    if (
+      forecast === "agent" ||
+      forecast === "nova-smart" ||
+      forecast === "nova-q" ||
+      forecast === "nova-q-fib" ||
+      forecast === "nova-extra" ||
+      forecast === "nova-pattern" ||
+      forecast === "nova-radar" ||
+      forecast === "nova-scalp"
+    ) {
+      setNovaForecastSubTab(forecast);
+    }
   }, [pageTabFlagsLoaded, isTabVisibleInGui]);
 
   useEffect(() => {

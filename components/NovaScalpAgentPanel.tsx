@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
 import {
@@ -15,7 +15,6 @@ import {
   type ScalpTimeframeId,
 } from "@/lib/nova-scalp-agent";
 import {
-  formatNovaScalpAnalysisForShare,
   formatNovaScalpQuickWinForShare,
 } from "@/lib/nova-scalp-agent-format";
 
@@ -24,78 +23,6 @@ type Props = {
   isVip: boolean;
   canShareCoach?: boolean;
 };
-
-function CoachShareButtons({
-  canShare,
-  getPayload,
-  className = "",
-}: {
-  canShare: boolean;
-  getPayload: () => { title: string; content: string };
-  className?: string;
-}) {
-  const [copied, setCopied] = useState(false);
-  const [shareLoading, setShareLoading] = useState(false);
-  const [shareOk, setShareOk] = useState(false);
-
-  if (!canShare) return null;
-
-  const copyAll = async () => {
-    const { title, content } = getPayload();
-    try {
-      await navigator.clipboard.writeText([title, content].filter(Boolean).join("\n\n"));
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const shareToCoachCalls = async () => {
-    if (shareLoading) return;
-    setShareLoading(true);
-    setShareOk(false);
-    const { title, content } = getPayload();
-    try {
-      const res = await fetch("/api/coach-calls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content }),
-      });
-      const data = (await res.json()) as { success?: boolean; error?: string };
-      if (!res.ok || !data.success) {
-        alert(data.error ?? "Failed to share");
-        return;
-      }
-      setShareOk(true);
-      window.setTimeout(() => setShareOk(false), 3000);
-    } catch {
-      alert("Failed to share");
-    } finally {
-      setShareLoading(false);
-    }
-  };
-
-  return (
-    <div className={`flex flex-wrap gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-700 ${className}`}>
-      <Button type="button" variant="outline" size="sm" onClick={() => void copyAll()} className="h-8 text-xs">
-          {copied ? <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
-          {copied ? "Copied!" : "Copy"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={shareLoading}
-          onClick={() => void shareToCoachCalls()}
-          className="h-8 text-xs border-cyan-300/80 dark:border-cyan-700 text-cyan-800 dark:text-cyan-200"
-        >
-          {shareOk ? <Check className="h-3.5 w-3.5 mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
-          {shareLoading ? "Sharing…" : shareOk ? "Shared!" : "Share to Coach Calls"}
-        </Button>
-    </div>
-  );
-}
 
 function fmtUsd(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -147,6 +74,18 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
   const [quickWins, setQuickWins] = useState<NovaScalpQuickWin[]>([]);
   const [nearSetups, setNearSetups] = useState<NovaScalpNearSetup[]>([]);
   const [qwScanSummary, setQwScanSummary] = useState<QuickWinScanSummary | null>(null);
+
+  useEffect(() => {
+    const scrollToQuickWins = () => {
+      if (typeof window === "undefined" || window.location.hash !== "#nova-scalp-quick-wins") return;
+      window.setTimeout(() => {
+        document.getElementById("nova-scalp-quick-wins")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
+    };
+    scrollToQuickWins();
+    window.addEventListener("hashchange", scrollToQuickWins);
+    return () => window.removeEventListener("hashchange", scrollToQuickWins);
+  }, []);
 
   const runAgent = useCallback(
     async (overrides?: { symbol?: string; leverage?: number; timeframeId?: string }) => {
@@ -331,12 +270,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
               result={result}
               onRefresh={() => void runAgent()}
               refreshing={loading}
-              shareFooter={
-                <CoachShareButtons
-                  canShare={canShareCoach}
-                  getPayload={() => formatNovaScalpAnalysisForShare(result)}
-                />
-              }
+              canShareCoach={canShareCoach}
             />
             {result.side === "no_entry" && timeframeId !== qwTimeframeId && (
               <p className="text-xs text-amber-700 dark:text-amber-300 px-1">
@@ -348,7 +282,10 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
         )}
       </div>
 
-      <div className="rounded-lg border border-cyan-200/80 dark:border-cyan-900/60 bg-cyan-50/40 dark:bg-cyan-950/20 p-4 space-y-3">
+      <div
+        id="nova-scalp-quick-wins"
+        className="rounded-lg border border-cyan-200/80 dark:border-cyan-900/60 bg-cyan-50/40 dark:bg-cyan-950/20 p-4 space-y-3"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-base font-semibold text-zinc-800 dark:text-zinc-200">Quick Wins</h3>

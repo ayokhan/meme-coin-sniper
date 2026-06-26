@@ -5,7 +5,14 @@ function fmtPx(n: number | null | undefined): string {
   return `$${n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}`;
 }
 
-export function formatNovaScalpAnalysisForShare(r: NovaScalpAnalysis): { title: string; content: string } {
+export function formatNovaScalpAnalysisForShare(
+  r: NovaScalpAnalysis,
+  extras?: {
+    planStatusLabel?: string;
+    livePrice?: number | null;
+    statusUpdatedAt?: string | null;
+  }
+): { title: string; content: string } {
   const side =
     r.side === "long" ? "LONG" : r.side === "short" ? "SHORT" : "NO ENTRY";
   const title = `Nova Scalp · ${r.symbol} · ${side} (${r.timeframeLabel})`;
@@ -30,6 +37,13 @@ export function formatNovaScalpAnalysisForShare(r: NovaScalpAnalysis): { title: 
       ? `Suggested stop (tighter): ${fmtPx(r.recommendedStopPrice)}`
       : null,
     r.analyzedAt ? `Generated: ${new Date(r.analyzedAt).toLocaleString()}` : null,
+    extras?.planStatusLabel ? `Live status: ${extras.planStatusLabel}` : null,
+    extras?.livePrice != null && Number.isFinite(extras.livePrice)
+      ? `Live price: ${fmtPx(extras.livePrice)}`
+      : null,
+    extras?.statusUpdatedAt
+      ? `Status updated: ${new Date(extras.statusUpdatedAt).toLocaleString()}`
+      : null,
     r.expectedPnlUsd != null
       ? `Expected PnL: ${r.expectedPnlUsd >= 0 ? "+" : ""}$${r.expectedPnlUsd.toLocaleString()} (${r.expectedPnlPctOnMargin?.toFixed(1) ?? "—"}% on margin)`
       : null,

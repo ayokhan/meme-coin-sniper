@@ -108,21 +108,82 @@ export function computeScalpPlanStatus(input: {
   return "active";
 }
 
-export function planStatusLabel(status: ScalpPlanStatus): string {
+export function planStatusLabel(
+  status: ScalpPlanStatus,
+  ctx?: {
+    side?: "long" | "short";
+    entryPrice?: number | null;
+    stopPrice?: number | null;
+    entryMode?: "limit" | "market" | null;
+  }
+): string {
+  const entryFmt =
+    ctx?.entryPrice != null && Number.isFinite(ctx.entryPrice)
+      ? `$${ctx.entryPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+      : null;
+  const stopFmt =
+    ctx?.stopPrice != null && Number.isFinite(ctx.stopPrice)
+      ? `$${ctx.stopPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+      : null;
+
   switch (status) {
     case "active":
+      if (ctx?.entryMode === "limit" && entryFmt) {
+        return ctx.side === "long"
+          ? `Waiting for price to reach limit entry ${entryFmt}`
+          : ctx.side === "short"
+            ? `Waiting for price to reach limit entry ${entryFmt}`
+            : `Waiting for limit entry ${entryFmt}`;
+      }
+      if (ctx?.entryMode === "market") return "Enter now — price at entry zone";
       return "Active — waiting for entry";
     case "at_entry":
-      return "At entry zone";
+      return "At entry zone — you can enter now";
     case "invalidated":
-      return "Invalidated — refresh plan";
+      return stopFmt ? `Invalidated — price hit stop ${stopFmt}` : "Invalidated — refresh plan";
     case "target_hit":
-      return "Target reached (no entry) — re-scan";
+      return "Target reached before entry — re-scan";
     case "stale":
-      return "Stale — refresh recommended";
+      return "Stale (30+ min) — refresh recommended";
     default:
       return "";
   }
+}
+
+/** Extra line under the status badge — explains auto-updates. */
+export function planStatusHint(
+  status: ScalpPlanStatus,
+  ctx?: {
+    side?: "long" | "short";
+    entryPrice?: number | null;
+    entryMode?: "limit" | "market" | null;
+    livePrice?: number | null;
+  }
+): string {
+  if (status === "invalidated") {
+    return "This plan is dead. Tap Refresh plan or Find quick wins below.";
+  }
+  if (status === "target_hit") {
+    return "Price reached the exit target before you entered. Run a fresh scan.";
+  }
+  if (status === "stale") {
+    return "Levels are old. Refresh for a new plan based on current structure.";
+  }
+  if (status === "at_entry") {
+    return "Status updates automatically every ~12s while this page is open (or while Watch is on).";
+  }
+  if (status === "active" && ctx?.entryMode === "limit" && ctx.entryPrice != null && ctx.livePrice != null) {
+    const need =
+      ctx.side === "long"
+        ? ctx.livePrice > ctx.entryPrice
+          ? "drop"
+          : "rise"
+        : ctx.livePrice < ctx.entryPrice
+          ? "rise"
+          : "drop";
+    return `Watching live price — status flips to "At entry zone" when price ${need}s to your limit. Updates every ~12s.`;
+  }
+  return "Status updates automatically every ~12s. Turn on Watch to get alerts if you leave this tab.";
 }
 
 export function planStatusTone(

@@ -7,6 +7,8 @@ import AdminLiveTransferNotifier from "@/components/AdminLiveTransferNotifier";
 import { WelcomeVoice } from "@/components/WelcomeVoice";
 import AnalyticsPing from "@/components/AnalyticsPing";
 import CapacitorAuthBridge from "@/components/CapacitorAuthBridge";
+import NovaScalpPlanWatcher from "@/components/NovaScalpPlanWatcher";
+import NovaScalpWatchBanner from "@/components/NovaScalpWatchBanner";
 import { DashboardScreenProvider } from "@/components/DashboardScreenContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -20,6 +22,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           {children}
           <AdminLiveTransferNotifier />
           <NeedHelpWidget />
+          <NovaScalpWatchBanner />
         </DashboardScreenProvider>
       </SessionProvider>
     </ThemeProvider>
