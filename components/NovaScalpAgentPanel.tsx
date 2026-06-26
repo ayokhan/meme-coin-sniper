@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
 import {
   NOVA_SCALP_DISCLAIMER,
   QUICK_WIN_SCALP_TIMEFRAME_ID,
@@ -102,26 +102,6 @@ function fmtUsd(n: number | null | undefined): string {
   return "$" + n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 });
 }
 
-function sideBadge(side: NovaScalpAnalysis["side"]) {
-  if (side === "long")
-    return (
-      <span className="inline-flex rounded-md bg-emerald-500/15 px-2.5 py-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-        LONG
-      </span>
-    );
-  if (side === "short")
-    return (
-      <span className="inline-flex rounded-md bg-rose-500/15 px-2.5 py-1 text-sm font-semibold text-rose-700 dark:text-rose-300">
-        SHORT
-      </span>
-    );
-  return (
-    <span className="inline-flex rounded-md bg-zinc-500/15 px-2.5 py-1 text-sm font-semibold text-zinc-600 dark:text-zinc-300">
-      NO ENTRY
-    </span>
-  );
-}
-
 function LockedMessage({
   title,
   body,
@@ -154,6 +134,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
   const [symbol, setSymbol] = useState("BTC");
   const [amount, setAmount] = useState("100");
   const [leverage, setLeverage] = useState("50");
+  const [maxLossPct, setMaxLossPct] = useState("5");
   const [timeframeId, setTimeframeId] = useState("5m");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -187,6 +168,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
           amountUsd: Number(amount) || 100,
           leverage: lev,
           timeframeId: tf,
+          maxLossPctOnMargin: Number(maxLossPct) || 5,
         }),
       });
       const data = await res.json();
@@ -203,7 +185,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
       setLoading(false);
     }
   },
-    [symbol, amount, leverage, timeframeId]
+    [symbol, amount, leverage, maxLossPct, timeframeId]
   );
 
   const findQuickWins = useCallback(async (tfId = qwTimeframeId, lev = Number(leverage) || 10) => {
@@ -279,7 +261,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <label className="space-y-1">
             <span className="text-xs text-muted-foreground">Contract</span>
             <input
@@ -311,6 +293,19 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
             />
           </label>
           <label className="space-y-1">
+            <span className="text-xs text-muted-foreground">Max loss (% margin)</span>
+            <input
+              type="number"
+              min={0.5}
+              max={100}
+              step={0.5}
+              value={maxLossPct}
+              onChange={(e) => setMaxLossPct(e.target.value)}
+              className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-2 bg-white dark:bg-zinc-800"
+              title="Used for optional risk stop alongside structural invalidation"
+            />
+          </label>
+          <label className="space-y-1 sm:col-span-2 lg:col-span-1">
             <span className="text-xs text-muted-foreground">Time frame</span>
             <select
               value={timeframeId}
@@ -331,80 +326,25 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
         {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
 
         {result && (
-          <Card className="border-violet-300/50 dark:border-violet-800/50">
-            <CardHeader className="pb-2">
-              <div className="flex flex-wrap items-center gap-2 justify-between">
-                <CardTitle className="text-base font-mono">
-                  {result.symbol} · {result.timeframeLabel}
-                </CardTitle>
-                {sideBadge(result.side)}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div>
-                    <span className="text-muted-foreground text-xs">Entry</span>
-                    <p className="font-mono font-medium">{fmtUsd(result.entryPrice)}</p>
-                    {result.entryTouches != null && result.side !== "no_entry" && (
-                      <p className="text-[11px] text-muted-foreground">
-                        {result.entryTouches} touch{result.entryTouches === 1 ? "" : "es"} in {result.timeframeLabel}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Exit target</span>
-                    <p className="font-mono font-medium">{fmtUsd(result.exitPrice)}</p>
-                    {result.exitTouches != null && result.side !== "no_entry" && (
-                      <p className="text-[11px] text-muted-foreground">
-                        {result.exitTouches} touch{result.exitTouches === 1 ? "" : "es"} in {result.timeframeLabel}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Stop (invalidation)</span>
-                    <p className="font-mono font-medium text-amber-700 dark:text-amber-300">
-                      {fmtUsd(result.stopLossPrice)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Current price</span>
-                    <p className="font-mono">{fmtUsd(result.currentPrice)}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Expected PnL</span>
-                    <p
-                      className={`font-mono font-medium ${
-                        (result.expectedPnlUsd ?? 0) >= 0
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-rose-600 dark:text-rose-400"
-                      }`}
-                    >
-                      {result.expectedPnlUsd != null
-                        ? `${result.expectedPnlUsd >= 0 ? "+" : ""}$${result.expectedPnlUsd.toLocaleString()} (${result.expectedPnlPctOnMargin?.toFixed(1) ?? "—"}% on margin)`
-                        : "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Est. hold time</span>
-                    <p className="font-mono">
-                      {result.estimatedHoldMinutes != null ? `~${result.estimatedHoldMinutes} min` : "—"}
-                    </p>
-                  </div>
-                </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{result.rationale}</p>
-              {result.side === "no_entry" && timeframeId !== qwTimeframeId && (
-                <p className="text-xs text-amber-700 dark:text-amber-300">
-                  Quick Wins is scanning on <strong>{qwTimeframeLabel}</strong>. Match that timeframe here, or pick a symbol
-                  from Quick Wins and use Analyze.
-                </p>
-              )}
-              <p className="text-[11px] text-muted-foreground">{result.disclaimer}</p>
-              <CoachShareButtons
-                canShare={canShareCoach}
-                getPayload={() => formatNovaScalpAnalysisForShare(result)}
-              />
-            </CardContent>
-          </Card>
+          <div className="space-y-2">
+            <NovaScalpPlanCard
+              result={result}
+              onRefresh={() => void runAgent()}
+              refreshing={loading}
+              shareFooter={
+                <CoachShareButtons
+                  canShare={canShareCoach}
+                  getPayload={() => formatNovaScalpAnalysisForShare(result)}
+                />
+              }
+            />
+            {result.side === "no_entry" && timeframeId !== qwTimeframeId && (
+              <p className="text-xs text-amber-700 dark:text-amber-300 px-1">
+                Quick Wins is scanning on <strong>{qwTimeframeLabel}</strong>. Match that timeframe here, or pick a
+                symbol from Quick Wins and use Analyze.
+              </p>
+            )}
+          </div>
         )}
       </div>
 

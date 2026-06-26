@@ -30,12 +30,14 @@ export async function POST(request: Request) {
       amountUsd?: number;
       leverage?: number;
       timeframeId?: string;
+      maxLossPctOnMargin?: number;
     };
 
     const symbol = resolveScalpSymbol(body.symbol ?? "BTC");
     const tf = scalpTimeframeConfig(body.timeframeId ?? "5m");
     const amountUsd = Math.max(1, Number(body.amountUsd) || 100);
     const leverage = Math.min(125, Math.max(1, Number(body.leverage) || 10));
+    const maxLossPctOnMargin = Math.min(100, Math.max(0.5, Number(body.maxLossPctOnMargin) || 5));
 
     const [candles, ticker] = await Promise.all([
       isBlofinMetal(symbol)
@@ -52,6 +54,7 @@ export async function POST(request: Request) {
       timeframeId: tf.id,
       amountUsd,
       leverage,
+      maxLossPctOnMargin,
       candles,
       currentPrice,
     });

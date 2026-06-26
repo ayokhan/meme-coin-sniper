@@ -27,17 +27,33 @@ export type ScalpTimeframeId = (typeof SCALP_TIMEFRAMES)[number]["id"];
 
 export type ScalpSide = "long" | "short" | "no_entry";
 
+export type ScalpEntryMode = "limit" | "market";
+
+export const SCALP_ENTRY_NEAR_PCT = 0.15;
+
 export type NovaScalpAnalysis = {
   symbol: string;
   timeframeId: ScalpTimeframeId;
   timeframeLabel: string;
   amountUsd: number;
   leverage: number;
+  /** Max loss on margin used to compute optional risk stop (default 5%). */
+  maxLossPctOnMargin: number;
+  analyzedAt: string;
   currentPrice: number | null;
-  side: ScalpSide;
+  /** Price when the plan was generated — reference for market entry. */
+  enterNowPrice: number | null;
+  /** Limit / retest entry level. */
   entryPrice: number | null;
+  entryMode: ScalpEntryMode | null;
+  side: ScalpSide;
   exitPrice: number | null;
+  /** Structural invalidation (chart-based). */
   stopLossPrice: number | null;
+  /** Stop from max-loss % on margin (tighter risk cap). */
+  riskStopLossPrice: number | null;
+  /** Tighter of structural vs risk — suggested if you want a hard loss cap. */
+  recommendedStopPrice: number | null;
   /** Candles in the window whose range traded near entry (within tolerance). */
   entryTouches: number | null;
   /** Candles in the window whose range traded near exit target (within tolerance). */
@@ -125,12 +141,6 @@ function roundPx(n: number, ref: number): number {
   return Number(n.toFixed(decimals));
 }
 
-function positionInRange(price: number, low: number, high: number): number {
-  const span = high - low;
-  if (span <= 0) return 0.5;
-  return (price - low) / span;
-}
-
 function estimatePnl(
   side: "long" | "short",
   entry: number,
@@ -148,11 +158,66 @@ function estimatePnl(
   return { pnlUsd, pnlPctMargin };
 }
 
+function positionInRange(price: number, low: number, high: number): number {
+  const span = high - low;
+  if (span <= 0) return 0.5;
+  return (price - low) / span;
+}
+
+export function riskStopFromMaxLossPct(
+  side: "long" | "short",
+  entry: number,
+  leverage: number,
+  maxLossPctOnMargin: number
+): number {
+  const movePct = maxLossPctOnMargin / Math.max(1, leverage);
+  return side === "long"
+    ? roundPx(entry * (1 - movePct / 100), entry)
+    : roundPx(entry * (1 + movePct / 100), entry);
+}
+
+export function recommendedStopPrice(
+  side: "long" | "short",
+  structural: number,
+  risk: number
+): number {
+  return side === "long" ? Math.max(structural, risk) : Math.min(structural, risk);
+}
+
+export function detectEntryMode(enterNow: number, limitEntry: number): ScalpEntryMode {
+  const diffPct = (Math.abs(enterNow - limitEntry) / enterNow) * 100;
+  return diffPct <= SCALP_ENTRY_NEAR_PCT ? "market" : "limit";
+}
+
+function emptyPlanMeta(
+  maxLossPctOnMargin: number,
+  analyzedAt: string
+): Pick<
+  NovaScalpAnalysis,
+  | "maxLossPctOnMargin"
+  | "analyzedAt"
+  | "enterNowPrice"
+  | "entryMode"
+  | "riskStopLossPrice"
+  | "recommendedStopPrice"
+> {
+  return {
+    maxLossPctOnMargin,
+    analyzedAt,
+    enterNowPrice: null,
+    entryMode: null,
+    riskStopLossPrice: null,
+    recommendedStopPrice: null,
+  };
+}
+
 export function analyzeScalpSetup(input: {
   symbol: string;
   timeframeId: string;
   amountUsd: number;
   leverage: number;
+  maxLossPctOnMargin?: number;
+  analyzedAt?: string;
   candles: Candle[];
   currentPrice: number | null;
 }): NovaScalpAnalysis {
@@ -160,6 +225,8 @@ export function analyzeScalpSetup(input: {
   const symbol = resolveScalpSymbol(input.symbol);
   const amountUsd = Math.max(1, Number(input.amountUsd) || 100);
   const leverage = Math.min(125, Math.max(1, Number(input.leverage) || 10));
+  const maxLossPctOnMargin = Math.min(100, Math.max(0.5, Number(input.maxLossPctOnMargin) || 5));
+  const analyzedAt = input.analyzedAt ?? new Date().toISOString();
   const rows = asTuples(input.candles);
   const hl = highLowFromCandles(rows);
   const price =
@@ -181,6 +248,7 @@ export function analyzeScalpSetup(input: {
       timeframeLabel: tf.label,
       amountUsd,
       leverage,
+      ...emptyPlanMeta(maxLossPctOnMargin, analyzedAt),
       currentPrice: price,
       side: "no_entry",
       entryPrice: null,
@@ -248,6 +316,7 @@ export function analyzeScalpSetup(input: {
       timeframeLabel: tf.label,
       amountUsd,
       leverage,
+      ...emptyPlanMeta(maxLossPctOnMargin, analyzedAt),
       currentPrice: price,
       side,
       entryPrice: null,
@@ -267,18 +336,29 @@ export function analyzeScalpSetup(input: {
     };
   }
 
+  const limitEntry = entry;
+  const enterNowPrice = price;
+  const entryMode = detectEntryMode(enterNowPrice, limitEntry);
+  const riskStop = riskStopFromMaxLossPct(side, limitEntry, leverage, maxLossPctOnMargin);
+  const recStop = recommendedStopPrice(side, sl, riskStop);
+
   const distPct = Math.abs((exit - entry) / entry) * 100;
   const estHold = Math.max(
     1,
     Math.round(tf.estHoldMinutes * Math.min(1.4, Math.max(0.35, distPct / 0.45)))
   );
-  const { pnlUsd, pnlPctMargin } = estimatePnl(side, entry, exit, amountUsd, leverage);
-  const { entryTouches, exitTouches } = countEntryExitTouches(rows, entry, exit, side);
+  const { pnlUsd, pnlPctMargin } = estimatePnl(side, limitEntry, exit, amountUsd, leverage);
+  const { entryTouches, exitTouches } = countEntryExitTouches(rows, limitEntry, exit, side);
+
+  const entryNote =
+    entryMode === "market"
+      ? " Enter now — price is at the limit zone."
+      : ` Wait for limit entry near ${roundPx(limitEntry, price).toLocaleString()}.`;
 
   const rationale =
     side === "long"
-      ? `Structure ${structureDirection}, trendline ${trendlineBias} → blended ${blendedDirection}. Price in lower ${Math.round(pos * 100)}% of ${tf.label} range — long toward range mid/target. ${tl?.read ?? ""}`
-      : `Structure ${structureDirection}, trendline ${trendlineBias} → blended ${blendedDirection}. Price in upper ${Math.round((1 - pos) * 100)}% of ${tf.label} range — short toward range mid/target. ${tl?.read ?? ""}`;
+      ? `Structure ${structureDirection}, trendline ${trendlineBias} → blended ${blendedDirection}. Price in lower ${Math.round(pos * 100)}% of ${tf.label} range — long toward range mid/target.${entryNote} ${tl?.read ?? ""}`
+      : `Structure ${structureDirection}, trendline ${trendlineBias} → blended ${blendedDirection}. Price in upper ${Math.round((1 - pos) * 100)}% of ${tf.label} range — short toward range mid/target.${entryNote} ${tl?.read ?? ""}`;
 
   return {
     symbol,
@@ -286,11 +366,17 @@ export function analyzeScalpSetup(input: {
     timeframeLabel: tf.label,
     amountUsd,
     leverage,
+    maxLossPctOnMargin,
+    analyzedAt,
     currentPrice: price,
+    enterNowPrice,
+    entryMode,
     side,
-    entryPrice: entry,
+    entryPrice: limitEntry,
     exitPrice: exit,
     stopLossPrice: sl,
+    riskStopLossPrice: riskStop,
+    recommendedStopPrice: recStop,
     entryTouches,
     exitTouches,
     expectedPnlUsd: Number(pnlUsd.toFixed(2)),

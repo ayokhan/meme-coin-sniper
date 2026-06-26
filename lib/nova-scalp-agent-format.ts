@@ -14,14 +14,22 @@ export function formatNovaScalpAnalysisForShare(r: NovaScalpAnalysis): { title: 
     `Timeframe: ${r.timeframeLabel}`,
     `Signal: ${side}`,
     `Margin: $${r.amountUsd} · Leverage: ${r.leverage}x`,
-    r.currentPrice != null ? `Current: ${fmtPx(r.currentPrice)}` : null,
+    r.currentPrice != null ? `At run: ${fmtPx(r.currentPrice)}` : null,
+    r.enterNowPrice != null && r.entryMode === "market" ? `Enter now: ${fmtPx(r.enterNowPrice)}` : null,
     r.entryPrice != null
-      ? `Entry: ${fmtPx(r.entryPrice)}${r.entryTouches != null ? ` (${r.entryTouches} touches in ${r.timeframeLabel})` : ""}`
+      ? `${r.entryMode === "limit" ? "Limit entry" : "Entry"}: ${fmtPx(r.entryPrice)}${r.entryTouches != null ? ` (${r.entryTouches} touches in ${r.timeframeLabel})` : ""}`
       : null,
     r.exitPrice != null
       ? `Exit target: ${fmtPx(r.exitPrice)}${r.exitTouches != null ? ` (${r.exitTouches} touches in ${r.timeframeLabel})` : ""}`
       : null,
     r.stopLossPrice != null ? `Stop (invalidation): ${fmtPx(r.stopLossPrice)}` : null,
+    r.riskStopLossPrice != null
+      ? `Risk stop (${r.maxLossPctOnMargin}% margin): ${fmtPx(r.riskStopLossPrice)}`
+      : null,
+    r.recommendedStopPrice != null && r.recommendedStopPrice !== r.stopLossPrice
+      ? `Suggested stop (tighter): ${fmtPx(r.recommendedStopPrice)}`
+      : null,
+    r.analyzedAt ? `Generated: ${new Date(r.analyzedAt).toLocaleString()}` : null,
     r.expectedPnlUsd != null
       ? `Expected PnL: ${r.expectedPnlUsd >= 0 ? "+" : ""}$${r.expectedPnlUsd.toLocaleString()} (${r.expectedPnlPctOnMargin?.toFixed(1) ?? "—"}% on margin)`
       : null,
