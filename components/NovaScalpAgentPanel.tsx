@@ -206,14 +206,20 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
     [symbol, amount, leverage, timeframeId]
   );
 
-  const findQuickWins = useCallback(async (tfId = qwTimeframeId) => {
+  const findQuickWins = useCallback(async (tfId = qwTimeframeId, lev = Number(leverage) || 10) => {
     setQwLoading(true);
     setQwError(null);
     try {
-      const res = await fetch(
-        `/api/nova-scalp-agent/quick-wins?timeframe=${encodeURIComponent(tfId)}`,
-        { credentials: "include", cache: "no-store" }
-      );
+      const margin = Number(amount) || 100;
+      const params = new URLSearchParams({
+        timeframe: tfId,
+        leverage: String(Math.min(125, Math.max(1, lev))),
+        amountUsd: String(Math.max(1, margin)),
+      });
+      const res = await fetch(`/api/nova-scalp-agent/quick-wins?${params.toString()}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
       const data = await res.json();
       if (!res.ok || !data.success) {
         setQwError(data.error ?? "Quick Wins scan failed");
@@ -234,12 +240,14 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
     } finally {
       setQwLoading(false);
     }
-  }, [qwTimeframeId]);
+  }, [qwTimeframeId, leverage, amount]);
 
   useEffect(() => {
     if (!enabled || !isVip) return;
-    void findQuickWins(QUICK_WIN_SCALP_TIMEFRAME_ID);
-  }, [enabled, isVip, findQuickWins]);
+    void findQuickWins(QUICK_WIN_SCALP_TIMEFRAME_ID, Number(leverage) || 10);
+    // Initial scan only — user clicks "Find me quick wins" after changing leverage/timeframe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, isVip]);
 
   if (!enabled) {
     return (
@@ -407,9 +415,21 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
             <p className="text-xs text-muted-foreground mt-0.5">
               Symbols with a confirmed LONG or SHORT on your selected timeframe (same rules as Run Agent).
               {qwTimeframeLabel ? ` Showing: ${qwTimeframeLabel}.` : ""}
+              {` Preview at $${Number(amount) || 100} margin · ${Number(leverage) || 10}x.`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>Leverage</span>
+              <input
+                type="number"
+                min={1}
+                max={125}
+                value={leverage}
+                onChange={(e) => setLeverage(e.target.value)}
+                className="w-16 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+              />
+            </label>
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span>Time frame</span>
               <select
@@ -424,7 +444,12 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
                 ))}
               </select>
             </label>
-            <Button variant="outline" size="sm" onClick={() => void findQuickWins(qwTimeframeId)} disabled={qwLoading}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void findQuickWins(qwTimeframeId, Number(leverage) || 10)}
+              disabled={qwLoading}
+            >
               {qwLoading ? "Scanning…" : "Find me quick wins"}
             </Button>
           </div>
@@ -457,7 +482,11 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
                         size="sm"
                         className="h-7 text-xs"
                         onClick={() =>
-                          void runAgent({ symbol: n.symbol, timeframeId: qwTimeframeId })
+                          void runAgent({
+                            symbol: n.symbol,
+                            leverage: Number(leverage) || 10,
+                            timeframeId: qwTimeframeId,
+                          })
                         }
                       >
                         Analyze

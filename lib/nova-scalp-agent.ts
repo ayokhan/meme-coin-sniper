@@ -313,18 +313,23 @@ export function evaluateQuickWinPerp(
   candles5m: Candle[],
   scalpCandles: Candle[],
   amountUsd = 100,
-  scalpTimeframeId: string = QUICK_WIN_SCALP_TIMEFRAME_ID
+  scalpTimeframeId: string = QUICK_WIN_SCALP_TIMEFRAME_ID,
+  userLeverage?: number
 ): { win: NovaScalpQuickWin | null; near: NovaScalpNearSetup | null; oscillationOk: boolean } {
   const oscillation = scoreOscillationProfile(perp, candles15m, candles5m);
   if (!oscillation) return { win: null, near: null, oscillationOk: false };
 
   const tfId = isValidScalpTimeframeId(scalpTimeframeId) ? scalpTimeframeId : QUICK_WIN_SCALP_TIMEFRAME_ID;
   const price = Number(perp.markPx ?? 0) || null;
+  const leverage =
+    userLeverage != null && Number.isFinite(userLeverage)
+      ? Math.min(125, Math.max(1, userLeverage))
+      : oscillation.suggestedLeverage;
   const analysis = analyzeScalpSetup({
     symbol: perp.coin,
     timeframeId: tfId,
     amountUsd,
-    leverage: oscillation.suggestedLeverage,
+    leverage,
     candles: scalpCandles,
     currentPrice: price,
   });
@@ -343,7 +348,7 @@ export function evaluateQuickWinPerp(
         rangePct15m: oscillation.rangePct15m,
         liquidityNote: oscillation.liquidityNote,
         directionHint: `${side.toUpperCase()} on ${analysis.timeframeLabel}: ${analysis.rationale.split(".")[0]}.`,
-        suggestedLeverage: oscillation.suggestedLeverage,
+        suggestedLeverage: leverage,
         estHoldMinutes: analysis.estimatedHoldMinutes ?? oscillation.estHoldMinutes,
         currentPrice: price,
         scalpSide: side,
@@ -381,9 +386,18 @@ export function buildQuickWinCandidate(
   candles5m: Candle[],
   scalpCandles: Candle[],
   amountUsd = 100,
-  scalpTimeframeId: string = QUICK_WIN_SCALP_TIMEFRAME_ID
+  scalpTimeframeId: string = QUICK_WIN_SCALP_TIMEFRAME_ID,
+  userLeverage?: number
 ): NovaScalpQuickWin | null {
-  return evaluateQuickWinPerp(perp, candles15m, candles5m, scalpCandles, amountUsd, scalpTimeframeId).win;
+  return evaluateQuickWinPerp(
+    perp,
+    candles15m,
+    candles5m,
+    scalpCandles,
+    amountUsd,
+    scalpTimeframeId,
+    userLeverage
+  ).win;
 }
 
 type OscillationProfile = {

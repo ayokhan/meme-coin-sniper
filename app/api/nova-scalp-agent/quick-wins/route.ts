@@ -54,6 +54,10 @@ export async function GET(request: Request) {
     const timeframeId = isValidScalpTimeframeId(rawTf) ? rawTf : "5m";
     const tfConfig = scalpTimeframeConfig(timeframeId);
     const { interval, limit } = scalpCandlesRequest(timeframeId);
+    const rawLev = Number(new URL(request.url).searchParams.get("leverage"));
+    const leverage = Number.isFinite(rawLev) ? Math.min(125, Math.max(1, rawLev)) : undefined;
+    const rawMargin = Number(new URL(request.url).searchParams.get("amountUsd"));
+    const amountUsd = Number.isFinite(rawMargin) ? Math.max(1, rawMargin) : 100;
 
     const perps = await resolveQuickWinUniverse();
     const evaluated = await Promise.all(
@@ -71,7 +75,7 @@ export async function GET(request: Request) {
             pct5m: candlePct(c5, p.dayPct),
             pct15m: candlePct(c15, p.dayPct),
           };
-          return evaluateQuickWinPerp(enriched, c15, c5, cScalp, 100, timeframeId);
+          return evaluateQuickWinPerp(enriched, c15, c5, cScalp, amountUsd, timeframeId, leverage);
         } catch {
           return null;
         }
@@ -106,6 +110,8 @@ export async function GET(request: Request) {
       success: true,
       timeframeId,
       timeframeLabel: tfConfig.label,
+      leverage: leverage ?? null,
+      amountUsd,
       quickWins: quickWins.slice(0, 10),
       nearSetups: nearSetups.slice(0, 6),
       scanSummary: summary,
