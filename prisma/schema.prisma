@@ -141,6 +141,7 @@ model User {
   userTelegram  UserTelegram?
   aiAnalysisFeedbacks AiAnalysisFeedback[]
   novaSmartFeedbacks  NovaSmartFeedback[]
+  novaScalpPlanFeedbacks NovaScalpPlanFeedback[]
   novaFiveMinsOwnerFeedbacks NovaFiveMinsOwnerFeedback[]
   passwordResets PasswordResetToken[]
   userLeverageWallets  UserLeverageWallet[]
@@ -730,6 +731,30 @@ model NovaSmartFeedback {
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   @@index([symbol])
   @@index([worked])
+  @@index([createdAt])
+}
+
+/** VIP feedback on Nova Scalp Agent plans (did you enter, how did it go?). */
+model NovaScalpPlanFeedback {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol          String
+  timeframeId     String
+  side            String
+  entered         Boolean
+  outcome         String?
+  entryPrice      Float?
+  exitPrice       Float?
+  stopLossPrice   Float?
+  amountUsd       Float?
+  leverage        Int?
+  analyzedAt      String?
+  note            String?
+  createdAt       DateTime @default(now())
+  @@index([userId])
+  @@index([symbol])
+  @@index([outcome])
   @@index([createdAt])
 }
 

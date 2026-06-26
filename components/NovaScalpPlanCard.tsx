@@ -7,6 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
 import { formatNovaScalpAnalysisForShare } from "@/lib/nova-scalp-agent-format";
+import {
+  markScalpPlanFeedbackSent,
+  readScalpPlanEntry,
+  scalpPlanKey,
+  SCALP_ENTRY_EVENT,
+  setScalpPlanEntryChoice,
+  type ScalpPlanEntryRecord,
+} from "@/lib/nova-scalp-plan-entry";
 import { fetchScalpLivePrice, SCALP_LIVE_PRICE_MS } from "@/lib/nova-scalp-plan-price";
 import {
   formatAnalyzedAtLocal,
@@ -24,6 +32,18 @@ import {
   stopWatchingScalpPlan,
   updateWatchedScalpPlan,
 } from "@/lib/nova-scalp-plan-watch";
+
+type BlofinPositionSummary = {
+  symbol: string;
+  side: "long" | "short";
+  entryPrice: number | null;
+  markPrice: number | null;
+  leverage: number | null;
+  unrealizedPnl: number | null;
+  hasExchangeStopLoss: boolean;
+  exchangeStopLossPrice: number | null;
+  label: string;
+};
 
 function fmtUsd(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -151,11 +171,25 @@ export function NovaScalpPlanCard({
   const [livePrice, setLivePrice] = useState<number | null>(result.currentPrice);
   const [priceError, setPriceError] = useState(false);
   const [watching, setWatching] = useState(false);
+  const [entryRecord, setEntryRecord] = useState<ScalpPlanEntryRecord | null>(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [blofinPosition, setBlofinPosition] = useState<BlofinPositionSummary | null>(null);
+  const [blofinConfigured, setBlofinConfigured] = useState<boolean | null>(null);
   const [, tick] = useState(0);
+
+  const planKey = scalpPlanKey(result);
 
   useEffect(() => {
     setLivePrice(result.currentPrice);
-  }, [result]);
+    setEntryRecord(readScalpPlanEntry(planKey));
+  }, [result, planKey]);
+
+  useEffect(() => {
+    const sync = () => setEntryRecord(readScalpPlanEntry(planKey));
+    sync();
+    window.addEventListener(SCALP_ENTRY_EVENT, sync);
+    return () => window.removeEventListener(SCALP_ENTRY_EVENT, sync);
+  }, [planKey]);
 
   useEffect(() => {
     const sync = () => setWatching(isWatchingScalpPlan(result));
@@ -195,6 +229,76 @@ export function NovaScalpPlanCard({
       window.clearInterval(id);
     };
   }, [result.symbol, result.side]);
+
+  useEffect(() => {
+    if (result.side === "no_entry") return;
+    let cancelled = false;
+
+    const loadBlofin = async () => {
+      try {
+        const res = await fetch(
+          `/api/nova-scalp-agent/blofin-position?symbol=${encodeURIComponent(result.symbol)}&side=${result.side}`,
+          { credentials: "include", cache: "no-store" }
+        );
+        const data = (await res.json()) as {
+          success?: boolean;
+          configured?: boolean;
+          position?: BlofinPositionSummary | null;
+        };
+        if (cancelled || !data.success) return;
+        setBlofinConfigured(data.configured ?? false);
+        setBlofinPosition(data.position ?? null);
+      } catch {
+        if (!cancelled) setBlofinConfigured(null);
+      }
+    };
+
+    void loadBlofin();
+    const id = window.setInterval(() => void loadBlofin(), SCALP_LIVE_PRICE_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [result.symbol, result.side]);
+
+  const submitFeedback = async (payload: {
+    entered: boolean;
+    outcome: "win" | "loss" | "scratch" | "skipped";
+  }) => {
+    if (feedbackLoading) return;
+    setFeedbackLoading(true);
+    try {
+      const res = await fetch("/api/nova-scalp-agent/feedback", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: result.symbol,
+          timeframeId: result.timeframeId,
+          side: result.side,
+          entered: payload.entered,
+          outcome: payload.outcome,
+          entryPrice: result.entryPrice,
+          exitPrice: result.exitPrice,
+          stopLossPrice: result.stopLossPrice,
+          amountUsd: result.amountUsd,
+          leverage: result.leverage,
+          analyzedAt: result.analyzedAt,
+        }),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !data.success) {
+        alert(data.error ?? "Failed to save feedback");
+        return;
+      }
+      markScalpPlanFeedbackSent(planKey);
+      setEntryRecord(readScalpPlanEntry(planKey));
+    } catch {
+      alert("Failed to save feedback");
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
 
   const planStatus =
     result.side === "no_entry" ? ("no_entry" as const) : planStatusFromAnalysis(result, livePrice);
@@ -403,6 +507,25 @@ export function NovaScalpPlanCard({
                 ? `${result.expectedPnlUsd >= 0 ? "+" : ""}$${result.expectedPnlUsd.toLocaleString()} (${result.expectedPnlPctOnMargin?.toFixed(1) ?? "—"}% on margin)`
                 : "—"}
             </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">If target hit at entry</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Loss if stopped</span>
+            <p className="font-mono font-medium text-rose-600 dark:text-rose-400">
+              {result.lossAtStopUsd != null
+                ? `-$${Math.abs(result.lossAtStopUsd).toLocaleString()} (${Math.abs(result.lossAtStopPctOnMargin ?? 0).toFixed(1)}% on margin)`
+                : "—"}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              At stop (invalidation) · ${result.amountUsd} margin · {result.leverage}x
+            </p>
+            {result.lossAtRiskStopUsd != null &&
+              result.lossAtRiskStopUsd !== result.lossAtStopUsd && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                  Risk cap: -${Math.abs(result.lossAtRiskStopUsd).toLocaleString()} (
+                  {Math.abs(result.lossAtRiskStopPctOnMargin ?? 0).toFixed(1)}%)
+                </p>
+              )}
           </div>
           <div>
             <span className="text-muted-foreground text-xs">Est. hold time</span>
@@ -411,6 +534,111 @@ export function NovaScalpPlanCard({
             </p>
           </div>
         </div>
+        {showPlanMonitor && blofinConfigured === true && blofinPosition && (
+          <div className="rounded-md border border-orange-300/50 dark:border-orange-800/60 bg-orange-50/50 dark:bg-orange-950/20 px-3 py-2 text-xs">
+            <p className="font-medium text-orange-900 dark:text-orange-200">Blofin live position</p>
+            <p className="mt-0.5 font-mono text-orange-800 dark:text-orange-100">{blofinPosition.label}</p>
+            {blofinPosition.unrealizedPnl != null && (
+              <p
+                className={`mt-0.5 font-mono ${
+                  blofinPosition.unrealizedPnl >= 0
+                    ? "text-emerald-700 dark:text-emerald-300"
+                    : "text-rose-700 dark:text-rose-300"
+                }`}
+              >
+                uPnL {blofinPosition.unrealizedPnl >= 0 ? "+" : ""}$
+                {blofinPosition.unrealizedPnl.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </p>
+            )}
+            {!blofinPosition.hasExchangeStopLoss && (
+              <p className="mt-1 text-amber-800 dark:text-amber-200">No exchange stop loss set on Blofin.</p>
+            )}
+          </div>
+        )}
+        {showPlanMonitor && blofinConfigured === false && (
+          <p className="text-[11px] text-muted-foreground">
+            Add Blofin API keys in Trading Bot settings to see your live position here.
+          </p>
+        )}
+        {showPlanMonitor && (
+          <div className="rounded-md border border-zinc-200/80 dark:border-zinc-700/80 px-3 py-2.5 space-y-2">
+            <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">Your trade</p>
+            {!entryRecord ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">Did you enter this plan?</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={feedbackLoading}
+                  onClick={() => {
+                    setScalpPlanEntryChoice(result, "entered");
+                    setEntryRecord(readScalpPlanEntry(planKey));
+                  }}
+                >
+                  I entered
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={feedbackLoading}
+                  onClick={() => {
+                    setScalpPlanEntryChoice(result, "skipped");
+                    void submitFeedback({ entered: false, outcome: "skipped" });
+                  }}
+                >
+                  Skipped
+                </Button>
+              </div>
+            ) : entryRecord.choice === "entered" && !entryRecord.feedbackSent ? (
+              <div className="space-y-2">
+                <p className="text-xs text-emerald-700 dark:text-emerald-300">Marked as entered.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">How did it go?</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs border-emerald-300 dark:border-emerald-800"
+                    disabled={feedbackLoading}
+                    onClick={() => void submitFeedback({ entered: true, outcome: "win" })}
+                  >
+                    Win
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs border-rose-300 dark:border-rose-800"
+                    disabled={feedbackLoading}
+                    onClick={() => void submitFeedback({ entered: true, outcome: "loss" })}
+                  >
+                    Loss
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={feedbackLoading}
+                    onClick={() => void submitFeedback({ entered: true, outcome: "scratch" })}
+                  >
+                    Scratch
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                {entryRecord.choice === "skipped"
+                  ? "Marked as skipped — thanks."
+                  : "Thanks — feedback saved."}
+              </p>
+            )}
+          </div>
+        )}
         <p className="text-xs text-muted-foreground leading-relaxed">{result.rationale}</p>
         {planInvalidated && (
           <div className="space-y-2">

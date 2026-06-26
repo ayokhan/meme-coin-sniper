@@ -60,6 +60,12 @@ export type NovaScalpAnalysis = {
   exitTouches: number | null;
   expectedPnlUsd: number | null;
   expectedPnlPctOnMargin: number | null;
+  /** If filled at limit entry then stopped at structural invalidation. */
+  lossAtStopUsd: number | null;
+  lossAtStopPctOnMargin: number | null;
+  /** If filled at limit entry then stopped at risk cap (max-loss % on margin). */
+  lossAtRiskStopUsd: number | null;
+  lossAtRiskStopPctOnMargin: number | null;
   estimatedHoldMinutes: number | null;
   structureDirection: "bullish" | "bearish" | "sideways";
   trendlineBias: "up" | "down" | "flat";
@@ -157,6 +163,55 @@ function estimatePnl(
   const pnlUsd = (amountUsd * pnlPctMargin) / 100;
   return { pnlUsd, pnlPctMargin };
 }
+
+/** Exported for UI — PnL from entry to exit/stop at given margin + leverage. */
+export function estimateScalpPnl(
+  side: "long" | "short",
+  entry: number,
+  exitOrStop: number,
+  amountUsd: number,
+  leverage: number
+): { pnlUsd: number; pnlPctMargin: number } {
+  return estimatePnl(side, entry, exitOrStop, amountUsd, leverage);
+}
+
+function lossFields(
+  side: "long" | "short",
+  entry: number,
+  structuralStop: number,
+  riskStop: number | null,
+  amountUsd: number,
+  leverage: number
+): Pick<
+  NovaScalpAnalysis,
+  | "lossAtStopUsd"
+  | "lossAtStopPctOnMargin"
+  | "lossAtRiskStopUsd"
+  | "lossAtRiskStopPctOnMargin"
+> {
+  const atStructural = estimatePnl(side, entry, structuralStop, amountUsd, leverage);
+  const atRisk =
+    riskStop != null ? estimatePnl(side, entry, riskStop, amountUsd, leverage) : null;
+  return {
+    lossAtStopUsd: Number(atStructural.pnlUsd.toFixed(2)),
+    lossAtStopPctOnMargin: Number(atStructural.pnlPctMargin.toFixed(2)),
+    lossAtRiskStopUsd: atRisk ? Number(atRisk.pnlUsd.toFixed(2)) : null,
+    lossAtRiskStopPctOnMargin: atRisk ? Number(atRisk.pnlPctMargin.toFixed(2)) : null,
+  };
+}
+
+const EMPTY_LOSS_FIELDS: Pick<
+  NovaScalpAnalysis,
+  | "lossAtStopUsd"
+  | "lossAtStopPctOnMargin"
+  | "lossAtRiskStopUsd"
+  | "lossAtRiskStopPctOnMargin"
+> = {
+  lossAtStopUsd: null,
+  lossAtStopPctOnMargin: null,
+  lossAtRiskStopUsd: null,
+  lossAtRiskStopPctOnMargin: null,
+};
 
 function positionInRange(price: number, low: number, high: number): number {
   const span = high - low;
@@ -258,6 +313,7 @@ export function analyzeScalpSetup(input: {
       exitTouches: null,
       expectedPnlUsd: null,
       expectedPnlPctOnMargin: null,
+      ...EMPTY_LOSS_FIELDS,
       estimatedHoldMinutes: null,
       structureDirection,
       trendlineBias,
@@ -326,6 +382,7 @@ export function analyzeScalpSetup(input: {
       exitTouches: null,
       expectedPnlUsd: null,
       expectedPnlPctOnMargin: null,
+      ...EMPTY_LOSS_FIELDS,
       estimatedHoldMinutes: null,
       structureDirection,
       trendlineBias,
@@ -381,6 +438,7 @@ export function analyzeScalpSetup(input: {
     exitTouches,
     expectedPnlUsd: Number(pnlUsd.toFixed(2)),
     expectedPnlPctOnMargin: Number(pnlPctMargin.toFixed(2)),
+    ...lossFields(side, limitEntry, sl, riskStop, amountUsd, leverage),
     estimatedHoldMinutes: estHold,
     structureDirection,
     trendlineBias,

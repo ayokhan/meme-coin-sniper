@@ -162,6 +162,25 @@ declare module '@prisma/client' {
         };
       }) => Promise<unknown>;
     };
+    novaScalpPlanFeedback: {
+      create: (args: {
+        data: {
+          userId: string;
+          symbol: string;
+          timeframeId: string;
+          side: string;
+          entered: boolean;
+          outcome?: string | null;
+          entryPrice?: number | null;
+          exitPrice?: number | null;
+          stopLossPrice?: number | null;
+          amountUsd?: number | null;
+          leverage?: number | null;
+          analyzedAt?: string | null;
+          note?: string | null;
+        };
+      }) => Promise<unknown>;
+    };
     novaFiveMinsOwnerFeedback: {
       create: (args: {
         data: {

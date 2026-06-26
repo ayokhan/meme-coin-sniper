@@ -47,6 +47,13 @@ export function formatNovaScalpAnalysisForShare(
     r.expectedPnlUsd != null
       ? `Expected PnL: ${r.expectedPnlUsd >= 0 ? "+" : ""}$${r.expectedPnlUsd.toLocaleString()} (${r.expectedPnlPctOnMargin?.toFixed(1) ?? "—"}% on margin)`
       : null,
+    r.lossAtStopUsd != null
+      ? `Loss if stopped (invalidation): $${Math.abs(r.lossAtStopUsd).toLocaleString()} (${Math.abs(r.lossAtStopPctOnMargin ?? 0).toFixed(1)}% on margin)`
+      : null,
+    r.lossAtRiskStopUsd != null &&
+    r.lossAtRiskStopUsd !== r.lossAtStopUsd
+      ? `Loss at risk stop (${r.maxLossPctOnMargin}% cap): $${Math.abs(r.lossAtRiskStopUsd).toLocaleString()}`
+      : null,
     r.estimatedHoldMinutes != null ? `Est. hold: ~${r.estimatedHoldMinutes} min` : null,
     `Structure: ${r.structureDirection} · Trendline: ${r.trendlineBias} · Blended: ${r.blendedDirection}`,
     r.rationale,
