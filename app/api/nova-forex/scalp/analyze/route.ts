@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getForexCandles, getForexTicker, normalizeForexSymbol } from "@/lib/forex-market";
+import { getForexCandles, getForexTicker, normalizeForexSymbol, validateForexScalpSymbol } from "@/lib/forex-market";
 import { analyzeScalpSetup, scalpTimeframeConfig } from "@/lib/nova-scalp-agent";
 import { getNovaForexScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
@@ -24,7 +24,11 @@ export async function POST(request: Request) {
       maxLossPctOnMargin?: number;
     };
 
-    const symbol = normalizeForexSymbol(body.symbol ?? "XAUUSD") || "XAUUSD";
+    const validated = validateForexScalpSymbol(body.symbol ?? "XAUUSD");
+    if (!validated.ok) {
+      return NextResponse.json({ success: false, error: validated.error }, { status: 400 });
+    }
+    const symbol = validated.symbol;
     const tf = scalpTimeframeConfig(body.timeframeId ?? "5m");
     const amountUsd = Math.max(1, Number(body.amountUsd) || 100);
     const leverage = Math.min(125, Math.max(1, Number(body.leverage) || 10));

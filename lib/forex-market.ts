@@ -67,6 +67,58 @@ export function normalizeForexSymbol(raw: string): string {
   return upper;
 }
 
+/** Crypto perp tickers — not valid on Nova Forex Scalp (Yahoo "BTC" ≠ Bitcoin). */
+const CRYPTO_PERP_SYMBOLS = new Set([
+  "BTC",
+  "ETH",
+  "SOL",
+  "DOGE",
+  "XRP",
+  "ADA",
+  "AVAX",
+  "LINK",
+  "BNB",
+  "MATIC",
+  "DOT",
+  "UNI",
+  "ATOM",
+  "LTC",
+  "BCH",
+  "NEAR",
+  "APT",
+  "ARB",
+  "OP",
+  "SUI",
+  "PEPE",
+  "WIF",
+  "BONK",
+]);
+
+export function validateForexScalpSymbol(raw: string): { ok: true; symbol: string } | { ok: false; error: string } {
+  const symbol = normalizeForexSymbol(raw);
+  if (!symbol) {
+    return { ok: false, error: "Enter a symbol (e.g. XAUUSD, EURUSD, NAS100)." };
+  }
+  if (CRYPTO_PERP_SYMBOLS.has(symbol)) {
+    return {
+      ok: false,
+      error: `${symbol} is a crypto perp — use NovaForecast → Nova Scalp for ${symbol}. Nova Forex Scalp is for gold, FX, indices, and stocks (XAUUSD, EURUSD, NAS100, TSLA).`,
+    };
+  }
+  if (!resolveYahooTicker(symbol)) {
+    return {
+      ok: false,
+      error: `Unknown symbol ${symbol}. Use Market Watch symbols: XAUUSD, EURUSD, NAS100, TSLA, etc.`,
+    };
+  }
+  return { ok: true, symbol };
+}
+
+export function isForexMarketWatchSymbol(raw: string): boolean {
+  const key = normalizeForexSymbol(raw);
+  return !!key && (BY_SYMBOL.has(key) || (!!resolveYahooTicker(key) && !CRYPTO_PERP_SYMBOLS.has(key)));
+}
+
 export function resolveForexEntry(symbol: string): ForexSymbolEntry | null {
   const key = normalizeForexSymbol(symbol);
   return BY_SYMBOL.get(key) ?? null;

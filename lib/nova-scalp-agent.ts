@@ -448,7 +448,7 @@ export function analyzeScalpSetup(input: {
   };
 }
 
-const QUICK_WIN_MIN_OSCILLATION_SCORE = 36;
+export const QUICK_WIN_MIN_OSCILLATION_SCORE = 36;
 
 /** Rank + require a valid scalp plan on the selected TF (same rules as Run Agent). */
 export function evaluateQuickWinPerp(

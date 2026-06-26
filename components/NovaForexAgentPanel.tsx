@@ -5,8 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { normalizeForexSymbol, type ForexSymbolEntry } from "@/lib/forex-market";
-import { NOVA_SCALP_DISCLAIMER, SCALP_TIMEFRAMES, type NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
+import { normalizeForexSymbol, validateForexScalpSymbol, type ForexSymbolEntry } from "@/lib/forex-market";
+import {
+  NOVA_SCALP_DISCLAIMER,
+  QUICK_WIN_SCALP_TIMEFRAME_ID,
+  SCALP_TIMEFRAMES,
+  type NovaScalpAnalysis,
+  type NovaScalpNearSetup,
+  type NovaScalpQuickWin,
+  type QuickWinScanSummary,
+  type ScalpTimeframeId,
+} from "@/lib/nova-scalp-agent";
 import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
 
 import NovaForexRadarPanel from "@/components/NovaForexRadarPanel";
@@ -83,6 +92,13 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
   const [scalpResult, setScalpResult] = useState<NovaScalpAnalysis | null>(null);
   const [scalpLoading, setScalpLoading] = useState(false);
   const [scalpError, setScalpError] = useState<string | null>(null);
+  const [qwTf, setQwTf] = useState<ScalpTimeframeId>(QUICK_WIN_SCALP_TIMEFRAME_ID);
+  const [qwTfLabel, setQwTfLabel] = useState("5 mins");
+  const [qwLoading, setQwLoading] = useState(false);
+  const [qwError, setQwError] = useState<string | null>(null);
+  const [quickWins, setQuickWins] = useState<NovaScalpQuickWin[]>([]);
+  const [nearSetups, setNearSetups] = useState<NovaScalpNearSetup[]>([]);
+  const [qwScanSummary, setQwScanSummary] = useState<QuickWinScanSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -180,7 +196,14 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
     }
   };
 
-  const runScalp = useCallback(async () => {
+  const runScalp = useCallback(
+    async (overrides?: { symbol?: string; timeframeId?: string; leverage?: number }) => {
+    const sym = overrides?.symbol ?? symbol;
+    const tf = overrides?.timeframeId ?? scalpTf;
+    const lev = overrides?.leverage ?? (Number(scalpLev) || 20);
+    if (overrides?.symbol) setSymbol(overrides.symbol);
+    if (overrides?.timeframeId) setScalpTf(overrides.timeframeId);
+    if (overrides?.leverage != null) setScalpLev(String(overrides.leverage));
     setScalpLoading(true);
     setScalpError(null);
     try {
@@ -189,10 +212,10 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          symbol: symbol.trim(),
-          timeframeId: scalpTf,
+          symbol: sym.trim(),
+          timeframeId: tf,
           amountUsd: Number(scalpAmount) || 100,
-          leverage: Number(scalpLev) || 20,
+          leverage: lev,
           maxLossPctOnMargin: Number(scalpMaxLoss) || 5,
         }),
       });
@@ -208,7 +231,51 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
     } finally {
       setScalpLoading(false);
     }
-  }, [symbol, scalpTf, scalpAmount, scalpLev, scalpMaxLoss]);
+  },
+    [symbol, scalpTf, scalpAmount, scalpLev, scalpMaxLoss]
+  );
+
+  const findQuickWins = useCallback(
+    async (tfId = qwTf, lev = Number(scalpLev) || 20) => {
+      setQwLoading(true);
+      setQwError(null);
+      try {
+        const params = new URLSearchParams({
+          timeframe: tfId,
+          leverage: String(Math.min(125, Math.max(1, lev))),
+          amountUsd: String(Math.max(1, Number(scalpAmount) || 100)),
+          maxLossPct: String(Number(scalpMaxLoss) || 5),
+        });
+        const res = await fetch(`/api/nova-forex/scalp/quick-wins?${params.toString()}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setQwError(data.error ?? "Quick Wins scan failed");
+          setQuickWins([]);
+          setNearSetups([]);
+          return;
+        }
+        setQuickWins((data.quickWins as NovaScalpQuickWin[]) ?? []);
+        setNearSetups((data.nearSetups as NovaScalpNearSetup[]) ?? []);
+        setQwScanSummary((data.scanSummary as QuickWinScanSummary) ?? null);
+        if (data.timeframeLabel) setQwTfLabel(String(data.timeframeLabel));
+      } catch {
+        setQwError("Network error");
+        setQuickWins([]);
+      } finally {
+        setQwLoading(false);
+      }
+    },
+    [qwTf, scalpAmount, scalpLev, scalpMaxLoss]
+  );
+
+  useEffect(() => {
+    if (!novaForexScalp || subTab !== "nova-scalp") return;
+    void findQuickWins(QUICK_WIN_SCALP_TIMEFRAME_ID, Number(scalpLev) || 20);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial scan when opening tab
+  }, [novaForexScalp, subTab]);
 
   if (!enabled) {
     return (
@@ -404,10 +471,19 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
 
         {novaForexScalp && (
           <TabsContent value="nova-scalp" className="mt-0">
-            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-              <p className="text-xs text-muted-foreground mb-3">
-                Short-hold scalp plan from structure and range position on your symbol (e.g. XAUUSD). Not financial advice.
+            {(() => {
+              const symbolCheck = validateForexScalpSymbol(symbol);
+              return (
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Short-hold scalp plan from structure and range position. Uses the <strong>Symbol</strong> field above
+                (XAUUSD, EURUSD, NAS100, TSLA — not crypto like BTC). For BTC/SOL use NovaForecast → Nova Scalp.
               </p>
+              {!symbolCheck.ok && (
+                <p className="text-xs text-amber-700 dark:text-amber-300 rounded-md border border-amber-300/50 dark:border-amber-800 px-2.5 py-2">
+                  {symbolCheck.error}
+                </p>
+              )}
               <div className="flex flex-wrap items-end gap-3 mb-3">
                 <label className="space-y-1">
                   <span className="text-xs text-muted-foreground">Timeframe</span>
@@ -470,10 +546,143 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
                   refreshing={scalpLoading}
                 />
               )}
-              {!scalpResult && (
+              {!scalpResult && !scalpError && (
                 <p className="text-[11px] text-muted-foreground">{NOVA_SCALP_DISCLAIMER}</p>
               )}
+
+              <div
+                id="nova-forex-scalp-quick-wins"
+                className="rounded-lg border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 p-4 space-y-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-semibold text-zinc-800 dark:text-zinc-200">Quick Wins</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Market Watch symbols with a confirmed LONG or SHORT on your timeframe.
+                      {qwTfLabel ? ` Showing: ${qwTfLabel}.` : ""}
+                      {` Preview at $${Number(scalpAmount) || 100} margin · ${Number(scalpLev) || 20}x.`}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>Time frame</span>
+                      <select
+                        value={qwTf}
+                        onChange={(e) => setQwTf(e.target.value as ScalpTimeframeId)}
+                        className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                      >
+                        {SCALP_TIMEFRAMES.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void findQuickWins(qwTf, Number(scalpLev) || 20)}
+                      disabled={qwLoading}
+                    >
+                      {qwLoading ? "Scanning…" : "Find me quick wins"}
+                    </Button>
+                  </div>
+                </div>
+                {qwError && <p className="text-sm text-rose-600 dark:text-rose-400">{qwError}</p>}
+                {quickWins.length === 0 && !qwLoading && !qwError && (
+                  <div className="space-y-3 text-xs text-muted-foreground">
+                    <p>
+                      {qwScanSummary
+                        ? `Scanned ${qwScanSummary.symbolsScanned} Market Watch symbols on ${qwTfLabel}: ${qwScanSummary.oscillationQualified} had tight range, but none had a confirmed LONG/SHORT (price mid-range or structure conflict). Normal in chop.`
+                        : "No quick-win candidates right now."}
+                    </p>
+                    {nearSetups.length > 0 && (
+                      <div className="rounded-md border border-amber-200/70 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 p-3 space-y-2">
+                        <p className="font-medium text-amber-900 dark:text-amber-200">Near setup (no entry yet)</p>
+                        <ul className="space-y-1.5">
+                          {nearSetups.map((n) => (
+                            <li key={n.symbol} className="flex flex-wrap items-center justify-between gap-2">
+                              <span>
+                                <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">
+                                  {n.symbol}
+                                </span>
+                                <span className="text-muted-foreground"> · score {n.quickWinScore}</span>
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() =>
+                                  void runScalp({ symbol: n.symbol, timeframeId: qwTf })
+                                }
+                              >
+                                Analyze
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {quickWins.length > 0 && (
+                  <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                    {quickWins.map((w) => (
+                      <div
+                        key={w.symbol}
+                        className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-zinc-200/80 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/50 px-3 py-2"
+                      >
+                        <div>
+                          <p className="font-mono font-semibold text-sm">{w.symbol}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{w.directionHint}</p>
+                          <p className="text-[11px] text-muted-foreground">{w.liquidityNote}</p>
+                        </div>
+                        <div className="text-right text-xs space-y-0.5">
+                          <p>
+                            Score{" "}
+                            <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-300">
+                              {w.quickWinScore}
+                            </span>
+                          </p>
+                          <p>
+                            Plan{" "}
+                            <span
+                              className={`font-medium uppercase ${
+                                w.scalpSide === "long"
+                                  ? "text-emerald-700 dark:text-emerald-300"
+                                  : "text-rose-700 dark:text-rose-300"
+                              }`}
+                            >
+                              {w.scalpSide}
+                            </span>{" "}
+                            · entry {fmtUsd(w.entryPrice)}
+                          </p>
+                          <p className="text-muted-foreground">
+                            ~{w.estHoldMinutes}m · ~{w.suggestedLeverage}x · 15m range {w.rangePct15m}%
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() =>
+                              void runScalp({
+                                symbol: w.symbol,
+                                leverage: w.suggestedLeverage,
+                                timeframeId: w.scalpTimeframeId,
+                              })
+                            }
+                          >
+                            Analyze
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
+              );
+            })()}
           </TabsContent>
         )}
       </Tabs>

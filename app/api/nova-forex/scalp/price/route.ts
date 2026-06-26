@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getForexTicker, normalizeForexSymbol } from "@/lib/forex-market";
+import { getForexTicker, validateForexScalpSymbol } from "@/lib/forex-market";
 import { getNovaForexScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +17,13 @@ export async function GET(request: Request) {
       );
     }
 
-    const symbol = normalizeForexSymbol(
+    const validated = validateForexScalpSymbol(
       new URL(request.url).searchParams.get("symbol")?.trim() ?? "XAUUSD"
-    ) || "XAUUSD";
+    );
+    if (!validated.ok) {
+      return NextResponse.json({ success: false, error: validated.error }, { status: 400 });
+    }
+    const symbol = validated.symbol;
     const ticker = await getForexTicker(symbol);
     const price = ticker?.last ? Number(ticker.last) : null;
 
