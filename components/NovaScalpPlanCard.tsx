@@ -6,6 +6,7 @@ import { Bell, BellOff, Check, Copy, RefreshCw, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
+import { estimateScalpPnl } from "@/lib/nova-scalp-agent";
 import { formatNovaScalpAnalysisForShare } from "@/lib/nova-scalp-agent-format";
 import {
   markScalpPlanFeedbackSent,
@@ -321,6 +322,30 @@ export function NovaScalpPlanCard({
   const statusLabel = planStatusLabel(planStatus, statusCtx);
   const statusHint = planStatusHint(planStatus, statusCtx);
 
+  const entrySide =
+    entryRecord?.entrySide ??
+    (result.side === "long" || result.side === "short" ? result.side : null);
+  const filledEntryPrice = entryRecord?.filledEntryPrice ?? result.entryPrice;
+  const tradeMargin = entryRecord?.amountUsd ?? result.amountUsd;
+  const tradeLeverage = entryRecord?.leverage ?? result.leverage;
+  const showLiveTradePnl =
+    entryRecord?.choice === "entered" &&
+    entrySide != null &&
+    filledEntryPrice != null &&
+    Number.isFinite(filledEntryPrice) &&
+    livePrice != null;
+  const liveTradePnl = showLiveTradePnl
+    ? estimateScalpPnl(entrySide, filledEntryPrice!, livePrice!, tradeMargin, tradeLeverage)
+    : null;
+  const liveTradeAtTarget =
+    showLiveTradePnl && result.exitPrice != null
+      ? estimateScalpPnl(entrySide!, filledEntryPrice!, result.exitPrice, tradeMargin, tradeLeverage)
+      : null;
+  const liveTradeAtStop =
+    showLiveTradePnl && result.stopLossPrice != null
+      ? estimateScalpPnl(entrySide!, filledEntryPrice!, result.stopLossPrice, tradeMargin, tradeLeverage)
+      : null;
+
   useEffect(() => {
     if (!watching || result.side === "no_entry") return;
     updateWatchedScalpPlan({
@@ -580,7 +605,10 @@ export function NovaScalpPlanCard({
                   className="h-7 text-xs"
                   disabled={feedbackLoading}
                   onClick={() => {
-                    setScalpPlanEntryChoice(result, "entered", market);
+                    setScalpPlanEntryChoice(result, "entered", market, {
+                      filledEntryPrice: livePrice ?? result.entryPrice,
+                      livePriceAtEntry: livePrice,
+                    });
                     setEntryRecord(readScalpPlanEntry(planKey));
                   }}
                 >
@@ -602,9 +630,69 @@ export function NovaScalpPlanCard({
               </div>
             ) : entryRecord.choice === "entered" && !entryRecord.feedbackSent ? (
               <div className="space-y-2">
-                <p className="text-xs text-emerald-700 dark:text-emerald-300">Marked as entered.</p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                  In trade
+                  {filledEntryPrice != null
+                    ? ` · entry ${fmtUsd(filledEntryPrice)}`
+                    : ""}
+                  {result.entryPrice != null &&
+                  filledEntryPrice != null &&
+                  Math.abs(filledEntryPrice - result.entryPrice) / result.entryPrice > 0.001
+                    ? ` (plan ${fmtUsd(result.entryPrice)})`
+                    : ""}
+                </p>
+                {liveTradePnl != null && (
+                  <div className="rounded-md border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-900/40 px-2.5 py-2 space-y-1">
+                    <p className="text-[11px] text-muted-foreground">Live PnL vs your entry</p>
+                    <p
+                      className={`font-mono text-sm font-semibold ${
+                        liveTradePnl.pnlUsd >= 0
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-rose-600 dark:text-rose-400"
+                      }`}
+                    >
+                      {liveTradePnl.pnlUsd >= 0 ? "+" : "-"}$
+                      {Math.abs(liveTradePnl.pnlUsd).toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                        minimumFractionDigits: 2,
+                      })}{" "}
+                      ({liveTradePnl.pnlPctMargin >= 0 ? "+" : ""}
+                      {liveTradePnl.pnlPctMargin.toFixed(1)}% on ${tradeMargin} margin · {tradeLeverage}x)
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Live {fmtUsd(livePrice)} · updates every ~12s
+                    </p>
+                    {(liveTradeAtTarget != null || liveTradeAtStop != null) && (
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        {liveTradeAtTarget != null && (
+                          <>
+                            At target {fmtUsd(result.exitPrice)}:{" "}
+                            <span className="text-emerald-700 dark:text-emerald-300">
+                              {liveTradeAtTarget.pnlUsd >= 0 ? "+" : ""}$
+                              {liveTradeAtTarget.pnlUsd.toLocaleString(undefined, {
+                                maximumFractionDigits: 2,
+                              })}
+                            </span>
+                          </>
+                        )}
+                        {liveTradeAtTarget != null && liveTradeAtStop != null ? " · " : ""}
+                        {liveTradeAtStop != null && (
+                          <>
+                            At stop {fmtUsd(result.stopLossPrice)}:{" "}
+                            <span className="text-rose-700 dark:text-rose-300">
+                              -$
+                              {Math.abs(liveTradeAtStop.pnlUsd).toLocaleString(undefined, {
+                                maximumFractionDigits: 2,
+                              })}
+                            </span>
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-muted-foreground">How did it go?</span>
+                  <span className="text-xs text-muted-foreground">Close it out — how did it go?</span>
                   <Button
                     type="button"
                     variant="outline"

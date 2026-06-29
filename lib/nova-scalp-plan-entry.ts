@@ -14,6 +14,11 @@ export type ScalpPlanEntryRecord = {
   analyzedAt: string;
   recordedAt: string;
   feedbackSent?: boolean;
+  /** Price when user tapped I entered (live or plan limit). */
+  filledEntryPrice?: number | null;
+  entrySide?: "long" | "short";
+  amountUsd?: number;
+  leverage?: number;
 };
 
 export function scalpPlanKey(analysis: NovaScalpAnalysis, market: ScalpPlanMarket = "crypto"): string {
@@ -46,8 +51,18 @@ export function writeScalpPlanEntry(record: ScalpPlanEntryRecord | null): void {
 export function setScalpPlanEntryChoice(
   analysis: NovaScalpAnalysis,
   choice: ScalpPlanEntryChoice,
-  market: ScalpPlanMarket = "crypto"
+  market: ScalpPlanMarket = "crypto",
+  extras?: {
+    filledEntryPrice?: number | null;
+    livePriceAtEntry?: number | null;
+  }
 ): void {
+  const filled =
+    extras?.filledEntryPrice != null && Number.isFinite(extras.filledEntryPrice)
+      ? extras.filledEntryPrice
+      : extras?.livePriceAtEntry != null && Number.isFinite(extras.livePriceAtEntry)
+        ? extras.livePriceAtEntry
+        : analysis.entryPrice;
   writeScalpPlanEntry({
     planKey: scalpPlanKey(analysis, market),
     choice,
@@ -56,6 +71,14 @@ export function setScalpPlanEntryChoice(
     analyzedAt: analysis.analyzedAt,
     recordedAt: new Date().toISOString(),
     feedbackSent: choice === "skipped",
+    filledEntryPrice:
+      choice === "entered" && filled != null && Number.isFinite(filled) ? filled : null,
+    entrySide:
+      choice === "entered" && (analysis.side === "long" || analysis.side === "short")
+        ? analysis.side
+        : undefined,
+    amountUsd: choice === "entered" ? analysis.amountUsd : undefined,
+    leverage: choice === "entered" ? analysis.leverage : undefined,
   });
 }
 
