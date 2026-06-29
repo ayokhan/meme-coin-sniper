@@ -1,5 +1,6 @@
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
 import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
+import { startActiveScalpTrade } from "@/lib/nova-scalp-active-trade";
 
 export const SCALP_ENTRY_STORAGE_KEY = "novastaris_scalp_plan_entry";
 export const SCALP_ENTRY_EVENT = "novastaris-scalp-entry-change";
@@ -80,6 +81,9 @@ export function setScalpPlanEntryChoice(
     amountUsd: choice === "entered" ? analysis.amountUsd : undefined,
     leverage: choice === "entered" ? analysis.leverage : undefined,
   });
+  if (choice === "entered" && filled != null && Number.isFinite(filled)) {
+    startActiveScalpTrade(analysis, market, filled);
+  }
 }
 
 export function markScalpPlanFeedbackSent(planKey: string): void {

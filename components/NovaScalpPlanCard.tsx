@@ -16,6 +16,13 @@ import {
   setScalpPlanEntryChoice,
   type ScalpPlanEntryRecord,
 } from "@/lib/nova-scalp-plan-entry";
+import {
+  isActiveScalpTradeForSymbol,
+  markActiveScalpTradeFeedbackSent,
+  readActiveScalpTrade,
+  SCALP_ACTIVE_TRADE_EVENT,
+  type ScalpActiveTrade,
+} from "@/lib/nova-scalp-active-trade";
 import { fetchScalpLivePrice, SCALP_LIVE_PRICE_MS } from "@/lib/nova-scalp-plan-price";
 import {
   formatAnalyzedAtLocal,
@@ -180,6 +187,7 @@ export function NovaScalpPlanCard({
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [blofinPosition, setBlofinPosition] = useState<BlofinPositionSummary | null>(null);
   const [blofinConfigured, setBlofinConfigured] = useState<boolean | null>(null);
+  const [activeTrade, setActiveTrade] = useState<ScalpActiveTrade | null>(null);
   const [, tick] = useState(0);
 
   const planKey = scalpPlanKey(result, market);
@@ -196,6 +204,13 @@ export function NovaScalpPlanCard({
     window.addEventListener(SCALP_ENTRY_EVENT, sync);
     return () => window.removeEventListener(SCALP_ENTRY_EVENT, sync);
   }, [planKey]);
+
+  useEffect(() => {
+    const sync = () => setActiveTrade(readActiveScalpTrade());
+    sync();
+    window.addEventListener(SCALP_ACTIVE_TRADE_EVENT, sync);
+    return () => window.removeEventListener(SCALP_ACTIVE_TRADE_EVENT, sync);
+  }, []);
 
   useEffect(() => {
     const sync = () => setWatching(isWatchingScalpPlan(result, market));
@@ -298,6 +313,9 @@ export function NovaScalpPlanCard({
         return;
       }
       markScalpPlanFeedbackSent(planKey);
+      if (activeTrade && isActiveScalpTradeForSymbol(activeTrade, result.symbol, market)) {
+        markActiveScalpTradeFeedbackSent();
+      }
       setEntryRecord(readScalpPlanEntry(planKey));
     } catch {
       alert("Failed to save feedback");
@@ -328,7 +346,10 @@ export function NovaScalpPlanCard({
   const filledEntryPrice = entryRecord?.filledEntryPrice ?? result.entryPrice;
   const tradeMargin = entryRecord?.amountUsd ?? result.amountUsd;
   const tradeLeverage = entryRecord?.leverage ?? result.leverage;
+  const pinnedActiveTrade =
+    activeTrade && isActiveScalpTradeForSymbol(activeTrade, result.symbol, market);
   const showLiveTradePnl =
+    !pinnedActiveTrade &&
     entryRecord?.choice === "entered" &&
     entrySide != null &&
     filledEntryPrice != null &&
@@ -595,7 +616,17 @@ export function NovaScalpPlanCard({
         {showPlanMonitor && (
           <div className="rounded-md border border-zinc-200/80 dark:border-zinc-700/80 px-3 py-2.5 space-y-2">
             <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">Your trade</p>
-            {!entryRecord ? (
+            {pinnedActiveTrade ? (
+              <div className="space-y-1.5">
+                <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                  Pinned to Active trade bar — track PnL while you refresh or scan other symbols.
+                </p>
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  Entry {fmtUsd(activeTrade.filledEntryPrice)} · {activeTrade.side.toUpperCase()} ·{" "}
+                  {activeTrade.timeframeLabel}
+                </p>
+              </div>
+            ) : !entryRecord ? (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted-foreground">Did you enter this plan?</span>
                 <Button

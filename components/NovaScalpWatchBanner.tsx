@@ -15,6 +15,10 @@ import {
   SCALP_WATCH_EVENT,
   stopWatchingScalpPlan,
 } from "@/lib/nova-scalp-plan-watch";
+import {
+  readActiveScalpTrade,
+  SCALP_ACTIVE_TRADE_EVENT,
+} from "@/lib/nova-scalp-active-trade";
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
 import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 import { scalpPlanWatchLabel } from "@/lib/scalp-plan-market";
@@ -39,6 +43,14 @@ export default function NovaScalpWatchBanner() {
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [market, setMarket] = useState<ScalpPlanMarket>("crypto");
   const [dismissedAt, setDismissedAt] = useState<string | null>(null);
+  const [hasActiveTrade, setHasActiveTrade] = useState(false);
+
+  useEffect(() => {
+    const syncActive = () => setHasActiveTrade(!!readActiveScalpTrade());
+    syncActive();
+    window.addEventListener(SCALP_ACTIVE_TRADE_EVENT, syncActive);
+    return () => window.removeEventListener(SCALP_ACTIVE_TRADE_EVENT, syncActive);
+  }, []);
 
   useEffect(() => {
     const sync = () => {
@@ -94,7 +106,7 @@ export default function NovaScalpWatchBanner() {
 
   return (
     <div
-      className={`fixed bottom-20 left-3 right-3 sm:left-auto sm:right-4 sm:max-w-md z-[60] rounded-xl border shadow-lg px-3 py-2.5 ${toneClass(tone)}`}
+      className={`fixed left-3 right-3 sm:left-auto sm:right-4 sm:max-w-md z-[60] rounded-xl border shadow-lg px-3 py-2.5 ${hasActiveTrade ? "bottom-44" : "bottom-20"} ${toneClass(tone)}`}
       role="status"
     >
       <div className="flex items-start gap-2">
