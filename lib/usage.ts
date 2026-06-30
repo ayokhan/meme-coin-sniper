@@ -47,6 +47,7 @@ export type UsageReportUser = {
   userId: string;
   email: string | null;
   name: string | null;
+  subscriptionTier: string | null;
   aiAnalyses: number;
   alerts: number;
 };
@@ -54,23 +55,28 @@ export type UsageReportUser = {
 export type UsageReport = {
   monthKey: string;
   startOfMonth: string;
+  totalUsers: number;
+  usersWithActivity: number;
   totalAiAnalyses: number;
   totalAlerts: number;
   users: UsageReportUser[];
 };
 
-/** Admin-only: usage report for all users for the current month. */
+/** Admin-only: usage report for all registered users for the current month. */
 export async function getUsageReportForAdmin(): Promise<UsageReport> {
   const monthKey = getMonthKey();
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
+  const now = new Date();
 
-  const [usageRows, memeByUser, leverageByUser] = await Promise.all([
+  const [allUsersRaw, usageRows, memeByUser, leverageByUser, activeSubsRaw] = await Promise.all([
+    prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+    }),
     prisma.usageThisMonth.findMany({
       where: { monthKey },
-      select: { userId: true, aiAnalyses: true, user: { select: { email: true, name: true } } },
-    }),
+    }) as Promise<Array<{ userId: string; aiAnalyses: number }>>,
     prisma.userMemeCoinAlert.groupBy({
       by: ["userId"],
       where: { createdAt: { gte: startOfMonth } },
@@ -81,8 +87,20 @@ export async function getUsageReportForAdmin(): Promise<UsageReport> {
       where: { createdAt: { gte: startOfMonth }, userId: { not: null } },
       _count: { id: true },
     }),
+    prisma.subscription.findMany({
+      where: { expiresAt: { gt: now } },
+      orderBy: { expiresAt: "desc" },
+    }),
   ]);
 
+  const allUsers = allUsersRaw.map((u) => ({
+    id: u.id,
+    email: u.email ?? null,
+    name: u.name ?? null,
+  }));
+  const activeSubs = activeSubsRaw as Array<{ userId: string; tier?: string | null }>;
+
+  const aiByUser = new Map(usageRows.map((r) => [r.userId, r.aiAnalyses]));
   const alertCountByUser = new Map<string, number>();
   for (const g of memeByUser) {
     alertCountByUser.set(g.userId, (alertCountByUser.get(g.userId) ?? 0) + g._count.id);
@@ -91,40 +109,42 @@ export async function getUsageReportForAdmin(): Promise<UsageReport> {
     if (g.userId) alertCountByUser.set(g.userId, (alertCountByUser.get(g.userId) ?? 0) + g._count.id);
   }
 
-  const userMap = new Map<string, UsageReportUser>();
-  for (const row of usageRows) {
-    const alerts = alertCountByUser.get(row.userId) ?? 0;
-    userMap.set(row.userId, {
-      userId: row.userId,
-      email: row.user.email ?? null,
-      name: row.user.name ?? null,
-      aiAnalyses: row.aiAnalyses,
-      alerts,
-    });
-  }
-  const userIdsWithAlerts = new Set([
-    ...memeByUser.map((g) => g.userId),
-    ...leverageByUser.filter((g) => g.userId).map((g) => g.userId!),
-  ]);
-  for (const userId of userIdsWithAlerts) {
-    if (!userMap.has(userId)) {
-      userMap.set(userId, {
-        userId,
-        email: null,
-        name: null,
-        aiAnalyses: 0,
-        alerts: alertCountByUser.get(userId) ?? 0,
-      });
-    }
+  const tierByUser = new Map<string, string>();
+  for (const sub of activeSubs) {
+    if (!tierByUser.has(sub.userId)) tierByUser.set(sub.userId, sub.tier ?? "pro");
   }
 
-  const users = Array.from(userMap.values()).sort((a, b) => b.aiAnalyses + b.alerts - (a.aiAnalyses + a.alerts));
+  const users: UsageReportUser[] = allUsers.map((user) => {
+    const aiAnalyses = aiByUser.get(user.id) ?? 0;
+    const alerts = alertCountByUser.get(user.id) ?? 0;
+    return {
+      userId: user.id,
+      email: user.email ?? null,
+      name: user.name ?? null,
+      subscriptionTier: tierByUser.get(user.id) ?? null,
+      aiAnalyses,
+      alerts,
+    };
+  });
+
+  users.sort((a, b) => {
+    const activityA = a.aiAnalyses + a.alerts;
+    const activityB = b.aiAnalyses + b.alerts;
+    if (activityB !== activityA) return activityB - activityA;
+    const labelA = (a.email ?? a.name ?? a.userId).toLowerCase();
+    const labelB = (b.email ?? b.name ?? a.userId).toLowerCase();
+    return labelA.localeCompare(labelB);
+  });
+
+  const usersWithActivity = users.filter((u) => u.aiAnalyses > 0 || u.alerts > 0).length;
   const totalAiAnalyses = users.reduce((s, u) => s + u.aiAnalyses, 0);
   const totalAlerts = users.reduce((s, u) => s + u.alerts, 0);
 
   return {
     monthKey,
     startOfMonth: startOfMonth.toISOString(),
+    totalUsers: users.length,
+    usersWithActivity,
     totalAiAnalyses,
     totalAlerts,
     users,

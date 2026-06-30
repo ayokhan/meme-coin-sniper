@@ -19,6 +19,7 @@ type UsageReportUser = {
   userId: string;
   email: string | null;
   name: string | null;
+  subscriptionTier: string | null;
   aiAnalyses: number;
   alerts: number;
 };
@@ -26,6 +27,8 @@ type UsageReportUser = {
 type UsageReport = {
   monthKey: string;
   startOfMonth: string;
+  totalUsers: number;
+  usersWithActivity: number;
   totalAiAnalyses: number;
   totalAlerts: number;
   users: UsageReportUser[];
@@ -42,6 +45,7 @@ export default function AdminMetricsPage() {
   const [report, setReport] = useState<UsageReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState<"all" | "active">("all");
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -135,11 +139,11 @@ export default function AdminMetricsPage() {
                   <CardTitle>Usage report</CardTitle>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Platform-wide usage for <strong>{formatMonthKey(report.monthKey)}</strong>. AI analyses and alerts (meme coin + leverage) per user.
+                  Platform-wide usage for <strong>{formatMonthKey(report.monthKey)}</strong>. Every registered user is listed; AI analyses and alerts (meme coin + leverage) for the month.
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-950/40 dark:to-cyan-900/20 border border-cyan-200/60 dark:border-cyan-800/50 p-4">
                     <div className="flex items-center gap-2 text-cyan-700 dark:text-cyan-300 mb-1">
                       <Sparkles className="h-4 w-4 shrink-0" />
@@ -161,11 +165,47 @@ export default function AdminMetricsPage() {
                   <div className="rounded-xl bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 p-4">
                     <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 mb-1">
                       <Users className="h-4 w-4 shrink-0" />
-                      <span className="text-xs font-medium uppercase tracking-wide">Users with activity</span>
+                      <span className="text-xs font-medium uppercase tracking-wide">Total users</span>
                     </div>
                     <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
-                      {report.users.length.toLocaleString()}
+                      {report.totalUsers.toLocaleString()}
                     </p>
+                  </div>
+                  <div className="rounded-xl bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 p-4">
+                    <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 mb-1">
+                      <Users className="h-4 w-4 shrink-0" />
+                      <span className="text-xs font-medium uppercase tracking-wide">With activity</span>
+                    </div>
+                    <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                      {report.usersWithActivity.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-muted-foreground">
+                    Showing{" "}
+                    {filter === "all"
+                      ? `${report.users.length} users`
+                      : `${report.users.filter((u) => u.aiAnalyses > 0 || u.alerts > 0).length} users with activity`}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={filter === "all" ? "default" : "outline"}
+                      onClick={() => setFilter("all")}
+                    >
+                      All users
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={filter === "active" ? "default" : "outline"}
+                      onClick={() => setFilter("active")}
+                    >
+                      Activity only
+                    </Button>
                   </div>
                 </div>
 
@@ -175,15 +215,26 @@ export default function AdminMetricsPage() {
                       <TableHeader>
                         <TableRow className="bg-zinc-50 dark:bg-zinc-800/50">
                           <TableHead className="font-medium">User</TableHead>
+                          <TableHead className="font-medium">Plan</TableHead>
                           <TableHead className="text-right font-medium">AI analyses</TableHead>
                           <TableHead className="text-right font-medium">Alerts</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {report.users.map((u) => (
+                        {report.users
+                          .filter((u) => filter === "all" || u.aiAnalyses > 0 || u.alerts > 0)
+                          .map((u) => (
                           <TableRow key={u.userId} className="border-zinc-200 dark:border-zinc-700">
                             <TableCell className="font-mono text-sm">
-                              {u.email ?? u.name ?? u.userId.slice(0, 8) + "…"}
+                              <Link
+                                href="/admin/customers"
+                                className="text-cyan-700 dark:text-cyan-300 hover:underline"
+                              >
+                                {u.email ?? u.name ?? u.userId.slice(0, 8) + "…"}
+                              </Link>
+                            </TableCell>
+                            <TableCell className="text-sm capitalize text-muted-foreground">
+                              {u.subscriptionTier ?? "Free"}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">{u.aiAnalyses}</TableCell>
                             <TableCell className="text-right tabular-nums">{u.alerts}</TableCell>
@@ -193,7 +244,7 @@ export default function AdminMetricsPage() {
                     </Table>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground py-4">No user activity this month yet.</p>
+                  <p className="text-sm text-muted-foreground py-4">No registered users yet.</p>
                 )}
               </CardContent>
             </Card>
