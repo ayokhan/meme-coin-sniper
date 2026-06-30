@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import Stripe from "stripe";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { PRO_PLANS, VIP_PLANS, type Tier } from "@/lib/subscription";
+import { PRO_PLANS, VIP_PLANS, getCardPriceUsd, type Tier } from "@/lib/subscription";
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
@@ -44,7 +44,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Invalid plan." }, { status: 400 });
   }
 
-  const amountCents = Math.round(plan.priceUsd * 100);
+  const cardPriceUsd = getCardPriceUsd(plan.priceUsd);
+  const amountCents = Math.round(cardPriceUsd * 100);
   if (amountCents < 50) {
     return NextResponse.json({ success: false, error: "Minimum charge is $0.50." }, { status: 400 });
   }
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
       mode: "payment",
       customer_email: session.user.email,
       client_reference_id: session.user.id,
-      metadata: { tier, planId, amountUsd: String(plan.priceUsd) },
+      metadata: { tier, planId, amountUsd: String(plan.priceUsd), cardTotalUsd: String(cardPriceUsd) },
       line_items: [
         {
           quantity: 1,
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
             unit_amount: amountCents,
             product_data: {
               name: `NovaStaris ${tier === "vip" ? "VIP" : "Pro"} — ${plan.label}`,
-              description: `Subscription: ${plan.label}. Payment terms: no refund after 24 hours of use.`,
+              description: `Subscription: ${plan.label} ($${plan.priceUsd} + $${cardPriceUsd - plan.priceUsd} card fee). Payment terms: no refund after 24 hours of use.`,
             },
           },
         },

@@ -31,7 +31,10 @@ export default function PaymentTermsPage() {
               <strong>Subscription period.</strong> Your access is valid for the period corresponding to the plan you purchased (e.g. 1 month, 6 months, 12 months). Access continues until the end of that period; we do not prorate refunds for early cancellation.
             </p>
             <p>
-              <strong>Payment methods.</strong> We accept credit/debit card (via Stripe) and USDC on Solana. You are responsible for providing accurate payment details and for any fees charged by your bank or wallet.
+              <strong>Payment methods.</strong> We accept credit/debit card (via Stripe) and USDC on Solana. USDC payments are charged at the listed subscription price. Card payments include an additional $8 card payment fee per checkout. You are responsible for providing accurate payment details and for any fees charged by your bank or wallet.
+            </p>
+            <p>
+              <strong>Current list prices (USDC).</strong> Pro: $70/month, $350/6 months, $700/12 months. VIP: $20/1-day trial, $150/month, $750/6 months, $1,500/12 months. Card checkout adds $8 to these amounts.
             </p>
             <p>
               By clicking &quot;I agree to the Payment Terms and Conditions&quot; and completing payment, you confirm that you have read and accept these terms.

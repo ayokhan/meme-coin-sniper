@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { PRO_PLANS, VIP_PLANS, getActiveSubscription, getSubscriptionExpiresAt, getSubscriptionTier, type Tier } from '@/lib/subscription';
+import { PRO_PLANS, VIP_PLANS, CARD_PAYMENT_FEE_USD, getActiveSubscription, getSubscriptionExpiresAt, getSubscriptionTier, type Tier } from '@/lib/subscription';
 import { verifyUsdcPayment } from '@/lib/verify-solana-payment';
 import { getUsageThisMonth } from '@/lib/usage';
 
@@ -30,6 +30,7 @@ export async function GET() {
     expiresAt: expiresAt?.toISOString() ?? null,
     proPlans: PRO_PLANS,
     vipPlans: VIP_PLANS,
+    cardPaymentFeeUsd: CARD_PAYMENT_FEE_USD,
     paymentWallet: paid ? undefined : PAYMENT_WALLET,
     usdcMint: USDC_MINT,
     usageThisMonth: usage,

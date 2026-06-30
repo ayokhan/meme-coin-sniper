@@ -12,9 +12,9 @@
 - **Paid:** Full dashboard
 
 ### Payment (Solana)
-- **$250/month**
-- **3 months:** $50 off → $700 total
-- **6 months:** $100 off → $1,400 total
+- **Pro:** $70/month USDC ($78 card); 6 months $350 USDC ($358 card, 1 month free); 12 months $700 USDC ($708 card, 2 months free)
+- **VIP:** $20/1-day trial USDC ($28 card); $150/month USDC ($158 card); 6 months $750 USDC ($758 card); 12 months $1,500 USDC ($1,508 card)
+- **Card fee:** $8 per card checkout (USDC pays list price only)
 
 ### Payment Flow (Your Assumption)
 1. User provides their Solana wallet address.
@@ -107,9 +107,15 @@ model Subscription {
 
 | Plan     | Price        | Total   |
 |----------|--------------|---------|
-| 1 month  | $250         | $250    |
-| 3 months | $250×3 − $50 | $700    |
-| 6 months | $250×6 − $100| $1,400  |
+| Plan | USDC | Card |
+|------|------|------|
+| Pro 1 month | $70 | $78 |
+| Pro 6 months | $350 | $358 |
+| Pro 12 months | $700 | $708 |
+| VIP 1-day trial | $20 | $28 |
+| VIP 1 month | $150 | $158 |
+| VIP 6 months | $750 | $758 |
+| VIP 12 months | $1,500 | $1,508 |
 
 ---
 

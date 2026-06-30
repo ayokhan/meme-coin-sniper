@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageCircle, Send, Bot, User, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PRO_PLANS, VIP_PLANS, CARD_PAYMENT_FEE_USD, getCardPriceUsd } from "@/lib/subscription";
 
 const WELCOME = "Hi, I'm Nja, your AI assistant for NovaStaris. I'm here to help anytime, anywhere.";
 const ASK_START = "Ask me a question to get started.";
@@ -22,19 +23,16 @@ const NJA_OUT_OF_SCOPE_LIVE =
 const NJA_OUT_OF_SCOPE_OFFLINE =
   "I'm not able to answer that—I'm set up to help with NovaStaris products, subscriptions, and support. If you'd like help from our team, I can create a support ticket with your details and we'll get back to you within 48 hours. Would you like me to do that?";
 
-const PRO_PLANS_DISPLAY = [
-  { label: "Pro 1 month", price: "$50" },
-  { label: "Pro 6 months (1 month free)", price: "$250" },
-  { label: "Pro 12 months (2 months free)", price: "$500" },
-];
-const VIP_PLANS_DISPLAY = [
-  { label: "VIP 1 day trial", price: "$10" },
-  { label: "VIP 1 month", price: "$150" },
-  { label: "VIP 6 months (1 month free)", price: "$750" },
-  { label: "VIP 12 months (2 months free)", price: "$1,500" },
-];
+const PRO_PLANS_DISPLAY = PRO_PLANS.map((p) => ({
+  label: `Pro ${p.label}`,
+  price: `$${p.priceUsd} USDC / $${getCardPriceUsd(p.priceUsd)} card`,
+}));
+const VIP_PLANS_DISPLAY = VIP_PLANS.map((p) => ({
+  label: `VIP ${p.label}`,
+  price: `$${p.priceUsd} USDC / $${getCardPriceUsd(p.priceUsd)} card`,
+}));
 const NJA_SUBSCRIPTION_INTRO = "NovaStaris offers two subscription tiers: Pro and VIP.";
-const NJA_SUBSCRIPTION_OUTRO = "Pro includes Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, BSC AI Analysis, and NovaConnect (community & DMs). VIP adds CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast, and on-demand NovaStaris AI Trading Bot. Pay by credit card or USDC (Solana). To subscribe, use the Subscribe page in the app menu. Anything else I can help with?";
+const NJA_SUBSCRIPTION_OUTRO = `Pro includes Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, BSC AI Analysis, and NovaConnect (community & DMs). VIP adds CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast, and on-demand NovaStaris AI Trading Bot. USDC (Solana) is list price; card payments include a $${CARD_PAYMENT_FEE_USD} card fee. To subscribe, use the Subscribe page in the app menu. Anything else I can help with?`;
 
 const SUBSCRIPTION_KEYWORDS = [
   "subscription", "subscribe", "price", "pricing", "plan", "plans", "cost", "how much",

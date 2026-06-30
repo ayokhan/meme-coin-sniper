@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, CreditCard } from "lucide-react";
+import { CARD_PAYMENT_FEE_USD } from "@/lib/subscription";
 
 type Plan = { id: string; label: string; months: number; priceUsd: number };
 
@@ -34,10 +35,9 @@ function SubscribeContent() {
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyError, setVerifyError] = useState("");
   const [verifySuccess, setVerifySuccess] = useState(false);
+  const [cardPaymentFeeUsd, setCardPaymentFeeUsd] = useState(CARD_PAYMENT_FEE_USD);
   const [cardLoading, setCardLoading] = useState(false);
   const [cardError, setCardError] = useState("");
-  /** Checkbox is always toggleable; payment requires the box to be checked in this session. */
-  const termsAcceptedForPayment = termsCheckbox;
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -55,6 +55,9 @@ function SubscribeContent() {
           setExpiresAt(data.expiresAt ?? null);
           setProPlans(Array.isArray(data.proPlans) ? data.proPlans : []);
           setVipPlans(Array.isArray(data.vipPlans) ? data.vipPlans : []);
+          setCardPaymentFeeUsd(
+            typeof data.cardPaymentFeeUsd === "number" ? data.cardPaymentFeeUsd : CARD_PAYMENT_FEE_USD
+          );
           setPaymentWallet(data.paymentWallet ?? "");
           setUsdcMint(data.usdcMint ?? "");
           setPaymentTermsAcceptedAt(data.paymentTermsAcceptedAt ?? null);
@@ -117,9 +120,14 @@ function SubscribeContent() {
     }
   };
 
+  /** Checkbox is always toggleable; payment requires the box to be checked in this session. */
+  const termsAcceptedForPayment = termsCheckbox;
+
+  const cardFee = cardPaymentFeeUsd;
   const plans = tier === "pro" ? proPlans : vipPlans;
   const plan = plans.find((p) => p.id === selectedPlan) ?? plans[0];
-  const amountUsdc = plan?.priceUsd ?? 100;
+  const amountUsdc = plan?.priceUsd ?? 70;
+  const planCardPrice = plan ? plan.priceUsd + cardFee : 0;
 
   useEffect(() => {
     const inTier = plans.some((p) => p.id === selectedPlan);
@@ -262,7 +270,7 @@ function SubscribeContent() {
               <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (gold, FX, indices), plus on-demand tools such as{" "}
               <strong className="text-zinc-800 dark:text-zinc-200">Nova Polymarket Pro</strong>,{" "}
               <strong className="text-zinc-800 dark:text-zinc-200">Nova Prop Firm Bot</strong>, and{" "}
-              <strong className="text-zinc-800 dark:text-zinc-200">Nova Ultimate</strong>. Pay by card or USDC (Solana).
+              <strong className="text-zinc-800 dark:text-zinc-200">Nova Ultimate</strong>. Pay by USDC (Solana) at list price, or card (includes a ${cardFee} card payment fee).
             </>
           )}
         </p>
@@ -288,12 +296,12 @@ function SubscribeContent() {
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">What&apos;s in each plan?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
-              <p className="font-semibold text-cyan-600 dark:text-cyan-400 mb-1">Pro ($50/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures (AI chart analysis, Institutional Workflow), BSC AI Analysis, NovaConnect (community &amp; DMs). Pay by card or USDC.</p>
+              <p className="font-semibold text-cyan-600 dark:text-cyan-400 mb-1">Pro ($70/mo USDC)</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures (AI chart analysis, Institutional Workflow), BSC AI Analysis, NovaConnect (community &amp; DMs). $70 USDC or ${70 + cardFee} card per month.</p>
             </div>
             <div>
-              <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, <strong className="text-zinc-800 dark:text-zinc-200">NovaForecast</strong> (crypto perps + NovaRadar), <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (Market Watch for XAUUSD, FX, indices—NovaQ, Smart, Fib, Radar, and Scalp), NovaQ, Nova Investment Agent, VIP Crypto Futures add-ons, on-demand AI Trading Bot, Nova Polymarket Pro, and Nova Ultimate. Pay by card or USDC.</p>
+              <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo USDC)</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, <strong className="text-zinc-800 dark:text-zinc-200">NovaForecast</strong> (crypto perps + NovaRadar), <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (Market Watch for XAUUSD, FX, indices—NovaQ, Smart, Fib, Radar, and Scalp), NovaQ, Nova Investment Agent, VIP Crypto Futures add-ons, on-demand AI Trading Bot, Nova Polymarket Pro, and Nova Ultimate. $150 USDC or ${150 + cardFee} card per month; 1-day trial $20 USDC.</p>
             </div>
           </div>
         </div>
@@ -324,7 +332,7 @@ function SubscribeContent() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
-        {tier === "pro" ? "Pro: $50/month. Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month. Everything in Pro + CT Scan, Wallet Tracker, Coach Calls, NovaForecast, Nova Forex Agent (gold/FX desk), NovaQ, Nova Investment Agent, Nova+, NovaScalper, on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate."}
+        {tier === "pro" ? "Pro: $70/month USDC ($78 card). Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month USDC ($158 card). 1-day trial $20 USDC ($28 card). Everything in Pro + CT Scan, Wallet Tracker, Coach Calls, NovaForecast, Nova Forex Agent (gold/FX desk), NovaQ, Nova Investment Agent, Nova+, NovaScalper, on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate."}
         </p>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
           Pick the tier that matches your current pace: Pro for daily execution edge, VIP for maximum market coverage and on-demand premium workflows.
@@ -341,7 +349,7 @@ function SubscribeContent() {
                 <li>Crypto Futures (AI chart analysis, Institutional Workflow)</li>
                 <li>BSC AI Analysis</li>
                 <li>NovaConnect (community feed &amp; DMs)</li>
-                <li>Pay by credit card or USDC (Solana)</li>
+                <li>Pay by USDC (Solana) at list price, or card (+${cardFee} card fee)</li>
               </ul>
             </>
           ) : (
@@ -361,7 +369,7 @@ function SubscribeContent() {
                 <li>Nova Polymarket Pro — on-demand</li>
                 <li>Nova Prop Firm Bot — on-demand</li>
                 <li>Nova Ultimate — on-demand (Solana meme tooling)</li>
-                <li>Pay by credit card or USDC (Solana)</li>
+                <li>Pay by USDC (Solana) at list price, or card (+${cardFee} card fee)</li>
               </ul>
             </>
           )}
@@ -380,8 +388,8 @@ function SubscribeContent() {
               }`}
             >
               <div className="font-semibold text-zinc-900 dark:text-zinc-100">{p.label}</div>
-              <div className="mt-1 text-lg font-bold text-cyan-600 dark:text-cyan-400">${p.priceUsd} USD</div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">Pay by card or USDC (Solana)</div>
+              <div className="mt-1 text-lg font-bold text-cyan-600 dark:text-cyan-400">${p.priceUsd} USDC</div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400">${p.priceUsd + cardFee} with card (incl. ${cardFee} fee)</div>
             </button>
           ))}
         </div>
@@ -444,7 +452,7 @@ function SubscribeContent() {
                 Pay with card
               </CardTitle>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Pay by credit or debit card. You will be redirected to our secure payment page.
+                Pay by credit or debit card. Includes a ${cardFee} card payment fee. You will be redirected to our secure payment page.
               </p>
             </CardHeader>
             <CardContent>
@@ -455,7 +463,7 @@ function SubscribeContent() {
                 disabled={!termsAcceptedForPayment || cardLoading}
                 className="w-full bg-cyan-500 hover:bg-cyan-600 text-white"
               >
-                {cardLoading ? "Redirecting…" : termsAcceptedForPayment ? `Pay $${plan?.priceUsd ?? 0} with card` : "Accept terms above to pay with card"}
+                {cardLoading ? "Redirecting…" : termsAcceptedForPayment ? `Pay $${planCardPrice} with card` : "Accept terms above to pay with card"}
               </Button>
             </CardContent>
           </Card>
@@ -464,7 +472,7 @@ function SubscribeContent() {
           <CardHeader>
             <CardTitle className="text-lg">Pay with USDC (Solana)</CardTitle>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Send <strong>{amountUsdc} USDC</strong> to the wallet below. Use the same Solana network (mainnet). After sending, paste the transaction signature to activate your {tier.toUpperCase()} subscription.
+              Send <strong>{amountUsdc} USDC</strong> (list price — no card fee) to the wallet below. Use Solana mainnet. After sending, paste the transaction signature to activate your {tier.toUpperCase()} subscription.
             </p>
             <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
               <strong>How we verify payment:</strong> We only check that the correct amount of USDC reached the wallet above by reading the transaction on Solana. We never hold your keys or custody your funds.

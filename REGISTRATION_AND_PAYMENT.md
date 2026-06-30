@@ -19,13 +19,17 @@
   4. When a valid payment is detected or verified, we grant access (store subscription in DB with expiry date).
 
 ## Pricing
-| Plan        | Price (USD) | Discount |
-|------------|-------------|----------|
-| 1 month    | $250        | —        |
-| 3 months   | $700        | $50 off  |
-| 6 months   | $1,400      | $100 off |
+| Plan        | Price (USDC) | Card (+$8) |
+|------------|--------------|------------|
+| Pro 1 month    | $70        | $78        |
+| Pro 6 months   | $350       | $358       |
+| Pro 12 months  | $700       | $708       |
+| VIP 1-day trial| $20        | $28        |
+| VIP 1 month    | $150       | $158       |
+| VIP 6 months   | $750       | $758       |
+| VIP 12 months  | $1,500     | $1,508     |
 
-All amounts are collected in **USDC** on Solana (e.g. “Send 250 USDC”, “Send 700 USDC”, “Send 1400 USDC”).
+All USDC amounts are collected on Solana (e.g. “Send 70 USDC”).
 
 ## What you need to provide
 - **Solana wallet address** – The public key that receives USDC (e.g. from your Phantom wallet). Set in env as `SOLANA_PAYMENT_WALLET`.
