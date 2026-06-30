@@ -24,7 +24,7 @@
 | Pro 1 month    | $70        | $78        |
 | Pro 6 months   | $350       | $358       |
 | Pro 12 months  | $700       | $708       |
-| VIP 1-day trial| $20        | $28        |
+| VIP 1-day trial| $20        | $20        |
 | VIP 1 month    | $150       | $158       |
 | VIP 6 months   | $750       | $758       |
 | VIP 12 months  | $1,500     | $1,508     |

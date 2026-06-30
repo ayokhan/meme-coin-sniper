@@ -27,8 +27,22 @@ export type SubscriptionPlan = (typeof PRO_PLANS)[number] | (typeof VIP_PLANS)[n
 /** All plans for display (legacy); prefer PRO_PLANS / VIP_PLANS by tier. */
 export const PLANS = [...PRO_PLANS, ...VIP_PLANS];
 
-export function getCardPriceUsd(listPriceUsd: number): number {
+/** VIP 1-day trial: same price on card and USDC (no card fee). */
+export const VIP_TRIAL_PLAN_ID = '1day' as const;
+
+export function cardPaymentFeeApplies(tier: Tier, planId: string): boolean {
+  return !(tier === 'vip' && planId === VIP_TRIAL_PLAN_ID);
+}
+
+export function getCardPriceUsd(listPriceUsd: number, tier?: Tier, planId?: string): number {
+  if (tier != null && planId != null && !cardPaymentFeeApplies(tier, planId)) {
+    return listPriceUsd;
+  }
   return listPriceUsd + CARD_PAYMENT_FEE_USD;
+}
+
+export function getCardPriceForPlan(tier: Tier, plan: SubscriptionPlan): number {
+  return getCardPriceUsd(plan.priceUsd, tier, plan.id);
 }
 
 export function findPlanByListOrCardAmount(
@@ -38,7 +52,7 @@ export function findPlanByListOrCardAmount(
   const plans = tier === 'vip' ? VIP_PLANS : PRO_PLANS;
   return (
     plans.find((p) => p.priceUsd === amountUsd) ??
-    plans.find((p) => getCardPriceUsd(p.priceUsd) === amountUsd)
+    plans.find((p) => getCardPriceUsd(p.priceUsd, tier, p.id) === amountUsd)
   );
 }
 

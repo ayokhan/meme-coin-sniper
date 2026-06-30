@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageCircle, Send, Bot, User, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PRO_PLANS, VIP_PLANS, CARD_PAYMENT_FEE_USD, getCardPriceUsd } from "@/lib/subscription";
+import { PRO_PLANS, VIP_PLANS, CARD_PAYMENT_FEE_USD, getCardPriceForPlan } from "@/lib/subscription";
 
 const WELCOME = "Hi, I'm Nja, your AI assistant for NovaStaris. I'm here to help anytime, anywhere.";
 const ASK_START = "Ask me a question to get started.";
@@ -25,14 +25,14 @@ const NJA_OUT_OF_SCOPE_OFFLINE =
 
 const PRO_PLANS_DISPLAY = PRO_PLANS.map((p) => ({
   label: `Pro ${p.label}`,
-  price: `$${p.priceUsd} USDC / $${getCardPriceUsd(p.priceUsd)} card`,
+  price: `$${p.priceUsd} USDC / $${getCardPriceForPlan("pro", p)} card`,
 }));
 const VIP_PLANS_DISPLAY = VIP_PLANS.map((p) => ({
   label: `VIP ${p.label}`,
-  price: `$${p.priceUsd} USDC / $${getCardPriceUsd(p.priceUsd)} card`,
+  price: `$${p.priceUsd} USDC / $${getCardPriceForPlan("vip", p)} card`,
 }));
 const NJA_SUBSCRIPTION_INTRO = "NovaStaris offers two subscription tiers: Pro and VIP.";
-const NJA_SUBSCRIPTION_OUTRO = `Pro includes Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, BSC AI Analysis, and NovaConnect (community & DMs). VIP adds CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast, and on-demand NovaStaris AI Trading Bot. USDC (Solana) is list price; card payments include a $${CARD_PAYMENT_FEE_USD} card fee. To subscribe, use the Subscribe page in the app menu. Anything else I can help with?`;
+const NJA_SUBSCRIPTION_OUTRO = `Pro includes Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, BSC AI Analysis, and NovaConnect (community & DMs). VIP adds CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast, and on-demand NovaStaris AI Trading Bot. USDC (Solana) is list price; most card checkouts include a $${CARD_PAYMENT_FEE_USD} card fee (VIP 1-day trial is $20 on card with no fee). To subscribe, use the Subscribe page in the app menu. Anything else I can help with?`;
 
 const SUBSCRIPTION_KEYWORDS = [
   "subscription", "subscribe", "price", "pricing", "plan", "plans", "cost", "how much",

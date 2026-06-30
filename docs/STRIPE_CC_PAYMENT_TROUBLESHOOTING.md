@@ -48,7 +48,7 @@ You add it **in Stripe**, not in Vercel:
 2. **Manually grant the subscription (one-off fix)**
    - Go to **Admin → Customers**, find the customer by email.
    - Use the subscription action to **set** a subscription:
-     - For **$20 (VIP 1-day trial)**: tier `vip`, planId `1day` ($28 card).
+     - For **$20 (VIP 1-day trial)**: tier `vip`, planId `1day` ($20 card, no fee).
      - For **$70 (Pro 1 month)**: tier `pro`, planId `1month` ($78 card).
      - For **$150 (VIP 1 month)**: tier `vip`, planId `1month` ($158 card).
    - This uses the existing admin API `POST /api/admin/customers/[userId]/subscription` with body `{ "action": "set", "tier": "vip", "planId": "1day" }`.

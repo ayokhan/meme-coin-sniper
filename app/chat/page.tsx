@@ -30,7 +30,7 @@ const SUBSCRIPTION_KEYWORDS = [
   "pro", "vip", "pay", "payment", "fee", "fees", "trial", "monthly", "yearly",
 ];
 const NJA_SUBSCRIPTION_REPLY =
-  "NovaStaris offers Pro and VIP plans. Pro: 1 month $70 USDC ($78 card), 6 months $350 USDC ($358 card), 12 months $700 USDC ($708 card). VIP: 1-day trial $20 USDC ($28 card), 1 month $150 USDC ($158 card), 6 months $750 USDC ($758 card), 12 months $1,500 USDC ($1,508 card). USDC pays list price; card includes an $8 fee. Use the Subscribe page in the app to sign up. Anything else?";
+  "NovaStaris offers Pro and VIP plans. Pro: 1 month $70 USDC ($78 card), 6 months $350 USDC ($358 card), 12 months $700 USDC ($708 card). VIP: 1-day trial $20 (same on card and USDC), 1 month $150 USDC ($158 card), 6 months $750 USDC ($758 card), 12 months $1,500 USDC ($1,508 card). USDC pays list price; card adds $8 except on the VIP 1-day trial. Use the Subscribe page in the app to sign up. Anything else?";
 
 function isGreeting(text: string): boolean {
   const lower = text.trim().toLowerCase().replace(/[^\w\s]/g, "");

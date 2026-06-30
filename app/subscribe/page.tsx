@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, CreditCard } from "lucide-react";
-import { CARD_PAYMENT_FEE_USD } from "@/lib/subscription";
+import { CARD_PAYMENT_FEE_USD, cardPaymentFeeApplies, getCardPriceUsd } from "@/lib/subscription";
 
 type Plan = { id: string; label: string; months: number; priceUsd: number };
 
@@ -127,7 +127,8 @@ function SubscribeContent() {
   const plans = tier === "pro" ? proPlans : vipPlans;
   const plan = plans.find((p) => p.id === selectedPlan) ?? plans[0];
   const amountUsdc = plan?.priceUsd ?? 70;
-  const planCardPrice = plan ? plan.priceUsd + cardFee : 0;
+  const planCardPrice = plan ? getCardPriceUsd(plan.priceUsd, tier, plan.id) : 0;
+  const planCardFeeApplies = plan ? cardPaymentFeeApplies(tier, plan.id) : true;
 
   useEffect(() => {
     const inTier = plans.some((p) => p.id === selectedPlan);
@@ -301,7 +302,7 @@ function SubscribeContent() {
             </div>
             <div>
               <p className="font-semibold text-violet-600 dark:text-violet-400 mb-1">VIP ($150/mo USDC)</p>
-              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, <strong className="text-zinc-800 dark:text-zinc-200">NovaForecast</strong> (crypto perps + NovaRadar), <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (Market Watch for XAUUSD, FX, indices—NovaQ, Smart, Fib, Radar, and Scalp), NovaQ, Nova Investment Agent, VIP Crypto Futures add-ons, on-demand AI Trading Bot, Nova Polymarket Pro, and Nova Ultimate. $150 USDC or ${150 + cardFee} card per month; 1-day trial $20 USDC.</p>
+              <p className="text-zinc-600 dark:text-zinc-400">Everything in Pro + CT Scan (on-demand), Wallet Tracker, Coach Calls + Telegram Signals, <strong className="text-zinc-800 dark:text-zinc-200">NovaForecast</strong> (crypto perps + NovaRadar), <strong className="text-zinc-800 dark:text-zinc-200">Nova Forex Agent</strong> (Market Watch for XAUUSD, FX, indices—NovaQ, Smart, Fib, Radar, and Scalp), NovaQ, Nova Investment Agent, VIP Crypto Futures add-ons, on-demand AI Trading Bot, Nova Polymarket Pro, and Nova Ultimate. $150 USDC or ${150 + cardFee} card per month; 1-day trial $20 (same on card and USDC).</p>
             </div>
           </div>
         </div>
@@ -332,7 +333,7 @@ function SubscribeContent() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
-        {tier === "pro" ? "Pro: $70/month USDC ($78 card). Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month USDC ($158 card). 1-day trial $20 USDC ($28 card). Everything in Pro + CT Scan, Wallet Tracker, Coach Calls, NovaForecast, Nova Forex Agent (gold/FX desk), NovaQ, Nova Investment Agent, Nova+, NovaScalper, on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate."}
+        {tier === "pro" ? "Pro: $70/month USDC ($78 card). Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect." : "VIP: $150/month USDC ($158 card). 1-day trial $20 (no card fee). Everything in Pro + CT Scan, Wallet Tracker, Coach Calls, NovaForecast, Nova Forex Agent (gold/FX desk), NovaQ, Nova Investment Agent, Nova+, NovaScalper, on-demand AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Bot, and Nova Ultimate."}
         </p>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
           Pick the tier that matches your current pace: Pro for daily execution edge, VIP for maximum market coverage and on-demand premium workflows.
@@ -389,7 +390,11 @@ function SubscribeContent() {
             >
               <div className="font-semibold text-zinc-900 dark:text-zinc-100">{p.label}</div>
               <div className="mt-1 text-lg font-bold text-cyan-600 dark:text-cyan-400">${p.priceUsd} USDC</div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">${p.priceUsd + cardFee} with card (incl. ${cardFee} fee)</div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                {cardPaymentFeeApplies(tier, p.id)
+                  ? `$${p.priceUsd + cardFee} with card (incl. $${cardFee} fee)`
+                  : `$${p.priceUsd} with card (no card fee)`}
+              </div>
             </button>
           ))}
         </div>
@@ -452,7 +457,11 @@ function SubscribeContent() {
                 Pay with card
               </CardTitle>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Pay by credit or debit card. Includes a ${cardFee} card payment fee. You will be redirected to our secure payment page.
+                Pay by credit or debit card.
+                {planCardFeeApplies
+                  ? ` Includes a $${cardFee} card payment fee.`
+                  : " No card fee on the 1-day VIP trial."}{" "}
+                You will be redirected to our secure payment page.
               </p>
             </CardHeader>
             <CardContent>
