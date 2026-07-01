@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Zap, BarChart3, Sparkles, Bell, Users } from "lucide-react";
+import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,6 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+type UsageReportPeriod = "month" | "day";
 
 type UsageReportUser = {
   userId: string;
@@ -25,8 +27,11 @@ type UsageReportUser = {
 };
 
 type UsageReport = {
+  period: UsageReportPeriod;
+  periodKey: string;
+  periodLabel: string;
   monthKey: string;
-  startOfMonth: string;
+  dailyAiTrackingNote: string | null;
   totalUsers: number;
   usersWithActivity: number;
   totalAiAnalyses: number;
@@ -34,10 +39,19 @@ type UsageReport = {
   users: UsageReportUser[];
 };
 
-function formatMonthKey(key: string): string {
-  const [y, m] = key.split("-");
-  const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1);
-  return date.toLocaleString("default", { month: "long", year: "numeric" });
+function getDefaultMonthKey(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function getDefaultDayKey(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export default function AdminMetricsPage() {
@@ -46,13 +60,18 @@ export default function AdminMetricsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"all" | "active">("all");
+  const [period, setPeriod] = useState<UsageReportPeriod>("month");
+  const [monthKey, setMonthKey] = useState(getDefaultMonthKey);
+  const [dayKey, setDayKey] = useState(getDefaultDayKey);
 
-  useEffect(() => {
-    if (status !== "authenticated") {
-      setLoading(false);
-      return;
-    }
-    fetch("/api/admin/metrics")
+  const loadReport = useCallback(() => {
+    if (status !== "authenticated") return;
+    setLoading(true);
+    const params = new URLSearchParams({ period });
+    if (period === "month") params.set("month", monthKey);
+    else params.set("day", dayKey);
+
+    fetch(`/api/admin/metrics?${params}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) {
@@ -68,9 +87,17 @@ export default function AdminMetricsPage() {
         setReport(null);
       })
       .finally(() => setLoading(false));
-  }, [status]);
+  }, [status, period, monthKey, dayKey]);
 
-  if (status === "loading" || loading) {
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setLoading(false);
+      return;
+    }
+    loadReport();
+  }, [status, loadReport]);
+
+  if (status === "loading" || (loading && !report)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
         <Card className="w-full max-w-4xl border-zinc-200 dark:border-zinc-800">
@@ -99,6 +126,11 @@ export default function AdminMetricsPage() {
       </div>
     );
   }
+
+  const periodDescription =
+    report?.period === "day"
+      ? `Platform-wide usage for ${report.periodLabel}. Every registered user is listed; AI analyses and alerts (meme coin + leverage) for that day.`
+      : `Platform-wide usage for ${report?.periodLabel ?? "this month"}. Every registered user is listed; AI analyses and alerts (meme coin + leverage) for the month.`;
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-4 py-8">
@@ -134,13 +166,61 @@ export default function AdminMetricsPage() {
           <>
             <Card className="border-zinc-200 dark:border-zinc-800 mb-6">
               <CardHeader>
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-cyan-500" />
-                  <CardTitle>Usage report</CardTitle>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-cyan-500" />
+                    <CardTitle>Usage report</CardTitle>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={period === "month" ? "default" : "ghost"}
+                        className="h-8"
+                        onClick={() => setPeriod("month")}
+                      >
+                        Monthly
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={period === "day" ? "default" : "ghost"}
+                        className="h-8"
+                        onClick={() => setPeriod("day")}
+                      >
+                        Daily
+                      </Button>
+                    </div>
+                    {period === "month" ? (
+                      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarDays className="h-4 w-4 shrink-0" />
+                        <input
+                          type="month"
+                          value={monthKey}
+                          onChange={(e) => setMonthKey(e.target.value)}
+                          className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-sm text-zinc-900 dark:text-zinc-100"
+                        />
+                      </label>
+                    ) : (
+                      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarDays className="h-4 w-4 shrink-0" />
+                        <input
+                          type="date"
+                          value={dayKey}
+                          onChange={(e) => setDayKey(e.target.value)}
+                          className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-sm text-zinc-900 dark:text-zinc-100"
+                        />
+                      </label>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Platform-wide usage for <strong>{formatMonthKey(report.monthKey)}</strong>. Every registered user is listed; AI analyses and alerts (meme coin + leverage) for the month.
-                </p>
+                <p className="text-sm text-muted-foreground">{periodDescription}</p>
+                {report.dailyAiTrackingNote && (
+                  <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/50 rounded-md px-3 py-2 mt-2">
+                    {report.dailyAiTrackingNote}
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -188,6 +268,7 @@ export default function AdminMetricsPage() {
                     {filter === "all"
                       ? `${report.users.length} users`
                       : `${report.users.filter((u) => u.aiAnalyses > 0 || u.alerts > 0).length} users with activity`}
+                    {loading && <span className="ml-2 text-xs">(refreshing…)</span>}
                   </p>
                   <div className="flex gap-2">
                     <Button

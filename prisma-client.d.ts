@@ -209,13 +209,25 @@ declare module '@prisma/client' {
         update: { aiAnalyses: { increment: number } };
       }) => Promise<unknown>;
     };
+    usageAnalysisEvent: {
+      create: (args: { data: { userId: string; source?: string | null } }) => Promise<unknown>;
+      groupBy: (args: {
+        by: ["userId"];
+        where?: { createdAt: { gte: Date; lt?: Date } };
+        _count: { id: true };
+      }) => Promise<Array<{ userId: string; _count: { id: number } }>>;
+      findFirst: (args: {
+        orderBy: { createdAt: "asc" | "desc" };
+        select: { createdAt: true };
+      }) => Promise<{ createdAt: Date } | null>;
+    };
     userMemeCoinAlert: {
       count: (args: { where: { userId: string; createdAt: { gte: Date } } }) => Promise<number>;
-      groupBy: (args: { by: ["userId"]; where?: { createdAt: { gte: Date } }; _count: { id: true } }) => Promise<Array<{ userId: string; _count: { id: number } }>>;
+      groupBy: (args: { by: ["userId"]; where?: { createdAt: { gte: Date; lt?: Date } }; _count: { id: true } }) => Promise<Array<{ userId: string; _count: { id: number } }>>;
     };
     leverageAlert: {
       count: (args: { where: { userId: string; createdAt: { gte: Date } } }) => Promise<number>;
-      groupBy: (args: { by: ["userId"]; where?: { createdAt: { gte: Date }; userId?: { not: null } }; _count: { id: true } }) => Promise<Array<{ userId: string | null; _count: { id: number } }>>;
+      groupBy: (args: { by: ["userId"]; where?: { createdAt: { gte: Date; lt?: Date }; userId?: { not: null } }; _count: { id: true } }) => Promise<Array<{ userId: string | null; _count: { id: number } }>>;
     };
     polymarketTrackedWallet: {
       findMany: (args?: unknown) => Promise<

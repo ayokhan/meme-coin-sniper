@@ -154,6 +154,7 @@ model User {
   /** Eligible (e.g. VIP) users can set 2–5; alert when this many tracked wallets buy same token. */
   walletTrackerMinBuyers Int?
   usageThisMonth      UsageThisMonth[]
+  usageAnalysisEvents UsageAnalysisEvent[]
   novaConnectPresence NovaConnectPresence?
   novaConnectMessagesSent NovaConnectMessage[] @relation("NovaConnectFromUser")
   novaConnectMessagesReceived NovaConnectMessage[] @relation("NovaConnectToUser")
@@ -173,6 +174,18 @@ model UsageThisMonth {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, monthKey])
   @@index([userId])
+}
+
+// Per-analysis log for daily usage reports (monthly totals remain in UsageThisMonth).
+model UsageAnalysisEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  source    String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 // Per-user Blofin API keys (encrypted at rest). When set, trading bot uses these for that user.
