@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useEffect, useState, useMemo } from "react";
 import { canViewAdminSupportSession } from "@/lib/admin-access";
+import DelegatedAdminQuickNav from "@/components/admin/DelegatedAdminQuickNav";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,8 +41,6 @@ export default function AdminSupportPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [canDelete, setCanDelete] = useState(false);
-
-  const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -162,27 +161,7 @@ export default function AdminSupportPage() {
           <Zap className="h-5 w-5 text-amber-500" />
           NovaStaris
         </Link>
-        <div className="flex gap-4 mb-4 flex-wrap">
-          {isOwner && (
-            <>
-              <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-                Nova Admin hub
-              </Link>
-              <Link href="/admin/customers" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-                Customers
-              </Link>
-              <Link href="/admin/wallet-tracker" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-                Wallet Tracker
-              </Link>
-              <Link href="/admin/feature-flags" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-                Feature flags
-              </Link>
-            </>
-          )}
-          <Link href="/admin/chat" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Live chat
-          </Link>
-        </div>
+        <DelegatedAdminQuickNav />
         <Card className="border-zinc-200 dark:border-zinc-800">
           <CardHeader>
             <CardTitle>Nova Admin — Support tickets</CardTitle>

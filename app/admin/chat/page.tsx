@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { canAccessLiveChatAgentSession } from "@/lib/admin-access";
 import { resolveSupportStaffDisplayName } from "@/lib/support-agent";
+import DelegatedAdminQuickNav from "@/components/admin/DelegatedAdminQuickNav";
 import { Zap, Send, User, Bot, Headphones, Trash2, MessageSquarePlus, X } from "lucide-react";
 
 type Message = { id: string; role: string; content: string; agentDisplayName?: string | null; createdAt: string };
@@ -42,7 +43,6 @@ export default function AdminChatPage() {
     [openWindowIds, sessions]
   );
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
   const canUseLiveChat = canAccessLiveChatAgentSession(session);
   const agentDisplayName = resolveSupportStaffDisplayName(
     (session?.user as { supportStaffName?: string | null } | undefined)?.supportStaffName
@@ -218,23 +218,7 @@ export default function AdminChatPage() {
           <Zap className="h-5 w-5 text-amber-500" />
           NovaStaris
         </Link>
-        <div className="flex gap-4 mb-4 flex-wrap">
-          <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Nova Admin hub
-          </Link>
-          <Link href="/admin/customers" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Customers
-          </Link>
-          <Link href="/admin/support" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Support tickets
-          </Link>
-          <Link href="/admin/wallet-tracker" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Wallet Tracker
-          </Link>
-          <Link href="/admin/feature-flags" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Feature flags
-          </Link>
-        </div>
+        <DelegatedAdminQuickNav />
 
         <Card className="border-zinc-200 dark:border-zinc-800 overflow-hidden">
           <CardHeader>
