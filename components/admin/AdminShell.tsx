@@ -1,20 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Zap, Menu, X } from "lucide-react";
-import { useState } from "react";
-import { ADMIN_NAV_GROUPS, adminNavByGroup } from "@/lib/admin-nav-config";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { ADMIN_NAV_GROUPS, ADMIN_NAV_ITEMS, adminNavByGroup } from "@/lib/admin-nav-config";
+import { customersViewerAdminOnly } from "@/lib/admin-access";
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const viewerOnly = customersViewerAdminOnly(session);
+
+  useEffect(() => {
+    if (!session || !viewerOnly) return;
+    if (pathname !== "/admin/customers" && pathname.startsWith("/admin")) {
+      router.replace("/admin/customers");
+    }
+  }, [session, viewerOnly, pathname, router]);
+
   const grouped = adminNavByGroup();
+  const visibleItems = viewerOnly
+    ? ADMIN_NAV_ITEMS.filter((item) => item.href === "/admin/customers")
+    : ADMIN_NAV_ITEMS;
+  const visibleGroups = viewerOnly
+    ? ADMIN_NAV_GROUPS.filter((g) => visibleItems.some((item) => item.group === g.id))
+    : ADMIN_NAV_GROUPS;
 
   const nav = (
     <nav className="flex flex-col gap-5 py-4">
-      {ADMIN_NAV_GROUPS.map((g) => {
-        const items = grouped[g.id];
+      {visibleGroups.map((g) => {
+        const items = viewerOnly ? visibleItems : grouped[g.id];
         if (items.length === 0) return null;
         return (
           <div key={g.id}>
@@ -68,7 +87,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               NovaStaris
             </Link>
             <span className="hidden sm:inline text-zinc-400">/</span>
-            <span className="hidden sm:inline text-sm font-semibold text-cyan-700 dark:text-cyan-300">Admin</span>
+            <span className="hidden sm:inline text-sm font-semibold text-cyan-700 dark:text-cyan-300">
+              {viewerOnly ? "Customers" : "Admin"}
+            </span>
           </div>
           <Link
             href="/"

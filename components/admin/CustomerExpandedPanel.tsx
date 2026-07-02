@@ -30,6 +30,7 @@ export type AdminCustomerRecord = {
   novaConnectCommunityRep: boolean;
   novaConnectAllowedByAdmin: boolean;
   coachUser: boolean;
+  customersViewerAdmin?: boolean;
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
   subscriptionExpiresAt: string | null;
@@ -43,12 +44,14 @@ function OnOffButton({
   onClick,
   title,
   active = "emerald",
+  readOnly = false,
 }: {
   on: boolean;
   busy: boolean;
   onClick: () => void;
   title?: string;
   active?: "emerald" | "amber" | "violet" | "cyan" | "orange";
+  readOnly?: boolean;
 }) {
   const activeClass =
     active === "amber"
@@ -60,6 +63,13 @@ function OnOffButton({
           : active === "orange"
             ? "bg-orange-100 dark:bg-orange-900/50 text-orange-900 dark:text-orange-200"
             : "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200";
+  if (readOnly) {
+    return (
+      <span className={`min-w-[3rem] text-xs font-medium px-2.5 py-1 rounded ${on ? activeClass : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"}`}>
+        {on ? "On" : "Off"}
+      </span>
+    );
+  }
   return (
     <button
       type="button"
@@ -97,6 +107,8 @@ function DetailRow({ label, hint, children }: { label: string; hint?: string; ch
 export type CustomerExpandedPanelProps = {
   c: AdminCustomerRecord;
   showLegacyOnDemand: boolean;
+  readOnly?: boolean;
+  isOwner?: boolean;
   formatExpiryLabel: (expiresAt: string | null, subscriptionExpiresAt: string | null) => string;
   ctDuration: string;
   onCtDurationChange: (value: string) => void;
@@ -118,6 +130,7 @@ export type CustomerExpandedPanelProps = {
     subscription: boolean;
     resetPassword: boolean;
     delete: boolean;
+    customersViewerAdmin?: boolean;
   };
   onTradingBot: (value: boolean) => void;
   onPolymarket: (value: boolean) => void;
@@ -136,11 +149,14 @@ export type CustomerExpandedPanelProps = {
   onClearSubscription: () => void;
   onResetPassword: () => void;
   onDelete: () => void;
+  onCustomersViewerAdmin?: (value: boolean) => void;
 };
 
 export default function CustomerExpandedPanel({
   c,
   showLegacyOnDemand,
+  readOnly = false,
+  isOwner = false,
   formatExpiryLabel,
   ctDuration,
   onCtDurationChange,
@@ -164,6 +180,7 @@ export default function CustomerExpandedPanel({
   onClearSubscription,
   onResetPassword,
   onDelete,
+  onCustomersViewerAdmin,
 }: CustomerExpandedPanelProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 p-4 bg-zinc-50/80 dark:bg-zinc-900/30 border-t border-zinc-200 dark:border-zinc-700">
@@ -182,40 +199,53 @@ export default function CustomerExpandedPanel({
         </DetailRow>
         <DetailRow label="Email digest" hint="Newsletter / perp digest">
           {c.email ? (
-            <OnOffButton on={c.newsletterOptIn} busy={busy.newsletter} onClick={() => onNewsletter(!c.newsletterOptIn)} />
+            <OnOffButton readOnly={readOnly} on={c.newsletterOptIn} busy={busy.newsletter} onClick={() => onNewsletter(!c.newsletterOptIn)} />
           ) : (
             <span className="text-xs text-zinc-400">Email required</span>
           )}
         </DetailRow>
+        {isOwner && onCustomersViewerAdmin && (
+          <DetailRow label="Customers viewer admin" hint="Read-only access to Admin → Customers">
+            <OnOffButton
+              readOnly={false}
+              on={!!c.customersViewerAdmin}
+              busy={!!busy.customersViewerAdmin}
+              onClick={() => onCustomersViewerAdmin(!c.customersViewerAdmin)}
+              active="cyan"
+            />
+          </DetailRow>
+        )}
       </DetailSection>
 
       <DetailSection title="On-demand access">
         <DetailRow label="Trading bot">
-          <OnOffButton on={c.tradingBotOnDemand} busy={busy.tradingBot} onClick={() => onTradingBot(!c.tradingBotOnDemand)} active="amber" />
+          <OnOffButton readOnly={readOnly} on={c.tradingBotOnDemand} busy={busy.tradingBot} onClick={() => onTradingBot(!c.tradingBotOnDemand)} active="amber" />
         </DetailRow>
         <DetailRow label="Polymarket bot">
-          <OnOffButton on={c.polymarketBotOnDemand} busy={busy.polymarket} onClick={() => onPolymarket(!c.polymarketBotOnDemand)} active="violet" />
+          <OnOffButton readOnly={readOnly} on={c.polymarketBotOnDemand} busy={busy.polymarket} onClick={() => onPolymarket(!c.polymarketBotOnDemand)} active="violet" />
         </DetailRow>
         {showLegacyOnDemand && (
           <DetailRow label="Prop firm bot" hint="Legacy — hidden by default">
-            <OnOffButton on={c.propFirmBotOnDemand} busy={busy.propFirm} onClick={() => onPropFirm(!c.propFirmBotOnDemand)} active="orange" />
+            <OnOffButton readOnly={readOnly} on={c.propFirmBotOnDemand} busy={busy.propFirm} onClick={() => onPropFirm(!c.propFirmBotOnDemand)} active="orange" />
           </DetailRow>
         )}
         <DetailRow label="Nova Ultimate">
-          <OnOffButton on={c.novaUltimateOnDemand} busy={busy.ultimate} onClick={() => onUltimate(!c.novaUltimateOnDemand)} active="cyan" />
+          <OnOffButton readOnly={readOnly} on={c.novaUltimateOnDemand} busy={busy.ultimate} onClick={() => onUltimate(!c.novaUltimateOnDemand)} active="cyan" />
         </DetailRow>
         <DetailRow label="CT Scan" hint="Expiry when enabling">
-          <select
-            value={ctDuration}
-            onChange={(e) => onCtDurationChange(e.target.value)}
-            disabled={busy.ctScan}
-            className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800"
-          >
-            <option value="subscription">End of subscription</option>
-            <option value="1day">1 day</option>
-            <option value="5days">5 days</option>
-          </select>
-          <OnOffButton on={c.ctScanOnDemand} busy={busy.ctScan} onClick={() => onCtScan(!c.ctScanOnDemand)} active="cyan" />
+          {!readOnly && (
+            <select
+              value={ctDuration}
+              onChange={(e) => onCtDurationChange(e.target.value)}
+              disabled={busy.ctScan}
+              className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800"
+            >
+              <option value="subscription">End of subscription</option>
+              <option value="1day">1 day</option>
+              <option value="5days">5 days</option>
+            </select>
+          )}
+          <OnOffButton readOnly={readOnly} on={c.ctScanOnDemand} busy={busy.ctScan} onClick={() => onCtScan(!c.ctScanOnDemand)} active="cyan" />
           {c.ctScanOnDemand && (
             <span className="text-[10px] text-muted-foreground w-full">
               {formatExpiryLabel(c.ctScanOnDemandExpiresAt, c.subscriptionExpiresAt)}
@@ -223,17 +253,19 @@ export default function CustomerExpandedPanel({
           )}
         </DetailRow>
         <DetailRow label="Meme coins traders">
-          <select
-            value={memeDuration}
-            onChange={(e) => onMemeDurationChange(e.target.value)}
-            disabled={busy.memeTrader}
-            className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800"
-          >
-            <option value="subscription">End of subscription</option>
-            <option value="1day">1 day</option>
-            <option value="5days">5 days</option>
-          </select>
-          <OnOffButton on={c.memeCoinsTraderOnDemand} busy={busy.memeTrader} onClick={() => onMemeTrader(!c.memeCoinsTraderOnDemand)} active="amber" />
+          {!readOnly && (
+            <select
+              value={memeDuration}
+              onChange={(e) => onMemeDurationChange(e.target.value)}
+              disabled={busy.memeTrader}
+              className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800"
+            >
+              <option value="subscription">End of subscription</option>
+              <option value="1day">1 day</option>
+              <option value="5days">5 days</option>
+            </select>
+          )}
+          <OnOffButton readOnly={readOnly} on={c.memeCoinsTraderOnDemand} busy={busy.memeTrader} onClick={() => onMemeTrader(!c.memeCoinsTraderOnDemand)} active="amber" />
           {c.memeCoinsTraderOnDemand && (
             <span className="text-[10px] text-muted-foreground w-full">
               {formatExpiryLabel(c.memeCoinsTraderOnDemandExpiresAt, c.subscriptionExpiresAt)}
@@ -244,16 +276,16 @@ export default function CustomerExpandedPanel({
 
       <DetailSection title="Community (NovaConnect)">
         <DetailRow label="NovaConnect enabled">
-          <OnOffButton on={c.novaConnectEnabled} busy={busy.novaConnect} onClick={() => onNovaConnect(!c.novaConnectEnabled)} active="cyan" />
+          <OnOffButton readOnly={readOnly} on={c.novaConnectEnabled} busy={busy.novaConnect} onClick={() => onNovaConnect(!c.novaConnectEnabled)} active="cyan" />
         </DetailRow>
         <DetailRow label="Allow access" hint="Online list & DMs without VIP">
-          <OnOffButton on={c.novaConnectAllowedByAdmin} busy={busy.allowConnect} onClick={() => onAllowConnect(!c.novaConnectAllowedByAdmin)} />
+          <OnOffButton readOnly={readOnly} on={c.novaConnectAllowedByAdmin} busy={busy.allowConnect} onClick={() => onAllowConnect(!c.novaConnectAllowedByAdmin)} />
         </DetailRow>
         <DetailRow label="Coach user" hint="VIP + publish coach calls">
-          <OnOffButton on={c.coachUser} busy={busy.coach} onClick={() => onCoach(!c.coachUser)} active="amber" />
+          <OnOffButton readOnly={readOnly} on={c.coachUser} busy={busy.coach} onClick={() => onCoach(!c.coachUser)} active="amber" />
         </DetailRow>
         <DetailRow label="Community rep" hint="Can delete community posts">
-          <OnOffButton on={c.novaConnectCommunityRep} busy={busy.communityRep} onClick={() => onCommunityRep(!c.novaConnectCommunityRep)} active="violet" />
+          <OnOffButton readOnly={readOnly} on={c.novaConnectCommunityRep} busy={busy.communityRep} onClick={() => onCommunityRep(!c.novaConnectCommunityRep)} active="violet" />
         </DetailRow>
         <DetailRow label="Rules accepted">
           {c.novaConnectRulesAcceptedAt ? (
@@ -263,19 +295,22 @@ export default function CustomerExpandedPanel({
           ) : (
             <>
               <span className="text-xs text-zinc-500">No</span>
-              <button
-                type="button"
-                onClick={onAcceptRules}
-                disabled={busy.rules}
-                className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline disabled:opacity-50"
-              >
-                {busy.rules ? "…" : "Accept for user"}
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={onAcceptRules}
+                  disabled={busy.rules}
+                  className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline disabled:opacity-50"
+                >
+                  {busy.rules ? "…" : "Accept for user"}
+                </button>
+              )}
             </>
           )}
         </DetailRow>
       </DetailSection>
 
+      {!readOnly && (
       <DetailSection title="Subscription & account">
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={onSetVip} disabled={busy.subscription} className="text-xs px-2.5 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 disabled:opacity-50">
@@ -297,6 +332,7 @@ export default function CustomerExpandedPanel({
           </button>
         </div>
       </DetailSection>
+      )}
 
       {Array.isArray(c.payments) && c.payments.length > 0 && (
         <DetailSection title={`Payments (${c.payments.length})`}>

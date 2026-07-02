@@ -130,6 +130,8 @@ model User {
   novaConnectAllowedByAdmin  Boolean  @default(false)
   /** Set by owner/admin: coach user gets VIP-level app access + can publish coach calls (not admin pages). */
   coachUser                  Boolean  @default(false)
+  /** Owner grants read-only access to Admin → Customers (view only; no edits). */
+  customersViewerAdmin       Boolean  @default(false)
   /** When user accepted Payment Terms and Conditions (required before any subscription payment). */
   paymentTermsAcceptedAt     DateTime?
   createdAt     DateTime  @default(now())

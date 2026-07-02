@@ -17,6 +17,7 @@ declare module 'next-auth' {
       walletAddress?: string | null;
       isPaid: boolean;
       isOwner?: boolean;
+      customersViewerAdmin?: boolean;
       isCoachUser?: boolean;
       tier?: Tier | null;
       tradingBotOnDemand?: boolean;
@@ -151,6 +152,7 @@ export async function buildJwtTokenForUserId(userId: string): Promise<string | n
       isPaid: fresh.isPaid,
       tier: fresh.tier,
       isCoachUser: fresh.isCoachUser,
+      customersViewerAdmin: fresh.customersViewerAdmin,
       tradingBotOnDemand: fresh.tradingBotOnDemand,
       polymarketBotOnDemand: fresh.polymarketBotOnDemand,
       propFirmBotOnDemand: fresh.propFirmBotOnDemand,
@@ -179,6 +181,7 @@ async function getAuthUserStateById(userId: string) {
     isPaid,
     tier,
     isCoachUser: !!(user as { coachUser?: boolean }).coachUser,
+    customersViewerAdmin: !!(user as { customersViewerAdmin?: boolean }).customersViewerAdmin,
     tradingBotOnDemand: !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand,
     polymarketBotOnDemand: !!(user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand,
     propFirmBotOnDemand: !!(user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand,
@@ -321,6 +324,7 @@ export const authOptions: NextAuthOptions = {
             token.isPaid = fresh.isPaid;
             token.tier = fresh.tier;
             token.isCoachUser = fresh.isCoachUser;
+            token.customersViewerAdmin = fresh.customersViewerAdmin;
             token.tradingBotOnDemand = fresh.tradingBotOnDemand;
             token.polymarketBotOnDemand = fresh.polymarketBotOnDemand;
             token.propFirmBotOnDemand = fresh.propFirmBotOnDemand;
@@ -349,6 +353,7 @@ export const authOptions: NextAuthOptions = {
               token.isPaid = fresh.isPaid;
               token.tier = fresh.tier;
               token.isCoachUser = fresh.isCoachUser;
+              token.customersViewerAdmin = fresh.customersViewerAdmin;
               token.tradingBotOnDemand = fresh.tradingBotOnDemand;
               token.polymarketBotOnDemand = fresh.polymarketBotOnDemand;
               token.propFirmBotOnDemand = fresh.propFirmBotOnDemand;
@@ -371,6 +376,7 @@ export const authOptions: NextAuthOptions = {
         token.isPaid = (user as { isPaid?: boolean }).isPaid ?? false;
         token.tier = (user as { tier?: Tier | null }).tier ?? null;
         token.isCoachUser = (user as { isCoachUser?: boolean }).isCoachUser ?? false;
+        token.customersViewerAdmin = (user as { customersViewerAdmin?: boolean }).customersViewerAdmin ?? false;
         token.tradingBotOnDemand = (user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand ?? false;
         token.polymarketBotOnDemand = (user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand ?? false;
         token.propFirmBotOnDemand = (user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand ?? false;
@@ -404,6 +410,7 @@ export const authOptions: NextAuthOptions = {
           (token as { memeCoinsTraderOnDemandExpiresAt?: Date | string | null }).memeCoinsTraderOnDemandExpiresAt ?? null;
         let novaConnectCommunityRep = (token.novaConnectCommunityRep as boolean) ?? false;
         let novaConnectAllowedByAdmin = (token.novaConnectAllowedByAdmin as boolean) ?? false;
+        let customersViewerAdmin = (token as { customersViewerAdmin?: boolean }).customersViewerAdmin ?? false;
         const owner = isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress);
         if (owner) {
           isPaid = true;
@@ -435,6 +442,7 @@ export const authOptions: NextAuthOptions = {
                       novaConnectCommunityRep: boolean;
                       novaConnectAllowedByAdmin: boolean;
                       coachUser: boolean;
+                      customersViewerAdmin: boolean;
                     } | null>;
                   };
                 }
@@ -452,6 +460,7 @@ export const authOptions: NextAuthOptions = {
                   novaConnectCommunityRep: true,
                   novaConnectAllowedByAdmin: true,
                   coachUser: true,
+                  customersViewerAdmin: true,
                 },
               });
               if (fresh) {
@@ -466,6 +475,7 @@ export const authOptions: NextAuthOptions = {
                 novaConnectCommunityRep = !!fresh.novaConnectCommunityRep;
                 novaConnectAllowedByAdmin = !!fresh.novaConnectAllowedByAdmin;
                 isCoachUser = !!fresh.coachUser;
+                customersViewerAdmin = !!fresh.customersViewerAdmin;
               }
             } catch {
               /* keep values derived from JWT */
@@ -481,6 +491,7 @@ export const authOptions: NextAuthOptions = {
         session.user.isPaid = isPaid;
         session.user.isOwner = owner;
         session.user.isCoachUser = isCoachUser;
+        session.user.customersViewerAdmin = owner ? false : customersViewerAdmin;
         session.user.tier = tier;
         session.user.tradingBotOnDemand = tradingBotOnDemand;
         session.user.polymarketBotOnDemand = polymarketBotOnDemand;

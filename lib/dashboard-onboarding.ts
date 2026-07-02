@@ -34,7 +34,7 @@ export const DASHBOARD_PATH_OPTIONS: Array<{
   {
     id: "futures",
     title: "Futures & metals trader",
-    description: "VIP: NovaForecast, NovaRadar, Nova Forex, addons. Platform: Crypto Futures chart AI.",
+    description: "VIP: NovaForecast, NovaRadar, Nova Forex, addons. Markets: Crypto Futures chart AI.",
     emoji: "📈",
   },
   {
@@ -153,7 +153,7 @@ export function pathHintCopy(path: DashboardPath | null): string {
     case "polymarket":
       return "Your path: Prediction markets — open Nova Polymarket under Bots (on-demand access may apply).";
     case "all":
-      return "Showing all tools. Use Core / Platform / VIP / Bots filters above to focus.";
+      return "Showing all tools. Use Core / Markets / VIP / Bots filters above to focus.";
     default:
       return "New here? Pick a focus path (Meme, Futures, Wallet tracking, or Prediction markets) to reduce tab clutter.";
   }

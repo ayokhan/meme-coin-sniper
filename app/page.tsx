@@ -310,6 +310,7 @@ export default function Dashboard() {
   const [subscriptionPaid, setSubscriptionPaid] = useState<boolean | null>(null);
   const [subscriptionTier, setSubscriptionTier] = useState<"pro" | "vip" | null>(null);
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
+  const isCustomersViewerAdmin = (session?.user as { customersViewerAdmin?: boolean } | undefined)?.customersViewerAdmin ?? false;
   const isCoachUser = (session?.user as { isCoachUser?: boolean } | undefined)?.isCoachUser ?? false;
   const isPaid = isOwner || isCoachUser || (subscriptionPaid !== null ? subscriptionPaid : sessionPaid);
   const tier = (isOwner || isCoachUser) ? "vip" : (subscriptionTier !== null ? subscriptionTier : sessionTier);
@@ -3456,6 +3457,11 @@ export default function Dashboard() {
                 </div>
               </>
             )}
+            {status === "authenticated" && isCustomersViewerAdmin && !isOwner && (
+              <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
+                <Link href="/admin/customers">Admin</Link>
+              </Button>
+            )}
             {status === "authenticated" && (
               <Button
                 variant="outline"
@@ -3552,6 +3558,11 @@ export default function Dashboard() {
               {status === "authenticated" && isOwner && (
                 <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
                   <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>Nova Admin</Link>
+                </Button>
+              )}
+              {status === "authenticated" && isCustomersViewerAdmin && !isOwner && (
+                <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
+                  <Link href="/admin/customers" onClick={() => setMobileMenuOpen(false)}>Admin</Link>
                 </Button>
               )}
               {status === "authenticated" && (
@@ -3715,7 +3726,7 @@ export default function Dashboard() {
                 {([
                   { id: "all", label: "All" },
                   { id: "core", label: "Core" },
-                  { id: "pro", label: "Platform" },
+                  { id: "pro", label: "Markets" },
                   { id: "vip", label: "VIP" },
                   { id: "bots", label: "Bots" },
                 ] as const).map((f) => (

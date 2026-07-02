@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, isOwnerEmail } from '@/lib/auth';
+import { authOptions, isOwnerSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 /** PATCH - Update user flags (e.g. tradingBotOnDemand). Owner only. */
@@ -10,11 +10,10 @@ export async function PATCH(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email ?? null;
-    if (!email) {
+    if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
-    if (!isOwnerEmail(email)) {
+    if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
     const { userId } = await params;
@@ -35,6 +34,7 @@ export async function PATCH(
     const novaConnectCommunityRep = body.novaConnectCommunityRep;
     const novaConnectAllowedByAdmin = body.novaConnectAllowedByAdmin;
     const coachUser = body.coachUser;
+    const customersViewerAdmin = body.customersViewerAdmin;
     const rulesAccepted = body.rulesAccepted;
     const updates: {
       tradingBotOnDemand?: boolean;
@@ -50,6 +50,7 @@ export async function PATCH(
       novaConnectCommunityRep?: boolean;
       novaConnectAllowedByAdmin?: boolean;
       coachUser?: boolean;
+      customersViewerAdmin?: boolean;
       novaConnectRulesAcceptedAt?: Date | null;
     } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
@@ -69,13 +70,14 @@ export async function PATCH(
     if (typeof novaConnectCommunityRep === 'boolean') updates.novaConnectCommunityRep = novaConnectCommunityRep;
     if (typeof novaConnectAllowedByAdmin === 'boolean') updates.novaConnectAllowedByAdmin = novaConnectAllowedByAdmin;
     if (typeof coachUser === 'boolean') updates.coachUser = coachUser;
+    if (typeof customersViewerAdmin === 'boolean') updates.customersViewerAdmin = customersViewerAdmin;
     if (typeof rulesAccepted === 'boolean') {
       updates.novaConnectRulesAcceptedAt = rulesAccepted ? new Date() : null;
     }
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, rulesAccepted (boolean).',
+        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, customersViewerAdmin, rulesAccepted (boolean).',
       }, { status: 400 });
     }
     await (prisma as any).user.update({
@@ -96,11 +98,10 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email ?? null;
-    if (!email) {
+    if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
-    if (!isOwnerEmail(email)) {
+    if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 

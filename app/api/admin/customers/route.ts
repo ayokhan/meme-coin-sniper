@@ -1,19 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, isOwnerEmail } from '@/lib/auth';
+import { authOptions, isOwnerEmail, isOwnerSession } from '@/lib/auth';
+import { canViewAdminCustomersSession } from '@/lib/admin-access';
 import { prisma } from '@/lib/db';
 
-/** GET - List all customers (name, email, phone, country, experience, subscription). Owner-only. */
+/** GET - List all customers. Owner or read-only customers admin. */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const email = session?.user?.email ?? null;
-    if (!email) {
+    if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
-    if (!isOwnerEmail(email)) {
-      return NextResponse.json({ success: false, error: 'Not authorized. Only owner emails (OWNER_EMAIL) can access.' }, { status: 403 });
+    if (!canViewAdminCustomersSession(session)) {
+      return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
+    const readOnly = !isOwnerSession(session);
 
     const users = await prisma.user.findMany({
       include: { subscriptions: true },
@@ -66,6 +67,7 @@ export async function GET() {
         novaConnectCommunityRep: !!(u as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep,
         novaConnectAllowedByAdmin: !!(u as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin,
         coachUser: !!(u as { coachUser?: boolean }).coachUser,
+        customersViewerAdmin: !!(u as { customersViewerAdmin?: boolean }).customersViewerAdmin,
         paymentTermsAcceptedAt: (u as { paymentTermsAcceptedAt?: Date | null }).paymentTermsAcceptedAt ?? null,
         createdAt: u.createdAt,
         subscriptionTier: subTier,
@@ -76,7 +78,7 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ success: true, customers });
+    return NextResponse.json({ success: true, customers, readOnly });
   } catch (e) {
     console.error('Admin customers error:', e);
     return NextResponse.json({ success: false, error: 'Failed to load customers.' }, { status: 500 });

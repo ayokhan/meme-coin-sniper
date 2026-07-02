@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import CustomerExpandedPanel from "@/components/admin/CustomerExpandedPanel";
+import { canViewAdminCustomersSession, customersViewerAdminOnly } from "@/lib/admin-access";
 
 type Payment = {
   date: string;
@@ -36,6 +37,7 @@ type Customer = {
   novaConnectCommunityRep: boolean;
   novaConnectAllowedByAdmin: boolean;
   coachUser: boolean;
+  customersViewerAdmin: boolean;
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
   createdAt: string;
@@ -83,6 +85,7 @@ export default function AdminCustomersPage() {
   const [togglingCommunityRepId, setTogglingCommunityRepId] = useState<string | null>(null);
   const [togglingAllowedByAdminId, setTogglingAllowedByAdminId] = useState<string | null>(null);
   const [togglingCoachUserId, setTogglingCoachUserId] = useState<string | null>(null);
+  const [togglingCustomersViewerAdminId, setTogglingCustomersViewerAdminId] = useState<string | null>(null);
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const customersTableScrollRef = useRef<HTMLDivElement>(null);
@@ -486,6 +489,31 @@ export default function AdminCustomersPage() {
     }
   };
 
+  const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
+  const readOnly = customersViewerAdminOnly(session);
+
+  const handleCustomersViewerAdminToggle = async (id: string, value: boolean) => {
+    setTogglingCustomersViewerAdminId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customersViewerAdmin: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Customers viewer admin enabled (read-only)." : "Customers viewer admin removed.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update customers viewer admin");
+    } catch {
+      setError("Failed to update customers viewer admin");
+    } finally {
+      setTogglingCustomersViewerAdminId(null);
+    }
+  };
+
   const handleCoachUserToggle = async (id: string, value: boolean) => {
     setTogglingCoachUserId(id);
     setError("");
@@ -613,6 +641,16 @@ export default function AdminCustomersPage() {
     );
   }
 
+  if (!canViewAdminCustomersSession(session)) {
+    return (
+      <Card className="w-full max-w-4xl border-zinc-200 dark:border-zinc-800">
+        <CardContent className="py-8 text-center text-muted-foreground">
+          Not authorized to view customers.
+        </CardContent>
+      </Card>
+    );
+  }
+
   const onDemandLabels = (c: Customer) => {
     const chips: { label: string; className: string }[] = [];
     if (c.tradingBotOnDemand) chips.push({ label: "Bot", className: "bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200" });
@@ -628,7 +666,11 @@ export default function AdminCustomersPage() {
     <div className="max-w-[1400px]">
       <AdminPageHeader
         title="Customers"
-        description="Registered users, subscriptions, and on-demand VIP access. Owner only (OWNER_EMAIL)."
+        description={
+          readOnly
+            ? "View registered users, subscriptions, and on-demand access. Read-only — contact the owner to make changes."
+            : "Registered users, subscriptions, and on-demand VIP access. Owner only (OWNER_EMAIL)."
+        }
       />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <Card className="border-zinc-200 dark:border-zinc-800">
@@ -725,7 +767,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold min-w-[12rem]">Customer</th>
                       <th className="pb-2 pr-4 font-semibold min-w-[9rem]">Subscription</th>
                       <th className="pb-2 pr-4 font-semibold min-w-[10rem]">On-demand</th>
-                      <th className="pb-2 font-semibold min-w-[8rem]">Quick actions</th>
+                      <th className="pb-2 font-semibold min-w-[8rem]">{readOnly ? "Details" : "Quick actions"}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -803,20 +845,22 @@ export default function AdminCustomersPage() {
                             </td>
                             <td className="py-2 align-top">
                               <div className="flex flex-wrap gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleSetSubscription(c.id, "vip")}
-                                  disabled={updatingId === c.id}
-                                  className="text-[11px] px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 disabled:opacity-50"
-                                >
-                                  VIP
-                                </button>
+                                {!readOnly && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetSubscription(c.id, "vip")}
+                                    disabled={updatingId === c.id}
+                                    className="text-[11px] px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 disabled:opacity-50"
+                                  >
+                                    VIP
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => setExpandedCustomerId(expanded ? null : c.id)}
                                   className="text-[11px] px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
                                 >
-                                  {expanded ? "Less" : "Manage"}
+                                  {expanded ? "Less" : readOnly ? "View" : "Manage"}
                                 </button>
                               </div>
                             </td>
@@ -826,6 +870,8 @@ export default function AdminCustomersPage() {
                               <td colSpan={TABLE_COL_COUNT} className="p-0">
                                 <CustomerExpandedPanel
                                   c={c}
+                                  readOnly={readOnly}
+                                  isOwner={isOwner}
                                   showLegacyOnDemand={showLegacyOnDemand}
                                   formatExpiryLabel={formatExpiryLabel}
                                   ctDuration={ctOnDemandDurationById[c.id] ?? "subscription"}
@@ -848,6 +894,7 @@ export default function AdminCustomersPage() {
                                     subscription: updatingId === c.id,
                                     resetPassword: resettingPasswordId === c.id,
                                     delete: deletingId === c.id,
+                                    customersViewerAdmin: togglingCustomersViewerAdminId === c.id,
                                   }}
                                   onTradingBot={(v) => handleTradingBotOnDemand(c.id, v)}
                                   onPolymarket={(v) => handlePolymarketBotOnDemand(c.id, v)}
@@ -866,6 +913,7 @@ export default function AdminCustomersPage() {
                                   onClearSubscription={() => handleSetSubscription(c.id, "clear")}
                                   onResetPassword={() => handleResetPassword(c.id, c.email)}
                                   onDelete={() => handleDelete(c.id)}
+                                  onCustomersViewerAdmin={(v) => handleCustomersViewerAdminToggle(c.id, v)}
                                 />
                               </td>
                             </tr>

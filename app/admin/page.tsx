@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import { adminNavByGroup, ADMIN_NAV_GROUPS } from "@/lib/admin-nav-config";
+import { customersViewerAdminOnly } from "@/lib/admin-access";
 import { Headphones, MessageCircle } from "lucide-react";
 
 type Ticket = {
@@ -21,9 +23,17 @@ const RECENT_TICKETS = 8;
 
 export default function AdminHubPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [recentTickets, setRecentTickets] = useState<Ticket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const grouped = adminNavByGroup();
+
+  useEffect(() => {
+    if (status !== "authenticated" || !session) return;
+    if (customersViewerAdminOnly(session)) {
+      router.replace("/admin/customers");
+    }
+  }, [status, session, router]);
 
   useEffect(() => {
     if (status !== "authenticated") return;

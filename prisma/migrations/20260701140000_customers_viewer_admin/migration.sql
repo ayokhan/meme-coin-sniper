@@ -1,0 +1,1 @@
+ALTER TABLE "User" ADD COLUMN "customersViewerAdmin" BOOLEAN NOT NULL DEFAULT false;
