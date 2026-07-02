@@ -113,6 +113,8 @@ export function defaultSessionState(accountSize: number): SessionState {
   };
 }
 
+export type PropFirmTrackingMode = "manual" | "blofin";
+
 export type PropFirmPersisted = {
   cfg: PropFirmConfig;
   state: SessionState;
@@ -121,6 +123,8 @@ export type PropFirmPersisted = {
   autoSync: boolean;
   /** When set, Blofin sync uses this environment (demo vs live). */
   blofinSyncDemo: boolean;
+  /** manual = type PnL yourself; blofin = auto-sync from exchange */
+  trackingMode: PropFirmTrackingMode;
 };
 
 export function readPropFirmPersisted(): PropFirmPersisted | null {
@@ -137,6 +141,7 @@ export function readPropFirmPersisted(): PropFirmPersisted | null {
       aiSetupNote: parsed.aiSetupNote ?? "Trade only A+ setups. No revenge trades. Pause after two losses.",
       autoSync: parsed.autoSync ?? true,
       blofinSyncDemo: parsed.blofinSyncDemo ?? true,
+      trackingMode: parsed.trackingMode === "blofin" ? "blofin" : "manual",
     };
   } catch {
     return null;

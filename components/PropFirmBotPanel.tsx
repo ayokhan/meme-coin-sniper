@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Flame, RefreshCw, Shield, ShieldAlert, ShieldCheck, Link2 } from "lucide-react";
+import { Flame, RefreshCw, Shield, ShieldAlert, ShieldCheck, Link2, Hand, ListOrdered } from "lucide-react";
 import {
   computePropFirmGuards,
   computePropFirmMetrics,
@@ -16,6 +16,7 @@ import {
   type ChallengeProfile,
   type PropFirmConfig,
   type PropFirmGuards,
+  type PropFirmTrackingMode,
   type SessionState,
   type SyncedPosition,
 } from "@/lib/prop-firm-bot";
@@ -35,14 +36,6 @@ type SyncResponse = {
   metrics?: ReturnType<typeof computePropFirmMetrics>;
   guards?: PropFirmGuards;
   syncedAt?: string;
-  blofinBalanceUsd?: number | null;
-  syncMeta?: {
-    todaysRealizedPnl: number;
-    totalRealizedPnl: number;
-    totalUnrealizedPnl: number;
-    openContracts: number;
-    tradesToday: number;
-  };
 };
 
 export default function PropFirmBotPanel() {
@@ -53,12 +46,12 @@ export default function PropFirmBotPanel() {
   const [aiSetupNote, setAiSetupNote] = useState(
     "Trade only A+ setups. No revenge trades. Pause after two losses."
   );
+  const [trackingMode, setTrackingMode] = useState<PropFirmTrackingMode>("manual");
   const [autoSync, setAutoSync] = useState(true);
   const [blofinSyncDemo, setBlofinSyncDemo] = useState(true);
   const [proposedRiskUsd, setProposedRiskUsd] = useState("");
   const [positions, setPositions] = useState<SyncedPosition[]>([]);
-  const [guards, setGuards] = useState<PropFirmGuards | null>(null);
-  const [syncedMetrics, setSyncedMetrics] = useState<ReturnType<typeof computePropFirmMetrics> | null>(null);
+  const [challengeActive, setChallengeActive] = useState(false);
   const [blofinStatus, setBlofinStatus] = useState<BlofinStatus>({ configured: false });
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState("");
@@ -66,8 +59,8 @@ export default function PropFirmBotPanel() {
   const [showBlofinForm, setShowBlofinForm] = useState(false);
   const [blofinKeys, setBlofinKeys] = useState({ apiKey: "", secretKey: "", passphrase: "", demoMode: true });
   const [savingKeys, setSavingKeys] = useState(false);
+  const [entryCheckedAt, setEntryCheckedAt] = useState<string | null>(null);
   const hydrated = useRef(false);
-
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -75,25 +68,50 @@ export default function PropFirmBotPanel() {
     if (saved) {
       setCfg(saved.cfg);
       setState(saved.state);
-      setSymbol(saved.symbol);
+      setSymbol(
+        PROP_FIRM_PRIMARY_MARKETS.some((m) => m.value === saved.symbol) ? saved.symbol : "CUSTOM"
+      );
+      if (!PROP_FIRM_PRIMARY_MARKETS.some((m) => m.value === saved.symbol)) {
+        setCustomSymbol(saved.symbol);
+      }
       setAiSetupNote(saved.aiSetupNote);
       setAutoSync(saved.autoSync);
       setBlofinSyncDemo(saved.blofinSyncDemo);
-      if (saved.symbol && !PROP_FIRM_PRIMARY_MARKETS.some((m) => m.value === saved.symbol)) {
-        setSymbol("CUSTOM");
-        setCustomSymbol(saved.symbol);
-      }
+      setTrackingMode(saved.trackingMode);
+      setChallengeActive(!!saved.state.challengeStartedAt);
     }
     hydrated.current = true;
     setReady(true);
   }, []);
 
   const displaySymbol = symbol === "CUSTOM" ? customSymbol.trim().toUpperCase() || "CUSTOM" : symbol;
+  const openContracts = positions.reduce((s, p) => s + p.size, 0);
 
   useEffect(() => {
     if (!hydrated.current) return;
-    writePropFirmPersisted({ cfg, state, symbol: displaySymbol, aiSetupNote, autoSync, blofinSyncDemo });
-  }, [cfg, state, displaySymbol, aiSetupNote, autoSync, blofinSyncDemo]);
+    writePropFirmPersisted({
+      cfg,
+      state,
+      symbol: displaySymbol,
+      aiSetupNote,
+      autoSync,
+      blofinSyncDemo,
+      trackingMode,
+    });
+  }, [cfg, state, displaySymbol, aiSetupNote, autoSync, blofinSyncDemo, trackingMode]);
+
+  const localMetrics = useMemo(
+    () => computePropFirmMetrics(cfg, state, openContracts),
+    [cfg, state, openContracts]
+  );
+
+  const localGuards = useMemo(
+    () => computePropFirmGuards(cfg, state, positions, Number(proposedRiskUsd) || 0),
+    [cfg, state, positions, proposedRiskUsd]
+  );
+
+  const activeGuards = localGuards;
+  const activeMetrics = localMetrics;
 
   const loadBlofinStatus = useCallback(async () => {
     try {
@@ -122,6 +140,7 @@ export default function PropFirmBotPanel() {
 
   const runSync = useCallback(
     async (riskOverride?: number) => {
+      if (trackingMode !== "blofin") return;
       setSyncing(true);
       setSyncError("");
       try {
@@ -139,8 +158,6 @@ export default function PropFirmBotPanel() {
         }
         if (data.state) setState(data.state);
         if (data.positions) setPositions(data.positions);
-        if (data.guards) setGuards(data.guards);
-        if (data.metrics) setSyncedMetrics(data.metrics);
         if (data.syncedAt) setLastSyncedAt(data.syncedAt);
         setBlofinStatus((s) => ({ ...s, configured: true }));
       } catch {
@@ -149,11 +166,11 @@ export default function PropFirmBotPanel() {
         setSyncing(false);
       }
     },
-    [cfg, state, proposedRiskUsd, blofinSyncDemo]
+    [cfg, state, proposedRiskUsd, blofinSyncDemo, trackingMode]
   );
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || trackingMode !== "blofin") return;
     let cancelled = false;
     void loadBlofinStatus().then((ok) => {
       if (!cancelled && ok) void runSync(0);
@@ -161,28 +178,21 @@ export default function PropFirmBotPanel() {
     return () => {
       cancelled = true;
     };
-    // Initial Blofin sync once when panel is ready
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  }, [ready, trackingMode]);
 
   useEffect(() => {
-    if (!autoSync || !blofinStatus.configured) return;
+    if (trackingMode !== "blofin" || !autoSync || !blofinStatus.configured) return;
     const id = setInterval(() => void runSync(0), 30000);
     return () => clearInterval(id);
-  }, [autoSync, blofinStatus.configured, runSync]);
+  }, [trackingMode, autoSync, blofinStatus.configured, runSync]);
 
-  const localMetrics = useMemo(
-    () => computePropFirmMetrics(cfg, state, positions.reduce((s, p) => s + p.size, 0)),
-    [cfg, state, positions]
-  );
-
-  const localGuards = useMemo(
-    () => computePropFirmGuards(cfg, state, positions, Number(proposedRiskUsd) || 0),
-    [cfg, state, positions, proposedRiskUsd]
-  );
-
-  const activeGuards = guards ?? localGuards;
-  const activeMetrics = syncedMetrics ?? localMetrics;
+  const checkEntry = () => {
+    setEntryCheckedAt(new Date().toLocaleTimeString());
+    if (trackingMode === "blofin" && blofinStatus.configured) {
+      void runSync(Number(proposedRiskUsd) || 0);
+    }
+  };
 
   const setBlofinEnvironment = async (demo: boolean) => {
     setBlofinSyncDemo(demo);
@@ -194,35 +204,7 @@ export default function PropFirmBotPanel() {
         body: JSON.stringify({ demoMode: demo }),
       }).catch(() => {});
     }
-    setSyncing(true);
-    setSyncError("");
-    try {
-      const res = await fetch("/api/prop-firm-bot/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cfg,
-          state,
-          proposedRiskUsd: Number(proposedRiskUsd) || 0,
-          blofinDemo: demo,
-        }),
-      });
-      const data = (await res.json()) as SyncResponse;
-      if (!res.ok || !data.success) {
-        setSyncError(data.error ?? "Sync failed.");
-        return;
-      }
-      if (data.state) setState(data.state);
-      if (data.positions) setPositions(data.positions);
-      if (data.guards) setGuards(data.guards);
-      if (data.metrics) setSyncedMetrics(data.metrics);
-      if (data.syncedAt) setLastSyncedAt(data.syncedAt);
-      setBlofinStatus((s) => ({ ...s, blofinDemo: demo }));
-    } catch {
-      setSyncError("Sync failed after environment switch.");
-    } finally {
-      setSyncing(false);
-    }
+    if (trackingMode === "blofin") void runSync(Number(proposedRiskUsd) || 0);
   };
 
   const saveBlofinKeys = async () => {
@@ -242,6 +224,7 @@ export default function PropFirmBotPanel() {
       setShowBlofinForm(false);
       setBlofinSyncDemo(blofinKeys.demoMode);
       setBlofinKeys({ apiKey: "", secretKey: "", passphrase: "", demoMode: blofinKeys.demoMode });
+      setTrackingMode("blofin");
       await loadBlofinStatus();
       await runSync(0);
     } catch {
@@ -256,12 +239,14 @@ export default function PropFirmBotPanel() {
     next.challengeStartedAt = new Date().toISOString();
     setState(next);
     setPositions([]);
-    setGuards(null);
+    setChallengeActive(true);
+    setProposedRiskUsd("");
+    setEntryCheckedAt(null);
   };
 
   const resetTradingDay = () => {
     setState((s) => ({ ...s, tradesToday: 0, todaysPnl: 0, openRiskUsd: 0 }));
-    void runSync(0);
+    if (trackingMode === "blofin" && blofinStatus.configured) void runSync(0);
   };
 
   const GuardIcon = ({ severity }: { severity: "allow" | "caution" | "stop" }) => {
@@ -276,113 +261,164 @@ export default function PropFirmBotPanel() {
         <Flame className="h-7 w-7 text-amber-500 dark:text-amber-400 shrink-0 animate-flame-flicker" aria-hidden />
         <span>Nova Prop Firm Bot</span>
       </h2>
-      <p className="text-sm text-muted-foreground">
-        Challenge guardrail copilot — syncs with Blofin perpetual contracts (e.g. BTC-USDT-SWAP, ETH-USDT-SWAP) to
-        track PnL and risk, then blocks or warns on <strong>entries</strong> and guides <strong>exits</strong> based on
-        your prop-firm rules. You trade on Blofin; this does not place orders.
-      </p>
-      <p className="text-xs text-muted-foreground rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 px-3 py-2">
-        <strong>Contracts vs instrument:</strong> Open <em>contracts</em> are your live Blofin positions (any symbol).
-        <strong> Primary market</strong> is what you mainly trade (BTC, ETH, etc.) — used for guardrail messages only,
-        not a filter. If you see no contracts, you have no open positions on the selected Demo/Live Blofin account.
-      </p>
 
-      <Card className="border-cyan-200/60 dark:border-cyan-800/50">
+      <Card className="border-violet-200/60 dark:border-violet-800/50 bg-violet-50/30 dark:bg-violet-950/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <ListOrdered className="h-4 w-4" />
+            How it works
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-xs text-muted-foreground space-y-2">
+          <p>
+            This does <strong>not</strong> pick trade setups or tell you <em>when</em> to buy/sell. It answers:{" "}
+            <strong>“Am I allowed to take this trade under my challenge rules?”</strong>
+          </p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>
+              <strong>Start new challenge</strong> — sets your $50k / $100k evaluation baseline.
+            </li>
+            <li>
+              <strong>Before each entry</strong> — enter max loss at your stop → <strong>Check entry</strong>.
+            </li>
+            <li>
+              <strong>Entry guard</strong> — green ENTRY CLEAR = ok to open; red BLOCKED = do not enter.
+            </li>
+            <li>
+              <strong>After trades</strong> — update Today PnL / open risk manually, or use Blofin auto-sync.
+            </li>
+          </ol>
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
         <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Link2 className="h-4 w-4" />
-              Blofin sync
-            </CardTitle>
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-xs text-muted-foreground mr-1">Sync environment:</span>
-              <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={blofinSyncDemo ? "default" : "ghost"}
-                  className="h-7 text-xs"
-                  onClick={() => void setBlofinEnvironment(true)}
-                >
-                  Demo
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={!blofinSyncDemo ? "default" : "ghost"}
-                  className="h-7 text-xs"
-                  onClick={() => void setBlofinEnvironment(false)}
-                >
-                  Live
-                </Button>
-              </div>
-              <Button type="button" size="sm" variant="outline" onClick={() => setShowBlofinForm((v) => !v)}>
-                {blofinStatus.configured ? "Update keys" : "Connect Blofin"}
-              </Button>
-              <Button type="button" size="sm" onClick={() => void runSync()} disabled={syncing || !blofinStatus.configured}>
-                <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
-                Sync now
-              </Button>
+          <CardTitle className="text-base font-semibold">Tracking mode</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={trackingMode === "manual" ? "default" : "outline"}
+              className={trackingMode === "manual" ? "bg-cyan-600 hover:bg-cyan-700 text-white" : ""}
+              onClick={() => setTrackingMode("manual")}
+            >
+              <Hand className="h-4 w-4 mr-1" />
+              Manual (no Blofin)
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={trackingMode === "blofin" ? "default" : "outline"}
+              className={trackingMode === "blofin" ? "bg-cyan-600 hover:bg-cyan-700 text-white" : ""}
+              onClick={() => setTrackingMode("blofin")}
+            >
+              <Link2 className="h-4 w-4 mr-1" />
+              Blofin auto-sync
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {trackingMode === "manual"
+              ? "No exchange connection needed. You type PnL, open risk, and trades — guardrails still run."
+              : "Connect Blofin keys below to pull positions and PnL automatically."}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">Challenge setup</CardTitle>
+          {challengeActive && state.challengeStartedAt && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              Challenge active since {new Date(state.challengeStartedAt).toLocaleString()}
+            </p>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs mb-1">Profile</label>
+              <select
+                value={cfg.profile}
+                onChange={(e) => {
+                  const next = e.target.value as ChallengeProfile;
+                  const p = presetPropFirmConfig(next);
+                  setCfg(p);
+                  setState(defaultSessionState(p.accountSize));
+                  setChallengeActive(false);
+                }}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
+              >
+                <option value="topstep_50k">Topstep-like 50k</option>
+                <option value="topstep_100k">Topstep-like 100k</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs mb-1">Primary market</label>
+              <select
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
+              >
+                {PROP_FIRM_PRIMARY_MARKETS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              {symbol === "CUSTOM" && (
+                <input
+                  value={customSymbol}
+                  onChange={(e) => setCustomSymbol(e.target.value.toUpperCase())}
+                  placeholder="e.g. DOGE"
+                  className="mt-2 w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
+                />
+              )}
+            </div>
+            <div>
+              <label className="block text-xs mb-1">Max contracts (challenge rule)</label>
+              <input
+                type="number"
+                value={cfg.maxContracts}
+                onChange={(e) => setCfg((c) => ({ ...c, maxContracts: Number(e.target.value) || 1 }))}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
+              />
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          {blofinStatus.configured ? (
-            <p className="text-emerald-700 dark:text-emerald-300">
-              Connected — syncing <strong>{blofinSyncDemo ? "Demo" : "Live"}</strong> ({blofinStatus.credentialSource ?? "saved"} keys)
-              {lastSyncedAt && (
-                <span className="text-muted-foreground ml-2">
-                  · Last sync {new Date(lastSyncedAt).toLocaleTimeString()}
-                </span>
-              )}
-            </p>
-          ) : (
-            <p className="text-amber-700 dark:text-amber-300">
-              Connect Blofin API keys to auto-track PnL, open risk, and enforce challenge guardrails.
-            </p>
-          )}
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <input type="checkbox" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} />
-            Auto-sync every 30s when connected
-          </label>
-          {syncError && <p className="text-rose-600 dark:text-rose-400 text-xs">{syncError}</p>}
-          {showBlofinForm && (
-            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
-              <p className="text-xs text-muted-foreground">Keys are encrypted and used only for your account.</p>
-              <input
-                type="password"
-                placeholder="API key"
-                value={blofinKeys.apiKey}
-                onChange={(e) => setBlofinKeys((k) => ({ ...k, apiKey: e.target.value }))}
-                className="w-full rounded border px-2 py-1.5 text-sm bg-white dark:bg-zinc-900"
-              />
-              <input
-                type="password"
-                placeholder="Secret key"
-                value={blofinKeys.secretKey}
-                onChange={(e) => setBlofinKeys((k) => ({ ...k, secretKey: e.target.value }))}
-                className="w-full rounded border px-2 py-1.5 text-sm bg-white dark:bg-zinc-900"
-              />
-              <input
-                type="password"
-                placeholder="Passphrase"
-                value={blofinKeys.passphrase}
-                onChange={(e) => setBlofinKeys((k) => ({ ...k, passphrase: e.target.value }))}
-                className="w-full rounded border px-2 py-1.5 text-sm bg-white dark:bg-zinc-900"
-              />
-              <label className="flex items-center gap-2 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {(
+              [
+                ["Account", "accountSize"],
+                ["Daily loss", "dailyLossLimit"],
+                ["Max drawdown", "maxDrawdownLimit"],
+                ["Profit target", "profitTarget"],
+              ] as const
+            ).map(([label, key]) => (
+              <div key={key}>
+                <label className="block text-xs mb-1">{label} (USD)</label>
                 <input
-                  type="checkbox"
-                  checked={blofinKeys.demoMode}
-                  onChange={(e) => setBlofinKeys((k) => ({ ...k, demoMode: e.target.checked }))}
+                  type="number"
+                  value={cfg[key]}
+                  onChange={(e) => setCfg((c) => ({ ...c, [key]: Number(e.target.value) || 0 }))}
+                  className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
                 />
-                Demo account (uncheck for live)
-              </label>
-              <Button type="button" size="sm" onClick={() => void saveBlofinKeys()} disabled={savingKeys}>
-                {savingKeys ? "Saving…" : "Save & sync"}
-              </Button>
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              onClick={startChallenge}
+              className="bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700 font-semibold"
+            >
+              Start new challenge
+            </Button>
+            <Button type="button" variant="outline" onClick={resetTradingDay}>
+              Reset trading day
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -391,7 +427,7 @@ export default function PropFirmBotPanel() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <GuardIcon severity={activeGuards.entry.severity} />
-              Entry guard
+              Entry guard · {displaySymbol}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -429,101 +465,20 @@ export default function PropFirmBotPanel() {
               className="w-36 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
             />
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => void runSync(Number(proposedRiskUsd) || 0)}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={checkEntry}
+            className="bg-cyan-600 hover:bg-cyan-700 text-white"
+          >
             Check entry
           </Button>
           <p className="text-xs text-muted-foreground">
-            Enter max loss at your stop before opening on Blofin. Cap: ${activeMetrics.perTradeRiskCap.toFixed(0)}
+            Max loss if stop hits, before you open the trade. Per-trade cap: ${activeMetrics.perTradeRiskCap.toFixed(0)}
+            {entryCheckedAt && (
+              <span className="block text-emerald-600 dark:text-emerald-400 mt-1">Checked at {entryCheckedAt}</span>
+            )}
           </p>
-        </CardContent>
-      </Card>
-
-      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">Challenge setup</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs mb-1">Profile</label>
-              <select
-                value={cfg.profile}
-                onChange={(e) => {
-                  const next = e.target.value as ChallengeProfile;
-                  const p = presetPropFirmConfig(next);
-                  setCfg(p);
-                  setState(defaultSessionState(p.accountSize));
-                }}
-                className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
-              >
-                <option value="topstep_50k">Topstep-like 50k</option>
-                <option value="topstep_100k">Topstep-like 100k</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs mb-1">Primary market</label>
-              <select
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
-              >
-                {PROP_FIRM_PRIMARY_MARKETS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-              {symbol === "CUSTOM" && (
-                <input
-                  value={customSymbol}
-                  onChange={(e) => setCustomSymbol(e.target.value.toUpperCase())}
-                  placeholder="e.g. DOGE"
-                  className="mt-2 w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
-                />
-              )}
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Focus symbol for decisions — trade any Blofin perp; open contracts sync from all positions.
-              </p>
-            </div>
-            <div>
-              <label className="block text-xs mb-1">Max contracts (challenge rule)</label>
-              <input
-                type="number"
-                value={cfg.maxContracts}
-                onChange={(e) => setCfg((c) => ({ ...c, maxContracts: Number(e.target.value) || 1 }))}
-                className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {(
-              [
-                ["Account", "accountSize"],
-                ["Daily loss", "dailyLossLimit"],
-                ["Max drawdown", "maxDrawdownLimit"],
-                ["Profit target", "profitTarget"],
-              ] as const
-            ).map(([label, key]) => (
-              <div key={key}>
-                <label className="block text-xs mb-1">{label} (USD)</label>
-                <input
-                  type="number"
-                  value={cfg[key]}
-                  onChange={(e) => setCfg((c) => ({ ...c, [key]: Number(e.target.value) || 0 }))}
-                  className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
-                />
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={startChallenge}>
-              Start new challenge
-            </Button>
-            <Button type="button" variant="outline" onClick={resetTradingDay}>
-              Reset trading day
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
@@ -531,9 +486,11 @@ export default function PropFirmBotPanel() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">Live challenge state</CardTitle>
           <p className="text-xs text-muted-foreground">
-            {blofinStatus.configured
-              ? "Auto-updated from Blofin on sync. Manual edits saved locally."
-              : "Manual mode — connect Blofin for live sync."}
+            {trackingMode === "manual"
+              ? "Manual mode — update these fields after each trade so guardrails stay accurate."
+              : blofinStatus.configured
+                ? "Blofin sync updates these; you can still edit manually."
+                : "Connect Blofin in the section below for auto-updates."}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -585,47 +542,130 @@ export default function PropFirmBotPanel() {
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">
-            Open contracts from Blofin ({blofinSyncDemo ? "Demo" : "Live"})
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Perpetual positions on your Blofin account — e.g. BTC-USDT-SWAP. Counted toward max contracts and open risk.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {positions.length > 0 ? (
-            <>
-              {positions.map((p) => (
-                <div
-                  key={`${p.instId}-${p.posSide}`}
-                  className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
+      {trackingMode === "blofin" && (
+        <Card className="border-cyan-200/60 dark:border-cyan-800/50">
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Link2 className="h-4 w-4" />
+                Blofin sync (optional)
+              </CardTitle>
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={blofinSyncDemo ? "default" : "ghost"}
+                    className="h-7 text-xs"
+                    onClick={() => void setBlofinEnvironment(true)}
+                  >
+                    Demo
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={!blofinSyncDemo ? "default" : "ghost"}
+                    className="h-7 text-xs"
+                    onClick={() => void setBlofinEnvironment(false)}
+                  >
+                    Live
+                  </Button>
+                </div>
+                <Button type="button" size="sm" variant="outline" onClick={() => setShowBlofinForm((v) => !v)}>
+                  {blofinStatus.configured ? "Update keys" : "Connect Blofin"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void runSync()}
+                  disabled={syncing || !blofinStatus.configured}
                 >
-                  <span className="font-medium">
-                    {p.instId} · {p.posSide} · {p.size} contracts
+                  <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
+                  Sync now
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {blofinStatus.configured ? (
+              <p className="text-emerald-700 dark:text-emerald-300">
+                Connected — {blofinSyncDemo ? "Demo" : "Live"}
+                {lastSyncedAt && (
+                  <span className="text-muted-foreground ml-2">
+                    · Last sync {new Date(lastSyncedAt).toLocaleTimeString()}
                   </span>
-                  <span className={p.unrealizedPnl >= 0 ? "text-emerald-600" : "text-rose-600"}>
-                    ${p.unrealizedPnl.toFixed(2)} uPnL
-                  </span>
-                </div>
-              ))}
-              {activeGuards.positionNotes.map((n) => (
-                <div key={n.instId + n.headline} className={`rounded border p-2 text-xs ${guardSeverityClass(n.severity)}`}>
-                  <strong>{n.instId}:</strong> {n.headline} — {n.detail}
-                </div>
-              ))}
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground py-2">
-              No open contracts on Blofin {blofinSyncDemo ? "Demo" : "Live"}.
-              {blofinStatus.configured
-                ? " Open a perp on Blofin (e.g. BTC-USDT-SWAP) and tap Sync — or check Demo vs Live matches where you trade."
-                : " Connect Blofin keys first, then trade and sync."}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+                )}
+              </p>
+            ) : (
+              <p className="text-amber-700 dark:text-amber-300">
+                Add Blofin API keys to auto-pull positions and PnL.
+              </p>
+            )}
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input type="checkbox" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} />
+              Auto-sync every 30s when connected
+            </label>
+            {syncError && <p className="text-rose-600 dark:text-rose-400 text-xs">{syncError}</p>}
+            {showBlofinForm && (
+              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+                <input
+                  type="password"
+                  placeholder="API key"
+                  value={blofinKeys.apiKey}
+                  onChange={(e) => setBlofinKeys((k) => ({ ...k, apiKey: e.target.value }))}
+                  className="w-full rounded border px-2 py-1.5 text-sm bg-white dark:bg-zinc-900"
+                />
+                <input
+                  type="password"
+                  placeholder="Secret key"
+                  value={blofinKeys.secretKey}
+                  onChange={(e) => setBlofinKeys((k) => ({ ...k, secretKey: e.target.value }))}
+                  className="w-full rounded border px-2 py-1.5 text-sm bg-white dark:bg-zinc-900"
+                />
+                <input
+                  type="password"
+                  placeholder="Passphrase"
+                  value={blofinKeys.passphrase}
+                  onChange={(e) => setBlofinKeys((k) => ({ ...k, passphrase: e.target.value }))}
+                  className="w-full rounded border px-2 py-1.5 text-sm bg-white dark:bg-zinc-900"
+                />
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={blofinKeys.demoMode}
+                    onChange={(e) => setBlofinKeys((k) => ({ ...k, demoMode: e.target.checked }))}
+                  />
+                  Demo account (uncheck for live)
+                </label>
+                <Button type="button" size="sm" onClick={() => void saveBlofinKeys()} disabled={savingKeys}>
+                  {savingKeys ? "Saving…" : "Save & sync"}
+                </Button>
+              </div>
+            )}
+            <div className="space-y-2">
+              {positions.length > 0 ? (
+                positions.map((p) => (
+                  <div
+                    key={`${p.instId}-${p.posSide}`}
+                    className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
+                  >
+                    <span className="font-medium">
+                      {p.instId} · {p.posSide} · {p.size} contracts
+                    </span>
+                    <span className={p.unrealizedPnl >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                      ${p.unrealizedPnl.toFixed(2)} uPnL
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No open contracts on Blofin {blofinSyncDemo ? "Demo" : "Live"} yet.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
         <CardHeader className="pb-3">
@@ -637,12 +677,7 @@ export default function PropFirmBotPanel() {
             value={aiSetupNote}
             onChange={(e) => setAiSetupNote(e.target.value)}
             className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm"
-            placeholder="Your challenge discipline notes..."
           />
-          <p className="text-xs text-muted-foreground">
-            Guardrails use challenge math + Blofin positions. Passing a prop evaluation still requires your edge and
-            discipline — this tool prevents rule violations, not market risk.
-          </p>
         </CardContent>
       </Card>
     </div>
