@@ -182,6 +182,45 @@ export default function CustomerExpandedPanel({
   onDelete,
   onCustomersViewerAdmin,
 }: CustomerExpandedPanelProps) {
+  if (readOnly) {
+    return (
+      <div className="p-4 bg-zinc-50/80 dark:bg-zinc-900/30 border-t border-zinc-200 dark:border-zinc-700">
+        <DetailSection title="On-demand access">
+          <DetailRow label="Trading bot">
+            <OnOffButton readOnly on={c.tradingBotOnDemand} busy={false} onClick={() => {}} active="amber" />
+          </DetailRow>
+          <DetailRow label="Polymarket bot">
+            <OnOffButton readOnly on={c.polymarketBotOnDemand} busy={false} onClick={() => {}} active="violet" />
+          </DetailRow>
+          {showLegacyOnDemand && (
+            <DetailRow label="Prop firm bot" hint="Legacy — hidden by default">
+              <OnOffButton readOnly on={c.propFirmBotOnDemand} busy={false} onClick={() => {}} active="orange" />
+            </DetailRow>
+          )}
+          <DetailRow label="Nova Ultimate">
+            <OnOffButton readOnly on={c.novaUltimateOnDemand} busy={false} onClick={() => {}} active="cyan" />
+          </DetailRow>
+          <DetailRow label="CT Scan">
+            <OnOffButton readOnly on={c.ctScanOnDemand} busy={false} onClick={() => {}} active="cyan" />
+            {c.ctScanOnDemand && (
+              <span className="text-[10px] text-muted-foreground w-full">
+                {formatExpiryLabel(c.ctScanOnDemandExpiresAt, c.subscriptionExpiresAt)}
+              </span>
+            )}
+          </DetailRow>
+          <DetailRow label="Meme coins traders">
+            <OnOffButton readOnly on={c.memeCoinsTraderOnDemand} busy={false} onClick={() => {}} active="amber" />
+            {c.memeCoinsTraderOnDemand && (
+              <span className="text-[10px] text-muted-foreground w-full">
+                {formatExpiryLabel(c.memeCoinsTraderOnDemandExpiresAt, c.subscriptionExpiresAt)}
+              </span>
+            )}
+          </DetailRow>
+        </DetailSection>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 p-4 bg-zinc-50/80 dark:bg-zinc-900/30 border-t border-zinc-200 dark:border-zinc-700">
       <DetailSection title="Profile">

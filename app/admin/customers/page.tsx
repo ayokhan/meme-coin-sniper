@@ -61,6 +61,8 @@ function customerHasOnDemand(c: Customer, includePropFirm: boolean) {
 
 export default function AdminCustomersPage() {
   const { data: session, status } = useSession();
+  const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
+  const readOnly = customersViewerAdminOnly(session);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -225,6 +227,7 @@ export default function AdminCustomersPage() {
       if (activeOnly && !c.isActive) return false;
       if (onDemandOnly && !customerHasOnDemand(c, showLegacyOnDemand)) return false;
       if (!q) return true;
+      if (readOnly) return (c.name ?? "").toLowerCase().includes(q);
       return (
         (c.name ?? "").toLowerCase().includes(q) ||
         (c.email ?? "").toLowerCase().includes(q) ||
@@ -232,7 +235,7 @@ export default function AdminCustomersPage() {
         (c.country ?? "").toLowerCase().includes(q)
       );
     });
-  }, [customers, search, activeOnly, onDemandOnly, showLegacyOnDemand]);
+  }, [customers, search, activeOnly, onDemandOnly, showLegacyOnDemand, readOnly]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this customer? This cannot be undone.")) return;
@@ -489,9 +492,6 @@ export default function AdminCustomersPage() {
     }
   };
 
-  const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
-  const readOnly = customersViewerAdminOnly(session);
-
   const handleCustomersViewerAdminToggle = async (id: string, value: boolean) => {
     setTogglingCustomersViewerAdminId(id);
     setError("");
@@ -668,7 +668,7 @@ export default function AdminCustomersPage() {
         title="Customers"
         description={
           readOnly
-            ? "View registered users, subscriptions, and on-demand access. Read-only — contact the owner to make changes."
+            ? "View customer names, subscriptions, and on-demand access."
             : "Registered users, subscriptions, and on-demand VIP access. Owner only (OWNER_EMAIL)."
         }
       />
@@ -699,7 +699,7 @@ export default function AdminCustomersPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search name, email, phone, country"
+                placeholder={readOnly ? "Search name" : "Search name, email, phone, country"}
                 className="w-full sm:w-80 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm"
               />
               <button
@@ -792,11 +792,15 @@ export default function AdminCustomersPage() {
                             </td>
                             <td className="py-2 pr-4 align-top">
                               <p className="font-medium text-zinc-900 dark:text-zinc-100">{c.name ?? "—"}</p>
-                              <p className="text-xs text-muted-foreground break-all">{c.email ?? "—"}</p>
-                              {(c.phone || c.country) && (
-                                <p className="text-[11px] text-muted-foreground mt-0.5">
-                                  {[c.phone, c.country].filter(Boolean).join(" · ")}
-                                </p>
+                              {!readOnly && (
+                                <>
+                                  <p className="text-xs text-muted-foreground break-all">{c.email ?? "—"}</p>
+                                  {(c.phone || c.country) && (
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                                      {[c.phone, c.country].filter(Boolean).join(" · ")}
+                                    </p>
+                                  )}
+                                </>
                               )}
                             </td>
                             <td className="py-2 pr-4 align-top">
@@ -839,7 +843,7 @@ export default function AdminCustomersPage() {
                               ) : (
                                 <span className="text-xs text-zinc-500">None</span>
                               )}
-                              {communityOn && (
+                              {communityOn && !readOnly && (
                                 <p className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-1">Community access</p>
                               )}
                             </td>

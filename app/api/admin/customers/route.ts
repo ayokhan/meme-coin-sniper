@@ -46,7 +46,7 @@ export async function GET() {
         plan: s.plan,
         method: s.stripeSessionId ? "card" as const : s.txSignature ? "usdc" as const : "other" as const,
       }));
-      return {
+      const row = {
         id: u.id,
         name: u.name,
         email: u.email,
@@ -76,6 +76,25 @@ export async function GET() {
         isActive: !!activeSub,
         payments,
       };
+      if (readOnly) {
+        return {
+          ...row,
+          email: null,
+          phone: null,
+          country: null,
+          experienceTradingCrypto: null,
+          newsletterOptIn: false,
+          novaConnectEnabled: false,
+          novaConnectRulesAcceptedAt: null,
+          novaConnectCommunityRep: false,
+          novaConnectAllowedByAdmin: false,
+          coachUser: false,
+          customersViewerAdmin: false,
+          paymentTermsAcceptedAt: null,
+          payments: [],
+        };
+      }
+      return row;
     });
 
     return NextResponse.json({ success: true, customers, readOnly });
