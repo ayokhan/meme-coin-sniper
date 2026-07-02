@@ -43,7 +43,7 @@ async function getRecentBuysForWallet(
   return getWalletTokenBuysFromBirdeye(address, limit, maxAgeMs);
 }
 
-/** GET - Recent trades from each tracked wallet (Pro). Optional ?address=... to debug a single wallet; ?skipMoralis=1 to test Helius+Birdeye only. */
+/** GET - Recent trades from each tracked wallet (VIP). Optional ?address=... to debug a single wallet; ?skipMoralis=1 to test Helius+Birdeye only. */
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);

@@ -48,7 +48,7 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   ai_analysis_rag: {
     label: "AI Analysis RAG (VIP + owner)",
     description:
-      "When ON, VIP and owner Solana AI analyses retrieve similar past analyses from each user's private embedding history before Claude runs. Requires OPENAI_API_KEY. Pro users unaffected. Default OFF.",
+      "When ON, VIP and owner Solana AI analyses retrieve similar past analyses from each user's private embedding history before Claude runs. Requires OPENAI_API_KEY. Free users unaffected. Default OFF.",
   },
   account_self_delete: {
     label: "Self-service Delete account",
@@ -202,27 +202,27 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   nova_polymarket_tracker: {
     label: "Nova Polymarket Tracker",
     description:
-      "When ON, VIP users with Nova Polymarket Pro (on demand) see the Nova Polymarket Tracker subtab and APIs work. When OFF, the tracker is hidden and list/activity routes return disabled. Admin wallet list: Nova Admin → Polymarket Tracker.",
+      "When ON, VIP users with Nova Polymarket (on demand) see the Nova Polymarket Tracker subtab and APIs work. When OFF, the tracker is hidden and list/activity routes return disabled. Admin wallet list: Nova Admin → Polymarket Tracker.",
   },
   nova_polymarket_copy_bot: {
     label: "Nova Polymarket Copy Trading Bot",
     description:
-      "When ON, eligible VIP users see the Copy trading bot subtab under Nova Polymarket Pro (analyze any proxy wallet, wire into Copilot). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
+      "When ON, eligible VIP users see the Copy trading bot subtab under Nova Polymarket (analyze any proxy wallet, wire into Copilot). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
   },
   nova_polymarket_leaderboard: {
     label: "Nova Polymarket Leaderboard",
     description:
-      "When ON, eligible VIP users see the Leaderboard subtab under Nova Polymarket Pro (trader rankings + biggest wins from Polymarket’s public data API). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
+      "When ON, eligible VIP users see the Leaderboard subtab under Nova Polymarket (trader rankings + biggest wins from Polymarket’s public data API). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
   },
   nova_polymarket_five_mins: {
-    label: "Nova 5 mins (Polymarket Pro)",
+    label: "Nova 5 mins (Nova Polymarket)",
     description:
-      "When ON, eligible VIP users see the Nova 5 mins subtab under Nova Polymarket Pro (short-horizon Up/Down-style AI context from spot candles + optional browser alerts on signal flips). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
+      "When ON, eligible VIP users see the Nova 5 mins subtab under Nova Polymarket (short-horizon Up/Down-style AI context from spot candles + optional browser alerts on signal flips). Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
   },
   nova_polymarket_elite: {
     label: "Polymarket Elite",
     description:
-      "When ON, eligible VIP users see the Polymarket Elite subtab under Nova Polymarket Pro: top leaderboard traders and consensus signals when multiple elites take the same side on a market. Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
+      "When ON, eligible VIP users see the Polymarket Elite subtab under Nova Polymarket: top leaderboard traders and consensus signals when multiple elites take the same side on a market. Requires Nova Polymarket Tracker access. Default OFF until you enable it.",
   },
   nova_eagle: {
     label: "Nova Eagle (Crypto Futures)",

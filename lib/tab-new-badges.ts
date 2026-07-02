@@ -28,7 +28,7 @@ export const TAB_NEW_BADGE_OPTIONS: { id: string; label: string }[] = [
   { id: "perp-radar", label: "Perp Radar" },
   { id: "narratives", label: "Narratives" },
   { id: "trading-bot", label: "NovaStaris AI Trading Bots" },
-  { id: "polymarket-bot", label: "Nova Polymarket Pro" },
+  { id: "polymarket-bot", label: "Nova Polymarket" },
   { id: "prop-firm-bot", label: "Nova Prop Firm Challenge" },
   { id: "nova-ultimate", label: "Nova Ultimate" },
   { id: "ct", label: "CT Scan" },

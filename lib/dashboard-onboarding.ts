@@ -46,7 +46,7 @@ export const DASHBOARD_PATH_OPTIONS: Array<{
   {
     id: "polymarket",
     title: "Prediction markets",
-    description: "Nova Polymarket Pro — on-demand Polymarket workflows.",
+    description: "Nova Polymarket — on-demand Polymarket workflows.",
     emoji: "🎲",
   },
   {
@@ -147,13 +147,13 @@ export function pathHintCopy(path: DashboardPath | null): string {
     case "meme":
       return "Your path: Meme hunter — start with Go Hunting or Trending, then run AI analysis on a contract.";
     case "futures":
-      return "Your path: Futures — VIP filter shows NovaForecast/NovaRadar, Forex, and addons; switch to Pro for Crypto Futures chart AI if you have Pro.";
+      return "Your path: Futures — VIP filter shows NovaForecast/NovaRadar, Forex, addons, and Crypto Futures chart AI.";
     case "wallet-tracking":
       return "Your path: Wallet tracking — use Wallet Tracker and CT Scan; enable alerts in your account settings.";
     case "polymarket":
-      return "Your path: Prediction markets — open Nova Polymarket Pro under Bots (on-demand access may apply).";
+      return "Your path: Prediction markets — open Nova Polymarket under Bots (on-demand access may apply).";
     case "all":
-      return "Showing all tools. Use Core / Pro / VIP / Bots filters above to focus.";
+      return "Showing all tools. Use Core / Platform / VIP / Bots filters above to focus.";
     default:
       return "New here? Pick a focus path (Meme, Futures, Wallet tracking, or Prediction markets) to reduce tab clutter.";
   }

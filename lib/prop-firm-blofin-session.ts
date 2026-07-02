@@ -17,7 +17,7 @@ export async function resolveBlofinConfigForPropFirmSession(
   session: Session | null
 ): Promise<PropFirmBlofinResolveResult> {
   if (!canAccessPropFirmBot(session)) {
-    return { ok: false, status: 403, error: "Nova Prop Firm Bot access required.", configured: false };
+    return { ok: false, status: 403, error: "Nova Prop Firm Challenge access required.", configured: false };
   }
   if (!session?.user?.id) {
     return { ok: false, status: 401, error: "Sign in required.", configured: false };

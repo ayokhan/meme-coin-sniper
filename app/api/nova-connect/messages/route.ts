@@ -201,10 +201,10 @@ export async function POST(request: Request) {
     if (!content && !imageUrl) {
       return NextResponse.json({ success: false, error: 'Message or image URL is required.' }, { status: 400 });
     }
-    // DMs require Pro/VIP or owner or admin-allowed NovaConnect
+    // DMs require VIP or owner or admin-allowed NovaConnect
     if (scope === 'dm' && !canUseDm) {
       return NextResponse.json(
-        { success: false, error: 'Upgrade to Pro or VIP to chat with users, or ask an admin to allow NovaConnect for you.' },
+        { success: false, error: 'Upgrade to VIP to chat with users, or ask an admin to allow NovaConnect for you.' },
         { status: 403 },
       );
     }

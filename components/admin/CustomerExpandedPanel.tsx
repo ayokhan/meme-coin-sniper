@@ -246,7 +246,7 @@ export default function CustomerExpandedPanel({
         <DetailRow label="NovaConnect enabled">
           <OnOffButton on={c.novaConnectEnabled} busy={busy.novaConnect} onClick={() => onNovaConnect(!c.novaConnectEnabled)} active="cyan" />
         </DetailRow>
-        <DetailRow label="Allow access" hint="Online list & DMs without Pro/VIP">
+        <DetailRow label="Allow access" hint="Online list & DMs without VIP">
           <OnOffButton on={c.novaConnectAllowedByAdmin} busy={busy.allowConnect} onClick={() => onAllowConnect(!c.novaConnectAllowedByAdmin)} />
         </DetailRow>
         <DetailRow label="Coach user" hint="VIP + publish coach calls">

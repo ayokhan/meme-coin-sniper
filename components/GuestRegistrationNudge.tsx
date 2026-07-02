@@ -53,7 +53,7 @@ export function GuestRegistrationBanner({ onDismiss, engaged }: GuestRegistratio
             <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">
               {engaged
                 ? "Sign up free in under a minute — save watchlists, track wallets, and unlock member features. No credit card required."
-                : "Free to join · no credit card · save watchlists and get ready to upgrade when you want Pro or VIP tools."}
+                : "Free to join · no credit card · save watchlists and get ready to upgrade when you want VIP tools."}
             </p>
           </div>
         </div>
@@ -102,7 +102,7 @@ export function GuestAuthActions({
       <p className="text-xs text-muted-foreground text-center">Free to join · No credit card required</p>
       {showPlansLink && (
         <Link href="/subscribe" className="text-sm text-amber-600 dark:text-amber-400 hover:underline font-medium">
-          View Pro &amp; VIP plans →
+          View VIP plans →
         </Link>
       )}
     </div>

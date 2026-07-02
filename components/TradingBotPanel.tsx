@@ -1587,7 +1587,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 value="polymarket"
                 className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"
               >
-                Nova Polymarket Pro
+                Nova Polymarket
               </TabsTrigger>
             )}
         </TabsList>
@@ -1604,13 +1604,13 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
             {!canAccessPolymarket ? (
               <Card className="border-zinc-200/80 dark:border-zinc-700/80">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold">Nova Polymarket Pro</CardTitle>
+                  <CardTitle className="text-base font-semibold">Nova Polymarket</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-3 text-sm">
                     <p className="font-medium text-amber-800 dark:text-amber-200">VIP on-demand access required</p>
                     <p className="text-amber-700 dark:text-amber-300 mt-1">
-                      Contact support to enable <strong>Nova Polymarket Pro (On demand)</strong> on your account.
+                      Contact support to enable <strong>Nova Polymarket (On demand)</strong> on your account.
                     </p>
                   </div>
                 </CardContent>
@@ -1667,7 +1667,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                       <CardTitle className="text-base font-semibold">NovaStaris Polymarket Copilot (VIP)</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
                 Scan active Polymarket narratives, estimate directional bias, and build a copy-trader plan with Demo/Live mode. Live mode requires wallet login.
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-300">
@@ -3185,7 +3185,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                   {tpSaved != null && (
                                     <span className="text-muted-foreground" title="Saved under AI Monitor → Deep check (Blofin often does not show TP here).">
                                       TP price (saved): {tpSaved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
+                </span>
                                   )}
                                   {tpAmtSaved != null && (
                                     <span className="text-muted-foreground" title="Target unrealized PnL in USDT for AI coaching.">

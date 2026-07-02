@@ -56,7 +56,7 @@ export default function HowItWorksPage() {
               <strong>Wallet Tracker:</strong> monitor tracked wallet behavior and convert insights into watchlists.
             </p>
             <p>
-              <strong>VIP/UVIP workspaces:</strong> advanced decision and execution tools (Polymarket Pro, prop-firm bot, Ultimate,
+              <strong>VIP workspaces:</strong> advanced decision and execution tools (Nova Polymarket, Nova Prop Firm Challenge, Ultimate,
               and more) included with VIP or available on request.
             </p>
             <p className="text-xs text-muted-foreground pt-2">

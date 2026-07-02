@@ -501,7 +501,7 @@ export default function NovaPolymarketCopyBotPanel({
               </p>
 
               <div>
-                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Use this wallet in Nova Polymarket Pro</p>
+                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">Use this wallet in Nova Polymarket</p>
                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-end mb-2">
                   <div className="flex flex-col min-w-[160px] flex-1 max-w-xs">
                     <label className="text-[10px] text-muted-foreground mb-1">Tracker nickname (optional)</label>

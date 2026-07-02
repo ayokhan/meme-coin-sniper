@@ -64,7 +64,7 @@ export async function GET() {
   }
 }
 
-/** POST - Create perp alert. Owner only for now; limit by tier (Pro 5, VIP 20). */
+/** POST - Create perp alert. Owner only for now; limit 20 for VIP. */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
     const count = await db.perpAlert.count({ where: { userId } });
     if (count >= maxAlerts) {
       return NextResponse.json(
-        { success: false, error: `Max ${maxAlerts} perp alerts (${tier === "vip" ? "VIP" : "Pro"}). Delete one to add another.` },
+        { success: false, error: `Max ${maxAlerts} perp alerts (VIP). Delete one to add another.` },
         { status: 400 }
       );
     }

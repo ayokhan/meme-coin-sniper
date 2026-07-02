@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   try {
     const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.PAGE_TAB_PROP_FIRM_BOT);
     if (!enabled) {
-      return NextResponse.json({ success: false, error: "Nova Prop Firm Bot is disabled." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "Nova Prop Firm Challenge is disabled." }, { status: 403 });
     }
 
     const session = await getServerSession(authOptions);
@@ -183,7 +183,7 @@ export async function GET() {
         configured: false,
         canAccess: false,
         featureDisabled: true,
-        error: "Nova Prop Firm Bot is disabled by admin.",
+        error: "Nova Prop Firm Challenge is disabled by admin.",
       });
     }
 

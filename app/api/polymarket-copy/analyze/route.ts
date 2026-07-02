@@ -17,7 +17,7 @@ function isValidEvmAddress(addr: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(addr.trim());
 }
 
-/** GET — analyze any proxy wallet (read-only public API). VIP Polymarket Pro access required. */
+/** GET — analyze any proxy wallet (read-only public API). VIP Nova Polymarket access required. */
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);

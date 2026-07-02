@@ -155,7 +155,7 @@ export default function AiAgentMonitorPanel({ isPaid, syncChain, syncContract, s
         </Button>
       </div>
       {monitorChain === "bsc" && (
-        <p className="text-[11px] text-amber-700 dark:text-amber-300">BSC uses the same Pro/VIP rules as Analyze above.</p>
+        <p className="text-[11px] text-amber-700 dark:text-amber-300">BSC uses the same VIP rules as Analyze above.</p>
       )}
       {monitorError && <p className="text-xs text-rose-600 dark:text-rose-400">{monitorError}</p>}
       {monitorOn && (

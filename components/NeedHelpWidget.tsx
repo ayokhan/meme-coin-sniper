@@ -28,7 +28,7 @@ const VIP_PLANS_DISPLAY = VIP_PLANS.map((p) => ({
   price: `$${p.priceUsd} USDC / $${getCardPriceForPlan(p)} card`,
 }));
 const NJA_SUBSCRIPTION_INTRO = "NovaStaris offers a free tier and a VIP subscription.";
-const NJA_SUBSCRIPTION_OUTRO = `VIP includes the full platform: Surge, Transactions, NovaStaris AI Agent, Crypto Futures, Wallet Tracker, Coach Calls, NovaForecast, Nova Forex Agent, and on-demand tools such as AI Trading Bot and Nova Polymarket Pro. USDC (Solana) is list price; card checkouts include a $${CARD_PAYMENT_FEE_USD} card fee. To subscribe, use the Subscribe page in the app menu. Anything else I can help with?`;
+const NJA_SUBSCRIPTION_OUTRO = `VIP includes the full platform: Surge, Transactions, NovaStaris AI Agent, Crypto Futures, Wallet Tracker, Coach Calls, NovaForecast, Nova Forex Agent, and on-demand tools such as AI Trading Bot and Nova Polymarket. USDC (Solana) is list price; card checkouts include a $${CARD_PAYMENT_FEE_USD} card fee. To subscribe, use the Subscribe page in the app menu. Anything else I can help with?`;
 
 const SUBSCRIPTION_KEYWORDS = [
   "subscription", "subscribe", "price", "pricing", "plan", "plans", "cost", "how much",

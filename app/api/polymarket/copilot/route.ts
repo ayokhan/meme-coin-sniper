@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const polymarketEnabled = owner || (tier === "vip" && !!user?.polymarketBotOnDemand);
     if (!polymarketEnabled) {
       return NextResponse.json(
-        { success: false, locked: true, error: "Nova Polymarket Pro is VIP on-demand. Ask admin to enable access." },
+        { success: false, locked: true, error: "Nova Polymarket is VIP on-demand. Ask admin to enable access." },
         { status: 403 }
       );
     }

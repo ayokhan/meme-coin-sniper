@@ -253,7 +253,7 @@ function SubscribeContent() {
         <p className="text-zinc-600 dark:text-zinc-400 mb-4">
           {isVariantB ? (
             <>
-              One plan — full platform access. NovaForecast, Nova Forex Agent, Nova Polymarket Pro, wallet intelligence,
+              One plan — full platform access. NovaForecast, Nova Forex Agent, Nova Polymarket, wallet intelligence,
               and on-demand premium workflows for traders scaling into bigger opportunities.
             </>
           ) : (
@@ -271,7 +271,7 @@ function SubscribeContent() {
             <li>Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect</li>
             <li>CT Scan, Wallet Tracker, Coach Calls + Telegram Signals (on-demand where noted)</li>
             <li>NovaForecast, Nova Forex Agent, NovaQ, Nova Investment Agent, Nova+, NovaScalper</li>
-            <li>On-demand: AI Trading Bot, Nova Polymarket Pro, Nova Prop Firm Challenge, Nova Ultimate</li>
+            <li>On-demand: AI Trading Bot, Nova Polymarket, Nova Prop Firm Challenge, Nova Ultimate</li>
           </ul>
         </div>
 

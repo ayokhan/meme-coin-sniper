@@ -130,7 +130,7 @@ function RegisterForm() {
           </Link>
           <CardTitle className="text-lg mt-2">Create a free account</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Sign up for free — no credit card required. Save watchlists, track wallets, and upgrade to Pro or VIP when you are ready.
+            Sign up for free — no credit card required. Save watchlists, track wallets, and upgrade to VIP when you are ready.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

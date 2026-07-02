@@ -54,7 +54,7 @@ export default function NovaConnectTermsPage() {
                   offline). You can leave NovaConnect at any time without closing your NovaStaris account.
                 </p>
                 <p>
-                  Everyone can post in the community forum. Only Pro/VIP members can see online traders and send private
+                  Only VIP members can see online traders and send private
                   messages.
                 </p>
               </div>

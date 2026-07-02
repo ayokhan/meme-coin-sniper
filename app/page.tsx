@@ -185,7 +185,7 @@ type TabId =
   | "chris-clayton";
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
 const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-connect"];
-/** Pro: surge, transactions, ai-analysis, futures. VIP only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
+/** Platform: surge, transactions, ai-analysis, futures. VIP-only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
 /** Main dashboard top nav — flex-none overrides default TabsTrigger flex-1 so wrapped tabs do not overlap. */
 const DASHBOARD_TOP_TABS_LIST_CLASS =
@@ -2747,7 +2747,7 @@ export default function Dashboard() {
       return;
     }
     if (aiAnalysisChain === "bsc" && !isPaid) {
-      setAiAnalysisError("BSC AI Agent is for Pro and VIP subscribers. Subscribe to use it.");
+      setAiAnalysisError("BSC AI Agent is for VIP subscribers. Subscribe to use it.");
       return;
     }
     if (aiAnalysisChain === "bsc" && !/^0x[0-9a-fA-F]{40}$/.test(ca)) {
@@ -3411,7 +3411,7 @@ export default function Dashboard() {
             )}
             {status === "authenticated" && !isPaid && (
               <Button size="sm" asChild className="bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
-                <Link href="/subscribe">Upgrade to Pro</Link>
+                <Link href="/subscribe">Upgrade to VIP</Link>
               </Button>
             )}
             {status === "authenticated" && isPaid && (
@@ -3543,7 +3543,7 @@ export default function Dashboard() {
               )}
               {status === "authenticated" && !isPaid && (
                 <Button size="sm" asChild className="justify-start h-12 bg-amber-500 hover:bg-amber-600 text-white">
-                  <Link href="/subscribe" onClick={() => setMobileMenuOpen(false)}>Upgrade to Pro</Link>
+                  <Link href="/subscribe" onClick={() => setMobileMenuOpen(false)}>Upgrade to VIP</Link>
                 </Button>
               )}
               {status === "authenticated" && isPaid && (
@@ -3803,7 +3803,7 @@ export default function Dashboard() {
                   <TabsTrigger value="trading-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />NovaStaris AI Trading Bots</TabsTrigger>
                 )}
                 {isTabVisibleInGui("trading-bot") && matchesTopTabFilter("polymarket-bot") && (
-                  <TabsTrigger value="polymarket-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Polymarket Pro</TabsTrigger>
+                  <TabsTrigger value="polymarket-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Polymarket</TabsTrigger>
                 )}
                 {isTabVisibleInGui("prop-firm-bot") && matchesTopTabFilter("prop-firm-bot") && (
                   <TabsTrigger value="prop-firm-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Prop Firm Challenge</TabsTrigger>
@@ -3930,8 +3930,8 @@ export default function Dashboard() {
                       : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner
                         ? "Upgrade to VIP to use this feature."
                         : activeTab === "nova-connect"
-                          ? "Upgrade to Pro or VIP, or ask an admin to allow NovaConnect for you."
-                          : "Upgrade to Pro or VIP to use this feature.")}
+                          ? "Upgrade to VIP, or ask an admin to allow NovaConnect for you."
+                          : "Upgrade to VIP to use this feature.")}
                   {isGuest && (
                     <>
                       {" "}
@@ -3947,7 +3947,7 @@ export default function Dashboard() {
                           </Link>
                         </>
                       )}
-                      {!sitePromo?.active && " Upgrade to Pro or VIP when you want full access."}
+                      {!sitePromo?.active && " Upgrade to VIP when you want full access."}
                     </>
                   )}
                 </p>
@@ -4211,12 +4211,12 @@ export default function Dashboard() {
                     BSC
                   </button>
                   {aiAnalysisChain === "bsc" && !isPaid && (
-                    <span className="text-xs text-amber-600 dark:text-amber-400">BSC AI Agent is for Pro and VIP only.</span>
+                    <span className="text-xs text-amber-600 dark:text-amber-400">BSC AI Agent is for VIP only.</span>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   {aiAnalysisChain === "bsc"
-                    ? "Enter a BSC token contract address (0x + 40 hex chars). Pro/VIP only. Optionally add the amount you plan to invest. NovaStaris AI will analyze on-chain data, security, and give buy zone, take profit & stop loss."
+                    ? "Enter a BSC token contract address (0x + 40 hex chars). VIP only. Optionally add the amount you plan to invest. NovaStaris AI will analyze on-chain data, security, and give buy zone, take profit & stop loss."
                     : "Enter a Solana token contract address (CA). Optionally add the amount you plan to invest so the AI can say if it's too risky for the token's liquidity. NovaStaris AI will analyze on-chain data, security, support/resistance, and give buy zone, take profit & stop loss."}
                 </p>
                 <div className="flex flex-wrap gap-2 items-end">
@@ -6220,7 +6220,7 @@ export default function Dashboard() {
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/60 p-3 space-y-2">
                         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Community feed</h3>
                         <p className="text-xs text-muted-foreground">
-                          Share charts, screenshots, and notes. Everyone can post here. Pro/VIP members (or users allowed by admin) can see online traders and send private messages. Profile photos from Account appear next to posts—tap a photo to view full size.
+                          Share charts, screenshots, and notes. Everyone can post here. VIP members (or users allowed by admin) can see online traders and send private messages. Profile photos from Account appear next to posts—tap a photo to view full size.
                         </p>
                       </div>
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/70 p-3 space-y-3 min-h-[220px]">
@@ -6277,7 +6277,7 @@ export default function Dashboard() {
                           </div>
                           {!canUseNovaConnectPaidFeatures && (
                             <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                              Upgrade to Pro or VIP (or ask an admin to allow NovaConnect) to see online traders and chat with them.
+                              Upgrade to VIP (or ask an admin to allow NovaConnect) to see online traders and chat with them.
                             </p>
                           )}
                         </div>
@@ -6534,12 +6534,12 @@ export default function Dashboard() {
                             className="relative flex flex-col items-center justify-center min-h-[140px] rounded-md bg-zinc-200/80 dark:bg-zinc-800/80 overflow-hidden"
                             role="button"
                             tabIndex={0}
-                            onClick={() => alert("Upgrade to Pro or VIP to see online traders and chat with users, or ask an admin to allow NovaConnect for you.")}
-                            onKeyDown={(e) => e.key === "Enter" && alert("Upgrade to Pro or VIP to see online traders and chat with users.")}
+                            onClick={() => alert("Upgrade to VIP to see online traders and chat with users, or ask an admin to allow NovaConnect for you.")}
+                            onKeyDown={(e) => e.key === "Enter" && alert("Upgrade to VIP to see online traders and chat with users.")}
                           >
                             <div className="absolute inset-0 backdrop-blur-[6px] bg-zinc-300/50 dark:bg-zinc-700/50" aria-hidden />
                             <p className="relative z-10 text-xs text-zinc-600 dark:text-zinc-400 text-center px-3">
-                              Upgrade to Pro or VIP to see online traders and chat with them.
+                              Upgrade to VIP to see online traders and chat with them.
                             </p>
                             <button type="button" className="relative z-10 mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 underline">
                               Unlock
@@ -6708,7 +6708,7 @@ export default function Dashboard() {
                               type="text"
                               value={novaConnectDmInput}
                               onChange={(e) => setNovaConnectDmInput(e.target.value)}
-                              placeholder={isPaid ? "Type a private message…" : "Upgrade to Pro or VIP to send messages."}
+                              placeholder={isPaid ? "Type a private message…" : "Upgrade to VIP to send messages."}
                               className="flex-1 min-w-[140px] rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                               disabled={!isPaid}
                             />
@@ -6767,7 +6767,7 @@ export default function Dashboard() {
                           You can leave NovaConnect at any time without closing your NovaStaris account.
                         </p>
                         <p className="text-xs text-zinc-700 dark:text-zinc-300">
-                          Everyone can post in the community forum. Pro/VIP members (or users allowed by admin) can see online traders and send private messages.
+                          Everyone can post in the community forum. VIP members (or users allowed by admin) can see online traders and send private messages.
                         </p>
                       </div>
                     </div>

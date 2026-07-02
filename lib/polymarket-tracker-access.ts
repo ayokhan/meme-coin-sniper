@@ -25,12 +25,12 @@ export async function getPolymarketTrackerAccess(session: Session | null): Promi
   }
   const tier = await getSubscriptionTier(userId);
   if (tier !== "vip") {
-    return { ok: false, status: 403, error: "VIP with Nova Polymarket Pro access required." };
+    return { ok: false, status: 403, error: "VIP with Nova Polymarket access required." };
   }
   const user = await prisma.user.findUnique({ where: { id: userId } });
   const polyOn = !!(user as { polymarketBotOnDemand?: boolean } | null)?.polymarketBotOnDemand;
   if (!polyOn) {
-    return { ok: false, status: 403, error: "Ask admin to enable Nova Polymarket Pro (on demand) for your account." };
+    return { ok: false, status: 403, error: "Ask admin to enable Nova Polymarket (on demand) for your account." };
   }
   return { ok: true, userId, isOwner: false };
 }

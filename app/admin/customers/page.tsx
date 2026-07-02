@@ -306,7 +306,7 @@ export default function AdminCustomersPage() {
       const data = await res.json();
       if (data.success) {
         loadCustomers();
-        setSuccessMessage(value ? "Nova Prop Firm Bot enabled." : "Nova Prop Firm Bot disabled.");
+        setSuccessMessage(value ? "Nova Prop Firm Challenge enabled." : "Nova Prop Firm Challenge disabled.");
         setTimeout(() => setSuccessMessage(""), 4000);
       } else setError(data.error ?? "Failed to update");
     } catch {
@@ -690,7 +690,7 @@ export default function AdminCustomersPage() {
                     ? "bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700"
                     : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
                 }`}
-                title="Show Nova Prop Firm Bot toggles (legacy)"
+                title="Show Nova Prop Firm Challenge toggles (legacy)"
               >
                 {showLegacyOnDemand ? "Legacy: Prop firm shown" : "Show legacy prop firm"}
               </button>

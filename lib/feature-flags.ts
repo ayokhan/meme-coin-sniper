@@ -28,7 +28,7 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_PERP_RADAR: 'page_tab_perp_radar',
   PAGE_TAB_NARRATIVES: 'page_tab_narratives',
   PAGE_TAB_TRADING_BOT: 'page_tab_trading_bot',
-  /** VIP on-demand: Nova Prop Firm Bot tab (challenge guardrails + Blofin sync). Independent of AI Trading Bot tab. Default ON. */
+  /** VIP on-demand: Nova Prop Firm Challenge tab (challenge guardrails + Blofin sync). Independent of AI Trading Bot tab. Default ON. */
   PAGE_TAB_PROP_FIRM_BOT: 'page_tab_prop_firm_bot',
   /** VIP on-demand: Nova Ultimate tab (Solana meme tooling via Jupiter). Independent of AI Trading Bot tab. Default ON. */
   PAGE_TAB_NOVA_ULTIMATE: 'page_tab_nova_ultimate',
@@ -66,9 +66,9 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_POLYMARKET_TRACKER: 'nova_polymarket_tracker',
   /** VIP: Polymarket Copy Trading Bot subtab + analyze APIs. Requires tracker access. Default OFF until admin enables. */
   NOVA_POLYMARKET_COPY_BOT: 'nova_polymarket_copy_bot',
-  /** VIP: Polymarket Pro Leaderboard subtab + proxy API. Requires tracker access. Default OFF until admin enables. */
+  /** VIP: Nova Polymarket Leaderboard subtab + proxy API. Requires tracker access. Default OFF until admin enables. */
   NOVA_POLYMARKET_LEADERBOARD: 'nova_polymarket_leaderboard',
-  /** VIP: Nova 5 mins short-window direction assistant under Nova Polymarket Pro. Requires tracker access. Default OFF until admin enables. */
+  /** VIP: Nova 5 mins short-window direction assistant under Nova Polymarket. Requires tracker access. Default OFF until admin enables. */
   NOVA_POLYMARKET_FIVE_MINS: 'nova_polymarket_five_mins',
   /** VIP: Polymarket Elite — top leaderboard traders + consensus signals when elites align on same market side. Requires tracker access. Default OFF until admin enables. */
   NOVA_POLYMARKET_ELITE: 'nova_polymarket_elite',

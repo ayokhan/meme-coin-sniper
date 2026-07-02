@@ -5,7 +5,7 @@ import { canAccessCtScan } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Recent tweets from tracked CT accounts (Pro). Requires APIFY_API_TOKEN in Vercel. */
+/** GET - Recent tweets from tracked CT accounts (VIP). Requires APIFY_API_TOKEN in Vercel. */
 export async function GET() {
   try {
     const { tier, session } = await getSessionAndSubscription();
