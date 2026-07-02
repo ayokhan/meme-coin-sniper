@@ -82,6 +82,23 @@ function matchesRegistrationFilter(createdAt: string, month: string, date: strin
   return true;
 }
 
+function registrationPeriodLabel(month: string, date: string): string | null {
+  if (date) {
+    const d = new Date(`${date}T12:00:00`);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString(undefined, { weekday: "short", month: "long", day: "numeric", year: "numeric" });
+    }
+  }
+  if (month) {
+    const [y, m] = month.split("-").map(Number);
+    const d = new Date(y, m - 1, 1);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    }
+  }
+  return null;
+}
+
 export default function AdminCustomersPage() {
   const { data: session, status } = useSession();
   const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
@@ -271,6 +288,36 @@ export default function AdminCustomersPage() {
       );
     });
   }, [customers, search, registrationMonth, registrationDate, activeOnly, onDemandOnly, showLegacyOnDemand, readOnly]);
+
+  const registrationPeriodActive = !!(registrationMonth || registrationDate);
+
+  const registrationCohort = useMemo(() => {
+    if (!registrationPeriodActive) return null;
+    return customers.filter((c) => matchesRegistrationFilter(c.createdAt, registrationMonth, registrationDate));
+  }, [customers, registrationMonth, registrationDate, registrationPeriodActive]);
+
+  const registrationAnalysis = useMemo(() => {
+    if (!registrationCohort) return null;
+    const registrations = registrationCohort.length;
+    const activeSubscriptions = registrationCohort.filter((c) => c.isActive).length;
+    const activeVip = registrationCohort.filter(
+      (c) => c.isActive && (c.subscriptionTier === "vip" || c.subscriptionTier === "pro")
+    ).length;
+    const noActivePlan = registrations - activeSubscriptions;
+    const withOnDemand = registrationCohort.filter((c) => customerHasOnDemand(c, showLegacyOnDemand)).length;
+    const conversionPct = registrations > 0 ? Math.round((activeSubscriptions / registrations) * 100) : 0;
+    const vipConversionPct = registrations > 0 ? Math.round((activeVip / registrations) * 100) : 0;
+    return {
+      registrations,
+      activeSubscriptions,
+      activeVip,
+      noActivePlan,
+      withOnDemand,
+      conversionPct,
+      vipConversionPct,
+      label: registrationPeriodLabel(registrationMonth, registrationDate),
+    };
+  }, [registrationCohort, registrationMonth, registrationDate, showLegacyOnDemand]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this customer? This cannot be undone.")) return;
@@ -878,8 +925,65 @@ export default function AdminCustomersPage() {
               )}
               <span className="text-xs text-muted-foreground ml-auto">
                 {filteredCustomers.length} of {customers.length}
+                {registrationAnalysis && (
+                  <span className="hidden sm:inline">
+                    {" "}
+                    · {registrationAnalysis.registrations} registered in period
+                  </span>
+                )}
               </span>
             </div>
+            {registrationAnalysis && (
+              <div className="mb-4 rounded-lg border border-cyan-200 dark:border-cyan-800/80 bg-cyan-50/60 dark:bg-cyan-950/25 px-4 py-4">
+                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  Registration &amp; subscription analysis
+                  {registrationAnalysis.label ? (
+                    <span className="font-normal text-zinc-600 dark:text-zinc-400"> — {registrationAnalysis.label}</span>
+                  ) : null}
+                </p>
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <div className="rounded-md border border-zinc-200/80 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/60 px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground">Registrations</p>
+                    <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{registrationAnalysis.registrations}</p>
+                  </div>
+                  <div className="rounded-md border border-emerald-200/80 dark:border-emerald-800/50 bg-white/80 dark:bg-zinc-900/60 px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground">Active subscriptions</p>
+                    <p className="text-xl font-semibold text-emerald-600 dark:text-emerald-400">{registrationAnalysis.activeSubscriptions}</p>
+                    <p className="text-[10px] text-muted-foreground">{registrationAnalysis.conversionPct}% of cohort</p>
+                  </div>
+                  <div className="rounded-md border border-amber-200/80 dark:border-amber-800/50 bg-white/80 dark:bg-zinc-900/60 px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground">Active VIP</p>
+                    <p className="text-xl font-semibold text-amber-600 dark:text-amber-400">{registrationAnalysis.activeVip}</p>
+                    <p className="text-[10px] text-muted-foreground">{registrationAnalysis.vipConversionPct}% of cohort</p>
+                  </div>
+                  <div className="rounded-md border border-zinc-200/80 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/60 px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground">No active plan</p>
+                    <p className="text-xl font-semibold text-zinc-700 dark:text-zinc-300">{registrationAnalysis.noActivePlan}</p>
+                  </div>
+                  <div className="rounded-md border border-violet-200/80 dark:border-violet-800/50 bg-white/80 dark:bg-zinc-900/60 px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground">On-demand access</p>
+                    <p className="text-xl font-semibold text-violet-600 dark:text-violet-400">{registrationAnalysis.withOnDemand}</p>
+                  </div>
+                  <div className="rounded-md border border-cyan-200/80 dark:border-cyan-800/50 bg-white/80 dark:bg-zinc-900/60 px-3 py-2 col-span-2 sm:col-span-1">
+                    <p className="text-[11px] text-muted-foreground">Subscription rate</p>
+                    <p className="text-xl font-semibold text-cyan-700 dark:text-cyan-300">{registrationAnalysis.conversionPct}%</p>
+                    <p className="text-[10px] text-muted-foreground">active / registered</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">
+                  {registrationAnalysis.activeSubscriptions} of {registrationAnalysis.registrations} customers who registered in this period currently have an active subscription
+                  {registrationAnalysis.activeVip > 0
+                    ? ` (${registrationAnalysis.activeVip} VIP).`
+                    : "."}
+                  {filteredCustomers.length !== registrationAnalysis.registrations && (
+                    <span>
+                      {" "}
+                      Table shows {filteredCustomers.length} row{filteredCustomers.length === 1 ? "" : "s"} after other filters.
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
             {successMessage && (
               <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 text-sm px-3 py-2 mb-4">
                 {successMessage}
