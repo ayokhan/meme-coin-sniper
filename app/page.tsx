@@ -79,6 +79,7 @@ import {
   type DashboardPathApplyResult,
 } from "@/lib/dashboard-onboarding";
 import { ADMIN_NAV_ITEMS } from "@/lib/admin-nav-config";
+import { getDelegatedAdminNavHrefs } from "@/lib/admin-access";
 import NovaQFibPanel from "@/components/NovaQFibPanel";
 import NovaPatternDetectorPanel from "@/components/NovaPatternDetectorPanel";
 import NovaExtraPanel from "@/components/NovaExtraPanel";
@@ -311,6 +312,12 @@ export default function Dashboard() {
   const [subscriptionTier, setSubscriptionTier] = useState<"pro" | "vip" | null>(null);
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
   const isCustomersViewerAdmin = (session?.user as { customersViewerAdmin?: boolean } | undefined)?.customersViewerAdmin ?? false;
+  const isLiveChatAgentAdmin = (session?.user as { liveChatAgentAdmin?: boolean } | undefined)?.liveChatAgentAdmin ?? false;
+  const delegatedAdminHrefs = status === "authenticated" && !isOwner ? getDelegatedAdminNavHrefs(session) : null;
+  const delegatedAdminNavItems = delegatedAdminHrefs?.length
+    ? ADMIN_NAV_ITEMS.filter((item) => delegatedAdminHrefs.includes(item.href))
+    : [];
+  const canPingLivePresence = isOwner || isLiveChatAgentAdmin;
   const isCoachUser = (session?.user as { isCoachUser?: boolean } | undefined)?.isCoachUser ?? false;
   const isPaid = isOwner || isCoachUser || (subscriptionPaid !== null ? subscriptionPaid : sessionPaid);
   const tier = (isOwner || isCoachUser) ? "vip" : (subscriptionTier !== null ? subscriptionTier : sessionTier);
@@ -623,12 +630,12 @@ export default function Dashboard() {
 
   // Mark live agent as online when owner has dashboard open (so Nja shows "live agent available")
   useEffect(() => {
-    if (status !== "authenticated" || !isOwner) return;
+    if (status !== "authenticated" || !canPingLivePresence) return;
     const ping = () => fetch("/api/chat/presence", { method: "POST" }).catch(() => {});
     ping();
     const interval = setInterval(ping, 20000);
     return () => clearInterval(interval);
-  }, [status, isOwner]);
+  }, [status, canPingLivePresence]);
 
   // Load NovaConnect rules acceptance from localStorage and profile when needed
   useEffect(() => {
@@ -3457,17 +3464,45 @@ export default function Dashboard() {
                 </div>
               </>
             )}
-            {status === "authenticated" && isCustomersViewerAdmin && !isOwner && (
-              <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
-                <Link href="/admin/customers">Admin</Link>
-              </Button>
+            {status === "authenticated" && delegatedAdminNavItems.length > 0 && (
+              delegatedAdminNavItems.length === 1 ? (
+                <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
+                  <Link href={delegatedAdminNavItems[0].href}>Admin</Link>
+                </Button>
+              ) : (
+                <div className="relative" ref={adminMenuRef}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); setAdminMenuOpen((v) => !v); }}
+                    className="border-zinc-200 dark:border-zinc-700 inline-flex items-center gap-1"
+                  >
+                    Admin
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${adminMenuOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                  {adminMenuOpen && (
+                    <div className="absolute top-full left-0 mt-1 z-50 min-w-[220px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1">
+                      {delegatedAdminNavItems.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setAdminMenuOpen(false)}
+                          className="block px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
             )}
             {status === "authenticated" && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (isOwner) {
+                  if (canPingLivePresence) {
                     fetch("/api/chat/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offline: true }) }).finally(() => signOut());
                   } else {
                     signOut();
@@ -3560,13 +3595,18 @@ export default function Dashboard() {
                   <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>Nova Admin</Link>
                 </Button>
               )}
-              {status === "authenticated" && isCustomersViewerAdmin && !isOwner && (
+              {status === "authenticated" && delegatedAdminNavItems.length === 1 && (
                 <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                  <Link href="/admin/customers" onClick={() => setMobileMenuOpen(false)}>Admin</Link>
+                  <Link href={delegatedAdminNavItems[0].href} onClick={() => setMobileMenuOpen(false)}>Admin</Link>
                 </Button>
               )}
+              {status === "authenticated" && delegatedAdminNavItems.length > 1 && delegatedAdminNavItems.map((item) => (
+                <Button key={item.href} variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
+                  <Link href={item.href} onClick={() => setMobileMenuOpen(false)}>{item.label}</Link>
+                </Button>
+              ))}
               {status === "authenticated" && (
-                <Button variant="outline" size="sm" className="justify-start h-12 border-zinc-200 dark:border-zinc-700" onClick={() => { setMobileMenuOpen(false); if (isOwner) fetch("/api/chat/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offline: true }) }).finally(() => signOut()); else signOut(); }}>
+                <Button variant="outline" size="sm" className="justify-start h-12 border-zinc-200 dark:border-zinc-700" onClick={() => { setMobileMenuOpen(false); if (canPingLivePresence) fetch("/api/chat/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offline: true }) }).finally(() => signOut()); else signOut(); }}>
                   Log out
                 </Button>
               )}

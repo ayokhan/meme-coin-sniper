@@ -132,6 +132,12 @@ model User {
   coachUser                  Boolean  @default(false)
   /** Owner grants read-only access to Admin → Customers (view only; no edits). */
   customersViewerAdmin       Boolean  @default(false)
+  /** Owner grants access to Admin → Support tickets. */
+  supportViewerAdmin         Boolean  @default(false)
+  /** Owner grants access to Admin → Live chat (reply as agent). */
+  liveChatAgentAdmin         Boolean  @default(false)
+  /** Display name shown to customers when replying in live chat (default: Support Agent). */
+  supportStaffName           String?
   /** When user accepted Payment Terms and Conditions (required before any subscription payment). */
   paymentTermsAcceptedAt     DateTime?
   createdAt     DateTime  @default(now())
@@ -524,6 +530,7 @@ model ChatMessage {
   sessionId String
   role      String   // "customer" | "nja" | "agent"
   content   String
+  agentDisplayName String?
   createdAt DateTime @default(now())
   session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   @@index([sessionId])

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { DEFAULT_SUPPORT_AGENT_NAME } from '@/lib/support-agent';
 
 /** GET - List messages for a session. ?sessionId= */
 export async function GET(req: Request) {
@@ -12,10 +13,16 @@ export async function GET(req: Request) {
     const messages = await prisma.chatMessage.findMany({
       where: { sessionId },
       orderBy: { createdAt: 'asc' },
-    }) as Array<{ id: string; role: string; content: string; createdAt: Date }>;
+    }) as Array<{ id: string; role: string; content: string; agentDisplayName: string | null; createdAt: Date }>;
     return NextResponse.json({
       success: true,
-      messages: messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt })),
+      messages: messages.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        agentDisplayName: m.role === 'agent' ? (m.agentDisplayName ?? DEFAULT_SUPPORT_AGENT_NAME) : null,
+        createdAt: m.createdAt,
+      })),
     });
   } catch (e) {
     console.error('Chat messages error:', e);

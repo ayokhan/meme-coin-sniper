@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import { adminNavByGroup, ADMIN_NAV_GROUPS } from "@/lib/admin-nav-config";
-import { customersViewerAdminOnly } from "@/lib/admin-access";
+import { delegatedAdminOnly, getDelegatedAdminNavHrefs } from "@/lib/admin-access";
 import { Headphones, MessageCircle } from "lucide-react";
 
 type Ticket = {
@@ -30,8 +30,9 @@ export default function AdminHubPage() {
 
   useEffect(() => {
     if (status !== "authenticated" || !session) return;
-    if (customersViewerAdminOnly(session)) {
-      router.replace("/admin/customers");
+    if (delegatedAdminOnly(session)) {
+      const hrefs = getDelegatedAdminNavHrefs(session);
+      if (hrefs?.[0]) router.replace(hrefs[0]);
     }
   }, [status, session, router]);
 

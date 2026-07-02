@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useEffect, useState, useMemo } from "react";
+import { canViewAdminSupportSession } from "@/lib/admin-access";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,9 @@ export default function AdminSupportPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [canDelete, setCanDelete] = useState(false);
+
+  const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -46,8 +50,10 @@ export default function AdminSupportPage() {
     fetch("/api/admin/support")
       .then((r) => r.json())
       .then((data) => {
-        if (data.success) setTickets(data.tickets ?? []);
-        else setError(data.error ?? "Failed to load");
+        if (data.success) {
+          setTickets(data.tickets ?? []);
+          setCanDelete(!!data.canDelete);
+        } else setError(data.error ?? "Failed to load");
       })
       .catch(() => setError("Failed to load"))
       .finally(() => setLoading(false));
@@ -137,6 +143,18 @@ export default function AdminSupportPage() {
     );
   }
 
+  if (!canViewAdminSupportSession(session)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Not authorized to view support tickets.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-4 py-8">
       <div className="max-w-5xl mx-auto">
@@ -145,18 +163,22 @@ export default function AdminSupportPage() {
           NovaStaris
         </Link>
         <div className="flex gap-4 mb-4 flex-wrap">
-          <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Nova Admin hub
-          </Link>
-          <Link href="/admin/customers" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Customers
-          </Link>
-          <Link href="/admin/wallet-tracker" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Wallet Tracker
-          </Link>
-          <Link href="/admin/feature-flags" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
-            Feature flags
-          </Link>
+          {isOwner && (
+            <>
+              <Link href="/admin" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+                Nova Admin hub
+              </Link>
+              <Link href="/admin/customers" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+                Customers
+              </Link>
+              <Link href="/admin/wallet-tracker" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+                Wallet Tracker
+              </Link>
+              <Link href="/admin/feature-flags" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+                Feature flags
+              </Link>
+            </>
+          )}
           <Link href="/admin/chat" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
             Live chat
           </Link>
@@ -248,26 +270,28 @@ export default function AdminSupportPage() {
                         {updatingId === t.id && (
                           <span className="text-xs text-zinc-400">Updating…</span>
                         )}
-                        {confirmDeleteId === t.id ? (
-                          <span className="flex items-center gap-1.5">
-                            <span className="text-xs text-zinc-600 dark:text-zinc-400">Delete from DB?</span>
-                            <Button size="sm" variant="destructive" className="h-6 text-xs" onClick={() => deleteTicket(t.id)} disabled={deletingId === t.id}>
-                              {deletingId === t.id ? "Deleting…" : "Yes, delete"}
+                        {canDelete && (
+                          confirmDeleteId === t.id ? (
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-xs text-zinc-600 dark:text-zinc-400">Delete from DB?</span>
+                              <Button size="sm" variant="destructive" className="h-6 text-xs" onClick={() => deleteTicket(t.id)} disabled={deletingId === t.id}>
+                                {deletingId === t.id ? "Deleting…" : "Yes, delete"}
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setConfirmDeleteId(null)} disabled={deletingId === t.id}>
+                                Cancel
+                              </Button>
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                              onClick={() => setConfirmDeleteId(t.id)}
+                              title="Delete ticket (removes from database)"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setConfirmDeleteId(null)} disabled={deletingId === t.id}>
-                              Cancel
-                            </Button>
-                          </span>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50"
-                            onClick={() => setConfirmDeleteId(t.id)}
-                            title="Delete ticket (removes from database)"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          )
                         )}
                       </span>
                     </div>

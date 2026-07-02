@@ -31,6 +31,9 @@ export type AdminCustomerRecord = {
   novaConnectAllowedByAdmin: boolean;
   coachUser: boolean;
   customersViewerAdmin?: boolean;
+  supportViewerAdmin?: boolean;
+  liveChatAgentAdmin?: boolean;
+  supportStaffName?: string | null;
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
   subscriptionExpiresAt: string | null;
@@ -131,6 +134,9 @@ export type CustomerExpandedPanelProps = {
     resetPassword: boolean;
     delete: boolean;
     customersViewerAdmin?: boolean;
+    supportViewerAdmin?: boolean;
+    liveChatAgentAdmin?: boolean;
+    savingSupportStaffName?: boolean;
   };
   onTradingBot: (value: boolean) => void;
   onPolymarket: (value: boolean) => void;
@@ -150,6 +156,9 @@ export type CustomerExpandedPanelProps = {
   onResetPassword: () => void;
   onDelete: () => void;
   onCustomersViewerAdmin?: (value: boolean) => void;
+  onSupportViewerAdmin?: (value: boolean) => void;
+  onLiveChatAgentAdmin?: (value: boolean) => void;
+  onSupportStaffNameSave?: (value: string) => void;
 };
 
 export default function CustomerExpandedPanel({
@@ -181,6 +190,9 @@ export default function CustomerExpandedPanel({
   onResetPassword,
   onDelete,
   onCustomersViewerAdmin,
+  onSupportViewerAdmin,
+  onLiveChatAgentAdmin,
+  onSupportStaffNameSave,
 }: CustomerExpandedPanelProps) {
   if (readOnly) {
     return (
@@ -251,6 +263,44 @@ export default function CustomerExpandedPanel({
               busy={!!busy.customersViewerAdmin}
               onClick={() => onCustomersViewerAdmin(!c.customersViewerAdmin)}
               active="cyan"
+            />
+          </DetailRow>
+        )}
+        {isOwner && onSupportViewerAdmin && (
+          <DetailRow label="Support tickets admin" hint="Access Admin → Support tickets">
+            <OnOffButton
+              readOnly={false}
+              on={!!c.supportViewerAdmin}
+              busy={!!busy.supportViewerAdmin}
+              onClick={() => onSupportViewerAdmin(!c.supportViewerAdmin)}
+              active="cyan"
+            />
+          </DetailRow>
+        )}
+        {isOwner && onLiveChatAgentAdmin && (
+          <DetailRow label="Live chat agent" hint="Access Admin → Live chat and reply to customers">
+            <OnOffButton
+              readOnly={false}
+              on={!!c.liveChatAgentAdmin}
+              busy={!!busy.liveChatAgentAdmin}
+              onClick={() => onLiveChatAgentAdmin(!c.liveChatAgentAdmin)}
+              active="violet"
+            />
+          </DetailRow>
+        )}
+        {isOwner && onSupportStaffNameSave && (c.liveChatAgentAdmin || c.supportViewerAdmin) && (
+          <DetailRow label="Support staff name" hint="Shown to customers when replying (default: Support Agent)">
+            <input
+              type="text"
+              defaultValue={c.supportStaffName ?? ""}
+              placeholder="Support Agent"
+              disabled={!!busy.savingSupportStaffName}
+              className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 min-w-[10rem]"
+              onBlur={(e) => {
+                const next = e.target.value.trim();
+                const current = (c.supportStaffName ?? "").trim();
+                if (next !== current) onSupportStaffNameSave(next);
+              }}
             />
           </DetailRow>
         )}

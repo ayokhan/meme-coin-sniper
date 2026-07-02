@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageCircle, Send, Bot, User, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_SUPPORT_AGENT_NAME } from "@/lib/support-agent";
 import { VIP_PLANS, CARD_PAYMENT_FEE_USD, getCardPriceForPlan } from "@/lib/subscription";
 
 const WELCOME = "Hi, I'm Nja, your AI assistant for NovaStaris. I'm here to help anytime, anywhere.";
@@ -67,7 +68,7 @@ function getSubscriptionReply(): string {
   return `${NJA_SUBSCRIPTION_INTRO}\n\nVIP:\n${vipList}\n\n${NJA_SUBSCRIPTION_OUTRO}`;
 }
 
-type Message = { id: string; role: string; content: string; createdAt: string };
+type Message = { id: string; role: string; content: string; agentDisplayName?: string | null; createdAt: string };
 
 export default function NeedHelpWidget() {
   const [open, setOpen] = useState(false);
@@ -461,7 +462,11 @@ export default function NeedHelpWidget() {
                             m.role === "customer" ? "bg-cyan-500 text-white" : m.role === "agent" ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100" : "bg-violet-100 dark:bg-violet-900/40 text-zinc-900 dark:text-zinc-100"
                           }`}
                         >
-                          {m.role === "agent" && <span className="block text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Support Agent</span>}
+                          {m.role === "agent" && (
+                            <span className="block text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">
+                              {m.agentDisplayName ?? DEFAULT_SUPPORT_AGENT_NAME}
+                            </span>
+                          )}
                           <span className="whitespace-pre-wrap">{m.content}</span>
                         </div>
                         {m.role === "customer" && (

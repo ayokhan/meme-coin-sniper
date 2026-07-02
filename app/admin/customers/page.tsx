@@ -38,6 +38,9 @@ type Customer = {
   novaConnectAllowedByAdmin: boolean;
   coachUser: boolean;
   customersViewerAdmin: boolean;
+  supportViewerAdmin: boolean;
+  liveChatAgentAdmin: boolean;
+  supportStaffName: string | null;
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
   createdAt: string;
@@ -88,6 +91,9 @@ export default function AdminCustomersPage() {
   const [togglingAllowedByAdminId, setTogglingAllowedByAdminId] = useState<string | null>(null);
   const [togglingCoachUserId, setTogglingCoachUserId] = useState<string | null>(null);
   const [togglingCustomersViewerAdminId, setTogglingCustomersViewerAdminId] = useState<string | null>(null);
+  const [togglingSupportViewerAdminId, setTogglingSupportViewerAdminId] = useState<string | null>(null);
+  const [togglingLiveChatAgentAdminId, setTogglingLiveChatAgentAdminId] = useState<string | null>(null);
+  const [savingSupportStaffNameId, setSavingSupportStaffNameId] = useState<string | null>(null);
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const customersTableScrollRef = useRef<HTMLDivElement>(null);
@@ -514,6 +520,72 @@ export default function AdminCustomersPage() {
     }
   };
 
+  const handleSupportViewerAdminToggle = async (id: string, value: boolean) => {
+    setTogglingSupportViewerAdminId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ supportViewerAdmin: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Support tickets admin enabled." : "Support tickets admin removed.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update support admin");
+    } catch {
+      setError("Failed to update support admin");
+    } finally {
+      setTogglingSupportViewerAdminId(null);
+    }
+  };
+
+  const handleLiveChatAgentAdminToggle = async (id: string, value: boolean) => {
+    setTogglingLiveChatAgentAdminId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ liveChatAgentAdmin: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Live chat agent enabled." : "Live chat agent removed.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update live chat agent");
+    } catch {
+      setError("Failed to update live chat agent");
+    } finally {
+      setTogglingLiveChatAgentAdminId(null);
+    }
+  };
+
+  const handleSupportStaffNameSave = async (id: string, value: string) => {
+    setSavingSupportStaffNameId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ supportStaffName: value || null }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage("Support staff name saved.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to save support staff name");
+    } catch {
+      setError("Failed to save support staff name");
+    } finally {
+      setSavingSupportStaffNameId(null);
+    }
+  };
+
   const handleCoachUserToggle = async (id: string, value: boolean) => {
     setTogglingCoachUserId(id);
     setError("");
@@ -899,6 +971,9 @@ export default function AdminCustomersPage() {
                                     resetPassword: resettingPasswordId === c.id,
                                     delete: deletingId === c.id,
                                     customersViewerAdmin: togglingCustomersViewerAdminId === c.id,
+                                    supportViewerAdmin: togglingSupportViewerAdminId === c.id,
+                                    liveChatAgentAdmin: togglingLiveChatAgentAdminId === c.id,
+                                    savingSupportStaffName: savingSupportStaffNameId === c.id,
                                   }}
                                   onTradingBot={(v) => handleTradingBotOnDemand(c.id, v)}
                                   onPolymarket={(v) => handlePolymarketBotOnDemand(c.id, v)}
@@ -918,6 +993,9 @@ export default function AdminCustomersPage() {
                                   onResetPassword={() => handleResetPassword(c.id, c.email)}
                                   onDelete={() => handleDelete(c.id)}
                                   onCustomersViewerAdmin={(v) => handleCustomersViewerAdminToggle(c.id, v)}
+                                  onSupportViewerAdmin={(v) => handleSupportViewerAdminToggle(c.id, v)}
+                                  onLiveChatAgentAdmin={(v) => handleLiveChatAgentAdminToggle(c.id, v)}
+                                  onSupportStaffNameSave={(v) => handleSupportStaffNameSave(c.id, v)}
                                 />
                               </td>
                             </tr>

@@ -3,37 +3,44 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Zap, Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ADMIN_NAV_GROUPS, ADMIN_NAV_ITEMS, adminNavByGroup } from "@/lib/admin-nav-config";
-import { customersViewerAdminOnly } from "@/lib/admin-access";
+import { canAccessDelegatedAdminPath, getDelegatedAdminNavHrefs } from "@/lib/admin-access";
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const viewerOnly = customersViewerAdminOnly(session);
+  const delegatedHrefs = getDelegatedAdminNavHrefs(session);
+  const delegatedOnly = Array.isArray(delegatedHrefs) && delegatedHrefs.length > 0;
 
   useEffect(() => {
-    if (!session || !viewerOnly) return;
-    if (pathname !== "/admin/customers" && pathname.startsWith("/admin")) {
-      router.replace("/admin/customers");
+    if (!session || !delegatedOnly || !delegatedHrefs) return;
+    if (pathname.startsWith("/admin") && !canAccessDelegatedAdminPath(session, pathname)) {
+      router.replace(delegatedHrefs[0]);
     }
-  }, [session, viewerOnly, pathname, router]);
+  }, [session, delegatedOnly, delegatedHrefs, pathname, router]);
 
   const grouped = adminNavByGroup();
-  const visibleItems = viewerOnly
-    ? ADMIN_NAV_ITEMS.filter((item) => item.href === "/admin/customers")
+  const visibleItems = delegatedOnly
+    ? ADMIN_NAV_ITEMS.filter((item) => delegatedHrefs!.includes(item.href))
     : ADMIN_NAV_ITEMS;
-  const visibleGroups = viewerOnly
+  const visibleGroups = delegatedOnly
     ? ADMIN_NAV_GROUPS.filter((g) => visibleItems.some((item) => item.group === g.id))
     : ADMIN_NAV_GROUPS;
+
+  const headerLabel = useMemo(() => {
+    if (!delegatedOnly) return "Admin";
+    if (visibleItems.length === 1) return visibleItems[0].label;
+    return "Admin";
+  }, [delegatedOnly, visibleItems]);
 
   const nav = (
     <nav className="flex flex-col gap-5 py-4">
       {visibleGroups.map((g) => {
-        const items = viewerOnly ? visibleItems : grouped[g.id];
+        const items = delegatedOnly ? visibleItems.filter((item) => item.group === g.id) : grouped[g.id];
         if (items.length === 0) return null;
         return (
           <div key={g.id}>
@@ -88,7 +95,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             </Link>
             <span className="hidden sm:inline text-zinc-400">/</span>
             <span className="hidden sm:inline text-sm font-semibold text-cyan-700 dark:text-cyan-300">
-              {viewerOnly ? "Customers" : "Admin"}
+              {headerLabel}
             </span>
           </div>
           <Link

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DEFAULT_SUPPORT_AGENT_NAME } from "@/lib/support-agent";
 import { Zap, Send, Bot, User, Headphones } from "lucide-react";
 
 const NJA_INTRO =
@@ -47,7 +48,7 @@ function isSubscriptionQuestion(text: string): boolean {
   return SUBSCRIPTION_KEYWORDS.some((k) => text.trim().toLowerCase().includes(k));
 }
 
-type Message = { id: string; role: string; content: string; createdAt: string };
+type Message = { id: string; role: string; content: string; agentDisplayName?: string | null; createdAt: string };
 
 export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -334,7 +335,9 @@ export default function ChatPage() {
                     }`}
                   >
                     {m.role === "agent" && (
-                      <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Support Agent</span>
+                      <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                        {m.agentDisplayName ?? DEFAULT_SUPPORT_AGENT_NAME}
+                      </span>
                     )}
                     <span className="whitespace-pre-wrap">{m.content}</span>
                   </div>

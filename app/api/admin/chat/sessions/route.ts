@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, isOwnerSession } from '@/lib/auth';
+import { authOptions } from '@/lib/auth';
+import { canAccessLiveChatAgentSession, canDeleteAdminChatSession } from '@/lib/admin-access';
 import { prisma } from '@/lib/db';
 
-/** GET - List chat sessions (nja and live). Owner-only. */
+/** GET - List chat sessions (nja and live). Owner or live chat agent admin. */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!isOwnerSession(session)) {
+    if (!canAccessLiveChatAgentSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 
@@ -24,11 +25,12 @@ export async function GET() {
       customerEmail: string | null;
       createdAt: Date;
       updatedAt: Date;
-      messages: Array<{ id: string; role: string; content: string; createdAt: Date }>;
+      messages: Array<{ id: string; role: string; content: string; agentDisplayName: string | null; createdAt: Date }>;
     }>;
 
     return NextResponse.json({
       success: true,
+      canDelete: canDeleteAdminChatSession(session),
       sessions: sessions.map((s) => ({
         id: s.id,
         status: s.status,
@@ -36,7 +38,13 @@ export async function GET() {
         customerEmail: s.customerEmail,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
-        messages: s.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt })),
+        messages: s.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          agentDisplayName: m.agentDisplayName,
+          createdAt: m.createdAt,
+        })),
       })),
     });
   } catch (e) {
@@ -45,11 +53,11 @@ export async function GET() {
   }
 }
 
-/** DELETE - Delete a chat session and all its messages. Owner-only. */
+/** DELETE - Delete a chat session and all its messages. Owner only. */
 export async function DELETE(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!isOwnerSession(session)) {
+    if (!canDeleteAdminChatSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 

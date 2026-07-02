@@ -35,6 +35,9 @@ export async function PATCH(
     const novaConnectAllowedByAdmin = body.novaConnectAllowedByAdmin;
     const coachUser = body.coachUser;
     const customersViewerAdmin = body.customersViewerAdmin;
+    const supportViewerAdmin = body.supportViewerAdmin;
+    const liveChatAgentAdmin = body.liveChatAgentAdmin;
+    const supportStaffName = body.supportStaffName;
     const rulesAccepted = body.rulesAccepted;
     const updates: {
       tradingBotOnDemand?: boolean;
@@ -51,6 +54,9 @@ export async function PATCH(
       novaConnectAllowedByAdmin?: boolean;
       coachUser?: boolean;
       customersViewerAdmin?: boolean;
+      supportViewerAdmin?: boolean;
+      liveChatAgentAdmin?: boolean;
+      supportStaffName?: string | null;
       novaConnectRulesAcceptedAt?: Date | null;
     } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
@@ -71,13 +77,22 @@ export async function PATCH(
     if (typeof novaConnectAllowedByAdmin === 'boolean') updates.novaConnectAllowedByAdmin = novaConnectAllowedByAdmin;
     if (typeof coachUser === 'boolean') updates.coachUser = coachUser;
     if (typeof customersViewerAdmin === 'boolean') updates.customersViewerAdmin = customersViewerAdmin;
+    if (typeof supportViewerAdmin === 'boolean') updates.supportViewerAdmin = supportViewerAdmin;
+    if (typeof liveChatAgentAdmin === 'boolean') updates.liveChatAgentAdmin = liveChatAgentAdmin;
+    if (supportStaffName !== undefined) {
+      if (supportStaffName === null) updates.supportStaffName = null;
+      else if (typeof supportStaffName === 'string') {
+        const trimmed = supportStaffName.trim();
+        updates.supportStaffName = trimmed.length > 0 ? trimmed : null;
+      }
+    }
     if (typeof rulesAccepted === 'boolean') {
       updates.novaConnectRulesAcceptedAt = rulesAccepted ? new Date() : null;
     }
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, customersViewerAdmin, rulesAccepted (boolean).',
+        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, customersViewerAdmin, supportViewerAdmin, liveChatAgentAdmin, supportStaffName, rulesAccepted (boolean).',
       }, { status: 400 });
     }
     await (prisma as any).user.update({

@@ -5,9 +5,11 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { canAccessLiveChatAgentSession } from "@/lib/admin-access";
+import { resolveSupportStaffDisplayName } from "@/lib/support-agent";
 import { Zap, Send, User, Bot, Headphones, Trash2, MessageSquarePlus, X } from "lucide-react";
 
-type Message = { id: string; role: string; content: string; createdAt: string };
+type Message = { id: string; role: string; content: string; agentDisplayName?: string | null; createdAt: string };
 type Session = {
   id: string;
   status: string;
@@ -30,7 +32,7 @@ export default function AdminChatPage() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [canDelete, setCanDelete] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const presenceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -39,34 +41,41 @@ export default function AdminChatPage() {
     () => openWindowIds.map((id) => sessions.find((s) => s.id === id)).filter((s): s is Session => !!s),
     [openWindowIds, sessions]
   );
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
+  const canUseLiveChat = canAccessLiveChatAgentSession(session);
+  const agentDisplayName = resolveSupportStaffDisplayName(
+    (session?.user as { supportStaffName?: string | null } | undefined)?.supportStaffName
+  );
 
   const loadSessions = () => {
     fetch("/api/admin/chat/sessions")
       .then((r) => r.json())
       .then((data) => {
-        if (data.success) setSessions(data.sessions ?? []);
-        else setError(data.error ?? "Failed to load");
+        if (data.success) {
+          setSessions(data.sessions ?? []);
+          setCanDelete(!!data.canDelete);
+        } else setError(data.error ?? "Failed to load");
       })
       .catch(() => setError("Failed to load"));
   };
 
   useEffect(() => {
-    if (authStatus !== "authenticated" || !isOwner) return;
+    if (authStatus !== "authenticated" || !canUseLiveChat) return;
     setLoading(true);
     loadSessions();
     setLoading(false);
-  }, [authStatus, isOwner]);
+  }, [authStatus, canUseLiveChat]);
 
   useEffect(() => {
-    if (!isOwner) return;
+    if (!canUseLiveChat) return;
     const ping = () => fetch("/api/chat/presence", { method: "POST" }).catch(() => {});
     ping();
     presenceIntervalRef.current = setInterval(ping, 20000);
     return () => {
       if (presenceIntervalRef.current) clearInterval(presenceIntervalRef.current);
     };
-  }, [isOwner]);
+  }, [canUseLiveChat]);
 
   useEffect(() => {
     if (!selectedId && openWindowIds.length === 0) return;
@@ -187,12 +196,12 @@ export default function AdminChatPage() {
     );
   }
 
-  if (!isOwner) {
+  if (!canUseLiveChat) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
         <Card className="w-full max-w-md">
           <CardContent className="py-8 text-center text-muted-foreground">
-            Only owners can access the live chat dashboard.
+            Not authorized to access live chat.
             <p className="mt-2">
               <Link href="/" className="underline">Back to app</Link>
             </p>
@@ -299,26 +308,28 @@ export default function AdminChatPage() {
                         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                           {selected.customerName || selected.customerEmail || "Guest"}
                         </span>
-                        {confirmDeleteId === selected.id ? (
-                          <span className="flex items-center gap-2 text-xs">
-                            <span className="text-zinc-500">Delete this chat?</span>
-                            <Button size="sm" variant="destructive" onClick={() => deleteChat(selected.id)} disabled={!!deletingId}>
-                              {deletingId === selected.id ? "Deleting…" : "Yes, delete"}
+                        {canDelete && (
+                          confirmDeleteId === selected.id ? (
+                            <span className="flex items-center gap-2 text-xs">
+                              <span className="text-zinc-500">Delete this chat?</span>
+                              <Button size="sm" variant="destructive" onClick={() => deleteChat(selected.id)} disabled={!!deletingId}>
+                                {deletingId === selected.id ? "Deleting…" : "Yes, delete"}
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)} disabled={!!deletingId}>
+                                Cancel
+                              </Button>
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                              onClick={() => setConfirmDeleteId(selected.id)}
+                              title="Delete this chat and all messages"
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)} disabled={!!deletingId}>
-                              Cancel
-                            </Button>
-                          </span>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50"
-                            onClick={() => setConfirmDeleteId(selected.id)}
-                            title="Delete this chat and all messages"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          )
                         )}
                       </div>
                       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-zinc-50/50 dark:bg-zinc-900/30">
@@ -339,7 +350,11 @@ export default function AdminChatPage() {
                                   : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
                               }`}
                             >
-                              {m.role === "agent" && <span className="block text-xs opacity-90 mb-0.5">You (Support Agent)</span>}
+                              {m.role === "agent" && (
+                                <span className="block text-xs opacity-90 mb-0.5">
+                                  You ({m.agentDisplayName ?? agentDisplayName})
+                                </span>
+                              )}
                               <span className="whitespace-pre-wrap">{m.content}</span>
                             </div>
                           </div>

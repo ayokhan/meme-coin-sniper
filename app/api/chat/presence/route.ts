@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, isOwnerSession } from '@/lib/auth';
+import { authOptions } from '@/lib/auth';
+import { canAccessLiveChatAgentSession } from '@/lib/admin-access';
 import { prisma } from '@/lib/db';
 
 const ONLINE_MS = 5 * 60 * 1000; // 5 min
@@ -17,11 +18,11 @@ export async function GET() {
   }
 }
 
-/** POST - Agent heartbeat (owner only). Body { offline: true } = mark agent offline now (e.g. on sign out). */
+/** POST - Agent heartbeat (owner or live chat agent). Body { offline: true } = mark agent offline now (e.g. on sign out). */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!isOwnerSession(session)) {
+    if (!canAccessLiveChatAgentSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
     let offline = false;

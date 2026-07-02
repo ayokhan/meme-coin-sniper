@@ -1,19 +1,24 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions, isOwnerSession } from '@/lib/auth';
+import {
+  canDeleteAdminSupportSession,
+  canUpdateAdminSupportSession,
+  canViewAdminSupportSession,
+} from '@/lib/admin-access';
 import { prisma } from '@/lib/db';
 
 const VALID_STATUSES = ['new', 'pending', 'assigned', 'open', 'resolved'] as const;
 
-/** GET - List all support tickets. Owner-only. */
+/** GET - List all support tickets. Owner or support viewer admin. */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
-    if (!isOwnerSession(session)) {
-      return NextResponse.json({ success: false, error: 'Not authorized. Only owners can view support tickets.' }, { status: 403 });
+    if (!canViewAdminSupportSession(session)) {
+      return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 
     const tickets = await prisma.supportTicket.findMany({
@@ -22,6 +27,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
+      canDelete: canDeleteAdminSupportSession(session),
       tickets: tickets.map((t) => ({
         id: t.id,
         supportNumber: t.supportNumber,
@@ -40,14 +46,14 @@ export async function GET() {
   }
 }
 
-/** PATCH - Update support ticket status. Owner-only. */
+/** PATCH - Update support ticket status. Owner or support viewer admin. */
 export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
-    if (!isOwnerSession(session)) {
+    if (!canUpdateAdminSupportSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 
@@ -73,14 +79,14 @@ export async function PATCH(req: Request) {
   }
 }
 
-/** DELETE - Delete a support ticket (removes from DB). Owner-only. */
+/** DELETE - Delete a support ticket. Owner only. */
 export async function DELETE(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
     }
-    if (!isOwnerSession(session)) {
+    if (!canDeleteAdminSupportSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
     }
 

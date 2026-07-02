@@ -18,6 +18,9 @@ declare module 'next-auth' {
       isPaid: boolean;
       isOwner?: boolean;
       customersViewerAdmin?: boolean;
+      supportViewerAdmin?: boolean;
+      liveChatAgentAdmin?: boolean;
+      supportStaffName?: string | null;
       isCoachUser?: boolean;
       tier?: Tier | null;
       tradingBotOnDemand?: boolean;
@@ -153,6 +156,9 @@ export async function buildJwtTokenForUserId(userId: string): Promise<string | n
       tier: fresh.tier,
       isCoachUser: fresh.isCoachUser,
       customersViewerAdmin: fresh.customersViewerAdmin,
+      supportViewerAdmin: fresh.supportViewerAdmin,
+      liveChatAgentAdmin: fresh.liveChatAgentAdmin,
+      supportStaffName: fresh.supportStaffName,
       tradingBotOnDemand: fresh.tradingBotOnDemand,
       polymarketBotOnDemand: fresh.polymarketBotOnDemand,
       propFirmBotOnDemand: fresh.propFirmBotOnDemand,
@@ -182,6 +188,9 @@ async function getAuthUserStateById(userId: string) {
     tier,
     isCoachUser: !!(user as { coachUser?: boolean }).coachUser,
     customersViewerAdmin: !!(user as { customersViewerAdmin?: boolean }).customersViewerAdmin,
+    supportViewerAdmin: !!(user as { supportViewerAdmin?: boolean }).supportViewerAdmin,
+    liveChatAgentAdmin: !!(user as { liveChatAgentAdmin?: boolean }).liveChatAgentAdmin,
+    supportStaffName: (user as { supportStaffName?: string | null }).supportStaffName ?? null,
     tradingBotOnDemand: !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand,
     polymarketBotOnDemand: !!(user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand,
     propFirmBotOnDemand: !!(user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand,
@@ -325,6 +334,9 @@ export const authOptions: NextAuthOptions = {
             token.tier = fresh.tier;
             token.isCoachUser = fresh.isCoachUser;
             token.customersViewerAdmin = fresh.customersViewerAdmin;
+            token.supportViewerAdmin = fresh.supportViewerAdmin;
+            token.liveChatAgentAdmin = fresh.liveChatAgentAdmin;
+            token.supportStaffName = fresh.supportStaffName;
             token.tradingBotOnDemand = fresh.tradingBotOnDemand;
             token.polymarketBotOnDemand = fresh.polymarketBotOnDemand;
             token.propFirmBotOnDemand = fresh.propFirmBotOnDemand;
@@ -377,6 +389,9 @@ export const authOptions: NextAuthOptions = {
         token.tier = (user as { tier?: Tier | null }).tier ?? null;
         token.isCoachUser = (user as { isCoachUser?: boolean }).isCoachUser ?? false;
         token.customersViewerAdmin = (user as { customersViewerAdmin?: boolean }).customersViewerAdmin ?? false;
+        token.supportViewerAdmin = (user as { supportViewerAdmin?: boolean }).supportViewerAdmin ?? false;
+        token.liveChatAgentAdmin = (user as { liveChatAgentAdmin?: boolean }).liveChatAgentAdmin ?? false;
+        token.supportStaffName = (user as { supportStaffName?: string | null }).supportStaffName ?? null;
         token.tradingBotOnDemand = (user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand ?? false;
         token.polymarketBotOnDemand = (user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand ?? false;
         token.propFirmBotOnDemand = (user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand ?? false;
@@ -411,6 +426,9 @@ export const authOptions: NextAuthOptions = {
         let novaConnectCommunityRep = (token.novaConnectCommunityRep as boolean) ?? false;
         let novaConnectAllowedByAdmin = (token.novaConnectAllowedByAdmin as boolean) ?? false;
         let customersViewerAdmin = (token as { customersViewerAdmin?: boolean }).customersViewerAdmin ?? false;
+        let supportViewerAdmin = (token as { supportViewerAdmin?: boolean }).supportViewerAdmin ?? false;
+        let liveChatAgentAdmin = (token as { liveChatAgentAdmin?: boolean }).liveChatAgentAdmin ?? false;
+        let supportStaffName = (token as { supportStaffName?: string | null }).supportStaffName ?? null;
         const owner = isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress);
         if (owner) {
           isPaid = true;
@@ -443,6 +461,9 @@ export const authOptions: NextAuthOptions = {
                       novaConnectAllowedByAdmin: boolean;
                       coachUser: boolean;
                       customersViewerAdmin: boolean;
+                      supportViewerAdmin: boolean;
+                      liveChatAgentAdmin: boolean;
+                      supportStaffName: string | null;
                     } | null>;
                   };
                 }
@@ -461,6 +482,9 @@ export const authOptions: NextAuthOptions = {
                   novaConnectAllowedByAdmin: true,
                   coachUser: true,
                   customersViewerAdmin: true,
+                  supportViewerAdmin: true,
+                  liveChatAgentAdmin: true,
+                  supportStaffName: true,
                 },
               });
               if (fresh) {
@@ -476,6 +500,9 @@ export const authOptions: NextAuthOptions = {
                 novaConnectAllowedByAdmin = !!fresh.novaConnectAllowedByAdmin;
                 isCoachUser = !!fresh.coachUser;
                 customersViewerAdmin = !!fresh.customersViewerAdmin;
+                supportViewerAdmin = !!fresh.supportViewerAdmin;
+                liveChatAgentAdmin = !!fresh.liveChatAgentAdmin;
+                supportStaffName = fresh.supportStaffName ?? null;
               }
             } catch {
               /* keep values derived from JWT */
@@ -492,6 +519,9 @@ export const authOptions: NextAuthOptions = {
         session.user.isOwner = owner;
         session.user.isCoachUser = isCoachUser;
         session.user.customersViewerAdmin = owner ? false : customersViewerAdmin;
+        session.user.supportViewerAdmin = owner ? false : supportViewerAdmin;
+        session.user.liveChatAgentAdmin = owner ? false : liveChatAgentAdmin;
+        session.user.supportStaffName = owner ? null : supportStaffName;
         session.user.tier = tier;
         session.user.tradingBotOnDemand = tradingBotOnDemand;
         session.user.polymarketBotOnDemand = polymarketBotOnDemand;
