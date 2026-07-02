@@ -3806,7 +3806,7 @@ export default function Dashboard() {
                   <TabsTrigger value="polymarket-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Polymarket Pro</TabsTrigger>
                 )}
                 {isTabVisibleInGui("prop-firm-bot") && matchesTopTabFilter("prop-firm-bot") && (
-                  <TabsTrigger value="prop-firm-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Prop Firm Bot</TabsTrigger>
+                  <TabsTrigger value="prop-firm-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Prop Firm Challenge</TabsTrigger>
                 )}
                 {isTabVisibleInGui("trading-bot") && matchesTopTabFilter("nova-ultimate") && (
                   <TabsTrigger value="nova-ultimate" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Ultimate</TabsTrigger>
@@ -7105,7 +7105,7 @@ export default function Dashboard() {
                     <div className="mx-3 sm:mx-6 mb-6 sm:mb-8">
                       <p className="text-sm text-muted-foreground mb-3">
                         <Flame className="inline-block h-4 w-4 mr-1 flame-hot-tab -mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden />
-                        Nova Prop Firm Bot: Blofin-synced challenge guardrails for entries and exits. VIP on demand.
+                        Nova Prop Firm Challenge: rules + live setup plan for prop evaluations. VIP on demand.
                       </p>
                       <PropFirmBotPanel />
                     </div>
@@ -7131,7 +7131,7 @@ export default function Dashboard() {
                 if (status !== "authenticated") {
                   return (
                     <GuestLockedFeatureCard
-                      title="Nova Prop Firm Bot"
+                      title="Nova Prop Firm Challenge"
                       body="Create a free account to explore this workspace. Full access is for VIP subscribers with on-demand enabled by admin — upgrade when you are ready."
                     />
                   );
@@ -7139,14 +7139,14 @@ export default function Dashboard() {
                 if (!isVip) {
                   return lockedCard({
                     title: "VIP subscription required",
-                    body: "Nova Prop Firm Bot uses prop-style challenge guardrails (Topstep-like profiles). Upgrade to VIP to unlock this workspace.",
+                    body: "Nova Prop Firm Challenge uses prop-style rules plus live setup plans. Upgrade to VIP to unlock this workbook.",
                     ctaHref: "/subscribe",
                     ctaLabel: "Upgrade to VIP",
                   });
                 }
                 return lockedCard({
-                  title: "Nova Prop Firm Bot — On demand",
-                  body: "You have VIP. Nova Prop Firm Bot is not on your account yet — contact support if you need access.",
+                  title: "Nova Prop Firm Challenge — On demand",
+                  body: "You have VIP. Nova Prop Firm Challenge is not on your account yet — contact support if you need access.",
                   ctaHref: "/support?subject=Nova%20Prop%20Firm%20Bot%20access%20request",
                   ctaLabel: "Contact for access",
                 });

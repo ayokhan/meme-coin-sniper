@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Flame, RefreshCw, Shield, ShieldAlert, ShieldCheck, Link2, Hand, ListOrdered } from "lucide-react";
+import { Flame, RefreshCw, Shield, ShieldAlert, ShieldCheck, Link2, Hand, ListOrdered, LineChart, Sparkles } from "lucide-react";
+import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
+import {
+  combinePropFirmVerdict,
+  riskAtStopFromSetup,
+  verdictSeverityClass,
+} from "@/lib/prop-firm-setup";
 import {
   computePropFirmGuards,
   computePropFirmMetrics,
@@ -60,6 +66,15 @@ export default function PropFirmBotPanel() {
   const [blofinKeys, setBlofinKeys] = useState({ apiKey: "", secretKey: "", passphrase: "", demoMode: true });
   const [savingKeys, setSavingKeys] = useState(false);
   const [entryCheckedAt, setEntryCheckedAt] = useState<string | null>(null);
+  const [setup, setSetup] = useState<NovaScalpAnalysis | null>(null);
+  const [setupChart, setSetupChart] = useState<{
+    closes: number[];
+    currentPrice: number | null;
+    timeframeLabel: string;
+  } | null>(null);
+  const [analyzingSetup, setAnalyzingSetup] = useState(false);
+  const [setupError, setSetupError] = useState("");
+  const [setupTimeframe, setSetupTimeframe] = useState("15m");
   const hydrated = useRef(false);
   const [ready, setReady] = useState(false);
 
@@ -112,6 +127,45 @@ export default function PropFirmBotPanel() {
 
   const activeGuards = localGuards;
   const activeMetrics = localMetrics;
+  const combined = useMemo(
+    () => combinePropFirmVerdict(activeGuards, setup, Number(proposedRiskUsd) || 0),
+    [activeGuards, setup, proposedRiskUsd]
+  );
+
+  const analyzeSetup = async () => {
+    setAnalyzingSetup(true);
+    setSetupError("");
+    try {
+      const res = await fetch("/api/prop-firm-bot/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: displaySymbol,
+          timeframeId: setupTimeframe,
+          perTradeRiskCapUsd: activeMetrics.perTradeRiskCap,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setSetupError(data.error ?? "Setup analysis failed.");
+        return;
+      }
+      setSetup(data.analysis as NovaScalpAnalysis);
+      if (data.chart) {
+        setSetupChart({
+          closes: data.chart.closes ?? [],
+          currentPrice: data.chart.currentPrice ?? null,
+          timeframeLabel: data.chart.timeframeLabel ?? setupTimeframe,
+        });
+      }
+      const risk = data.proposedRiskUsd ?? riskAtStopFromSetup(data.analysis);
+      if (risk > 0) setProposedRiskUsd(String(risk));
+    } catch {
+      setSetupError("Setup analysis failed.");
+    } finally {
+      setAnalyzingSetup(false);
+    }
+  };
 
   const loadBlofinStatus = useCallback(async () => {
     try {
@@ -242,6 +296,8 @@ export default function PropFirmBotPanel() {
     setChallengeActive(true);
     setProposedRiskUsd("");
     setEntryCheckedAt(null);
+    setSetup(null);
+    setSetupChart(null);
   };
 
   const resetTradingDay = () => {
@@ -255,12 +311,65 @@ export default function PropFirmBotPanel() {
     return <ShieldCheck className="h-5 w-5 shrink-0" />;
   };
 
+  function MiniSetupChart({
+    closes,
+    entry,
+    stop,
+    target,
+  }: {
+    closes: number[];
+    entry: number | null;
+    stop: number | null;
+    target: number | null;
+  }) {
+    if (closes.length < 2) return null;
+    const min = Math.min(...closes, ...(stop != null ? [stop] : []), ...(target != null ? [target] : []));
+    const max = Math.max(...closes, ...(entry != null ? [entry] : []), ...(target != null ? [target] : []));
+    const range = max - min || 1;
+    const w = 320;
+    const h = 100;
+    const pad = 4;
+    const toY = (p: number) => pad + (h - pad * 2) * (1 - (p - min) / range);
+    const toX = (i: number) => pad + ((w - pad * 2) * i) / (closes.length - 1);
+    const line = closes.map((c, i) => `${toX(i)},${toY(c)}`).join(" ");
+    const level = (price: number | null, color: string, label: string) => {
+      if (price == null || !Number.isFinite(price)) return null;
+      const y = toY(price);
+      return (
+        <g key={label}>
+          <line x1={pad} y1={y} x2={w - pad} y2={y} stroke={color} strokeWidth={1} strokeDasharray="4 3" opacity={0.85} />
+          <text x={w - pad} y={y - 2} textAnchor="end" fontSize={8} fill={color}>
+            {label}
+          </text>
+        </g>
+      );
+    };
+    return (
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full max-w-md h-24 rounded border border-zinc-700/50 bg-zinc-950/50">
+        <polyline points={line} fill="none" stroke="#22d3ee" strokeWidth={1.5} />
+        {level(entry, "#34d399", "Entry")}
+        {level(stop, "#f87171", "Stop")}
+        {level(target, "#a78bfa", "Target")}
+      </svg>
+    );
+  }
+
   return (
     <div className="mx-6 py-8 max-w-4xl space-y-5">
-      <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-violet-500 bg-clip-text text-transparent flex items-center gap-2 flex-wrap">
-        <Flame className="h-7 w-7 text-amber-500 dark:text-amber-400 shrink-0 animate-flame-flicker" aria-hidden />
-        <span>Nova Prop Firm Bot</span>
-      </h2>
+      <div>
+        <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-violet-500 bg-clip-text text-transparent flex items-center gap-2 flex-wrap">
+          <Flame className="h-7 w-7 text-amber-500 dark:text-amber-400 shrink-0 animate-flame-flicker" aria-hidden />
+          <span>Nova Prop Firm Challenge</span>
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">Challenge workbook — rules + live setup plan</p>
+      </div>
+
+      <Card className={`border-2 ${verdictSeverityClass(combined.verdict)}`}>
+        <CardContent className="py-4">
+          <p className="text-lg font-bold tracking-wide">{combined.headline}</p>
+          <p className="text-xs mt-2 opacity-90">{combined.detail}</p>
+        </CardContent>
+      </Card>
 
       <Card className="border-violet-200/60 dark:border-violet-800/50 bg-violet-50/30 dark:bg-violet-950/20">
         <CardHeader className="pb-2">
@@ -271,21 +380,24 @@ export default function PropFirmBotPanel() {
         </CardHeader>
         <CardContent className="text-xs text-muted-foreground space-y-2">
           <p>
-            This does <strong>not</strong> pick trade setups or tell you <em>when</em> to buy/sell. It answers:{" "}
-            <strong>“Am I allowed to take this trade under my challenge rules?”</strong>
+            Combines <strong>challenge rules</strong> with a <strong>live setup plan</strong> (entry, stop, target from
+            recent candles). Not auto-trading — you decide when to pull the trigger.
           </p>
           <ol className="list-decimal list-inside space-y-1">
             <li>
-              <strong>Start new challenge</strong> — sets your $50k / $100k evaluation baseline.
+              <strong>Start new challenge</strong> — baseline for your evaluation.
             </li>
             <li>
-              <strong>Before each entry</strong> — enter max loss at your stop → <strong>Check entry</strong>.
+              <strong>Analyze setup</strong> — live price + structure → entry / stop / target.
             </li>
             <li>
-              <strong>Entry guard</strong> — green ENTRY CLEAR = ok to open; red BLOCKED = do not enter.
+              <strong>Read the verdict</strong> — DO NOT ENTER / WAIT / CLEAR (rules + setup quality).
             </li>
             <li>
-              <strong>After trades</strong> — update Today PnL / open risk manually, or use Blofin auto-sync.
+              <strong>Check entry</strong> — confirm planned risk at stop fits challenge caps.
+            </li>
+            <li>
+              <strong>After trades</strong> — update PnL manually or use Blofin sync.
             </li>
           </ol>
         </CardContent>
@@ -419,6 +531,83 @@ export default function PropFirmBotPanel() {
               Reset trading day
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-cyan-200/60 dark:border-cyan-800/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-cyan-500" />
+            Live setup plan
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Pulls live candles for {displaySymbol} — not a full TradingView chart, but real market structure for
+            entry / stop / target.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div>
+              <label className="block text-xs mb-1">Timeframe</label>
+              <select
+                value={setupTimeframe}
+                onChange={(e) => setSetupTimeframe(e.target.value)}
+                className="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
+              >
+                <option value="5m">5 min</option>
+                <option value="15m">15 min</option>
+                <option value="30m">30 min</option>
+                <option value="1h">1 hour</option>
+              </select>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-cyan-600 hover:bg-cyan-700 text-white"
+              disabled={analyzingSetup}
+              onClick={() => void analyzeSetup()}
+            >
+              <LineChart className={`h-4 w-4 mr-1 ${analyzingSetup ? "animate-pulse" : ""}`} />
+              {analyzingSetup ? "Analyzing…" : "Analyze setup"}
+            </Button>
+            {setupChart?.currentPrice != null && (
+              <span className="text-xs text-muted-foreground">
+                Live {displaySymbol}: <strong>{setupChart.currentPrice}</strong> · {setupChart.timeframeLabel}
+              </span>
+            )}
+          </div>
+          {setupError && <p className="text-xs text-rose-500">{setupError}</p>}
+          {setupChart && setupChart.closes.length > 1 && (
+            <MiniSetupChart
+              closes={setupChart.closes}
+              entry={setup?.entryPrice ?? null}
+              stop={setup?.recommendedStopPrice ?? null}
+              target={setup?.exitPrice ?? null}
+            />
+          )}
+          {setup && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+              <div className="rounded border p-2">
+                <p className="text-[10px] text-muted-foreground uppercase">Side</p>
+                <p className="font-semibold capitalize">{setup.side.replace("_", " ")}</p>
+              </div>
+              <div className="rounded border p-2">
+                <p className="text-[10px] text-muted-foreground uppercase">Entry</p>
+                <p className="font-mono">{setup.entryPrice ?? "—"}</p>
+              </div>
+              <div className="rounded border p-2">
+                <p className="text-[10px] text-muted-foreground uppercase">Stop</p>
+                <p className="font-mono text-rose-600">{setup.recommendedStopPrice ?? "—"}</p>
+              </div>
+              <div className="rounded border p-2">
+                <p className="text-[10px] text-muted-foreground uppercase">Target</p>
+                <p className="font-mono text-emerald-600">{setup.exitPrice ?? "—"}</p>
+              </div>
+            </div>
+          )}
+          {setup?.rationale && (
+            <p className="text-xs text-muted-foreground border-l-2 border-cyan-500 pl-3">{setup.rationale}</p>
+          )}
         </CardContent>
       </Card>
 

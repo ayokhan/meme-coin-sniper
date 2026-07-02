@@ -121,9 +121,9 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description: "Show/hide the AI Trading Bot tab in the main GUI.",
   },
   page_tab_prop_firm_bot: {
-    label: "Tab: Nova Prop Firm Bot",
+    label: "Tab: Nova Prop Firm Challenge",
     description:
-      "Show/hide the Nova Prop Firm Bot tab (Blofin-synced challenge guardrails). VIP on-demand access still required per user.",
+      "Show/hide the Nova Prop Firm Challenge workbook (rules + live setup). VIP on-demand access still required per user.",
   },
   page_tab_ct: {
     label: "Tab: CT Scan",
