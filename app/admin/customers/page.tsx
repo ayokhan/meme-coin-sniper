@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import CustomerExpandedPanel from "@/components/admin/CustomerExpandedPanel";
-import { canViewAdminCustomersSession, customersViewerAdminOnly } from "@/lib/admin-access";
+import { canViewAdminCustomersSession } from "@/lib/admin-access";
 
 type Payment = {
   date: string;
@@ -62,15 +62,37 @@ function customerHasOnDemand(c: Customer, includePropFirm: boolean) {
   );
 }
 
+function registrationLocalParts(createdAt: string): { y: number; m: number; d: number } | null {
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return null;
+  return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() };
+}
+
+function matchesRegistrationFilter(createdAt: string, month: string, date: string): boolean {
+  const parts = registrationLocalParts(createdAt);
+  if (!parts) return false;
+  if (date) {
+    const [y, m, d] = date.split("-").map(Number);
+    return parts.y === y && parts.m === m && parts.d === d;
+  }
+  if (month) {
+    const [y, m] = month.split("-").map(Number);
+    return parts.y === y && parts.m === m;
+  }
+  return true;
+}
+
 export default function AdminCustomersPage() {
   const { data: session, status } = useSession();
   const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
-  const readOnly = customersViewerAdminOnly(session);
+  const readOnly = !isOwner;
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [search, setSearch] = useState("");
+  const [registrationMonth, setRegistrationMonth] = useState("");
+  const [registrationDate, setRegistrationDate] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
   const [onDemandOnly, setOnDemandOnly] = useState(false);
   const [showLegacyOnDemand, setShowLegacyOnDemand] = useState(false);
@@ -97,7 +119,7 @@ export default function AdminCustomersPage() {
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const customersTableScrollRef = useRef<HTMLDivElement>(null);
-  const TABLE_COL_COUNT = 6;
+  const TABLE_COL_COUNT = isOwner ? 6 : 5;
 
   const formatRegistrationDate = (createdAt: string) => {
     const d = new Date(createdAt);
@@ -238,6 +260,7 @@ export default function AdminCustomersPage() {
     return customers.filter((c) => {
       if (activeOnly && !c.isActive) return false;
       if (onDemandOnly && !customerHasOnDemand(c, showLegacyOnDemand)) return false;
+      if (!matchesRegistrationFilter(c.createdAt, registrationMonth, registrationDate)) return false;
       if (!q) return true;
       if (readOnly) return (c.name ?? "").toLowerCase().includes(q);
       return (
@@ -247,7 +270,7 @@ export default function AdminCustomersPage() {
         (c.country ?? "").toLowerCase().includes(q)
       );
     });
-  }, [customers, search, activeOnly, onDemandOnly, showLegacyOnDemand, readOnly]);
+  }, [customers, search, registrationMonth, registrationDate, activeOnly, onDemandOnly, showLegacyOnDemand, readOnly]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this customer? This cannot be undone.")) return;
@@ -814,6 +837,45 @@ export default function AdminCustomersPage() {
               >
                 {showLegacyOnDemand ? "Legacy: Prop firm shown" : "Show legacy prop firm"}
               </button>
+              <label className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                <span className="whitespace-nowrap">Registered month</span>
+                <input
+                  type="month"
+                  value={registrationMonth}
+                  onChange={(e) => {
+                    setRegistrationMonth(e.target.value);
+                    if (e.target.value) setRegistrationDate("");
+                  }}
+                  disabled={!!registrationDate}
+                  className="rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm disabled:opacity-50"
+                  title="Filter by registration month"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                <span className="whitespace-nowrap">Registered date</span>
+                <input
+                  type="date"
+                  value={registrationDate}
+                  onChange={(e) => {
+                    setRegistrationDate(e.target.value);
+                    if (e.target.value) setRegistrationMonth("");
+                  }}
+                  className="rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
+                  title="Filter by exact registration date"
+                />
+              </label>
+              {(registrationMonth || registrationDate) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegistrationMonth("");
+                    setRegistrationDate("");
+                  }}
+                  className="text-xs font-medium px-3 py-2 rounded border bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
+                >
+                  Clear date filter
+                </button>
+              )}
               <span className="text-xs text-muted-foreground ml-auto">
                 {filteredCustomers.length} of {customers.length}
               </span>
@@ -846,7 +908,7 @@ export default function AdminCustomersPage() {
                       <th className="pb-2 pr-4 font-semibold min-w-[7rem]">Registered</th>
                       <th className="pb-2 pr-4 font-semibold min-w-[9rem]">Subscription</th>
                       <th className="pb-2 pr-4 font-semibold min-w-[10rem]">On-demand</th>
-                      <th className="pb-2 font-semibold min-w-[8rem]">{readOnly ? "Details" : "Quick actions"}</th>
+                      {isOwner && <th className="pb-2 font-semibold min-w-[8rem]">Quick actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -925,31 +987,31 @@ export default function AdminCustomersPage() {
                               ) : (
                                 <span className="text-xs text-zinc-500">None</span>
                               )}
-                              {communityOn && !readOnly && (
+                              {communityOn && isOwner && (
                                 <p className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-1">Community access</p>
                               )}
                             </td>
+                            {isOwner && (
                             <td className="py-2 align-top">
                               <div className="flex flex-wrap gap-1">
-                                {!readOnly && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSetSubscription(c.id, "vip")}
-                                    disabled={updatingId === c.id}
-                                    className="text-[11px] px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 disabled:opacity-50"
-                                  >
-                                    VIP
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetSubscription(c.id, "vip")}
+                                  disabled={updatingId === c.id}
+                                  className="text-[11px] px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 disabled:opacity-50"
+                                >
+                                  VIP
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => setExpandedCustomerId(expanded ? null : c.id)}
                                   className="text-[11px] px-2 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
                                 >
-                                  {expanded ? "Less" : readOnly ? "View" : "Manage"}
+                                  {expanded ? "Less" : "Manage"}
                                 </button>
                               </div>
                             </td>
+                            )}
                           </tr>
                           {expanded && (
                             <tr>
