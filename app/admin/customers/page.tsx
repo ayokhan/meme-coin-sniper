@@ -97,7 +97,13 @@ export default function AdminCustomersPage() {
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const customersTableScrollRef = useRef<HTMLDivElement>(null);
-  const TABLE_COL_COUNT = 5;
+  const TABLE_COL_COUNT = 6;
+
+  const formatRegistrationDate = (createdAt: string) => {
+    const d = new Date(createdAt);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  };
 
   const formatExpiryLabel = (expiresAt: string | null, subscriptionExpiresAt: string | null) => {
     if (!expiresAt) return "No custom expiry set";
@@ -741,7 +747,7 @@ export default function AdminCustomersPage() {
         description={
           readOnly
             ? "View customer names, subscriptions, and on-demand access."
-            : "Registered users, subscriptions, and on-demand VIP access. Owner only (OWNER_EMAIL)."
+            : "Registered users, subscriptions, and on-demand VIP access."
         }
       />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
@@ -837,6 +843,7 @@ export default function AdminCustomersPage() {
                     <tr className="border-b border-zinc-200 dark:border-zinc-700 text-left">
                       <th className="pb-2 pr-3 font-semibold w-8" aria-label="Expand" />
                       <th className="pb-2 pr-4 font-semibold min-w-[12rem]">Customer</th>
+                      <th className="pb-2 pr-4 font-semibold min-w-[7rem]">Registered</th>
                       <th className="pb-2 pr-4 font-semibold min-w-[9rem]">Subscription</th>
                       <th className="pb-2 pr-4 font-semibold min-w-[10rem]">On-demand</th>
                       <th className="pb-2 font-semibold min-w-[8rem]">{readOnly ? "Details" : "Quick actions"}</th>
@@ -874,6 +881,9 @@ export default function AdminCustomersPage() {
                                   )}
                                 </>
                               )}
+                            </td>
+                            <td className="py-2 pr-4 align-top text-xs text-muted-foreground whitespace-nowrap">
+                              {formatRegistrationDate(c.createdAt)}
                             </td>
                             <td className="py-2 pr-4 align-top">
                               {c.subscriptionTier ? (
