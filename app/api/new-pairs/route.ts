@@ -99,10 +99,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const maxAgeMinutes = Math.min(parseInt(searchParams.get("maxAgeMinutes") || "120", 10), 1440);
     const view = (searchParams.get("view") || "new_pairs") as GoHuntingView;
-    const minLiquidity = view === "new_pairs" ? 100 : 300;
+    const minLiquidity = view === "new_pairs" ? 50 : 300;
     const requestedLimit = parseInt(searchParams.get("limit") || "150", 10);
     const limit = isPaid ? Math.min(PAID_LIMIT, Math.max(100, requestedLimit)) : Math.min(FREE_LIMIT, requestedLimit);
-    const effectiveMaxAge = view === "new_pairs" ? Math.min(maxAgeMinutes, 180) : Math.min(maxAgeMinutes, 360);
+    const effectiveMaxAge = view === "new_pairs" ? Math.min(maxAgeMinutes, 240) : Math.min(maxAgeMinutes, 360);
     const dexAllow = GO_HUNTING_DEX_ALLOWLIST.solana[view];
 
     const moralisGoHunting = await getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_GO_HUNTING);

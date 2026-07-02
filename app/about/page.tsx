@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, BarChart3, Activity, MessageCircle } from "lucide-react";
+import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, BarChart3, Activity, MessageCircle, QrCode } from "lucide-react";
 
 function AboutContent() {
   const searchParams = useSearchParams();
@@ -210,6 +210,23 @@ function AboutContent() {
                 NovaStaris does not provide financial advice. Always do your own research and never risk more than you can afford to lose.
               </p>
             </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg overflow-hidden mb-8">
+          <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+              <QrCode className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Share NovaStaris</h2>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Scan or download our QR code to open novastaris.ai on mobile — great for events, stickers, and social posts.
+              </p>
+            </div>
+            <Button asChild variant="outline" className="shrink-0">
+              <Link href="/qr">Get QR code</Link>
+            </Button>
+          </CardContent>
         </Card>
 
         <div className="flex justify-center">

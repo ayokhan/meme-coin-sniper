@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Copy, Send, Star, Flame, ChevronDown, Menu, X } from "lucide-react";
+import { Zap, Copy, Send, Star, Flame, ChevronDown, Menu, X, QrCode } from "lucide-react";
 import FuturesWorkflow from "@/components/FuturesWorkflow";
 import NovaEaglePanel from "@/components/NovaEaglePanel";
 import CryptoBuddiePanel from "@/components/CryptoBuddiePanel";
@@ -1814,7 +1814,7 @@ export default function Dashboard() {
         tab === "trending" ? "/api/trending"
         : tab === "surge" ? `/api/surge?window=${surgeWindowParam}&limit=80`
         : tab === "transactions" ? "/api/surge?window=24h&limit=80"
-        : tab === "new" ? `/api/new-pairs?maxAgeMinutes=120&limit=${limit}&view=${goHuntingView}`
+        : tab === "new" ? `/api/new-pairs?maxAgeMinutes=180&limit=${limit}&view=${goHuntingView}`
         : tab === "ct" ? "/api/tokens?source=twitter"
         : "/api/tokens";
       const res = await fetch(url);
@@ -3389,6 +3389,9 @@ export default function Dashboard() {
               </div>
             </div>
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+              <Link href="/qr"><QrCode className="h-3.5 w-3.5 mr-1.5 inline" />QR code</Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               <Link href="/about">About</Link>
             </Button>
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
@@ -3553,6 +3556,9 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
+              <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
+                <Link href="/qr" onClick={() => setMobileMenuOpen(false)}><QrCode className="h-4 w-4 mr-2 inline" />QR code</Link>
+              </Button>
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
                 <Link href="/about" onClick={() => setMobileMenuOpen(false)}>About</Link>
               </Button>
@@ -4134,10 +4140,18 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <span className="mt-2 block text-xs text-muted-foreground">
-                  {goHuntingView === "new_pairs" && "All new pairs (pump + migrated) — last ~3h. Click column headers to sort."}
+                  {goHuntingView === "new_pairs" && "All new pairs (pump + migrated) — last ~4h. Click column headers to sort."}
                   {goHuntingView === "final_stretch" && "Pump.fun / pumpswap still on bonding curve (not yet on Raydium)."}
                   {goHuntingView === "migrated" && "Graduated to Raydium, Orca, or Meteora (or pumpswap past ~$69k MC)."}
                 </span>
+                {goHuntingView === "new_pairs" && tokensForDisplay.length > 0 && tokensForDisplay.length <= 5 && (
+                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-300/90">
+                    Only {tokensForDisplay.length} pair{tokensForDisplay.length === 1 ? "" : "s"} launched in this window right now — Solana new-listing volume varies by hour.
+                    Try <button type="button" onClick={() => setGoHuntingView("final_stretch")} className="underline font-medium">Final Stretch</button>,{" "}
+                    <button type="button" onClick={() => setActiveTab("trending")} className="underline font-medium">Trending</button>, or{" "}
+                    <button type="button" onClick={() => setActiveTab("surge")} className="underline font-medium">Surge</button> for broader lists.
+                  </p>
+                )}
               </div>
             )}
             {activeTab === "bsc" && (
@@ -8818,7 +8832,7 @@ export default function Dashboard() {
                         : activeTab === "trending"
                           ? "Trending = live by 24h volume + price change. Try again in a moment."
                           : activeTab === "new"
-                            ? "New pairs = newest from DexScreener + Birdeye (last 2h; or newest available). Refreshes every 60s."
+                            ? "New pairs = newest from DexScreener + Birdeye (last ~4h; refreshes every 60s)."
                             : "Run Scan to save tokens to the DB, or use New pairs for live recent listings."}
                 </p>
                 <p className="mt-4 text-xs max-w-md text-zinc-500 dark:text-zinc-400">
@@ -8831,7 +8845,7 @@ export default function Dashboard() {
                       : activeTab === "ct"
                         ? "CT Scan: KOLs, smart money. When 3+ tweet the same coin → potential viral."
                         : activeTab === "new"
-                          ? "Go Hunting: newest pairs (last ~3h). Click a column header to sort ▲▼. Auto-refreshes every 60s."
+                          ? "Go Hunting: newest pairs (last ~4h). Click a column header to sort ▲▼. Auto-refreshes every 60s."
                           : "Trending = live movers. List auto-refreshes every 60s."}
                 </p>
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
