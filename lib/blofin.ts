@@ -117,10 +117,16 @@ export async function getCandles(instId: string, bar: string, limit = 100, demoO
 }
 
 /** GET /api/v1/asset/balances?accountType=futures */
-export async function getFuturesBalance(): Promise<{ currency: string; available: string; balance: string }[]> {
+export async function getFuturesBalance(options?: {
+  demo?: boolean;
+  config?: BlofinConfig | null;
+}): Promise<{ currency: string; available: string; balance: string }[]> {
   const out = await privateRequest<{ details?: { currency: string; available: string; balance: string }[] }>(
     "GET",
-    "/api/v1/asset/balances?accountType=futures"
+    "/api/v1/asset/balances?accountType=futures",
+    undefined,
+    options?.demo,
+    options?.config
   );
   if (out.code !== "0" || !out.data) return [];
   const d = out.data as { details?: { currency: string; available: string; balance: string }[] };

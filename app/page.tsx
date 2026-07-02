@@ -7105,7 +7105,7 @@ export default function Dashboard() {
                     <div className="mx-3 sm:mx-6 mb-6 sm:mb-8">
                       <p className="text-sm text-muted-foreground mb-3">
                         <Flame className="inline-block h-4 w-4 mr-1 flame-hot-tab -mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden />
-                        Nova Prop Firm Bot: discipline and rule guardrails for prop-style challenges. VIP on demand.
+                        Nova Prop Firm Bot: Blofin-synced challenge guardrails for entries and exits. VIP on demand.
                       </p>
                       <PropFirmBotPanel />
                     </div>
