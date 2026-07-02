@@ -5,7 +5,7 @@ import { PublicKey } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 import { prisma } from '@/lib/db';
-import { getActiveSubscription, getSubscriptionTier, type Tier } from '@/lib/subscription';
+import { getActiveSubscription, getSubscriptionTier, normalizeSubscriptionTier, type Tier } from '@/lib/subscription';
 
 declare module 'next-auth' {
   interface Session {
@@ -476,6 +476,8 @@ export const authOptions: NextAuthOptions = {
           isPaid = true;
           tier = "vip";
         }
+        const normalizedTier = normalizeSubscriptionTier(tier as string | null);
+        if (normalizedTier) tier = normalizedTier;
         session.user.isPaid = isPaid;
         session.user.isOwner = owner;
         session.user.isCoachUser = isCoachUser;

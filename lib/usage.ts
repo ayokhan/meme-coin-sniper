@@ -218,7 +218,7 @@ export async function getUsageReportForAdmin(query: UsageReportQuery = {}): Prom
 
   const tierByUser = new Map<string, string>();
   for (const sub of activeSubs) {
-    if (!tierByUser.has(sub.userId)) tierByUser.set(sub.userId, sub.tier ?? "pro");
+    if (!tierByUser.has(sub.userId)) tierByUser.set(sub.userId, sub.tier === "pro" ? "vip" : (sub.tier ?? "vip"));
   }
 
   const users: UsageReportUser[] = allUsers.map((user) => {

@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/db";
-import { PRO_PLANS, VIP_PLANS, findPlanByListOrCardAmount, type Tier } from "@/lib/subscription";
+import { VIP_PLANS, findPlanByListOrCardAmount } from "@/lib/subscription";
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 
 export const dynamic = "force-dynamic";
 
-/** POST - Stripe webhook. On checkout.session.completed, create subscription for the user. */
+/** POST - Stripe webhook. On checkout.session.completed, create VIP subscription for the user. */
 export async function POST(request: Request) {
   if (!stripe || !webhookSecret) {
     return NextResponse.json({ error: "Stripe not configured." }, { status: 503 });
@@ -35,7 +35,6 @@ export async function POST(request: Request) {
 
   const session = event.data.object as Stripe.Checkout.Session;
   const userId = session.client_reference_id ?? null;
-  let tier = (session.metadata?.tier ?? "pro") as Tier;
   let planId = (session.metadata?.planId ?? session.metadata?.plan ?? "").toString();
   const amountUsd = parseInt(session.metadata?.amountUsd ?? "0", 10) || 0;
 
@@ -44,27 +43,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing user or session id." }, { status: 400 });
   }
 
-  let plans = tier === "vip" ? VIP_PLANS : PRO_PLANS;
-  let plan = plans.find((p) => p.id === planId);
+  let plan = VIP_PLANS.find((p) => p.id === planId);
   if (!plan && amountUsd > 0) {
-    plan = findPlanByListOrCardAmount(tier, amountUsd);
+    plan = findPlanByListOrCardAmount(amountUsd);
     if (plan) planId = plan.id;
   }
-  if (!plan && amountUsd > 0) {
-    const vipPlan = findPlanByListOrCardAmount("vip", amountUsd);
-    const proPlan = findPlanByListOrCardAmount("pro", amountUsd);
-    if (vipPlan) {
-      tier = "vip";
-      plan = vipPlan;
-      planId = plan.id;
-    } else if (proPlan) {
-      tier = "pro";
-      plan = proPlan;
-      planId = plan.id;
+  if (!plan) {
+    const totalPaid = session.amount_total != null ? session.amount_total / 100 : 0;
+    if (totalPaid > 0) {
+      plan = findPlanByListOrCardAmount(totalPaid);
+      if (plan) planId = plan.id;
     }
   }
   if (!plan) {
-    console.error("Stripe webhook: invalid plan", { tier, planId, amountUsd });
+    console.error("Stripe webhook: invalid plan", { planId, amountUsd });
     return NextResponse.json({ error: "Invalid plan." }, { status: 400 });
   }
 
@@ -77,16 +69,12 @@ export async function POST(request: Request) {
     }
 
     const expiresAt = new Date();
-    if (plan.months === 0) {
-      expiresAt.setDate(expiresAt.getDate() + 1);
-    } else {
-      expiresAt.setMonth(expiresAt.getMonth() + plan.months);
-    }
+    expiresAt.setMonth(expiresAt.getMonth() + plan.months);
 
     await prisma.subscription.create({
       data: {
         userId,
-        tier,
+        tier: "vip",
         plan: plan.id,
         amountUsd: amountUsd || plan.priceUsd,
         expiresAt,
@@ -94,7 +82,7 @@ export async function POST(request: Request) {
       } as Record<string, unknown>,
     });
 
-    console.info("Stripe webhook: subscription created", { userId, tier, planId: plan.id, sessionId: session.id });
+    console.info("Stripe webhook: subscription created", { userId, tier: "vip", planId: plan.id, sessionId: session.id });
     return NextResponse.json({ received: true });
   } catch (e) {
     console.error("Stripe webhook create subscription error:", e);

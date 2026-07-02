@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions, isOwnerEmail } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { PRO_PLANS, VIP_PLANS, type Tier } from '@/lib/subscription';
+import { VIP_PLANS } from '@/lib/subscription';
 
 type Action = 'set' | 'clear';
 
 type Body =
   | {
       action: 'set';
-      tier: Tier;
+      tier?: string;
       planId?: string | null;
       months?: number | null;
     }
@@ -17,7 +17,7 @@ type Body =
       action: 'clear';
     };
 
-/** POST - Owner-only. Manually set or clear a user's subscription (Pro / VIP) for admin tools. */
+/** POST - Owner-only. Manually set or clear a user's VIP subscription for admin tools. */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ userId: string }> }
@@ -47,8 +47,6 @@ export async function POST(
     if (action === 'clear') {
       const now = new Date();
       const expiredAt = new Date(now.getTime() - 60 * 1000);
-      // Cast to any here to avoid strict client type limitations; we only use this
-      // in an owner-only admin endpoint to expire active subscriptions.
       const client: any = prisma;
       await client.subscription.updateMany({
         where: { userId, expiresAt: { gt: now } },
@@ -57,26 +55,22 @@ export async function POST(
       return NextResponse.json({ success: true, cleared: true });
     }
 
-    // action === 'set'
-    const tier = (rawBody as Extract<Body, { action: 'set' }>).tier;
-    if (tier !== 'pro' && tier !== 'vip') {
-      return NextResponse.json({ success: false, error: 'Invalid tier. Use \"pro\" or \"vip\".' }, { status: 400 });
-    }
-
     const monthsOverride = (rawBody as Extract<Body, { action: 'set' }>).months ?? null;
     const planIdOverride = (rawBody as Extract<Body, { action: 'set' }>).planId ?? null;
 
-    const plans = tier === 'pro' ? PRO_PLANS : VIP_PLANS;
-    let plan =
-      (planIdOverride ? plans.find((p) => p.id === planIdOverride) : null) ??
-      plans.find((p) => p.id === '1month') ??
-      plans[0];
+    const plan =
+      (planIdOverride ? VIP_PLANS.find((p) => p.id === planIdOverride) : null) ??
+      VIP_PLANS.find((p) => p.id === '1month') ??
+      VIP_PLANS[0];
 
     if (!plan) {
-      return NextResponse.json({ success: false, error: 'No plan configured for this tier.' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'No plan configured.' }, { status: 500 });
     }
 
-    const months = typeof monthsOverride === 'number' && monthsOverride > 0 ? monthsOverride : plan.months || 1;
+    const months =
+      typeof monthsOverride === 'number' && monthsOverride >= 0
+        ? monthsOverride
+        : plan.months || 1;
 
     const expiresAt = new Date();
     if (months === 0) {
@@ -88,7 +82,7 @@ export async function POST(
     await prisma.subscription.create({
       data: {
         userId,
-        tier,
+        tier: 'vip',
         plan: plan.id,
         amountUsd: plan.priceUsd,
         expiresAt,
@@ -99,7 +93,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       subscription: {
-        tier,
+        tier: 'vip',
         plan: plan.id,
         expiresAt: expiresAt.toISOString(),
       },
@@ -109,4 +103,3 @@ export async function POST(
     return NextResponse.json({ success: false, error: 'Failed to update subscription.' }, { status: 500 });
   }
 }
-

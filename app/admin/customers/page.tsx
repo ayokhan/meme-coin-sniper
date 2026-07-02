@@ -212,9 +212,8 @@ export default function AdminCustomersPage() {
   const metrics = useMemo(() => {
     const total = customers.length;
     const active = customers.filter((c) => c.isActive).length;
-    const vipActive = customers.filter((c) => c.isActive && c.subscriptionTier === "vip").length;
-    const proActive = customers.filter((c) => c.isActive && c.subscriptionTier === "pro").length;
-    return { total, active, vipActive, proActive };
+    const vipActive = customers.filter((c) => c.isActive && (c.subscriptionTier === "vip" || c.subscriptionTier === "pro")).length;
+    return { total, active, vipActive };
   }, [customers]);
 
   const filteredCustomers = useMemo(() => {
@@ -562,7 +561,7 @@ export default function AdminCustomersPage() {
     }
   };
 
-  const handleSetSubscription = async (id: string, action: "pro" | "vip" | "clear", oneDay?: boolean) => {
+  const handleSetSubscription = async (id: string, action: "vip" | "clear", oneDay?: boolean) => {
     setUpdatingId(id);
     setError("");
     try {
@@ -574,8 +573,8 @@ export default function AdminCustomersPage() {
             ? JSON.stringify({ action: "clear" })
             : JSON.stringify(
                 oneDay
-                  ? { action: "set", tier: action, planId: action === "vip" ? "1day" : "1month", months: 0 }
-                  : { action: "set", tier: action }
+                  ? { action: "set", months: 0 }
+                  : { action: "set" }
               ),
       });
       const data = await res.json();
@@ -584,11 +583,9 @@ export default function AdminCustomersPage() {
         if (action === "clear") {
           setSuccessMessage("Subscription cleared.");
         } else if (oneDay) {
-          setSuccessMessage(`Granted 1 day ${action === "vip" ? "VIP" : "Pro"}.`);
-        } else if (action === "vip") {
-          setSuccessMessage("Set to VIP.");
+          setSuccessMessage("Granted 1 day VIP.");
         } else {
-          setSuccessMessage("Set to Pro.");
+          setSuccessMessage("Set to VIP.");
         }
         setTimeout(() => setSuccessMessage(""), 4000);
       } else {
@@ -650,12 +647,6 @@ export default function AdminCustomersPage() {
             <CardContent className="py-3">
               <p className="text-xs text-muted-foreground">Active VIP</p>
               <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400">{metrics.vipActive}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-zinc-200 dark:border-zinc-800">
-            <CardContent className="py-3">
-              <p className="text-xs text-muted-foreground">Active Pro</p>
-              <p className="text-2xl font-semibold text-cyan-600 dark:text-cyan-400">{metrics.proActive}</p>
             </CardContent>
           </Card>
         </div>
@@ -814,14 +805,6 @@ export default function AdminCustomersPage() {
                               <div className="flex flex-wrap gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => handleSetSubscription(c.id, "pro")}
-                                  disabled={updatingId === c.id}
-                                  className="text-[11px] px-2 py-1 rounded bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-200 disabled:opacity-50"
-                                >
-                                  Pro
-                                </button>
-                                <button
-                                  type="button"
                                   onClick={() => handleSetSubscription(c.id, "vip")}
                                   disabled={updatingId === c.id}
                                   className="text-[11px] px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 disabled:opacity-50"
@@ -878,9 +861,7 @@ export default function AdminCustomersPage() {
                                   onCoach={(v) => handleCoachUserToggle(c.id, v)}
                                   onCommunityRep={(v) => handleCommunityRepToggle(c.id, v)}
                                   onAcceptRules={() => handleAcceptRules(c.id, true)}
-                                  onSetPro={() => handleSetSubscription(c.id, "pro")}
                                   onSetVip={() => handleSetSubscription(c.id, "vip")}
-                                  onGrant1DayPro={() => handleSetSubscription(c.id, "pro", true)}
                                   onGrant1DayVip={() => handleSetSubscription(c.id, "vip", true)}
                                   onClearSubscription={() => handleSetSubscription(c.id, "clear")}
                                   onResetPassword={() => handleResetPassword(c.id, c.email)}

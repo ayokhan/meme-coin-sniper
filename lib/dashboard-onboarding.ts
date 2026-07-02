@@ -34,7 +34,7 @@ export const DASHBOARD_PATH_OPTIONS: Array<{
   {
     id: "futures",
     title: "Futures & metals trader",
-    description: "VIP: NovaForecast, NovaRadar, Nova Forex, addons. Pro: Crypto Futures chart AI.",
+    description: "VIP: NovaForecast, NovaRadar, Nova Forex, addons. Platform: Crypto Futures chart AI.",
     emoji: "📈",
   },
   {
@@ -93,7 +93,7 @@ export function applyDashboardPath(
   options?: DashboardPathApplyOptions
 ): DashboardPathApplyResult {
   const tier = options?.subscriptionTier ?? null;
-  const isVip = tier === "vip";
+  const isVip = tier === "vip" || tier === "pro";
 
   switch (path) {
     case "meme":
@@ -138,8 +138,7 @@ export function pathDisplayLabel(path: DashboardPath): string {
 }
 
 export function defaultFilterForTier(tier: "pro" | "vip" | null, isPaid: boolean): DashboardPathApplyResult["filter"] {
-  if (tier === "vip") return "vip";
-  if (isPaid || tier === "pro") return "pro";
+  if (tier === "vip" || tier === "pro" || isPaid) return "vip";
   return "core";
 }
 

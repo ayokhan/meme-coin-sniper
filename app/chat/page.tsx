@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Zap, Send, Bot, User, Headphones } from "lucide-react";
 
 const NJA_INTRO =
-  "Hello! I'm Nja, your AI assistant for NovaStaris—your advanced AI-powered platform for tracking and analyzing crypto tokens. I'm here to help with questions about our products, subscription plans (Pro and VIP), or technical support. How can I assist you today?";
+  "Hello! I'm Nja, your AI assistant for NovaStaris—your advanced AI-powered platform for tracking and analyzing crypto tokens. I'm here to help with questions about our products, VIP subscription, or technical support. How can I assist you today?";
 
 const NJA_ASK_NAME = "May I have your name?";
 const NJA_ASK_EMAIL = "Thanks! What's your email address?";
@@ -30,7 +30,7 @@ const SUBSCRIPTION_KEYWORDS = [
   "pro", "vip", "pay", "payment", "fee", "fees", "trial", "monthly", "yearly",
 ];
 const NJA_SUBSCRIPTION_REPLY =
-  "NovaStaris offers Pro and VIP plans. Pro: 1 month $70 USDC ($78 card), 6 months $350 USDC ($358 card), 12 months $700 USDC ($708 card). VIP: 1-day trial $20 (same on card and USDC), 1 month $150 USDC ($158 card), 6 months $750 USDC ($758 card), 12 months $1,500 USDC ($1,508 card). USDC pays list price; card adds $8 except on the VIP 1-day trial. Use the Subscribe page in the app to sign up. Anything else?";
+  "NovaStaris has a free tier and VIP subscription. VIP: 1 month $150 USDC ($158 card), 6 months $750 USDC ($758 card), 12 months $1,500 USDC ($1,508 card). USDC pays list price; card adds $8. Use the Subscribe page in the app to sign up. Anything else?";
 
 function isGreeting(text: string): boolean {
   const lower = text.trim().toLowerCase().replace(/[^\w\s]/g, "");

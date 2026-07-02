@@ -3,12 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageCircle, Send, Bot, User, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PRO_PLANS, VIP_PLANS, CARD_PAYMENT_FEE_USD, getCardPriceForPlan } from "@/lib/subscription";
+import { VIP_PLANS, CARD_PAYMENT_FEE_USD, getCardPriceForPlan } from "@/lib/subscription";
 
 const WELCOME = "Hi, I'm Nja, your AI assistant for NovaStaris. I'm here to help anytime, anywhere.";
 const ASK_START = "Ask me a question to get started.";
 const NJA_INTRO =
-  "Hello! I'm Nja, your AI assistant for NovaStaris—your advanced AI-powered platform for tracking and analyzing crypto tokens. I'm here to help you with questions about our products, subscription plans (Pro and VIP), or technical support. What would you like to know?";
+  "Hello! I'm Nja, your AI assistant for NovaStaris—your advanced AI-powered platform for tracking and analyzing crypto tokens. I'm here to help you with questions about our products, VIP subscription, or technical support. What would you like to know?";
 const NJA_ASK_NAME = "Thank you. May I have your name?";
 const NJA_ASK_EMAIL = "Thanks! What's your email address?";
 const NJA_ASK_ISSUE = "What do you need help with? Please describe your question or issue briefly.";
@@ -23,16 +23,12 @@ const NJA_OUT_OF_SCOPE_LIVE =
 const NJA_OUT_OF_SCOPE_OFFLINE =
   "I'm not able to answer that—I'm set up to help with NovaStaris products, subscriptions, and support. If you'd like help from our team, I can create a support ticket with your details and we'll get back to you within 48 hours. Would you like me to do that?";
 
-const PRO_PLANS_DISPLAY = PRO_PLANS.map((p) => ({
-  label: `Pro ${p.label}`,
-  price: `$${p.priceUsd} USDC / $${getCardPriceForPlan("pro", p)} card`,
-}));
 const VIP_PLANS_DISPLAY = VIP_PLANS.map((p) => ({
   label: `VIP ${p.label}`,
-  price: `$${p.priceUsd} USDC / $${getCardPriceForPlan("vip", p)} card`,
+  price: `$${p.priceUsd} USDC / $${getCardPriceForPlan(p)} card`,
 }));
-const NJA_SUBSCRIPTION_INTRO = "NovaStaris offers two subscription tiers: Pro and VIP.";
-const NJA_SUBSCRIPTION_OUTRO = `Pro includes Surge, Transactions, NovaStaris AI Agent (Solana + BSC), Crypto Futures, BSC AI Analysis, and NovaConnect (community & DMs). VIP adds CT Scan, Wallet Tracker, Coach Calls + Telegram Signals, NovaForecast, and on-demand NovaStaris AI Trading Bot. USDC (Solana) is list price; most card checkouts include a $${CARD_PAYMENT_FEE_USD} card fee (VIP 1-day trial is $20 on card with no fee). To subscribe, use the Subscribe page in the app menu. Anything else I can help with?`;
+const NJA_SUBSCRIPTION_INTRO = "NovaStaris offers a free tier and a VIP subscription.";
+const NJA_SUBSCRIPTION_OUTRO = `VIP includes the full platform: Surge, Transactions, NovaStaris AI Agent, Crypto Futures, Wallet Tracker, Coach Calls, NovaForecast, Nova Forex Agent, and on-demand tools such as AI Trading Bot and Nova Polymarket Pro. USDC (Solana) is list price; card checkouts include a $${CARD_PAYMENT_FEE_USD} card fee. To subscribe, use the Subscribe page in the app menu. Anything else I can help with?`;
 
 const SUBSCRIPTION_KEYWORDS = [
   "subscription", "subscribe", "price", "pricing", "plan", "plans", "cost", "how much",
@@ -67,9 +63,8 @@ function isSupportIntent(text: string): boolean {
 }
 
 function getSubscriptionReply(): string {
-  const proList = PRO_PLANS_DISPLAY.map((p) => `${p.label} — ${p.price}`).join("\n");
   const vipList = VIP_PLANS_DISPLAY.map((p) => `${p.label} — ${p.price}`).join("\n");
-  return `${NJA_SUBSCRIPTION_INTRO}\n\nPro:\n${proList}\n\nVIP:\n${vipList}\n\n${NJA_SUBSCRIPTION_OUTRO}`;
+  return `${NJA_SUBSCRIPTION_INTRO}\n\nVIP:\n${vipList}\n\n${NJA_SUBSCRIPTION_OUTRO}`;
 }
 
 type Message = { id: string; role: string; content: string; createdAt: string };
@@ -416,13 +411,6 @@ export default function NeedHelpWidget() {
                     <p className="text-sm text-zinc-700 dark:text-zinc-300">{WELCOME}</p>
                     <div className="rounded-2xl bg-violet-100 dark:bg-violet-900/40 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
                       <p className="font-medium mb-2">{NJA_SUBSCRIPTION_INTRO}</p>
-                      <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-1">Pro</p>
-                      <ul className="list-disc list-inside space-y-0.5 text-xs">
-                        {PRO_PLANS_DISPLAY.map((p) => (
-                          <li key={p.label}>{p.label} — {p.price}</li>
-                        ))}
-                      </ul>
-                      <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-2">VIP</p>
                       <ul className="list-disc list-inside space-y-0.5 text-xs">
                         {VIP_PLANS_DISPLAY.map((p) => (
                           <li key={p.label}>{p.label} — {p.price}</li>

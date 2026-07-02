@@ -205,7 +205,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   "trading-bot": "page_tab_trading_bot",
   "polymarket-bot": "page_tab_trading_bot",
   "prop-firm-bot": "page_tab_prop_firm_bot",
-  "nova-ultimate": "page_tab_trading_bot",
+  "nova-ultimate": "page_tab_nova_ultimate",
   ct: "page_tab_ct",
   wallets: "page_tab_wallets",
   "coach-calls": "page_tab_coach_calls",
@@ -313,7 +313,7 @@ export default function Dashboard() {
   const isCoachUser = (session?.user as { isCoachUser?: boolean } | undefined)?.isCoachUser ?? false;
   const isPaid = isOwner || isCoachUser || (subscriptionPaid !== null ? subscriptionPaid : sessionPaid);
   const tier = (isOwner || isCoachUser) ? "vip" : (subscriptionTier !== null ? subscriptionTier : sessionTier);
-  const isVip = tier === "vip";
+  const isVip = tier === "vip" || tier === "pro" || isPaid;
   const novaConnectAllowedByAdmin = (session?.user as { novaConnectAllowedByAdmin?: boolean } | undefined)?.novaConnectAllowedByAdmin ?? false;
   const canUseNovaConnectPaidFeatures = isPaid || isOwner || novaConnectAllowedByAdmin;
   const ctExpiresAtRaw = (session?.user as { ctScanOnDemandExpiresAt?: Date | string | null } | undefined)?.ctScanOnDemandExpiresAt ?? null;
@@ -3415,7 +3415,7 @@ export default function Dashboard() {
               </Button>
             )}
             {status === "authenticated" && isPaid && (
-              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">{isCoachUser && !isOwner ? "Coach" : tier === "vip" ? "VIP" : "Pro"}</span>
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">{isCoachUser && !isOwner ? "Coach" : "VIP"}</span>
             )}
             {status === "authenticated" && isOwner && (
               <>
@@ -3547,7 +3547,7 @@ export default function Dashboard() {
                 </Button>
               )}
               {status === "authenticated" && isPaid && (
-                <div className="py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">{isCoachUser && !isOwner ? "Coach" : tier === "vip" ? "VIP" : "Pro"}</div>
+                <div className="py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">{isCoachUser && !isOwner ? "Coach" : "VIP"}</div>
               )}
               {status === "authenticated" && isOwner && (
                 <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
@@ -3715,7 +3715,7 @@ export default function Dashboard() {
                 {([
                   { id: "all", label: "All" },
                   { id: "core", label: "Core" },
-                  { id: "pro", label: "Pro" },
+                  { id: "pro", label: "Platform" },
                   { id: "vip", label: "VIP" },
                   { id: "bots", label: "Bots" },
                 ] as const).map((f) => (
@@ -3808,7 +3808,7 @@ export default function Dashboard() {
                 {isTabVisibleInGui("prop-firm-bot") && matchesTopTabFilter("prop-firm-bot") && (
                   <TabsTrigger value="prop-firm-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Prop Firm Challenge</TabsTrigger>
                 )}
-                {isTabVisibleInGui("trading-bot") && matchesTopTabFilter("nova-ultimate") && (
+                {isTabVisibleInGui("nova-ultimate") && matchesTopTabFilter("nova-ultimate") && (
                   <TabsTrigger value="nova-ultimate" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Ultimate</TabsTrigger>
                 )}
                 {showTopTab("ct") && (
@@ -3964,7 +3964,7 @@ export default function Dashboard() {
                           : "/subscribe"
                       }
                     >
-                      {onDemandLocked ? "Contact for access" : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner ? "Upgrade to VIP" : "Subscribe to Pro"}
+                      {onDemandLocked ? "Contact for access" : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner ? "Upgrade to VIP" : "Subscribe to VIP"}
                     </Link>
                   </Button>
                 )}

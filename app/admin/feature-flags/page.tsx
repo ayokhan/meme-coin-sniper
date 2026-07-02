@@ -125,6 +125,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "Show/hide the Nova Prop Firm Challenge workbook (rules + live setup). VIP on-demand access still required per user.",
   },
+  page_tab_nova_ultimate: {
+    label: "Tab: Nova Ultimate",
+    description:
+      "Show/hide the Nova Ultimate tab (Solana meme tooling via Jupiter). VIP on-demand access still required per user. Independent of AI Trading Bot tab.",
+  },
   page_tab_ct: {
     label: "Tab: CT Scan",
     description: "Show/hide the CT Scan tab in the main GUI.",

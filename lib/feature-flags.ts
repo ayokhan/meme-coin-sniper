@@ -30,6 +30,8 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_TRADING_BOT: 'page_tab_trading_bot',
   /** VIP on-demand: Nova Prop Firm Bot tab (challenge guardrails + Blofin sync). Independent of AI Trading Bot tab. Default ON. */
   PAGE_TAB_PROP_FIRM_BOT: 'page_tab_prop_firm_bot',
+  /** VIP on-demand: Nova Ultimate tab (Solana meme tooling via Jupiter). Independent of AI Trading Bot tab. Default ON. */
+  PAGE_TAB_NOVA_ULTIMATE: 'page_tab_nova_ultimate',
   PAGE_TAB_CT: 'page_tab_ct',
   PAGE_TAB_WALLETS: 'page_tab_wallets',
   PAGE_TAB_COACH_CALLS: 'page_tab_coach_calls',

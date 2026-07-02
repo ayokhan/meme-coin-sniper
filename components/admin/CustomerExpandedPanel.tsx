@@ -131,9 +131,7 @@ export type CustomerExpandedPanelProps = {
   onCoach: (value: boolean) => void;
   onCommunityRep: (value: boolean) => void;
   onAcceptRules: () => void;
-  onSetPro: () => void;
   onSetVip: () => void;
-  onGrant1DayPro: () => void;
   onGrant1DayVip: () => void;
   onClearSubscription: () => void;
   onResetPassword: () => void;
@@ -161,9 +159,7 @@ export default function CustomerExpandedPanel({
   onCoach,
   onCommunityRep,
   onAcceptRules,
-  onSetPro,
   onSetVip,
-  onGrant1DayPro,
   onGrant1DayVip,
   onClearSubscription,
   onResetPassword,
@@ -282,14 +278,8 @@ export default function CustomerExpandedPanel({
 
       <DetailSection title="Subscription & account">
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={onSetPro} disabled={busy.subscription} className="text-xs px-2.5 py-1 rounded bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-200 disabled:opacity-50">
-            Set Pro
-          </button>
           <button type="button" onClick={onSetVip} disabled={busy.subscription} className="text-xs px-2.5 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 disabled:opacity-50">
-            Set VIP
-          </button>
-          <button type="button" onClick={onGrant1DayPro} disabled={busy.subscription} className="text-xs px-2.5 py-1 rounded border border-zinc-300 dark:border-zinc-600 disabled:opacity-50">
-            1 day Pro
+            Set VIP (1 month)
           </button>
           <button type="button" onClick={onGrant1DayVip} disabled={busy.subscription} className="text-xs px-2.5 py-1 rounded border border-zinc-300 dark:border-zinc-600 disabled:opacity-50">
             1 day VIP
