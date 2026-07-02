@@ -45,7 +45,8 @@ export async function resolveBlofinConfigForPropFirmSession(
 
 export function getPropFirmBlofinMeta(
   config: BlofinConfig,
-  credentialSource: "saved" | "server"
+  credentialSource: "saved" | "server",
+  demoOverride?: boolean
 ): PropFirmBlofinMeta {
-  return { blofinDemo: config.demo, credentialSource };
+  return { blofinDemo: demoOverride ?? config.demo, credentialSource };
 }

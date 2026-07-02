@@ -10,6 +10,7 @@ import {
   defaultSessionState,
   guardSeverityClass,
   presetPropFirmConfig,
+  PROP_FIRM_PRIMARY_MARKETS,
   readPropFirmPersisted,
   writePropFirmPersisted,
   type ChallengeProfile,
@@ -47,11 +48,13 @@ type SyncResponse = {
 export default function PropFirmBotPanel() {
   const [cfg, setCfg] = useState<PropFirmConfig>(() => presetPropFirmConfig("topstep_50k"));
   const [state, setState] = useState<SessionState>(() => defaultSessionState(50000));
-  const [symbol, setSymbol] = useState("NQ");
+  const [symbol, setSymbol] = useState("BTC");
+  const [customSymbol, setCustomSymbol] = useState("");
   const [aiSetupNote, setAiSetupNote] = useState(
     "Trade only A+ setups. No revenge trades. Pause after two losses."
   );
   const [autoSync, setAutoSync] = useState(true);
+  const [blofinSyncDemo, setBlofinSyncDemo] = useState(true);
   const [proposedRiskUsd, setProposedRiskUsd] = useState("");
   const [positions, setPositions] = useState<SyncedPosition[]>([]);
   const [guards, setGuards] = useState<PropFirmGuards | null>(null);
@@ -75,24 +78,39 @@ export default function PropFirmBotPanel() {
       setSymbol(saved.symbol);
       setAiSetupNote(saved.aiSetupNote);
       setAutoSync(saved.autoSync);
+      setBlofinSyncDemo(saved.blofinSyncDemo);
+      if (saved.symbol && !PROP_FIRM_PRIMARY_MARKETS.some((m) => m.value === saved.symbol)) {
+        setSymbol("CUSTOM");
+        setCustomSymbol(saved.symbol);
+      }
     }
     hydrated.current = true;
     setReady(true);
   }, []);
 
+  const displaySymbol = symbol === "CUSTOM" ? customSymbol.trim().toUpperCase() || "CUSTOM" : symbol;
+
   useEffect(() => {
     if (!hydrated.current) return;
-    writePropFirmPersisted({ cfg, state, symbol, aiSetupNote, autoSync });
-  }, [cfg, state, symbol, aiSetupNote, autoSync]);
+    writePropFirmPersisted({ cfg, state, symbol: displaySymbol, aiSetupNote, autoSync, blofinSyncDemo });
+  }, [cfg, state, displaySymbol, aiSetupNote, autoSync, blofinSyncDemo]);
 
   const loadBlofinStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/prop-firm-bot/sync");
-      const data = await res.json();
+      const [syncRes, configRes] = await Promise.all([
+        fetch("/api/prop-firm-bot/sync"),
+        fetch("/api/user/blofin-config"),
+      ]);
+      const data = await syncRes.json();
+      const configData = await configRes.json().catch(() => ({}));
+      if (typeof configData.demoMode === "boolean") {
+        setBlofinSyncDemo(configData.demoMode);
+        setBlofinKeys((k) => ({ ...k, demoMode: configData.demoMode }));
+      }
       setBlofinStatus({
         configured: !!data.configured,
-        blofinDemo: data.blofin?.blofinDemo,
-        credentialSource: data.blofin?.credentialSource,
+        blofinDemo: data.blofin?.blofinDemo ?? configData.demoMode,
+        credentialSource: data.blofin?.credentialSource ?? configData.credentialSource,
         error: data.error,
       });
       return !!data.configured;
@@ -111,7 +129,7 @@ export default function PropFirmBotPanel() {
         const res = await fetch("/api/prop-firm-bot/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cfg, state, proposedRiskUsd: proposed }),
+          body: JSON.stringify({ cfg, state, proposedRiskUsd: proposed, blofinDemo: blofinSyncDemo }),
         });
         const data = (await res.json()) as SyncResponse;
         if (!res.ok || !data.success) {
@@ -131,7 +149,7 @@ export default function PropFirmBotPanel() {
         setSyncing(false);
       }
     },
-    [cfg, state, proposedRiskUsd]
+    [cfg, state, proposedRiskUsd, blofinSyncDemo]
   );
 
   useEffect(() => {
@@ -166,6 +184,47 @@ export default function PropFirmBotPanel() {
   const activeGuards = guards ?? localGuards;
   const activeMetrics = syncedMetrics ?? localMetrics;
 
+  const setBlofinEnvironment = async (demo: boolean) => {
+    setBlofinSyncDemo(demo);
+    setBlofinKeys((k) => ({ ...k, demoMode: demo }));
+    if (blofinStatus.configured && blofinStatus.credentialSource === "saved") {
+      await fetch("/api/user/blofin-config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ demoMode: demo }),
+      }).catch(() => {});
+    }
+    setSyncing(true);
+    setSyncError("");
+    try {
+      const res = await fetch("/api/prop-firm-bot/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cfg,
+          state,
+          proposedRiskUsd: Number(proposedRiskUsd) || 0,
+          blofinDemo: demo,
+        }),
+      });
+      const data = (await res.json()) as SyncResponse;
+      if (!res.ok || !data.success) {
+        setSyncError(data.error ?? "Sync failed.");
+        return;
+      }
+      if (data.state) setState(data.state);
+      if (data.positions) setPositions(data.positions);
+      if (data.guards) setGuards(data.guards);
+      if (data.metrics) setSyncedMetrics(data.metrics);
+      if (data.syncedAt) setLastSyncedAt(data.syncedAt);
+      setBlofinStatus((s) => ({ ...s, blofinDemo: demo }));
+    } catch {
+      setSyncError("Sync failed after environment switch.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const saveBlofinKeys = async () => {
     setSavingKeys(true);
     setSyncError("");
@@ -181,6 +240,7 @@ export default function PropFirmBotPanel() {
         return;
       }
       setShowBlofinForm(false);
+      setBlofinSyncDemo(blofinKeys.demoMode);
       setBlofinKeys({ apiKey: "", secretKey: "", passphrase: "", demoMode: blofinKeys.demoMode });
       await loadBlofinStatus();
       await runSync(0);
@@ -217,9 +277,14 @@ export default function PropFirmBotPanel() {
         <span>Nova Prop Firm Bot</span>
       </h2>
       <p className="text-sm text-muted-foreground">
-        Challenge guardrail copilot — syncs with Blofin to track PnL and risk, then blocks or warns on{" "}
-        <strong>entries</strong> and guides <strong>exits</strong> based on your prop-firm rules. Not auto-trading;
-        you execute on Blofin; this protects your evaluation.
+        Challenge guardrail copilot — syncs with Blofin perpetual contracts (e.g. BTC-USDT-SWAP, ETH-USDT-SWAP) to
+        track PnL and risk, then blocks or warns on <strong>entries</strong> and guides <strong>exits</strong> based on
+        your prop-firm rules. You trade on Blofin; this does not place orders.
+      </p>
+      <p className="text-xs text-muted-foreground rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 px-3 py-2">
+        <strong>Contracts vs instrument:</strong> Open <em>contracts</em> are your live Blofin positions (any symbol).
+        <strong> Primary market</strong> is what you mainly trade (BTC, ETH, etc.) — used for guardrail messages only,
+        not a filter. If you see no contracts, you have no open positions on the selected Demo/Live Blofin account.
       </p>
 
       <Card className="border-cyan-200/60 dark:border-cyan-800/50">
@@ -229,7 +294,28 @@ export default function PropFirmBotPanel() {
               <Link2 className="h-4 w-4" />
               Blofin sync
             </CardTitle>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-xs text-muted-foreground mr-1">Sync environment:</span>
+              <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={blofinSyncDemo ? "default" : "ghost"}
+                  className="h-7 text-xs"
+                  onClick={() => void setBlofinEnvironment(true)}
+                >
+                  Demo
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={!blofinSyncDemo ? "default" : "ghost"}
+                  className="h-7 text-xs"
+                  onClick={() => void setBlofinEnvironment(false)}
+                >
+                  Live
+                </Button>
+              </div>
               <Button type="button" size="sm" variant="outline" onClick={() => setShowBlofinForm((v) => !v)}>
                 {blofinStatus.configured ? "Update keys" : "Connect Blofin"}
               </Button>
@@ -243,7 +329,7 @@ export default function PropFirmBotPanel() {
         <CardContent className="space-y-3 text-sm">
           {blofinStatus.configured ? (
             <p className="text-emerald-700 dark:text-emerald-300">
-              Connected ({blofinStatus.blofinDemo ? "Demo" : "Live"}, {blofinStatus.credentialSource ?? "saved"} keys)
+              Connected — syncing <strong>{blofinSyncDemo ? "Demo" : "Live"}</strong> ({blofinStatus.credentialSource ?? "saved"} keys)
               {lastSyncedAt && (
                 <span className="text-muted-foreground ml-2">
                   · Last sync {new Date(lastSyncedAt).toLocaleTimeString()}
@@ -376,15 +462,32 @@ export default function PropFirmBotPanel() {
               </select>
             </div>
             <div>
-              <label className="block text-xs mb-1">Instrument focus</label>
-              <input
+              <label className="block text-xs mb-1">Primary market</label>
+              <select
                 value={symbol}
-                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                onChange={(e) => setSymbol(e.target.value)}
                 className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
-              />
+              >
+                {PROP_FIRM_PRIMARY_MARKETS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              {symbol === "CUSTOM" && (
+                <input
+                  value={customSymbol}
+                  onChange={(e) => setCustomSymbol(e.target.value.toUpperCase())}
+                  placeholder="e.g. DOGE"
+                  className="mt-2 w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
+                />
+              )}
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Focus symbol for decisions — trade any Blofin perp; open contracts sync from all positions.
+              </p>
             </div>
             <div>
-              <label className="block text-xs mb-1">Max contracts</label>
+              <label className="block text-xs mb-1">Max contracts (challenge rule)</label>
               <input
                 type="number"
                 value={cfg.maxContracts}
@@ -482,33 +585,47 @@ export default function PropFirmBotPanel() {
         </CardContent>
       </Card>
 
-      {positions.length > 0 && (
-        <Card className="border-zinc-200/80 dark:border-zinc-700/80">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Open positions (Blofin)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {positions.map((p) => (
-              <div
-                key={`${p.instId}-${p.posSide}`}
-                className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
-              >
-                <span className="font-medium">
-                  {p.instId} · {p.posSide} · {p.size} ct
-                </span>
-                <span className={p.unrealizedPnl >= 0 ? "text-emerald-600" : "text-rose-600"}>
-                  ${p.unrealizedPnl.toFixed(2)} uPnL
-                </span>
-              </div>
-            ))}
-            {activeGuards.positionNotes.map((n) => (
-              <div key={n.instId + n.headline} className={`rounded border p-2 text-xs ${guardSeverityClass(n.severity)}`}>
-                <strong>{n.instId}:</strong> {n.headline} — {n.detail}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">
+            Open contracts from Blofin ({blofinSyncDemo ? "Demo" : "Live"})
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Perpetual positions on your Blofin account — e.g. BTC-USDT-SWAP. Counted toward max contracts and open risk.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {positions.length > 0 ? (
+            <>
+              {positions.map((p) => (
+                <div
+                  key={`${p.instId}-${p.posSide}`}
+                  className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
+                >
+                  <span className="font-medium">
+                    {p.instId} · {p.posSide} · {p.size} contracts
+                  </span>
+                  <span className={p.unrealizedPnl >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                    ${p.unrealizedPnl.toFixed(2)} uPnL
+                  </span>
+                </div>
+              ))}
+              {activeGuards.positionNotes.map((n) => (
+                <div key={n.instId + n.headline} className={`rounded border p-2 text-xs ${guardSeverityClass(n.severity)}`}>
+                  <strong>{n.instId}:</strong> {n.headline} — {n.detail}
+                </div>
+              ))}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground py-2">
+              No open contracts on Blofin {blofinSyncDemo ? "Demo" : "Live"}.
+              {blofinStatus.configured
+                ? " Open a perp on Blofin (e.g. BTC-USDT-SWAP) and tap Sync — or check Demo vs Live matches where you trade."
+                : " Connect Blofin keys first, then trade and sync."}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
         <CardHeader className="pb-3">

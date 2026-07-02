@@ -88,6 +88,17 @@ export async function saveBlofinConfigForUser(
   });
 }
 
+/** Update demo/live mode on saved Blofin keys without re-entering secrets. */
+export async function updateBlofinDemoModeForUser(userId: string, demo: boolean): Promise<boolean> {
+  const row = await (prisma as any).userBlofinConfig.findUnique({ where: { userId } });
+  if (!row) return false;
+  await (prisma as any).userBlofinConfig.update({
+    where: { userId },
+    data: { demoMode: demo },
+  });
+  return true;
+}
+
 /** Remove saved Blofin config for a user. */
 export async function deleteBlofinConfigForUser(userId: string): Promise<void> {
   await (prisma as any).userBlofinConfig.deleteMany({ where: { userId } });

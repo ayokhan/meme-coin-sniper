@@ -204,7 +204,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   narratives: "page_tab_narratives",
   "trading-bot": "page_tab_trading_bot",
   "polymarket-bot": "page_tab_trading_bot",
-  "prop-firm-bot": "page_tab_trading_bot",
+  "prop-firm-bot": "page_tab_prop_firm_bot",
   "nova-ultimate": "page_tab_trading_bot",
   ct: "page_tab_ct",
   wallets: "page_tab_wallets",
@@ -3805,7 +3805,7 @@ export default function Dashboard() {
                 {isTabVisibleInGui("trading-bot") && matchesTopTabFilter("polymarket-bot") && (
                   <TabsTrigger value="polymarket-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Polymarket Pro</TabsTrigger>
                 )}
-                {isTabVisibleInGui("trading-bot") && matchesTopTabFilter("prop-firm-bot") && (
+                {isTabVisibleInGui("prop-firm-bot") && matchesTopTabFilter("prop-firm-bot") && (
                   <TabsTrigger value="prop-firm-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Prop Firm Bot</TabsTrigger>
                 )}
                 {isTabVisibleInGui("trading-bot") && matchesTopTabFilter("nova-ultimate") && (

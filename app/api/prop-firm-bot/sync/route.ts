@@ -19,6 +19,7 @@ import {
   type SyncedPosition,
 } from "@/lib/prop-firm-bot";
 import { getPropFirmBlofinMeta, resolveBlofinConfigForPropFirmSession } from "@/lib/prop-firm-blofin-session";
+import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,8 @@ type SyncBody = {
   cfg?: Partial<PropFirmConfig>;
   state?: Partial<SessionState>;
   proposedRiskUsd?: number;
+  /** Override demo vs live for this sync (must match where you trade on Blofin). */
+  blofinDemo?: boolean;
 };
 
 async function loadPositionsWithPnl(
@@ -86,6 +89,11 @@ async function loadPositionsWithPnl(
 /** POST — sync challenge state from Blofin + return entry/exit guardrails. */
 export async function POST(request: Request) {
   try {
+    const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.PAGE_TAB_PROP_FIRM_BOT);
+    if (!enabled) {
+      return NextResponse.json({ success: false, error: "Nova Prop Firm Bot is disabled." }, { status: 403 });
+    }
+
     const session = await getServerSession(authOptions);
     const resolved = await resolveBlofinConfigForPropFirmSession(session);
     if (!resolved.ok) {
@@ -102,7 +110,9 @@ export async function POST(request: Request) {
     }
 
     const { config, credentialSource } = resolved;
-    const blofin = getPropFirmBlofinMeta(config, credentialSource);
+    const blofinDemo =
+      typeof body.blofinDemo === "boolean" ? body.blofinDemo : config.demo;
+    const blofin = getPropFirmBlofinMeta(config, credentialSource, blofinDemo);
     const leverage = 10;
 
     const [positionPack, fills, orders, balances] = await Promise.all([
@@ -166,6 +176,17 @@ export async function POST(request: Request) {
 /** GET — Blofin connection status for prop firm workspace. */
 export async function GET() {
   try {
+    const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.PAGE_TAB_PROP_FIRM_BOT);
+    if (!enabled) {
+      return NextResponse.json({
+        success: true,
+        configured: false,
+        canAccess: false,
+        featureDisabled: true,
+        error: "Nova Prop Firm Bot is disabled by admin.",
+      });
+    }
+
     const session = await getServerSession(authOptions);
     const resolved = await resolveBlofinConfigForPropFirmSession(session);
     if (!resolved.ok) {

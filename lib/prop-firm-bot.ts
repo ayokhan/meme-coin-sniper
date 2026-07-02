@@ -55,6 +55,16 @@ export type PropFirmGuards = {
 
 export const PROP_FIRM_STORAGE_KEY = "novastaris_prop_firm_bot_v1";
 
+/** Common Blofin perp symbols — sync shows any open position; this is your focus for guardrail copy. */
+export const PROP_FIRM_PRIMARY_MARKETS = [
+  { value: "BTC", label: "BTC (BTC-USDT-SWAP)" },
+  { value: "ETH", label: "ETH (ETH-USDT-SWAP)" },
+  { value: "SOL", label: "SOL (SOL-USDT-SWAP)" },
+  { value: "XAU", label: "Gold (XAU-USDT-SWAP)" },
+  { value: "NQ", label: "NQ / index-style (if listed on your Blofin)" },
+  { value: "CUSTOM", label: "Custom symbol" },
+] as const;
+
 export function presetPropFirmConfig(profile: ChallengeProfile): PropFirmConfig {
   if (profile === "topstep_100k") {
     return {
@@ -109,6 +119,8 @@ export type PropFirmPersisted = {
   symbol: string;
   aiSetupNote: string;
   autoSync: boolean;
+  /** When set, Blofin sync uses this environment (demo vs live). */
+  blofinSyncDemo: boolean;
 };
 
 export function readPropFirmPersisted(): PropFirmPersisted | null {
@@ -121,9 +133,10 @@ export function readPropFirmPersisted(): PropFirmPersisted | null {
     return {
       cfg: { ...presetPropFirmConfig("topstep_50k"), ...parsed.cfg },
       state: { ...defaultSessionState(parsed.cfg.accountSize ?? 50000), ...parsed.state },
-      symbol: parsed.symbol ?? "NQ",
+      symbol: parsed.symbol ?? "BTC",
       aiSetupNote: parsed.aiSetupNote ?? "Trade only A+ setups. No revenge trades. Pause after two losses.",
       autoSync: parsed.autoSync ?? true,
+      blofinSyncDemo: parsed.blofinSyncDemo ?? true,
     };
   } catch {
     return null;
