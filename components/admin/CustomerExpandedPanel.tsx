@@ -54,6 +54,9 @@ export type AdminCustomerRecord = {
   paymentTermsAcceptedAt: string | null;
   subscriptionExpiresAt: string | null;
   isActive: boolean;
+  subscriptionAutoRenew?: boolean;
+  subscriptionCancelAtPeriodEnd?: boolean;
+  hasStripeSubscription?: boolean;
   payments: AdminCustomerPayment[];
 };
 
@@ -498,7 +501,21 @@ export default function CustomerExpandedPanel({
             Active VIP until {new Date(c.subscriptionExpiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
           </p>
         )}
-        <p className="text-[11px] text-muted-foreground mb-2">Grant extends from current expiry if VIP is already active.</p>
+        {c.isActive && (
+          <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">
+            Card auto-renew:{" "}
+            {c.hasStripeSubscription
+              ? c.subscriptionCancelAtPeriodEnd
+                ? "Off (cancelled at period end)"
+                : c.subscriptionAutoRenew
+                  ? "On"
+                  : "Card on file (not renewing)"
+              : "No — admin grant, USDC, or one-time card only"}
+          </p>
+        )}
+        <p className="text-[11px] text-muted-foreground mb-2">
+          Admin VIP grants do not turn on card auto-renew. Customers enable that at checkout on the subscribe page.
+        </p>
         <div className="flex flex-wrap gap-2">
           {ADMIN_VIP_GRANTS.map((g) => (
             <button

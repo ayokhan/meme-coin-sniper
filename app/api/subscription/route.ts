@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { VIP_PLANS, CARD_PAYMENT_FEE_USD, getActiveSubscription, getActiveSubscriptionDetails, getSubscriptionExpiresAt, getSubscriptionTier } from '@/lib/subscription';
+import { getStripeCustomerId } from '@/lib/stripe-billing';
 import { verifyUsdcPayment } from '@/lib/verify-solana-payment';
 import { getUsageThisMonth } from '@/lib/usage';
 
@@ -15,13 +16,14 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, subscribed: false, paid: false });
   }
-  const [paid, expiresAt, tier, usage, user, billing] = await Promise.all([
+  const [paid, expiresAt, tier, usage, user, billing, stripeCustomerId] = await Promise.all([
     getActiveSubscription(session.user.id),
     getSubscriptionExpiresAt(session.user.id),
     getSubscriptionTier(session.user.id),
     getUsageThisMonth(session.user.id),
     prisma.user.findUnique({ where: { id: session.user.id } }),
     getActiveSubscriptionDetails(session.user.id),
+    getStripeCustomerId(session.user.id),
   ]);
   const paymentTermsAcceptedAt = (user as { paymentTermsAcceptedAt?: Date | null } | null)?.paymentTermsAcceptedAt;
   return NextResponse.json({
@@ -32,6 +34,7 @@ export async function GET() {
     autoRenew: billing?.autoRenew ?? false,
     cancelAtPeriodEnd: billing?.cancelAtPeriodEnd ?? false,
     hasStripeSubscription: !!billing?.stripeSubscriptionId,
+    hasStripeCustomer: !!stripeCustomerId || !!billing?.stripeSubscriptionId,
     vipPlans: VIP_PLANS,
     cardPaymentFeeUsd: CARD_PAYMENT_FEE_USD,
     paymentWallet: paid ? undefined : PAYMENT_WALLET,

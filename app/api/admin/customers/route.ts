@@ -31,6 +31,9 @@ export async function GET() {
           expiresAt: Date;
           createdAt: Date;
           stripeSessionId?: string | null;
+          stripeSubscriptionId?: string | null;
+          autoRenew?: boolean;
+          cancelAtPeriodEnd?: boolean;
           txSignature?: string | null;
         }>;
       }).subscriptions ?? [];
@@ -83,6 +86,9 @@ export async function GET() {
         subscriptionPlan: subPlan,
         subscriptionExpiresAt: activeSub ? activeSub.expiresAt : latestSub?.expiresAt ?? null,
         isActive: !!activeSub,
+        subscriptionAutoRenew: !!(activeSub?.autoRenew),
+        subscriptionCancelAtPeriodEnd: !!(activeSub?.cancelAtPeriodEnd),
+        hasStripeSubscription: !!(activeSub?.stripeSubscriptionId),
         payments,
       };
       if (readOnly) {

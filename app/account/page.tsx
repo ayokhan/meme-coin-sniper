@@ -54,6 +54,7 @@ export default function AccountPage() {
   const [subscriptionAutoRenew, setSubscriptionAutoRenew] = useState(false);
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [hasStripeSubscription, setHasStripeSubscription] = useState(false);
+  const [hasStripeCustomer, setHasStripeCustomer] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingMessage, setBillingMessage] = useState("");
   const [billingError, setBillingError] = useState("");
@@ -89,6 +90,7 @@ export default function AccountPage() {
             setSubscriptionAutoRenew(!!sub.autoRenew);
             setCancelAtPeriodEnd(!!sub.cancelAtPeriodEnd);
             setHasStripeSubscription(!!sub.hasStripeSubscription);
+            setHasStripeCustomer(!!sub.hasStripeCustomer);
           }
         }
       } finally {
@@ -96,6 +98,29 @@ export default function AccountPage() {
       }
     })();
   }, [status]);
+
+  const openBillingPortal = async () => {
+    setBillingLoading(true);
+    setBillingError("");
+    setBillingMessage("");
+    try {
+      const res = await fetch("/api/stripe/billing-portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ returnUrl: `${window.location.origin}/account` }),
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setBillingError(data.error ?? "Could not open billing portal.");
+    } catch {
+      setBillingError("Something went wrong. Try again.");
+    } finally {
+      setBillingLoading(false);
+    }
+  };
 
   const onSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,7 +305,7 @@ export default function AccountPage() {
           </Card>
         )}
 
-        {subscriptionPaid && hasStripeSubscription && (
+        {subscriptionPaid && (hasStripeSubscription || hasStripeCustomer) && (
           <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -398,6 +423,11 @@ export default function AccountPage() {
                   Turn off auto-renewal
                 </Button>
               ) : null}
+              {hasStripeCustomer && (
+                <Button type="button" variant="outline" disabled={billingLoading} onClick={openBillingPortal}>
+                  {billingLoading ? "Opening…" : "Update payment method"}
+                </Button>
+              )}
               <p className="text-xs text-muted-foreground">
                 Need to change plan or pay by USDC?{" "}
                 <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">

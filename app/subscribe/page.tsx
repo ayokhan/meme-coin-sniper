@@ -46,6 +46,7 @@ function SubscribeContent() {
   const [subscriptionAutoRenew, setSubscriptionAutoRenew] = useState(false);
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [hasStripeSubscription, setHasStripeSubscription] = useState(false);
+  const [hasStripeCustomer, setHasStripeCustomer] = useState(false);
   const [billingActionLoading, setBillingActionLoading] = useState(false);
   const [billingMessage, setBillingMessage] = useState("");
   const [vipExpiryBannerDismissed, setVipExpiryBannerDismissed] = useState(true);
@@ -74,6 +75,7 @@ function SubscribeContent() {
           setSubscriptionAutoRenew(!!data.autoRenew);
           setCancelAtPeriodEnd(!!data.cancelAtPeriodEnd);
           setHasStripeSubscription(!!data.hasStripeSubscription);
+          setHasStripeCustomer(!!data.hasStripeCustomer);
           if (data.paymentTermsAcceptedAt) setTermsCheckbox(true);
           const exp = typeof data.expiresAt === "string" ? data.expiresAt : null;
           if (exp && typeof window !== "undefined") {
@@ -231,6 +233,28 @@ function SubscribeContent() {
     }
   };
 
+  const openBillingPortal = async () => {
+    setBillingActionLoading(true);
+    setBillingMessage("");
+    try {
+      const res = await fetch("/api/stripe/billing-portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ returnUrl: `${window.location.origin}/subscribe` }),
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setBillingMessage(data.error ?? "Could not open billing portal.");
+    } catch {
+      setBillingMessage("Something went wrong. Try again.");
+    } finally {
+      setBillingActionLoading(false);
+    }
+  };
+
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
@@ -270,9 +294,9 @@ function SubscribeContent() {
           {billingMessage && (
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">{billingMessage}</p>
           )}
-          {hasStripeSubscription && (
+          {(hasStripeSubscription || hasStripeCustomer) && (
             <div className="mt-4 flex flex-col gap-2">
-              {cancelAtPeriodEnd ? (
+              {hasStripeSubscription && cancelAtPeriodEnd ? (
                 <Button
                   type="button"
                   disabled={billingActionLoading}
@@ -297,7 +321,7 @@ function SubscribeContent() {
                 >
                   {billingActionLoading ? "Updating…" : "Turn auto-renewal back on"}
                 </Button>
-              ) : subscriptionAutoRenew ? (
+              ) : hasStripeSubscription && subscriptionAutoRenew ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -323,7 +347,21 @@ function SubscribeContent() {
                   {billingActionLoading ? "Updating…" : "Turn off auto-renewal"}
                 </Button>
               ) : null}
+              {hasStripeCustomer && (
+                <Button type="button" variant="outline" disabled={billingActionLoading} className="w-full" onClick={openBillingPortal}>
+                  {billingActionLoading ? "Opening…" : "Update payment method"}
+                </Button>
+              )}
             </div>
+          )}
+          {(hasStripeSubscription || hasStripeCustomer) && (
+            <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80 mt-3">
+              Manage billing anytime from{" "}
+              <Link href="/account" className="underline font-medium">
+                Account → VIP billing
+              </Link>
+              .
+            </p>
           )}
           <Button asChild className="mt-4">
             <Link href="/?from=subscribe">Back to Dashboard</Link>
@@ -485,7 +523,7 @@ function SubscribeContent() {
                 <span className="text-sm text-zinc-700 dark:text-zinc-300">
                   <strong className="text-zinc-900 dark:text-zinc-100">Enable automatic renewal</strong>
                   <span className="block mt-0.5 text-zinc-500 dark:text-zinc-400">
-                    Your card is charged each billing period until you turn this off. You can cancel auto-renewal anytime from this page.
+                    Your card is charged each billing period until you turn this off. Manage your card anytime from Account → VIP billing after checkout.
                   </span>
                 </span>
               </label>

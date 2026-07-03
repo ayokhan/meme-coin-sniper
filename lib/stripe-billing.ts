@@ -83,6 +83,31 @@ export async function getStripeCustomerId(userId: string): Promise<string | null
   return user?.stripeCustomerId ?? null;
 }
 
+/** Resolve Stripe customer id from user record or active subscription (and persist when found). */
+export async function resolveStripeCustomerId(
+  userId: string,
+  stripe: import("stripe").default
+): Promise<string | null> {
+  const existing = await getStripeCustomerId(userId);
+  if (existing) return existing;
+
+  const { getActiveSubscriptionDetails } = await import("@/lib/subscription");
+  const details = await getActiveSubscriptionDetails(userId);
+  if (!details?.stripeSubscriptionId) return null;
+
+  try {
+    const sub = await stripe.subscriptions.retrieve(details.stripeSubscriptionId);
+    const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+    if (customerId) {
+      await setStripeCustomerId(userId, customerId);
+      return customerId;
+    }
+  } catch (e) {
+    console.error("resolveStripeCustomerId error:", e);
+  }
+  return null;
+}
+
 export function periodEndFromStripeSubscription(sub: Stripe.Subscription): Date {
   const raw = sub as Stripe.Subscription & {
     current_period_end?: number;
