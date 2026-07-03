@@ -8,6 +8,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import CustomerExpandedPanel from "@/components/admin/CustomerExpandedPanel";
 import { canViewAdminCustomersSession } from "@/lib/admin-access";
+import { grantLabel, type AdminVipGrantId } from "@/lib/admin-vip-grant";
 
 type Payment = {
   date: string;
@@ -776,38 +777,50 @@ export default function AdminCustomersPage() {
     }
   };
 
-  const handleSetSubscription = async (id: string, action: "vip" | "clear", oneDay?: boolean) => {
+  const handleGrantVip = async (id: string, grant: AdminVipGrantId) => {
     setUpdatingId(id);
     setError("");
     try {
       const res = await fetch(`/api/admin/customers/${id}/subscription`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:
-          action === "clear"
-            ? JSON.stringify({ action: "clear" })
-            : JSON.stringify(
-                oneDay
-                  ? { action: "set", months: 0 }
-                  : { action: "set" }
-              ),
+        body: JSON.stringify({ action: "grant", grant }),
       });
       const data = await res.json();
       if (data.success) {
         loadCustomers();
-        if (action === "clear") {
-          setSuccessMessage("Subscription cleared.");
-        } else if (oneDay) {
-          setSuccessMessage("Granted 1 day VIP.");
-        } else {
-          setSuccessMessage("Set to VIP.");
-        }
+        const extended = data.subscription?.extendedFromExisting ? " (extended)" : "";
+        setSuccessMessage(`Granted ${data.grantLabel ?? grantLabel(grant)} VIP${extended}.`);
         setTimeout(() => setSuccessMessage(""), 4000);
       } else {
         setError(data.error ?? "Failed to update subscription");
       }
     } catch {
       setError("Failed to update subscription");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleClearSubscription = async (id: string) => {
+    setUpdatingId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}/subscription`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage("VIP cancelled — access revoked immediately.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else {
+        setError(data.error ?? "Failed to cancel subscription");
+      }
+    } catch {
+      setError("Failed to cancel subscription");
     } finally {
       setUpdatingId(null);
     }
@@ -1139,11 +1152,11 @@ export default function AdminCustomersPage() {
                               <div className="flex flex-wrap gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => handleSetSubscription(c.id, "vip")}
+                                  onClick={() => handleGrantVip(c.id, "1month")}
                                   disabled={updatingId === c.id}
-                                  className="text-[11px] px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 disabled:opacity-50"
+                                  className="text-[11px] px-2 py-1 rounded bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-100 disabled:opacity-50"
                                 >
-                                  VIP
+                                  +1 mo VIP
                                 </button>
                                 <button
                                   type="button"
@@ -1203,9 +1216,8 @@ export default function AdminCustomersPage() {
                                   onCoach={(v) => handleCoachUserToggle(c.id, v)}
                                   onCommunityRep={(v) => handleCommunityRepToggle(c.id, v)}
                                   onAcceptRules={() => handleAcceptRules(c.id, true)}
-                                  onSetVip={() => handleSetSubscription(c.id, "vip")}
-                                  onGrant1DayVip={() => handleSetSubscription(c.id, "vip", true)}
-                                  onClearSubscription={() => handleSetSubscription(c.id, "clear")}
+                                  onGrantVip={(grant) => handleGrantVip(c.id, grant)}
+                                  onClearSubscription={() => handleClearSubscription(c.id)}
                                   onResetPassword={() => handleResetPassword(c.id, c.email)}
                                   onDelete={() => handleDelete(c.id)}
                                   onCustomersViewerAdmin={(v) => handleCustomersViewerAdminToggle(c.id, v)}

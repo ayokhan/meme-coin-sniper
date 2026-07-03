@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { ADMIN_VIP_GRANTS, type AdminVipGrantId } from "@/lib/admin-vip-grant";
 
 export type AiAgentLimitsPatch = {
   memeDaily?: number | null;
@@ -166,8 +167,7 @@ export type CustomerExpandedPanelProps = {
   onCoach: (value: boolean) => void;
   onCommunityRep: (value: boolean) => void;
   onAcceptRules: () => void;
-  onSetVip: () => void;
-  onGrant1DayVip: () => void;
+  onGrantVip: (grant: AdminVipGrantId) => void;
   onClearSubscription: () => void;
   onResetPassword: () => void;
   onDelete: () => void;
@@ -201,8 +201,7 @@ export default function CustomerExpandedPanel({
   onCoach,
   onCommunityRep,
   onAcceptRules,
-  onSetVip,
-  onGrant1DayVip,
+  onGrantVip,
   onClearSubscription,
   onResetPassword,
   onDelete,
@@ -494,16 +493,36 @@ export default function CustomerExpandedPanel({
 
       {!readOnly && (
       <DetailSection title="Subscription & account">
+        {c.isActive && c.subscriptionExpiresAt && (
+          <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">
+            Active VIP until {new Date(c.subscriptionExpiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+          </p>
+        )}
+        <p className="text-[11px] text-muted-foreground mb-2">Grant extends from current expiry if VIP is already active.</p>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={onSetVip} disabled={busy.subscription} className="text-xs px-2.5 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 disabled:opacity-50">
-            Set VIP (1 month)
-          </button>
-          <button type="button" onClick={onGrant1DayVip} disabled={busy.subscription} className="text-xs px-2.5 py-1 rounded border border-zinc-300 dark:border-zinc-600 disabled:opacity-50">
-            1 day VIP
-          </button>
+          {ADMIN_VIP_GRANTS.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => onGrantVip(g.id)}
+              disabled={busy.subscription}
+              className={`text-xs px-2.5 py-1 rounded disabled:opacity-50 ${
+                g.id === "1month"
+                  ? "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-100 font-medium"
+                  : "border border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200"
+              }`}
+            >
+              {g.label} VIP
+            </button>
+          ))}
           {c.isActive && (
-            <button type="button" onClick={onClearSubscription} disabled={busy.subscription} className="text-xs px-2.5 py-1 rounded border border-zinc-300 dark:border-zinc-600 disabled:opacity-50">
-              Clear subscription
+            <button
+              type="button"
+              onClick={onClearSubscription}
+              disabled={busy.subscription}
+              className="text-xs px-2.5 py-1 rounded border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200 disabled:opacity-50"
+            >
+              Cancel / reset VIP
             </button>
           )}
           <button type="button" onClick={onResetPassword} disabled={busy.resetPassword || !c.email} className="text-xs px-2.5 py-1 rounded border border-zinc-300 dark:border-zinc-600 disabled:opacity-50" title={c.email ? undefined : "Email accounts only"}>
