@@ -53,7 +53,7 @@ import FuturesLiquidationMapPanel from "@/components/FuturesLiquidationMapPanel"
 import NovaMemeIntelligencePanel from "@/components/NovaMemeIntelligencePanel";
 import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel";
 import MemeLeaderboardPanel from "@/components/MemeLeaderboardPanel";
-import MemeTokenTableActions from "@/components/MemeTokenTableActions";
+import MemeTokenTableActions, { memeTableShareBtnClass, memeTableShareBtnCopiedClass } from "@/components/MemeTokenTableActions";
 import DeepMemeAgentPanel from "@/components/DeepMemeAgentPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
@@ -9116,7 +9116,7 @@ export default function Dashboard() {
                                 setTimeout(() => setCopiedTokenId(null), 2000);
                               });
                             }}
-                            className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                            className={copiedTokenId === t.id ? memeTableShareBtnCopiedClass : memeTableShareBtnClass}
                             title="Copy Dex link"
                           >
                             {copiedTokenId === t.id ? "Copied!" : <><Copy className="h-3 w-3 mr-0.5 inline" /> Share</>}
