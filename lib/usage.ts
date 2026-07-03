@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { formatAnalyticsPathLabel } from "@/lib/analytics-insights";
 
 export type UsageReportPeriod = "month" | "day";
 
@@ -115,6 +116,23 @@ export type UsageReportUser = {
   subscriptionTier: string | null;
   aiAnalyses: number;
   alerts: number;
+  pageViews: number;
+};
+
+export type UserPageActivityDrill = {
+  userId: string;
+  userLabel: string;
+  periodLabel: string;
+  totalPageViews: number;
+  byPath: Array<{ path: string; label: string; count: number; lastSeen: string }>;
+  recentEvents: Array<{
+    path: string;
+    pathLabel: string;
+    createdAt: string;
+    deviceType: string | null;
+    browser: string | null;
+    os: string | null;
+  }>;
 };
 
 export type UsageReport = {
@@ -155,7 +173,7 @@ export async function getUsageReportForAdmin(query: UsageReportQuery = {}): Prom
     };
   };
 
-  const [allUsersRaw, usageRows, aiEventsByUser, memeByUser, leverageByUser, activeSubsRaw, firstAiEvent] =
+  const [allUsersRaw, usageRows, aiEventsByUser, memeByUser, leverageByUser, activeSubsRaw, firstAiEvent, pageViewsByUser] =
     await Promise.all([
       prisma.user.findMany({
         orderBy: { createdAt: "desc" },
@@ -192,6 +210,19 @@ export async function getUsageReportForAdmin(query: UsageReportQuery = {}): Prom
             select: { createdAt: true },
           })
         : Promise.resolve(null),
+      (
+        prisma.analyticsEvent as unknown as {
+          groupBy: (args: {
+            by: ["userId"];
+            where: { userId: { not: null }; createdAt: { gte: Date; lt: Date } };
+            _count: { id: true };
+          }) => Promise<Array<{ userId: string | null; _count: { id: number } }>>;
+        }
+      ).groupBy({
+        by: ["userId"],
+        where: { userId: { not: null }, createdAt: dateFilter },
+        _count: { id: true },
+      }),
     ]);
 
   const allUsers = allUsersRaw.map((u) => ({
@@ -216,6 +247,11 @@ export async function getUsageReportForAdmin(query: UsageReportQuery = {}): Prom
     if (g.userId) alertCountByUser.set(g.userId, (alertCountByUser.get(g.userId) ?? 0) + g._count.id);
   }
 
+  const pageViewsByUserId = new Map<string, number>();
+  for (const g of pageViewsByUser) {
+    if (g.userId) pageViewsByUserId.set(g.userId, g._count.id);
+  }
+
   const tierByUser = new Map<string, string>();
   for (const sub of activeSubs) {
     if (!tierByUser.has(sub.userId)) tierByUser.set(sub.userId, sub.tier === "pro" ? "vip" : (sub.tier ?? "vip"));
@@ -224,6 +260,7 @@ export async function getUsageReportForAdmin(query: UsageReportQuery = {}): Prom
   const users: UsageReportUser[] = allUsers.map((user) => {
     const aiAnalyses = aiByUser.get(user.id) ?? 0;
     const alerts = alertCountByUser.get(user.id) ?? 0;
+    const pageViews = pageViewsByUserId.get(user.id) ?? 0;
     return {
       userId: user.id,
       email: user.email ?? null,
@@ -231,19 +268,20 @@ export async function getUsageReportForAdmin(query: UsageReportQuery = {}): Prom
       subscriptionTier: tierByUser.get(user.id) ?? null,
       aiAnalyses,
       alerts,
+      pageViews,
     };
   });
 
   users.sort((a, b) => {
-    const activityA = a.aiAnalyses + a.alerts;
-    const activityB = b.aiAnalyses + b.alerts;
+    const activityA = a.aiAnalyses + a.alerts + a.pageViews;
+    const activityB = b.aiAnalyses + b.alerts + b.pageViews;
     if (activityB !== activityA) return activityB - activityA;
     const labelA = (a.email ?? a.name ?? a.userId).toLowerCase();
     const labelB = (b.email ?? b.name ?? b.userId).toLowerCase();
     return labelA.localeCompare(labelB);
   });
 
-  const usersWithActivity = users.filter((u) => u.aiAnalyses > 0 || u.alerts > 0).length;
+  const usersWithActivity = users.filter((u) => u.aiAnalyses > 0 || u.alerts > 0 || u.pageViews > 0).length;
   const totalAiAnalyses = users.reduce((s, u) => s + u.aiAnalyses, 0);
   const totalAlerts = users.reduce((s, u) => s + u.alerts, 0);
 
@@ -276,5 +314,68 @@ export async function getUsageReportForAdmin(query: UsageReportQuery = {}): Prom
     totalAiAnalyses,
     totalAlerts,
     users,
+  };
+}
+
+/** Admin-only: page views for one user in the selected metrics period. */
+export async function getUserPageActivityForAdmin(
+  userId: string,
+  query: UsageReportQuery = {}
+): Promise<UserPageActivityDrill | null> {
+  const user = (await prisma.user.findUnique({
+    where: { id: userId },
+  })) as { id: string; email: string | null; name: string | null } | null;
+  if (!user) return null;
+
+  const { periodKey, start, end } = resolvePeriodRange(query);
+  const events = (await prisma.analyticsEvent.findMany({
+    where: { userId, createdAt: { gte: start, lt: end } },
+    orderBy: { createdAt: "desc" },
+    take: 5000,
+  })) as Array<{
+    path: string;
+    createdAt: Date;
+    deviceType: string | null;
+    browser: string | null;
+    os: string | null;
+  }>;
+
+  const byPath: Record<string, { count: number; lastSeen: Date }> = {};
+  for (const e of events) {
+    const p = e.path || "/";
+    const cur = byPath[p];
+    if (!cur) byPath[p] = { count: 1, lastSeen: e.createdAt };
+    else {
+      cur.count++;
+      if (e.createdAt > cur.lastSeen) cur.lastSeen = e.createdAt;
+    }
+  }
+
+  const byPathSorted = Object.entries(byPath)
+    .sort((a, b) => b[1].count - a[1].count)
+    .map(([path, { count, lastSeen }]) => ({
+      path,
+      label: formatAnalyticsPathLabel(path),
+      count,
+      lastSeen: lastSeen.toISOString(),
+    }));
+
+  return {
+    userId: user.id,
+    userLabel: user.email ?? user.name ?? user.id,
+    periodLabel: formatUsagePeriodLabel(
+      query.period === "day" ? "day" : "month",
+      periodKey
+    ),
+    totalPageViews: events.length,
+    byPath: byPathSorted,
+    recentEvents: events.slice(0, 50).map((e) => ({
+      path: e.path || "/",
+      pathLabel: formatAnalyticsPathLabel(e.path || "/"),
+      createdAt: e.createdAt.toISOString(),
+      deviceType: e.deviceType,
+      browser: e.browser,
+      os: e.os,
+    })),
   };
 }

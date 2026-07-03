@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays, TrendingUp } from "lucide-react";
+import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays, TrendingUp, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -37,7 +37,40 @@ type UsageReportUser = {
   subscriptionTier: string | null;
   aiAnalyses: number;
   alerts: number;
+  pageViews: number;
 };
+
+type UserPageDrill = {
+  userId: string;
+  userLabel: string;
+  periodLabel: string;
+  totalPageViews: number;
+  byPath: Array<{ path: string; label: string; count: number; lastSeen: string }>;
+  recentEvents: Array<{
+    path: string;
+    pathLabel: string;
+    createdAt: string;
+    deviceType: string | null;
+    browser: string | null;
+    os: string | null;
+  }>;
+};
+
+function formatActivityDateTime(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function metricsQueryString(period: UsageReportPeriod, monthKey: string, dayKey: string) {
+  const params = new URLSearchParams({ period });
+  if (period === "month") params.set("month", monthKey);
+  else params.set("day", dayKey);
+  return params.toString();
+}
 
 type UsageReport = {
   period: UsageReportPeriod;
@@ -80,6 +113,9 @@ export default function AdminMetricsPage() {
   const [funnelDays, setFunnelDays] = useState(30);
   const [funnel, setFunnel] = useState<AiAgentFunnelStats | null>(null);
   const [funnelLoading, setFunnelLoading] = useState(true);
+  const [pageDrill, setPageDrill] = useState<UserPageDrill | null>(null);
+  const [pageDrillLoading, setPageDrillLoading] = useState(false);
+  const [pageDrillError, setPageDrillError] = useState("");
 
   const loadFunnel = useCallback(() => {
     if (status !== "authenticated") return;
@@ -129,6 +165,26 @@ export default function AdminMetricsPage() {
     loadReport();
   }, [status, loadFunnel, loadReport]);
 
+  const openPageDrill = (user: UsageReportUser) => {
+    setPageDrillLoading(true);
+    setPageDrillError("");
+    setPageDrill(null);
+    const qs = metricsQueryString(period, monthKey, dayKey);
+    fetch(`/api/admin/metrics/user-activity?userId=${encodeURIComponent(user.userId)}&${qs}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.drill) setPageDrill(data.drill);
+        else setPageDrillError(data.error ?? "Failed to load page activity");
+      })
+      .catch(() => setPageDrillError("Failed to load page activity"))
+      .finally(() => setPageDrillLoading(false));
+  };
+
+  const closePageDrill = () => {
+    setPageDrill(null);
+    setPageDrillError("");
+  };
+
   if (status === "loading" || (loading && !report)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
@@ -161,8 +217,8 @@ export default function AdminMetricsPage() {
 
   const periodDescription =
     report?.period === "day"
-      ? `Platform-wide usage for ${report.periodLabel}. Every registered user is listed; AI analyses and alerts (meme coin + leverage) for that day.`
-      : `Platform-wide usage for ${report?.periodLabel ?? "this month"}. Every registered user is listed; AI analyses and alerts (meme coin + leverage) for the month.`;
+      ? `Platform-wide usage for ${report.periodLabel}. Every registered user is listed; AI analyses, alerts, and signed-in page views for that day.`
+      : `Platform-wide usage for ${report?.periodLabel ?? "this month"}. Every registered user is listed; AI analyses, alerts, and signed-in page views for the month.`;
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-4 py-8">
@@ -372,7 +428,7 @@ export default function AdminMetricsPage() {
                     Showing{" "}
                     {filter === "all"
                       ? `${report.users.length} users`
-                      : `${report.users.filter((u) => u.aiAnalyses > 0 || u.alerts > 0).length} users with activity`}
+                      : `${report.users.filter((u) => u.aiAnalyses > 0 || u.alerts > 0 || u.pageViews > 0).length} users with activity`}
                     {loading && <span className="ml-2 text-xs">(refreshing…)</span>}
                   </p>
                   <div className="flex gap-2">
@@ -404,11 +460,12 @@ export default function AdminMetricsPage() {
                           <TableHead className="font-medium">Plan</TableHead>
                           <TableHead className="text-right font-medium">AI analyses</TableHead>
                           <TableHead className="text-right font-medium">Alerts</TableHead>
+                          <TableHead className="font-medium">Usage insight</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {report.users
-                          .filter((u) => filter === "all" || u.aiAnalyses > 0 || u.alerts > 0)
+                          .filter((u) => filter === "all" || u.aiAnalyses > 0 || u.alerts > 0 || u.pageViews > 0)
                           .map((u) => (
                           <TableRow key={u.userId} className="border-zinc-200 dark:border-zinc-700">
                             <TableCell className="font-mono text-sm">
@@ -424,6 +481,22 @@ export default function AdminMetricsPage() {
                             </TableCell>
                             <TableCell className="text-right tabular-nums">{u.aiAnalyses}</TableCell>
                             <TableCell className="text-right tabular-nums">{u.alerts}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm tabular-nums text-zinc-700 dark:text-zinc-300">
+                                  {u.pageViews > 0
+                                    ? `${u.pageViews} page view${u.pageViews === 1 ? "" : "s"}`
+                                    : "No pages logged"}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => openPageDrill(u)}
+                                  className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline font-medium whitespace-nowrap"
+                                >
+                                  More details
+                                </button>
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -437,6 +510,133 @@ export default function AdminMetricsPage() {
           </>
         )}
       </div>
+
+      {(pageDrillLoading || pageDrill || pageDrillError) && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="page-drill-title"
+          onClick={closePageDrill}
+        >
+          <div
+            className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-5 py-4">
+              <div>
+                <h2 id="page-drill-title" className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                  {pageDrill ? pageDrill.userLabel : "Page activity"}
+                </h2>
+                {pageDrill && (
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {pageDrill.totalPageViews.toLocaleString()} page view
+                    {pageDrill.totalPageViews === 1 ? "" : "s"} · {pageDrill.periodLabel}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={closePageDrill}
+                className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-6">
+              {pageDrillLoading && (
+                <p className="text-muted-foreground text-sm">Loading pages…</p>
+              )}
+              {pageDrillError && (
+                <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2">
+                  {pageDrillError}
+                </div>
+              )}
+              {pageDrill && (
+                <>
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
+                      Pages & screens used
+                    </h3>
+                    {pageDrill.byPath.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No page views while signed in during this period. Views are recorded when the user navigates while logged in.
+                      </p>
+                    ) : (
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-zinc-50 dark:bg-zinc-800/80 border-b border-zinc-200 dark:border-zinc-700">
+                              <th className="text-left py-2 px-3 font-medium">Screen</th>
+                              <th className="text-left py-2 px-3 font-medium hidden sm:table-cell">Path</th>
+                              <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Last seen</th>
+                              <th className="text-right py-2 px-3 font-medium">Views</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pageDrill.byPath.map((row) => (
+                              <tr key={row.path} className="border-b border-zinc-100 dark:border-zinc-800">
+                                <td className="py-2 px-3">{row.label}</td>
+                                <td className="py-2 px-3 font-mono text-xs text-muted-foreground hidden sm:table-cell">
+                                  {row.path}
+                                </td>
+                                <td className="py-2 px-3 text-xs whitespace-nowrap hidden md:table-cell">
+                                  {formatActivityDateTime(row.lastSeen)}
+                                </td>
+                                <td className="py-2 px-3 text-right tabular-nums">{row.count.toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {pageDrill.recentEvents.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
+                        Recent visits
+                      </h3>
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-zinc-50 dark:bg-zinc-800/80 border-b border-zinc-200 dark:border-zinc-700">
+                              <th className="text-left py-2 px-3 font-medium">When</th>
+                              <th className="text-left py-2 px-3 font-medium">Screen</th>
+                              <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Device</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pageDrill.recentEvents.map((ev, i) => (
+                              <tr
+                                key={`${ev.createdAt}-${ev.path}-${i}`}
+                                className="border-b border-zinc-100 dark:border-zinc-800"
+                              >
+                                <td className="py-2 px-3 whitespace-nowrap text-xs">
+                                  {formatActivityDateTime(ev.createdAt)}
+                                </td>
+                                <td className="py-2 px-3">
+                                  <span className="block">{ev.pathLabel}</span>
+                                  <span className="font-mono text-xs text-muted-foreground sm:hidden">{ev.path}</span>
+                                </td>
+                                <td className="py-2 px-3 text-xs text-muted-foreground hidden md:table-cell">
+                                  {[ev.deviceType, ev.browser, ev.os].filter(Boolean).join(" · ") || "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
