@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatMemeRunnerShareForCoach } from "@/lib/meme-runner/format";
 import { getChainMeta, memeRunnerAgentChain } from "@/lib/meme-runner/chain-meta";
 import { launchpadExternalUrl } from "@/lib/meme-runner/launchpads";
-import { NOVASTARIS_OPEN_AI_AGENT } from "@/lib/novastaris-events";
+import { openNovaStarisAiAgent } from "@/lib/novastaris-events";
 import type { MemeRunnerChain, MemeRunnerLane, MemeRunnerSolConfig, MemeRunnerToken } from "@/lib/meme-runner/types";
 
 function fmtUsd(n: number | null | undefined) {
@@ -67,13 +67,7 @@ function TokenCard({
     }
   };
 
-  const openAiAgent = () => {
-    window.dispatchEvent(
-      new CustomEvent(NOVASTARIS_OPEN_AI_AGENT, {
-        detail: { contractAddress: t.contractAddress, chain: "solana" as const },
-      })
-    );
-  };
+  const openAiAgent = () => openNovaStarisAiAgent(t.contractAddress, "solana");
 
   const shareToCoachCalls = async () => {
     if (!canShareCoach || shareLoading) return;

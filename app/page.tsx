@@ -53,6 +53,7 @@ import FuturesLiquidationMapPanel from "@/components/FuturesLiquidationMapPanel"
 import NovaMemeIntelligencePanel from "@/components/NovaMemeIntelligencePanel";
 import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel";
 import MemeLeaderboardPanel from "@/components/MemeLeaderboardPanel";
+import MemeTokenTableActions from "@/components/MemeTokenTableActions";
 import DeepMemeAgentPanel from "@/components/DeepMemeAgentPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
@@ -1734,6 +1735,7 @@ export default function Dashboard() {
       const ca = ce.detail?.contractAddress?.trim() ?? "";
       if (!ca) return;
       setActiveTab("ai-analysis");
+      setAiAgentSubTab("meme");
       setAiAnalysisCa(ca);
       setAiAnalysisChain(ce.detail?.chain === "bsc" ? "bsc" : "solana");
       setAiAnalysisResult(null);
@@ -8894,7 +8896,10 @@ export default function Dashboard() {
                             <TableCell className="font-mono text-xs text-muted-foreground max-w-[120px] truncate" title={w.contractAddress}>{w.contractAddress.slice(0, 6)}…{w.contractAddress.slice(-4)}</TableCell>
                             <TableCell className="text-zinc-600 dark:text-zinc-400">{(w.chain ?? "solana").toUpperCase()}</TableCell>
                             <TableCell className="text-right">
-                              <a href={dexUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Dex</a>
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                <MemeTokenTableActions contractAddress={w.contractAddress} chain={(w.chain ?? "solana") === "bsc" ? "bsc" : "solana"} />
+                                <a href={dexUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Dex</a>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <button type="button" onClick={() => persistWatchlist(watchlist.filter((x) => x.contractAddress !== w.contractAddress || (x.chain ?? "solana") !== (w.chain ?? "solana")))} className="text-xs text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 font-medium" title="Remove from watchlist">Remove</button>
@@ -8984,6 +8989,7 @@ export default function Dashboard() {
                       <TableCell className="text-right tabular-nums text-muted-foreground">{formatPrice(t.priceUSD)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          <MemeTokenTableActions contractAddress={t.contractAddress} chain="solana" />
                           <a href={dexUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
                           <a href={pumpFunUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Pump</a>
                           <a href={gmgnUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">GMGN</a>
@@ -9097,6 +9103,10 @@ export default function Dashboard() {
                           >
                             <Star className={`h-3.5 w-3.5 ${isInWatchlist(t.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "fill-current" : ""}`} />
                           </button>
+                          <MemeTokenTableActions
+                            contractAddress={t.contractAddress}
+                            chain={activeTab === "bsc" ? "bsc" : "solana"}
+                          />
                           <button
                             type="button"
                             onClick={() => {
