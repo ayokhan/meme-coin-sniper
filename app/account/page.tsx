@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap, BarChart3, Sparkles, Bell } from "lucide-react";
+import { Zap, BarChart3, Sparkles, Bell, CreditCard } from "lucide-react";
 import { PasswordInput } from "@/components/PasswordInput";
 
 type Profile = {
@@ -49,6 +49,15 @@ export default function AccountPage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [subscriptionPaid, setSubscriptionPaid] = useState(false);
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
+  const [subscriptionAutoRenew, setSubscriptionAutoRenew] = useState(false);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [hasStripeSubscription, setHasStripeSubscription] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingMessage, setBillingMessage] = useState("");
+  const [billingError, setBillingError] = useState("");
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -58,9 +67,12 @@ export default function AccountPage() {
     if (status !== "authenticated") return;
     (async () => {
       try {
-        const res = await fetch("/api/account/profile");
-        if (res.ok) {
-          const data = await res.json();
+        const [profileRes, subRes] = await Promise.all([
+          fetch("/api/account/profile"),
+          fetch("/api/subscription"),
+        ]);
+        if (profileRes.ok) {
+          const data = await profileRes.json();
           setProfile(data);
           setName(data.name ?? "");
           setPreferredName(data.preferredName ?? "");
@@ -68,6 +80,16 @@ export default function AccountPage() {
           setPhone(data.phone ?? "");
           setCountry(data.country ?? "");
           setExperienceTradingCrypto(data.experienceTradingCrypto ?? "");
+        }
+        if (subRes.ok) {
+          const sub = await subRes.json();
+          if (sub.success) {
+            setSubscriptionPaid(!!sub.paid);
+            setSubscriptionExpiresAt(sub.expiresAt ?? null);
+            setSubscriptionAutoRenew(!!sub.autoRenew);
+            setCancelAtPeriodEnd(!!sub.cancelAtPeriodEnd);
+            setHasStripeSubscription(!!sub.hasStripeSubscription);
+          }
         }
       } finally {
         setLoading(false);
@@ -254,6 +276,134 @@ export default function AccountPage() {
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Meme coin &amp; leverage alerts</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {subscriptionPaid && hasStripeSubscription && (
+          <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-cyan-500" />
+                <CardTitle className="text-lg">VIP billing</CardTitle>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Manage card auto-renewal for your NovaStaris VIP subscription.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {subscriptionExpiresAt && (
+                <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                  VIP access valid until{" "}
+                  <strong>
+                    {new Date(subscriptionExpiresAt).toLocaleDateString(undefined, {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </strong>
+                </p>
+              )}
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                {cancelAtPeriodEnd
+                  ? "Auto-renewal is off. You will not be charged again unless you re-enable it or renew manually."
+                  : subscriptionAutoRenew
+                    ? "Auto-renewal is on. Your card will be charged automatically at the end of each billing period."
+                    : "Card subscription on file."}
+              </p>
+              {billingError && (
+                <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2">
+                  {billingError}
+                </div>
+              )}
+              {billingMessage && (
+                <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-sm px-3 py-2">
+                  {billingMessage}
+                </div>
+              )}
+              {showCancelConfirm ? (
+                <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-4 space-y-3">
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Turn off automatic renewal?</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your VIP access continues until the date above. After that, your card will not be charged unless you renew manually.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={billingLoading}
+                      className="bg-rose-600 hover:bg-rose-700"
+                      onClick={async () => {
+                        setBillingLoading(true);
+                        setBillingError("");
+                        setBillingMessage("");
+                        try {
+                          const res = await fetch("/api/stripe/cancel-auto-renew", { method: "POST" });
+                          const data = await res.json();
+                          if (data.success) {
+                            setCancelAtPeriodEnd(true);
+                            setShowCancelConfirm(false);
+                            setBillingMessage(
+                              data.message ??
+                                "Auto-renewal is off. You will not be billed again at renewal — VIP access continues until your current period ends."
+                            );
+                          } else {
+                            setBillingError(data.error ?? "Could not turn off auto-renewal.");
+                          }
+                        } catch {
+                          setBillingError("Something went wrong. Try again.");
+                        } finally {
+                          setBillingLoading(false);
+                        }
+                      }}
+                    >
+                      {billingLoading ? "Updating…" : "Yes, turn off auto-renewal"}
+                    </Button>
+                    <Button type="button" variant="outline" disabled={billingLoading} onClick={() => setShowCancelConfirm(false)}>
+                      Keep auto-renewal on
+                    </Button>
+                  </div>
+                </div>
+              ) : cancelAtPeriodEnd ? (
+                <Button
+                  type="button"
+                  disabled={billingLoading}
+                  className="bg-violet-600 hover:bg-violet-700 text-white"
+                  onClick={async () => {
+                    setBillingLoading(true);
+                    setBillingError("");
+                    setBillingMessage("");
+                    try {
+                      const res = await fetch("/api/stripe/resume-auto-renew", { method: "POST" });
+                      const data = await res.json();
+                      if (data.success) {
+                        setCancelAtPeriodEnd(false);
+                        setSubscriptionAutoRenew(true);
+                        setBillingMessage(data.message ?? "Auto-renewal is enabled again.");
+                      } else {
+                        setBillingError(data.error ?? "Could not enable auto-renewal.");
+                      }
+                    } catch {
+                      setBillingError("Something went wrong. Try again.");
+                    } finally {
+                      setBillingLoading(false);
+                    }
+                  }}
+                >
+                  {billingLoading ? "Updating…" : "Turn auto-renewal back on"}
+                </Button>
+              ) : subscriptionAutoRenew ? (
+                <Button type="button" variant="outline" disabled={billingLoading} onClick={() => setShowCancelConfirm(true)}>
+                  Turn off auto-renewal
+                </Button>
+              ) : null}
+              <p className="text-xs text-muted-foreground">
+                Need to change plan or pay by USDC?{" "}
+                <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+                  Visit subscribe page
+                </Link>
+              </p>
             </CardContent>
           </Card>
         )}

@@ -483,10 +483,6 @@ export default function Dashboard() {
   }, [status, isOwner, isCoachUser]);
 
   const fetchAiAgentUsage = useCallback(() => {
-    if (status !== "authenticated") {
-      setAiAgentUsage(null);
-      return;
-    }
     fetch("/api/ai-agent/usage")
       .then((r) => r.json())
       .then((data) => {
@@ -498,11 +494,12 @@ export default function Dashboard() {
           });
         }
       })
-      .catch(() => setAiAgentUsage(null));
+      .catch(() => {
+        if (status === "authenticated") setAiAgentUsage(null);
+      });
   }, [status]);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
     if (activeTab === "ai-analysis") fetchAiAgentUsage();
   }, [status, activeTab, fetchAiAgentUsage]);
 
@@ -656,7 +653,17 @@ export default function Dashboard() {
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
   const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
   const isGuest = status === "unauthenticated";
-  const isAiAgentGuestLocked = activeTab === "ai-analysis" && isGuest;
+  const isAiAgentGuestLocked = false;
+  const memeQuotaExhausted =
+    status === "authenticated" &&
+    aiAgentUsage != null &&
+    !aiAgentUsage.memeAgent?.unlimited &&
+    !aiAgentUsage.memeAgent?.canUse;
+  const chartQuotaExhausted =
+    status === "authenticated" &&
+    aiAgentUsage != null &&
+    !aiAgentUsage.chartAnalysis?.unlimited &&
+    !aiAgentUsage.chartAnalysis?.canUse;
   const isTabPaywalled =
     isAiAgentGuestLocked ||
     onDemandLocked ||
@@ -4418,6 +4425,22 @@ export default function Dashboard() {
                     NovaStaris AI Chart Analysis
                   </Button>
                 </div>
+                {isGuest && (
+                  <div className="mb-4 rounded-lg border border-cyan-200/80 dark:border-cyan-800/60 bg-cyan-50/60 dark:bg-cyan-950/25 px-4 py-3 text-sm">
+                    <p className="font-medium text-cyan-900 dark:text-cyan-100">Sign in or register free to run AI analyses</p>
+                    <p className="text-cyan-800/80 dark:text-cyan-200/80 mt-0.5">
+                      Explore the form below, then sign in to analyze. Free accounts get 2 uses per day for Meme Agent and Chart Analysis.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      <Link href="/register" className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:underline">
+                        Register free
+                      </Link>
+                      <Link href="/signin" className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:underline">
+                        Sign in
+                      </Link>
+                    </div>
+                  </div>
+                )}
                 {(() => {
                   const snap = aiAgentSubTab === "meme" ? aiAgentUsage?.memeAgent : aiAgentUsage?.chartAnalysis;
                   if (!snap) return null;
@@ -4449,7 +4472,7 @@ export default function Dashboard() {
                         ? "resets Monday UTC"
                         : "resets on the 1st UTC";
                   const blocked = snap.blockingWindow;
-                  if (!snap.canUse && blocked) {
+                  if (!snap.canUse && blocked && status === "authenticated") {
                     const blockedSnap =
                       blocked === "weekly" ? snap.weekly : blocked === "monthly" ? snap.monthly : snap.daily;
                     const blockedLimit = blockedSnap.limit ?? snap.limit;
@@ -4601,10 +4624,7 @@ export default function Dashboard() {
                   </div>
                   <Button
                     onClick={runAiAnalysis}
-                    disabled={
-                      aiAnalysisLoading ||
-                      (!aiAgentUsage?.memeAgent?.unlimited && !aiAgentUsage?.memeAgent?.canUse)
-                    }
+                    disabled={aiAnalysisLoading || memeQuotaExhausted}
                     className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700"
                   >
                     {aiAnalysisLoading ? "Analyzing…" : "Analyze"}
@@ -4613,7 +4633,7 @@ export default function Dashboard() {
                 {status === "authenticated" && (
                   <AiAgentMonitorPanel
                     enabled={status === "authenticated"}
-                    quotaExhausted={!aiAgentUsage?.memeAgent?.unlimited && !aiAgentUsage?.memeAgent?.canUse}
+                    quotaExhausted={memeQuotaExhausted}
                     onUsageRecorded={fetchAiAgentUsage}
                     syncChain={aiAnalysisChain}
                     syncContract={aiAnalysisCa}
@@ -4930,7 +4950,7 @@ export default function Dashboard() {
                     onRiskAmountChange={setFuturesRiskAmount}
                     onAnalyze={runFuturesAnalysis}
                     loading={futuresAnalysisLoading}
-                    analyzeDisabled={!aiAgentUsage?.chartAnalysis?.unlimited && !aiAgentUsage?.chartAnalysis?.canUse}
+                    analyzeDisabled={chartQuotaExhausted}
                     error={futuresAnalysisError}
                     result={futuresAnalysisResult}
                     isOwner={isOwner}
