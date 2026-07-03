@@ -8,8 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, CreditCard } from "lucide-react";
 import { CARD_PAYMENT_FEE_USD, getCardPriceUsd } from "@/lib/subscription";
+import VipExpiryBanner from "@/components/VipExpiryBanner";
 
 type Plan = { id: string; label: string; months: number; priceUsd: number };
+
+function expiryDaysRemaining(expiresAt: string | null): number | null {
+  if (!expiresAt) return null;
+  return Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+}
 
 function SubscribeContent() {
   const { data: session, status } = useSession();
@@ -42,6 +48,7 @@ function SubscribeContent() {
   const [hasStripeSubscription, setHasStripeSubscription] = useState(false);
   const [billingActionLoading, setBillingActionLoading] = useState(false);
   const [billingMessage, setBillingMessage] = useState("");
+  const [vipExpiryBannerDismissed, setVipExpiryBannerDismissed] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -68,6 +75,15 @@ function SubscribeContent() {
           setCancelAtPeriodEnd(!!data.cancelAtPeriodEnd);
           setHasStripeSubscription(!!data.hasStripeSubscription);
           if (data.paymentTermsAcceptedAt) setTermsCheckbox(true);
+          const exp = typeof data.expiresAt === "string" ? data.expiresAt : null;
+          if (exp && typeof window !== "undefined") {
+            try {
+              const dismissedFor = sessionStorage.getItem(`novastaris-vip-expiry-dismiss:${exp}`);
+              setVipExpiryBannerDismissed(dismissedFor === "1");
+            } catch {
+              setVipExpiryBannerDismissed(false);
+            }
+          }
         }
       } finally {
         setLoading(false);
@@ -132,6 +148,17 @@ function SubscribeContent() {
   const plan = plans.find((p) => p.id === selectedPlan) ?? plans[0];
   const amountUsdc = plan?.priceUsd ?? 150;
   const planCardPrice = plan ? getCardPriceUsd(plan.priceUsd) : 0;
+  const daysRemaining = expiryDaysRemaining(expiresAt);
+  const hasActiveAutoRenew = subscriptionAutoRenew && !cancelAtPeriodEnd;
+  const showExpiryBanner =
+    paid &&
+    !!expiresAt &&
+    daysRemaining !== null &&
+    daysRemaining >= 0 &&
+    daysRemaining <= 7 &&
+    !hasActiveAutoRenew &&
+    !vipExpiryBannerDismissed;
+  const showActiveOnlyView = paid && !!expiresAt && !showExpiryBanner;
 
   useEffect(() => {
     const inTier = plans.some((p) => p.id === selectedPlan);
@@ -223,7 +250,7 @@ function SubscribeContent() {
     );
   }
 
-  if (paid && expiresAt) {
+  if (showActiveOnlyView) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6">
         <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-6 py-4 text-center max-w-md w-full">
@@ -326,7 +353,26 @@ function SubscribeContent() {
       </header>
 
       <main className="mx-auto max-w-4xl px-3 sm:px-4 py-6 sm:py-10">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">VIP subscription</h1>
+        {showExpiryBanner && expiresAt && daysRemaining !== null && (
+          <VipExpiryBanner
+            expiresAt={expiresAt}
+            daysRemaining={daysRemaining}
+            autoRenew={subscriptionAutoRenew}
+            cancelAtPeriodEnd={cancelAtPeriodEnd}
+            hideRenewLink
+            onDismiss={() => {
+              try {
+                sessionStorage.setItem(`novastaris-vip-expiry-dismiss:${expiresAt}`, "1");
+              } catch {
+                /* ignore */
+              }
+              setVipExpiryBannerDismissed(true);
+            }}
+          />
+        )}
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+          {showExpiryBanner ? "Renew VIP subscription" : "VIP subscription"}
+        </h1>
         <p className="text-zinc-600 dark:text-zinc-400 mb-4">
           {isVariantB ? (
             <>

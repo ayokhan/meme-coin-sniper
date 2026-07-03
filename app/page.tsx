@@ -3816,6 +3816,7 @@ export default function Dashboard() {
         {(() => {
           if (!subscriptionExpiresAt || vipExpiryBannerDismissed || isOwner) return null;
           if (!isPaid) return null;
+          if (subscriptionAutoRenew && !subscriptionCancelAtPeriodEnd) return null;
           const ms = new Date(subscriptionExpiresAt).getTime() - Date.now();
           const daysRemaining = Math.ceil(ms / (24 * 60 * 60 * 1000));
           if (daysRemaining < 0 || daysRemaining > 7) return null;

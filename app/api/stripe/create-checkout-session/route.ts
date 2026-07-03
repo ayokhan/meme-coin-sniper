@@ -95,6 +95,7 @@ export async function POST(request: Request) {
           customer_email: session.user.email,
           client_reference_id: session.user.id,
           metadata: sharedMetadata,
+          invoice_creation: { enabled: true },
           line_items: [
             {
               quantity: 1,

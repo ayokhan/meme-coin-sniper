@@ -7,6 +7,8 @@ type Props = {
   daysRemaining: number;
   autoRenew?: boolean;
   cancelAtPeriodEnd?: boolean;
+  /** When true, omits the Renew VIP link (e.g. user is already on /subscribe). */
+  hideRenewLink?: boolean;
   onDismiss: () => void;
 };
 
@@ -15,6 +17,7 @@ export default function VipExpiryBanner({
   daysRemaining,
   autoRenew,
   cancelAtPeriodEnd,
+  hideRenewLink,
   onDismiss,
 }: Props) {
   const expiryLabel = new Date(expiresAt).toLocaleDateString(undefined, {
@@ -55,21 +58,25 @@ export default function VipExpiryBanner({
             </>
           ) : (
             <>
-              Your NovaStaris VIP access is scheduled to end on <strong>{expiryLabel}</strong>. Renew now to continue
-              unlimited Meme Coins Agent, Chart Analysis, monitoring, and full platform access.
+              Your NovaStaris VIP access is scheduled to end on <strong>{expiryLabel}</strong>.
+              {hideRenewLink
+                ? " Choose a plan below to renew and keep unlimited Meme Coins Agent, Chart Analysis, monitoring, and full platform access."
+                : " Renew now to continue unlimited Meme Coins Agent, Chart Analysis, monitoring, and full platform access."}
             </>
           )}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2 shrink-0">
-        <Link
-          href="/subscribe"
-          className={`inline-flex items-center justify-center rounded-md px-3.5 py-2 text-sm font-medium text-white shadow-sm ${
-            urgent ? "bg-amber-600 hover:bg-amber-700" : "bg-violet-600 hover:bg-violet-700"
-          }`}
-        >
-          Renew VIP
-        </Link>
+        {!hideRenewLink && (
+          <Link
+            href="/subscribe"
+            className={`inline-flex items-center justify-center rounded-md px-3.5 py-2 text-sm font-medium text-white shadow-sm ${
+              urgent ? "bg-amber-600 hover:bg-amber-700" : "bg-violet-600 hover:bg-violet-700"
+            }`}
+          >
+            Renew VIP
+          </Link>
+        )}
         <button type="button" onClick={onDismiss} className="text-xs text-muted-foreground hover:underline px-2 py-1">
           Remind me later
         </button>
