@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays } from "lucide-react";
+import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays, TrendingUp } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,6 +14,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+type AiAgentFunnelStats = {
+  periodDays: number;
+  periodStart: string;
+  registered: number;
+  activated: number;
+  limited: number;
+  subscribed: number;
+  activatedPct: number;
+  limitedPct: number;
+  subscribedPct: number;
+  limitedOfActivatedPct: number;
+};
 
 type UsageReportPeriod = "month" | "day";
 
@@ -63,6 +76,22 @@ export default function AdminMetricsPage() {
   const [period, setPeriod] = useState<UsageReportPeriod>("month");
   const [monthKey, setMonthKey] = useState(getDefaultMonthKey);
   const [dayKey, setDayKey] = useState(getDefaultDayKey);
+  const [funnelDays, setFunnelDays] = useState(30);
+  const [funnel, setFunnel] = useState<AiAgentFunnelStats | null>(null);
+  const [funnelLoading, setFunnelLoading] = useState(true);
+
+  const loadFunnel = useCallback(() => {
+    if (status !== "authenticated") return;
+    setFunnelLoading(true);
+    fetch(`/api/admin/funnel?days=${funnelDays}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.funnel) setFunnel(data.funnel);
+        else setFunnel(null);
+      })
+      .catch(() => setFunnel(null))
+      .finally(() => setFunnelLoading(false));
+  }, [status, funnelDays]);
 
   const loadReport = useCallback(() => {
     if (status !== "authenticated") return;
@@ -92,10 +121,12 @@ export default function AdminMetricsPage() {
   useEffect(() => {
     if (status !== "authenticated") {
       setLoading(false);
+      setFunnelLoading(false);
       return;
     }
+    loadFunnel();
     loadReport();
-  }, [status, loadReport]);
+  }, [status, loadFunnel, loadReport]);
 
   if (status === "loading" || (loading && !report)) {
     return (
@@ -158,6 +189,66 @@ export default function AdminMetricsPage() {
           <Card className="border-rose-200 dark:border-rose-800 mb-6">
             <CardContent className="py-4 text-rose-700 dark:text-rose-300">
               {error}
+            </CardContent>
+          </Card>
+        )}
+
+        {(funnelLoading || funnel) && (
+          <Card className="border-cyan-200/80 dark:border-cyan-800/60 mb-6">
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-cyan-500" />
+                  <CardTitle>AI Agent conversion funnel</CardTitle>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  Cohort window
+                  <select
+                    value={funnelDays}
+                    onChange={(e) => setFunnelDays(Number(e.target.value))}
+                    className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm"
+                  >
+                    <option value={7}>Last 7 days</option>
+                    <option value={14}>Last 14 days</option>
+                    <option value={30}>Last 30 days</option>
+                    <option value={90}>Last 90 days</option>
+                  </select>
+                </label>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Users who registered in the selected window. Activated = ran Meme or Chart Analysis. Limited = free user hit daily quota at least once. Subscribed = active VIP now.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {funnelLoading ? (
+                <p className="text-sm text-muted-foreground">Loading funnel…</p>
+              ) : funnel ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      { label: "Registered", value: funnel.registered, pct: null },
+                      { label: "Activated", value: funnel.activated, pct: funnel.activatedPct },
+                      { label: "Hit limit", value: funnel.limited, pct: funnel.limitedPct },
+                      { label: "VIP (active)", value: funnel.subscribed, pct: funnel.subscribedPct },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 p-4">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide">{item.label}</p>
+                        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{item.value}</p>
+                        {item.pct != null && funnel.registered > 0 && (
+                          <p className="text-xs text-cyan-600 dark:text-cyan-400 mt-1">{item.pct}% of registered</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {funnel.activated > 0 && (
+                    <p className="text-xs text-muted-foreground mt-4">
+                      {funnel.limitedOfActivatedPct}% of activated free users hit their daily limit at least once.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">Could not load funnel data.</p>
+              )}
             </CardContent>
           </Card>
         )}

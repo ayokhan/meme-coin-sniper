@@ -97,6 +97,7 @@ model User {
   image         String?
   hashedPassword String?
   walletAddress String?   @unique  // Solana wallet for wallet-based login
+  stripeCustomerId String? @unique  // Stripe Customer id for card auto-renewal
   phone         String?
   country       String?
   experienceTradingCrypto String?  // e.g. beginner | intermediate | expert
@@ -150,6 +151,8 @@ model User {
   aiChartAnalysisWeeklyLimitOverride Int?
   /** Owner override: monthly Chart Analysis uses (null = global default). */
   aiChartAnalysisMonthlyLimitOverride Int?
+  /** When user finished or dismissed Meme Coins Agent onboarding wizard. */
+  aiAgentOnboardingCompletedAt       DateTime?
   /** When user accepted Payment Terms and Conditions (required before any subscription payment). */
   paymentTermsAcceptedAt     DateTime?
   createdAt     DateTime  @default(now())
@@ -317,6 +320,9 @@ model Subscription {
   expiresAt         DateTime
   txSignature       String?  // Solana tx signature for USDC verification
   stripeSessionId   String?  // Stripe Checkout session id (card payments); idempotent webhook
+  stripeSubscriptionId String? @unique // Stripe Subscription id when auto-renew is enabled
+  autoRenew         Boolean  @default(false)
+  cancelAtPeriodEnd Boolean  @default(false)
   createdAt         DateTime @default(now())
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([stripeSessionId])

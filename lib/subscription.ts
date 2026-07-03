@@ -95,6 +95,36 @@ export async function getSubscriptionExpiresAt(userId: string): Promise<Date | n
   return sub?.expiresAt ?? null;
 }
 
+export type ActiveSubscriptionDetails = {
+  expiresAt: Date;
+  autoRenew: boolean;
+  cancelAtPeriodEnd: boolean;
+  stripeSubscriptionId: string | null;
+  plan: string | null;
+};
+
+/** Active VIP row with billing fields (for expiry banner / manage renewal). */
+export async function getActiveSubscriptionDetails(userId: string): Promise<ActiveSubscriptionDetails | null> {
+  const sub = (await prisma.subscription.findFirst({
+    where: { userId, expiresAt: { gt: new Date() } },
+    orderBy: { expiresAt: 'desc' },
+  })) as {
+    expiresAt: Date;
+    autoRenew?: boolean;
+    cancelAtPeriodEnd?: boolean;
+    stripeSubscriptionId?: string | null;
+    plan?: string | null;
+  } | null;
+  if (!sub) return null;
+  return {
+    expiresAt: sub.expiresAt,
+    autoRenew: sub.autoRenew ?? false,
+    cancelAtPeriodEnd: sub.cancelAtPeriodEnd ?? false,
+    stripeSubscriptionId: sub.stripeSubscriptionId ?? null,
+    plan: sub.plan ?? null,
+  };
+}
+
 /** True if user has VIP (includes legacy Pro subscriptions). */
 export async function hasVip(userId: string): Promise<boolean> {
   return (await getSubscriptionTier(userId)) === 'vip';

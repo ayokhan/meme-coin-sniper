@@ -36,6 +36,12 @@ function SubscribeContent() {
   const [cardPaymentFeeUsd, setCardPaymentFeeUsd] = useState(CARD_PAYMENT_FEE_USD);
   const [cardLoading, setCardLoading] = useState(false);
   const [cardError, setCardError] = useState("");
+  const [autoRenew, setAutoRenew] = useState(false);
+  const [subscriptionAutoRenew, setSubscriptionAutoRenew] = useState(false);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [hasStripeSubscription, setHasStripeSubscription] = useState(false);
+  const [billingActionLoading, setBillingActionLoading] = useState(false);
+  const [billingMessage, setBillingMessage] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -58,6 +64,9 @@ function SubscribeContent() {
           setPaymentWallet(data.paymentWallet ?? "");
           setUsdcMint(data.usdcMint ?? "");
           setPaymentTermsAcceptedAt(data.paymentTermsAcceptedAt ?? null);
+          setSubscriptionAutoRenew(!!data.autoRenew);
+          setCancelAtPeriodEnd(!!data.cancelAtPeriodEnd);
+          setHasStripeSubscription(!!data.hasStripeSubscription);
           if (data.paymentTermsAcceptedAt) setTermsCheckbox(true);
         }
       } finally {
@@ -145,6 +154,7 @@ function SubscribeContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planId: selectedPlan,
+          autoRenew,
           successUrl: typeof window !== "undefined" ? `${window.location.origin}/subscribe?success=1` : undefined,
           cancelUrl: typeof window !== "undefined" ? `${window.location.origin}/subscribe` : undefined,
         }),
@@ -216,11 +226,78 @@ function SubscribeContent() {
   if (paid && expiresAt) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6">
-        <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-6 py-4 text-center max-w-md">
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-6 py-4 text-center max-w-md w-full">
           <p className="font-semibold text-emerald-800 dark:text-emerald-200">You have an active subscription</p>
           <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
-            VIP access · Valid until {new Date(expiresAt).toLocaleDateString()}
+            VIP access · Valid until {new Date(expiresAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
           </p>
+          {hasStripeSubscription && (
+            <p className="text-sm text-emerald-700/90 dark:text-emerald-300/90 mt-2">
+              {cancelAtPeriodEnd
+                ? "Auto-renewal is off — access continues until the date above."
+                : subscriptionAutoRenew
+                  ? "Auto-renewal is on — your card will be charged automatically at renewal."
+                  : "Card subscription on file."}
+            </p>
+          )}
+          {billingMessage && (
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">{billingMessage}</p>
+          )}
+          {hasStripeSubscription && (
+            <div className="mt-4 flex flex-col gap-2">
+              {cancelAtPeriodEnd ? (
+                <Button
+                  type="button"
+                  disabled={billingActionLoading}
+                  className="w-full bg-violet-600 hover:bg-violet-700 text-white"
+                  onClick={async () => {
+                    setBillingActionLoading(true);
+                    setBillingMessage("");
+                    try {
+                      const res = await fetch("/api/stripe/resume-auto-renew", { method: "POST" });
+                      const data = await res.json();
+                      if (data.success) {
+                        setCancelAtPeriodEnd(false);
+                        setSubscriptionAutoRenew(true);
+                        setBillingMessage(data.message ?? "Auto-renewal enabled.");
+                      } else {
+                        setBillingMessage(data.error ?? "Could not enable auto-renewal.");
+                      }
+                    } finally {
+                      setBillingActionLoading(false);
+                    }
+                  }}
+                >
+                  {billingActionLoading ? "Updating…" : "Turn auto-renewal back on"}
+                </Button>
+              ) : subscriptionAutoRenew ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={billingActionLoading}
+                  className="w-full"
+                  onClick={async () => {
+                    setBillingActionLoading(true);
+                    setBillingMessage("");
+                    try {
+                      const res = await fetch("/api/stripe/cancel-auto-renew", { method: "POST" });
+                      const data = await res.json();
+                      if (data.success) {
+                        setCancelAtPeriodEnd(true);
+                        setBillingMessage(data.message ?? "Auto-renewal will stop at period end.");
+                      } else {
+                        setBillingMessage(data.error ?? "Could not update billing.");
+                      }
+                    } finally {
+                      setBillingActionLoading(false);
+                    }
+                  }}
+                >
+                  {billingActionLoading ? "Updating…" : "Turn off auto-renewal"}
+                </Button>
+              ) : null}
+            </div>
+          )}
           <Button asChild className="mt-4">
             <Link href="/?from=subscribe">Back to Dashboard</Link>
           </Button>
@@ -350,15 +427,35 @@ function SubscribeContent() {
                 Includes a ${cardFee} card payment fee. Secure checkout via Stripe.
               </p>
             </CardHeader>
-            <CardContent>
-              {cardError && <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{cardError}</p>}
+            <CardContent className="space-y-3">
+              {cardError && <p className="text-sm text-rose-600 dark:text-rose-400">{cardError}</p>}
+              <label className="flex items-start gap-2.5 cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                <input
+                  type="checkbox"
+                  checked={autoRenew}
+                  onChange={(e) => setAutoRenew(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-cyan-600 focus:ring-cyan-500"
+                />
+                <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                  <strong className="text-zinc-900 dark:text-zinc-100">Enable automatic renewal</strong>
+                  <span className="block mt-0.5 text-zinc-500 dark:text-zinc-400">
+                    Your card is charged each billing period until you turn this off. You can cancel auto-renewal anytime from this page.
+                  </span>
+                </span>
+              </label>
               <Button
                 type="button"
                 onClick={handlePayWithCard}
                 disabled={!termsAcceptedForPayment || cardLoading}
                 className="w-full bg-cyan-500 hover:bg-cyan-600 text-white"
               >
-                {cardLoading ? "Redirecting…" : termsAcceptedForPayment ? `Pay $${planCardPrice} with card` : "Accept terms above to pay with card"}
+                {cardLoading
+                  ? "Redirecting…"
+                  : termsAcceptedForPayment
+                    ? autoRenew
+                      ? `Subscribe $${planCardPrice}/period with card`
+                      : `Pay $${planCardPrice} with card`
+                    : "Accept terms above to pay with card"}
               </Button>
             </CardContent>
           </Card>

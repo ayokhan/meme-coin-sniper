@@ -68,6 +68,8 @@ import NovaRadarPanel from "@/components/NovaRadarPanel";
 import FuturesOnboardingModal, { useFuturesOnboarding } from "@/components/FuturesOnboardingModal";
 import DashboardPathPickerModal from "@/components/DashboardPathPickerModal";
 import DashboardPathHintBanner from "@/components/DashboardPathHintBanner";
+import AiAgentOnboardingPanel, { type AiAgentOnboardingStep } from "@/components/AiAgentOnboardingPanel";
+import VipExpiryBanner from "@/components/VipExpiryBanner";
 import {
   loadDashboardPath,
   saveDashboardPath,
@@ -311,6 +313,13 @@ export default function Dashboard() {
   const sessionTier = (session?.user as { tier?: "pro" | "vip" | null } | undefined)?.tier ?? null;
   const [subscriptionPaid, setSubscriptionPaid] = useState<boolean | null>(null);
   const [subscriptionTier, setSubscriptionTier] = useState<"pro" | "vip" | null>(null);
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
+  const [subscriptionAutoRenew, setSubscriptionAutoRenew] = useState(false);
+  const [subscriptionCancelAtPeriodEnd, setSubscriptionCancelAtPeriodEnd] = useState(false);
+  const [vipExpiryBannerDismissed, setVipExpiryBannerDismissed] = useState(true);
+  const [aiAgentOnboardingShow, setAiAgentOnboardingShow] = useState(false);
+  const [aiAgentOnboardingStep, setAiAgentOnboardingStep] = useState<AiAgentOnboardingStep>(1);
+  const [pinningOnboarding, setPinningOnboarding] = useState(false);
   const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
   const isCustomersViewerAdmin = (session?.user as { customersViewerAdmin?: boolean } | undefined)?.customersViewerAdmin ?? false;
   const isLiveChatAgentAdmin = (session?.user as { liveChatAgentAdmin?: boolean } | undefined)?.liveChatAgentAdmin ?? false;
@@ -426,10 +435,52 @@ export default function Dashboard() {
         if (data.success) {
           setSubscriptionPaid(!!data.paid);
           setSubscriptionTier(data.subscriptionTier ?? null);
+          const exp = typeof data.expiresAt === "string" ? data.expiresAt : null;
+          setSubscriptionExpiresAt(exp);
+          setSubscriptionAutoRenew(!!data.autoRenew);
+          setSubscriptionCancelAtPeriodEnd(!!data.cancelAtPeriodEnd);
+          if (exp && typeof window !== "undefined") {
+            try {
+              const dismissedFor = sessionStorage.getItem(`novastaris-vip-expiry-dismiss:${exp}`);
+              setVipExpiryBannerDismissed(dismissedFor === "1");
+            } catch {
+              setVipExpiryBannerDismissed(false);
+            }
+          }
         }
       })
       .catch(() => {});
   }, [status]);
+
+  const completeAiAgentOnboarding = useCallback(async (action: "complete" | "dismiss" = "complete") => {
+    setAiAgentOnboardingShow(false);
+    try {
+      await fetch("/api/ai-agent/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const fetchAiAgentOnboarding = useCallback(() => {
+    if (status !== "authenticated" || isOwner || isCoachUser) return;
+    fetch("/api/ai-agent/onboarding")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.show) {
+          setAiAgentOnboardingShow(true);
+          setAiAgentOnboardingStep(data.step === 3 ? 3 : data.step === 2 ? 2 : 1);
+          setActiveTab("ai-analysis");
+          setAiAgentSubTab("meme");
+        } else {
+          setAiAgentOnboardingShow(false);
+        }
+      })
+      .catch(() => setAiAgentOnboardingShow(false));
+  }, [status, isOwner, isCoachUser]);
 
   const fetchAiAgentUsage = useCallback(() => {
     if (status !== "authenticated") {
@@ -458,7 +509,8 @@ export default function Dashboard() {
   useEffect(() => {
     if (status !== "authenticated") return;
     fetchSubscription();
-  }, [status, fetchSubscription]);
+    fetchAiAgentOnboarding();
+  }, [status, fetchSubscription, fetchAiAgentOnboarding]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -2861,6 +2913,7 @@ export default function Dashboard() {
           ragSnippets: Array.isArray(data.ragSnippets) ? data.ragSnippets : undefined,
         });
         fetchAiAgentUsage();
+        if (aiAgentOnboardingShow) setAiAgentOnboardingStep(3);
       } else {
         if (res.status === 401 && data.locked) setAiAnalysisError(data.error || "Sign in or register to use NovaStaris AI Agent.");
         else if (res.status === 429 && data.limitReached) setAiAnalysisError(data.error || "Daily Meme Coins Agent limit reached (Solana + BSC combined). Upgrade to VIP for unlimited use.");
@@ -2901,10 +2954,11 @@ export default function Dashboard() {
     }
   };
 
-  const pinCurrentToken = async () => {
+  const pinCurrentToken = async (opts?: { fromOnboarding?: boolean }) => {
     const ca = aiAnalysisResult?.tokenInfo?.contractAddress ?? aiAnalysisCa.trim();
     if (!ca) return;
     setPinSuccess(null);
+    if (opts?.fromOnboarding) setPinningOnboarding(true);
     try {
       const res = await fetch("/api/pins", {
         method: "POST",
@@ -2920,11 +2974,14 @@ export default function Dashboard() {
       if (data.success) {
         setPinSuccess("Pinned. Next update in ~3 min (or click Refresh on the pin).");
         await fetchPinnedTokens();
+        if (opts?.fromOnboarding || aiAgentOnboardingShow) await completeAiAgentOnboarding("complete");
       } else {
         setAiAnalysisError(data.error ?? "Failed to pin");
       }
     } catch (e) {
       setAiAnalysisError(e instanceof Error ? e.message : "Failed to pin");
+    } finally {
+      if (opts?.fromOnboarding) setPinningOnboarding(false);
     }
   };
 
@@ -3756,6 +3813,29 @@ export default function Dashboard() {
             }}
           />
         )}
+        {(() => {
+          if (!subscriptionExpiresAt || vipExpiryBannerDismissed || isOwner) return null;
+          if (!isPaid) return null;
+          const ms = new Date(subscriptionExpiresAt).getTime() - Date.now();
+          const daysRemaining = Math.ceil(ms / (24 * 60 * 60 * 1000));
+          if (daysRemaining < 0 || daysRemaining > 7) return null;
+          return (
+            <VipExpiryBanner
+              expiresAt={subscriptionExpiresAt}
+              daysRemaining={daysRemaining}
+              autoRenew={subscriptionAutoRenew}
+              cancelAtPeriodEnd={subscriptionCancelAtPeriodEnd}
+              onDismiss={() => {
+                try {
+                  sessionStorage.setItem(`novastaris-vip-expiry-dismiss:${subscriptionExpiresAt}`, "1");
+                } catch {
+                  /* ignore */
+                }
+                setVipExpiryBannerDismissed(true);
+              }}
+            />
+          );
+        })()}
         <DashboardPathPickerModal
           open={pathPickerOpen}
           pathOptions={{ subscriptionTier: tier, isPaid }}
@@ -4412,6 +4492,25 @@ export default function Dashboard() {
                 })()}
                 {aiAgentSubTab === "meme" && (
                 <>
+                {aiAgentOnboardingShow && status === "authenticated" && (
+                  <AiAgentOnboardingPanel
+                    step={aiAgentOnboardingStep}
+                    onStepChange={setAiAgentOnboardingStep}
+                    chain={aiAnalysisChain}
+                    onChainChange={(c) => { setAiAnalysisChain(c); setAiAnalysisError(null); }}
+                    contractAddress={aiAnalysisCa}
+                    onContractAddressChange={setAiAnalysisCa}
+                    amountUsd={aiAnalysisAmountUsd}
+                    onAmountUsdChange={setAiAnalysisAmountUsd}
+                    onAnalyze={runAiAnalysis}
+                    analyzeLoading={aiAnalysisLoading}
+                    hasAnalysisResult={!!aiAnalysisResult}
+                    onPin={() => pinCurrentToken({ fromOnboarding: true })}
+                    pinLoading={pinningOnboarding}
+                    onSkipPin={() => completeAiAgentOnboarding("complete")}
+                    onDismiss={() => completeAiAgentOnboarding("dismiss")}
+                  />
+                )}
                 {status === "authenticated" && (
                   <details className="mb-6 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80" open={pinnedTokens.length > 0}>
                     <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
@@ -4706,7 +4805,7 @@ export default function Dashboard() {
                     )}
                     {status === "authenticated" && (aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim()) && (
                         <>
-                          <Button type="button" variant="outline" size="sm" onClick={pinCurrentToken} className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50">
+                          <Button type="button" variant="outline" size="sm" onClick={() => pinCurrentToken()} className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50">
                             Pin to the Nova Staris monitoring board for 3-min updates
                           </Button>
                           {pinSuccess && <span className="text-xs text-emerald-600 dark:text-emerald-400">{pinSuccess}</span>}
