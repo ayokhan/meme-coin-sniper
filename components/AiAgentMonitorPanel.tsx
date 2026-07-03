@@ -11,14 +11,22 @@ const INTERVALS_MS = [
 ] as const;
 
 type Props = {
-  isPaid: boolean;
+  enabled: boolean;
+  quotaExhausted: boolean;
+  onUsageRecorded?: () => void;
   syncChain: "solana" | "bsc";
   syncContract: string;
-  /** Optional $ amount passed through to the same AI analyze path as the main form */
   syncAmountUsd?: string;
 };
 
-export default function AiAgentMonitorPanel({ isPaid, syncChain, syncContract, syncAmountUsd }: Props) {
+export default function AiAgentMonitorPanel({
+  enabled,
+  quotaExhausted,
+  onUsageRecorded,
+  syncChain,
+  syncContract,
+  syncAmountUsd,
+}: Props) {
   const [monitorChain, setMonitorChain] = useState<"solana" | "bsc">("solana");
   const [monitorContract, setMonitorContract] = useState("");
   const [monitorOn, setMonitorOn] = useState(false);
@@ -58,37 +66,49 @@ export default function AiAgentMonitorPanel({ isPaid, syncChain, syncContract, s
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setMonitorError(data?.error ?? `Monitor failed (${res.status})`);
-        if (res.status === 403 && data?.locked) setMonitorError(data.error || "Subscribe to use AI monitor.");
+        if (res.status === 429 && data.limitReached) {
+          setMonitorError(data.error || "Daily Meme Coins Agent limit reached.");
+          setMonitorOn(false);
+        } else if (res.status === 401 && data.locked) {
+          setMonitorError(data.error || "Sign in to use AI monitor.");
+        } else {
+          setMonitorError(data?.error ?? `Monitor failed (${res.status})`);
+        }
         return;
       }
       fpRef.current = data.fingerprint;
       setLastFingerprint(data.fingerprint);
       setMonitorMessage(data.message ?? null);
+      onUsageRecorded?.();
     } catch (e) {
       setMonitorError(e instanceof Error ? e.message : "Monitor failed");
     } finally {
       setMonitorLoading(false);
     }
-  }, [monitorChain, monitorContract, parseAmount, syncChain, syncContract]);
+  }, [monitorChain, monitorContract, parseAmount, syncChain, syncContract, onUsageRecorded]);
 
   useEffect(() => {
-    if (!monitorOn || !monitorContract.trim()) return;
+    if (!monitorOn || !monitorContract.trim() || quotaExhausted) return;
     void pollMonitor();
     const id = window.setInterval(() => void pollMonitor(), intervalMs);
     return () => window.clearInterval(id);
-  }, [monitorOn, intervalMs, monitorChain, monitorContract, pollMonitor]);
+  }, [monitorOn, intervalMs, monitorChain, monitorContract, pollMonitor, quotaExhausted]);
 
-  if (!isPaid) return null;
+  if (!enabled) return null;
 
   return (
     <div className="mt-6 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3 bg-zinc-50/80 dark:bg-zinc-900/40">
       <div>
         <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">AI monitor (auto-refresh)</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Polls the same full NovaStaris AI snapshot as <strong className="text-zinc-700 dark:text-zinc-300">Analyze</strong>. If the fingerprint changes between polls, reassess or consider exiting; if unchanged, you might stay with your plan. Not financial advice.
+          Each poll runs a full NovaStaris AI analysis and <strong className="text-zinc-700 dark:text-zinc-300">counts toward your Meme Coins Agent daily limit</strong> (Solana + BSC combined). VIP: unlimited.
         </p>
       </div>
+      {quotaExhausted && (
+        <p className="text-xs text-amber-700 dark:text-amber-300 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 px-2 py-1.5">
+          Daily limit reached — upgrade to VIP for unlimited monitor polls.
+        </p>
+      )}
       <div className="flex flex-wrap items-end gap-2">
         <div>
           <label className="text-[11px] text-muted-foreground block mb-0.5">Chain</label>
@@ -149,14 +169,11 @@ export default function AiAgentMonitorPanel({ isPaid, syncChain, syncContract, s
             }
             setMonitorOn((v) => !v);
           }}
-          disabled={!monitorContract.trim()}
+          disabled={!monitorContract.trim() || quotaExhausted}
         >
           {monitorOn ? "Stop monitor" : "Start AI monitor"}
         </Button>
       </div>
-      {monitorChain === "bsc" && (
-        <p className="text-[11px] text-amber-700 dark:text-amber-300">BSC uses the same VIP rules as Analyze above.</p>
-      )}
       {monitorError && <p className="text-xs text-rose-600 dark:text-rose-400">{monitorError}</p>}
       {monitorOn && (
         <div className="text-xs space-y-1 border-t border-zinc-200 dark:border-zinc-700 pt-3">

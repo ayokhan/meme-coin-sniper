@@ -4,7 +4,10 @@ import { Copy, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
+export type ChartAnalysisType = "perp" | "meme";
+
 export type ChartAnalysisResult = {
+  chartType?: ChartAnalysisType;
   score: number;
   signal: "buy" | "no_buy";
   tradeDirection?: "long" | "short";
@@ -24,6 +27,8 @@ export type ChartAnalysisResult = {
 };
 
 type Props = {
+  chartType: ChartAnalysisType;
+  onChartTypeChange: (value: ChartAnalysisType) => void;
   chartPreview: string | null;
   onChartChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   symbol: string;
@@ -91,6 +96,8 @@ function formatForShare(
 }
 
 export default function AiChartAnalysisPanel({
+  chartType,
+  onChartTypeChange,
   chartPreview,
   onChartChange,
   symbol,
@@ -125,13 +132,38 @@ export default function AiChartAnalysisPanel({
   onFeedbackNoteChange,
   onFeedback,
 }: Props) {
+  const isMeme = chartType === "meme";
+  const resultIsMeme = result?.chartType === "meme" || (result && !result.tradeDirection && isMeme);
+
   return (
     <div className="max-w-2xl">
       <h2 className="text-xl sm:text-2xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
         Trade with Confidence using NovaStaris Advanced AI System
       </h2>
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Button
+          type="button"
+          variant={chartType === "perp" ? "default" : "outline"}
+          size="sm"
+          className={chartType === "perp" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600" : ""}
+          onClick={() => onChartTypeChange("perp")}
+        >
+          Perp chart
+        </Button>
+        <Button
+          type="button"
+          variant={chartType === "meme" ? "default" : "outline"}
+          size="sm"
+          className={chartType === "meme" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600" : ""}
+          onClick={() => onChartTypeChange("meme")}
+        >
+          Meme coin chart
+        </Button>
+      </div>
       <p className="text-sm text-muted-foreground mb-4">
-        Upload a chart screenshot from any platform — TradingView, Blofin, Hyperliquid, Dexscreener, Axiom, or similar — and enter your trade parameters. NovaStaris AI will analyze support/resistance, market structure, entry zone, take profit & stop loss. Works best on clear candlestick charts with a visible price axis.
+        {isMeme
+          ? "Upload a meme coin screenshot from Dexscreener, Axiom, pump.fun, or similar. Spot analysis only — buy or wait, no shorting. Leverage is optional."
+          : "Upload a perp/futures chart from TradingView, Blofin, Hyperliquid, or similar. Long/short analysis with leverage and margin."}
       </p>
       <div className="space-y-4">
         <div>
@@ -151,18 +183,18 @@ export default function AiChartAnalysisPanel({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="ai-agent-symbol" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Symbol (required)</label>
+            <label htmlFor="ai-agent-symbol" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{isMeme ? "Token symbol (required)" : "Symbol (required)"}</label>
             <input
               id="ai-agent-symbol"
               type="text"
-              placeholder="e.g. BTC/USDC"
+              placeholder={isMeme ? "e.g. PEPE" : "e.g. BTC/USDC"}
               value={symbol}
               onChange={(e) => onSymbolChange(e.target.value)}
               className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
           </div>
           <div>
-            <label htmlFor="ai-agent-margin" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Margin — amount to invest (required)</label>
+            <label htmlFor="ai-agent-margin" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Amount to invest (required)</label>
             <input
               id="ai-agent-margin"
               type="number"
@@ -177,18 +209,35 @@ export default function AiChartAnalysisPanel({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="ai-agent-leverage" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Leverage (required)</label>
-            <select
-              id="ai-agent-leverage"
-              value={leverage}
-              onChange={(e) => onLeverageChange(e.target.value)}
-              className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              {[1, 2, 3, 5, 10, 20, 50, 75, 100, 125].map((x) => (
-                <option key={x} value={x}>{x}x</option>
-              ))}
-            </select>
+            <label htmlFor="ai-agent-leverage" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              Leverage {isMeme ? "(optional)" : "(required)"}
+            </label>
+            {isMeme ? (
+              <input
+                id="ai-agent-leverage"
+                type="number"
+                min="1"
+                max="125"
+                step="1"
+                placeholder="Spot (leave empty)"
+                value={leverage}
+                onChange={(e) => onLeverageChange(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            ) : (
+              <select
+                id="ai-agent-leverage"
+                value={leverage}
+                onChange={(e) => onLeverageChange(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                {[1, 2, 3, 5, 10, 20, 50, 75, 100, 125].map((x) => (
+                  <option key={x} value={x}>{x}x</option>
+                ))}
+              </select>
+            )}
           </div>
+          {!isMeme && (
           <div>
             <label htmlFor="ai-agent-direction" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Direction (optional)</label>
             <select
@@ -202,6 +251,7 @@ export default function AiChartAnalysisPanel({
               <option value="short">Short</option>
             </select>
           </div>
+          )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -273,9 +323,11 @@ export default function AiChartAnalysisPanel({
                   : "bg-rose-500 text-white dark:bg-rose-600 border-0 hover:bg-rose-600 dark:hover:bg-rose-700"
               }`}
             >
-              {result.signal === "buy"
-                ? (result.tradeDirection === "long" ? "BUY LONG" : result.tradeDirection === "short" ? "BUY SHORT" : "BUY")
-                : (result.tradeDirection === "long" ? "NO BUY (bias: Long)" : result.tradeDirection === "short" ? "NO BUY (bias: Short)" : "NO BUY")}
+              {resultIsMeme
+                ? (result.signal === "buy" ? "BUY" : "NO BUY")
+                : (result.signal === "buy"
+                  ? (result.tradeDirection === "long" ? "BUY LONG" : result.tradeDirection === "short" ? "BUY SHORT" : "BUY")
+                  : (result.tradeDirection === "long" ? "NO BUY (bias: Long)" : result.tradeDirection === "short" ? "NO BUY (bias: Short)" : "NO BUY"))}
             </Badge>
           </div>
           {result.marketRead && (
@@ -291,7 +343,9 @@ export default function AiChartAnalysisPanel({
           )}
           {result.recommendations && (result.recommendations.supportResistance || result.recommendations.marketStructure || result.recommendations.entryZone || result.recommendations.takeProfitPct || result.recommendations.stopLossPct) && (
             <div className="mt-4 rounded-lg border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/50 dark:bg-cyan-950/30 p-4 space-y-2 text-sm">
-              <p className="font-semibold text-cyan-800 dark:text-cyan-200">Trading levels (futures — use risk management)</p>
+              <p className="font-semibold text-cyan-800 dark:text-cyan-200">
+                {resultIsMeme ? "Trading levels (spot meme — use risk management)" : "Trading levels (futures — use risk management)"}
+              </p>
               {result.recommendations.supportResistance && <p><span className="text-muted-foreground">Support / Resistance:</span> {result.recommendations.supportResistance}</p>}
               {result.recommendations.marketStructure && <p><span className="text-muted-foreground">Market structure:</span> {result.recommendations.marketStructure}</p>}
               {result.recommendations.entryZone && <p><span className="text-muted-foreground">Entry zone:</span> {result.recommendations.entryZone}</p>}

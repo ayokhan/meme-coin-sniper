@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
-import { runFuturesAnalysis } from '@/lib/ai-analyze-futures';
+import { runFuturesAnalysis, type ChartAnalysisType } from '@/lib/ai-analyze-futures';
 import { fetchUnifiedMarketReadForSymbol } from '@/lib/nova-market-read-snapshot';
 import { assertAiAgentAccess, recordAiAgentUsage } from '@/lib/ai-agent-quota';
 
@@ -33,6 +33,8 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const chartFile = formData.get('chart') as File | null;
+    const chartTypeRaw = (formData.get('chartType') as string | null)?.trim()?.toLowerCase();
+    const chartType: ChartAnalysisType = chartTypeRaw === 'meme' ? 'meme' : 'perp';
     const symbol = (formData.get('symbol') as string | null)?.trim() ?? '';
     const marginVal = parseNum((formData.get('margin') as string | null) ?? '');
     const leverageVal = parseNum((formData.get('leverage') as string | null) ?? '');
@@ -49,19 +51,26 @@ export async function POST(request: Request) {
     }
     if (!symbol) {
       return NextResponse.json(
-        { success: false, error: 'Symbol is required (e.g. BTC/USDC).' },
+        { success: false, error: chartType === 'meme' ? 'Token symbol is required (e.g. PEPE).' : 'Symbol is required (e.g. BTC/USDC).' },
         { status: 400 }
       );
     }
     if (marginVal == null || marginVal <= 0) {
       return NextResponse.json(
-        { success: false, error: 'Margin (amount to invest) must be a positive number.' },
+        { success: false, error: 'Amount to invest must be a positive number.' },
         { status: 400 }
       );
     }
-    if (leverageVal == null || leverageVal < 1 || leverageVal > 125) {
+    if (chartType === 'perp') {
+      if (leverageVal == null || leverageVal < 1 || leverageVal > 125) {
+        return NextResponse.json(
+          { success: false, error: 'Leverage must be between 1 and 125 for perp charts.' },
+          { status: 400 }
+        );
+      }
+    } else if (leverageVal != null && (leverageVal < 1 || leverageVal > 125)) {
       return NextResponse.json(
-        { success: false, error: 'Leverage must be between 1 and 125.' },
+        { success: false, error: 'If provided, leverage must be between 1 and 125.' },
         { status: 400 }
       );
     }
@@ -95,27 +104,30 @@ export async function POST(request: Request) {
     const arrayBuffer = await chartFile.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString('base64');
 
-    const direction =
-      directionRaw === 'long' || directionRaw === 'short' ? directionRaw : null;
+    const direction: 'long' | 'short' | null =
+      chartType === 'perp' && (directionRaw === 'long' || directionRaw === 'short') ? directionRaw : null;
     const imageMediaType = mediaType as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
 
-    const [result, marketRead] = await Promise.all([
-      runFuturesAnalysis(base64, imageMediaType, {
-        symbol,
-        margin: marginVal,
-        leverage: leverageVal,
-        tradeTimeframe,
-        chartTimeframe,
-        riskAmount: riskAmount != null && riskAmount > 0 ? riskAmount : null,
-        direction,
-      }),
-      fetchUnifiedMarketReadForSymbol(symbol).catch(() => null),
-    ]);
+    const analysisParams = {
+      chartType,
+      symbol,
+      margin: marginVal,
+      leverage: chartType === 'perp' ? leverageVal! : leverageVal,
+      tradeTimeframe,
+      chartTimeframe,
+      riskAmount: riskAmount != null && riskAmount > 0 ? riskAmount : null,
+      direction,
+    };
+
+    const result = await runFuturesAnalysis(base64, imageMediaType, analysisParams);
+    const marketRead =
+      chartType === 'perp' ? await fetchUnifiedMarketReadForSymbol(symbol).catch(() => null) : null;
 
     if (userId) await recordAiAgentUsage(userId, 'chart_analysis').catch(() => {});
 
     return NextResponse.json({
       success: true,
+      chartType: result.chartType,
       score: result.score,
       signal: result.signal,
       tradeDirection: result.tradeDirection,
@@ -124,7 +136,7 @@ export async function POST(request: Request) {
       marketRead,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Futures analysis failed';
+    const message = error instanceof Error ? error.message : 'Chart analysis failed';
     console.error('AI analyze futures error:', error);
     const status =
       message.includes('not configured') ? 503 :

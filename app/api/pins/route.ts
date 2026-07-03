@@ -29,9 +29,6 @@ export async function GET() {
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Sign in to view pins.', locked: true }, { status: 401 });
     }
-    if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to use pinned tokens.', locked: true }, { status: 403 });
-    }
 
     const pins = await (prisma as unknown as { pinnedToken: { findMany: (args: { where: { userId: string }; orderBy: { pinnedAt: string } }) => Promise<{ contractAddress: string; chain: string; symbol: string | null; name: string | null; pinnedAt: Date; lastAnalyzedAt: Date | null; analysisResult: unknown }[]> } }).pinnedToken.findMany({
       where: { userId },
@@ -61,9 +58,6 @@ export async function POST(request: Request) {
     const { userId, isPaid } = await getSessionAndSubscription();
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Sign in to pin tokens.', locked: true }, { status: 401 });
-    }
-    if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to pin tokens.', locked: true }, { status: 403 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -115,9 +109,6 @@ export async function DELETE(request: Request) {
     const { userId, isPaid } = await getSessionAndSubscription();
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Sign in to manage pins.', locked: true }, { status: 401 });
-    }
-    if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to manage pins.', locked: true }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);

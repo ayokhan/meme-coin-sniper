@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { runAiAnalysis } from '@/lib/ai-analyze';
 import { runAiAnalysisBsc } from '@/lib/ai-analyze-bsc';
+import { isOwnerEmail } from '@/lib/auth';
+import { assertAiAgentAccess, recordAiAgentUsage } from '@/lib/ai-agent-quota';
+import { getActiveSubscription } from '@/lib/subscription';
 
 const PIN_REANALYZE_MINUTES = 3;
 const MAX_PINS_PER_CRON = 5;
@@ -86,7 +89,7 @@ export async function GET(request: Request) {
 
   try {
     const cutoff = new Date(Date.now() - PIN_REANALYZE_MINUTES * 60 * 1000);
-    const prismaAny = prisma as unknown as { pinnedToken?: { findMany: (args: unknown) => Promise<{ id: string; contractAddress: string; chain: string; symbol: string | null; name: string | null }[]>; update: (args: unknown) => Promise<unknown> } };
+    const prismaAny = prisma as unknown as { pinnedToken?: { findMany: (args: unknown) => Promise<{ id: string; userId: string; contractAddress: string; chain: string; symbol: string | null; name: string | null }[]>; update: (args: unknown) => Promise<unknown> } };
     if (!prismaAny.pinnedToken) {
       results.pinnedReanalyze = { ok: true, updated: 0, message: 'PinnedToken model not in schema' };
     } else {
@@ -101,12 +104,28 @@ export async function GET(request: Request) {
       orderBy: { pinnedAt: 'asc' },
     } as unknown);
     let updated = 0;
+    let skippedQuota = 0;
     for (const pin of due) {
       try {
+        const user = await prisma.user.findUnique({
+          where: { id: pin.userId },
+        });
+        const isPaid = await getActiveSubscription(pin.userId);
+        const isOwner = user?.email ? isOwnerEmail(user.email) : false;
+        const access = await assertAiAgentAccess(
+          { user: { id: pin.userId, isOwner } },
+          isPaid,
+          'meme_agent'
+        );
+        if (!access.ok) {
+          skippedQuota++;
+          continue;
+        }
         const chain = pin.chain === 'bsc' ? 'bsc' : 'solana';
         const result = chain === 'bsc'
           ? await runAiAnalysisBsc(pin.contractAddress)
           : await runAiAnalysis(pin.contractAddress);
+        await recordAiAgentUsage(pin.userId, 'meme_agent').catch(() => {});
         await prismaAny.pinnedToken.update({
           where: { id: pin.id },
           data: {
@@ -121,7 +140,13 @@ export async function GET(request: Request) {
         console.warn('Pinned re-analyze failed for', pin.contractAddress, e instanceof Error ? e.message : e);
       }
     }
-    results.pinnedReanalyze = { ok: true, updated, message: due.length ? `Re-analyzed ${updated}/${due.length} pins` : undefined };
+    results.pinnedReanalyze = {
+      ok: true,
+      updated,
+      message: due.length
+        ? `Re-analyzed ${updated}/${due.length} pins${skippedQuota ? ` (${skippedQuota} skipped at daily limit)` : ''}`
+        : undefined,
+    };
     }
   } catch (e) {
     results.pinnedReanalyze = { ok: false, message: e instanceof Error ? e.message : 'Pinned re-analyze failed' };

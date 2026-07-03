@@ -3,19 +3,32 @@ import { getSessionAndSubscription } from '@/lib/auth-server';
 import { prisma } from '@/lib/db';
 import { runAiAnalysis } from '@/lib/ai-analyze';
 import { runAiAnalysisBsc } from '@/lib/ai-analyze-bsc';
+import { assertAiAgentAccess, recordAiAgentUsage } from '@/lib/ai-agent-quota';
 
 /**
  * POST /api/pins/refresh — run AI re-analysis for one pinned token and save result.
- * Body: { contractAddress }. User must own the pin. Use when cron is not frequent enough.
+ * Counts toward Meme Coins Agent daily quota (Solana + BSC combined).
  */
 export async function POST(request: Request) {
   try {
-    const { userId, isPaid } = await getSessionAndSubscription();
+    const { session, userId, isPaid } = await getSessionAndSubscription();
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Sign in to refresh pins.', locked: true }, { status: 401 });
     }
-    if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to use this.', locked: true }, { status: 403 });
+
+    const access = await assertAiAgentAccess(session, isPaid, 'meme_agent');
+    if (!access.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: access.error,
+          locked: access.locked,
+          limitReached: access.limitReached,
+          used: access.used,
+          limit: access.limit,
+        },
+        { status: access.status }
+      );
     }
 
     const body = await request.json().catch(() => ({}));
@@ -38,9 +51,9 @@ export async function POST(request: Request) {
     }
 
     const chain = (pin.chain === 'bsc' ? 'bsc' : 'solana') as 'solana' | 'bsc';
-    const result = chain === 'bsc'
-      ? await runAiAnalysisBsc(contractAddress)
-      : await runAiAnalysis(contractAddress);
+    const result = chain === 'bsc' ? await runAiAnalysisBsc(contractAddress) : await runAiAnalysis(contractAddress);
+
+    await recordAiAgentUsage(userId, 'meme_agent').catch(() => {});
 
     await prismaPins.pinnedToken.update({
       where: { id: pin.id },

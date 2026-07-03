@@ -858,7 +858,9 @@ export default function Dashboard() {
   const [futuresTradeTimeframe, setFuturesTradeTimeframe] = useState("");
   const [futuresRiskAmount, setFuturesRiskAmount] = useState("");
   const [futuresDirection, setFuturesDirection] = useState<"long" | "short" | "">("");
+  const [futuresChartType, setFuturesChartType] = useState<"perp" | "meme">("perp");
   const [futuresAnalysisResult, setFuturesAnalysisResult] = useState<{
+    chartType?: "perp" | "meme";
     score: number;
     signal: "buy" | "no_buy";
     tradeDirection?: "long" | "short";
@@ -1797,7 +1799,7 @@ export default function Dashboard() {
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
     if (tab === "ai-analysis") {
       if (showLoading) setLoading(false);
-      if (isPaid) fetchPinnedTokens();
+      if (status === "authenticated") fetchPinnedTokens();
       return;
     }
     if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-ultimate" || tab === "watchlist") {
@@ -2874,7 +2876,7 @@ export default function Dashboard() {
   };
 
   const fetchPinnedTokens = async () => {
-    if (!isPaid) return;
+    if (status !== "authenticated") return;
     setPinnedLoading(true);
     try {
       const res = await fetch("/api/pins");
@@ -2947,6 +2949,10 @@ export default function Dashboard() {
         });
         setAiAnalysisCa(contractAddress);
         await fetchPinnedTokens();
+        fetchAiAgentUsage();
+      } else if (res.status === 429 && data.limitReached) {
+        setAiAnalysisError(data.error || "Daily Meme Coins Agent limit reached.");
+        fetchAiAgentUsage();
       }
     } finally {
       setRefreshingPin(null);
@@ -2968,17 +2974,23 @@ export default function Dashboard() {
       return;
     }
     if (!futuresChartFile || !futuresSymbol.trim()) {
-      setFuturesAnalysisError("Upload a chart and enter a symbol (e.g. BTC/USDC).");
+      setFuturesAnalysisError(futuresChartType === "meme" ? "Upload a chart and enter a token symbol (e.g. PEPE)." : "Upload a chart and enter a symbol (e.g. BTC/USDC).");
       return;
     }
     const margin = parseFloat(futuresMargin.trim());
     if (!Number.isFinite(margin) || margin <= 0) {
-      setFuturesAnalysisError("Enter a valid margin (amount to invest).");
+      setFuturesAnalysisError("Enter a valid amount to invest.");
       return;
     }
-    const leverage = parseFloat(futuresLeverage.trim());
-    if (!Number.isFinite(leverage) || leverage < 1 || leverage > 125) {
-      setFuturesAnalysisError("Leverage must be between 1 and 125.");
+    const leverageRaw = futuresLeverage.trim();
+    const leverage = leverageRaw ? parseFloat(leverageRaw) : NaN;
+    if (futuresChartType === "perp") {
+      if (!Number.isFinite(leverage) || leverage < 1 || leverage > 125) {
+        setFuturesAnalysisError("Leverage must be between 1 and 125.");
+        return;
+      }
+    } else if (leverageRaw && (!Number.isFinite(leverage) || leverage < 1 || leverage > 125)) {
+      setFuturesAnalysisError("If provided, leverage must be between 1 and 125.");
       return;
     }
     if (!futuresChartTimeframe.trim()) {
@@ -2995,18 +3007,22 @@ export default function Dashboard() {
     try {
       const form = new FormData();
       form.append("chart", futuresChartFile);
+      form.append("chartType", futuresChartType);
       form.append("symbol", futuresSymbol.trim());
       form.append("margin", String(margin));
-      form.append("leverage", String(leverage));
+      if (futuresChartType === "perp" || leverageRaw) {
+        form.append("leverage", String(leverage));
+      }
       form.append("chartTimeframe", futuresChartTimeframe.trim());
       form.append("tradeTimeframe", futuresTradeTimeframe.trim());
       const risk = parseFloat(futuresRiskAmount.trim());
       if (Number.isFinite(risk) && risk > 0) form.append("riskAmount", String(risk));
-      if (futuresDirection) form.append("direction", futuresDirection);
+      if (futuresChartType === "perp" && futuresDirection) form.append("direction", futuresDirection);
       const res = await fetch("/api/ai-analyze-futures", { method: "POST", body: form });
       const data = await res.json();
       if (data.success) {
         setFuturesAnalysisResult({
+          chartType: data.chartType === "meme" ? "meme" : "perp",
           score: data.score,
           signal: data.signal === "buy" ? "buy" : "no_buy",
           tradeDirection: data.tradeDirection === "long" || data.tradeDirection === "short" ? data.tradeDirection : undefined,
@@ -4323,9 +4339,12 @@ export default function Dashboard() {
                   }
                   if (snap.unlimited) {
                     return (
-                      <p className="mb-4 text-sm text-muted-foreground">
-                        VIP: unlimited {aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana + BSC)" : "Chart Analysis"} uses.
-                      </p>
+                      <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-300/60 dark:border-emerald-700/60 bg-emerald-50/90 dark:bg-emerald-950/40 px-3 py-1.5 text-sm">
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">VIP</span>
+                        <span className="text-emerald-800/90 dark:text-emerald-200/90">
+                          Unlimited {aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana + BSC)" : "Chart Analysis"} uses.
+                        </span>
+                      </div>
                     );
                   }
                   const featureLabel =
@@ -4361,11 +4380,15 @@ export default function Dashboard() {
                 })()}
                 {aiAgentSubTab === "meme" && (
                 <>
-                {isPaid && (
+                {status === "authenticated" && (
                   <details className="mb-6 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80" open={pinnedTokens.length > 0}>
                     <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                       <span className="block font-semibold">Nova Staris Monitoring Board</span>
-                      <span className="block text-xs font-normal text-muted-foreground mt-0.5">Pinned tokens — NovaStarisAI re-checks every ~3 min{pinnedTokens.length > 0 && ` · ${pinnedTokens.length} token${pinnedTokens.length === 1 ? "" : "s"} pinned`}</span>
+                      <span className="block text-xs font-normal text-muted-foreground mt-0.5">
+                        Pinned tokens — NovaStarisAI re-checks every ~3 min
+                        {!aiAgentUsage?.memeAgent?.unlimited && " (each refresh & auto re-check counts toward your daily limit)"}
+                        {pinnedTokens.length > 0 && ` · ${pinnedTokens.length} token${pinnedTokens.length === 1 ? "" : "s"} pinned`}
+                      </span>
                     </summary>
                     <div className="px-4 pb-4 pt-1">
                       {pinnedLoading && pinnedTokens.length === 0 ? (
@@ -4455,8 +4478,15 @@ export default function Dashboard() {
                     {aiAnalysisLoading ? "Analyzing…" : "Analyze"}
                   </Button>
                 </div>
-                {isPaid && (
-                  <AiAgentMonitorPanel isPaid={isPaid} syncChain={aiAnalysisChain} syncContract={aiAnalysisCa} syncAmountUsd={aiAnalysisAmountUsd} />
+                {status === "authenticated" && (
+                  <AiAgentMonitorPanel
+                    enabled={status === "authenticated"}
+                    quotaExhausted={!aiAgentUsage?.memeAgent?.unlimited && (aiAgentUsage?.memeAgent?.remaining ?? 1) === 0}
+                    onUsageRecorded={fetchAiAgentUsage}
+                    syncChain={aiAnalysisChain}
+                    syncContract={aiAnalysisCa}
+                    syncAmountUsd={aiAnalysisAmountUsd}
+                  />
                 )}
                 {aiAnalysisError && (
                   <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{aiAnalysisError}</p>
@@ -4642,7 +4672,7 @@ export default function Dashboard() {
                         </Button>
                       </div>
                     )}
-                    {isPaid && (aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim()) && (
+                    {status === "authenticated" && (aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim()) && (
                         <>
                           <Button type="button" variant="outline" size="sm" onClick={pinCurrentToken} className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50">
                             Pin to the Nova Staris monitoring board for 3-min updates
@@ -4744,6 +4774,12 @@ export default function Dashboard() {
                 )}
                 {aiAgentSubTab === "chart" && (
                   <AiChartAnalysisPanel
+                    chartType={futuresChartType}
+                    onChartTypeChange={(v) => {
+                      setFuturesChartType(v);
+                      setFuturesAnalysisError(null);
+                      if (v === "meme") setFuturesDirection("");
+                    }}
                     chartPreview={futuresChartPreview}
                     onChartChange={onFuturesChartChange}
                     symbol={futuresSymbol}
