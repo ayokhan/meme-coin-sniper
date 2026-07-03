@@ -140,8 +140,16 @@ model User {
   supportStaffName           String?
   /** Owner override: daily Meme Coins Agent uses for free users (null = global default). */
   aiAgentDailyLimitOverride         Int?
+  /** Owner override: weekly Meme Coins Agent uses (null = global default). */
+  aiAgentWeeklyLimitOverride        Int?
+  /** Owner override: monthly Meme Coins Agent uses (null = global default). */
+  aiAgentMonthlyLimitOverride       Int?
   /** Owner override: daily Chart Analysis uses for free users (null = global default). */
   aiChartAnalysisDailyLimitOverride Int?
+  /** Owner override: weekly Chart Analysis uses (null = global default). */
+  aiChartAnalysisWeeklyLimitOverride Int?
+  /** Owner override: monthly Chart Analysis uses (null = global default). */
+  aiChartAnalysisMonthlyLimitOverride Int?
   /** When user accepted Payment Terms and Conditions (required before any subscription payment). */
   paymentTermsAcceptedAt     DateTime?
   createdAt     DateTime  @default(now())

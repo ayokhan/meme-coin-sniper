@@ -688,7 +688,7 @@ export default function AdminFeatureFlagsPage() {
                   <div>
                     <p className="font-semibold text-zinc-900 dark:text-zinc-100">NovaStaris AI Agent — free-tier limits</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Daily limits always apply. Weekly and monthly caps are optional (leave blank to disable). All windows stack — e.g. daily 2 + weekly 5 means users can use up to 2 per day until 5 total that week. VIP is unlimited. Per-user daily overrides: Admin → Customers → Manage.
+                      Daily limits always apply. Weekly and monthly caps are optional (leave blank to disable). All windows stack. VIP is unlimited. Per-user overrides (daily / weekly / monthly): Admin → Customers → Manage.
                     </p>
                   </div>
                   <div className="overflow-x-auto">

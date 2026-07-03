@@ -42,7 +42,11 @@ type Customer = {
   liveChatAgentAdmin: boolean;
   supportStaffName: string | null;
   aiAgentDailyLimitOverride: number | null;
+  aiAgentWeeklyLimitOverride: number | null;
+  aiAgentMonthlyLimitOverride: number | null;
   aiChartAnalysisDailyLimitOverride: number | null;
+  aiChartAnalysisWeeklyLimitOverride: number | null;
+  aiChartAnalysisMonthlyLimitOverride: number | null;
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
   createdAt: string;
@@ -667,14 +671,18 @@ export default function AdminCustomersPage() {
 
   const handleAiAgentLimitsSave = async (
     id: string,
-    patch: { meme?: number | null; chart?: number | null }
+    patch: import("@/components/admin/CustomerExpandedPanel").AiAgentLimitsPatch
   ) => {
     setSavingAiAgentLimitsId(id);
     setError("");
     try {
       const body: Record<string, number | null> = {};
-      if (patch.meme !== undefined) body.aiAgentDailyLimitOverride = patch.meme;
-      if (patch.chart !== undefined) body.aiChartAnalysisDailyLimitOverride = patch.chart;
+      if (patch.memeDaily !== undefined) body.aiAgentDailyLimitOverride = patch.memeDaily;
+      if (patch.memeWeekly !== undefined) body.aiAgentWeeklyLimitOverride = patch.memeWeekly;
+      if (patch.memeMonthly !== undefined) body.aiAgentMonthlyLimitOverride = patch.memeMonthly;
+      if (patch.chartDaily !== undefined) body.aiChartAnalysisDailyLimitOverride = patch.chartDaily;
+      if (patch.chartWeekly !== undefined) body.aiChartAnalysisWeeklyLimitOverride = patch.chartWeekly;
+      if (patch.chartMonthly !== undefined) body.aiChartAnalysisMonthlyLimitOverride = patch.chartMonthly;
       const res = await fetch(`/api/admin/customers/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -683,7 +691,7 @@ export default function AdminCustomersPage() {
       const data = await res.json();
       if (data.success) {
         loadCustomers();
-        setSuccessMessage("AI Agent daily limits updated.");
+        setSuccessMessage("AI Agent limits updated.");
         setTimeout(() => setSuccessMessage(""), 4000);
       } else setError(data.error ?? "Failed to update AI Agent limits");
     } catch {

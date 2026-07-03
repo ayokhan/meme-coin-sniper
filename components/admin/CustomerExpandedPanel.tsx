@@ -2,6 +2,15 @@
 
 import type { ReactNode } from "react";
 
+export type AiAgentLimitsPatch = {
+  memeDaily?: number | null;
+  memeWeekly?: number | null;
+  memeMonthly?: number | null;
+  chartDaily?: number | null;
+  chartWeekly?: number | null;
+  chartMonthly?: number | null;
+};
+
 export type AdminCustomerPayment = {
   date: string;
   amountUsd: number;
@@ -35,7 +44,11 @@ export type AdminCustomerRecord = {
   liveChatAgentAdmin?: boolean;
   supportStaffName?: string | null;
   aiAgentDailyLimitOverride?: number | null;
+  aiAgentWeeklyLimitOverride?: number | null;
+  aiAgentMonthlyLimitOverride?: number | null;
   aiChartAnalysisDailyLimitOverride?: number | null;
+  aiChartAnalysisWeeklyLimitOverride?: number | null;
+  aiChartAnalysisMonthlyLimitOverride?: number | null;
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
   subscriptionExpiresAt: string | null;
@@ -162,7 +175,7 @@ export type CustomerExpandedPanelProps = {
   onSupportViewerAdmin?: (value: boolean) => void;
   onLiveChatAgentAdmin?: (value: boolean) => void;
   onSupportStaffNameSave?: (value: string) => void;
-  onAiAgentLimitsSave?: (patch: { meme?: number | null; chart?: number | null }) => void;
+  onAiAgentLimitsSave?: (patch: AiAgentLimitsPatch) => void;
 };
 
 export default function CustomerExpandedPanel({
@@ -312,45 +325,77 @@ export default function CustomerExpandedPanel({
       </DetailSection>
 
       {isOwner && onAiAgentLimitsSave && (
-        <DetailSection title="AI Agent daily limits">
-          <DetailRow label="Meme Coins Agent" hint="Blank = global default. 0 = blocked for free tier.">
-            <input
-              type="number"
-              min={0}
-              max={1000}
-              defaultValue={c.aiAgentDailyLimitOverride ?? ""}
-              placeholder="Default"
-              disabled={!!busy.savingAiAgentLimits}
-              className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 w-20"
-              onBlur={(e) => {
-                const raw = e.target.value.trim();
-                const next = raw === "" ? null : Math.max(0, Math.min(1000, Math.round(Number(raw))));
-                const current = c.aiAgentDailyLimitOverride ?? null;
-                if (next !== current && (raw === "" || Number.isFinite(next))) {
-                  onAiAgentLimitsSave({ meme: next });
-                }
-              }}
-            />
-          </DetailRow>
-          <DetailRow label="Chart Analysis" hint="Blank = global default. 0 = blocked for free tier.">
-            <input
-              type="number"
-              min={0}
-              max={1000}
-              defaultValue={c.aiChartAnalysisDailyLimitOverride ?? ""}
-              placeholder="Default"
-              disabled={!!busy.savingAiAgentLimits}
-              className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 w-20"
-              onBlur={(e) => {
-                const raw = e.target.value.trim();
-                const next = raw === "" ? null : Math.max(0, Math.min(1000, Math.round(Number(raw))));
-                const current = c.aiChartAnalysisDailyLimitOverride ?? null;
-                if (next !== current && (raw === "" || Number.isFinite(next))) {
-                  onAiAgentLimitsSave({ chart: next });
-                }
-              }}
-            />
-          </DetailRow>
+        <DetailSection title="AI Agent limits">
+          <p className="text-[10px] text-muted-foreground mb-2">Blank = global default. 0 = blocked for that window.</p>
+          <div className="overflow-x-auto">
+            <table className="text-xs w-full min-w-[280px]">
+              <thead>
+                <tr className="text-left text-[10px] text-muted-foreground">
+                  <th className="pb-1 pr-2 font-medium">Feature</th>
+                  <th className="pb-1 pr-1 font-medium">Daily</th>
+                  <th className="pb-1 pr-1 font-medium">Weekly</th>
+                  <th className="pb-1 font-medium">Monthly</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(
+                  [
+                    {
+                      label: "Meme Coins",
+                      values: {
+                        daily: c.aiAgentDailyLimitOverride,
+                        weekly: c.aiAgentWeeklyLimitOverride,
+                        monthly: c.aiAgentMonthlyLimitOverride,
+                      },
+                      keys: {
+                        daily: "memeDaily" as const,
+                        weekly: "memeWeekly" as const,
+                        monthly: "memeMonthly" as const,
+                      },
+                    },
+                    {
+                      label: "Chart Analysis",
+                      values: {
+                        daily: c.aiChartAnalysisDailyLimitOverride,
+                        weekly: c.aiChartAnalysisWeeklyLimitOverride,
+                        monthly: c.aiChartAnalysisMonthlyLimitOverride,
+                      },
+                      keys: {
+                        daily: "chartDaily" as const,
+                        weekly: "chartWeekly" as const,
+                        monthly: "chartMonthly" as const,
+                      },
+                    },
+                  ] as const
+                ).map((row) => (
+                  <tr key={row.label}>
+                    <td className="py-1 pr-2 font-medium text-zinc-800 dark:text-zinc-200">{row.label}</td>
+                    {(["daily", "weekly", "monthly"] as const).map((window) => (
+                      <td key={window} className="py-1 pr-1">
+                        <input
+                          type="number"
+                          min={0}
+                          max={1000}
+                          defaultValue={row.values[window] ?? ""}
+                          placeholder="—"
+                          disabled={!!busy.savingAiAgentLimits}
+                          className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-1 bg-white dark:bg-zinc-800 w-14"
+                          onBlur={(e) => {
+                            const raw = e.target.value.trim();
+                            const next = raw === "" ? null : Math.max(0, Math.min(1000, Math.round(Number(raw))));
+                            const current = row.values[window] ?? null;
+                            if (next !== current && (raw === "" || Number.isFinite(next))) {
+                              onAiAgentLimitsSave({ [row.keys[window]]: next });
+                            }
+                          }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </DetailSection>
       )}
 

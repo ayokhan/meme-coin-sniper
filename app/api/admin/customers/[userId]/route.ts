@@ -39,7 +39,11 @@ export async function PATCH(
     const liveChatAgentAdmin = body.liveChatAgentAdmin;
     const supportStaffName = body.supportStaffName;
     const aiAgentDailyLimitOverride = body.aiAgentDailyLimitOverride;
+    const aiAgentWeeklyLimitOverride = body.aiAgentWeeklyLimitOverride;
+    const aiAgentMonthlyLimitOverride = body.aiAgentMonthlyLimitOverride;
     const aiChartAnalysisDailyLimitOverride = body.aiChartAnalysisDailyLimitOverride;
+    const aiChartAnalysisWeeklyLimitOverride = body.aiChartAnalysisWeeklyLimitOverride;
+    const aiChartAnalysisMonthlyLimitOverride = body.aiChartAnalysisMonthlyLimitOverride;
     const rulesAccepted = body.rulesAccepted;
     const updates: {
       tradingBotOnDemand?: boolean;
@@ -60,7 +64,11 @@ export async function PATCH(
       liveChatAgentAdmin?: boolean;
       supportStaffName?: string | null;
       aiAgentDailyLimitOverride?: number | null;
+      aiAgentWeeklyLimitOverride?: number | null;
+      aiAgentMonthlyLimitOverride?: number | null;
       aiChartAnalysisDailyLimitOverride?: number | null;
+      aiChartAnalysisWeeklyLimitOverride?: number | null;
+      aiChartAnalysisMonthlyLimitOverride?: number | null;
       novaConnectRulesAcceptedAt?: Date | null;
     } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
@@ -90,25 +98,26 @@ export async function PATCH(
         updates.supportStaffName = trimmed.length > 0 ? trimmed : null;
       }
     }
-    if (aiAgentDailyLimitOverride !== undefined) {
-      if (aiAgentDailyLimitOverride === null) updates.aiAgentDailyLimitOverride = null;
-      else if (typeof aiAgentDailyLimitOverride === 'number' && Number.isFinite(aiAgentDailyLimitOverride)) {
-        updates.aiAgentDailyLimitOverride = Math.max(0, Math.min(1000, Math.round(aiAgentDailyLimitOverride)));
+    const applyQuotaOverride = (key: keyof typeof updates, val: unknown) => {
+      if (val === undefined) return;
+      if (val === null) (updates as Record<string, number | null>)[key] = null;
+      else if (typeof val === 'number' && Number.isFinite(val)) {
+        (updates as Record<string, number | null>)[key] = Math.max(0, Math.min(1000, Math.round(val)));
       }
-    }
-    if (aiChartAnalysisDailyLimitOverride !== undefined) {
-      if (aiChartAnalysisDailyLimitOverride === null) updates.aiChartAnalysisDailyLimitOverride = null;
-      else if (typeof aiChartAnalysisDailyLimitOverride === 'number' && Number.isFinite(aiChartAnalysisDailyLimitOverride)) {
-        updates.aiChartAnalysisDailyLimitOverride = Math.max(0, Math.min(1000, Math.round(aiChartAnalysisDailyLimitOverride)));
-      }
-    }
+    };
+    applyQuotaOverride('aiAgentDailyLimitOverride', aiAgentDailyLimitOverride);
+    applyQuotaOverride('aiAgentWeeklyLimitOverride', aiAgentWeeklyLimitOverride);
+    applyQuotaOverride('aiAgentMonthlyLimitOverride', aiAgentMonthlyLimitOverride);
+    applyQuotaOverride('aiChartAnalysisDailyLimitOverride', aiChartAnalysisDailyLimitOverride);
+    applyQuotaOverride('aiChartAnalysisWeeklyLimitOverride', aiChartAnalysisWeeklyLimitOverride);
+    applyQuotaOverride('aiChartAnalysisMonthlyLimitOverride', aiChartAnalysisMonthlyLimitOverride);
     if (typeof rulesAccepted === 'boolean') {
       updates.novaConnectRulesAcceptedAt = rulesAccepted ? new Date() : null;
     }
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, customersViewerAdmin, supportViewerAdmin, liveChatAgentAdmin, supportStaffName, aiAgentDailyLimitOverride, aiChartAnalysisDailyLimitOverride, rulesAccepted (boolean).',
+        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, customersViewerAdmin, supportViewerAdmin, liveChatAgentAdmin, supportStaffName, aiAgentDailyLimitOverride, aiAgentWeeklyLimitOverride, aiAgentMonthlyLimitOverride, aiChartAnalysisDailyLimitOverride, aiChartAnalysisWeeklyLimitOverride, aiChartAnalysisMonthlyLimitOverride, rulesAccepted (boolean).',
       }, { status: 400 });
     }
     await (prisma as any).user.update({

@@ -143,29 +143,86 @@ export async function setGlobalAiAgentQuotas(input: {
   });
 }
 
-async function getUserDailyLimitOverride(
-  userId: string,
-  feature: AiAgentFeature
-): Promise<number | null> {
+
+export type UserQuotaOverrides = {
+  memeDaily?: number;
+  memeWeekly?: number;
+  memeMonthly?: number;
+  chartDaily?: number;
+  chartWeekly?: number;
+  chartMonthly?: number;
+};
+
+type UserQuotaRow = {
+  aiAgentDailyLimitOverride?: number | null;
+  aiAgentWeeklyLimitOverride?: number | null;
+  aiAgentMonthlyLimitOverride?: number | null;
+  aiChartAnalysisDailyLimitOverride?: number | null;
+  aiChartAnalysisWeeklyLimitOverride?: number | null;
+  aiChartAnalysisMonthlyLimitOverride?: number | null;
+};
+
+function readOverrideField(val: number | null | undefined): number | undefined {
+  if (typeof val === "number" && Number.isFinite(val)) return clampLimit(val);
+  return undefined;
+}
+
+export async function getUserQuotaOverrides(userId: string): Promise<UserQuotaOverrides> {
   const user = (await prisma.user.findUnique({
     where: { id: userId },
-  })) as {
-    aiAgentDailyLimitOverride?: number | null;
-    aiChartAnalysisDailyLimitOverride?: number | null;
-  } | null;
-  if (!user) return null;
-  const val =
+  })) as UserQuotaRow | null;
+  if (!user) return {};
+  return {
+    memeDaily: readOverrideField(user.aiAgentDailyLimitOverride),
+    memeWeekly: readOverrideField(user.aiAgentWeeklyLimitOverride),
+    memeMonthly: readOverrideField(user.aiAgentMonthlyLimitOverride),
+    chartDaily: readOverrideField(user.aiChartAnalysisDailyLimitOverride),
+    chartWeekly: readOverrideField(user.aiChartAnalysisWeeklyLimitOverride),
+    chartMonthly: readOverrideField(user.aiChartAnalysisMonthlyLimitOverride),
+  };
+}
+
+function getUserOverride(
+  overrides: UserQuotaOverrides | null,
+  feature: AiAgentFeature,
+  window: QuotaWindow
+): number | undefined {
+  if (!overrides) return undefined;
+  const key =
     feature === "meme_agent"
-      ? user.aiAgentDailyLimitOverride
-      : user.aiChartAnalysisDailyLimitOverride;
-  return typeof val === "number" && Number.isFinite(val) ? clampLimit(val) : null;
+      ? window === "daily"
+        ? "memeDaily"
+        : window === "weekly"
+          ? "memeWeekly"
+          : "memeMonthly"
+      : window === "daily"
+        ? "chartDaily"
+        : window === "weekly"
+          ? "chartWeekly"
+          : "chartMonthly";
+  return overrides[key as keyof UserQuotaOverrides];
+}
+
+export function resolveLimit(
+  global: GlobalAiAgentQuotas,
+  overrides: UserQuotaOverrides | null,
+  feature: AiAgentFeature,
+  window: QuotaWindow
+): number | null {
+  const userOverride = getUserOverride(overrides, feature, window);
+  if (userOverride !== undefined) return userOverride;
+  if (window === "daily") {
+    return feature === "meme_agent" ? global.memeAgentFreeDailyLimit : global.chartAnalysisFreeDailyLimit;
+  }
+  return resolveWindowLimit(global, feature, window);
 }
 
 export async function resolveDailyLimit(userId: string, feature: AiAgentFeature): Promise<number> {
-  const override = await getUserDailyLimitOverride(userId, feature);
-  if (override != null) return override;
-  const global = await getGlobalAiAgentQuotas();
-  return feature === "meme_agent" ? global.memeAgentFreeDailyLimit : global.chartAnalysisFreeDailyLimit;
+  const [global, overrides] = await Promise.all([
+    getGlobalAiAgentQuotas(),
+    getUserQuotaOverrides(userId),
+  ]);
+  return resolveLimit(global, overrides, feature, "daily")!;
 }
 
 function resolveWindowLimit(
@@ -270,12 +327,12 @@ export async function getAiAgentUsageForUser(
 
   const build = async (feature: AiAgentFeature, enabled: boolean): Promise<AiAgentUsageSnapshot> => {
     const label = FEATURE_LABEL[feature];
-    const weeklyLimit = resolveWindowLimit(global, feature, "weekly");
-    const monthlyLimit = resolveWindowLimit(global, feature, "monthly");
+    const overrides = userId ? await getUserQuotaOverrides(userId) : null;
+    const dailyLimit = resolveLimit(global, overrides, feature, "daily")!;
+    const weeklyLimit = resolveLimit(global, overrides, feature, "weekly");
+    const monthlyLimit = resolveLimit(global, overrides, feature, "monthly");
 
     if (!userId) {
-      const dailyLimit =
-        feature === "meme_agent" ? global.memeAgentFreeDailyLimit : global.chartAnalysisFreeDailyLimit;
       const daily = buildWindowSnapshot(0, dailyLimit);
       const weekly = buildWindowSnapshot(0, weeklyLimit);
       const monthly = buildWindowSnapshot(0, monthlyLimit);
@@ -295,7 +352,6 @@ export async function getAiAgentUsageForUser(
       };
     }
 
-    const dailyLimit = await resolveDailyLimit(userId, feature);
     const [dailyUsed, weeklyUsed, monthlyUsed] = await Promise.all([
       getUsageCount(userId, feature, "daily"),
       getUsageCount(userId, feature, "weekly"),
@@ -377,12 +433,13 @@ export async function assertAiAgentAccess(
     return { ok: true, unlimited: true };
   }
 
-  const [global, dailyLimit] = await Promise.all([
+  const [global, overrides] = await Promise.all([
     getGlobalAiAgentQuotas(),
-    resolveDailyLimit(userId, feature),
+    getUserQuotaOverrides(userId),
   ]);
-  const weeklyLimit = resolveWindowLimit(global, feature, "weekly");
-  const monthlyLimit = resolveWindowLimit(global, feature, "monthly");
+  const dailyLimit = resolveLimit(global, overrides, feature, "daily")!;
+  const weeklyLimit = resolveLimit(global, overrides, feature, "weekly");
+  const monthlyLimit = resolveLimit(global, overrides, feature, "monthly");
 
   const [dailyUsed, weeklyUsed, monthlyUsed] = await Promise.all([
     getUsageCount(userId, feature, "daily"),
