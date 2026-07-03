@@ -4432,11 +4432,17 @@ export default function Dashboard() {
                     <p className="text-cyan-800/80 dark:text-cyan-200/80 mt-0.5">
                       Explore the form below, then sign in to analyze. Free accounts get 2 uses per day for Meme Agent and Chart Analysis.
                     </p>
-                    <div className="mt-2 flex flex-wrap gap-3">
-                      <Link href="/register" className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:underline">
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Link
+                        href="/register"
+                        className="inline-flex items-center rounded-md bg-white text-slate-900 px-3.5 py-1.5 text-xs font-semibold shadow-sm hover:bg-slate-100 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 transition-colors"
+                      >
                         Register free
                       </Link>
-                      <Link href="/signin" className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:underline">
+                      <Link
+                        href="/signin"
+                        className="inline-flex items-center rounded-md border border-slate-300/90 dark:border-slate-400/60 bg-white/10 dark:bg-white/5 text-slate-800 dark:text-slate-100 px-3.5 py-1.5 text-xs font-semibold hover:bg-white/20 dark:hover:bg-white/10 transition-colors"
+                      >
                         Sign in
                       </Link>
                     </div>
