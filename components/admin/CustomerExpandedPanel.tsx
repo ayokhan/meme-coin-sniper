@@ -57,6 +57,7 @@ export type AdminCustomerRecord = {
   subscriptionAutoRenew?: boolean;
   subscriptionCancelAtPeriodEnd?: boolean;
   hasStripeSubscription?: boolean;
+  stripeSubscriptionActive?: boolean;
   payments: AdminCustomerPayment[];
 };
 
@@ -501,18 +502,25 @@ export default function CustomerExpandedPanel({
             Active VIP until {new Date(c.subscriptionExpiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
           </p>
         )}
-        {c.isActive && (
-          <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">
-            Card auto-renew:{" "}
-            {c.hasStripeSubscription
-              ? c.subscriptionCancelAtPeriodEnd
-                ? "Off (cancelled at period end)"
-                : c.subscriptionAutoRenew
-                  ? "On"
-                  : "Card on file (not renewing)"
-              : "No — admin grant, USDC, or one-time card only"}
+        {!c.isActive && c.subscriptionExpiresAt && (
+          <p className="text-xs text-amber-700 dark:text-amber-300 mb-2">
+            VIP expired {new Date(c.subscriptionExpiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
           </p>
         )}
+        <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">
+          Card auto-renew:{" "}
+          {!c.hasStripeSubscription ? (
+            "No — admin grant, USDC, or one-time card only"
+          ) : !c.stripeSubscriptionActive ? (
+            "Had Stripe subscription (expired or cancelled in app)"
+          ) : c.subscriptionCancelAtPeriodEnd ? (
+            "Off (cancelled at period end)"
+          ) : c.subscriptionAutoRenew ? (
+            "On"
+          ) : (
+            "Card on file (not renewing)"
+          )}
+        </p>
         <p className="text-[11px] text-muted-foreground mb-2">
           Admin VIP grants do not turn on card auto-renew. Customers enable that at checkout on the subscribe page.
         </p>

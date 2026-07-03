@@ -40,6 +40,9 @@ export async function GET() {
       const subs = [...rawSubs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const activeSub = subs.find((s) => new Date(s.expiresAt) > now);
       const latestSub = subs[0];
+      const stripeSub = activeSub?.stripeSubscriptionId
+        ? activeSub
+        : subs.find((s) => s.stripeSubscriptionId) ?? null;
       const subTier = activeSub?.tier ?? latestSub?.tier ?? null;
       const subPlan = activeSub ? activeSub.plan : latestSub?.plan ?? null;
       const payments = subs.map((s) => ({
@@ -47,7 +50,11 @@ export async function GET() {
         amountUsd: s.amountUsd,
         tier: s.tier ?? null,
         plan: s.plan,
-        method: s.stripeSessionId ? "card" as const : s.txSignature ? "usdc" as const : "other" as const,
+        method: s.stripeSessionId || s.stripeSubscriptionId
+          ? ("card" as const)
+          : s.txSignature
+            ? ("usdc" as const)
+            : ("other" as const),
       }));
       const row = {
         id: u.id,
@@ -86,9 +93,10 @@ export async function GET() {
         subscriptionPlan: subPlan,
         subscriptionExpiresAt: activeSub ? activeSub.expiresAt : latestSub?.expiresAt ?? null,
         isActive: !!activeSub,
-        subscriptionAutoRenew: !!(activeSub?.autoRenew),
-        subscriptionCancelAtPeriodEnd: !!(activeSub?.cancelAtPeriodEnd),
-        hasStripeSubscription: !!(activeSub?.stripeSubscriptionId),
+        subscriptionAutoRenew: !!(activeSub?.autoRenew ?? stripeSub?.autoRenew),
+        subscriptionCancelAtPeriodEnd: !!(activeSub?.cancelAtPeriodEnd ?? stripeSub?.cancelAtPeriodEnd),
+        hasStripeSubscription: !!(activeSub?.stripeSubscriptionId ?? stripeSub?.stripeSubscriptionId),
+        stripeSubscriptionActive: !!activeSub?.stripeSubscriptionId,
         payments,
       };
       if (readOnly) {

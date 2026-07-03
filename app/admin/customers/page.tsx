@@ -55,6 +55,10 @@ type Customer = {
   subscriptionPlan: string | null;
   subscriptionExpiresAt: string | null;
   isActive: boolean;
+  subscriptionAutoRenew?: boolean;
+  subscriptionCancelAtPeriodEnd?: boolean;
+  hasStripeSubscription?: boolean;
+  stripeSubscriptionActive?: boolean;
   payments: Payment[];
 };
 
