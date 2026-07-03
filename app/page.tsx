@@ -576,11 +576,21 @@ export default function Dashboard() {
   const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
   type AiAgentSubTab = "meme" | "chart";
   const [aiAgentSubTab, setAiAgentSubTab] = useState<AiAgentSubTab>("meme");
+  type QuotaWindowSnapshot = {
+    used: number;
+    limit: number | null;
+    remaining: number | null;
+  };
   type AiAgentUsageSnapshot = {
     feature: string;
     label: string;
     enabled: boolean;
     unlimited: boolean;
+    daily: QuotaWindowSnapshot;
+    weekly: QuotaWindowSnapshot;
+    monthly: QuotaWindowSnapshot;
+    blockingWindow: "daily" | "weekly" | "monthly" | null;
+    canUse: boolean;
     used: number;
     limit: number;
     remaining: number;
@@ -4349,12 +4359,25 @@ export default function Dashboard() {
                   }
                   const featureLabel =
                     aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana + BSC)" : "Chart Analysis";
-                  if (snap.remaining === 0) {
+                  const windowLabel = (w: "daily" | "weekly" | "monthly") =>
+                    w === "daily" ? "Daily" : w === "weekly" ? "Weekly" : "Monthly";
+                  const resetHint = (w: "daily" | "weekly" | "monthly") =>
+                    w === "daily"
+                      ? "resets at midnight UTC"
+                      : w === "weekly"
+                        ? "resets Monday UTC"
+                        : "resets on the 1st UTC";
+                  const blocked = snap.blockingWindow;
+                  if (!snap.canUse && blocked) {
+                    const blockedSnap =
+                      blocked === "weekly" ? snap.weekly : blocked === "monthly" ? snap.monthly : snap.daily;
+                    const blockedLimit = blockedSnap.limit ?? snap.limit;
                     return (
                       <div className="mb-4 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 text-sm">
-                        <p className="font-semibold text-amber-900 dark:text-amber-100">Daily limit reached</p>
+                        <p className="font-semibold text-amber-900 dark:text-amber-100">{windowLabel(blocked)} limit reached</p>
                         <p className="mt-1 text-amber-800/90 dark:text-amber-200/90">
-                          You&apos;ve used all {snap.limit} free {featureLabel} uses for today (resets at midnight).{" "}
+                          You&apos;ve used all {blockedLimit} free {featureLabel} uses for this{" "}
+                          {blocked === "daily" ? "day" : blocked === "weekly" ? "week" : "month"} ({resetHint(blocked)}).{" "}
                           <Link href="/subscribe" className="font-medium text-cyan-700 dark:text-cyan-300 hover:underline">
                             Upgrade to VIP
                           </Link>{" "}
@@ -4363,17 +4386,26 @@ export default function Dashboard() {
                       </div>
                     );
                   }
+                  const usageParts: string[] = [
+                    `${snap.daily.used} of ${snap.daily.limit} today (${snap.daily.remaining ?? 0} remaining)`,
+                  ];
+                  if (snap.weekly.limit != null) {
+                    usageParts.push(`${snap.weekly.used} of ${snap.weekly.limit} this week (${snap.weekly.remaining ?? 0} left)`);
+                  }
+                  if (snap.monthly.limit != null) {
+                    usageParts.push(`${snap.monthly.used} of ${snap.monthly.limit} this month (${snap.monthly.remaining ?? 0} left)`);
+                  }
                   if (aiAgentSubTab === "chart") {
                     return (
                       <p className="mb-4 text-sm text-muted-foreground">
-                        Free plan: {snap.used} of {snap.limit} Chart Analysis uses today ({snap.remaining} remaining).{" "}
+                        Free plan: {usageParts.join(" · ")}.{" "}
                         <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">Upgrade to VIP</Link> for unlimited.
                       </p>
                     );
                   }
                   return (
                     <p className="mb-4 text-sm text-muted-foreground">
-                      Free plan: {snap.used} of {snap.limit} Meme Coins Agent uses today ({snap.remaining} remaining) — Solana and BSC share the same daily limit.{" "}
+                      Free plan: {usageParts.join(" · ")} — Solana and BSC share the same limits.{" "}
                       <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">Upgrade to VIP</Link> for unlimited.
                     </p>
                   );
@@ -4471,7 +4503,7 @@ export default function Dashboard() {
                     onClick={runAiAnalysis}
                     disabled={
                       aiAnalysisLoading ||
-                      (!aiAgentUsage?.memeAgent?.unlimited && (aiAgentUsage?.memeAgent?.remaining ?? 1) === 0)
+                      (!aiAgentUsage?.memeAgent?.unlimited && !aiAgentUsage?.memeAgent?.canUse)
                     }
                     className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700"
                   >
@@ -4481,7 +4513,7 @@ export default function Dashboard() {
                 {status === "authenticated" && (
                   <AiAgentMonitorPanel
                     enabled={status === "authenticated"}
-                    quotaExhausted={!aiAgentUsage?.memeAgent?.unlimited && (aiAgentUsage?.memeAgent?.remaining ?? 1) === 0}
+                    quotaExhausted={!aiAgentUsage?.memeAgent?.unlimited && !aiAgentUsage?.memeAgent?.canUse}
                     onUsageRecorded={fetchAiAgentUsage}
                     syncChain={aiAnalysisChain}
                     syncContract={aiAnalysisCa}
@@ -4798,7 +4830,7 @@ export default function Dashboard() {
                     onRiskAmountChange={setFuturesRiskAmount}
                     onAnalyze={runFuturesAnalysis}
                     loading={futuresAnalysisLoading}
-                    analyzeDisabled={!aiAgentUsage?.chartAnalysis?.unlimited && (aiAgentUsage?.chartAnalysis?.remaining ?? 1) === 0}
+                    analyzeDisabled={!aiAgentUsage?.chartAnalysis?.unlimited && !aiAgentUsage?.chartAnalysis?.canUse}
                     error={futuresAnalysisError}
                     result={futuresAnalysisResult}
                     isOwner={isOwner}

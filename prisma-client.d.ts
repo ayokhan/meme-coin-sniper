@@ -228,12 +228,31 @@ declare module '@prisma/client' {
       findUnique: (args: { where: { id: string } }) => Promise<{
         id: string;
         memeAgentFreeDailyLimit: number;
+        memeAgentFreeWeeklyLimit: number | null;
+        memeAgentFreeMonthlyLimit: number | null;
         chartAnalysisFreeDailyLimit: number;
+        chartAnalysisFreeWeeklyLimit: number | null;
+        chartAnalysisFreeMonthlyLimit: number | null;
       } | null>;
       upsert: (args: {
         where: { id: string };
-        create: { id: string; memeAgentFreeDailyLimit: number; chartAnalysisFreeDailyLimit: number };
-        update: { memeAgentFreeDailyLimit: number; chartAnalysisFreeDailyLimit: number };
+        create: {
+          id: string;
+          memeAgentFreeDailyLimit: number;
+          memeAgentFreeWeeklyLimit?: number | null;
+          memeAgentFreeMonthlyLimit?: number | null;
+          chartAnalysisFreeDailyLimit: number;
+          chartAnalysisFreeWeeklyLimit?: number | null;
+          chartAnalysisFreeMonthlyLimit?: number | null;
+        };
+        update: {
+          memeAgentFreeDailyLimit?: number;
+          memeAgentFreeWeeklyLimit?: number | null;
+          memeAgentFreeMonthlyLimit?: number | null;
+          chartAnalysisFreeDailyLimit?: number;
+          chartAnalysisFreeWeeklyLimit?: number | null;
+          chartAnalysisFreeMonthlyLimit?: number | null;
+        };
       }) => Promise<unknown>;
     };
     userMemeCoinAlert: {

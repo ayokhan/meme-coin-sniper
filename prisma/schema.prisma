@@ -200,12 +200,16 @@ model UsageAnalysisEvent {
   @@index([createdAt])
 }
 
-/** Global daily usage limits for free-tier NovaStaris AI Agent features. */
+/** Global usage limits for free-tier NovaStaris AI Agent features (daily always enforced; weekly/monthly optional). */
 model AiAgentQuotaConfig {
-  id                          String   @id @default("default")
-  memeAgentFreeDailyLimit     Int      @default(2)
-  chartAnalysisFreeDailyLimit Int      @default(2)
-  updatedAt                   DateTime @updatedAt
+  id                           String   @id @default("default")
+  memeAgentFreeDailyLimit      Int      @default(2)
+  memeAgentFreeWeeklyLimit     Int?
+  memeAgentFreeMonthlyLimit    Int?
+  chartAnalysisFreeDailyLimit  Int      @default(2)
+  chartAnalysisFreeWeeklyLimit Int?
+  chartAnalysisFreeMonthlyLimit Int?
+  updatedAt                    DateTime @updatedAt
 }
 
 // Per-user Blofin API keys (encrypted at rest). When set, trading bot uses these for that user.

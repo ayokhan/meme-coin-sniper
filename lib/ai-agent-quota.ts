@@ -4,6 +4,7 @@ import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 import { recordAiAnalysis } from "@/lib/usage";
 
 export type AiAgentFeature = "meme_agent" | "chart_analysis";
+export type QuotaWindow = "daily" | "weekly" | "monthly";
 
 const FEATURE_FLAG_BY_TYPE: Record<AiAgentFeature, string> = {
   meme_agent: FEATURE_FLAG_KEYS.NOVA_AI_AGENT_MEME,
@@ -15,40 +16,134 @@ const FEATURE_LABEL: Record<AiAgentFeature, string> = {
   chart_analysis: "NovaStaris AI Chart Analysis",
 };
 
+export type GlobalAiAgentQuotas = {
+  memeAgentFreeDailyLimit: number;
+  memeAgentFreeWeeklyLimit: number | null;
+  memeAgentFreeMonthlyLimit: number | null;
+  chartAnalysisFreeDailyLimit: number;
+  chartAnalysisFreeWeeklyLimit: number | null;
+  chartAnalysisFreeMonthlyLimit: number | null;
+};
+
+type QuotaConfigRow = {
+  memeAgentFreeDailyLimit?: number;
+  memeAgentFreeWeeklyLimit?: number | null;
+  memeAgentFreeMonthlyLimit?: number | null;
+  chartAnalysisFreeDailyLimit?: number;
+  chartAnalysisFreeWeeklyLimit?: number | null;
+  chartAnalysisFreeMonthlyLimit?: number | null;
+};
+
+function clampLimit(n: number): number {
+  return Math.max(0, Math.min(1000, Math.round(n)));
+}
+
+function normalizeOptionalLimit(val: unknown): number | null {
+  if (val === null || val === undefined || val === "") return null;
+  const n = Number(val);
+  if (!Number.isFinite(n)) return null;
+  return clampLimit(n);
+}
+
 function getDayBounds(date: Date = new Date()): { start: Date; end: Date } {
   const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
+  start.setUTCHours(0, 0, 0, 0);
   const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+  end.setUTCDate(end.getUTCDate() + 1);
   return { start, end };
 }
 
-export async function getGlobalAiAgentQuotas(): Promise<{
-  memeAgentFreeDailyLimit: number;
-  chartAnalysisFreeDailyLimit: number;
-}> {
-  const row = await prisma.aiAgentQuotaConfig.findUnique({ where: { id: "default" } });
+/** Week starts Monday 00:00 UTC (aligned with server daily reset). */
+function getWeekBounds(date: Date = new Date()): { start: Date; end: Date } {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  const day = d.getUTCDay();
+  const diffToMonday = (day + 6) % 7;
+  const start = new Date(d);
+  start.setUTCDate(d.getUTCDate() - diffToMonday);
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 7);
+  return { start, end };
+}
 
+function getMonthBounds(date: Date = new Date()): { start: Date; end: Date } {
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
+  return { start, end };
+}
+
+function boundsForWindow(window: QuotaWindow, date?: Date): { start: Date; end: Date } {
+  if (window === "weekly") return getWeekBounds(date);
+  if (window === "monthly") return getMonthBounds(date);
+  return getDayBounds(date);
+}
+
+function rowToGlobalQuotas(row: QuotaConfigRow | null): GlobalAiAgentQuotas {
   return {
     memeAgentFreeDailyLimit: row?.memeAgentFreeDailyLimit ?? 2,
+    memeAgentFreeWeeklyLimit: row?.memeAgentFreeWeeklyLimit ?? null,
+    memeAgentFreeMonthlyLimit: row?.memeAgentFreeMonthlyLimit ?? null,
     chartAnalysisFreeDailyLimit: row?.chartAnalysisFreeDailyLimit ?? 2,
+    chartAnalysisFreeWeeklyLimit: row?.chartAnalysisFreeWeeklyLimit ?? null,
+    chartAnalysisFreeMonthlyLimit: row?.chartAnalysisFreeMonthlyLimit ?? null,
   };
+}
+
+export async function getGlobalAiAgentQuotas(): Promise<GlobalAiAgentQuotas> {
+  const row = await prisma.aiAgentQuotaConfig.findUnique({ where: { id: "default" } });
+  return rowToGlobalQuotas(row as QuotaConfigRow | null);
 }
 
 export async function setGlobalAiAgentQuotas(input: {
   memeAgentFreeDailyLimit: number;
+  memeAgentFreeWeeklyLimit?: number | null;
+  memeAgentFreeMonthlyLimit?: number | null;
   chartAnalysisFreeDailyLimit: number;
+  chartAnalysisFreeWeeklyLimit?: number | null;
+  chartAnalysisFreeMonthlyLimit?: number | null;
 }): Promise<void> {
-  const meme = Math.max(0, Math.min(1000, Math.round(input.memeAgentFreeDailyLimit)));
-  const chart = Math.max(0, Math.min(1000, Math.round(input.chartAnalysisFreeDailyLimit)));
+  const memeDaily = clampLimit(input.memeAgentFreeDailyLimit);
+  const chartDaily = clampLimit(input.chartAnalysisFreeDailyLimit);
+  const memeWeekly =
+    input.memeAgentFreeWeeklyLimit === undefined
+      ? undefined
+      : normalizeOptionalLimit(input.memeAgentFreeWeeklyLimit);
+  const memeMonthly =
+    input.memeAgentFreeMonthlyLimit === undefined
+      ? undefined
+      : normalizeOptionalLimit(input.memeAgentFreeMonthlyLimit);
+  const chartWeekly =
+    input.chartAnalysisFreeWeeklyLimit === undefined
+      ? undefined
+      : normalizeOptionalLimit(input.chartAnalysisFreeWeeklyLimit);
+  const chartMonthly =
+    input.chartAnalysisFreeMonthlyLimit === undefined
+      ? undefined
+      : normalizeOptionalLimit(input.chartAnalysisFreeMonthlyLimit);
+
   await prisma.aiAgentQuotaConfig.upsert({
     where: { id: "default" },
-    create: { id: "default", memeAgentFreeDailyLimit: meme, chartAnalysisFreeDailyLimit: chart },
-    update: { memeAgentFreeDailyLimit: meme, chartAnalysisFreeDailyLimit: chart },
+    create: {
+      id: "default",
+      memeAgentFreeDailyLimit: memeDaily,
+      memeAgentFreeWeeklyLimit: memeWeekly ?? null,
+      memeAgentFreeMonthlyLimit: memeMonthly ?? null,
+      chartAnalysisFreeDailyLimit: chartDaily,
+      chartAnalysisFreeWeeklyLimit: chartWeekly ?? null,
+      chartAnalysisFreeMonthlyLimit: chartMonthly ?? null,
+    },
+    update: {
+      memeAgentFreeDailyLimit: memeDaily,
+      chartAnalysisFreeDailyLimit: chartDaily,
+      ...(memeWeekly !== undefined ? { memeAgentFreeWeeklyLimit: memeWeekly } : {}),
+      ...(memeMonthly !== undefined ? { memeAgentFreeMonthlyLimit: memeMonthly } : {}),
+      ...(chartWeekly !== undefined ? { chartAnalysisFreeWeeklyLimit: chartWeekly } : {}),
+      ...(chartMonthly !== undefined ? { chartAnalysisFreeMonthlyLimit: chartMonthly } : {}),
+    },
   });
 }
 
-async function getUserLimitOverride(
+async function getUserDailyLimitOverride(
   userId: string,
   feature: AiAgentFeature
 ): Promise<number | null> {
@@ -63,18 +158,34 @@ async function getUserLimitOverride(
     feature === "meme_agent"
       ? user.aiAgentDailyLimitOverride
       : user.aiChartAnalysisDailyLimitOverride;
-  return typeof val === "number" && Number.isFinite(val) ? Math.max(0, Math.round(val)) : null;
+  return typeof val === "number" && Number.isFinite(val) ? clampLimit(val) : null;
 }
 
 export async function resolveDailyLimit(userId: string, feature: AiAgentFeature): Promise<number> {
-  const override = await getUserLimitOverride(userId, feature);
+  const override = await getUserDailyLimitOverride(userId, feature);
   if (override != null) return override;
   const global = await getGlobalAiAgentQuotas();
   return feature === "meme_agent" ? global.memeAgentFreeDailyLimit : global.chartAnalysisFreeDailyLimit;
 }
 
-export async function getDailyUsageCount(userId: string, feature: AiAgentFeature): Promise<number> {
-  const { start, end } = getDayBounds();
+function resolveWindowLimit(
+  global: GlobalAiAgentQuotas,
+  feature: AiAgentFeature,
+  window: QuotaWindow
+): number | null {
+  if (window === "daily") return null;
+  if (feature === "meme_agent") {
+    return window === "weekly" ? global.memeAgentFreeWeeklyLimit : global.memeAgentFreeMonthlyLimit;
+  }
+  return window === "weekly" ? global.chartAnalysisFreeWeeklyLimit : global.chartAnalysisFreeMonthlyLimit;
+}
+
+export async function getUsageCount(
+  userId: string,
+  feature: AiAgentFeature,
+  window: QuotaWindow
+): Promise<number> {
+  const { start, end } = boundsForWindow(window);
   return prisma.usageAnalysisEvent.count({
     where: {
       userId,
@@ -84,15 +195,62 @@ export async function getDailyUsageCount(userId: string, feature: AiAgentFeature
   });
 }
 
+export type QuotaWindowSnapshot = {
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+};
+
+function buildWindowSnapshot(used: number, limit: number | null): QuotaWindowSnapshot {
+  if (limit == null) return { used, limit: null, remaining: null };
+  return { used, limit, remaining: Math.max(0, limit - used) };
+}
+
 export type AiAgentUsageSnapshot = {
   feature: AiAgentFeature;
   label: string;
   enabled: boolean;
   unlimited: boolean;
+  daily: QuotaWindowSnapshot;
+  weekly: QuotaWindowSnapshot;
+  monthly: QuotaWindowSnapshot;
+  /** Longest window that currently blocks access (monthly → weekly → daily). */
+  blockingWindow: QuotaWindow | null;
+  canUse: boolean;
+  /** Daily fields kept for backward compatibility. */
   used: number;
   limit: number;
   remaining: number;
 };
+
+type WindowCheck = {
+  window: QuotaWindow;
+  used: number;
+  limit: number;
+};
+
+function findBlockingWindow(checks: WindowCheck[]): QuotaWindow | null {
+  const order: QuotaWindow[] = ["monthly", "weekly", "daily"];
+  for (const w of order) {
+    const c = checks.find((x) => x.window === w);
+    if (c && c.used >= c.limit) return w;
+  }
+  return null;
+}
+
+function limitReachedMessage(feature: AiAgentFeature, window: QuotaWindow, limit: number): string {
+  const label = FEATURE_LABEL[feature];
+  const upgrade = "Upgrade to VIP for unlimited access.";
+  if (window === "monthly") {
+    return `Monthly limit reached (${limit} free ${label} uses this month on the free plan — resets on the 1st). ${upgrade}`;
+  }
+  if (window === "weekly") {
+    return `Weekly limit reached (${limit} free ${label} uses this week on the free plan — resets Monday UTC). ${upgrade}`;
+  }
+  const extra =
+    feature === "meme_agent" ? " — Solana and BSC combined" : "";
+  return `Daily limit reached (${limit} free ${label} uses today on the free plan${extra} — resets at midnight UTC). ${upgrade}`;
+}
 
 export async function getAiAgentUsageForUser(
   session: { user?: { id?: string; isOwner?: boolean } } | null,
@@ -112,22 +270,62 @@ export async function getAiAgentUsageForUser(
 
   const build = async (feature: AiAgentFeature, enabled: boolean): Promise<AiAgentUsageSnapshot> => {
     const label = FEATURE_LABEL[feature];
+    const weeklyLimit = resolveWindowLimit(global, feature, "weekly");
+    const monthlyLimit = resolveWindowLimit(global, feature, "monthly");
+
     if (!userId) {
-      const limit =
+      const dailyLimit =
         feature === "meme_agent" ? global.memeAgentFreeDailyLimit : global.chartAnalysisFreeDailyLimit;
-      return { feature, label, enabled, unlimited: false, used: 0, limit, remaining: limit };
+      const daily = buildWindowSnapshot(0, dailyLimit);
+      const weekly = buildWindowSnapshot(0, weeklyLimit);
+      const monthly = buildWindowSnapshot(0, monthlyLimit);
+      return {
+        feature,
+        label,
+        enabled,
+        unlimited: false,
+        daily,
+        weekly,
+        monthly,
+        blockingWindow: null,
+        canUse: true,
+        used: 0,
+        limit: dailyLimit,
+        remaining: dailyLimit,
+      };
     }
-    const limit = await resolveDailyLimit(userId, feature);
-    const used = await getDailyUsageCount(userId, feature);
+
+    const dailyLimit = await resolveDailyLimit(userId, feature);
+    const [dailyUsed, weeklyUsed, monthlyUsed] = await Promise.all([
+      getUsageCount(userId, feature, "daily"),
+      getUsageCount(userId, feature, "weekly"),
+      getUsageCount(userId, feature, "monthly"),
+    ]);
+
+    const daily = buildWindowSnapshot(dailyUsed, dailyLimit);
+    const weekly = buildWindowSnapshot(weeklyUsed, weeklyLimit);
+    const monthly = buildWindowSnapshot(monthlyUsed, monthlyLimit);
+
+    const checks: WindowCheck[] = [{ window: "daily", used: dailyUsed, limit: dailyLimit }];
+    if (weeklyLimit != null) checks.push({ window: "weekly", used: weeklyUsed, limit: weeklyLimit });
+    if (monthlyLimit != null) checks.push({ window: "monthly", used: monthlyUsed, limit: monthlyLimit });
+
     const isUnlimited = unlimited;
+    const blockingWindow = isUnlimited ? null : findBlockingWindow(checks);
+
     return {
       feature,
       label,
       enabled,
       unlimited: isUnlimited,
-      used,
-      limit: isUnlimited ? -1 : limit,
-      remaining: isUnlimited ? -1 : Math.max(0, limit - used),
+      daily,
+      weekly,
+      monthly,
+      blockingWindow,
+      canUse: isUnlimited || blockingWindow == null,
+      used: dailyUsed,
+      limit: isUnlimited ? -1 : dailyLimit,
+      remaining: isUnlimited ? -1 : Math.max(0, dailyLimit - dailyUsed),
     };
   };
 
@@ -146,6 +344,7 @@ export type AiAgentAccessResult =
       error: string;
       locked?: boolean;
       limitReached?: boolean;
+      limitWindow?: QuotaWindow;
       used?: number;
       limit?: number;
     };
@@ -178,21 +377,35 @@ export async function assertAiAgentAccess(
     return { ok: true, unlimited: true };
   }
 
-  const limit = await resolveDailyLimit(userId, feature);
-  const used = await getDailyUsageCount(userId, feature);
-  if (used >= limit) {
-    const limitMsg =
-      feature === "meme_agent"
-        ? `Daily limit reached (${limit} Meme Coins Agent uses per day on the free plan — Solana and BSC combined). Upgrade to VIP for unlimited access.`
-        : `Daily limit reached (${limit} Chart Analysis uses per day on the free plan). Upgrade to VIP for unlimited Chart Analysis.`;
+  const [global, dailyLimit] = await Promise.all([
+    getGlobalAiAgentQuotas(),
+    resolveDailyLimit(userId, feature),
+  ]);
+  const weeklyLimit = resolveWindowLimit(global, feature, "weekly");
+  const monthlyLimit = resolveWindowLimit(global, feature, "monthly");
+
+  const [dailyUsed, weeklyUsed, monthlyUsed] = await Promise.all([
+    getUsageCount(userId, feature, "daily"),
+    getUsageCount(userId, feature, "weekly"),
+    getUsageCount(userId, feature, "monthly"),
+  ]);
+
+  const checks: WindowCheck[] = [{ window: "daily", used: dailyUsed, limit: dailyLimit }];
+  if (weeklyLimit != null) checks.push({ window: "weekly", used: weeklyUsed, limit: weeklyLimit });
+  if (monthlyLimit != null) checks.push({ window: "monthly", used: monthlyUsed, limit: monthlyLimit });
+
+  const blocking = findBlockingWindow(checks);
+  if (blocking) {
+    const blocked = checks.find((c) => c.window === blocking)!;
     return {
       ok: false,
       status: 429,
-      error: limitMsg,
+      error: limitReachedMessage(feature, blocking, blocked.limit),
       locked: true,
       limitReached: true,
-      used,
-      limit,
+      limitWindow: blocking,
+      used: blocked.used,
+      limit: blocked.limit,
     };
   }
 
