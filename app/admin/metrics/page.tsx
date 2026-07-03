@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays, TrendingUp } from "lucide-react";
+import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays, TrendingUp, CreditCard } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -69,6 +70,8 @@ function getDefaultDayKey(): string {
 
 export default function AdminMetricsPage() {
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
+  const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
   const [report, setReport] = useState<UsageReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -78,6 +81,11 @@ export default function AdminMetricsPage() {
   const [dayKey, setDayKey] = useState(getDefaultDayKey);
   const [funnelDays, setFunnelDays] = useState(30);
   const [funnel, setFunnel] = useState<AiAgentFunnelStats | null>(null);
+  const [billingTestLoading, setBillingTestLoading] = useState<string | null>(null);
+  const [billingTestMessage, setBillingTestMessage] = useState("");
+  const [billingTestError, setBillingTestError] = useState("");
+  const [confirmLiveCharge, setConfirmLiveCharge] = useState(false);
+  const stripeTestResult = searchParams.get("stripeTest");
   const [funnelLoading, setFunnelLoading] = useState(true);
 
   const loadFunnel = useCallback(() => {
@@ -127,6 +135,43 @@ export default function AdminMetricsPage() {
     loadFunnel();
     loadReport();
   }, [status, loadFunnel, loadReport]);
+
+  useEffect(() => {
+    if (stripeTestResult === "receipt_success") {
+      setBillingTestMessage(
+        "Receipt test checkout completed. Check your email and Stripe → Transactions → payment → Receipt history."
+      );
+    } else if (stripeTestResult === "receipt_canceled") {
+      setBillingTestError("Receipt test checkout was canceled.");
+    }
+  }, [stripeTestResult]);
+
+  const runBillingTest = async (action: "receipt_checkout" | "trial_subscription") => {
+    setBillingTestLoading(action);
+    setBillingTestError("");
+    setBillingTestMessage("");
+    try {
+      const res = await fetch("/api/admin/stripe-billing-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, confirmLiveCharge }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setBillingTestError(data.error ?? "Billing test failed.");
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setBillingTestMessage(data.message ?? "Billing test started.");
+    } catch {
+      setBillingTestError("Billing test failed.");
+    } finally {
+      setBillingTestLoading(null);
+    }
+  };
 
   if (status === "loading" || (loading && !report)) {
     return (
@@ -189,6 +234,59 @@ export default function AdminMetricsPage() {
           <Card className="border-rose-200 dark:border-rose-800 mb-6">
             <CardContent className="py-4 text-rose-700 dark:text-rose-300">
               {error}
+            </CardContent>
+          </Card>
+        )}
+
+        {isOwner && (
+          <Card className="border-cyan-200 dark:border-cyan-800 mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-cyan-500" />
+                Stripe billing tests
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Verify receipt emails and short trial subscriptions. Successful payments is ON in Stripe — use these tests to confirm delivery.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {billingTestError && (
+                <p className="text-sm text-rose-600 dark:text-rose-400">{billingTestError}</p>
+              )}
+              {billingTestMessage && (
+                <p className="text-sm text-emerald-700 dark:text-emerald-300">{billingTestMessage}</p>
+              )}
+              <label className="flex items-start gap-2.5 cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                <input
+                  type="checkbox"
+                  checked={confirmLiveCharge}
+                  onChange={(e) => setConfirmLiveCharge(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-cyan-600"
+                />
+                <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                  I understand live Stripe tests charge real money ($1 per test).
+                </span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  disabled={!confirmLiveCharge || billingTestLoading !== null}
+                  onClick={() => runBillingTest("receipt_checkout")}
+                >
+                  {billingTestLoading === "receipt_checkout" ? "Opening…" : "Test receipt email ($1 checkout)"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!confirmLiveCharge || billingTestLoading !== null}
+                  onClick={() => runBillingTest("trial_subscription")}
+                >
+                  {billingTestLoading === "trial_subscription" ? "Creating…" : "Test 5-min trial subscription"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Receipt test: pay $1, then check Stripe payment → Receipt history and your inbox. Trial test: creates a Stripe subscription with a 5-minute trial, then $1/day (auto-cancels after first paid period). For app-only VIP expiry, use Admin → Customers → <strong>5 min VIP</strong> grant.
+              </p>
             </CardContent>
           </Card>
         )}

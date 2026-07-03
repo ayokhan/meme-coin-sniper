@@ -31,6 +31,20 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return NextResponse.json({ error: "Missing user or session id." }, { status: 400 });
   }
 
+  const billingTest = (session.metadata?.billingTest ?? "").toString();
+  const customerId =
+    typeof session.customer === "string" ? session.customer : session.customer?.id ?? null;
+  if (customerId) await setStripeCustomerId(userId, customerId);
+
+  if (billingTest === "receipt") {
+    console.info("Stripe webhook: receipt billing test completed (no VIP grant)", {
+      userId,
+      sessionId: session.id,
+      customerId,
+    });
+    return NextResponse.json({ received: true, billingTest: "receipt" });
+  }
+
   const planId = (session.metadata?.planId ?? session.metadata?.plan ?? "").toString();
   const amountUsd = parseInt(session.metadata?.amountUsd ?? "0", 10) || 0;
   const autoRenew = session.metadata?.autoRenew === "true" || session.mode === "subscription";

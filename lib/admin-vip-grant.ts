@@ -1,6 +1,7 @@
 import { VIP_PLANS } from "@/lib/subscription";
 
 export const ADMIN_VIP_GRANTS = [
+  { id: "5min", label: "5 min", minutes: 5 },
   { id: "1day", label: "1 day", days: 1 },
   { id: "1week", label: "1 week", days: 7 },
   { id: "1month", label: "1 month", months: 1, planId: "1month" as const },
@@ -19,6 +20,10 @@ export function addAdminVipGrantDuration(base: Date, grantId: AdminVipGrantId): 
   const grant = ADMIN_VIP_GRANTS.find((g) => g.id === grantId);
   if (!grant) throw new Error("Invalid grant");
   const result = new Date(base);
+  if ("minutes" in grant && grant.minutes) {
+    result.setMinutes(result.getMinutes() + grant.minutes);
+    return result;
+  }
   if ("days" in grant && grant.days) {
     result.setDate(result.getDate() + grant.days);
     return result;

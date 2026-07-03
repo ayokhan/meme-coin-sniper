@@ -92,7 +92,9 @@ export async function POST(request: Request) {
         })
       : await stripe.checkout.sessions.create({
           mode: "payment",
-          customer_email: session.user.email,
+          customer: existingCustomerId ?? undefined,
+          customer_creation: existingCustomerId ? undefined : "always",
+          customer_email: existingCustomerId ? undefined : session.user.email,
           client_reference_id: session.user.id,
           metadata: sharedMetadata,
           invoice_creation: { enabled: true },
