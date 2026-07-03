@@ -24,9 +24,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   }, [session, delegatedOnly, delegatedHrefs, pathname, router]);
 
   const grouped = adminNavByGroup();
+  const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
   const visibleItems = delegatedOnly
     ? ADMIN_NAV_ITEMS.filter((item) => delegatedHrefs!.includes(item.href))
-    : ADMIN_NAV_ITEMS;
+    : ADMIN_NAV_ITEMS.filter((item) => !item.ownerOnly || isOwner);
   const visibleGroups = delegatedOnly
     ? ADMIN_NAV_GROUPS.filter((g) => visibleItems.some((item) => item.group === g.id))
     : ADMIN_NAV_GROUPS;

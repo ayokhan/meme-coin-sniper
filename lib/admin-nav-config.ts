@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   BarChart3,
+  CreditCard,
   Flag,
   Headphones,
   Lightbulb,
@@ -19,6 +20,8 @@ export type AdminNavItem = {
   description?: string;
   icon: LucideIcon;
   group: AdminNavGroup;
+  /** Hidden from nav unless session user is owner. */
+  ownerOnly?: boolean;
 };
 
 export const ADMIN_NAV_GROUPS: { id: AdminNavGroup; label: string }[] = [
@@ -33,6 +36,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin", label: "Hub", description: "Admin home", icon: Zap, group: "overview" },
   { href: "/admin/insights", label: "App insights", icon: BarChart3, group: "analytics" },
   { href: "/admin/metrics", label: "Usage metrics", icon: BarChart3, group: "analytics" },
+  {
+    href: "/admin/stripe-test",
+    label: "Stripe billing tests",
+    description: "Receipt & subscription test charges",
+    icon: CreditCard,
+    group: "analytics",
+    ownerOnly: true,
+  },
   { href: "/admin/customers", label: "Customers", icon: Users, group: "users" },
   { href: "/admin/support", label: "Support", icon: Headphones, group: "users" },
   { href: "/admin/chat", label: "Live chat", icon: MessageCircle, group: "users" },

@@ -4,6 +4,32 @@ import { prisma } from "@/lib/db";
 
 export const STRIPE_BILLING_TEST_TRIAL_MINUTES = 5;
 export const STRIPE_BILLING_TEST_CHARGE_USD = 1;
+export const STRIPE_BILLING_TEST_MIN_USD = 0.5;
+export const STRIPE_BILLING_TEST_MAX_USD = 999.99;
+
+export function parseBillingTestAmountUsd(value: unknown): number | null {
+  const n =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? parseFloat(value.trim())
+        : NaN;
+  if (!Number.isFinite(n)) return null;
+  const rounded = Math.round(n * 100) / 100;
+  if (rounded < STRIPE_BILLING_TEST_MIN_USD || rounded > STRIPE_BILLING_TEST_MAX_USD) return null;
+  return rounded;
+}
+
+export function parseBillingTestTrialMinutes(value: unknown): number | null {
+  const n =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? parseInt(value.trim(), 10)
+        : NaN;
+  if (!Number.isFinite(n) || n < 1 || n > 1440) return null;
+  return n;
+}
 
 export function isStripeTestModeKey(secretKey: string | undefined): boolean {
   return !!secretKey?.startsWith("sk_test_");
@@ -38,10 +64,16 @@ export async function getOrCreateStripeCustomer(
 
 export async function createReceiptTestCheckout(
   stripe: Stripe,
-  input: { userId: string; email: string; successUrl: string; cancelUrl: string }
+  input: {
+    userId: string;
+    email: string;
+    successUrl: string;
+    cancelUrl: string;
+    amountUsd: number;
+  }
 ): Promise<Stripe.Checkout.Session> {
   const customerId = await getOrCreateStripeCustomer(stripe, input.userId, input.email);
-  const amountCents = STRIPE_BILLING_TEST_CHARGE_USD * 100;
+  const amountCents = Math.round(input.amountUsd * 100);
 
   return stripe.checkout.sessions.create({
     mode: "payment",
@@ -53,7 +85,7 @@ export async function createReceiptTestCheckout(
       billingTest: "receipt",
       tier: "vip",
       planId: "billing-test-receipt",
-      amountUsd: String(STRIPE_BILLING_TEST_CHARGE_USD),
+      amountUsd: String(input.amountUsd),
       autoRenew: "false",
     },
     line_items: [
@@ -64,7 +96,7 @@ export async function createReceiptTestCheckout(
           unit_amount: amountCents,
           product_data: {
             name: "NovaStaris receipt email test",
-            description: "One-time $1 charge to verify Stripe sends a payment receipt email.",
+            description: `One-time $${input.amountUsd.toFixed(2)} charge to verify Stripe sends a payment receipt email.`,
           },
         },
       },
@@ -76,15 +108,15 @@ export async function createReceiptTestCheckout(
 
 export async function createTrialSubscriptionBillingTest(
   stripe: Stripe,
-  input: { userId: string; email: string }
+  input: { userId: string; email: string; amountUsd: number; trialMinutes: number }
 ): Promise<{ subscriptionId: string; trialEndsAt: Date; customerId: string }> {
   const customerId = await getOrCreateStripeCustomer(stripe, input.userId, input.email);
-  const trialEnd = Math.floor(Date.now() / 1000) + STRIPE_BILLING_TEST_TRIAL_MINUTES * 60;
-  const amountCents = STRIPE_BILLING_TEST_CHARGE_USD * 100;
+  const trialEnd = Math.floor(Date.now() / 1000) + input.trialMinutes * 60;
+  const amountCents = Math.round(input.amountUsd * 100);
 
   const product = await stripe.products.create({
     name: "NovaStaris billing test subscription",
-    description: `${STRIPE_BILLING_TEST_TRIAL_MINUTES}-minute trial, then $${STRIPE_BILLING_TEST_CHARGE_USD}/day (auto-cancels after first paid period).`,
+    description: `${input.trialMinutes}-minute trial, then $${input.amountUsd.toFixed(2)}/day (auto-cancels after first paid period).`,
   });
   const price = await stripe.prices.create({
     product: product.id,
