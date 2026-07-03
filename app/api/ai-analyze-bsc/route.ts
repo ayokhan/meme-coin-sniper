@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { runAiAnalysisBsc } from '@/lib/ai-analyze-bsc';
-import { recordAiAnalysis } from '@/lib/usage';
+import { assertAiAgentAccess, recordAiAgentUsage } from '@/lib/ai-agent-quota';
 
 function isValidBscAddress(address: string): boolean {
   if (!address || typeof address !== 'string') return false;
@@ -11,9 +11,20 @@ function isValidBscAddress(address: string): boolean {
 
 export async function POST(request: Request) {
   try {
-    const { isPaid, userId } = await getSessionAndSubscription();
-    if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to use NovaStaris AI Agent (BSC).', locked: true }, { status: 403 });
+    const { session, isPaid, userId } = await getSessionAndSubscription();
+    const access = await assertAiAgentAccess(session, isPaid, 'meme_agent');
+    if (!access.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: access.error,
+          locked: access.locked,
+          limitReached: access.limitReached,
+          used: access.used,
+          limit: access.limit,
+        },
+        { status: access.status }
+      );
     }
 
     const body = await request.json().catch(() => ({}));
@@ -35,7 +46,7 @@ export async function POST(request: Request) {
 
     const result = await runAiAnalysisBsc(contractAddress, amountUsd != null ? { amountUsd } : undefined);
 
-    if (userId) await recordAiAnalysis(userId).catch(() => {});
+    if (userId) await recordAiAgentUsage(userId, 'meme_agent').catch(() => {});
 
     return NextResponse.json({
       success: true,

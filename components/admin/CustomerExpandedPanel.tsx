@@ -34,6 +34,8 @@ export type AdminCustomerRecord = {
   supportViewerAdmin?: boolean;
   liveChatAgentAdmin?: boolean;
   supportStaffName?: string | null;
+  aiAgentDailyLimitOverride?: number | null;
+  aiChartAnalysisDailyLimitOverride?: number | null;
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
   subscriptionExpiresAt: string | null;
@@ -137,6 +139,7 @@ export type CustomerExpandedPanelProps = {
     supportViewerAdmin?: boolean;
     liveChatAgentAdmin?: boolean;
     savingSupportStaffName?: boolean;
+    savingAiAgentLimits?: boolean;
   };
   onTradingBot: (value: boolean) => void;
   onPolymarket: (value: boolean) => void;
@@ -159,6 +162,7 @@ export type CustomerExpandedPanelProps = {
   onSupportViewerAdmin?: (value: boolean) => void;
   onLiveChatAgentAdmin?: (value: boolean) => void;
   onSupportStaffNameSave?: (value: string) => void;
+  onAiAgentLimitsSave?: (patch: { meme?: number | null; chart?: number | null }) => void;
 };
 
 export default function CustomerExpandedPanel({
@@ -193,6 +197,7 @@ export default function CustomerExpandedPanel({
   onSupportViewerAdmin,
   onLiveChatAgentAdmin,
   onSupportStaffNameSave,
+  onAiAgentLimitsSave,
 }: CustomerExpandedPanelProps) {
   if (readOnly) {
     return (
@@ -305,6 +310,49 @@ export default function CustomerExpandedPanel({
           </DetailRow>
         )}
       </DetailSection>
+
+      {isOwner && onAiAgentLimitsSave && (
+        <DetailSection title="AI Agent daily limits">
+          <DetailRow label="Meme Coins Agent" hint="Blank = global default. 0 = blocked for free tier.">
+            <input
+              type="number"
+              min={0}
+              max={1000}
+              defaultValue={c.aiAgentDailyLimitOverride ?? ""}
+              placeholder="Default"
+              disabled={!!busy.savingAiAgentLimits}
+              className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 w-20"
+              onBlur={(e) => {
+                const raw = e.target.value.trim();
+                const next = raw === "" ? null : Math.max(0, Math.min(1000, Math.round(Number(raw))));
+                const current = c.aiAgentDailyLimitOverride ?? null;
+                if (next !== current && (raw === "" || Number.isFinite(next))) {
+                  onAiAgentLimitsSave({ meme: next });
+                }
+              }}
+            />
+          </DetailRow>
+          <DetailRow label="Chart Analysis" hint="Blank = global default. 0 = blocked for free tier.">
+            <input
+              type="number"
+              min={0}
+              max={1000}
+              defaultValue={c.aiChartAnalysisDailyLimitOverride ?? ""}
+              placeholder="Default"
+              disabled={!!busy.savingAiAgentLimits}
+              className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 w-20"
+              onBlur={(e) => {
+                const raw = e.target.value.trim();
+                const next = raw === "" ? null : Math.max(0, Math.min(1000, Math.round(Number(raw))));
+                const current = c.aiChartAnalysisDailyLimitOverride ?? null;
+                if (next !== current && (raw === "" || Number.isFinite(next))) {
+                  onAiAgentLimitsSave({ chart: next });
+                }
+              }}
+            />
+          </DetailRow>
+        </DetailSection>
+      )}
 
       <DetailSection title="On-demand access">
         <DetailRow label="Trading bot">

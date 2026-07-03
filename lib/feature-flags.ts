@@ -114,6 +114,10 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_FOREX_SCALP_AGENT: 'nova_forex_scalp_agent',
   /** VIP + owner: per-user RAG over past Solana token analyses (requires OPENAI_API_KEY). Default OFF. */
   AI_ANALYSIS_RAG: 'ai_analysis_rag',
+  /** Meme Coins Agent under NovaStaris AI Agent tab. When OFF, analysis API returns unavailable. Default ON. */
+  NOVA_AI_AGENT_MEME: 'nova_ai_agent_meme',
+  /** Chart Analysis under NovaStaris AI Agent tab. When OFF, futures chart API returns unavailable. Default ON. */
+  NOVA_AI_AGENT_CHART: 'nova_ai_agent_chart',
   /** Self-service Delete account on /account (web + Capacitor). Required for Google Play; owner can disable in Admin. Default ON. */
   ACCOUNT_SELF_DELETE: 'account_self_delete',
 } as const;

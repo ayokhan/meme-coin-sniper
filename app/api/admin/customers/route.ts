@@ -71,6 +71,8 @@ export async function GET() {
         supportViewerAdmin: !!(u as { supportViewerAdmin?: boolean }).supportViewerAdmin,
         liveChatAgentAdmin: !!(u as { liveChatAgentAdmin?: boolean }).liveChatAgentAdmin,
         supportStaffName: (u as { supportStaffName?: string | null }).supportStaffName ?? null,
+        aiAgentDailyLimitOverride: (u as { aiAgentDailyLimitOverride?: number | null }).aiAgentDailyLimitOverride ?? null,
+        aiChartAnalysisDailyLimitOverride: (u as { aiChartAnalysisDailyLimitOverride?: number | null }).aiChartAnalysisDailyLimitOverride ?? null,
         paymentTermsAcceptedAt: (u as { paymentTermsAcceptedAt?: Date | null }).paymentTermsAcceptedAt ?? null,
         createdAt: u.createdAt,
         subscriptionTier: subTier,
@@ -96,6 +98,8 @@ export async function GET() {
           supportViewerAdmin: false,
           liveChatAgentAdmin: false,
           supportStaffName: null,
+          aiAgentDailyLimitOverride: null,
+          aiChartAnalysisDailyLimitOverride: null,
           paymentTermsAcceptedAt: null,
           payments: [],
         };

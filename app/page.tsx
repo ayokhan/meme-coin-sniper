@@ -46,6 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Zap, Copy, Send, Star, Flame, ChevronDown, Menu, X, QrCode } from "lucide-react";
 import FuturesWorkflow from "@/components/FuturesWorkflow";
+import AiChartAnalysisPanel from "@/components/AiChartAnalysisPanel";
 import NovaEaglePanel from "@/components/NovaEaglePanel";
 import CryptoBuddiePanel from "@/components/CryptoBuddiePanel";
 import FuturesLiquidationMapPanel from "@/components/FuturesLiquidationMapPanel";
@@ -185,7 +186,7 @@ type TabId =
   | "nova-connect"
   | "chris-clayton";
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
-const PAID_TABS: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-connect"];
+const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-connect"];
 /** Platform: surge, transactions, ai-analysis, futures. VIP-only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
 /** Main dashboard top nav — flex-none overrides default TabsTrigger flex-1 so wrapped tabs do not overlap. */
@@ -430,6 +431,30 @@ export default function Dashboard() {
       .catch(() => {});
   }, [status]);
 
+  const fetchAiAgentUsage = useCallback(() => {
+    if (status !== "authenticated") {
+      setAiAgentUsage(null);
+      return;
+    }
+    fetch("/api/ai-agent/usage")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          setAiAgentUsage({
+            authenticated: !!data.authenticated,
+            memeAgent: data.memeAgent,
+            chartAnalysis: data.chartAnalysis,
+          });
+        }
+      })
+      .catch(() => setAiAgentUsage(null));
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (activeTab === "ai-analysis") fetchAiAgentUsage();
+  }, [status, activeTab, fetchAiAgentUsage]);
+
   useEffect(() => {
     if (status !== "authenticated") return;
     fetchSubscription();
@@ -549,11 +574,29 @@ export default function Dashboard() {
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
   const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
+  type AiAgentSubTab = "meme" | "chart";
+  const [aiAgentSubTab, setAiAgentSubTab] = useState<AiAgentSubTab>("meme");
+  type AiAgentUsageSnapshot = {
+    feature: string;
+    label: string;
+    enabled: boolean;
+    unlimited: boolean;
+    used: number;
+    limit: number;
+    remaining: number;
+  };
+  const [aiAgentUsage, setAiAgentUsage] = useState<{
+    authenticated: boolean;
+    memeAgent: AiAgentUsageSnapshot;
+    chartAnalysis: AiAgentUsageSnapshot;
+  } | null>(null);
   type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst" | "meme-leaderboard" | "deep-meme-agent";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
   const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
   const isGuest = status === "unauthenticated";
+  const isAiAgentGuestLocked = activeTab === "ai-analysis" && isGuest;
   const isTabPaywalled =
+    isAiAgentGuestLocked ||
     onDemandLocked ||
     (VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) ||
     (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid));
@@ -837,7 +880,7 @@ export default function Dashboard() {
   } | null>(null);
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
-  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map">("ai");
+  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map">("workflow");
   const { shouldShow: showFuturesOnboardingPrompt, dismiss: dismissFuturesOnboarding } = useFuturesOnboarding();
   const [futuresOnboardingOpen, setFuturesOnboardingOpen] = useState(false);
 
@@ -1275,7 +1318,12 @@ export default function Dashboard() {
     setTopTabFilter(result.filter);
     if (URL_TAB_IDS.has(result.tab)) setActiveTab(result.tab as TabId);
     if (result.futuresView && URL_FUTURES_VIEWS.has(result.futuresView)) {
-      setFuturesView(result.futuresView);
+      if (result.futuresView === "ai") {
+        setActiveTab("ai-analysis");
+        setAiAgentSubTab("chart");
+      } else {
+        setFuturesView(result.futuresView);
+      }
     }
     if (result.novaForecastSubTab) {
       setNovaForecastSubTab(result.novaForecastSubTab);
@@ -1292,8 +1340,15 @@ export default function Dashboard() {
       setActiveTab(tab as TabId);
     }
     const fv = params.get("futures");
-    if (fv && URL_FUTURES_VIEWS.has(fv)) {
+    if (fv === "ai") {
+      setActiveTab("ai-analysis");
+      setAiAgentSubTab("chart");
+    } else if (fv && URL_FUTURES_VIEWS.has(fv)) {
       setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map");
+    }
+    const agent = params.get("agent");
+    if (agent === "meme" || agent === "chart") {
+      setAiAgentSubTab(agent);
     }
     const forecast = params.get("forecast");
     if (
@@ -1522,6 +1577,7 @@ export default function Dashboard() {
     if (activeTab === "bsc") params.set("bsc", bscGoHuntingView);
     if (activeTab === "wallets") params.set("wallet", walletTrackerView);
     if (activeTab === "futures") params.set("futures", futuresView);
+    if (activeTab === "ai-analysis") params.set("agent", aiAgentSubTab);
     if (activeTab === "nova-forecast") params.set("forecast", novaForecastSubTab);
     if (activeTab === "chris-clayton") params.set("boss", onlineBossSubTab);
     setHomeAnalyticsPath(`/?${params.toString()}`);
@@ -1532,6 +1588,7 @@ export default function Dashboard() {
     bscGoHuntingView,
     walletTrackerView,
     futuresView,
+    aiAgentSubTab,
     novaForecastSubTab,
     onlineBossSubTab,
     setHomeAnalyticsPath,
@@ -2754,8 +2811,8 @@ export default function Dashboard() {
       setAiAnalysisError("Enter a contract address.");
       return;
     }
-    if (aiAnalysisChain === "bsc" && !isPaid) {
-      setAiAnalysisError("BSC AI Agent is for VIP subscribers. Subscribe to use it.");
+    if (status !== "authenticated") {
+      setAiAnalysisError("Sign in or register to use NovaStaris AI Agent.");
       return;
     }
     if (aiAnalysisChain === "bsc" && !/^0x[0-9a-fA-F]{40}$/.test(ca)) {
@@ -2791,8 +2848,12 @@ export default function Dashboard() {
           ragConfigured: data.ragConfigured === true,
           ragSnippets: Array.isArray(data.ragSnippets) ? data.ragSnippets : undefined,
         });
+        fetchAiAgentUsage();
       } else {
-        if (res.status === 403 && data.locked) setAiAnalysisError(data.error || "Subscribe to access NovaStaris AI Agent.");
+        if (res.status === 401 && data.locked) setAiAnalysisError(data.error || "Sign in or register to use NovaStaris AI Agent.");
+        else if (res.status === 429 && data.limitReached) setAiAnalysisError(data.error || "Daily Meme Coins Agent limit reached (Solana + BSC combined). Upgrade to VIP for unlimited use.");
+        else if (res.status === 503) setAiAnalysisError(data.error || "Meme Coins Agent is temporarily unavailable.");
+        else if (res.status === 403 && data.locked) setAiAnalysisError(data.error || "Subscribe to access NovaStaris AI Agent.");
         else {
           const msg = data.error || "Analysis failed.";
           const friendly = (res.status === 529 || /overloaded/i.test(msg))
@@ -2902,6 +2963,10 @@ export default function Dashboard() {
   };
 
   const runFuturesAnalysis = async () => {
+    if (status !== "authenticated") {
+      setFuturesAnalysisError("Sign in or register to use Chart Analysis.");
+      return;
+    }
     if (!futuresChartFile || !futuresSymbol.trim()) {
       setFuturesAnalysisError("Upload a chart and enter a symbol (e.g. BTC/USDC).");
       return;
@@ -2949,8 +3014,12 @@ export default function Dashboard() {
           recommendations: data.recommendations,
           marketRead: data.marketRead ?? null,
         });
+        fetchAiAgentUsage();
       } else {
-        if (res.status === 403 && data.locked) setFuturesAnalysisError(data.error || "Subscribe to use Crypto Futures.");
+        if (res.status === 401 && data.locked) setFuturesAnalysisError(data.error || "Sign in or register to use Chart Analysis.");
+        else if (res.status === 429 && data.limitReached) setFuturesAnalysisError(data.error || "Daily Chart Analysis limit reached. Upgrade to VIP for unlimited use.");
+        else if (res.status === 503) setFuturesAnalysisError(data.error || "Chart Analysis is temporarily unavailable.");
+        else if (res.status === 403 && data.locked) setFuturesAnalysisError(data.error || "Subscribe to use Chart Analysis.");
         else setFuturesAnalysisError(data.error || "Analysis failed.");
       }
     } catch (e) {
@@ -3946,7 +4015,9 @@ export default function Dashboard() {
             {(onDemandLocked || ((VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid)))) ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                  {isGuest
+                  {isAiAgentGuestLocked
+                    ? "Sign in to use NovaStaris AI Agent"
+                    : isGuest
                     ? "Create a free account to preview"
                     : onDemandLocked
                       ? "On-demand access required"
@@ -3957,8 +4028,8 @@ export default function Dashboard() {
                 <p className="mt-2 text-sm text-muted-foreground max-w-md">
                   {activeTab === "surge" && "Surge shows tokens with high volume in 5m–24h windows."}
                   {activeTab === "transactions" && "Transactions shows buys vs sells (24h) and activity."}
-                  {activeTab === "ai-analysis" && "NovaStaris AI Agent scores any token 0–100 and gives a buy/no-buy signal."}
-                  {activeTab === "futures" && "Upload a chart and get AI support/resistance, entry zone, take profit & stop loss for futures."}
+                  {activeTab === "ai-analysis" && "Meme Coins Agent scores Solana tokens 0–100. Chart Analysis reads your uploaded chart for futures levels. Free registered users get 2 uses per day each; VIP is unlimited."}
+                  {activeTab === "futures" && "Institutional workflow, top altcoins, hot perps, and liquidation map for futures trading."}
                   {activeTab === "nova-futures-narratives" && "Nova Futures Narratives combines headline noise with CFTC institutional positioning. VIP only."}
                   {activeTab === "nova-eagle" && "Nova Eagle surfaces sampled large perp positions and skew heuristics. VIP only."}
                   {activeTab === "crypto-buddie" && "Crypto Buddie gives ranked short-horizon perp reads plus optional monitor workflow. VIP only."}
@@ -4222,6 +4293,74 @@ export default function Dashboard() {
               </div>
             ) : activeTab === "ai-analysis" ? (
               <div className="mx-3 sm:mx-6 py-6 sm:py-8 max-w-2xl">
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <Button
+                    variant={aiAgentSubTab === "meme" ? "default" : "outline"}
+                    size="sm"
+                    className={aiAgentSubTab === "meme" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
+                    onClick={() => setAiAgentSubTab("meme")}
+                  >
+                    Meme Coins Agent
+                  </Button>
+                  <Button
+                    variant={aiAgentSubTab === "chart" ? "default" : "outline"}
+                    size="sm"
+                    className={aiAgentSubTab === "chart" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
+                    onClick={() => setAiAgentSubTab("chart")}
+                  >
+                    NovaStaris AI Chart Analysis
+                  </Button>
+                </div>
+                {(() => {
+                  const snap = aiAgentSubTab === "meme" ? aiAgentUsage?.memeAgent : aiAgentUsage?.chartAnalysis;
+                  if (!snap) return null;
+                  if (!snap.enabled) {
+                    return (
+                      <p className="mb-4 text-sm text-amber-700 dark:text-amber-300 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 px-3 py-2">
+                        {snap.label} is temporarily unavailable.
+                      </p>
+                    );
+                  }
+                  if (snap.unlimited) {
+                    return (
+                      <p className="mb-4 text-sm text-muted-foreground">
+                        VIP: unlimited {aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana + BSC)" : "Chart Analysis"} uses.
+                      </p>
+                    );
+                  }
+                  const featureLabel =
+                    aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana + BSC)" : "Chart Analysis";
+                  if (snap.remaining === 0) {
+                    return (
+                      <div className="mb-4 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 text-sm">
+                        <p className="font-semibold text-amber-900 dark:text-amber-100">Daily limit reached</p>
+                        <p className="mt-1 text-amber-800/90 dark:text-amber-200/90">
+                          You&apos;ve used all {snap.limit} free {featureLabel} uses for today (resets at midnight).{" "}
+                          <Link href="/subscribe" className="font-medium text-cyan-700 dark:text-cyan-300 hover:underline">
+                            Upgrade to VIP
+                          </Link>{" "}
+                          for unlimited access.
+                        </p>
+                      </div>
+                    );
+                  }
+                  if (aiAgentSubTab === "chart") {
+                    return (
+                      <p className="mb-4 text-sm text-muted-foreground">
+                        Free plan: {snap.used} of {snap.limit} Chart Analysis uses today ({snap.remaining} remaining).{" "}
+                        <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">Upgrade to VIP</Link> for unlimited.
+                      </p>
+                    );
+                  }
+                  return (
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Free plan: {snap.used} of {snap.limit} Meme Coins Agent uses today ({snap.remaining} remaining) — Solana and BSC share the same daily limit.{" "}
+                      <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">Upgrade to VIP</Link> for unlimited.
+                    </p>
+                  );
+                })()}
+                {aiAgentSubTab === "meme" && (
+                <>
                 {isPaid && (
                   <details className="mb-6 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80" open={pinnedTokens.length > 0}>
                     <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
@@ -4275,14 +4414,11 @@ export default function Dashboard() {
                   >
                     BSC
                   </button>
-                  {aiAnalysisChain === "bsc" && !isPaid && (
-                    <span className="text-xs text-amber-600 dark:text-amber-400">BSC AI Agent is for VIP only.</span>
-                  )}
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   {aiAnalysisChain === "bsc"
-                    ? "Enter a BSC token contract address (0x + 40 hex chars). VIP only. Optionally add the amount you plan to invest. NovaStaris AI will analyze on-chain data, security, and give buy zone, take profit & stop loss."
-                    : "Enter a Solana token contract address (CA). Optionally add the amount you plan to invest so the AI can say if it's too risky for the token's liquidity. NovaStaris AI will analyze on-chain data, security, support/resistance, and give buy zone, take profit & stop loss."}
+                    ? "Enter a BSC token contract address (0x + 40 hex chars). Optionally add the amount you plan to invest. NovaStaris AI will analyze on-chain data, security, and give buy zone, take profit & stop loss. Daily limit is shared with Solana."
+                    : "Enter a Solana token contract address (CA). Optionally add the amount you plan to invest so the AI can say if it's too risky for the token's liquidity. NovaStaris AI will analyze on-chain data, security, support/resistance, and give buy zone, take profit & stop loss. Daily limit is shared with BSC."}
                 </p>
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex-1 min-w-[200px]">
@@ -4310,7 +4446,10 @@ export default function Dashboard() {
                   </div>
                   <Button
                     onClick={runAiAnalysis}
-                    disabled={aiAnalysisLoading}
+                    disabled={
+                      aiAnalysisLoading ||
+                      (!aiAgentUsage?.memeAgent?.unlimited && (aiAgentUsage?.memeAgent?.remaining ?? 1) === 0)
+                    }
                     className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700"
                   >
                     {aiAnalysisLoading ? "Analyzing…" : "Analyze"}
@@ -4600,6 +4739,94 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
+                )}
+                </>
+                )}
+                {aiAgentSubTab === "chart" && (
+                  <AiChartAnalysisPanel
+                    chartPreview={futuresChartPreview}
+                    onChartChange={onFuturesChartChange}
+                    symbol={futuresSymbol}
+                    onSymbolChange={(v) => { setFuturesSymbol(v); setFuturesAnalysisError(null); }}
+                    margin={futuresMargin}
+                    onMarginChange={(v) => { setFuturesMargin(v); setFuturesAnalysisError(null); }}
+                    leverage={futuresLeverage}
+                    onLeverageChange={setFuturesLeverage}
+                    direction={futuresDirection}
+                    onDirectionChange={setFuturesDirection}
+                    chartTimeframe={futuresChartTimeframe}
+                    onChartTimeframeChange={(v) => { setFuturesChartTimeframe(v); setFuturesAnalysisError(null); }}
+                    tradeTimeframe={futuresTradeTimeframe}
+                    onTradeTimeframeChange={(v) => { setFuturesTradeTimeframe(v); setFuturesAnalysisError(null); }}
+                    riskAmount={futuresRiskAmount}
+                    onRiskAmountChange={setFuturesRiskAmount}
+                    onAnalyze={runFuturesAnalysis}
+                    loading={futuresAnalysisLoading}
+                    analyzeDisabled={!aiAgentUsage?.chartAnalysis?.unlimited && (aiAgentUsage?.chartAnalysis?.remaining ?? 1) === 0}
+                    error={futuresAnalysisError}
+                    result={futuresAnalysisResult}
+                    isOwner={isOwner}
+                    isCoachUser={isCoachUser}
+                    copied={futuresAnalysisCopied}
+                    onCopied={() => {
+                      setFuturesAnalysisCopied(true);
+                      setTimeout(() => setFuturesAnalysisCopied(false), 2000);
+                    }}
+                    shareLoading={futuresAnalysisShareLoading}
+                    shareSuccess={futuresAnalysisShareSuccess}
+                    onShare={async () => {
+                      if (!futuresAnalysisResult) return;
+                      setFuturesAnalysisShareLoading(true);
+                      setFuturesAnalysisShareSuccess(false);
+                      try {
+                        const { title: t, content: c } = formatFuturesAnalysisForShare(futuresAnalysisResult);
+                        const res = await fetch("/api/coach-calls", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ title: t, content: c }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setFuturesAnalysisShareSuccess(true);
+                          setTimeout(() => setFuturesAnalysisShareSuccess(false), 3000);
+                        } else {
+                          alert(data.error ?? "Failed to share");
+                        }
+                      } catch {
+                        alert("Failed to share");
+                      } finally {
+                        setFuturesAnalysisShareLoading(false);
+                      }
+                    }}
+                    feedbackSent={futuresFeedbackSent}
+                    feedbackLoading={futuresFeedbackLoading}
+                    feedbackNote={futuresFeedbackNote}
+                    onFeedbackNoteChange={setFuturesFeedbackNote}
+                    onFeedback={async (outcome) => {
+                      if (!futuresSymbol.trim() || !futuresAnalysisResult) return;
+                      setFuturesFeedbackLoading(true);
+                      try {
+                        const res = await fetch("/api/admin/ai-feedback", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            contractAddress: `futures:${futuresSymbol.trim()}`,
+                            outcome,
+                            score: futuresAnalysisResult.score,
+                            signal: futuresAnalysisResult.signal,
+                            note: futuresFeedbackNote.trim() || undefined,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data.success) { setFuturesFeedbackSent(outcome); setFuturesFeedbackNote(""); }
+                        else alert(data.error ?? "Failed to send feedback");
+                      } catch {
+                        alert("Failed to send feedback");
+                      } finally {
+                        setFuturesFeedbackLoading(false);
+                      }
+                    }}
+                  />
                 )}
               </div>
             ) : activeTab === "perp-radar" ? (
@@ -5430,14 +5657,6 @@ export default function Dashboard() {
                 />
                 <div className="flex flex-wrap items-center gap-2 mb-6">
                   <Button
-                    variant={futuresView === "ai" ? "default" : "outline"}
-                    size="sm"
-                    className={futuresView === "ai" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
-                    onClick={() => setFuturesView("ai")}
-                  >
-                    NovaStaris AI Chart Analysis
-                  </Button>
-                  <Button
                     variant={futuresView === "workflow" ? "default" : "outline"}
                     size="sm"
                     className={futuresView === "workflow" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
@@ -5539,7 +5758,7 @@ export default function Dashboard() {
                         </Button>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-3">BTC, ETH, SOL, DOGE and other major perps—same data as Trending perps (5m to 4h, 24h %, Trend, Direction, Funding). Star a contract to pin it to the top (saved in this browser). Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use AI Chart Analysis or Institutional Workflow to analyze and trade.</p>
+                    <p className="text-xs text-muted-foreground mb-3">BTC, ETH, SOL, DOGE and other major perps—same data as Trending perps (5m to 4h, 24h %, Trend, Direction, Funding). Star a contract to pin it to the top (saved in this browser). Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use NovaStaris AI Agent → Chart Analysis or Institutional Workflow to analyze and trade.</p>
                     {topAltcoinsLoading && topAltcoins.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Loading…</p>
                     ) : topAltcoins.length === 0 ? (
@@ -5726,7 +5945,7 @@ export default function Dashboard() {
                       {hotPerpsNewOnly
                         ? "New listings in the last 7 days with strong short-term momentum—sorted by 5m by default. When new perps are listed we show them here first."
                         : "No new listings in the last 7 days—showing top momentum perps instead. When new perps appear, we’ll show them here first."}
-                      {" "}Columns: 5m–4h, 24h %, Trend, Direction, Funding. Star a contract to pin it to the top (saved in this browser). Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use AI Chart Analysis or Institutional Workflow to analyze and trade.
+                      {" "}Columns: 5m–4h, 24h %, Trend, Direction, Funding. Star a contract to pin it to the top (saved in this browser). Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use NovaStaris AI Agent → Chart Analysis or Institutional Workflow to analyze and trade.
                     </p>
                     {hotPerpsLoading && hotPerps.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Loading…</p>
@@ -5857,329 +6076,7 @@ export default function Dashboard() {
                 ) : futuresView === "liquidation-map" ? (
                   <FuturesLiquidationMapPanel />
                 ) : (
-                <div className="max-w-2xl">
-                <h2 className="text-xl sm:text-2xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-blue-300 dark:to-cyan-400">
-                  Trade with Confidence using NovaStaris Advanced AI System
-                </h2>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Upload a chart (any timeframe) and enter your trade parameters. NovaStaris AI will analyze support/resistance, market structure, entry zone, take profit & stop loss, tailored for futures.
-                </p>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="futures-chart" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Chart image (required)</label>
-                    <input
-                      id="futures-chart"
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif"
-                      onChange={onFuturesChartChange}
-                      className="block w-full text-sm text-zinc-600 dark:text-zinc-400 file:mr-3 file:rounded-md file:border-0 file:bg-cyan-50 file:px-3 file:py-2 file:text-cyan-700 dark:file:bg-cyan-950/50 dark:file:text-cyan-300"
-                    />
-                    {futuresChartPreview && (
-                      <div className="mt-2 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden max-h-48">
-                        <img src={futuresChartPreview} alt="Chart preview" className="w-full h-auto object-contain max-h-48" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="futures-symbol" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Symbol (required)</label>
-                      <input
-                        id="futures-symbol"
-                        type="text"
-                        placeholder="e.g. BTC/USDC"
-                        value={futuresSymbol}
-                        onChange={(e) => { setFuturesSymbol(e.target.value); setFuturesAnalysisError(null); }}
-                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="futures-margin" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Margin — amount to invest (required)</label>
-                      <input
-                        id="futures-margin"
-                        type="number"
-                        min="1"
-                        step="any"
-                        placeholder="e.g. 1000"
-                        value={futuresMargin}
-                        onChange={(e) => { setFuturesMargin(e.target.value); setFuturesAnalysisError(null); }}
-                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="futures-leverage" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Leverage (required)</label>
-                      <select
-                        id="futures-leverage"
-                        value={futuresLeverage}
-                        onChange={(e) => setFuturesLeverage(e.target.value)}
-                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      >
-                        {[1, 2, 3, 5, 10, 20, 50, 75, 100, 125].map((x) => (
-                          <option key={x} value={x}>{x}x</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="futures-direction" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Direction (optional)</label>
-                      <select
-                        id="futures-direction"
-                        value={futuresDirection}
-                        onChange={(e) => setFuturesDirection((e.target.value || "") as "long" | "short" | "")}
-                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      >
-                        <option value="">Analyze both</option>
-                        <option value="long">Long</option>
-                        <option value="short">Short</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="futures-chart-tf" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Chart timeframe (required)</label>
-                      <input
-                        id="futures-chart-tf"
-                        type="text"
-                        placeholder="e.g. 5m, 15m, 4h, 1D"
-                        value={futuresChartTimeframe}
-                        onChange={(e) => { setFuturesChartTimeframe(e.target.value); setFuturesAnalysisError(null); }}
-                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="futures-trade-tf" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Trade timeframe (required)</label>
-                      <input
-                        id="futures-trade-tf"
-                        type="text"
-                        placeholder="e.g. Scalp, Swing, 4 hours"
-                        value={futuresTradeTimeframe}
-                        onChange={(e) => { setFuturesTradeTimeframe(e.target.value); setFuturesAnalysisError(null); }}
-                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="futures-risk" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Risk amount — max loss willing to take (optional)</label>
-                    <input
-                      id="futures-risk"
-                      type="number"
-                      min="0"
-                      step="any"
-                      placeholder="e.g. 100"
-                      value={futuresRiskAmount}
-                      onChange={(e) => setFuturesRiskAmount(e.target.value)}
-                      className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    />
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2 items-center">
-                  <Button
-                    onClick={runFuturesAnalysis}
-                    disabled={futuresAnalysisLoading}
-                    className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700"
-                  >
-                    {futuresAnalysisLoading ? "Analyzing chart…" : "Analyze with NovaStaris AI"}
-                  </Button>
-                </div>
-                {futuresAnalysisError && (
-                  <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{futuresAnalysisError}</p>
-                )}
-                {futuresAnalysisResult && (
-                  <div className="mt-6 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 p-5">
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{futuresSymbol || "—"}</span>
-                      <div
-                        className={`text-4xl font-bold tabular-nums ${
-                          futuresAnalysisResult.score >= 76 ? "text-emerald-600 dark:text-emerald-400" :
-                          futuresAnalysisResult.score >= 51 ? "text-cyan-600 dark:text-cyan-400" :
-                          futuresAnalysisResult.score >= 26 ? "text-amber-600 dark:text-amber-400" :
-                          "text-rose-600 dark:text-rose-400"
-                        }`}
-                      >
-                        {futuresAnalysisResult.score}
-                        <span className="text-lg font-normal text-muted-foreground ml-1">/ 100</span>
-                      </div>
-                      <Badge
-                        className={`text-sm font-bold px-3 py-1 ${
-                          futuresAnalysisResult.signal === "buy"
-                            ? "bg-emerald-500 text-white dark:bg-emerald-600 border-0 hover:bg-emerald-600 dark:hover:bg-emerald-700"
-                            : "bg-rose-500 text-white dark:bg-rose-600 border-0 hover:bg-rose-600 dark:hover:bg-rose-700"
-                        }`}
-                      >
-                        {futuresAnalysisResult.signal === "buy"
-                          ? (futuresAnalysisResult.tradeDirection === "long" ? "BUY LONG" : futuresAnalysisResult.tradeDirection === "short" ? "BUY SHORT" : "BUY")
-                          : (futuresAnalysisResult.tradeDirection === "long" ? "NO BUY (bias: Long)" : futuresAnalysisResult.tradeDirection === "short" ? "NO BUY (bias: Short)" : "NO BUY")}
-                      </Badge>
-                    </div>
-                    {futuresAnalysisResult.marketRead && (
-                      <div className="mt-4 rounded-lg border border-violet-200/80 dark:border-violet-800/60 bg-violet-50/40 dark:bg-violet-950/25 p-4 space-y-1.5 text-sm">
-                        <p className="font-semibold text-violet-900 dark:text-violet-100">
-                          Structure read (NovaQ-style, same as NovaRadar)
-                        </p>
-                        <p className="text-violet-950/90 dark:text-violet-100/90">{futuresAnalysisResult.marketRead.headline}</p>
-                        <ul className="list-disc list-inside text-xs text-violet-900/80 dark:text-violet-200/90 space-y-0.5">
-                          {futuresAnalysisResult.marketRead.bullets.map((b, i) => (
-                            <li key={i}>{b}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {futuresAnalysisResult.recommendations && (futuresAnalysisResult.recommendations.supportResistance || futuresAnalysisResult.recommendations.marketStructure || futuresAnalysisResult.recommendations.entryZone || futuresAnalysisResult.recommendations.takeProfitPct || futuresAnalysisResult.recommendations.stopLossPct) && (
-                      <div className="mt-4 rounded-lg border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/50 dark:bg-cyan-950/30 p-4 space-y-2 text-sm">
-                        <p className="font-semibold text-cyan-800 dark:text-cyan-200">Trading levels (futures — use risk management)</p>
-                        {futuresAnalysisResult.recommendations.supportResistance && <p><span className="text-muted-foreground">Support / Resistance:</span> {futuresAnalysisResult.recommendations.supportResistance}</p>}
-                        {futuresAnalysisResult.recommendations.marketStructure && <p><span className="text-muted-foreground">Market structure:</span> {futuresAnalysisResult.recommendations.marketStructure}</p>}
-                        {futuresAnalysisResult.recommendations.entryZone && <p><span className="text-muted-foreground">Entry zone:</span> {futuresAnalysisResult.recommendations.entryZone}</p>}
-                        {futuresAnalysisResult.recommendations.takeProfitPct && <p><span className="text-emerald-600 dark:text-emerald-400">Take profit:</span> {futuresAnalysisResult.recommendations.takeProfitPct}</p>}
-                        {futuresAnalysisResult.recommendations.stopLossPct && <p><span className="text-rose-600 dark:text-rose-400">Stop loss:</span> {futuresAnalysisResult.recommendations.stopLossPct}</p>}
-                      </div>
-                    )}
-                    <ul className="mt-4 list-disc list-inside space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
-                      {futuresAnalysisResult.reasons.map((r, i) => (
-                        <li key={i}>{r}</li>
-                      ))}
-                    </ul>
-                    {(isOwner || isCoachUser) && (
-                      <div className="mt-4 space-y-3 pt-3 border-t border-zinc-200 dark:border-zinc-600">
-                        <div className="flex flex-wrap gap-2 items-center">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const { title: t, content: c } = formatFuturesAnalysisForShare(futuresAnalysisResult);
-                              const full = [t, c].filter(Boolean).join("\n\n");
-                              navigator.clipboard.writeText(full).then(() => {
-                                setFuturesAnalysisCopied(true);
-                                setTimeout(() => setFuturesAnalysisCopied(false), 2000);
-                              });
-                            }}
-                            className="border-zinc-300 dark:border-zinc-600"
-                          >
-                            {futuresAnalysisCopied ? "Copied!" : <><Copy className="h-3.5 w-3.5 mr-1.5 inline" /> Copy analysis</>}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={futuresAnalysisShareLoading}
-                            onClick={async () => {
-                              setFuturesAnalysisShareLoading(true);
-                              setFuturesAnalysisShareSuccess(false);
-                              try {
-                                const { title: t, content: c } = formatFuturesAnalysisForShare(futuresAnalysisResult);
-                                const res = await fetch("/api/coach-calls", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ title: t, content: c }),
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                  setFuturesAnalysisShareSuccess(true);
-                                  setTimeout(() => setFuturesAnalysisShareSuccess(false), 3000);
-                                } else {
-                                  alert(data.error ?? "Failed to share");
-                                }
-                              } catch {
-                                alert("Failed to share");
-                              } finally {
-                                setFuturesAnalysisShareLoading(false);
-                              }
-                            }}
-                            className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
-                          >
-                            {futuresAnalysisShareLoading ? "Sharing…" : futuresAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
-                          </Button>
-                        </div>
-                        <div className="pt-2 border-t border-dashed border-zinc-200 dark:border-zinc-700 space-y-2">
-                          <span className="text-xs text-muted-foreground block">Was this Crypto Futures analysis accurate?</span>
-                          {futuresFeedbackSent ? (
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400 block">Thanks — feedback recorded.</span>
-                          ) : (
-                            <>
-                              <div className="flex flex-wrap items-center gap-2 mb-1">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={futuresFeedbackLoading}
-                                  onClick={async () => {
-                                    if (!futuresSymbol.trim()) return;
-                                    setFuturesFeedbackLoading(true);
-                                    try {
-                                      const res = await fetch("/api/admin/ai-feedback", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                          contractAddress: `futures:${futuresSymbol.trim()}`,
-                                          outcome: "good",
-                                          score: futuresAnalysisResult.score,
-                                          signal: futuresAnalysisResult.signal,
-                                          note: futuresFeedbackNote.trim() || undefined,
-                                        }),
-                                      });
-                                      const data = await res.json();
-                                      if (data.success) { setFuturesFeedbackSent("good"); setFuturesFeedbackNote(""); }
-                                      else alert(data.error ?? "Failed to send feedback");
-                                    } catch {
-                                      alert("Failed to send feedback");
-                                    } finally {
-                                      setFuturesFeedbackLoading(false);
-                                    }
-                                  }}
-                                  className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
-                                >
-                                  Yes, worked well
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={futuresFeedbackLoading}
-                                  onClick={async () => {
-                                    if (!futuresSymbol.trim()) return;
-                                    setFuturesFeedbackLoading(true);
-                                    try {
-                                      const res = await fetch("/api/admin/ai-feedback", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                          contractAddress: `futures:${futuresSymbol.trim()}`,
-                                          outcome: "bad",
-                                          score: futuresAnalysisResult.score,
-                                          signal: futuresAnalysisResult.signal,
-                                          note: futuresFeedbackNote.trim() || undefined,
-                                        }),
-                                      });
-                                      const data = await res.json();
-                                      if (data.success) { setFuturesFeedbackSent("bad"); setFuturesFeedbackNote(""); }
-                                      else alert(data.error ?? "Failed to send feedback");
-                                    } catch {
-                                      alert("Failed to send feedback");
-                                    } finally {
-                                      setFuturesFeedbackLoading(false);
-                                    }
-                                  }}
-                                  className="text-xs border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50"
-                                >
-                                  No, needs work
-                                </Button>
-                              </div>
-                              <textarea
-                                value={futuresFeedbackNote}
-                                onChange={(e) => setFuturesFeedbackNote(e.target.value)}
-                                placeholder="Optional note for training (what worked or what missed)…"
-                                rows={2}
-                                className="w-full text-xs rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                              />
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                </div>
+                <FuturesWorkflow />
                 )}
               </div>
             ) : activeTab === "nova-connect" ? (

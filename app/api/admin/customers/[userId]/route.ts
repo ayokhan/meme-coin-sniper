@@ -38,6 +38,8 @@ export async function PATCH(
     const supportViewerAdmin = body.supportViewerAdmin;
     const liveChatAgentAdmin = body.liveChatAgentAdmin;
     const supportStaffName = body.supportStaffName;
+    const aiAgentDailyLimitOverride = body.aiAgentDailyLimitOverride;
+    const aiChartAnalysisDailyLimitOverride = body.aiChartAnalysisDailyLimitOverride;
     const rulesAccepted = body.rulesAccepted;
     const updates: {
       tradingBotOnDemand?: boolean;
@@ -57,6 +59,8 @@ export async function PATCH(
       supportViewerAdmin?: boolean;
       liveChatAgentAdmin?: boolean;
       supportStaffName?: string | null;
+      aiAgentDailyLimitOverride?: number | null;
+      aiChartAnalysisDailyLimitOverride?: number | null;
       novaConnectRulesAcceptedAt?: Date | null;
     } = {};
     if (typeof tradingBotOnDemand === 'boolean') updates.tradingBotOnDemand = tradingBotOnDemand;
@@ -86,13 +90,25 @@ export async function PATCH(
         updates.supportStaffName = trimmed.length > 0 ? trimmed : null;
       }
     }
+    if (aiAgentDailyLimitOverride !== undefined) {
+      if (aiAgentDailyLimitOverride === null) updates.aiAgentDailyLimitOverride = null;
+      else if (typeof aiAgentDailyLimitOverride === 'number' && Number.isFinite(aiAgentDailyLimitOverride)) {
+        updates.aiAgentDailyLimitOverride = Math.max(0, Math.min(1000, Math.round(aiAgentDailyLimitOverride)));
+      }
+    }
+    if (aiChartAnalysisDailyLimitOverride !== undefined) {
+      if (aiChartAnalysisDailyLimitOverride === null) updates.aiChartAnalysisDailyLimitOverride = null;
+      else if (typeof aiChartAnalysisDailyLimitOverride === 'number' && Number.isFinite(aiChartAnalysisDailyLimitOverride)) {
+        updates.aiChartAnalysisDailyLimitOverride = Math.max(0, Math.min(1000, Math.round(aiChartAnalysisDailyLimitOverride)));
+      }
+    }
     if (typeof rulesAccepted === 'boolean') {
       updates.novaConnectRulesAcceptedAt = rulesAccepted ? new Date() : null;
     }
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, customersViewerAdmin, supportViewerAdmin, liveChatAgentAdmin, supportStaffName, rulesAccepted (boolean).',
+        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, customersViewerAdmin, supportViewerAdmin, liveChatAgentAdmin, supportStaffName, aiAgentDailyLimitOverride, aiChartAnalysisDailyLimitOverride, rulesAccepted (boolean).',
       }, { status: 400 });
     }
     await (prisma as any).user.update({

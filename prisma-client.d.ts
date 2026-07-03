@@ -211,6 +211,9 @@ declare module '@prisma/client' {
     };
     usageAnalysisEvent: {
       create: (args: { data: { userId: string; source?: string | null } }) => Promise<unknown>;
+      count: (args: {
+        where?: { userId?: string; source?: string | null; createdAt?: { gte: Date; lt?: Date } };
+      }) => Promise<number>;
       groupBy: (args: {
         by: ["userId"];
         where?: { createdAt: { gte: Date; lt?: Date } };
@@ -220,6 +223,18 @@ declare module '@prisma/client' {
         orderBy: { createdAt: "asc" | "desc" };
         select: { createdAt: true };
       }) => Promise<{ createdAt: Date } | null>;
+    };
+    aiAgentQuotaConfig: {
+      findUnique: (args: { where: { id: string } }) => Promise<{
+        id: string;
+        memeAgentFreeDailyLimit: number;
+        chartAnalysisFreeDailyLimit: number;
+      } | null>;
+      upsert: (args: {
+        where: { id: string };
+        create: { id: string; memeAgentFreeDailyLimit: number; chartAnalysisFreeDailyLimit: number };
+        update: { memeAgentFreeDailyLimit: number; chartAnalysisFreeDailyLimit: number };
+      }) => Promise<unknown>;
     };
     userMemeCoinAlert: {
       count: (args: { where: { userId: string; createdAt: { gte: Date } } }) => Promise<number>;

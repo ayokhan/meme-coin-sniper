@@ -28,7 +28,7 @@ function fromDatetimeLocalValue(value: string): string | null {
 }
 
 const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean }[] = [
-  { id: "ai", title: "AI experiments", match: (k) => k.startsWith("ai_") },
+  { id: "ai", title: "AI experiments", match: (k) => k.startsWith("ai_") || k.startsWith("nova_ai_agent") },
   { id: "moralis", title: "API & notifications", match: (k) => k.startsWith("moralis_") || k.startsWith("telegram_") || k === "live_trades_enabled" },
   {
     id: "wallet-subs",
@@ -49,6 +49,16 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "AI Analysis RAG (VIP + owner)",
     description:
       "When ON, VIP and owner Solana AI analyses retrieve similar past analyses from each user's private embedding history before Claude runs. Requires OPENAI_API_KEY. Free users unaffected. Default OFF.",
+  },
+  nova_ai_agent_meme: {
+    label: "NovaStaris AI Agent — Meme Coins",
+    description:
+      "When ON, logged-in users can run Meme Coins Agent (VIP unlimited; free users get the global daily limit). Default ON.",
+  },
+  nova_ai_agent_chart: {
+    label: "NovaStaris AI Agent — Chart Analysis",
+    description:
+      "When ON, logged-in users can run Chart Analysis (VIP unlimited; free users get the global daily limit). Default ON.",
   },
   account_self_delete: {
     label: "Self-service Delete account",
@@ -360,6 +370,9 @@ export default function AdminFeatureFlagsPage() {
     showOnDashboard: true,
     showOnRegister: true,
   });
+  const [aiAgentQuotas, setAiAgentQuotas] = useState({ memeAgentFreeDailyLimit: 2, chartAnalysisFreeDailyLimit: 2 });
+  const [aiAgentQuotasDraft, setAiAgentQuotasDraft] = useState({ memeAgentFreeDailyLimit: "2", chartAnalysisFreeDailyLimit: "2" });
+  const [aiAgentQuotasSaving, setAiAgentQuotasSaving] = useState(false);
 
   const applyPromoDraft = (p: PromoBannerAdmin) => {
     setPromo(p);
@@ -380,8 +393,9 @@ export default function AdminFeatureFlagsPage() {
       fetch("/api/admin/feature-flags").then((r) => r.json()),
       fetch("/api/admin/tab-new-badges").then((r) => r.json()),
       fetch("/api/admin/promo-banner").then((r) => r.json()),
+      fetch("/api/admin/ai-agent-quotas").then((r) => r.json()),
     ])
-      .then(([flagsData, badgesData, promoData]) => {
+      .then(([flagsData, badgesData, promoData, quotasData]) => {
         if (flagsData.success) setFlags(flagsData.flags ?? {});
         else setError(flagsData.error ?? "Failed to load");
         if (badgesData.success) {
@@ -395,6 +409,14 @@ export default function AdminFeatureFlagsPage() {
         }
         if (promoData.success && promoData.promo) {
           applyPromoDraft(promoData.promo as PromoBannerAdmin);
+        }
+        if (quotasData.success && quotasData.quotas) {
+          const q = quotasData.quotas as { memeAgentFreeDailyLimit: number; chartAnalysisFreeDailyLimit: number };
+          setAiAgentQuotas(q);
+          setAiAgentQuotasDraft({
+            memeAgentFreeDailyLimit: String(q.memeAgentFreeDailyLimit),
+            chartAnalysisFreeDailyLimit: String(q.chartAnalysisFreeDailyLimit),
+          });
         }
       })
       .catch(() => setError("Failed to load"))
@@ -458,6 +480,39 @@ export default function AdminFeatureFlagsPage() {
       setError("Update failed");
     } finally {
       setPromoSaving(false);
+    }
+  };
+
+  const patchAiAgentQuotas = async () => {
+    const meme = Number(aiAgentQuotasDraft.memeAgentFreeDailyLimit);
+    const chart = Number(aiAgentQuotasDraft.chartAnalysisFreeDailyLimit);
+    if (!Number.isFinite(meme) || !Number.isFinite(chart)) {
+      setError("Enter valid daily limits.");
+      return;
+    }
+    setAiAgentQuotasSaving(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const res = await fetch("/api/admin/ai-agent-quotas", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memeAgentFreeDailyLimit: meme, chartAnalysisFreeDailyLimit: chart }),
+      });
+      const data = await res.json();
+      if (data.success && data.quotas) {
+        setAiAgentQuotas(data.quotas);
+        setAiAgentQuotasDraft({
+          memeAgentFreeDailyLimit: String(data.quotas.memeAgentFreeDailyLimit),
+          chartAnalysisFreeDailyLimit: String(data.quotas.chartAnalysisFreeDailyLimit),
+        });
+        setSuccessMessage("AI Agent daily limits updated.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Update failed");
+    } catch {
+      setError("Update failed");
+    } finally {
+      setAiAgentQuotasSaving(false);
     }
   };
 
@@ -555,6 +610,44 @@ export default function AdminFeatureFlagsPage() {
               <p className="text-muted-foreground">Loading…</p>
             ) : (
               <div className="space-y-6">
+                <div className="rounded-xl border border-cyan-200/80 dark:border-cyan-800/60 bg-cyan-50/30 dark:bg-cyan-950/20 p-4 space-y-3">
+                  <div>
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">NovaStaris AI Agent — free-tier daily limits</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Default uses per day for registered free users (VIP is unlimited). Per-user overrides are in Admin → Customers → Manage.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-4 items-end">
+                    <label className="text-sm">
+                      <span className="block text-xs text-muted-foreground mb-1">Meme Coins Agent</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={1000}
+                        value={aiAgentQuotasDraft.memeAgentFreeDailyLimit}
+                        onChange={(e) => setAiAgentQuotasDraft((d) => ({ ...d, memeAgentFreeDailyLimit: e.target.value }))}
+                        className="w-24 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="text-sm">
+                      <span className="block text-xs text-muted-foreground mb-1">Chart Analysis</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={1000}
+                        value={aiAgentQuotasDraft.chartAnalysisFreeDailyLimit}
+                        onChange={(e) => setAiAgentQuotasDraft((d) => ({ ...d, chartAnalysisFreeDailyLimit: e.target.value }))}
+                        className="w-24 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <Button size="sm" onClick={patchAiAgentQuotas} disabled={aiAgentQuotasSaving}>
+                      {aiAgentQuotasSaving ? "Saving…" : "Save limits"}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Current: Meme {aiAgentQuotas.memeAgentFreeDailyLimit}/day · Chart {aiAgentQuotas.chartAnalysisFreeDailyLimit}/day
+                  </p>
+                </div>
                 {groupedFlags.map((group) => (
                   <details key={group.id} open={group.id !== "tabs"} className="rounded-xl border border-zinc-200 dark:border-zinc-700">
                     <summary className="cursor-pointer px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100 list-none flex items-center justify-between">

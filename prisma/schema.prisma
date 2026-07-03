@@ -138,6 +138,10 @@ model User {
   liveChatAgentAdmin         Boolean  @default(false)
   /** Display name shown to customers when replying in live chat (default: Support Agent). */
   supportStaffName           String?
+  /** Owner override: daily Meme Coins Agent uses for free users (null = global default). */
+  aiAgentDailyLimitOverride         Int?
+  /** Owner override: daily Chart Analysis uses for free users (null = global default). */
+  aiChartAnalysisDailyLimitOverride Int?
   /** When user accepted Payment Terms and Conditions (required before any subscription payment). */
   paymentTermsAcceptedAt     DateTime?
   createdAt     DateTime  @default(now())
@@ -194,6 +198,14 @@ model UsageAnalysisEvent {
 
   @@index([userId, createdAt])
   @@index([createdAt])
+}
+
+/** Global daily usage limits for free-tier NovaStaris AI Agent features. */
+model AiAgentQuotaConfig {
+  id                          String   @id @default("default")
+  memeAgentFreeDailyLimit     Int      @default(2)
+  chartAnalysisFreeDailyLimit Int      @default(2)
+  updatedAt                   DateTime @updatedAt
 }
 
 // Per-user Blofin API keys (encrypted at rest). When set, trading bot uses these for that user.

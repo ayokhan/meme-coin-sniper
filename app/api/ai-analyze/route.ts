@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { runAiAnalysis } from '@/lib/ai-analyze';
-import { recordAiAnalysis } from '@/lib/usage';
 import { canUseAiAnalysisRag } from '@/lib/ai-analysis-rag-access';
+import { assertAiAgentAccess, recordAiAgentUsage } from '@/lib/ai-agent-quota';
 
 function isValidSolanaAddress(address: string): boolean {
   if (!address || typeof address !== 'string') return false;
@@ -12,8 +12,19 @@ function isValidSolanaAddress(address: string): boolean {
 export async function POST(request: Request) {
   try {
     const { session, isPaid, userId, tier } = await getSessionAndSubscription();
-    if (!isPaid) {
-      return NextResponse.json({ success: false, error: 'Subscribe to use NovaStaris AI Agent.', locked: true }, { status: 403 });
+    const access = await assertAiAgentAccess(session, isPaid, 'meme_agent');
+    if (!access.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: access.error,
+          locked: access.locked,
+          limitReached: access.limitReached,
+          used: access.used,
+          limit: access.limit,
+        },
+        { status: access.status }
+      );
     }
 
     const body = await request.json().catch(() => ({}));
@@ -40,7 +51,7 @@ export async function POST(request: Request) {
       ...(useRag && userId ? { useRag: true, ragUserId: userId } : {}),
     });
 
-    if (userId) await recordAiAnalysis(userId).catch(() => {});
+    if (userId) await recordAiAgentUsage(userId, 'meme_agent').catch(() => {});
 
     return NextResponse.json({
       success: true,

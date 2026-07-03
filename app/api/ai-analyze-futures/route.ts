@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { runFuturesAnalysis } from '@/lib/ai-analyze-futures';
 import { fetchUnifiedMarketReadForSymbol } from '@/lib/nova-market-read-snapshot';
+import { assertAiAgentAccess, recordAiAgentUsage } from '@/lib/ai-agent-quota';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
@@ -14,11 +15,19 @@ function parseNum(s: string | null): number | null {
 
 export async function POST(request: Request) {
   try {
-    const { isPaid } = await getSessionAndSubscription();
-    if (!isPaid) {
+    const { session, isPaid, userId } = await getSessionAndSubscription();
+    const access = await assertAiAgentAccess(session, isPaid, 'chart_analysis');
+    if (!access.ok) {
       return NextResponse.json(
-        { success: false, error: 'Subscribe to use NovaStaris AI Chart Analysis (Crypto Futures).', locked: true },
-        { status: 403 }
+        {
+          success: false,
+          error: access.error,
+          locked: access.locked,
+          limitReached: access.limitReached,
+          used: access.used,
+          limit: access.limit,
+        },
+        { status: access.status }
       );
     }
 
@@ -102,6 +111,8 @@ export async function POST(request: Request) {
       }),
       fetchUnifiedMarketReadForSymbol(symbol).catch(() => null),
     ]);
+
+    if (userId) await recordAiAgentUsage(userId, 'chart_analysis').catch(() => {});
 
     return NextResponse.json({
       success: true,

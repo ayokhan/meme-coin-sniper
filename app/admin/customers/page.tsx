@@ -41,6 +41,8 @@ type Customer = {
   supportViewerAdmin: boolean;
   liveChatAgentAdmin: boolean;
   supportStaffName: string | null;
+  aiAgentDailyLimitOverride: number | null;
+  aiChartAnalysisDailyLimitOverride: number | null;
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
   createdAt: string;
@@ -133,6 +135,7 @@ export default function AdminCustomersPage() {
   const [togglingSupportViewerAdminId, setTogglingSupportViewerAdminId] = useState<string | null>(null);
   const [togglingLiveChatAgentAdminId, setTogglingLiveChatAgentAdminId] = useState<string | null>(null);
   const [savingSupportStaffNameId, setSavingSupportStaffNameId] = useState<string | null>(null);
+  const [savingAiAgentLimitsId, setSavingAiAgentLimitsId] = useState<string | null>(null);
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const customersTableScrollRef = useRef<HTMLDivElement>(null);
@@ -662,6 +665,34 @@ export default function AdminCustomersPage() {
     }
   };
 
+  const handleAiAgentLimitsSave = async (
+    id: string,
+    patch: { meme?: number | null; chart?: number | null }
+  ) => {
+    setSavingAiAgentLimitsId(id);
+    setError("");
+    try {
+      const body: Record<string, number | null> = {};
+      if (patch.meme !== undefined) body.aiAgentDailyLimitOverride = patch.meme;
+      if (patch.chart !== undefined) body.aiChartAnalysisDailyLimitOverride = patch.chart;
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage("AI Agent daily limits updated.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update AI Agent limits");
+    } catch {
+      setError("Failed to update AI Agent limits");
+    } finally {
+      setSavingAiAgentLimitsId(null);
+    }
+  };
+
   const handleCoachUserToggle = async (id: string, value: boolean) => {
     setTogglingCoachUserId(id);
     setError("");
@@ -1150,6 +1181,7 @@ export default function AdminCustomersPage() {
                                     supportViewerAdmin: togglingSupportViewerAdminId === c.id,
                                     liveChatAgentAdmin: togglingLiveChatAgentAdminId === c.id,
                                     savingSupportStaffName: savingSupportStaffNameId === c.id,
+                                    savingAiAgentLimits: savingAiAgentLimitsId === c.id,
                                   }}
                                   onTradingBot={(v) => handleTradingBotOnDemand(c.id, v)}
                                   onPolymarket={(v) => handlePolymarketBotOnDemand(c.id, v)}
@@ -1172,6 +1204,7 @@ export default function AdminCustomersPage() {
                                   onSupportViewerAdmin={(v) => handleSupportViewerAdminToggle(c.id, v)}
                                   onLiveChatAgentAdmin={(v) => handleLiveChatAgentAdminToggle(c.id, v)}
                                   onSupportStaffNameSave={(v) => handleSupportStaffNameSave(c.id, v)}
+                                  onAiAgentLimitsSave={(patch) => handleAiAgentLimitsSave(c.id, patch)}
                                 />
                               </td>
                             </tr>
