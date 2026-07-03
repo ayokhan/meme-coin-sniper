@@ -51,11 +51,11 @@ export default function NovaRadarPreTradeChecklist({ plans, leverage }: Props) {
   if (!hasLeverage && plans.length === 0) return null;
 
   return (
-    <div className="rounded-md border border-amber-200/80 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/25 p-3">
-      <p className="text-xs font-semibold text-amber-900 dark:text-amber-100 mb-2">Pre-trade checklist</p>
+    <div className="rounded-md border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 p-3">
+      <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 mb-2">Pre-trade checklist</p>
       <ul className="space-y-1.5">
         {items.map((item) => (
-          <li key={item.id} className="flex gap-2 text-xs text-amber-950/90 dark:text-amber-50/90">
+          <li key={item.id} className="flex gap-2 text-xs text-slate-700 dark:text-slate-200">
             <span className={item.ok ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
               {item.ok ? "✓" : "!"}
             </span>

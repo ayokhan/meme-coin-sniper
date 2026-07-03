@@ -607,7 +607,7 @@ export default function AdminWalletTrackerPage() {
           </CardHeader>
           <CardContent>
             {wallets.length === 0 && !loading && (
-              <div className="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200 text-sm px-3 py-3">
+              <div className="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/50 text-slate-700 dark:text-slate-200 text-sm px-3 py-3">
                 No wallets in database. Click &quot;Load default wallets&quot; to import from config, or add manually.
                 <Button variant="outline" size="sm" className="ml-3" onClick={handleSeed} disabled={seeding}>
                   {seeding ? "Loading…" : "Load default wallets"}
@@ -674,7 +674,7 @@ export default function AdminWalletTrackerPage() {
             ) : (
               <ul className="space-y-2">
                 {wallets.map((w) => (
-                  <li key={w.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${w.active !== false ? "border-zinc-200 dark:border-zinc-700" : "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"}`}>
+                  <li key={w.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${w.active !== false ? "border-zinc-200 dark:border-zinc-700" : "border-violet-400/35 dark:border-violet-600/40 bg-slate-50/95 dark:bg-slate-900/70"}`}>
                     <div className="min-w-0 flex-1 basis-full sm:basis-0">
                       <span className={`font-mono text-xs sm:text-sm break-all ${w.active !== false ? "text-zinc-900 dark:text-zinc-100" : "text-muted-foreground"}`} title={w.address}>{w.address}</span>
                       {w.label && <span className="ml-2 text-muted-foreground">({w.label})</span>}
@@ -683,7 +683,7 @@ export default function AdminWalletTrackerPage() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {w.active !== false ? (
-                        <Button variant="outline" size="sm" className="h-7 text-xs border-amber-500 text-amber-700 dark:text-amber-300" onClick={() => handleSetActive(w.address, false)} disabled={togglingActiveWallet === w.address}>
+                        <Button variant="outline" size="sm" className="h-7 text-xs border-amber-500 text-slate-600 dark:text-slate-300" onClick={() => handleSetActive(w.address, false)} disabled={togglingActiveWallet === w.address}>
                           {togglingActiveWallet === w.address ? "…" : "Deactivate"}
                         </Button>
                       ) : (

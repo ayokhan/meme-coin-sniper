@@ -323,7 +323,7 @@ export default function AccountPage() {
                 </div>
               )}
               {showCancelConfirm ? (
-                <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-4 space-y-3">
+                <div className="rounded-lg border border-violet-400/35 dark:border-violet-600/40 bg-slate-50/95 dark:bg-slate-900/70 p-4 space-y-3">
                   <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Turn off automatic renewal?</p>
                   <p className="text-sm text-muted-foreground">
                     Your VIP access continues until the date above. After that, your card will not be charged unless you renew manually.

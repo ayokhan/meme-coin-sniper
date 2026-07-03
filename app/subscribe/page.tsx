@@ -441,7 +441,7 @@ function SubscribeContent() {
           </div>
         )}
 
-        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 p-4 mb-6">
+        <div className="rounded-lg border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 p-4 mb-6">
           <label htmlFor="payment-terms-checkbox" className="flex items-start gap-3 cursor-pointer">
             <input
               id="payment-terms-checkbox"

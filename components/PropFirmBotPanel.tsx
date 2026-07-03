@@ -786,7 +786,7 @@ export default function PropFirmBotPanel() {
                 )}
               </p>
             ) : (
-              <p className="text-amber-700 dark:text-amber-300">
+              <p className="text-slate-600 dark:text-slate-300">
                 Add Blofin API keys to auto-pull positions and PnL.
               </p>
             )}

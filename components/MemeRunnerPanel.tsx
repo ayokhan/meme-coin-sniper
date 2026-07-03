@@ -435,7 +435,7 @@ export default function MemeRunnerPanel() {
                     {fmtUsd(config.migrated.minMarketCapUsd)}.
                   </p>
                   {diagnostics && (
-                    <div className="text-[10px] text-amber-800 dark:text-amber-200/90 space-y-0.5">
+                    <div className="text-[10px] text-slate-700 dark:text-slate-200/90 space-y-0.5">
                       <p>
                         Scan: New {diagnostics.passed.new}/{diagnostics.classified.new} · Soon{" "}
                         {diagnostics.passed.soon}/{diagnostics.classified.soon} · Migrated{" "}

@@ -223,7 +223,7 @@ export default function NovaPatternDetectorPanel({ enabled, isVip }: Props) {
       {result && (
         <div className="space-y-4">
           {result.lookbackWarning && (
-            <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-md px-3 py-2">
+            <p className="text-xs text-slate-600 dark:text-slate-300 bg-cyan-500/10 border border-cyan-500/30 rounded-md px-3 py-2">
               {result.lookbackWarning}
             </p>
           )}

@@ -594,7 +594,7 @@ export default function NovaInvestmentAgentPanel({ isOwner }: { isOwner: boolean
                       </div>
 
                       {leg.notes && leg.notes.length > 0 && (
-                        <div className="text-xs text-amber-800 dark:text-amber-200 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/60 p-2 rounded">
+                        <div className="text-xs text-slate-700 dark:text-slate-200 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/60 p-2 rounded">
                           {leg.notes.map((n) => (
                             <div key={n}>{n}</div>
                           ))}

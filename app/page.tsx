@@ -70,6 +70,7 @@ import DashboardPathPickerModal from "@/components/DashboardPathPickerModal";
 import DashboardPathHintBanner from "@/components/DashboardPathHintBanner";
 import AiAgentOnboardingPanel, { type AiAgentOnboardingStep } from "@/components/AiAgentOnboardingPanel";
 import VipExpiryBanner from "@/components/VipExpiryBanner";
+import NoticeBanner, { NoticeInline } from "@/components/NoticeBanner";
 import {
   loadDashboardPath,
   saveDashboardPath,
@@ -3858,11 +3859,11 @@ export default function Dashboard() {
           onApply={applyDashboardPathResult}
         />
         {error && (
-          <div className="mb-6 rounded-xl border border-amber-200/80 dark:border-amber-800/80 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="mb-6 rounded-xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50/95 dark:bg-slate-900/80 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2">
             <span className="flex-1">{error}</span>
             <span className="flex gap-2 shrink-0">
-              <Button variant="outline" size="sm" onClick={() => { setError(null); fetchTokens(activeTab); }} className="border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200">Retry</Button>
-              <Link href="/support"><Button variant="ghost" size="sm" className="text-amber-800 dark:text-amber-200">Report issue</Button></Link>
+              <Button variant="outline" size="sm" onClick={() => { setError(null); fetchTokens(activeTab); }} className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200">Retry</Button>
+              <Link href="/support"><Button variant="ghost" size="sm" className="text-slate-700 dark:text-slate-200">Report issue</Button></Link>
             </span>
           </div>
         )}
@@ -4330,7 +4331,7 @@ export default function Dashboard() {
                   {goHuntingView === "migrated" && "Graduated to Raydium, Orca, or Meteora (or pumpswap past ~$69k MC)."}
                 </span>
                 {goHuntingView === "new_pairs" && tokensForDisplay.length > 0 && tokensForDisplay.length <= 5 && (
-                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-300/90">
+                  <p className="mt-2 text-xs text-slate-600 dark:text-slate-300/90">
                     Only {tokensForDisplay.length} pair{tokensForDisplay.length === 1 ? "" : "s"} launched in this window right now — Solana new-listing volume varies by hour.
                     Try <button type="button" onClick={() => setGoHuntingView("final_stretch")} className="underline font-medium">Final Stretch</button>,{" "}
                     <button type="button" onClick={() => setActiveTab("trending")} className="underline font-medium">Trending</button>, or{" "}
@@ -4446,9 +4447,7 @@ export default function Dashboard() {
                   if (!snap) return null;
                   if (!snap.enabled) {
                     return (
-                      <p className="mb-4 text-sm text-amber-700 dark:text-amber-300 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 px-3 py-2">
-                        {snap.label} is temporarily unavailable.
-                      </p>
+                      <NoticeBanner variant="info" className="mb-4" compact title={`${snap.label} is temporarily unavailable.`} />
                     );
                   }
                   if (snap.unlimited) {
@@ -4477,17 +4476,18 @@ export default function Dashboard() {
                       blocked === "weekly" ? snap.weekly : blocked === "monthly" ? snap.monthly : snap.daily;
                     const blockedLimit = blockedSnap.limit ?? snap.limit;
                     return (
-                      <div className="mb-4 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 text-sm">
-                        <p className="font-semibold text-amber-900 dark:text-amber-100">{windowLabel(blocked)} limit reached</p>
-                        <p className="mt-1 text-amber-800/90 dark:text-amber-200/90">
-                          You&apos;ve used all {blockedLimit} free {featureLabel} uses for this{" "}
-                          {blocked === "daily" ? "day" : blocked === "weekly" ? "week" : "month"} ({resetHint(blocked)}).{" "}
-                          <Link href="/subscribe" className="font-medium text-cyan-700 dark:text-cyan-300 hover:underline">
-                            Upgrade to VIP
-                          </Link>{" "}
-                          for unlimited access.
-                        </p>
-                      </div>
+                      <NoticeBanner
+                        variant="limit"
+                        className="mb-4"
+                        title={`${windowLabel(blocked)} limit reached`}
+                      >
+                        You&apos;ve used all {blockedLimit} free {featureLabel} uses for this{" "}
+                        {blocked === "daily" ? "day" : blocked === "weekly" ? "week" : "month"} ({resetHint(blocked)}).{" "}
+                        <Link href="/subscribe" className="font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
+                          Upgrade to VIP
+                        </Link>{" "}
+                        for unlimited access.
+                      </NoticeBanner>
                     );
                   }
                   const usageParts: string[] = [
@@ -4697,7 +4697,7 @@ export default function Dashboard() {
                       )}
                     </div>
                     {isOwner && aiAnalysisResult.ragEnabled && !aiAnalysisResult.ragConfigured && (
-                      <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                      <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
                         Personal context is enabled but OPENAI_API_KEY is not set — analysis ran without retrieval. Add the key in Vercel env to enable embeddings.
                       </p>
                     )}
@@ -4749,9 +4749,9 @@ export default function Dashboard() {
                       <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{(aiAnalysisResult.tokenInfo?.securityIssues ?? []).join(" ")}</p>
                     )}
                     {aiAnalysisResult.amountRiskNote && (
-                      <div className="mt-4 rounded-lg border border-amber-200/80 dark:border-amber-800/80 bg-amber-50/50 dark:bg-amber-950/30 p-3 text-sm">
-                        <p className="font-medium text-amber-800 dark:text-amber-200">Amount vs risk:</p>
-                        <p className="text-amber-700 dark:text-amber-300">{aiAnalysisResult.amountRiskNote}</p>
+                      <div className="mt-4 rounded-lg border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 p-3 text-sm">
+                        <p className="font-medium text-slate-700 dark:text-slate-200">Amount vs risk:</p>
+                        <p className="text-slate-600 dark:text-slate-300">{aiAnalysisResult.amountRiskNote}</p>
                       </div>
                     )}
                     {aiAnalysisResult.recommendations && (aiAnalysisResult.recommendations.supportResistance || aiAnalysisResult.recommendations.marketStructure || aiAnalysisResult.recommendations.directionBias || aiAnalysisResult.recommendations.trendlineRead || aiAnalysisResult.recommendations.demandSupplyZones || aiAnalysisResult.recommendations.buyZoneMcap || aiAnalysisResult.recommendations.takeProfitPct || aiAnalysisResult.recommendations.stopLossPct) && (
@@ -5167,7 +5167,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground mb-2">
-                        Scalp-focused: alerts when <strong className="text-zinc-700 dark:text-zinc-300">5m/15m lead</strong> while <strong className="text-zinc-700 dark:text-zinc-300">24h is still ~1–32%</strong> (not exhausted +45% moves). Fires on each refresh while this tab is open — turn on <strong className="text-zinc-700 dark:text-zinc-300">Auto-refresh</strong> (120s on Blofin). Rows tagged <strong className="text-cyan-700 dark:text-cyan-300">NovaPick</strong> match the early scalp setup; skip <strong className="text-amber-700 dark:text-amber-300">LATE CHASE</strong>.
+                        Scalp-focused: alerts when <strong className="text-zinc-700 dark:text-zinc-300">5m/15m lead</strong> while <strong className="text-zinc-700 dark:text-zinc-300">24h is still ~1–32%</strong> (not exhausted +45% moves). Fires on each refresh while this tab is open — turn on <strong className="text-zinc-700 dark:text-zinc-300">Auto-refresh</strong> (120s on Blofin). Rows tagged <strong className="text-cyan-700 dark:text-cyan-300">NovaPick</strong> match the early scalp setup; skip <strong className="text-slate-600 dark:text-slate-300">LATE CHASE</strong>.
                       </p>
                       {blofinBrowserNotifyMsg && (
                         <p className="text-xs text-cyan-700 dark:text-cyan-300 mb-2">{blofinBrowserNotifyMsg}</p>
@@ -5247,14 +5247,14 @@ export default function Dashboard() {
                       <summary className="cursor-pointer font-medium text-zinc-700 dark:text-zinc-300">Scalp playbook (Blofin)</summary>
                       <ul className="mt-2 space-y-1 list-disc pl-4">
                         <li>Preset <strong className="text-zinc-700 dark:text-zinc-300">Early breakout</strong> · sort <strong className="text-zinc-700 dark:text-zinc-300">15m</strong> · Only surge on · Auto-refresh on.</li>
-                        <li>Enter when row shows <strong className="text-cyan-700 dark:text-cyan-300">NovaPick</strong> (5m/15m lead, 24h still modest) — skip <strong className="text-amber-700 dark:text-amber-300">LATE CHASE</strong>.</li>
+                        <li>Enter when row shows <strong className="text-cyan-700 dark:text-cyan-300">NovaPick</strong> (5m/15m lead, 24h still modest) — skip <strong className="text-slate-600 dark:text-slate-300">LATE CHASE</strong>.</li>
                         <li>Risk 0.5–1% per trade · stop below last 15m low (long) · target 1.5–2.5R — don&apos;t hold through a stalled 24h.</li>
                         <li>Star 3–5 names · NovaQ before size · AI Signal as veto if 24h already extended.</li>
                       </ul>
                     </details>
                   )}
                   {perpRadarStaleNote && (
-                    <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">{perpRadarStaleNote}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">{perpRadarStaleNote}</p>
                   )}
                   {perpRadarError && (
                     <div className="mb-3">
@@ -6342,7 +6342,7 @@ export default function Dashboard() {
                   </button>
                 </div>
                 {showNicknamePrompt && (
-                  <div className="rounded-xl border border-amber-300/80 dark:border-amber-700/80 bg-amber-50/80 dark:bg-amber-950/40 p-4 space-y-3">
+                  <div className="rounded-xl border border-cyan-500/30 dark:border-cyan-600/40 bg-gradient-to-r from-slate-50/95 via-cyan-50/30 to-slate-50/95 dark:from-slate-900/95 dark:via-cyan-950/20 dark:to-slate-900/95 p-4 space-y-3">
                     <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
                       First time here?
                     </p>
@@ -6350,12 +6350,12 @@ export default function Dashboard() {
                       If you don&apos;t want your real name visible to others, set a preferred name on the Account page.
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button asChild size="sm" variant="outline" className="text-xs border-amber-400 text-amber-800 dark:text-amber-200">
+                      <Button asChild size="sm" variant="outline" className="text-xs border-amber-400 text-slate-700 dark:text-slate-200">
                         <Link href="/account">Go to Account</Link>
                       </Button>
                       <button
                         type="button"
-                        className="text-xs text-amber-700 dark:text-amber-300 underline"
+                        className="text-xs text-slate-600 dark:text-slate-300 underline"
                         onClick={dismissNicknamePrompt}
                       >
                         Dismiss
@@ -6426,7 +6426,7 @@ export default function Dashboard() {
                             </Button>
                           </div>
                           {!canUseNovaConnectPaidFeatures && (
-                            <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300">
                               Upgrade to VIP (or ask an admin to allow NovaConnect) to see online traders and chat with them.
                             </p>
                           )}
@@ -6739,7 +6739,7 @@ export default function Dashboard() {
                                         u.status === "online"
                                           ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
                                           : u.status === "away"
-                                            ? "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300"
+                                            ? "bg-amber-100 dark:bg-amber-900/50 text-slate-600 dark:text-slate-300"
                                             : u.status === "busy"
                                               ? "bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300"
                                               : "bg-zinc-300 dark:bg-zinc-600 text-zinc-600 dark:text-zinc-300"
@@ -7110,7 +7110,7 @@ export default function Dashboard() {
                               setChrisClaytonShareLoading(false);
                             }
                           }}
-                          className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50"
+                          className="border-amber-300 dark:border-amber-700 text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-950/50"
                         >
                           {chrisClaytonShareLoading ? "Sharing…" : chrisClaytonShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
                         </Button>
@@ -7596,7 +7596,7 @@ export default function Dashboard() {
                                           r.trendlineConfidence === "high"
                                             ? "border-emerald-500/60 text-emerald-700 dark:text-emerald-300"
                                             : r.trendlineConfidence === "medium"
-                                              ? "border-amber-500/60 text-amber-700 dark:text-amber-300"
+                                              ? "border-amber-500/60 text-slate-600 dark:text-slate-300"
                                               : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
                                         }
                                         title={r.trendlineConfidenceNote || undefined}
@@ -7698,7 +7698,7 @@ export default function Dashboard() {
                                       : novaQResult.alignment.tone === "red"
                                         ? "border-rose-500/60 text-rose-700 dark:text-rose-300"
                                         : novaQResult.alignment.tone === "amber"
-                                          ? "border-amber-500/60 text-amber-700 dark:text-amber-300"
+                                          ? "border-amber-500/60 text-slate-600 dark:text-slate-300"
                                           : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
                                   }
                                   title={novaQResult.alignment.note}
@@ -8083,7 +8083,7 @@ export default function Dashboard() {
                                     novaPlusResult.pnlPreview.liquidationDistanceFromEntryPct != null && (
                                       <p className="text-xs">
                                         Est. liquidation (isolated approx.):{" "}
-                                        <span className="font-mono text-amber-700 dark:text-amber-300">
+                                        <span className="font-mono text-slate-600 dark:text-slate-300">
                                           $
                                           {novaPlusResult.pnlPreview.estimatedLiquidationPx.toLocaleString(undefined, {
                                             maximumFractionDigits: 2,
@@ -8416,7 +8416,7 @@ export default function Dashboard() {
                   </div>
                 )}
                 {isOwner && (
-                  <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 p-4">
+                  <div className="rounded-lg border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                       <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                         First buy alerts (owner only)

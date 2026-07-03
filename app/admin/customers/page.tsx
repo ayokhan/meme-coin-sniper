@@ -845,7 +845,7 @@ export default function AdminCustomersPage() {
     if (showLegacyOnDemand && c.propFirmBotOnDemand) chips.push({ label: "Prop firm", className: "bg-orange-100 dark:bg-orange-900/40 text-orange-900 dark:text-orange-200" });
     if (c.novaUltimateOnDemand) chips.push({ label: "Ultimate", className: "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-200" });
     if (c.ctScanOnDemand) chips.push({ label: "CT Scan", className: "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200" });
-    if (c.memeCoinsTraderOnDemand) chips.push({ label: "Meme wallets", className: "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200" });
+    if (c.memeCoinsTraderOnDemand) chips.push({ label: "Meme wallets", className: "bg-amber-100 dark:bg-amber-900/40 text-slate-700 dark:text-slate-200" });
     return chips;
   };
 
@@ -905,7 +905,7 @@ export default function AdminCustomersPage() {
                 onClick={() => setOnDemandOnly((v) => !v)}
                 className={`text-xs font-medium px-3 py-2 rounded border ${
                   onDemandOnly
-                    ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700"
+                    ? "bg-amber-100 dark:bg-amber-900/50 text-slate-700 dark:text-slate-200 border-amber-300 dark:border-amber-700"
                     : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
                 }`}
               >

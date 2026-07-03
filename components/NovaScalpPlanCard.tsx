@@ -515,7 +515,7 @@ export function NovaScalpPlanCard({
           </div>
           <div>
             <span className="text-muted-foreground text-xs">Stop (invalidation)</span>
-            <p className="font-mono font-medium text-amber-700 dark:text-amber-300">
+            <p className="font-mono font-medium text-slate-600 dark:text-slate-300">
               {fmtUsd(result.stopLossPrice)}
             </p>
             {showPlanMonitor && livePrice != null && result.stopLossPrice != null && (
@@ -574,7 +574,7 @@ export function NovaScalpPlanCard({
             </p>
             {result.lossAtRiskStopUsd != null &&
               result.lossAtRiskStopUsd !== result.lossAtStopUsd && (
-                <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                <p className="text-[11px] text-slate-600 dark:text-slate-300">
                   Risk cap: -${Math.abs(result.lossAtRiskStopUsd).toLocaleString()} (
                   {Math.abs(result.lossAtRiskStopPctOnMargin ?? 0).toFixed(1)}%)
                 </p>
@@ -604,7 +604,7 @@ export function NovaScalpPlanCard({
               </p>
             )}
             {!blofinPosition.hasExchangeStopLoss && (
-              <p className="mt-1 text-amber-800 dark:text-amber-200">No exchange stop loss set on Blofin.</p>
+              <p className="mt-1 text-slate-700 dark:text-slate-200">No exchange stop loss set on Blofin.</p>
             )}
           </div>
         )}

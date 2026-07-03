@@ -62,7 +62,7 @@ function SideToggle({
 
 function realismBadgeClass(realism: NovaRadarPlanResult["realism"]) {
   if (realism === "unrealistic") return "border-rose-600/80 text-rose-800 dark:text-rose-200";
-  if (realism === "stretched") return "border-amber-500/60 text-amber-800 dark:text-amber-200";
+  if (realism === "stretched") return "border-amber-500/60 text-slate-700 dark:text-slate-200";
   return "border-emerald-500/60 text-emerald-800 dark:text-emerald-200";
 }
 
@@ -75,7 +75,7 @@ function realismLabel(realism: NovaRadarPlanResult["realism"]) {
 function leverageRiskBadgeClass(risk: NonNullable<NovaRadarPlanResult["leverage"]>["leverageRisk"]) {
   if (risk === "extreme") return "border-rose-600/80 text-rose-800 dark:text-rose-200";
   if (risk === "high") return "border-orange-500/70 text-orange-800 dark:text-orange-200";
-  if (risk === "moderate") return "border-amber-500/60 text-amber-800 dark:text-amber-200";
+  if (risk === "moderate") return "border-amber-500/60 text-slate-700 dark:text-slate-200";
   return "border-sky-500/60 text-sky-800 dark:text-sky-200";
 }
 

@@ -500,7 +500,7 @@ export default function MemeLeaderboardPanel({
         <CardContent className="p-6 flex items-start gap-3">
           <Info className="h-5 w-5 text-amber-600 dark:text-amber-300 mt-0.5" />
           <div>
-            <p className="font-semibold text-amber-700 dark:text-amber-200">Meme Coin Advantage Bundle is disabled</p>
+            <p className="font-semibold text-slate-600 dark:text-slate-300">Meme Coin Advantage Bundle is disabled</p>
             <p className="text-sm text-muted-foreground mt-1">
               Owner can turn it on in Nova Admin → Feature flags → &quot;Meme Coin Advantage Bundle (Wallet Tracker)&quot;.
             </p>
@@ -741,7 +741,7 @@ export default function MemeLeaderboardPanel({
                               <div className="font-medium flex items-center gap-1.5 flex-wrap">
                                 {r.label || shortenWallet(r.walletAddress)}
                                 {r.isGlobal && (
-                                  <span className="text-[10px] px-1 py-0 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 inline-flex items-center gap-0.5">
+                                  <span className="text-[10px] px-1 py-0 rounded bg-amber-100 dark:bg-amber-900/30 text-slate-600 dark:text-slate-300 border border-amber-300 dark:border-amber-700 inline-flex items-center gap-0.5">
                                     <Globe className="h-2.5 w-2.5" /> Global
                                   </span>
                                 )}
@@ -838,7 +838,7 @@ export default function MemeLeaderboardPanel({
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  className="h-7 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                  className="h-7 text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
                                   onClick={() => void onDemoteRow(r.walletAddress)}
                                   disabled={busyAddress === r.walletAddress}
                                   title="Remove from global (hide from all users; still available to anyone who added it personally)"
@@ -982,7 +982,7 @@ export default function MemeLeaderboardPanel({
                               )}
                             </div>
                             {rowError && (
-                              <p className="text-[10px] mt-0.5 text-amber-700 dark:text-amber-300">{rowError}</p>
+                              <p className="text-[10px] mt-0.5 text-slate-600 dark:text-slate-300">{rowError}</p>
                             )}
                           </TableCell>
                           <TableCell className="text-right">

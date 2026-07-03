@@ -328,7 +328,7 @@ export default function AdminLeverageWalletTrackerPage() {
           </CardHeader>
           <CardContent>
             {wallets.length === 0 && !loading && (
-              <div className="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200 text-sm px-3 py-3">
+              <div className="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/50 text-slate-700 dark:text-slate-200 text-sm px-3 py-3">
                 No wallets. Click &quot;Load default (ApexLiquid top 5)&quot; or add manually.
                 <Button variant="outline" size="sm" className="ml-3" onClick={handleSeed} disabled={seeding}>
                   {seeding ? "Loading…" : "Load default (ApexLiquid top 5)"}
@@ -390,7 +390,7 @@ export default function AdminLeverageWalletTrackerPage() {
             ) : (
               <ul className="space-y-2">
                 {wallets.map((w) => (
-                  <li key={w.id} className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm ${w.active ? "border-zinc-200 dark:border-zinc-700" : "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"}`}>
+                  <li key={w.id} className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm ${w.active ? "border-zinc-200 dark:border-zinc-700" : "border-violet-400/35 dark:border-violet-600/40 bg-slate-50/95 dark:bg-slate-900/70"}`}>
                     <div className="min-w-0 flex-1 font-mono text-xs text-zinc-900 dark:text-zinc-100">{w.address}</div>
                     <div className="flex items-center gap-2">
                       {editingNickname === w.address ? (

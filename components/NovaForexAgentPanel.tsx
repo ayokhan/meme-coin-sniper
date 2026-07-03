@@ -480,7 +480,7 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
                 (XAUUSD, EURUSD, NAS100, TSLA — not crypto like BTC). For BTC/SOL use NovaForecast → Nova Scalp.
               </p>
               {!symbolCheck.ok && (
-                <p className="text-xs text-amber-700 dark:text-amber-300 rounded-md border border-amber-300/50 dark:border-amber-800 px-2.5 py-2">
+                <p className="text-xs text-slate-600 dark:text-slate-300 rounded-md border border-amber-300/50 dark:border-amber-800 px-2.5 py-2">
                   {symbolCheck.error}
                 </p>
               )}
@@ -597,7 +597,7 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
                         : "No quick-win candidates right now."}
                     </p>
                     {nearSetups.length > 0 && (
-                      <div className="rounded-md border border-amber-200/70 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 p-3 space-y-2">
+                      <div className="rounded-md border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 p-3 space-y-2">
                         <p className="font-medium text-amber-900 dark:text-amber-200">Near setup (no entry yet)</p>
                         <ul className="space-y-1.5">
                           {nearSetups.map((n) => (

@@ -104,7 +104,7 @@ export default function CryptoBuddiePanel() {
           <p className="text-[11px] text-muted-foreground mt-1 max-w-2xl">
             Trend stack reads: <strong className="text-zinc-700 dark:text-zinc-300">micro = 15m</strong>, <strong className="text-zinc-700 dark:text-zinc-300">intraday = 1h</strong>, <strong className="text-zinc-700 dark:text-zinc-300">regime = 4h</strong>. Best quality setups usually align micro + intraday with regime.
           </p>
-          <p className="text-xs text-amber-800/90 dark:text-amber-200/90 mt-2 max-w-2xl rounded-md border border-amber-200/60 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/25 px-2 py-1.5">
+          <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 max-w-2xl rounded-md border border-amber-200/60 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/25 px-2 py-1.5">
             <strong className="text-zinc-800 dark:text-zinc-200">Buddie pick</strong> means the row scored highest for this screen’s heuristics (liquidity + tight ranges + alignment). It is{" "}
             <strong className="text-zinc-800 dark:text-zinc-200">not</strong> an automatic “open long.” Use the <strong className="text-zinc-800 dark:text-zinc-200">Bias</strong> column for a simple long / short / neutral read from 5m–1h momentum; use <strong className="text-zinc-800 dark:text-zinc-200">15m trend</strong> for whether recent closes drifted up or down across ~2h. Always confirm on your own chart and risk rules.
           </p>

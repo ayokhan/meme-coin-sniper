@@ -48,7 +48,7 @@ const emptyPlan = (symbol = "BTC"): PlanForm => ({
 
 function realismBadgeClass(realism: NovaRadarPlanResult["realism"]) {
   if (realism === "unrealistic") return "border-rose-600/80 text-rose-800 dark:text-rose-200";
-  if (realism === "stretched") return "border-amber-500/60 text-amber-800 dark:text-amber-200";
+  if (realism === "stretched") return "border-amber-500/60 text-slate-700 dark:text-slate-200";
   return "border-emerald-500/60 text-emerald-800 dark:text-emerald-200";
 }
 
@@ -61,7 +61,7 @@ function realismLabel(realism: NovaRadarPlanResult["realism"]) {
 function leverageRiskBadgeClass(risk: NonNullable<NovaRadarPlanResult["leverage"]>["leverageRisk"]) {
   if (risk === "extreme") return "border-rose-600/80 text-rose-800 dark:text-rose-200";
   if (risk === "high") return "border-orange-500/70 text-orange-800 dark:text-orange-200";
-  if (risk === "moderate") return "border-amber-500/60 text-amber-800 dark:text-amber-200";
+  if (risk === "moderate") return "border-amber-500/60 text-slate-700 dark:text-slate-200";
   return "border-sky-500/60 text-sky-800 dark:text-sky-200";
 }
 
@@ -451,9 +451,9 @@ export default function NovaRadarPanel() {
     }
 
     const plan1Block: Record<string, unknown> = {
-      symbol: plan1.symbol.trim().toUpperCase(),
-      targetPrice: p1Price,
-      side: plan1.side,
+        symbol: plan1.symbol.trim().toUpperCase(),
+        targetPrice: p1Price,
+        side: plan1.side,
     };
     appendPlanExits(plan1Block, plan1);
     const payload: Record<string, unknown> = { plan1: plan1Block };
@@ -666,7 +666,7 @@ export default function NovaRadarPanel() {
       <TradingRiskDisclaimer compact context="radar" />
       <div className="mb-4" />
 
-      <div className="rounded-lg border border-amber-200/70 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-950/20 p-4 mb-4">
+      <div className="rounded-lg border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 p-4 mb-4">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
             <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">Open Blofin position · Capital Guard</p>
@@ -682,7 +682,7 @@ export default function NovaRadarPanel() {
           )}
         </div>
         {blofinKeysConfigured === false && (
-          <p className="text-xs text-amber-900 dark:text-amber-100">
+          <p className="text-xs text-slate-900 dark:text-slate-100">
             Save your Blofin API keys once under{" "}
             <strong className="font-medium">NovaStaris AI Trading Bots → Blofin keys</strong> — then return here; no second Blofin login.
           </p>
@@ -815,7 +815,7 @@ export default function NovaRadarPanel() {
               {blofinKeysConfigured ? " (your API keys → live contract size)" : ""}.
             </p>
             {(liqPreviewLoading || liqPreview) && (
-              <p className="text-[11px] text-amber-800 dark:text-amber-200 w-full">
+              <p className="text-[11px] text-slate-700 dark:text-slate-200 w-full">
                 {liqPreviewLoading
                   ? "Est. liquidation (plan 1 entry)…"
                   : `Est. liquidation @ plan 1 entry: ~$${liqPreview!.liquidationPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}${liqPreview!.note ? ` · ${liqPreview!.note}` : ""}`}
@@ -1060,8 +1060,8 @@ export default function NovaRadarPanel() {
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Button onClick={run} disabled={loading || !plan1.symbol.trim()}>
-          {loading ? "Running…" : "Run NovaRadar"}
-        </Button>
+        {loading ? "Running…" : "Run NovaRadar"}
+      </Button>
         <input
           type="text"
           placeholder="Setup name"

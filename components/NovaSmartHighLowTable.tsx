@@ -90,7 +90,7 @@ export default function NovaSmartHighLowTable({ timeframes, currentPrice }: Prop
                     <p
                       className={`text-[10px] mt-0.5 tabular-nums ${
                         t.highTouches > 0
-                          ? "text-amber-700 dark:text-amber-300 font-medium"
+                          ? "text-slate-600 dark:text-slate-300 font-medium"
                           : "text-muted-foreground"
                       }`}
                       title="Bars whose high traded near this period high"
@@ -106,7 +106,7 @@ export default function NovaSmartHighLowTable({ timeframes, currentPrice }: Prop
                     <p
                       className={`text-[10px] mt-0.5 tabular-nums ${
                         t.lowTouches > 0
-                          ? "text-amber-700 dark:text-amber-300 font-medium"
+                          ? "text-slate-600 dark:text-slate-300 font-medium"
                           : "text-muted-foreground"
                       }`}
                       title="Bars whose low traded near this period low"

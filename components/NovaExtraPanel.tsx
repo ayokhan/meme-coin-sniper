@@ -322,7 +322,7 @@ export default function NovaExtraPanel({ enabled, isVip }: Props) {
                       <TableCell className="text-xs font-medium">
                         {h.label}
                         {h.highSuccessRate && (
-                          <Badge variant="outline" className="ml-1.5 text-[9px] border-amber-500/50 text-amber-700 dark:text-amber-300">
+                          <Badge variant="outline" className="ml-1.5 text-[9px] border-amber-500/50 text-slate-600 dark:text-slate-300">
                             High success
                           </Badge>
                         )}
@@ -337,7 +337,7 @@ export default function NovaExtraPanel({ enabled, isVip }: Props) {
                         {h.avgReturnPct}%
                       </TableCell>
                       <TableCell
-                        className={`text-xs text-right tabular-nums ${h.highSuccessRate ? "font-semibold text-amber-700 dark:text-amber-300" : ""}`}
+                        className={`text-xs text-right tabular-nums ${h.highSuccessRate ? "font-semibold text-slate-600 dark:text-slate-300" : ""}`}
                       >
                         {h.winRatePct}%
                       </TableCell>

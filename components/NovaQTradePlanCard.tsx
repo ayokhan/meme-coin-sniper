@@ -11,13 +11,13 @@ function fmt(n: number | null): string {
 
 function confidenceClass(c: NovaQTradePlan["confidence"]): string {
   if (c === "high") return "border-emerald-500/50 text-emerald-800 dark:text-emerald-200";
-  if (c === "medium") return "border-amber-500/50 text-amber-800 dark:text-amber-200";
+  if (c === "medium") return "border-amber-500/50 text-slate-700 dark:text-slate-200";
   return "border-zinc-400/50 text-zinc-600 dark:text-zinc-400";
 }
 
 function voteStrengthClass(v: NovaQVoteStrength): string {
   if (v === "strong") return "border-emerald-500/50 text-emerald-800 dark:text-emerald-200";
-  if (v === "mixed") return "border-amber-500/50 text-amber-800 dark:text-amber-200";
+  if (v === "mixed") return "border-amber-500/50 text-slate-700 dark:text-slate-200";
   return "border-zinc-400/50 text-zinc-600 dark:text-zinc-400";
 }
 
@@ -79,7 +79,7 @@ export default function NovaQTradePlanCard({ plan }: { plan: NovaQTradePlan }) {
       )}
 
       {plan.riskRewardWarning && (
-        <div className="rounded-md border border-amber-300/70 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/40 px-3 py-2">
+        <div className="rounded-md border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 px-3 py-2">
           <p className="text-xs font-medium text-amber-950 dark:text-amber-100">R:R warning</p>
           <p className="text-xs text-amber-900/95 dark:text-amber-100/90 mt-0.5">{plan.riskRewardWarning}</p>
         </div>

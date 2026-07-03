@@ -828,7 +828,7 @@ export default function NovaPolymarketTrackerPanel() {
                                                     </span>
                                                   )}
                                                   {!marketEnd && firstBuyMs == null && (
-                                                    <span className="block text-amber-800/90 dark:text-amber-200/90">
+                                                    <span className="block text-slate-600 dark:text-slate-300">
                                                       No timing match in the current tape—open Trade tape or load older fills.
                                                     </span>
                                                   )}

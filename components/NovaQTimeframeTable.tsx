@@ -92,7 +92,7 @@ export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props)
                     ${formatQuotePrice(t.support)}
                   </p>
                   <p
-                    className={`text-[10px] mt-0.5 ${t.supportTouches > 0 ? "text-amber-700 dark:text-amber-300 font-medium" : "text-muted-foreground"}`}
+                    className={`text-[10px] mt-0.5 ${t.supportTouches > 0 ? "text-slate-600 dark:text-slate-300 font-medium" : "text-muted-foreground"}`}
                   >
                     {touchLabel(t.supportTouches)}
                   </p>
@@ -103,7 +103,7 @@ export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props)
                     ${formatQuotePrice(t.resistance)}
                   </p>
                   <p
-                    className={`text-[10px] mt-0.5 ${t.resistanceTouches > 0 ? "text-amber-700 dark:text-amber-300 font-medium" : "text-muted-foreground"}`}
+                    className={`text-[10px] mt-0.5 ${t.resistanceTouches > 0 ? "text-slate-600 dark:text-slate-300 font-medium" : "text-muted-foreground"}`}
                   >
                     {touchLabel(t.resistanceTouches)}
                   </p>

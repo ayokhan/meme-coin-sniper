@@ -1607,9 +1607,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   <CardTitle className="text-base font-semibold">Nova Polymarket</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-3 text-sm">
-                    <p className="font-medium text-amber-800 dark:text-amber-200">VIP on-demand access required</p>
-                    <p className="text-amber-700 dark:text-amber-300 mt-1">
+                  <div className="rounded-md border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 p-3 text-sm">
+                    <p className="font-medium text-slate-700 dark:text-slate-200">VIP on-demand access required</p>
+                    <p className="text-slate-600 dark:text-slate-300 mt-1">
                       Contact support to enable <strong>Nova Polymarket (On demand)</strong> on your account.
                     </p>
                   </div>
@@ -1670,7 +1670,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       <p className="text-sm text-muted-foreground">
                 Scan active Polymarket narratives, estimate directional bias, and build a copy-trader plan with Demo/Live mode. Live mode requires wallet login.
               </p>
-              <p className="text-xs text-amber-700 dark:text-amber-300">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
                 No AI can guarantee wins. This copilot improves process, not certainty.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
@@ -1725,7 +1725,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                     Disconnect wallet
                   </Button>
                 )}
-                <span className={`text-xs ${polyWalletConnected ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"}`}>
+                <span className={`text-xs ${polyWalletConnected ? "text-emerald-600 dark:text-emerald-400" : "text-slate-600 dark:text-slate-300"}`}>
                   {polyWalletConnected ? `Connected: ${polyWalletAddress?.slice(0, 6)}…${polyWalletAddress?.slice(-4)}` : "Not connected"}
                 </span>
                 <div className="flex items-center gap-2">
@@ -2094,7 +2094,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                     <p className="text-xs text-muted-foreground mt-1">
                       Mode: <strong className="capitalize">{polyResult.execution.mode}</strong> · Wallet: {polyResult.execution.walletConnected ? "Connected" : "Not connected"}
                     </p>
-                    <p className={`text-xs mt-1 ${polyResult.execution.readyForLive ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"}`}>
+                    <p className={`text-xs mt-1 ${polyResult.execution.readyForLive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-600 dark:text-slate-300"}`}>
                       {polyResult.execution.loginHint}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -2160,7 +2160,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                       </div>
                     </div>
                   )}
-                  <p className="text-xs text-amber-700 dark:text-amber-300">{polyResult.riskNote}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">{polyResult.riskNote}</p>
                 </div>
               )}
                     </CardContent>
@@ -2705,16 +2705,16 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   )}
                 </p>
                 {suggestedClosesBoard.length > 0 && (
-                  <div className="mt-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 p-2 space-y-2">
-                    <p className="font-medium text-amber-800 dark:text-amber-200">AI suggests closing ({suggestedClosesBoard.length})</p>
+                  <div className="mt-2 rounded border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 p-2 space-y-2">
+                    <p className="font-medium text-slate-700 dark:text-slate-200">AI suggests closing ({suggestedClosesBoard.length})</p>
                     <ul className="space-y-1">
                       {suggestedClosesBoard.map((s, i) => (
-                        <li key={i} className="text-amber-700 dark:text-amber-300">
+                        <li key={i} className="text-slate-600 dark:text-slate-300">
                           {s.instId} {s.posSide.toUpperCase()} — {s.reason}
                         </li>
                       ))}
                     </ul>
-                    <p className="text-xs text-amber-700 dark:text-amber-300">Turn on Autopilot to let AI close these positions automatically.</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">Turn on Autopilot to let AI close these positions automatically.</p>
                   </div>
                 )}
                 {lastBoardMonitorReasons.length > 0 && (
@@ -2942,16 +2942,16 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   )}
                 </p>
                 {suggestedCloses.length > 0 && (
-                  <div className="mt-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 p-2 space-y-2">
-                    <p className="font-medium text-amber-800 dark:text-amber-200">AI suggests closing ({suggestedCloses.length})</p>
+                  <div className="mt-2 rounded border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 p-2 space-y-2">
+                    <p className="font-medium text-slate-700 dark:text-slate-200">AI suggests closing ({suggestedCloses.length})</p>
                     <ul className="space-y-1">
                       {suggestedCloses.map((s, i) => (
-                        <li key={i} className="text-amber-700 dark:text-amber-300">
+                        <li key={i} className="text-slate-600 dark:text-slate-300">
                           {s.instId} {s.posSide.toUpperCase()} — {s.reason}
                         </li>
                       ))}
                     </ul>
-                    <p className="text-xs text-amber-700 dark:text-amber-300">Turn on Autopilot to let AI close these positions automatically.</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">Turn on Autopilot to let AI close these positions automatically.</p>
                   </div>
                 )}
                 {lastMonitorReasons.length > 0 && (
@@ -3086,7 +3086,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 </p>
               )}
               {blofinPanelMeta?.modeMismatchHint && (
-                <p className="text-xs text-amber-700 dark:text-amber-300 mb-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5">
+                <p className="text-xs text-slate-600 dark:text-slate-300 mb-2 rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-1.5">
                   {blofinPanelMeta.modeMismatchHint}
                 </p>
               )}
@@ -3134,7 +3134,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                           <span>@ {o.price}</span>
                           <span className="text-muted-foreground">{o.state}</span>
                           {o.createdAt != null && <span className="text-muted-foreground">{new Date(Number(o.createdAt)).toLocaleString()}</span>}
-                          <Button type="button" variant="outline" size="sm" className="ml-auto h-6 text-xs border-amber-500 text-amber-700 dark:text-amber-300" onClick={() => cancelOpenOrder(o.orderId, o.instId)} disabled={cancelingOrderId === o.orderId}>
+                          <Button type="button" variant="outline" size="sm" className="ml-auto h-6 text-xs border-amber-500 text-slate-600 dark:text-slate-300" onClick={() => cancelOpenOrder(o.orderId, o.instId)} disabled={cancelingOrderId === o.orderId}>
                             {cancelingOrderId === o.orderId ? "Canceling…" : "Cancel"}
                           </Button>
                         </div>
@@ -3225,7 +3225,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                 {isPinned ? "Unpin" : "Pin to board"}
                               </Button>
                             )}
-                            <Button type="button" variant="outline" size="sm" className="h-6 text-xs border-amber-500 text-amber-700 dark:text-amber-300" onClick={() => closePosition(p.instId)} disabled={closing}>
+                            <Button type="button" variant="outline" size="sm" className="h-6 text-xs border-amber-500 text-slate-600 dark:text-slate-300" onClick={() => closePosition(p.instId)} disabled={closing}>
                               Close
                             </Button>
                           </div>
@@ -3622,7 +3622,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
               onClick={() => closePosition()}
               disabled={closing}
               variant="outline"
-              className="border-amber-500 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50"
+              className="border-amber-500 text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-950/50"
             >
               {closing ? "Closing…" : "Close position"}
             </Button>

@@ -22,7 +22,7 @@ export default function TradingRiskDisclaimer({ compact, context = "futures" }: 
   }
 
   return (
-    <div className="rounded-md border border-amber-200/70 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-950/20 px-3 py-2">
+    <div className="rounded-md border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 px-3 py-2">
       <p className="text-xs text-amber-950/90 dark:text-amber-100/90">{text}</p>
     </div>
   );

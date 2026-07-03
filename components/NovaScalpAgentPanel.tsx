@@ -273,7 +273,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
               canShareCoach={canShareCoach}
             />
             {result.side === "no_entry" && timeframeId !== qwTimeframeId && (
-              <p className="text-xs text-amber-700 dark:text-amber-300 px-1">
+              <p className="text-xs text-slate-600 dark:text-slate-300 px-1">
                 Quick Wins is scanning on <strong>{qwTimeframeLabel}</strong>. Match that timeframe here, or pick a
                 symbol from Quick Wins and use Analyze.
               </p>
@@ -345,7 +345,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
               like (e.g. BTC, DOGE, SOL).
             </p>
             {nearSetups.length > 0 && (
-              <div className="rounded-md border border-amber-200/70 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 p-3 space-y-2">
+              <div className="rounded-md border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 p-3 space-y-2">
                 <p className="font-medium text-amber-900 dark:text-amber-200">Near setup (no entry yet)</p>
                 <ul className="space-y-1.5">
                   {nearSetups.map((n) => (

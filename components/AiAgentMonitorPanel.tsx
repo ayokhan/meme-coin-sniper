@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { NoticeInline } from "@/components/NoticeBanner";
 
 const INTERVALS_MS = [
   { label: "30 sec", ms: 30_000 },
@@ -105,9 +106,13 @@ export default function AiAgentMonitorPanel({
         </p>
       </div>
       {quotaExhausted && (
-        <p className="text-xs text-amber-700 dark:text-amber-300 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 px-2 py-1.5">
-          Daily limit reached — upgrade to VIP for unlimited monitor polls.
-        </p>
+        <NoticeInline>
+          Daily limit reached —{" "}
+          <a href="/subscribe" className="font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
+            upgrade to VIP
+          </a>{" "}
+          for unlimited monitor polls.
+        </NoticeInline>
       )}
       <div className="flex flex-wrap items-end gap-2">
         <div>

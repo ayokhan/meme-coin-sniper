@@ -73,7 +73,7 @@ function OnOffButton({
 }) {
   const activeClass =
     active === "amber"
-      ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200"
+      ? "bg-amber-100 dark:bg-amber-900/50 text-slate-700 dark:text-slate-200"
       : active === "violet"
         ? "bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-200"
         : active === "cyan"

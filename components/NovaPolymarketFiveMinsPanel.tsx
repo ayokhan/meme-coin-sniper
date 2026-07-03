@@ -376,7 +376,7 @@ export default function NovaPolymarketFiveMinsPanel() {
           </p>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          <div className="rounded-md border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 p-2 text-[11px] text-amber-900 dark:text-amber-100">
+          <div className="rounded-md border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 p-2 text-[11px] text-slate-900 dark:text-slate-100">
             Educational assistant only. Fast markets are noisy; signals can be wrong. Never risk more than you can lose.
           </div>
 
@@ -689,17 +689,17 @@ export default function NovaPolymarketFiveMinsPanel() {
                 <p className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">{TAPE_REGIME_LABEL[result.tapeRegime]}</p>
               )}
               {result.tapeRegime === "sideways" && (
-                <p className="text-[11px] leading-snug rounded border border-amber-600/45 bg-amber-500/10 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 px-2 py-1.5">
+                <p className="text-[11px] leading-snug rounded border border-cyan-500/30 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 px-2 py-1.5">
                   Sideways / range tape: expect chop; the lean below is easy to invalidate on the next few prints.
                 </p>
               )}
               {result.tapeRegime === "down_slope" && result.direction === "Up" && (
-                <p className="text-[11px] leading-snug rounded border border-amber-600/45 bg-amber-500/10 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 px-2 py-1.5">
+                <p className="text-[11px] leading-snug rounded border border-cyan-500/30 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 px-2 py-1.5">
                   Recent drift is still leaning down while the model favors upside — treat as a tension, not confirmation.
                 </p>
               )}
               {result.tapeRegime === "up_slope" && result.direction === "Down" && (
-                <p className="text-[11px] leading-snug rounded border border-amber-600/45 bg-amber-500/10 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 px-2 py-1.5">
+                <p className="text-[11px] leading-snug rounded border border-cyan-500/30 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 px-2 py-1.5">
                   Recent drift is still leaning up while the model favors downside — treat as a tension, not confirmation.
                 </p>
               )}
@@ -774,7 +774,7 @@ export default function NovaPolymarketFiveMinsPanel() {
                 </ul>
               )}
               {result.dataSourceNote && <p className="text-[10px] text-muted-foreground">{result.dataSourceNote}</p>}
-              {result.riskNote && <p className="text-[10px] text-amber-800/90 dark:text-amber-200/90">{result.riskNote}</p>}
+              {result.riskNote && <p className="text-[10px] text-slate-600 dark:text-slate-300">{result.riskNote}</p>}
 
               {result.canSubmitOwnerFeedback && (
                 <div className="mt-3 pt-3 border-t border-zinc-600/40 space-y-2">

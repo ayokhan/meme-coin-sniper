@@ -320,9 +320,9 @@ export default function NovaMemeIntelligencePanel() {
                 {qResult.analyzedAt ? <p className="text-xs text-muted-foreground">Analyzed: {new Date(qResult.analyzedAt).toLocaleString()} · Source: {qResult.marketCapSource ?? "marketCap"}</p> : null}
                 {qResult.dexUrl ? <a href={qResult.dexUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">View selected pair on DexScreener</a> : null}
                 {qResult.confidenceNotes?.length ? (
-                  <div className="rounded-md border border-amber-300/60 dark:border-amber-700/60 bg-amber-50/70 dark:bg-amber-950/30 px-2 py-1">
+                  <div className="rounded-md border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 px-2 py-1">
                     {qResult.confidenceNotes.map((n, i) => (
-                      <p key={`q-note-${i}`} className="text-xs text-amber-700 dark:text-amber-300">{n}</p>
+                      <p key={`q-note-${i}`} className="text-xs text-slate-600 dark:text-slate-300">{n}</p>
                     ))}
                   </div>
                 ) : null}
@@ -399,9 +399,9 @@ export default function NovaMemeIntelligencePanel() {
                     {r.analyzedAt ? <p className="text-xs text-muted-foreground">Analyzed: {new Date(r.analyzedAt).toLocaleString()} · Source: {r.marketCapSource ?? "marketCap"}</p> : null}
                     {r.dexUrl ? <a href={r.dexUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline">View selected pair on DexScreener</a> : null}
                     {r.confidenceNotes?.length ? (
-                      <div className="rounded-md border border-amber-300/60 dark:border-amber-700/60 bg-amber-50/70 dark:bg-amber-950/30 px-2 py-1">
+                      <div className="rounded-md border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 px-2 py-1">
                         {r.confidenceNotes.map((n, i) => (
-                          <p key={`${r.symbol}-note-${i}`} className="text-xs text-amber-700 dark:text-amber-300">{n}</p>
+                          <p key={`${r.symbol}-note-${i}`} className="text-xs text-slate-600 dark:text-slate-300">{n}</p>
                         ))}
                       </div>
                     ) : null}

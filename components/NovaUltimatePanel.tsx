@@ -315,7 +315,7 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                 Uses your saved <strong>max entry (SOL)</strong> and <strong>slippage (bps)</strong> from the template below. Flow: quote → Phantom signs → broadcast to RPC{" "}
                 {DEFAULT_RPC.slice(0, 28)}…
               </p>
-              <p className="text-xs text-amber-800/90 dark:text-amber-200/85 rounded-md border border-amber-200/60 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/25 px-2 py-1.5">
+              <p className="text-xs text-slate-600 dark:text-slate-300 rounded-md border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 px-2 py-1.5">
                 <strong>Snipe mode</strong> in templates only adjusts risk numbers. It does <strong>not</strong> run a background scanner—NovaStaris would need a chain/indexer worker plus signing policy (Phantom popup vs custodial) to buy new launches by itself.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -355,7 +355,7 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
                   Sign &amp; send snipe
                 </Button>
               </div>
-              {meme.mode !== "live" && <p className="text-xs text-amber-800 dark:text-amber-200">Switch execution mode to <strong>Live</strong> below to enable on-chain snipe.</p>}
+              {meme.mode !== "live" && <p className="text-xs text-slate-700 dark:text-slate-200">Switch execution mode to <strong>Live</strong> below to enable on-chain snipe.</p>}
               {liveStatus && <p className="text-xs text-zinc-700 dark:text-zinc-300">{liveStatus}</p>}
               {!!quoteResponse && meme.mode === "live" && (
                 <p className="text-xs text-emerald-700 dark:text-emerald-300">Quote loaded. Approve the transaction carefully in Phantom.</p>
@@ -375,7 +375,7 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Templates tune size, slippage, and risk for volatile launches. Manual fields override presets when you need full control.
-                <span className="block mt-2 text-amber-800 dark:text-amber-200/90">
+                <span className="block mt-2 text-slate-700 dark:text-slate-200/90">
                   Live swaps spend real SOL; slippage and liquidity risk can cause partial fills or loss. Demo mode disables broadcasting.
                 </span>
               </p>
@@ -655,7 +655,7 @@ export default function NovaUltimatePanel({ solanaWalletShort }: { solanaWalletS
               <Button type="button" size="sm" variant="secondary" onClick={saveLocal}>
                 Save Perps playbook
               </Button>
-              <p className="text-xs text-amber-800 dark:text-amber-200/90">
+              <p className="text-xs text-slate-700 dark:text-slate-200/90">
                 Perpetual futures can liquidate positions. This tab does not place perp orders; open Phantom Perps to trade for real.
               </p>
             </CardContent>

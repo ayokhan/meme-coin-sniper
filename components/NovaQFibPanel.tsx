@@ -21,7 +21,7 @@ type Props = {
 function fibBiasBadgeClass(bias: NovaQFibTimeframeResult["fibBias"] | NovaQFibResult["overallFibBias"]): string {
   if (bias === "bullish_pullback") return "border-emerald-500/60 text-emerald-700 dark:text-emerald-300";
   if (bias === "bearish_pullback") return "border-rose-500/60 text-rose-700 dark:text-rose-300";
-  if (bias === "extended") return "border-amber-500/60 text-amber-700 dark:text-amber-300";
+  if (bias === "extended") return "border-amber-500/60 text-slate-600 dark:text-slate-300";
   if (bias === "breakdown_risk") return "border-orange-500/60 text-orange-700 dark:text-orange-300";
   if (bias === "mixed") return "border-violet-500/60 text-violet-700 dark:text-violet-300";
   return "border-zinc-400/60 text-zinc-700 dark:text-zinc-300";

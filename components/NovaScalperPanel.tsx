@@ -635,7 +635,7 @@ export default function NovaScalperPanel() {
         </CardHeader>
         <CardContent className="space-y-4">
           {config.ownerForceOff && (
-            <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/90 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+            <div className="rounded-md border border-cyan-500/30 dark:border-cyan-600/40 bg-slate-50/90 dark:bg-slate-900/60 px-3 py-2 text-xs text-slate-900 dark:text-slate-100">
               NovaScalper was <strong>disabled by the owner</strong> in Admin. The switch below stays off until they enable
               you again. You can still change prices and save other settings.
             </div>
@@ -833,7 +833,7 @@ export default function NovaScalperPanel() {
             </select>
           </div>
 
-          <div className="rounded-md border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 p-3 space-y-2">
+          <div className="rounded-md border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 p-3 space-y-2">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -884,7 +884,7 @@ export default function NovaScalperPanel() {
               <option value={60}>Every 60s</option>
             </select>
             {config.enabled && autoSec > 0 && (
-              <span className="text-xs text-amber-700 dark:text-amber-300">Runs only while this tab is open.</span>
+              <span className="text-xs text-slate-600 dark:text-slate-300">Runs only while this tab is open.</span>
             )}
           </div>
 

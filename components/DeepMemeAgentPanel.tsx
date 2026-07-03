@@ -152,7 +152,7 @@ function shorten(addr: string, n = 4) {
 
 function ClassBadge({ c }: { c: HolderClass }) {
   const map: Record<HolderClass, { label: string; cls: string; icon?: React.ReactNode }> = {
-    dev: { label: "Dev", cls: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800", icon: <Anchor className="h-3 w-3" /> },
+    dev: { label: "Dev", cls: "bg-amber-100 dark:bg-amber-900/40 text-slate-600 dark:text-slate-300 border-amber-200 dark:border-amber-800", icon: <Anchor className="h-3 w-3" /> },
     lp: { label: "LP", cls: "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800" },
     exchange: { label: "CEX", cls: "bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700" },
     burn: { label: "Burn", cls: "bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800", icon: <Flame className="h-3 w-3" /> },
@@ -176,7 +176,7 @@ function ClassBadge({ c }: { c: HolderClass }) {
 function VerdictBadge({ verdict, score }: { verdict: DeepReport["recommendation"]["verdict"]; score: number }) {
   const map: Record<DeepReport["recommendation"]["verdict"], { label: string; cls: string; icon: React.ReactNode }> = {
     good_buy: { label: "Good buy", cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30", icon: <ShieldCheck className="h-4 w-4" /> },
-    speculative: { label: "Speculative", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30", icon: <AlertTriangle className="h-4 w-4" /> },
+    speculative: { label: "Speculative", cls: "bg-amber-500/15 text-slate-600 dark:text-slate-300 border-amber-500/30", icon: <AlertTriangle className="h-4 w-4" /> },
     caution: { label: "Caution", cls: "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30", icon: <ShieldAlert className="h-4 w-4" /> },
     avoid: { label: "Avoid", cls: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30", icon: <Skull className="h-4 w-4" /> },
   };
@@ -193,7 +193,7 @@ function VerdictBadge({ verdict, score }: { verdict: DeepReport["recommendation"
 function FlagPill({ f }: { f: SecurityFlag }) {
   const cls = {
     good: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-    warn: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30",
+    warn: "bg-amber-500/10 text-slate-600 dark:text-slate-300 border-amber-500/30",
     bad: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30",
     info: "bg-zinc-500/10 text-zinc-700 dark:text-zinc-300 border-zinc-500/30",
   }[f.level];
@@ -571,7 +571,7 @@ export default function DeepMemeAgentPanel({ onAnalyzeWallet }: DeepMemeAgentPan
 
               {(report.security.devWallet || report.security.ownerWallet || report.security.mintAuthority || report.security.freezeAuthority) && (
                 <div className="rounded-lg border border-amber-200/60 dark:border-amber-800/60 bg-amber-50/40 dark:bg-amber-900/10 p-3 text-xs space-y-1">
-                  <p className="font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                  <p className="font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
                     <Anchor className="h-3 w-3" /> Dev / authority wallets
                   </p>
                   {report.security.devWallet && (

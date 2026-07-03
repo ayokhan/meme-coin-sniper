@@ -520,9 +520,9 @@ export default function WalletAnalyzerCard({
                   </div>
                 )}
                 {analysis.verdict.cautions.length > 0 && (
-                  <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-900/15 px-3 py-2">
-                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-1">Cautions</p>
-                    <ul className="space-y-1 text-xs text-amber-700 dark:text-amber-200">
+                  <div className="rounded-lg border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 px-3 py-2">
+                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Cautions</p>
+                    <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
                       {analysis.verdict.cautions.map((c, i) => (
                         <li key={`c-${i}`}>• {c}</li>
                       ))}
@@ -693,7 +693,7 @@ export default function WalletAnalyzerCard({
                 </summary>
                 <div className="px-3 py-2 text-[11px] text-muted-foreground flex flex-wrap items-center gap-2">
                   <span className="font-medium text-foreground">Legend:</span>
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/30"><Anchor className="h-2.5 w-2.5" /> HODL 100%</span>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-slate-700 dark:text-slate-200 bg-amber-100 dark:bg-amber-900/30"><Anchor className="h-2.5 w-2.5" /> HODL 100%</span>
                   <span>= bought + never sold within window + still held</span>
                   <span className="mx-1">·</span>
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/30"><Flag className="h-2.5 w-2.5" /> First buy</span>
@@ -770,7 +770,7 @@ export default function WalletAnalyzerCard({
                             <div className="flex flex-wrap gap-1">
                               {anno?.hodl && (
                                 <span
-                                  className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/30"
+                                  className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-slate-700 dark:text-slate-200 bg-amber-100 dark:bg-amber-900/30"
                                   title="Wallet bought this token and has not sold any of it within the analyzed window."
                                 >
                                   <Anchor className="h-2.5 w-2.5" /> HODL · 100%
@@ -827,7 +827,7 @@ export default function WalletAnalyzerCard({
             )}
 
             {analysis.trades.length === 0 && (
-              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-900/20 px-3 py-3 text-xs text-amber-700 dark:text-amber-200">
+              <div className="rounded-lg border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 px-3 py-3 text-xs text-slate-600 dark:text-slate-300">
                 <p className="font-medium">No trades found in the last {analysis.period}.</p>
                 <p className="mt-1 opacity-90">
                   This wallet may have an open position from before the current window, or hasn&apos;t traded recently.
