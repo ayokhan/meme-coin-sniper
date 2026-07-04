@@ -119,6 +119,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, signed-in users see Delete account on /account (web and Android app). Permanently removes profile, subscriptions, wallets, NovaConnect, and related data. Required for Google Play. Owner accounts are protected and cannot self-delete. Default ON.",
   },
+  two_factor_auth: {
+    label: "Two-factor authentication (2FA)",
+    description:
+      "When ON, users can optionally enable Google Authenticator or email codes on Account, and sign-in enforces 2FA when enrolled. When OFF, 2FA is skipped at login and enrollment is hidden — use this if Resend email is misconfigured or you need to disable 2FA site-wide. Default ON.",
+  },
   moralis_go_hunting: {
     label: "Go Hunting (Moralis)",
     description: "Use Moralis for New pairs and Scan fallback. When OFF, no Moralis API calls for Go Hunting or Scan.",

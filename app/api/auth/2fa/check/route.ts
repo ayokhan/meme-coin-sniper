@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyPasswordAndGetUser } from "@/lib/two-factor";
+import { verifyPasswordAndGetUser, shouldRequireTwoFactor } from "@/lib/two-factor";
 
 /** Check whether sign-in requires 2FA before prompting for a code. */
 export async function POST(request: Request) {
@@ -14,11 +14,12 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ success: false, error: "Invalid email or password." }, { status: 401 });
     }
+    const requires2fa = await shouldRequireTwoFactor(user);
     const method = user.twoFactorMethod;
     return NextResponse.json({
       success: true,
-      requires2fa: method === "totp" || method === "email",
-      method: method === "totp" || method === "email" ? method : null,
+      requires2fa,
+      method: requires2fa && (method === "totp" || method === "email") ? method : null,
     });
   } catch (e) {
     console.error("2fa check:", e);

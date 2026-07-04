@@ -1,13 +1,22 @@
 import crypto from "crypto";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import { prisma } from "@/lib/db";
+import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 import { decryptAtRest, encryptAtRest } from "@/lib/encryption-at-rest";
-import { sendEmail } from "@/lib/send-email";
+import { sendEmailDetailed } from "@/lib/send-email";
 
 export type TwoFactorMethod = "totp" | "email";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const APP_NAME = "NovaStaris";
+
+export async function isTwoFactorGloballyEnabled(): Promise<boolean> {
+  return getFeatureFlag(FEATURE_FLAG_KEYS.TWO_FACTOR_AUTH);
+}
+
+export function isUserTwoFactorActive(user: { twoFactorMethod?: string | null }): boolean {
+  return user.twoFactorMethod === "totp" || user.twoFactorMethod === "email";
+}
 
 type User2faRow = {
   id: string;
@@ -92,6 +101,7 @@ async function verifyBackupCode(user: User2faRow, code: string): Promise<boolean
 }
 
 export async function getTwoFactorStatus(userId: string) {
+  const globalEnabled = await isTwoFactorGloballyEnabled();
   const user = await userDb().findUnique({
     where: { id: userId },
     select: {
@@ -103,15 +113,20 @@ export async function getTwoFactorStatus(userId: string) {
   });
   if (!user) return null;
   const method = user.twoFactorMethod as TwoFactorMethod | null;
+  const userEnabled = isUserTwoFactorActive(user);
   return {
-    enabled: method === "totp" || method === "email",
-    method,
+    globalEnabled,
+    enabled: globalEnabled && userEnabled,
+    method: globalEnabled ? method : null,
     hasBackupCodes: !!user.totpBackupCodesHash,
     email: user.email,
   };
 }
 
 export async function beginTotpSetup(userId: string, email: string) {
+  if (!(await isTwoFactorGloballyEnabled())) {
+    throw new Error("Two-factor authentication is disabled by the site owner.");
+  }
   const secret = generateTotpSecret();
   const pendingSecretEncrypted = encryptAtRest(secret);
   await userDb().update({
@@ -139,6 +154,9 @@ export async function confirmTotpSetup(userId: string, code: string) {
 }
 
 export async function enableEmailTwoFactor(userId: string) {
+  if (!(await isTwoFactorGloballyEnabled())) {
+    throw new Error("Two-factor authentication is disabled by the site owner.");
+  }
   const user = await userDb().findUnique({
     where: { id: userId },
     select: { id: true, email: true },
@@ -175,6 +193,9 @@ function generateEmailOtp(): string {
 }
 
 export async function sendLoginEmailOtp(userId: string, email: string) {
+  if (!(await isTwoFactorGloballyEnabled())) {
+    throw new Error("Two-factor authentication is disabled by the site owner.");
+  }
   const code = generateEmailOtp();
   const bcrypt = await import("bcrypt");
   const codeHash = await bcrypt.hash(code, 10);
@@ -182,15 +203,21 @@ export async function sendLoginEmailOtp(userId: string, email: string) {
   await otpDb().create({
     data: { userId, codeHash, expiresAt: new Date(Date.now() + OTP_TTL_MS) },
   });
-  const sent = await sendEmail(
+  const sent = await sendEmailDetailed(
     email,
     "NovaStaris sign-in code",
     `<p>Your NovaStaris sign-in code is <strong>${code}</strong>.</p><p>It expires in 10 minutes. If you did not try to sign in, change your password.</p>`
   );
-  if (!sent) throw new Error("Could not send email code. Check RESEND_API_KEY is configured.");
+  if (!sent.ok) throw new Error(sent.error);
+}
+
+export async function shouldRequireTwoFactor(user: User2faRow): Promise<boolean> {
+  if (!(await isTwoFactorGloballyEnabled())) return false;
+  return isUserTwoFactorActive(user);
 }
 
 export async function verifyTwoFactorForUser(user: User2faRow, code: string): Promise<boolean> {
+  if (!(await isTwoFactorGloballyEnabled())) return true;
   const method = user.twoFactorMethod as TwoFactorMethod | null;
   if (!method) return true;
   const normalized = code.replace(/\s/g, "");

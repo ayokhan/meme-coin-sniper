@@ -1,11 +1,11 @@
 "use client";
 
 const PLATFORMS = [
-  { name: "Dex Screener", href: "https://dexscreener.com", icon: "https://dexscreener.com/favicon.ico" },
-  { name: "GMGN", href: "https://gmgn.ai", icon: "https://gmgn.ai/favicon.ico" },
-  { name: "Pump.fun", href: "https://pump.fun", icon: "https://pump.fun/favicon.ico" },
-  { name: "Axiom", href: "https://axiom.trade", icon: "https://axiom.trade/favicon.ico" },
-  { name: "Padre", href: "https://padre.gg", icon: "https://padre.gg/favicon.ico" },
+  { name: "Dex Screener", href: "https://dexscreener.com", icon: "/platform-icons/dexscreener.svg" },
+  { name: "GMGN", href: "https://gmgn.ai", icon: "/platform-icons/gmgn.svg" },
+  { name: "Pump.fun", href: "https://pump.fun", icon: "/platform-icons/pumpfun.svg" },
+  { name: "Axiom", href: "https://axiom.trade", icon: "/platform-icons/axiom.svg" },
+  { name: "Padre", href: "https://padre.gg", icon: "/platform-icons/padre.svg" },
 ] as const;
 
 type Props = {
@@ -27,7 +27,7 @@ export default function MemeAgentBannerDisplay({ message }: Props) {
             title={p.name}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.icon} alt="" width={16} height={16} className="rounded-sm shrink-0" />
+            <img src={p.icon} alt="" width={16} height={16} className="rounded-sm shrink-0 object-contain" />
             {p.name}
           </a>
         ))}

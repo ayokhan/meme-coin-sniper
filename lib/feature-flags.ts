@@ -120,6 +120,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_AI_AGENT_CHART: 'nova_ai_agent_chart',
   /** Self-service Delete account on /account (web + Capacitor). Required for Google Play; owner can disable in Admin. Default ON. */
   ACCOUNT_SELF_DELETE: 'account_self_delete',
+  /** Optional two-factor authentication (Google Authenticator + email codes). When OFF, 2FA is not enforced at sign-in and users cannot enroll. Default ON. */
+  TWO_FACTOR_AUTH: 'two_factor_auth',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput } from "@/components/PasswordInput";
 
 type TwoFactorStatus = {
+  globalEnabled: boolean;
   enabled: boolean;
   method: "totp" | "email" | null;
   hasBackupCodes: boolean;
@@ -156,7 +157,12 @@ export default function TwoFactorSettings({ hasPassword }: { hasPassword: boolea
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
           <>
-            {status?.enabled ? (
+            {!status?.globalEnabled && (
+              <p className="text-sm text-amber-800 dark:text-amber-200 rounded-md border border-amber-300/60 dark:border-amber-700/50 bg-amber-50/80 dark:bg-amber-950/30 px-3 py-2">
+                Two-factor authentication is turned off site-wide by the owner (Admin → Feature flags → Two-factor authentication). Sign-in will not ask for a code until it is turned back on.
+              </p>
+            )}
+            {status?.globalEnabled && status?.enabled ? (
               <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">
                 Enabled — {status.method === "email" ? "email code at sign-in" : "authenticator app"}
               </p>
@@ -175,7 +181,7 @@ export default function TwoFactorSettings({ hasPassword }: { hasPassword: boolea
               </div>
             )}
 
-            {!status?.enabled && !qrDataUrl && (
+            {status?.globalEnabled && !status?.enabled && !qrDataUrl && (
               <div className="flex flex-wrap gap-2">
                 <Button type="button" size="sm" disabled={busy} onClick={() => void startTotp()}>
                   Enable Google Authenticator
@@ -205,7 +211,7 @@ export default function TwoFactorSettings({ hasPassword }: { hasPassword: boolea
               </div>
             )}
 
-            {status?.enabled && (
+            {status?.globalEnabled && status?.enabled && (
               <div className="space-y-2 pt-2 border-t border-zinc-200 dark:border-zinc-700">
                 <p className="text-xs text-muted-foreground">Enter your password to turn off 2FA.</p>
                 <PasswordInput

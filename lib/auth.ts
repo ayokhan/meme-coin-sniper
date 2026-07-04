@@ -249,10 +249,10 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
-        const { verifyPasswordAndGetUser, verifyTwoFactorForUser } = await import('@/lib/two-factor');
+        const { verifyPasswordAndGetUser, verifyTwoFactorForUser, shouldRequireTwoFactor } = await import('@/lib/two-factor');
         const user = await verifyPasswordAndGetUser(credentials.email, credentials.password);
         if (!user) return null;
-        if (user.twoFactorMethod) {
+        if (await shouldRequireTwoFactor(user)) {
           const otp = credentials.otpCode?.trim() ?? '';
           if (!otp) throw new Error('2FA_REQUIRED');
           const ok = await verifyTwoFactorForUser(user, otp);

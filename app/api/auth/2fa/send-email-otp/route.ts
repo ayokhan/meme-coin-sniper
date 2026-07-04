@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   sendLoginEmailOtp,
+  shouldRequireTwoFactor,
   verifyPasswordAndGetUser,
 } from "@/lib/two-factor";
 
@@ -16,6 +17,9 @@ export async function POST(request: Request) {
     const user = await verifyPasswordAndGetUser(email, password);
     if (!user) {
       return NextResponse.json({ success: false, error: "Invalid email or password." }, { status: 401 });
+    }
+    if (!(await shouldRequireTwoFactor(user))) {
+      return NextResponse.json({ success: false, error: "Email 2FA is not required for this account." }, { status: 400 });
     }
     if (user.twoFactorMethod !== "email" || !user.email) {
       return NextResponse.json({ success: false, error: "Email 2FA is not enabled for this account." }, { status: 400 });
