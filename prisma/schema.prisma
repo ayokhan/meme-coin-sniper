@@ -314,7 +314,8 @@ model TwoFactorEmailOtp {
 model MemeAgentBanner {
   id        String   @id @default("default")
   enabled   Boolean  @default(true)
-  message   String   @default("Before entering a trade on Dex Screener, GMGN, Pump.fun, Axiom or Padre, analyze the coin first here with Nova AI Analysis.")
+  title     String   @default("Don't Get Rugged")
+  message   String   @default("Before entering a trade on Dex Screener, GMGN, Pump.fun, Axiom or Padre, analyze the coin first here with Nova AI Agent to make an entry you can take profit from.")
   updatedAt DateTime @updatedAt
 }
 

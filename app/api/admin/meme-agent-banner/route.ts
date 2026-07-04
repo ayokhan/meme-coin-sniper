@@ -35,6 +35,7 @@ export async function PATCH(request: Request) {
     }
     const banner = await setMemeAgentBanner({
       enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
+      title: typeof body.title === "string" ? body.title : undefined,
       message: typeof body.message === "string" ? body.message : undefined,
     });
     return NextResponse.json({ success: true, banner });

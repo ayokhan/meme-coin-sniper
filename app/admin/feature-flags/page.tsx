@@ -432,7 +432,7 @@ export default function AdminFeatureFlagsPage() {
   const [memeAgentBanner, setMemeAgentBanner] = useState<MemeAgentBannerAdmin | null>(null);
   const [memeAgentBannerLoading, setMemeAgentBannerLoading] = useState(true);
   const [memeAgentBannerSaving, setMemeAgentBannerSaving] = useState(false);
-  const [memeAgentBannerDraft, setMemeAgentBannerDraft] = useState({ message: "" });
+  const [memeAgentBannerDraft, setMemeAgentBannerDraft] = useState({ title: "", message: "" });
   const [aiAgentQuotas, setAiAgentQuotas] = useState<AiAgentQuotasState>(DEFAULT_AI_AGENT_QUOTAS);
   const [aiAgentQuotasDraft, setAiAgentQuotasDraft] = useState<AiAgentQuotasDraft>(quotasToDraft(DEFAULT_AI_AGENT_QUOTAS));
   const [aiAgentQuotasSaving, setAiAgentQuotasSaving] = useState(false);
@@ -477,7 +477,7 @@ export default function AdminFeatureFlagsPage() {
         if (memeBannerData.success && memeBannerData.banner) {
           const b = memeBannerData.banner as MemeAgentBannerAdmin;
           setMemeAgentBanner(b);
-          setMemeAgentBannerDraft({ message: b.message });
+          setMemeAgentBannerDraft({ title: b.title, message: b.message });
         }
         if (quotasData.success && quotasData.quotas) {
           const q = quotasData.quotas as AiAgentQuotasState;
@@ -564,7 +564,7 @@ export default function AdminFeatureFlagsPage() {
       if (data.success && data.banner) {
         const b = data.banner as MemeAgentBannerAdmin;
         setMemeAgentBanner(b);
-        setMemeAgentBannerDraft({ message: b.message });
+        setMemeAgentBannerDraft({ title: b.title, message: b.message });
         setSuccessMessage("Meme Agent banner updated.");
         setTimeout(() => setSuccessMessage(""), 4000);
       } else setError(data.error ?? "Update failed");
@@ -1163,24 +1163,42 @@ export default function AdminFeatureFlagsPage() {
 
                 {memeAgentBanner.enabled && (
                   <div className="rounded-lg border border-dashed border-violet-300/60 dark:border-violet-700/50 p-1">
-                    <MemeAgentBannerDisplay message={memeAgentBannerDraft.message || memeAgentBanner.message} />
+                    <MemeAgentBannerDisplay
+                      title={memeAgentBannerDraft.title || memeAgentBanner.title}
+                      message={memeAgentBannerDraft.message || memeAgentBanner.message}
+                    />
                   </div>
                 )}
+
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  Banner title
+                  <input
+                    type="text"
+                    value={memeAgentBannerDraft.title}
+                    onChange={(e) => setMemeAgentBannerDraft((d) => ({ ...d, title: e.target.value }))}
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 font-semibold"
+                  />
+                </label>
 
                 <label className="text-xs text-muted-foreground flex flex-col gap-1">
                   Banner message
                   <textarea
                     value={memeAgentBannerDraft.message}
-                    onChange={(e) => setMemeAgentBannerDraft({ message: e.target.value })}
+                    onChange={(e) => setMemeAgentBannerDraft((d) => ({ ...d, message: e.target.value }))}
                     rows={3}
-                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 leading-relaxed"
                   />
                 </label>
 
                 <Button
                   size="sm"
                   disabled={memeAgentBannerSaving}
-                  onClick={() => void patchMemeAgentBanner({ message: memeAgentBannerDraft.message })}
+                  onClick={() =>
+                    void patchMemeAgentBanner({
+                      title: memeAgentBannerDraft.title,
+                      message: memeAgentBannerDraft.message,
+                    })
+                  }
                 >
                   {memeAgentBannerSaving ? "Saving…" : "Save banner"}
                 </Button>

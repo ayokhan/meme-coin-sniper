@@ -4594,7 +4594,10 @@ export default function Dashboard() {
                 {aiAgentSubTab === "meme" && (
                 <>
                 {memeAgentBanner?.enabled && (
-                  <MemeAgentBannerDisplay message={memeAgentBanner.message} />
+                  <MemeAgentBannerDisplay
+                    title={memeAgentBanner.title}
+                    message={memeAgentBanner.message}
+                  />
                 )}
                 {aiAgentOnboardingShow && status === "authenticated" && (
                   <AiAgentOnboardingPanel
