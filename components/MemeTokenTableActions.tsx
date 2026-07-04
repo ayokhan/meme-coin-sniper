@@ -62,7 +62,7 @@ export default function MemeTokenTableActions({ contractAddress, chain = "solana
         type="button"
         onClick={() => openNovaStarisAiAgent(contractAddress, chain)}
         className={analyzeBtnClass}
-        title="Analyze in NovaStaris AI Agent"
+        title="Run Nova AI Analysis on this coin"
       >
         <Sparkles className="h-3 w-3 mr-0.5 inline" />
         Analyze

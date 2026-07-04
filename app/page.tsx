@@ -54,6 +54,7 @@ import NovaMemeIntelligencePanel from "@/components/NovaMemeIntelligencePanel";
 import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel";
 import MemeLeaderboardPanel from "@/components/MemeLeaderboardPanel";
 import MemeTokenTableActions, { memeTableShareBtnClass, memeTableShareBtnCopiedClass } from "@/components/MemeTokenTableActions";
+import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
 import DeepMemeAgentPanel from "@/components/DeepMemeAgentPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
@@ -4371,6 +4372,14 @@ export default function Dashboard() {
                 </span>
               </div>
             )}
+            {(activeTab === "new" ||
+              activeTab === "trending" ||
+              activeTab === "surge" ||
+              activeTab === "transactions" ||
+              activeTab === "bsc") &&
+              !memeQuotaExhausted && (
+                <MemeTableAnalyzeHint tier={isGuest ? "guest" : isVip ? "vip" : "free"} />
+              )}
             {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-ultimate" && tokensForDisplay.length === 0 ? (
               <div className="mx-3 sm:mx-6 overflow-x-auto px-2 py-8 sm:py-10">
                 <Table>
