@@ -55,6 +55,8 @@ import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel"
 import MemeLeaderboardPanel from "@/components/MemeLeaderboardPanel";
 import MemeTokenTableActions, { memeTableShareBtnClass, memeTableShareBtnCopiedClass } from "@/components/MemeTokenTableActions";
 import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
+import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
+import type { MemeAgentBannerAdmin } from "@/lib/meme-agent-banner";
 import DeepMemeAgentPanel from "@/components/DeepMemeAgentPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
@@ -357,6 +359,7 @@ export default function Dashboard() {
   const [pageTabFlagsLoaded, setPageTabFlagsLoaded] = useState(false);
   const [tabNewBadges, setTabNewBadges] = useState<Record<string, string>>({});
   const [sitePromo, setSitePromo] = useState<PromoBannerAdmin | null>(null);
+  const [memeAgentBanner, setMemeAgentBanner] = useState<MemeAgentBannerAdmin | null>(null);
   const [promoBannerDismissed, setPromoBannerDismissed] = useState(false);
 
   // Client-side: hide/show main GUI tabs based on owner feature flags + NEW badges + promo.
@@ -366,12 +369,14 @@ export default function Dashboard() {
       fetch("/api/feature-flags-public").then((r) => r.json()),
       fetch("/api/tab-new-badges").then((r) => r.json()),
       fetch("/api/promo-banner").then((r) => r.json()),
+      fetch("/api/meme-agent-banner").then((r) => r.json()),
     ])
-      .then(([flagsData, badgesData, promoData]) => {
+      .then(([flagsData, badgesData, promoData, memeBannerData]) => {
         if (cancelled) return;
         if (flagsData?.success) setPageTabFlags(flagsData.flags ?? {});
         if (badgesData?.success) setTabNewBadges(badgesData.badges ?? {});
         if (promoData?.success) setSitePromo(promoData.promo ?? null);
+        if (memeBannerData?.success) setMemeAgentBanner(memeBannerData.banner ?? null);
       })
       .catch(() => {})
       .finally(() => {
@@ -1387,6 +1392,7 @@ export default function Dashboard() {
   const [novaForecastSubTab, setNovaForecastSubTab] = useState<
     "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-radar" | "nova-scalp"
   >("agent");
+  const [dashboardUrlReady, setDashboardUrlReady] = useState(false);
 
   const applyDashboardPathResult = useCallback((result: DashboardPathApplyResult) => {
     setTopTabFilter(result.filter);
@@ -1413,6 +1419,24 @@ export default function Dashboard() {
     if (tab && URL_TAB_IDS.has(tab) && isTabVisibleInGui(tab as TabId)) {
       setActiveTab(tab as TabId);
     }
+    const gh = params.get("goHunting");
+    if (gh === "new_pairs" || gh === "final_stretch" || gh === "migrated") {
+      setGoHuntingView(gh);
+    }
+    const bsc = params.get("bsc");
+    if (bsc === "new_pairs" || bsc === "final_stretch" || bsc === "migrated" || bsc === "trending") {
+      setBscGoHuntingView(bsc);
+    }
+    const wallet = params.get("wallet");
+    if (
+      wallet === "meme" ||
+      wallet === "leverage" ||
+      wallet === "nova-perp-wallet-analyst" ||
+      wallet === "meme-leaderboard" ||
+      wallet === "deep-meme-agent"
+    ) {
+      setWalletTrackerView(wallet);
+    }
     const fv = params.get("futures");
     if (fv === "ai") {
       setActiveTab("ai-analysis");
@@ -1437,6 +1461,11 @@ export default function Dashboard() {
     ) {
       setNovaForecastSubTab(forecast);
     }
+    const boss = params.get("boss");
+    if (boss === "chart" || boss === "demandFib") {
+      setOnlineBossSubTab(boss);
+    }
+    setDashboardUrlReady(true);
   }, [pageTabFlagsLoaded, isTabVisibleInGui]);
 
   useEffect(() => {
@@ -1666,6 +1695,37 @@ export default function Dashboard() {
     novaForecastSubTab,
     onlineBossSubTab,
     setHomeAnalyticsPath,
+  ]);
+
+  /** Keep browser URL in sync so refresh restores tab + sub-view (Nova Q, Go Hunting view, etc.). */
+  useEffect(() => {
+    if (!dashboardUrlReady || typeof window === "undefined" || window.location.pathname !== "/") return;
+    const params = new URLSearchParams();
+    params.set("tab", activeTab);
+    if (activeTab === "new") params.set("goHunting", goHuntingView);
+    if (activeTab === "bsc") params.set("bsc", bscGoHuntingView);
+    if (activeTab === "wallets") params.set("wallet", walletTrackerView);
+    if (activeTab === "futures") params.set("futures", futuresView);
+    if (activeTab === "ai-analysis") params.set("agent", aiAgentSubTab);
+    if (activeTab === "nova-forecast") params.set("forecast", novaForecastSubTab);
+    if (activeTab === "chris-clayton") params.set("boss", onlineBossSubTab);
+    const nextQuery = params.toString();
+    const nextUrl = nextQuery ? `/?${nextQuery}` : "/";
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+    if (currentUrl !== nextUrl) {
+      router.replace(nextUrl, { scroll: false });
+    }
+  }, [
+    activeTab,
+    goHuntingView,
+    bscGoHuntingView,
+    walletTrackerView,
+    futuresView,
+    aiAgentSubTab,
+    novaForecastSubTab,
+    onlineBossSubTab,
+    router,
+    dashboardUrlReady,
   ]);
 
   const [novaConnectEnabled, setNovaConnectEnabled] = useState(true);
@@ -4533,6 +4593,9 @@ export default function Dashboard() {
                 })()}
                 {aiAgentSubTab === "meme" && (
                 <>
+                {memeAgentBanner?.enabled && (
+                  <MemeAgentBannerDisplay message={memeAgentBanner.message} />
+                )}
                 {aiAgentOnboardingShow && status === "authenticated" && (
                   <AiAgentOnboardingPanel
                     step={aiAgentOnboardingStep}

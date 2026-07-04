@@ -155,6 +155,11 @@ model User {
   aiAgentOnboardingCompletedAt       DateTime?
   /** When user accepted Payment Terms and Conditions (required before any subscription payment). */
   paymentTermsAcceptedAt     DateTime?
+  /** Optional 2FA: "totp" (authenticator app) or "email". Null = disabled. */
+  twoFactorMethod            String?
+  totpSecretEncrypted        String?
+  /** JSON array of bcrypt-hashed backup codes for TOTP recovery. */
+  totpBackupCodesHash        String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
@@ -167,6 +172,7 @@ model User {
   novaScalpPlanFeedbacks NovaScalpPlanFeedback[]
   novaFiveMinsOwnerFeedbacks NovaFiveMinsOwnerFeedback[]
   passwordResets PasswordResetToken[]
+  twoFactorEmailOtps TwoFactorEmailOtp[]
   userLeverageWallets  UserLeverageWallet[]
   userPolymarketTrackedWallets UserPolymarketTrackedWallet[]
   userMemeCoinWallets  UserMemeCoinWallet[]
@@ -291,6 +297,25 @@ model PasswordResetToken {
   @@index([token])
   @@index([userId])
   @@index([expiresAt])
+}
+
+model TwoFactorEmailOtp {
+  id        String   @id @default(cuid())
+  userId    String
+  codeHash  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Owner-managed banner on Meme Coins Agent tab.
+model MemeAgentBanner {
+  id        String   @id @default("default")
+  enabled   Boolean  @default(true)
+  message   String   @default("Before entering a trade on Dex Screener, GMGN, Pump.fun, Axiom or Padre, analyze the coin first here with Nova AI Analysis.")
+  updatedAt DateTime @updatedAt
 }
 
 model Account {

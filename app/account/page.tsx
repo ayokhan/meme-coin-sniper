@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, BarChart3, Sparkles, Bell, CreditCard } from "lucide-react";
 import { PasswordInput } from "@/components/PasswordInput";
+import TwoFactorSettings from "@/components/TwoFactorSettings";
 
 type Profile = {
   name: string | null;
@@ -646,6 +647,8 @@ export default function AccountPage() {
             </CardContent>
           </Card>
         )}
+
+        {hasEmailPassword && <TwoFactorSettings hasPassword={!!profile?.hasPassword} />}
 
         {!hasEmailPassword && (
           <p className="text-sm text-muted-foreground">You signed in with Google or a wallet. Password change is only for email/password accounts.</p>

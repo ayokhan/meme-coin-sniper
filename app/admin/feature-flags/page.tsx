@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import type { TabNewBadgeAdminRow } from "@/lib/tab-new-badges";
 import type { PromoBannerAdmin } from "@/lib/promo-banner";
+import type { MemeAgentBannerAdmin } from "@/lib/meme-agent-banner";
 import { formatPromoDrawDate } from "@/lib/promo-banner";
 import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
+import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
 
 function toDatetimeLocalValue(iso: string | null): string {
   if (!iso) return "";
@@ -422,6 +424,10 @@ export default function AdminFeatureFlagsPage() {
     showOnDashboard: true,
     showOnRegister: true,
   });
+  const [memeAgentBanner, setMemeAgentBanner] = useState<MemeAgentBannerAdmin | null>(null);
+  const [memeAgentBannerLoading, setMemeAgentBannerLoading] = useState(true);
+  const [memeAgentBannerSaving, setMemeAgentBannerSaving] = useState(false);
+  const [memeAgentBannerDraft, setMemeAgentBannerDraft] = useState({ message: "" });
   const [aiAgentQuotas, setAiAgentQuotas] = useState<AiAgentQuotasState>(DEFAULT_AI_AGENT_QUOTAS);
   const [aiAgentQuotasDraft, setAiAgentQuotasDraft] = useState<AiAgentQuotasDraft>(quotasToDraft(DEFAULT_AI_AGENT_QUOTAS));
   const [aiAgentQuotasSaving, setAiAgentQuotasSaving] = useState(false);
@@ -445,9 +451,10 @@ export default function AdminFeatureFlagsPage() {
       fetch("/api/admin/feature-flags").then((r) => r.json()),
       fetch("/api/admin/tab-new-badges").then((r) => r.json()),
       fetch("/api/admin/promo-banner").then((r) => r.json()),
+      fetch("/api/admin/meme-agent-banner").then((r) => r.json()),
       fetch("/api/admin/ai-agent-quotas").then((r) => r.json()),
     ])
-      .then(([flagsData, badgesData, promoData, quotasData]) => {
+      .then(([flagsData, badgesData, promoData, memeBannerData, quotasData]) => {
         if (flagsData.success) setFlags(flagsData.flags ?? {});
         else setError(flagsData.error ?? "Failed to load");
         if (badgesData.success) {
@@ -462,6 +469,11 @@ export default function AdminFeatureFlagsPage() {
         if (promoData.success && promoData.promo) {
           applyPromoDraft(promoData.promo as PromoBannerAdmin);
         }
+        if (memeBannerData.success && memeBannerData.banner) {
+          const b = memeBannerData.banner as MemeAgentBannerAdmin;
+          setMemeAgentBanner(b);
+          setMemeAgentBannerDraft({ message: b.message });
+        }
         if (quotasData.success && quotasData.quotas) {
           const q = quotasData.quotas as AiAgentQuotasState;
           setAiAgentQuotas(q);
@@ -473,6 +485,7 @@ export default function AdminFeatureFlagsPage() {
         setLoading(false);
         setTabNewLoading(false);
         setPromoLoading(false);
+        setMemeAgentBannerLoading(false);
       });
 
   useEffect(() => {
@@ -529,6 +542,31 @@ export default function AdminFeatureFlagsPage() {
       setError("Update failed");
     } finally {
       setPromoSaving(false);
+    }
+  };
+
+  const patchMemeAgentBanner = async (body: Record<string, unknown>) => {
+    setMemeAgentBannerSaving(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const res = await fetch("/api/admin/meme-agent-banner", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success && data.banner) {
+        const b = data.banner as MemeAgentBannerAdmin;
+        setMemeAgentBanner(b);
+        setMemeAgentBannerDraft({ message: b.message });
+        setSuccessMessage("Meme Agent banner updated.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Update failed");
+    } catch {
+      setError("Update failed");
+    } finally {
+      setMemeAgentBannerSaving(false);
     }
   };
 
@@ -1070,6 +1108,77 @@ export default function AdminFeatureFlagsPage() {
                     Preview promo terms →
                   </Link>
                 </div>
+              </>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6 border-zinc-200 dark:border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-base">Meme Coins Agent banner</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Shown at the top of NovaStaris AI Agent → Meme Coins Agent. Encourages users to run Nova AI Analysis before trading on external platforms.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {memeAgentBannerLoading ? (
+              <p className="text-muted-foreground text-sm">Loading banner…</p>
+            ) : memeAgentBanner ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                      memeAgentBanner.enabled
+                        ? "bg-violet-500/15 text-violet-800 dark:text-violet-200 border-violet-500/30"
+                        : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                    }`}
+                  >
+                    {memeAgentBanner.enabled ? "ON" : "OFF"}
+                    {memeAgentBanner.usesDefault ? " · code default" : ""}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant={memeAgentBanner.enabled ? "outline" : "default"}
+                      disabled={memeAgentBannerSaving}
+                      onClick={() => void patchMemeAgentBanner({ enabled: !memeAgentBanner.enabled })}
+                    >
+                      {memeAgentBannerSaving ? "…" : memeAgentBanner.enabled ? "Turn off" : "Turn on"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={memeAgentBannerSaving}
+                      onClick={() => void patchMemeAgentBanner({ resetToDefault: true })}
+                    >
+                      Reset defaults
+                    </Button>
+                  </div>
+                </div>
+
+                {memeAgentBanner.enabled && (
+                  <div className="rounded-lg border border-dashed border-violet-300/60 dark:border-violet-700/50 p-1">
+                    <MemeAgentBannerDisplay message={memeAgentBannerDraft.message || memeAgentBanner.message} />
+                  </div>
+                )}
+
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  Banner message
+                  <textarea
+                    value={memeAgentBannerDraft.message}
+                    onChange={(e) => setMemeAgentBannerDraft({ message: e.target.value })}
+                    rows={3}
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                  />
+                </label>
+
+                <Button
+                  size="sm"
+                  disabled={memeAgentBannerSaving}
+                  onClick={() => void patchMemeAgentBanner({ message: memeAgentBannerDraft.message })}
+                >
+                  {memeAgentBannerSaving ? "Saving…" : "Save banner"}
+                </Button>
               </>
             ) : null}
           </CardContent>

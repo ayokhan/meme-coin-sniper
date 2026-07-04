@@ -242,14 +242,22 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       id: 'email',
       name: 'Email',
-      credentials: { email: { label: 'Email', type: 'email' }, password: { label: 'Password', type: 'password' } },
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+        otpCode: { label: '2FA code', type: 'text' },
+      },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
-        if (!user?.hashedPassword) return null;
-        const bcrypt = await import('bcrypt');
-        const ok = await bcrypt.compare(credentials.password, user.hashedPassword);
-        if (!ok) return null;
+        const { verifyPasswordAndGetUser, verifyTwoFactorForUser } = await import('@/lib/two-factor');
+        const user = await verifyPasswordAndGetUser(credentials.email, credentials.password);
+        if (!user) return null;
+        if (user.twoFactorMethod) {
+          const otp = credentials.otpCode?.trim() ?? '';
+          if (!otp) throw new Error('2FA_REQUIRED');
+          const ok = await verifyTwoFactorForUser(user, otp);
+          if (!ok) return null;
+        }
         const isPaid = await getActiveSubscription(user.id);
         const tier = await getSubscriptionTier(user.id);
         const tradingBotOnDemand = !!(user as { tradingBotOnDemand?: boolean }).tradingBotOnDemand;
@@ -261,7 +269,26 @@ export const authOptions: NextAuthOptions = {
         const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
         const novaConnectAllowedByAdmin = !!(user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin;
         const isCoachUser = !!(user as { coachUser?: boolean }).coachUser;
-        return { id: user.id, email: user.email!, name: user.name, image: user.image, walletAddress: null, isPaid, tier, isCoachUser, tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, memeCoinsTraderOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
+        const fullUser = await prisma.user.findUnique({ where: { id: user.id } });
+        if (!fullUser) return null;
+        return {
+          id: fullUser.id,
+          email: fullUser.email!,
+          name: fullUser.name,
+          image: fullUser.image,
+          walletAddress: null,
+          isPaid,
+          tier,
+          isCoachUser,
+          tradingBotOnDemand,
+          polymarketBotOnDemand,
+          propFirmBotOnDemand,
+          novaUltimateOnDemand,
+          ctScanOnDemand,
+          memeCoinsTraderOnDemand,
+          novaConnectCommunityRep,
+          novaConnectAllowedByAdmin,
+        };
       },
     }),
     CredentialsProvider({

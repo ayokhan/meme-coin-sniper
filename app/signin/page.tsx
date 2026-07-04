@@ -27,6 +27,9 @@ function SignInForm() {
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [twoFactorStep, setTwoFactorStep] = useState(false);
+  const [twoFactorMethod, setTwoFactorMethod] = useState<"totp" | "email" | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
@@ -55,15 +58,76 @@ function SignInForm() {
     setError("");
     setLoading(true);
     try {
-      const res = await signIn("email", { email, password, redirect: false });
+      if (!twoFactorStep) {
+        const checkRes = await fetch("/api/auth/2fa/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const checkData = (await checkRes.json()) as {
+          success?: boolean;
+          error?: string;
+          requires2fa?: boolean;
+          method?: "totp" | "email" | null;
+        };
+        if (!checkRes.ok || !checkData.success) {
+          setError(checkData.error ?? "Invalid email or password.");
+          return;
+        }
+        if (checkData.requires2fa) {
+          setTwoFactorStep(true);
+          setTwoFactorMethod(checkData.method ?? null);
+          if (checkData.method === "email") {
+            const sendRes = await fetch("/api/auth/2fa/send-email-otp", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password }),
+            });
+            const sendData = (await sendRes.json()) as { error?: string };
+            if (!sendRes.ok) {
+              setError(sendData.error ?? "Could not send email code.");
+              setTwoFactorStep(false);
+            }
+          }
+          return;
+        }
+      }
+
+      const res = await signIn("email", {
+        email,
+        password,
+        otpCode: twoFactorStep ? otpCode : "",
+        redirect: false,
+      });
       if (res?.error) {
-        setError(res.error === "CredentialsSignin" ? "Invalid email or password." : res.error);
+        if (res.error === "2FA_REQUIRED") {
+          setTwoFactorStep(true);
+          setError("Enter your two-factor code.");
+          return;
+        }
+        setError(res.error === "CredentialsSignin" ? "Invalid email, password, or code." : res.error);
         return;
       }
       router.push(callbackUrl);
       router.refresh();
     } catch {
       setError("Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendEmailCode = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const sendRes = await fetch("/api/auth/2fa/send-email-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const sendData = (await sendRes.json()) as { error?: string };
+      if (!sendRes.ok) setError(sendData.error ?? "Could not resend code.");
     } finally {
       setLoading(false);
     }
@@ -128,15 +192,59 @@ function SignInForm() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
               required
+              disabled={twoFactorStep}
             />
+            {twoFactorStep && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {twoFactorMethod === "email"
+                    ? "Enter the 6-digit code we emailed you."
+                    : "Enter the 6-digit code from your authenticator app (or a backup code)."}
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="6-digit code"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\s/g, ""))}
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-mono tracking-widest"
+                  required
+                />
+                {twoFactorMethod === "email" && (
+                  <button
+                    type="button"
+                    onClick={() => void resendEmailCode()}
+                    className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline"
+                    disabled={loading}
+                  >
+                    Resend email code
+                  </button>
+                )}
+              </>
+            )}
             <p className="text-xs text-right -mt-1">
               <Link href="/forgot-password" className="text-muted-foreground hover:text-zinc-900 dark:hover:text-zinc-100 underline">
                 Forgot password?
               </Link>
             </p>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? "Signing in…" : twoFactorStep ? "Verify & sign in" : "Sign in"}
             </Button>
+            {twoFactorStep && (
+              <button
+                type="button"
+                className="w-full text-xs text-muted-foreground hover:text-zinc-900 dark:hover:text-zinc-100"
+                onClick={() => {
+                  setTwoFactorStep(false);
+                  setTwoFactorMethod(null);
+                  setOtpCode("");
+                  setError("");
+                }}
+              >
+                Back
+              </button>
+            )}
           </form>
 
           <div className="relative">
