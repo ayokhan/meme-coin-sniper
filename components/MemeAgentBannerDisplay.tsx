@@ -24,7 +24,7 @@ export default function MemeAgentBannerDisplay({ title, message }: Props) {
           🛡️
         </span>
         <div className="min-w-0 flex-1 space-y-1.5">
-          <h3 className="text-xl sm:text-2xl font-bold tracking-tight leading-none bg-gradient-to-r from-rose-600 via-fuchsia-600 to-violet-600 dark:from-rose-400 dark:via-fuchsia-400 dark:to-violet-400 bg-clip-text text-transparent">
+          <h3 className="font-display text-xl sm:text-2xl font-bold tracking-tight leading-none bg-gradient-to-r from-rose-600 via-fuchsia-600 to-violet-600 dark:from-rose-400 dark:via-fuchsia-400 dark:to-violet-400 bg-clip-text text-transparent">
             {title}
           </h3>
           <p className="text-sm sm:text-[15px] leading-relaxed text-slate-700 dark:text-slate-300 font-medium">

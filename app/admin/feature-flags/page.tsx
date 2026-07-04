@@ -7,11 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import type { TabNewBadgeAdminRow } from "@/lib/tab-new-badges";
-import type { PromoBannerAdmin } from "@/lib/promo-banner";
-import type { MemeAgentBannerAdmin } from "@/lib/meme-agent-banner";
-import { formatPromoDrawDate } from "@/lib/promo-banner";
-import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
-import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
 
 function toDatetimeLocalValue(iso: string | null): string {
   if (!iso) return "";
@@ -416,50 +411,17 @@ export default function AdminFeatureFlagsPage() {
   const [tabNewLoading, setTabNewLoading] = useState(true);
   const [tabNewSaving, setTabNewSaving] = useState<string | null>(null);
   const [tabNewDraftDates, setTabNewDraftDates] = useState<Record<string, string>>({});
-  const [promo, setPromo] = useState<PromoBannerAdmin | null>(null);
-  const [promoLoading, setPromoLoading] = useState(true);
-  const [promoSaving, setPromoSaving] = useState(false);
-  const [promoDraft, setPromoDraft] = useState({
-    headline: "",
-    prizeLabel: "",
-    drawAtLocal: "",
-    bodyText: "",
-    ctaLabel: "",
-    ctaHref: "",
-    showOnDashboard: true,
-    showOnRegister: true,
-  });
-  const [memeAgentBanner, setMemeAgentBanner] = useState<MemeAgentBannerAdmin | null>(null);
-  const [memeAgentBannerLoading, setMemeAgentBannerLoading] = useState(true);
-  const [memeAgentBannerSaving, setMemeAgentBannerSaving] = useState(false);
-  const [memeAgentBannerDraft, setMemeAgentBannerDraft] = useState({ title: "", message: "" });
   const [aiAgentQuotas, setAiAgentQuotas] = useState<AiAgentQuotasState>(DEFAULT_AI_AGENT_QUOTAS);
   const [aiAgentQuotasDraft, setAiAgentQuotasDraft] = useState<AiAgentQuotasDraft>(quotasToDraft(DEFAULT_AI_AGENT_QUOTAS));
   const [aiAgentQuotasSaving, setAiAgentQuotasSaving] = useState(false);
-
-  const applyPromoDraft = (p: PromoBannerAdmin) => {
-    setPromo(p);
-    setPromoDraft({
-      headline: p.headline,
-      prizeLabel: p.prizeLabel,
-      drawAtLocal: toDatetimeLocalValue(p.drawAt),
-      bodyText: p.bodyText ?? "",
-      ctaLabel: p.ctaLabel,
-      ctaHref: p.ctaHref,
-      showOnDashboard: p.showOnDashboard,
-      showOnRegister: p.showOnRegister,
-    });
-  };
 
   const load = () =>
     Promise.all([
       fetch("/api/admin/feature-flags").then((r) => r.json()),
       fetch("/api/admin/tab-new-badges").then((r) => r.json()),
-      fetch("/api/admin/promo-banner").then((r) => r.json()),
-      fetch("/api/admin/meme-agent-banner").then((r) => r.json()),
       fetch("/api/admin/ai-agent-quotas").then((r) => r.json()),
     ])
-      .then(([flagsData, badgesData, promoData, memeBannerData, quotasData]) => {
+      .then(([flagsData, badgesData, quotasData]) => {
         if (flagsData.success) setFlags(flagsData.flags ?? {});
         else setError(flagsData.error ?? "Failed to load");
         if (badgesData.success) {
@@ -471,14 +433,6 @@ export default function AdminFeatureFlagsPage() {
           }
           setTabNewDraftDates(drafts);
         }
-        if (promoData.success && promoData.promo) {
-          applyPromoDraft(promoData.promo as PromoBannerAdmin);
-        }
-        if (memeBannerData.success && memeBannerData.banner) {
-          const b = memeBannerData.banner as MemeAgentBannerAdmin;
-          setMemeAgentBanner(b);
-          setMemeAgentBannerDraft({ title: b.title, message: b.message });
-        }
         if (quotasData.success && quotasData.quotas) {
           const q = quotasData.quotas as AiAgentQuotasState;
           setAiAgentQuotas(q);
@@ -489,8 +443,6 @@ export default function AdminFeatureFlagsPage() {
       .finally(() => {
         setLoading(false);
         setTabNewLoading(false);
-        setPromoLoading(false);
-        setMemeAgentBannerLoading(false);
       });
 
   useEffect(() => {
@@ -524,54 +476,6 @@ export default function AdminFeatureFlagsPage() {
       setError("Update failed");
     } finally {
       setTabNewSaving(null);
-    }
-  };
-
-  const patchPromo = async (body: Record<string, unknown>) => {
-    setPromoSaving(true);
-    setError("");
-    setSuccessMessage("");
-    try {
-      const res = await fetch("/api/admin/promo-banner", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (data.success && data.promo) {
-        applyPromoDraft(data.promo as PromoBannerAdmin);
-        setSuccessMessage("Promo banner updated.");
-        setTimeout(() => setSuccessMessage(""), 4000);
-      } else setError(data.error ?? "Update failed");
-    } catch {
-      setError("Update failed");
-    } finally {
-      setPromoSaving(false);
-    }
-  };
-
-  const patchMemeAgentBanner = async (body: Record<string, unknown>) => {
-    setMemeAgentBannerSaving(true);
-    setError("");
-    setSuccessMessage("");
-    try {
-      const res = await fetch("/api/admin/meme-agent-banner", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (data.success && data.banner) {
-        const b = data.banner as MemeAgentBannerAdmin;
-        setMemeAgentBanner(b);
-        setMemeAgentBannerDraft({ title: b.title, message: b.message });
-        setSuccessMessage("Meme Agent banner updated.");
-        setTimeout(() => setSuccessMessage(""), 4000);
-      } else setError(data.error ?? "Update failed");
-    } catch {
-      setError("Update failed");
-    } finally {
-      setMemeAgentBannerSaving(false);
     }
   };
 
@@ -962,248 +866,18 @@ export default function AdminFeatureFlagsPage() {
 
         <Card className="mt-6 border-zinc-200 dark:border-zinc-800">
           <CardHeader>
-            <CardTitle className="text-base">Promo banner</CardTitle>
+            <CardTitle className="text-base">Site banners</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Site-wide giveaway / join-free promo shown to guests on the dashboard and register page.
-              Turn off anytime or update prize, draw date, and copy — no deploy needed.
+              Promo giveaway banner and Meme Coins Agent banner are managed on a dedicated page — turn on/off, edit title and copy, preview live.
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {promoLoading ? (
-              <p className="text-muted-foreground text-sm">Loading promo banner…</p>
-            ) : promo ? (
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span
-                    className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                      promo.active
-                        ? "bg-cyan-500/15 text-cyan-800 dark:text-cyan-200 border-cyan-500/30"
-                        : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
-                    }`}
-                  >
-                    {promo.active ? "LIVE on site" : promo.enabled ? "Enabled (draw passed)" : "OFF"}
-                    {promo.usesDefault ? " · code default" : ""}
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant={promo.enabled ? "outline" : "default"}
-                      disabled={promoSaving}
-                      onClick={() => void patchPromo({ enabled: !promo.enabled })}
-                    >
-                      {promoSaving ? "…" : promo.enabled ? "Turn off" : "Turn on"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={promoSaving}
-                      onClick={() => void patchPromo({ resetToDefault: true })}
-                    >
-                      Reset defaults
-                    </Button>
-                  </div>
-                </div>
-
-                {promo.active && (
-                  <div className="rounded-lg border border-dashed border-cyan-300/60 dark:border-cyan-700/50 p-1">
-                    <PromoBannerDisplay promo={promo} />
-                  </div>
-                )}
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="text-xs text-muted-foreground flex flex-col gap-1">
-                    Headline
-                    <input
-                      value={promoDraft.headline}
-                      onChange={(e) => setPromoDraft((d) => ({ ...d, headline: e.target.value }))}
-                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-                    />
-                  </label>
-                  <label className="text-xs text-muted-foreground flex flex-col gap-1">
-                    Prize (e.g. 1 SOL)
-                    <input
-                      value={promoDraft.prizeLabel}
-                      onChange={(e) => setPromoDraft((d) => ({ ...d, prizeLabel: e.target.value }))}
-                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-                    />
-                  </label>
-                  <label className="text-xs text-muted-foreground flex flex-col gap-1 sm:col-span-2">
-                    Draw date (local) — banner hides automatically after this time
-                    <input
-                      type="datetime-local"
-                      value={promoDraft.drawAtLocal}
-                      onChange={(e) => setPromoDraft((d) => ({ ...d, drawAtLocal: e.target.value }))}
-                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 max-w-xs"
-                    />
-                    {promo.drawAt && (
-                      <span className="text-[11px]">Public: {formatPromoDrawDate(promo.drawAt)}</span>
-                    )}
-                  </label>
-                  <label className="text-xs text-muted-foreground flex flex-col gap-1 sm:col-span-2">
-                    Body text
-                    <textarea
-                      value={promoDraft.bodyText}
-                      onChange={(e) => setPromoDraft((d) => ({ ...d, bodyText: e.target.value }))}
-                      rows={2}
-                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-                    />
-                  </label>
-                  <label className="text-xs text-muted-foreground flex flex-col gap-1">
-                    Button label
-                    <input
-                      value={promoDraft.ctaLabel}
-                      onChange={(e) => setPromoDraft((d) => ({ ...d, ctaLabel: e.target.value }))}
-                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-                    />
-                  </label>
-                  <label className="text-xs text-muted-foreground flex flex-col gap-1">
-                    Button link
-                    <input
-                      value={promoDraft.ctaHref}
-                      onChange={(e) => setPromoDraft((d) => ({ ...d, ctaHref: e.target.value }))}
-                      className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 font-mono"
-                    />
-                  </label>
-                </div>
-
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={promoDraft.showOnDashboard}
-                      onChange={(e) => setPromoDraft((d) => ({ ...d, showOnDashboard: e.target.checked }))}
-                    />
-                    Show on dashboard
-                  </label>
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={promoDraft.showOnRegister}
-                      onChange={(e) => setPromoDraft((d) => ({ ...d, showOnRegister: e.target.checked }))}
-                    />
-                    Show on register page
-                  </label>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    disabled={promoSaving}
-                    onClick={() => {
-                      const iso = fromDatetimeLocalValue(promoDraft.drawAtLocal);
-                      void patchPromo({
-                        headline: promoDraft.headline,
-                        prizeLabel: promoDraft.prizeLabel,
-                        drawAt: iso,
-                        bodyText: promoDraft.bodyText || null,
-                        ctaLabel: promoDraft.ctaLabel,
-                        ctaHref: promoDraft.ctaHref,
-                        showOnDashboard: promoDraft.showOnDashboard,
-                        showOnRegister: promoDraft.showOnRegister,
-                      });
-                    }}
-                  >
-                    {promoSaving ? "Saving…" : "Save promo"}
-                  </Button>
-                  <Link
-                    href="/promo-terms"
-                    target="_blank"
-                    className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline self-center"
-                  >
-                    Preview promo terms →
-                  </Link>
-                </div>
-              </>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <Card className="mt-6 border-zinc-200 dark:border-zinc-800">
-          <CardHeader>
-            <CardTitle className="text-base">Meme Coins Agent banner</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Shown at the top of NovaStaris AI Agent → Meme Coins Agent. Encourages users to run Nova AI Analysis before trading on external platforms.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {memeAgentBannerLoading ? (
-              <p className="text-muted-foreground text-sm">Loading banner…</p>
-            ) : memeAgentBanner ? (
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span
-                    className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                      memeAgentBanner.enabled
-                        ? "bg-violet-500/15 text-violet-800 dark:text-violet-200 border-violet-500/30"
-                        : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
-                    }`}
-                  >
-                    {memeAgentBanner.enabled ? "ON" : "OFF"}
-                    {memeAgentBanner.usesDefault ? " · code default" : ""}
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant={memeAgentBanner.enabled ? "outline" : "default"}
-                      disabled={memeAgentBannerSaving}
-                      onClick={() => void patchMemeAgentBanner({ enabled: !memeAgentBanner.enabled })}
-                    >
-                      {memeAgentBannerSaving ? "…" : memeAgentBanner.enabled ? "Turn off" : "Turn on"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={memeAgentBannerSaving}
-                      onClick={() => void patchMemeAgentBanner({ resetToDefault: true })}
-                    >
-                      Reset defaults
-                    </Button>
-                  </div>
-                </div>
-
-                {memeAgentBanner.enabled && (
-                  <div className="rounded-lg border border-dashed border-violet-300/60 dark:border-violet-700/50 p-1">
-                    <MemeAgentBannerDisplay
-                      title={memeAgentBannerDraft.title || memeAgentBanner.title}
-                      message={memeAgentBannerDraft.message || memeAgentBanner.message}
-                    />
-                  </div>
-                )}
-
-                <label className="text-xs text-muted-foreground flex flex-col gap-1">
-                  Banner title
-                  <input
-                    type="text"
-                    value={memeAgentBannerDraft.title}
-                    onChange={(e) => setMemeAgentBannerDraft((d) => ({ ...d, title: e.target.value }))}
-                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 font-semibold"
-                  />
-                </label>
-
-                <label className="text-xs text-muted-foreground flex flex-col gap-1">
-                  Banner message
-                  <textarea
-                    value={memeAgentBannerDraft.message}
-                    onChange={(e) => setMemeAgentBannerDraft((d) => ({ ...d, message: e.target.value }))}
-                    rows={3}
-                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 leading-relaxed"
-                  />
-                </label>
-
-                <Button
-                  size="sm"
-                  disabled={memeAgentBannerSaving}
-                  onClick={() =>
-                    void patchMemeAgentBanner({
-                      title: memeAgentBannerDraft.title,
-                      message: memeAgentBannerDraft.message,
-                    })
-                  }
-                >
-                  {memeAgentBannerSaving ? "Saving…" : "Save banner"}
-                </Button>
-              </>
-            ) : null}
+          <CardContent>
+            <Link
+              href="/admin/banners"
+              className="inline-flex items-center gap-2 text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
+            >
+              Open Banners admin →
+            </Link>
           </CardContent>
         </Card>
 

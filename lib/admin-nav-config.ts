@@ -6,6 +6,7 @@ import {
   Flag,
   Headphones,
   Lightbulb,
+  Megaphone,
   MessageCircle,
   Users,
   Wallet,
@@ -52,6 +53,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/leverage-wallet-tracker", label: "Leverage wallets", icon: Wallet, group: "trackers" },
   { href: "/admin/polymarket-tracker", label: "Polymarket", icon: Wallet, group: "trackers" },
   { href: "/admin/feature-flags", label: "Feature flags", icon: Flag, group: "product" },
+  {
+    href: "/admin/banners",
+    label: "Banners",
+    description: "Promo and Meme Agent banners",
+    icon: Megaphone,
+    group: "product",
+    ownerOnly: true,
+  },
   { href: "/admin/meme-runner", label: "Meme Runner", icon: Zap, group: "product" },
   { href: "/admin/nova-scalper", label: "NovaScalper", icon: Activity, group: "product" },
 ];

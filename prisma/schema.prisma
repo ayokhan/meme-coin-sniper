@@ -315,7 +315,7 @@ model MemeAgentBanner {
   id        String   @id @default("default")
   enabled   Boolean  @default(true)
   title     String   @default("Don't Get Rugged")
-  message   String   @default("Before entering a trade on Dex Screener, GMGN, Pump.fun, Axiom or Padre, analyze the coin first here with Nova AI Agent to make an entry you can take profit from.")
+  message   String   @default("Before you enter a trade on Dex Screener, GMGN, Pump.fun, Axiom, or Padre, analyze the token here with Nova AI Agent first — so you trade with a clearer plan to take profit.")
   updatedAt DateTime @updatedAt
 }
 

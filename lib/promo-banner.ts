@@ -1,6 +1,6 @@
 /**
  * Owner-managed promo banner (giveaways, join-free campaigns).
- * Configured in Admin → Feature flags → Promo banner.
+ * Configured in Admin → Banners.
  */
 import { prisma } from "@/lib/db";
 

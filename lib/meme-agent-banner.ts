@@ -17,7 +17,7 @@ export const DEFAULT_MEME_AGENT_BANNER: MemeAgentBannerConfig = {
   enabled: true,
   title: "Don't Get Rugged",
   message:
-    "Before entering a trade on Dex Screener, GMGN, Pump.fun, Axiom or Padre, analyze the coin first here with Nova AI Agent to make an entry you can take profit from.",
+    "Before you enter a trade on Dex Screener, GMGN, Pump.fun, Axiom, or Padre, analyze the token here with Nova AI Agent first — so you trade with a clearer plan to take profit.",
 };
 
 type MemeAgentBannerRow = {
