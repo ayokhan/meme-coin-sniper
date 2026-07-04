@@ -312,11 +312,38 @@ model TwoFactorEmailOtp {
 
 // Owner-managed banner on Meme Coins Agent tab.
 model MemeAgentBanner {
-  id        String   @id @default("default")
-  enabled   Boolean  @default(true)
-  title     String   @default("Don't Get Rugged")
-  message   String   @default("Before you enter a trade on Dex Screener, GMGN, Pump.fun, Axiom, or Padre, analyze the token here with Nova AI Agent first — so you trade with a clearer plan to take profit.")
-  updatedAt DateTime @updatedAt
+  id         String   @id @default("default")
+  enabled    Boolean  @default(true)
+  title      String   @default("Don't Get Rugged")
+  message    String   @default("Before you enter a trade on Dex Screener, GMGN, Pump.fun, Axiom, or Padre, analyze the token here with Nova AI Agent first — so you trade with a clearer plan to take profit.")
+  titleColor String   @default("#f472b6")
+  titleSize  String   @default("2xl")
+  titleFont  String   @default("display")
+  updatedAt  DateTime @updatedAt
+}
+
+// Purple dismissible hint above Go Hunting meme coin tables.
+model MemeTableAnalyzeHintBanner {
+  id         String   @id @default("default")
+  enabled    Boolean  @default(true)
+  guestTitle String   @default("Analyze any coin with Nova AI Analysis")
+  guestBody  String   @default("Sign in or register free, then tap the purple Analyze button on any row. Nova AI Analysis works on Solana and BSC meme coins.")
+  freeTitle  String   @default("Tap Analyze for Nova AI Analysis")
+  freeBody   String   @default("Tap the purple Analyze button on any row to run Nova AI Analysis on any Solana or BSC meme coin.")
+  vipTitle   String   @default("Unlimited Nova AI Analysis")
+  vipBody    String   @default("Tap the purple Analyze button on any row to run Nova AI Analysis on any Solana or BSC meme coin — unlimited Meme Agent uses.")
+  updatedAt  DateTime @updatedAt
+}
+
+// Cyan guest sign-up nudge on the dashboard.
+model GuestRegistrationNudgeBanner {
+  id            String   @id @default("default")
+  enabled       Boolean  @default(true)
+  title         String   @default("Create a free NovaStaris account")
+  titleEngaged  String   @default("Enjoying NovaStaris? Save your progress with a free account.")
+  body          String   @default("Free to join · no credit card · save watchlists and get ready to upgrade when you want VIP tools.")
+  bodyEngaged   String   @default("Sign up free in under a minute — save watchlists, track wallets, and unlock member features. No credit card required.")
+  updatedAt     DateTime @updatedAt
 }
 
 model Account {

@@ -57,6 +57,8 @@ import MemeTokenTableActions, { memeTableShareBtnClass, memeTableShareBtnCopiedC
 import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
 import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
 import type { MemeAgentBannerAdmin } from "@/lib/meme-agent-banner";
+import type { MemeTableAnalyzeHintBannerAdmin } from "@/lib/meme-table-analyze-hint-banner";
+import type { GuestRegistrationNudgeBannerAdmin } from "@/lib/guest-registration-nudge-banner";
 import DeepMemeAgentPanel from "@/components/DeepMemeAgentPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import NarrativesPanel from "@/components/NarrativesPanel";
@@ -360,6 +362,8 @@ export default function Dashboard() {
   const [tabNewBadges, setTabNewBadges] = useState<Record<string, string>>({});
   const [sitePromo, setSitePromo] = useState<PromoBannerAdmin | null>(null);
   const [memeAgentBanner, setMemeAgentBanner] = useState<MemeAgentBannerAdmin | null>(null);
+  const [memeTableHintBanner, setMemeTableHintBanner] = useState<MemeTableAnalyzeHintBannerAdmin | null>(null);
+  const [guestNudgeBanner, setGuestNudgeBanner] = useState<GuestRegistrationNudgeBannerAdmin | null>(null);
   const [promoBannerDismissed, setPromoBannerDismissed] = useState(false);
 
   // Client-side: hide/show main GUI tabs based on owner feature flags + NEW badges + promo.
@@ -370,13 +374,17 @@ export default function Dashboard() {
       fetch("/api/tab-new-badges").then((r) => r.json()),
       fetch("/api/promo-banner").then((r) => r.json()),
       fetch("/api/meme-agent-banner").then((r) => r.json()),
+      fetch("/api/meme-table-analyze-hint").then((r) => r.json()),
+      fetch("/api/guest-registration-nudge-banner").then((r) => r.json()),
     ])
-      .then(([flagsData, badgesData, promoData, memeBannerData]) => {
+      .then(([flagsData, badgesData, promoData, memeBannerData, memeTableHintData, guestNudgeData]) => {
         if (cancelled) return;
         if (flagsData?.success) setPageTabFlags(flagsData.flags ?? {});
         if (badgesData?.success) setTabNewBadges(badgesData.badges ?? {});
         if (promoData?.success) setSitePromo(promoData.promo ?? null);
         if (memeBannerData?.success) setMemeAgentBanner(memeBannerData.banner ?? null);
+        if (memeTableHintData?.success) setMemeTableHintBanner(memeTableHintData.banner ?? null);
+        if (guestNudgeData?.success) setGuestNudgeBanner(guestNudgeData.banner ?? null);
       })
       .catch(() => {})
       .finally(() => {
@@ -3531,7 +3539,11 @@ export default function Dashboard() {
     !promoBannerDismissed &&
     !isTabPaywalled;
   const showGuestRegistrationBanner =
-    isGuest && !guestNudgeDismissed && !isTabPaywalled && !showSitePromo;
+    isGuest &&
+    !guestNudgeDismissed &&
+    !isTabPaywalled &&
+    !showSitePromo &&
+    (guestNudgeBanner?.enabled ?? true);
 
   const dexUrl = (t: Token) =>
     t.pairAddress
@@ -3878,6 +3890,7 @@ export default function Dashboard() {
         {showGuestRegistrationBanner && (
           <GuestRegistrationBanner
             engaged={guestTabEngagement >= 2}
+            config={guestNudgeBanner}
             onDismiss={() => {
               dismissGuestNudgeStorage();
               setGuestNudgeDismissed(true);
@@ -4438,7 +4451,10 @@ export default function Dashboard() {
               activeTab === "transactions" ||
               activeTab === "bsc") &&
               !memeQuotaExhausted && (
-                <MemeTableAnalyzeHint tier={isGuest ? "guest" : isVip ? "vip" : "free"} />
+                <MemeTableAnalyzeHint
+                  tier={isGuest ? "guest" : isVip ? "vip" : "free"}
+                  config={memeTableHintBanner}
+                />
               )}
             {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-ultimate" && tokensForDisplay.length === 0 ? (
               <div className="mx-3 sm:mx-6 overflow-x-auto px-2 py-8 sm:py-10">
@@ -4597,6 +4613,9 @@ export default function Dashboard() {
                   <MemeAgentBannerDisplay
                     title={memeAgentBanner.title}
                     message={memeAgentBanner.message}
+                    titleColor={memeAgentBanner.titleColor}
+                    titleSize={memeAgentBanner.titleSize}
+                    titleFont={memeAgentBanner.titleFont}
                   />
                 )}
                 {aiAgentOnboardingShow && status === "authenticated" && (

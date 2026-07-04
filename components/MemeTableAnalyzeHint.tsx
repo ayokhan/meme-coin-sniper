@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { MemeTableAnalyzeHintBannerConfig } from "@/lib/meme-table-analyze-hint-banner";
+import { DEFAULT_MEME_TABLE_HINT_BANNER } from "@/lib/meme-table-analyze-hint-banner";
 import Link from "next/link";
 import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +14,9 @@ export type MemeAnalyzeHintTier = "guest" | "free" | "vip";
 type Props = {
   tier: MemeAnalyzeHintTier;
   className?: string;
+  config?: MemeTableAnalyzeHintBannerConfig | null;
+  /** Admin preview — ignores session dismiss state. */
+  preview?: boolean;
 };
 
 function readDismissed(): boolean {
@@ -40,23 +45,15 @@ export function dismissMemeAnalyzeHint(setDismissed: (v: boolean) => void) {
   setDismissed(true);
 }
 
-export default function MemeTableAnalyzeHint({ tier, className = "" }: Props) {
+export default function MemeTableAnalyzeHint({ tier, className = "", config, preview = false }: Props) {
   const [dismissed, setDismissed] = useMemeAnalyzeHintDismissed();
-  if (dismissed) return null;
+  const cfg = config ?? DEFAULT_MEME_TABLE_HINT_BANNER;
+  if (!cfg.enabled || (!preview && dismissed)) return null;
 
   const title =
-    tier === "guest"
-      ? "Analyze any coin with Nova AI Analysis"
-      : tier === "vip"
-        ? "Unlimited Nova AI Analysis"
-        : "Tap Analyze for Nova AI Analysis";
+    tier === "guest" ? cfg.guestTitle : tier === "vip" ? cfg.vipTitle : cfg.freeTitle;
 
-  const body =
-    tier === "guest"
-      ? "Sign in or register free, then tap the purple Analyze button on any row. Nova AI Analysis works on Solana and BSC meme coins."
-      : tier === "vip"
-        ? "Tap the purple Analyze button on any row to run Nova AI Analysis on any Solana or BSC meme coin — unlimited Meme Agent uses."
-        : "Tap the purple Analyze button on any row to run Nova AI Analysis on any Solana or BSC meme coin.";
+  const body = tier === "guest" ? cfg.guestBody : tier === "vip" ? cfg.vipBody : cfg.freeBody;
 
   return (
     <div
@@ -84,6 +81,7 @@ export default function MemeTableAnalyzeHint({ tier, className = "" }: Props) {
             </div>
           )}
         </div>
+        {!preview && (
         <Button
           type="button"
           variant="ghost"
@@ -94,6 +92,7 @@ export default function MemeTableAnalyzeHint({ tier, className = "" }: Props) {
         >
           <X className="h-4 w-4" />
         </Button>
+        )}
       </div>
     </div>
   );

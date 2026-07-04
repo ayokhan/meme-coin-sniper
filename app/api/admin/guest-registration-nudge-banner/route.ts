@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isOwnerSession } from "@/lib/auth";
 import {
-  getMemeAgentBannerForAdmin,
-  resetMemeAgentBannerToDefault,
-  setMemeAgentBanner,
-  type MemeAgentBannerConfig,
-} from "@/lib/meme-agent-banner";
+  getGuestRegistrationNudgeBannerForPublic,
+  resetGuestRegistrationNudgeBannerToDefault,
+  setGuestRegistrationNudgeBanner,
+  type GuestRegistrationNudgeBannerConfig,
+} from "@/lib/guest-registration-nudge-banner";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -14,10 +14,10 @@ export async function GET() {
     return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
   }
   try {
-    const banner = await getMemeAgentBannerForAdmin();
+    const banner = await getGuestRegistrationNudgeBannerForPublic();
     return NextResponse.json({ success: true, banner });
   } catch (e) {
-    console.error("admin meme-agent-banner GET:", e);
+    console.error("admin guest-registration-nudge-banner GET:", e);
     return NextResponse.json({ success: false, error: "Failed to load banner." }, { status: 500 });
   }
 }
@@ -28,22 +28,16 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
   }
   try {
-    const body = (await request.json()) as Partial<MemeAgentBannerConfig> & { resetToDefault?: boolean };
+    const body = (await request.json()) as Partial<GuestRegistrationNudgeBannerConfig> & { resetToDefault?: boolean };
     if (body.resetToDefault) {
-      const banner = await resetMemeAgentBannerToDefault();
+      const banner = await resetGuestRegistrationNudgeBannerToDefault();
       return NextResponse.json({ success: true, banner });
     }
-    const banner = await setMemeAgentBanner({
-      enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
-      title: typeof body.title === "string" ? body.title : undefined,
-      message: typeof body.message === "string" ? body.message : undefined,
-      titleColor: typeof body.titleColor === "string" ? body.titleColor : undefined,
-      titleSize: typeof body.titleSize === "string" ? (body.titleSize as MemeAgentBannerConfig["titleSize"]) : undefined,
-      titleFont: typeof body.titleFont === "string" ? (body.titleFont as MemeAgentBannerConfig["titleFont"]) : undefined,
-    });
+    const { resetToDefault: _, ...patch } = body;
+    const banner = await setGuestRegistrationNudgeBanner(patch);
     return NextResponse.json({ success: true, banner });
   } catch (e) {
-    console.error("admin meme-agent-banner PATCH:", e);
+    console.error("admin guest-registration-nudge-banner PATCH:", e);
     return NextResponse.json(
       { success: false, error: e instanceof Error ? e.message : "Failed to update banner." },
       { status: 500 }

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import type { GuestRegistrationNudgeBannerConfig } from "@/lib/guest-registration-nudge-banner";
+import { DEFAULT_GUEST_NUDGE_BANNER } from "@/lib/guest-registration-nudge-banner";
 import { X, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -36,9 +38,11 @@ type GuestRegistrationBannerProps = {
   onDismiss: () => void;
   /** After exploring multiple tabs, use a slightly stronger message. */
   engaged?: boolean;
+  config?: GuestRegistrationNudgeBannerConfig | null;
 };
 
-export function GuestRegistrationBanner({ onDismiss, engaged }: GuestRegistrationBannerProps) {
+export function GuestRegistrationBanner({ onDismiss, engaged, config }: GuestRegistrationBannerProps) {
+  const cfg = config ?? DEFAULT_GUEST_NUDGE_BANNER;
   return (
     <div className="mb-6 rounded-xl border border-cyan-200/80 dark:border-cyan-800/60 bg-gradient-to-r from-cyan-50/90 via-white to-violet-50/80 dark:from-cyan-950/40 dark:via-zinc-900/80 dark:to-violet-950/30 px-4 py-3 sm:py-4 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
@@ -48,12 +52,10 @@ export function GuestRegistrationBanner({ onDismiss, engaged }: GuestRegistratio
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              {engaged ? "Enjoying NovaStaris? Save your progress with a free account." : "Create a free NovaStaris account"}
+              {engaged ? cfg.titleEngaged : cfg.title}
             </p>
             <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">
-              {engaged
-                ? "Sign up free in under a minute — save watchlists, track wallets, and unlock member features. No credit card required."
-                : "Free to join · no credit card · save watchlists and get ready to upgrade when you want VIP tools."}
+              {engaged ? cfg.bodyEngaged : cfg.body}
             </p>
           </div>
         </div>

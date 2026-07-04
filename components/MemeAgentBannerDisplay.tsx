@@ -1,5 +1,7 @@
 "use client";
 
+import type { MemeAgentTitleFont, MemeAgentTitleSize } from "@/lib/meme-agent-banner";
+
 const PLATFORMS = [
   { name: "Dex Screener", href: "https://dexscreener.com", icon: "/platform-icons/dexscreener.svg" },
   { name: "GMGN", href: "https://gmgn.ai", icon: "/platform-icons/gmgn.svg" },
@@ -8,26 +10,49 @@ const PLATFORMS = [
   { name: "Padre", href: "https://padre.gg", icon: "/platform-icons/padre.svg" },
 ] as const;
 
+const TITLE_SIZE_CLASSES: Record<MemeAgentTitleSize, string> = {
+  lg: "text-lg leading-normal",
+  xl: "text-xl leading-normal",
+  "2xl": "text-xl sm:text-2xl leading-normal",
+  "3xl": "text-2xl sm:text-3xl leading-normal",
+};
+
 type Props = {
   title: string;
   message: string;
+  titleColor?: string;
+  titleSize?: MemeAgentTitleSize;
+  titleFont?: MemeAgentTitleFont;
+  className?: string;
 };
 
-export default function MemeAgentBannerDisplay({ title, message }: Props) {
+export default function MemeAgentBannerDisplay({
+  title,
+  message,
+  titleColor = "#f472b6",
+  titleSize = "2xl",
+  titleFont = "display",
+  className = "mb-5",
+}: Props) {
+  const titleFontClass = titleFont === "display" ? "font-display" : "font-sans";
+
   return (
-    <div className="mb-5 rounded-xl border border-violet-400/45 dark:border-violet-600/50 bg-gradient-to-br from-violet-100/95 via-fuchsia-50/85 to-cyan-100/75 dark:from-violet-950/55 dark:via-fuchsia-950/35 dark:to-cyan-950/45 px-4 py-4 sm:px-5 sm:py-4 shadow-sm">
-      <div className="flex items-start gap-3">
+    <div
+      className={`rounded-xl border border-violet-400/45 dark:border-violet-600/50 bg-gradient-to-br from-violet-100/95 via-fuchsia-50/85 to-cyan-100/75 dark:from-violet-950/55 dark:via-fuchsia-950/35 dark:to-cyan-950/45 px-4 py-4 sm:px-5 sm:py-4 shadow-sm overflow-visible ${className}`.trim()}
+    >
+      <div className="flex items-start gap-3 overflow-visible">
         <span
           className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-amber-500 text-lg shadow-sm"
           aria-hidden
         >
           🛡️
         </span>
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <h3 className="font-display text-xl sm:text-2xl font-bold tracking-tight leading-snug">
-            <span className="inline-block pb-0.5 bg-gradient-to-r from-rose-600 via-fuchsia-600 to-violet-600 dark:from-rose-400 dark:via-fuchsia-400 dark:to-violet-400 bg-clip-text text-transparent">
-              {title}
-            </span>
+        <div className="min-w-0 flex-1 space-y-1.5 overflow-visible">
+          <h3
+            className={`${titleFontClass} ${TITLE_SIZE_CLASSES[titleSize]} font-bold tracking-tight`}
+            style={{ color: titleColor }}
+          >
+            {title}
           </h3>
           <p className="text-sm sm:text-[15px] leading-relaxed text-slate-700 dark:text-slate-300 font-medium">
             {message}
