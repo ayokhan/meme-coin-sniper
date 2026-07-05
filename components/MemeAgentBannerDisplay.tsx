@@ -3,11 +3,11 @@
 import type { MemeAgentTitleFont, MemeAgentTitleSize } from "@/lib/meme-agent-banner";
 
 const PLATFORMS = [
-  { name: "Dex Screener", href: "https://dexscreener.com", icon: "/platform-icons/dexscreener.svg" },
-  { name: "GMGN", href: "https://gmgn.ai", icon: "/platform-icons/gmgn.svg" },
-  { name: "Pump.fun", href: "https://pump.fun", icon: "/platform-icons/pumpfun.svg" },
-  { name: "Axiom", href: "https://axiom.trade", icon: "/platform-icons/axiom.svg" },
-  { name: "Padre", href: "https://padre.gg", icon: "/platform-icons/padre.svg" },
+  { name: "Dex Screener", href: "https://dexscreener.com", icon: "/platform-icons/dexscreener.png" },
+  { name: "GMGN", href: "https://gmgn.ai", icon: "/platform-icons/gmgn.png" },
+  { name: "Pump.fun", href: "https://pump.fun", icon: "/platform-icons/pumpfun.png" },
+  { name: "Axiom", href: "https://axiom.trade", icon: "/platform-icons/axiom.png" },
+  { name: "Padre", href: "https://padre.gg", icon: "/platform-icons/padre.png" },
 ] as const;
 
 const TITLE_SIZE_CLASSES: Record<MemeAgentTitleSize, string> = {
@@ -70,7 +70,7 @@ export default function MemeAgentBannerDisplay({
             title={p.name}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.icon} alt="" width={16} height={16} className="rounded-sm shrink-0 object-contain" />
+            <img src={p.icon} alt="" width={18} height={18} className="rounded-sm shrink-0 object-contain bg-white/90 dark:bg-zinc-900/90" />
             {p.name}
           </a>
         ))}

@@ -69,6 +69,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
   const [memeTableHintLoading, setMemeTableHintLoading] = useState(true);
   const [memeTableHintSaving, setMemeTableHintSaving] = useState(false);
   const [memeTableHintDraft, setMemeTableHintDraft] = useState({
+    headline: "",
     guestTitle: "",
     guestBody: "",
     freeTitle: "",
@@ -134,6 +135,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
           const b = memeTableHintData.banner as MemeTableAnalyzeHintBannerAdmin;
           setMemeTableHint(b);
           setMemeTableHintDraft({
+            headline: b.headline,
             guestTitle: b.guestTitle,
             guestBody: b.guestBody,
             freeTitle: b.freeTitle,
@@ -219,6 +221,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         const b = data.banner as MemeTableAnalyzeHintBannerAdmin;
         setMemeTableHint(b);
         setMemeTableHintDraft({
+          headline: b.headline,
           guestTitle: b.guestTitle,
           guestBody: b.guestBody,
           freeTitle: b.freeTitle,
@@ -272,6 +275,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
 
   const memeTableHintPreview = {
     enabled: true,
+    headline: memeTableHintDraft.headline,
     guestTitle: memeTableHintDraft.guestTitle,
     guestBody: memeTableHintDraft.guestBody,
     freeTitle: memeTableHintDraft.freeTitle,
@@ -629,9 +633,18 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
               </div>
               {memeTableHint.enabled && (
                 <div className="rounded-lg border border-dashed border-violet-300/60 dark:border-violet-700/50 p-1 bg-zinc-950">
-                  <MemeTableAnalyzeHint tier="free" config={memeTableHintPreview} preview className="mx-0 mb-0" />
+                  <MemeTableAnalyzeHint tier="vip" config={memeTableHintPreview} preview className="mx-0 mb-0" />
                 </div>
               )}
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Headline (shared — e.g. Don&apos;t Get Rugged)
+                <input
+                  value={memeTableHintDraft.headline}
+                  onChange={(e) => setMemeTableHintDraft((d) => ({ ...d, headline: e.target.value }))}
+                  placeholder="Leave blank to hide headline"
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 font-semibold"
+                />
+              </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 {(["guest", "free", "vip"] as const).map((tier) => (
                   <div key={tier} className="space-y-2 rounded-md border border-zinc-200 dark:border-zinc-700 p-3 sm:col-span-2 lg:col-span-1">

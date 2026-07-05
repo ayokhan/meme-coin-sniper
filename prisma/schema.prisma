@@ -326,6 +326,7 @@ model MemeAgentBanner {
 model MemeTableAnalyzeHintBanner {
   id         String   @id @default("default")
   enabled    Boolean  @default(true)
+  headline   String   @default("Don't Get Rugged")
   guestTitle String   @default("Analyze any coin with Nova AI Analysis")
   guestBody  String   @default("Sign in or register free, then tap the purple Analyze button on any row. Nova AI Analysis works on Solana and BSC meme coins.")
   freeTitle  String   @default("Tap Analyze for Nova AI Analysis")

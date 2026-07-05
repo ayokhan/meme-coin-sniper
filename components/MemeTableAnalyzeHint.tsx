@@ -62,7 +62,12 @@ export default function MemeTableAnalyzeHint({ tier, className = "", config, pre
       <div className="flex items-start gap-2 sm:gap-3">
         <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-violet-600 dark:text-violet-400 mt-0.5" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</p>
+          {cfg.headline ? (
+            <p className="font-display text-base sm:text-lg font-bold tracking-tight text-rose-500 dark:text-rose-400 leading-normal">
+              {cfg.headline}
+            </p>
+          ) : null}
+          <p className={`text-sm font-semibold text-slate-900 dark:text-slate-100 ${cfg.headline ? "mt-1" : ""}`}>{title}</p>
           <p className="mt-0.5 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{body}</p>
           {tier === "guest" && (
             <div className="mt-2.5 flex flex-wrap gap-2">

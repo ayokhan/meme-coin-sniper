@@ -4,6 +4,7 @@ export const MEME_TABLE_HINT_BANNER_ID = "default";
 
 export type MemeTableAnalyzeHintBannerConfig = {
   enabled: boolean;
+  headline: string;
   guestTitle: string;
   guestBody: string;
   freeTitle: string;
@@ -19,6 +20,7 @@ export type MemeTableAnalyzeHintBannerAdmin = MemeTableAnalyzeHintBannerConfig &
 
 export const DEFAULT_MEME_TABLE_HINT_BANNER: MemeTableAnalyzeHintBannerConfig = {
   enabled: true,
+  headline: "Don't Get Rugged",
   guestTitle: "Analyze any coin with Nova AI Analysis",
   guestBody:
     "Sign in or register free, then tap the purple Analyze button on any row. Nova AI Analysis works on Solana and BSC meme coins.",
@@ -49,6 +51,7 @@ function normalize(row: Partial<Row>): MemeTableAnalyzeHintBannerConfig {
   const d = DEFAULT_MEME_TABLE_HINT_BANNER;
   return {
     enabled: row.enabled ?? d.enabled,
+    headline: (row.headline ?? d.headline).trim() || d.headline,
     guestTitle: (row.guestTitle ?? d.guestTitle).trim() || d.guestTitle,
     guestBody: (row.guestBody ?? d.guestBody).trim() || d.guestBody,
     freeTitle: (row.freeTitle ?? d.freeTitle).trim() || d.freeTitle,
@@ -78,6 +81,7 @@ export async function setMemeTableAnalyzeHintBanner(
   const current = await getMemeTableAnalyzeHintBannerForPublic();
   const next = normalize({
     enabled: patch.enabled ?? current.enabled,
+    headline: patch.headline ?? current.headline,
     guestTitle: patch.guestTitle ?? current.guestTitle,
     guestBody: patch.guestBody ?? current.guestBody,
     freeTitle: patch.freeTitle ?? current.freeTitle,
