@@ -229,6 +229,24 @@ model AiAgentQuotaConfig {
   updatedAt                    DateTime @updatedAt
 }
 
+/** Admin-tunable cooldown for Go Hunting manual refresh (guest + free tier). VIP/owner bypass. */
+model GoHuntingRefreshConfig {
+  id                         String   @id @default("default")
+  guestIntervalMinutes       Int      @default(60)
+  freeMemberIntervalMinutes  Int      @default(60)
+  guestAutoRefreshEnabled    Boolean  @default(false)
+  freeAutoRefreshEnabled     Boolean  @default(false)
+  freeAutoRefreshMinutes     Int      @default(60)
+  updatedAt                  DateTime @updatedAt
+}
+
+/** Last Go Hunting refresh per guest IP or signed-in user (free tier cooldown tracking). */
+model GoHuntingRefreshCooldown {
+  subjectKey    String   @id
+  lastRefreshAt DateTime
+  updatedAt     DateTime @updatedAt
+}
+
 // Per-user Blofin API keys (encrypted at rest). When set, trading bot uses these for that user.
 /** User trading journal — closed trades, NovaRadar snapshots, manual notes. */
 model TradingBotJournalEntry {

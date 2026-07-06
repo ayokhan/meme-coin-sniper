@@ -6,9 +6,23 @@ import {
   type GoHuntingView,
 } from "@/lib/go-hunting-views";
 import { pairToMemeToken } from "@/lib/meme-token-out";
+import { checkGoHuntingRefreshLimit } from "@/lib/go-hunting-refresh-limit";
 
 export async function GET(request: Request) {
   try {
+    const limitCheck = await checkGoHuntingRefreshLimit(request);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: limitCheck.message,
+          limitReached: true,
+          retryAfterSeconds: limitCheck.retryAfterSeconds,
+        },
+        { status: 429, headers: { "Retry-After": String(limitCheck.retryAfterSeconds) } }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const maxAgeMinutes = Math.min(parseInt(searchParams.get("maxAgeMinutes") || "120", 10), 1440);
     const view = (searchParams.get("view") || "new_pairs") as GoHuntingView;

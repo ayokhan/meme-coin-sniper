@@ -171,6 +171,20 @@ type WalletAlert = {
 };
 
 const AUTO_REFRESH_SECONDS = 60;
+type GoHuntingRefreshConfigState = {
+  guestIntervalMinutes: number;
+  freeMemberIntervalMinutes: number;
+  guestAutoRefreshEnabled: boolean;
+  freeAutoRefreshEnabled: boolean;
+  freeAutoRefreshMinutes: number;
+};
+const DEFAULT_GO_HUNTING_REFRESH: GoHuntingRefreshConfigState = {
+  guestIntervalMinutes: 60,
+  freeMemberIntervalMinutes: 60,
+  guestAutoRefreshEnabled: false,
+  freeAutoRefreshEnabled: false,
+  freeAutoRefreshMinutes: 60,
+};
 const LEVERAGE_TRADER_FAVORITES_LS_KEY = "novastaris-leverage-trader-favorites";
 
 type TabId =
@@ -332,6 +346,8 @@ export default function Dashboard() {
   const [subscriptionAutoRenew, setSubscriptionAutoRenew] = useState(false);
   const [subscriptionCancelAtPeriodEnd, setSubscriptionCancelAtPeriodEnd] = useState(false);
   const [vipExpiryBannerDismissed, setVipExpiryBannerDismissed] = useState(true);
+  const [goHuntingRefreshConfig, setGoHuntingRefreshConfig] =
+    useState<GoHuntingRefreshConfigState>(DEFAULT_GO_HUNTING_REFRESH);
   const [aiAgentOnboardingShow, setAiAgentOnboardingShow] = useState(false);
   const [aiAgentOnboardingStep, setAiAgentOnboardingStep] = useState<AiAgentOnboardingStep>(1);
   const [pinningOnboarding, setPinningOnboarding] = useState(false);
@@ -719,6 +735,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true);
+    fetch("/api/go-hunting-refresh-config")
+      .then((r) => r.json())
+      .then((data: { success?: boolean; config?: GoHuntingRefreshConfigState }) => {
+        if (data.success && data.config) setGoHuntingRefreshConfig(data.config);
+      })
+      .catch(() => {});
     try {
       setOnboardingDismissed(localStorage.getItem("novastaris_onboarding_dismissed") === "1");
       setDashboardPath(loadDashboardPath());
@@ -1989,6 +2011,11 @@ export default function Dashboard() {
         const url = view === "trending" ? "/api/trending-bsc" : `/api/new-pairs-bsc?view=${view}&maxAgeMinutes=120&limit=150`;
         const res = await fetch(url);
         const data = await res.json();
+        if (res.status === 429 && data.limitReached) {
+          setError(data.error || "Go Hunting refresh limit reached. Upgrade to VIP for unlimited refresh.");
+          if (showLoading) setLoading(false);
+          return;
+        }
         if (data.success) {
           setTokens(data.tokens ?? []);
           setLastFetched(new Date());
@@ -2036,6 +2063,11 @@ export default function Dashboard() {
         : "/api/tokens";
       const res = await fetch(url);
       const data = await res.json();
+      if (res.status === 429 && data.limitReached) {
+        setError(data.error || "Go Hunting refresh limit reached. Upgrade to VIP for unlimited refresh.");
+        if (showLoading) setLoading(false);
+        return;
+      }
       if (data.success) {
         setTokens(data.tokens);
         setLastFetched(new Date());
@@ -2949,7 +2981,7 @@ export default function Dashboard() {
     }
   }, [perpRadarItems, activeTab, perpRadarView, isPaid, blofinInAppAlertsEnabled]);
 
-  // Auto-refresh current tab every 60s (skip ai-analysis, futures, narratives, watchlist). Wallets tab refreshes every 2 min.
+  // Auto-refresh current tab (skip ai-analysis, futures, etc.). Go Hunting: guest/free use admin limits; VIP unlimited.
   useEffect(() => {
     if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence") return;
     if (activeTab === "wallets") {
@@ -2961,9 +2993,34 @@ export default function Dashboard() {
       }, 2 * 60 * 1000);
       return () => clearInterval(interval);
     }
-    const interval = setInterval(() => fetchTokens(activeTab, false), AUTO_REFRESH_SECONDS * 1000);
+
+    const isGoHuntingTab = activeTab === "new" || activeTab === "bsc";
+    const unlimitedRefresh = isVip || isOwner;
+    let intervalMs = AUTO_REFRESH_SECONDS * 1000;
+
+    if (isGoHuntingTab && !unlimitedRefresh) {
+      if (status === "unauthenticated") {
+        if (!goHuntingRefreshConfig.guestAutoRefreshEnabled) return;
+        intervalMs = Math.max(1, goHuntingRefreshConfig.guestIntervalMinutes) * 60 * 1000;
+      } else if (!isPaid) {
+        if (!goHuntingRefreshConfig.freeAutoRefreshEnabled) return;
+        intervalMs = Math.max(1, goHuntingRefreshConfig.freeAutoRefreshMinutes) * 60 * 1000;
+      }
+    }
+
+    const interval = setInterval(() => fetchTokens(activeTab, false), intervalMs);
     return () => clearInterval(interval);
-  }, [activeTab, liveTradesEnabled, walletTrackerView, canAccessMemeCoinsTraderEffective]);
+  }, [
+    activeTab,
+    liveTradesEnabled,
+    walletTrackerView,
+    canAccessMemeCoinsTraderEffective,
+    isVip,
+    isOwner,
+    isPaid,
+    status,
+    goHuntingRefreshConfig,
+  ]);
 
   const runAiAnalysis = async () => {
     const ca = aiAnalysisCa.trim();
@@ -3376,6 +3433,10 @@ export default function Dashboard() {
       const url = type === "twitter" ? "/api/scan-twitter" : "/api/scan?type=new";
       const res = await fetch(url);
       const data = await res.json();
+      if (res.status === 429 && data.limitReached) {
+        setError(data.error || "Scan limit reached. Upgrade to VIP for unlimited refresh.");
+        return;
+      }
       if (data.success) {
         await fetchTokens();
         if (data.tokens?.length > 0) {

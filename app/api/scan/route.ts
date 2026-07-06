@@ -8,6 +8,7 @@ import { checkSolanaTokenSecurity, calculateSecurityScore, getTopHolderPercentag
 import { calculateViralScore } from '@/lib/utils/viral-score';
 import { sendTokenAlerts } from '@/lib/telegram';
 import type { DexPair } from '@/lib/api-clients/dexscreener';
+import { checkGoHuntingRefreshLimit } from '@/lib/go-hunting-refresh-limit';
 
 const MIN_VIRAL_SCORE_FOR_SCAN_TELEGRAM = 70;
 
@@ -26,6 +27,19 @@ type ScannedToken = {
 
 export async function GET(request: Request) {
   try {
+    const limitCheck = await checkGoHuntingRefreshLimit(request);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: limitCheck.message,
+          limitReached: true,
+          retryAfterSeconds: limitCheck.retryAfterSeconds,
+        },
+        { status: 429, headers: { "Retry-After": String(limitCheck.retryAfterSeconds) } }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const minScore = parseInt(searchParams.get('minScore') || '35');
     const maxPairs = parseInt(searchParams.get('maxPairs') || '25');

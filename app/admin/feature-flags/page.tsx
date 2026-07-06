@@ -42,6 +42,40 @@ type AiAgentQuotasDraft = {
   chartAnalysisFreeMonthlyLimit: string;
 };
 
+type GoHuntingRefreshAdminState = {
+  guestIntervalMinutes: number;
+  freeMemberIntervalMinutes: number;
+  guestAutoRefreshEnabled: boolean;
+  freeAutoRefreshEnabled: boolean;
+  freeAutoRefreshMinutes: number;
+};
+
+type GoHuntingRefreshDraft = {
+  guestIntervalMinutes: string;
+  freeMemberIntervalMinutes: string;
+  guestAutoRefreshEnabled: boolean;
+  freeAutoRefreshEnabled: boolean;
+  freeAutoRefreshMinutes: string;
+};
+
+const DEFAULT_GO_HUNTING_REFRESH_ADMIN: GoHuntingRefreshAdminState = {
+  guestIntervalMinutes: 60,
+  freeMemberIntervalMinutes: 60,
+  guestAutoRefreshEnabled: false,
+  freeAutoRefreshEnabled: false,
+  freeAutoRefreshMinutes: 60,
+};
+
+function goHuntingRefreshToDraft(c: GoHuntingRefreshAdminState): GoHuntingRefreshDraft {
+  return {
+    guestIntervalMinutes: String(c.guestIntervalMinutes),
+    freeMemberIntervalMinutes: String(c.freeMemberIntervalMinutes),
+    guestAutoRefreshEnabled: c.guestAutoRefreshEnabled,
+    freeAutoRefreshEnabled: c.freeAutoRefreshEnabled,
+    freeAutoRefreshMinutes: String(c.freeAutoRefreshMinutes),
+  };
+}
+
 const DEFAULT_AI_AGENT_QUOTAS: AiAgentQuotasState = {
   memeAgentFreeDailyLimit: 2,
   memeAgentFreeWeeklyLimit: null,
@@ -434,14 +468,20 @@ export default function AdminFeatureFlagsPage() {
   const [aiAgentQuotas, setAiAgentQuotas] = useState<AiAgentQuotasState>(DEFAULT_AI_AGENT_QUOTAS);
   const [aiAgentQuotasDraft, setAiAgentQuotasDraft] = useState<AiAgentQuotasDraft>(quotasToDraft(DEFAULT_AI_AGENT_QUOTAS));
   const [aiAgentQuotasSaving, setAiAgentQuotasSaving] = useState(false);
+  const [goHuntingRefresh, setGoHuntingRefresh] = useState<GoHuntingRefreshAdminState>(DEFAULT_GO_HUNTING_REFRESH_ADMIN);
+  const [goHuntingRefreshDraft, setGoHuntingRefreshDraft] = useState<GoHuntingRefreshDraft>(
+    goHuntingRefreshToDraft(DEFAULT_GO_HUNTING_REFRESH_ADMIN)
+  );
+  const [goHuntingRefreshSaving, setGoHuntingRefreshSaving] = useState(false);
 
   const load = () =>
     Promise.all([
       fetch("/api/admin/feature-flags").then((r) => r.json()),
       fetch("/api/admin/tab-new-badges").then((r) => r.json()),
       fetch("/api/admin/ai-agent-quotas").then((r) => r.json()),
+      fetch("/api/admin/go-hunting-refresh").then((r) => r.json()),
     ])
-      .then(([flagsData, badgesData, quotasData]) => {
+      .then(([flagsData, badgesData, quotasData, goHuntingData]) => {
         if (flagsData.success) setFlags(flagsData.flags ?? {});
         else setError(flagsData.error ?? "Failed to load");
         if (badgesData.success) {
@@ -457,6 +497,11 @@ export default function AdminFeatureFlagsPage() {
           const q = quotasData.quotas as AiAgentQuotasState;
           setAiAgentQuotas(q);
           setAiAgentQuotasDraft(quotasToDraft(q));
+        }
+        if (goHuntingData.success && goHuntingData.config) {
+          const g = goHuntingData.config as GoHuntingRefreshAdminState;
+          setGoHuntingRefresh(g);
+          setGoHuntingRefreshDraft(goHuntingRefreshToDraft(g));
         }
       })
       .catch(() => setError("Failed to load"))
@@ -554,6 +599,44 @@ export default function AdminFeatureFlagsPage() {
       setError("Update failed");
     } finally {
       setAiAgentQuotasSaving(false);
+    }
+  };
+
+  const patchGoHuntingRefresh = async () => {
+    const guest = Number(goHuntingRefreshDraft.guestIntervalMinutes);
+    const free = Number(goHuntingRefreshDraft.freeMemberIntervalMinutes);
+    const freeAuto = Number(goHuntingRefreshDraft.freeAutoRefreshMinutes);
+    if (!Number.isFinite(guest) || !Number.isFinite(free) || !Number.isFinite(freeAuto)) {
+      setError("Enter valid minute values for Go Hunting refresh.");
+      return;
+    }
+    setGoHuntingRefreshSaving(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const res = await fetch("/api/admin/go-hunting-refresh", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guestIntervalMinutes: guest,
+          freeMemberIntervalMinutes: free,
+          guestAutoRefreshEnabled: goHuntingRefreshDraft.guestAutoRefreshEnabled,
+          freeAutoRefreshEnabled: goHuntingRefreshDraft.freeAutoRefreshEnabled,
+          freeAutoRefreshMinutes: freeAuto,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) {
+        const g = data.config as GoHuntingRefreshAdminState;
+        setGoHuntingRefresh(g);
+        setGoHuntingRefreshDraft(goHuntingRefreshToDraft(g));
+        setSuccessMessage("Go Hunting refresh limits updated.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Update failed");
+    } catch {
+      setError("Update failed");
+    } finally {
+      setGoHuntingRefreshSaving(false);
     }
   };
 
@@ -749,6 +832,78 @@ export default function AdminFeatureFlagsPage() {
                   </div>
                   <p className="text-[11px] text-muted-foreground">
                     Current — Meme: {formatQuotaSummary(aiAgentQuotas, "meme")} · Chart: {formatQuotaSummary(aiAgentQuotas, "chart")}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/30 dark:bg-amber-950/20 p-4 space-y-3">
+                  <div>
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">Go Hunting refresh limits</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Limits manual Refresh and Scan new pairs for guests and free (non-VIP) users. VIP and owner are unlimited.
+                      Set <strong>0</strong> minutes to disable the cooldown for that tier. Auto-refresh for Go Hunting is off by default for guests/free (saves Vercel CPU).
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <label className="space-y-1">
+                      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Guest manual refresh (minutes)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={1440}
+                        value={goHuntingRefreshDraft.guestIntervalMinutes}
+                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, guestIntervalMinutes: e.target.value }))}
+                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Free member manual refresh (minutes)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={1440}
+                        value={goHuntingRefreshDraft.freeMemberIntervalMinutes}
+                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, freeMemberIntervalMinutes: e.target.value }))}
+                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 sm:col-span-2">
+                      <input
+                        type="checkbox"
+                        checked={goHuntingRefreshDraft.guestAutoRefreshEnabled}
+                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, guestAutoRefreshEnabled: e.target.checked }))}
+                      />
+                      <span className="text-sm">Allow guest auto-refresh on Go Hunting (uses guest interval above)</span>
+                    </label>
+                    <label className="flex items-center gap-2 sm:col-span-2">
+                      <input
+                        type="checkbox"
+                        checked={goHuntingRefreshDraft.freeAutoRefreshEnabled}
+                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, freeAutoRefreshEnabled: e.target.checked }))}
+                      />
+                      <span className="text-sm">Allow free-member auto-refresh on Go Hunting</span>
+                    </label>
+                    <label className="space-y-1 sm:col-span-2">
+                      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Free auto-refresh interval (minutes)</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={1440}
+                        value={goHuntingRefreshDraft.freeAutoRefreshMinutes}
+                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, freeAutoRefreshMinutes: e.target.value }))}
+                        className="w-full max-w-xs rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button size="sm" onClick={patchGoHuntingRefresh} disabled={goHuntingRefreshSaving}>
+                      {goHuntingRefreshSaving ? "Saving…" : "Save Go Hunting limits"}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Current — Guest: {goHuntingRefresh.guestIntervalMinutes}m manual
+                    {goHuntingRefresh.guestAutoRefreshEnabled ? " · auto on" : " · auto off"} · Free: {goHuntingRefresh.freeMemberIntervalMinutes}m manual
+                    {goHuntingRefresh.freeAutoRefreshEnabled
+                      ? ` · auto every ${goHuntingRefresh.freeAutoRefreshMinutes}m`
+                      : " · auto off"}
                   </p>
                 </div>
                 {groupedFlags.map((group) => (

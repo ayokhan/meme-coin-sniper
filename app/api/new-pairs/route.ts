@@ -15,6 +15,7 @@ import {
   type GoHuntingView,
 } from "@/lib/go-hunting-views";
 import { pairToMemeToken, type MemeTokenOut } from "@/lib/meme-token-out";
+import { checkGoHuntingRefreshLimit } from "@/lib/go-hunting-refresh-limit";
 
 const FREE_LIMIT = 50;
 const PAID_LIMIT = 300;
@@ -95,6 +96,19 @@ function mergePairs(...lists: DexPair[][]): DexPair[] {
 
 export async function GET(request: Request) {
   try {
+    const limitCheck = await checkGoHuntingRefreshLimit(request);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: limitCheck.message,
+          limitReached: true,
+          retryAfterSeconds: limitCheck.retryAfterSeconds,
+        },
+        { status: 429, headers: { "Retry-After": String(limitCheck.retryAfterSeconds) } }
+      );
+    }
+
     const { isPaid } = await getSessionAndSubscription();
     const { searchParams } = new URL(request.url);
     const maxAgeMinutes = Math.min(parseInt(searchParams.get("maxAgeMinutes") || "120", 10), 1440);
