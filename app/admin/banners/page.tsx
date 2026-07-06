@@ -45,7 +45,7 @@ export default function AdminBannersPage() {
     <div className="max-w-3xl">
       <AdminPageHeader
         title="Banners"
-        description="Turn site banners on or off and edit copy without a deploy. Changes apply immediately."
+        description="Turn site banners on or off, send email announcements, and edit copy without a deploy."
       />
 
       {successMessage && (

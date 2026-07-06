@@ -123,6 +123,7 @@ export default function AdminCustomersPage() {
   const [registrationDate, setRegistrationDate] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
   const [onDemandOnly, setOnDemandOnly] = useState(false);
+  const [newsletterOnly, setNewsletterOnly] = useState(false);
   const [showLegacyOnDemand, setShowLegacyOnDemand] = useState(false);
   const [expandedCustomerId, setExpandedCustomerId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -281,7 +282,8 @@ export default function AdminCustomersPage() {
     const total = customers.length;
     const active = customers.filter((c) => c.isActive).length;
     const vipActive = customers.filter((c) => c.isActive && (c.subscriptionTier === "vip" || c.subscriptionTier === "pro")).length;
-    return { total, active, vipActive };
+    const newsletter = customers.filter((c) => c.newsletterOptIn && c.email).length;
+    return { total, active, vipActive, newsletter };
   }, [customers]);
 
   const filteredCustomers = useMemo(() => {
@@ -289,6 +291,7 @@ export default function AdminCustomersPage() {
     return customers.filter((c) => {
       if (activeOnly && !c.isActive) return false;
       if (onDemandOnly && !customerHasOnDemand(c, showLegacyOnDemand)) return false;
+      if (newsletterOnly && (!c.newsletterOptIn || !c.email)) return false;
       if (!matchesRegistrationFilter(c.createdAt, registrationMonth, registrationDate)) return false;
       if (!q) return true;
       if (readOnly) return (c.name ?? "").toLowerCase().includes(q);
@@ -299,7 +302,7 @@ export default function AdminCustomersPage() {
         (c.country ?? "").toLowerCase().includes(q)
       );
     });
-  }, [customers, search, registrationMonth, registrationDate, activeOnly, onDemandOnly, showLegacyOnDemand, readOnly]);
+  }, [customers, search, registrationMonth, registrationDate, activeOnly, onDemandOnly, newsletterOnly, showLegacyOnDemand, readOnly]);
 
   const registrationPeriodActive = !!(registrationMonth || registrationDate);
 
@@ -916,6 +919,18 @@ export default function AdminCustomersPage() {
                 }`}
               >
                 {activeOnly ? "Active only ✓" : "Active only"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewsletterOnly((v) => !v)}
+                className={`text-xs font-medium px-3 py-2 rounded border ${
+                  newsletterOnly
+                    ? "bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-200 border-violet-300 dark:border-violet-700"
+                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
+                }`}
+                title="Show only customers opted in to newsletter / email marketing"
+              >
+                {newsletterOnly ? `Newsletter ✓ (${metrics.newsletter})` : `Newsletter (${metrics.newsletter})`}
               </button>
               <button
                 type="button"

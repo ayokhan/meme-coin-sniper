@@ -358,6 +358,17 @@ model TwoFactorSecurityNudgeBanner {
   updatedAt               DateTime @updatedAt
 }
 
+// Owner-managed in-app announcement modal for signed-in users on the dashboard.
+model SiteAnnouncementBanner {
+  id        String   @id @default("default")
+  enabled   Boolean  @default(false)
+  title     String   @default("What's new on NovaStaris")
+  body      String   @default("We have product updates for you. Check your account settings and explore the latest tools on the dashboard.")
+  ctaLabel  String   @default("")
+  ctaHref   String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String

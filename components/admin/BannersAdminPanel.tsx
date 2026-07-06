@@ -13,12 +13,14 @@ import {
 import type { MemeTableAnalyzeHintBannerAdmin } from "@/lib/meme-table-analyze-hint-banner";
 import type { GuestRegistrationNudgeBannerAdmin } from "@/lib/guest-registration-nudge-banner";
 import type { TwoFactorSecurityNudgeBannerAdmin } from "@/lib/two-factor-security-nudge-banner";
+import type { SiteAnnouncementBannerAdmin } from "@/lib/site-announcement-banner";
 import { formatPromoDrawDate } from "@/lib/promo-banner";
 import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
 import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
 import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
 import { GuestRegistrationBanner } from "@/components/GuestRegistrationNudge";
 import { TwoFactorSecurityNudgeModal } from "@/components/TwoFactorSecurityNudgeModal";
+import { SiteAnnouncementModal } from "@/components/SiteAnnouncementModal";
 
 function toDatetimeLocalValue(iso: string | null): string {
   if (!iso) return "";
@@ -101,6 +103,23 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
   });
   const [twoFactorNudgePreviewOpen, setTwoFactorNudgePreviewOpen] = useState(false);
 
+  const [siteAnnouncement, setSiteAnnouncement] = useState<SiteAnnouncementBannerAdmin | null>(null);
+  const [siteAnnouncementLoading, setSiteAnnouncementLoading] = useState(true);
+  const [siteAnnouncementSaving, setSiteAnnouncementSaving] = useState(false);
+  const [siteAnnouncementDraft, setSiteAnnouncementDraft] = useState({
+    title: "",
+    body: "",
+    ctaLabel: "",
+    ctaHref: "",
+  });
+  const [siteAnnouncementPreviewOpen, setSiteAnnouncementPreviewOpen] = useState(false);
+
+  const [emailStats, setEmailStats] = useState<{ newsletterCount: number; allEmailCount: number } | null>(null);
+  const [emailStatsLoading, setEmailStatsLoading] = useState(true);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailDraft, setEmailDraft] = useState({ subject: "", body: "", audience: "newsletter" as "newsletter" | "all" });
+  const [emailConfirm, setEmailConfirm] = useState(false);
+
   const applyMemeAgentDraft = useCallback((b: MemeAgentBannerAdmin) => {
     setMemeAgentBanner(b);
     setMemeAgentBannerDraft({
@@ -132,14 +151,18 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     setMemeTableHintLoading(true);
     setGuestNudgeLoading(true);
     setTwoFactorNudgeLoading(true);
+    setSiteAnnouncementLoading(true);
+    setEmailStatsLoading(true);
     return Promise.all([
       fetch("/api/admin/promo-banner").then((r) => r.json()),
       fetch("/api/admin/meme-agent-banner").then((r) => r.json()),
       fetch("/api/admin/meme-table-analyze-hint").then((r) => r.json()),
       fetch("/api/admin/guest-registration-nudge-banner").then((r) => r.json()),
       fetch("/api/admin/two-factor-security-nudge-banner").then((r) => r.json()),
+      fetch("/api/admin/site-announcement-banner").then((r) => r.json()),
+      fetch("/api/admin/announcement-email").then((r) => r.json()),
     ])
-      .then(([promoData, memeBannerData, memeTableHintData, guestNudgeData, twoFactorNudgeData]) => {
+      .then(([promoData, memeBannerData, memeTableHintData, guestNudgeData, twoFactorNudgeData, siteAnnouncementData, emailStatsData]) => {
         if (promoData.success && promoData.promo) {
           applyPromoDraft(promoData.promo as PromoBannerAdmin);
         } else onError?.(promoData.error ?? "Failed to load promo banner.");
@@ -179,6 +202,19 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
             registerSuccessMessage: b.registerSuccessMessage,
           });
         }
+        if (siteAnnouncementData.success && siteAnnouncementData.banner) {
+          const b = siteAnnouncementData.banner as SiteAnnouncementBannerAdmin;
+          setSiteAnnouncement(b);
+          setSiteAnnouncementDraft({
+            title: b.title,
+            body: b.body,
+            ctaLabel: b.ctaLabel,
+            ctaHref: b.ctaHref,
+          });
+        }
+        if (emailStatsData.success && emailStatsData.stats) {
+          setEmailStats(emailStatsData.stats as { newsletterCount: number; allEmailCount: number });
+        }
       })
       .catch(() => onError?.("Failed to load banners."))
       .finally(() => {
@@ -187,6 +223,8 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         setMemeTableHintLoading(false);
         setGuestNudgeLoading(false);
         setTwoFactorNudgeLoading(false);
+        setSiteAnnouncementLoading(false);
+        setEmailStatsLoading(false);
       });
   }, [applyPromoDraft, applyMemeAgentDraft, onError]);
 
@@ -315,6 +353,58 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       onError?.("Update failed.");
     } finally {
       setTwoFactorNudgeSaving(false);
+    }
+  };
+
+  const patchSiteAnnouncement = async (body: Record<string, unknown>) => {
+    setSiteAnnouncementSaving(true);
+    try {
+      const res = await fetch("/api/admin/site-announcement-banner", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success && data.banner) {
+        const b = data.banner as SiteAnnouncementBannerAdmin;
+        setSiteAnnouncement(b);
+        setSiteAnnouncementDraft({
+          title: b.title,
+          body: b.body,
+          ctaLabel: b.ctaLabel,
+          ctaHref: b.ctaHref,
+        });
+        onNotice?.("Site announcement updated.");
+      } else onError?.(data.error ?? "Update failed.");
+    } catch {
+      onError?.("Update failed.");
+    } finally {
+      setSiteAnnouncementSaving(false);
+    }
+  };
+
+  const sendAnnouncementEmail = async () => {
+    if (!emailConfirm) {
+      onError?.("Check the confirmation box before sending.");
+      return;
+    }
+    setEmailSending(true);
+    try {
+      const res = await fetch("/api/admin/announcement-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...emailDraft, confirm: true }),
+      });
+      const data = await res.json();
+      if (data.success && data.result) {
+        const r = data.result as { sent: number; failed: number; total: number };
+        onNotice?.(`Email sent to ${r.sent} of ${r.total} recipients${r.failed ? ` (${r.failed} failed)` : ""}.`);
+        setEmailConfirm(false);
+      } else onError?.(data.error ?? "Send failed.");
+    } catch {
+      onError?.("Send failed.");
+    } finally {
+      setEmailSending(false);
     }
   };
 
@@ -830,6 +920,183 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
 
       <Card className="border-zinc-200 dark:border-zinc-800">
         <CardHeader>
+          <CardTitle className="text-base">Site announcement (in-app)</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Centered modal for signed-in users on the dashboard (~2s after login). Saving changes re-shows it for users who
+            dismissed an older version.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {siteAnnouncementLoading ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : siteAnnouncement ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span
+                  className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                    siteAnnouncement.enabled
+                      ? "bg-violet-500/15 text-violet-800 dark:text-violet-200 border-violet-500/30"
+                      : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                  }`}
+                >
+                  {siteAnnouncement.enabled ? "ON" : "OFF"}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={siteAnnouncement.enabled ? "outline" : "default"}
+                    disabled={siteAnnouncementSaving}
+                    onClick={() => void patchSiteAnnouncement({ enabled: !siteAnnouncement.enabled })}
+                  >
+                    {siteAnnouncementSaving ? "…" : siteAnnouncement.enabled ? "Turn off" : "Turn on"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={siteAnnouncementSaving}
+                    onClick={() => setSiteAnnouncementPreviewOpen(true)}
+                  >
+                    Preview modal
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={siteAnnouncementSaving}
+                    onClick={() => void patchSiteAnnouncement({ resetToDefault: true })}
+                  >
+                    Reset defaults
+                  </Button>
+                </div>
+              </div>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Title
+                <input
+                  value={siteAnnouncementDraft.title}
+                  onChange={(e) => setSiteAnnouncementDraft((d) => ({ ...d, title: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Body
+                <textarea
+                  rows={4}
+                  value={siteAnnouncementDraft.body}
+                  onChange={(e) => setSiteAnnouncementDraft((d) => ({ ...d, body: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  CTA label (optional)
+                  <input
+                    value={siteAnnouncementDraft.ctaLabel}
+                    onChange={(e) => setSiteAnnouncementDraft((d) => ({ ...d, ctaLabel: e.target.value }))}
+                    placeholder="e.g. View account"
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                  />
+                </label>
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  CTA link (optional)
+                  <input
+                    value={siteAnnouncementDraft.ctaHref}
+                    onChange={(e) => setSiteAnnouncementDraft((d) => ({ ...d, ctaHref: e.target.value }))}
+                    placeholder="/account or https://…"
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                  />
+                </label>
+              </div>
+              <Button
+                size="sm"
+                disabled={siteAnnouncementSaving}
+                onClick={() => void patchSiteAnnouncement(siteAnnouncementDraft)}
+              >
+                {siteAnnouncementSaving ? "Saving…" : "Save site announcement"}
+              </Button>
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader>
+          <CardTitle className="text-base">Email announcement</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Send a one-time email via Resend. Prefer <strong>newsletter subscribers</strong> for marketing; use all
+            customers only for important account notices.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {emailStatsLoading ? (
+            <p className="text-muted-foreground text-sm">Loading audience counts…</p>
+          ) : (
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">
+              <strong>{emailStats?.newsletterCount ?? 0}</strong> newsletter subscribers ·{" "}
+              <strong>{emailStats?.allEmailCount ?? 0}</strong> customers with email (
+              <Link href="/admin/customers" className="text-violet-600 dark:text-violet-400 underline">
+                view in Customers
+              </Link>
+              )
+            </p>
+          )}
+          <label className="text-xs text-muted-foreground flex flex-col gap-1">
+            Audience
+            <select
+              value={emailDraft.audience}
+              onChange={(e) => setEmailDraft((d) => ({ ...d, audience: e.target.value as "newsletter" | "all" }))}
+              className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 max-w-xs"
+            >
+              <option value="newsletter">Newsletter subscribers only (recommended)</option>
+              <option value="all">All customers with email</option>
+            </select>
+          </label>
+          <label className="text-xs text-muted-foreground flex flex-col gap-1">
+            Subject
+            <input
+              value={emailDraft.subject}
+              onChange={(e) => setEmailDraft((d) => ({ ...d, subject: e.target.value }))}
+              className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+            />
+          </label>
+          <label className="text-xs text-muted-foreground flex flex-col gap-1">
+            Message
+            <textarea
+              rows={5}
+              value={emailDraft.body}
+              onChange={(e) => setEmailDraft((d) => ({ ...d, body: e.target.value }))}
+              placeholder="Plain text. Line breaks are preserved in the email."
+              className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+            />
+          </label>
+          <label className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <input
+              type="checkbox"
+              checked={emailConfirm}
+              onChange={(e) => setEmailConfirm(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              I confirm sending to{" "}
+              <strong>
+                {emailDraft.audience === "newsletter"
+                  ? emailStats?.newsletterCount ?? 0
+                  : emailStats?.allEmailCount ?? 0}
+              </strong>{" "}
+              recipients. This cannot be undone.
+            </span>
+          </label>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={emailSending || !emailDraft.subject.trim() || !emailDraft.body.trim()}
+            onClick={() => void sendAnnouncementEmail()}
+          >
+            {emailSending ? "Sending…" : "Send email announcement"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader>
           <CardTitle className="text-base">2FA security nudge</CardTitle>
           <p className="text-sm text-muted-foreground">
             Centered modal shown after sign-in for email/password users who have not enabled 2FA. Also sets the
@@ -926,6 +1193,14 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         onRemindLater={() => setTwoFactorNudgePreviewOpen(false)}
         onDismissPermanent={() => setTwoFactorNudgePreviewOpen(false)}
       />
+      {siteAnnouncement && (
+        <SiteAnnouncementModal
+          open={siteAnnouncementPreviewOpen}
+          banner={{ ...siteAnnouncement, ...siteAnnouncementDraft, enabled: true }}
+          onRemindLater={() => setSiteAnnouncementPreviewOpen(false)}
+          onDismissPermanent={() => setSiteAnnouncementPreviewOpen(false)}
+        />
+      )}
     </div>
   );
 }
