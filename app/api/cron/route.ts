@@ -20,6 +20,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { getFeatureFlag, FEATURE_FLAG_KEYS } = await import('@/lib/feature-flags');
+  const cronEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.VERCEL_CRON_ENABLED);
+  if (!cronEnabled) {
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      message: 'Master cron disabled in Admin → Feature flags → Vercel scheduled cron.',
+    });
+  }
+
   const base = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';

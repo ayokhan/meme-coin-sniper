@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAllFeatureFlags } from "@/lib/feature-flags";
+import { getAllFeatureFlags, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +11,10 @@ export async function GET() {
   const flags = await getAllFeatureFlags();
   // Only return GUI page tab flags to keep payload small.
   const pageTabFlags = Object.fromEntries(Object.entries(flags).filter(([k]) => k.startsWith("page_tab_")));
-  return NextResponse.json({ success: true, flags: pageTabFlags });
+  return NextResponse.json({
+    success: true,
+    flags: pageTabFlags,
+    analyticsPingEnabled: flags[FEATURE_FLAG_KEYS.ANALYTICS_PING_ENABLED] ?? true,
+  });
 }
 

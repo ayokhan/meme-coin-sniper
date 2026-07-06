@@ -3,10 +3,16 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { parseUserAgent } from '@/lib/ua-parse';
+import { FEATURE_FLAG_KEYS, getFeatureFlag } from '@/lib/feature-flags';
 
 /** POST - Record a page view (path, country, device). Called from client on navigation. */
 export async function POST(req: Request) {
   try {
+    const analyticsEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.ANALYTICS_PING_ENABLED);
+    if (!analyticsEnabled) {
+      return NextResponse.json({ success: true, skipped: true });
+    }
+
     const body = await req.json().catch(() => ({}));
     const path = typeof body.path === 'string' ? body.path.trim().slice(0, 500) : '/';
     const visitorId =

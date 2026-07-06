@@ -156,13 +156,20 @@ export default function AdminMetricsPage() {
   const [activeUsers, setActiveUsers] = useState<LiveActivitySnapshot | null>(null);
   const [activeUsersLoading, setActiveUsersLoading] = useState(false);
   const [activeUsersError, setActiveUsersError] = useState("");
+  const [liveActivityDisabled, setLiveActivityDisabled] = useState(false);
 
   const loadActiveUsers = useCallback(() => {
-    if (status !== "authenticated" || !isOwner) return;
+    if (status !== "authenticated" || !isOwner || liveActivityDisabled) return;
     setActiveUsersLoading(true);
     fetch("/api/admin/metrics/active-users")
       .then((r) => r.json())
       .then((data) => {
+        if (data.disabled) {
+          setLiveActivityDisabled(true);
+          setActiveUsers(null);
+          setActiveUsersError("");
+          return;
+        }
         if (data.success && data.snapshot) {
           setActiveUsers(data.snapshot as LiveActivitySnapshot);
           setActiveUsersError("");
@@ -176,7 +183,7 @@ export default function AdminMetricsPage() {
         setActiveUsersError("Failed to load live activity.");
       })
       .finally(() => setActiveUsersLoading(false));
-  }, [status, isOwner]);
+  }, [status, isOwner, liveActivityDisabled]);
 
   const loadFunnel = useCallback(() => {
     if (status !== "authenticated") return;
@@ -227,11 +234,11 @@ export default function AdminMetricsPage() {
   }, [status, loadFunnel, loadReport]);
 
   useEffect(() => {
-    if (!isOwner || status !== "authenticated") return;
+    if (!isOwner || status !== "authenticated" || liveActivityDisabled) return;
     loadActiveUsers();
     const id = window.setInterval(loadActiveUsers, 30000);
     return () => window.clearInterval(id);
-  }, [isOwner, status, loadActiveUsers]);
+  }, [isOwner, status, loadActiveUsers, liveActivityDisabled]);
 
   const openPageDrill = (user: UsageReportUser) => {
     setPageDrillLoading(true);
@@ -333,13 +340,30 @@ export default function AdminMetricsPage() {
                     </p>
                   </div>
                 </div>
-                <Button type="button" size="sm" variant="outline" disabled={activeUsersLoading} onClick={loadActiveUsers}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={activeUsersLoading || liveActivityDisabled}
+                  onClick={loadActiveUsers}
+                >
                   {activeUsersLoading ? "Refreshing…" : "Refresh"}
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {activeUsersError && <p className="text-sm text-rose-600 dark:text-rose-400">{activeUsersError}</p>}
+              {liveActivityDisabled && (
+                <p className="text-sm text-amber-800 dark:text-amber-200 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 px-3 py-2">
+                  Live activity is turned off. Enable{" "}
+                  <Link href="/admin/feature-flags" className="underline font-medium">
+                    Live activity panel
+                  </Link>{" "}
+                  in Admin → Feature flags to resume polling.
+                </p>
+              )}
+              {activeUsersError && !liveActivityDisabled && (
+                <p className="text-sm text-rose-600 dark:text-rose-400">{activeUsersError}</p>
+              )}
               <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                 <span className="inline-flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />

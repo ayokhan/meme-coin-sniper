@@ -77,6 +77,11 @@ function formatQuotaSummary(q: AiAgentQuotasState, feature: "meme" | "chart"): s
 }
 
 const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean }[] = [
+  {
+    id: "ops",
+    title: "Vercel & usage (cost control)",
+    match: (k) => k === "vercel_cron_enabled" || k === "analytics_ping_enabled" || k === "live_activity_enabled",
+  },
   { id: "ai", title: "AI experiments", match: (k) => k.startsWith("ai_") || k.startsWith("nova_ai_agent") },
   { id: "moralis", title: "API & notifications", match: (k) => k.startsWith("moralis_") || k.startsWith("telegram_") || k === "live_trades_enabled" },
   {
@@ -397,6 +402,21 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Deep Meme Agent (Wallet Tracker)",
     description:
       "When ON, VIP users see the Deep Meme Agent subtab under Wallet Tracker. Paste a Solana, BSC, or Ethereum contract to get a full report: token overview (Dexscreener), security flags + top holders (GoPlus free API), honeypot/rug detection, dev/creator wallet, and per-holder classification (Dev, Whale, LP, Sniper/Bot, Pro, Fresh) with one-click Track or Analyze actions that hand off to the Meme Coin Advantage Bundle.",
+  },
+  vercel_cron_enabled: {
+    label: "Vercel scheduled cron (master)",
+    description:
+      "When ON, Vercel runs /api/cron once daily (midnight UTC): Birdeye scan, CT/Twitter scan, wallet Telegram alerts, leverage alerts, pinned token re-analyze, trading bot, perp listing/digest/alerts, Blofin breakout, NovaScalper batch (if enabled), meme leaderboard refresh (if enabled). Turn OFF to skip the entire cron chain and save CPU. Manual Scan buttons still work.",
+  },
+  analytics_ping_enabled: {
+    label: "Analytics page pings",
+    description:
+      "When ON, visitors record page views to /api/analytics on navigation (powers Admin → Insights and live activity data). When OFF, no analytics DB writes from client pings. Does not stop AI usage metrics or subscription data.",
+  },
+  live_activity_enabled: {
+    label: "Live activity panel (Admin → Metrics)",
+    description:
+      "When ON, the owner Live activity section polls every 30s while Admin → Metrics is open. When OFF, that panel is disabled (stops polling and heavy DB reads). Turn OFF when you are not watching who is online.",
   },
 };
 

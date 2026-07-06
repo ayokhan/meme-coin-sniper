@@ -122,6 +122,13 @@ export const FEATURE_FLAG_KEYS = {
   ACCOUNT_SELF_DELETE: 'account_self_delete',
   /** Optional two-factor authentication (Google Authenticator + email codes). When OFF, 2FA is not enforced at sign-in and users cannot enroll. Default ON. */
   TWO_FACTOR_AUTH: 'two_factor_auth',
+
+  /** Master switch: Vercel scheduled /api/cron (daily scan, wallet notify, trading bot, perp jobs). When OFF, cron returns immediately — saves CPU. Default ON. */
+  VERCEL_CRON_ENABLED: 'vercel_cron_enabled',
+  /** Client page-view pings to /api/analytics (Insights + live activity data). When OFF, no analytics writes. Default ON. */
+  ANALYTICS_PING_ENABLED: 'analytics_ping_enabled',
+  /** Owner Admin → Metrics live activity panel (30s polling + DB reads). When OFF, panel shows disabled. Default ON. */
+  LIVE_ACTIVITY_ENABLED: 'live_activity_enabled',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
