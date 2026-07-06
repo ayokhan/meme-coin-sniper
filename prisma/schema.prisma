@@ -730,12 +730,15 @@ model AnalyticsEvent {
   browser    String?
   os         String?
   userId     String?  // if logged in
+  visitorId  String?  // anonymous browser session (guests)
   createdAt  DateTime @default(now())
   @@index([path])
   @@index([country])
   @@index([city])
   @@index([deviceType])
   @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([visitorId, createdAt])
 }
 
 // Crypto Futures Trading Bot — owner-only; provider: Blofin or Hyperliquid

@@ -15,10 +15,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type ActiveUserRow = {
+type ActiveMemberRow = {
+  kind: "member";
   userId: string;
   email: string | null;
   name: string | null;
+  locationLabel: string | null;
   lastSeenAt: string;
   lastPath: string;
   lastPathLabel: string;
@@ -27,10 +29,26 @@ type ActiveUserRow = {
   minutesAgo: number;
 };
 
-type ActiveUsersSnapshot = {
-  onlineCount: number;
-  recentCount: number;
-  users: ActiveUserRow[];
+type ActiveVisitorRow = {
+  kind: "visitor";
+  visitorId: string;
+  locationLabel: string | null;
+  lastSeenAt: string;
+  lastPath: string;
+  lastPathLabel: string;
+  deviceType: string | null;
+  browser: string | null;
+  status: "online" | "recent";
+  minutesAgo: number;
+};
+
+type LiveActivitySnapshot = {
+  onlineMemberCount: number;
+  recentMemberCount: number;
+  onlineVisitorCount: number;
+  recentVisitorCount: number;
+  members: ActiveMemberRow[];
+  visitors: ActiveVisitorRow[];
   windowMinutes: number;
 };
 
@@ -135,7 +153,7 @@ export default function AdminMetricsPage() {
   const [pageDrill, setPageDrill] = useState<UserPageDrill | null>(null);
   const [pageDrillLoading, setPageDrillLoading] = useState(false);
   const [pageDrillError, setPageDrillError] = useState("");
-  const [activeUsers, setActiveUsers] = useState<ActiveUsersSnapshot | null>(null);
+  const [activeUsers, setActiveUsers] = useState<LiveActivitySnapshot | null>(null);
   const [activeUsersLoading, setActiveUsersLoading] = useState(false);
   const [activeUsersError, setActiveUsersError] = useState("");
 
@@ -146,7 +164,7 @@ export default function AdminMetricsPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.success && data.snapshot) {
-          setActiveUsers(data.snapshot as ActiveUsersSnapshot);
+          setActiveUsers(data.snapshot as LiveActivitySnapshot);
           setActiveUsersError("");
         } else {
           setActiveUsers(null);
@@ -309,8 +327,9 @@ export default function AdminMetricsPage() {
                   <div>
                     <CardTitle>Live activity</CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Signed-in users with page activity in the last {activeUsers?.windowMinutes ?? 30} minutes. Online
-                      = active within 5 minutes (owner only).
+                      Signed-in members and guests with page activity in the last {activeUsers?.windowMinutes ?? 30}{" "}
+                      minutes. Online = active within 5 minutes. Guest location from IP (country/city when available).
+                      Owner only.
                     </p>
                   </div>
                 </div>
@@ -321,63 +340,133 @@ export default function AdminMetricsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {activeUsersError && <p className="text-sm text-rose-600 dark:text-rose-400">{activeUsersError}</p>}
-              <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                 <span className="inline-flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  <strong>{activeUsers?.onlineCount ?? 0}</strong> online now
+                  <strong>{activeUsers?.onlineMemberCount ?? 0}</strong> members online
                 </span>
                 <span className="inline-flex items-center gap-2 text-muted-foreground">
                   <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                  <strong>{activeUsers?.recentCount ?? 0}</strong> recently active
+                  <strong>{activeUsers?.recentMemberCount ?? 0}</strong> members recent
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
+                  <strong>{activeUsers?.onlineVisitorCount ?? 0}</strong> guests online
+                </span>
+                <span className="inline-flex items-center gap-2 text-muted-foreground">
+                  <span className="h-2.5 w-2.5 rounded-full bg-sky-300" />
+                  <strong>{activeUsers?.recentVisitorCount ?? 0}</strong> guests recent
                 </span>
               </div>
-              {activeUsers && activeUsers.users.length > 0 ? (
-                <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Last seen</TableHead>
-                        <TableHead>Last page</TableHead>
-                        <TableHead>Device</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {activeUsers.users.map((u) => (
-                        <TableRow key={u.userId}>
-                          <TableCell className="text-sm">
-                            <div className="font-medium text-zinc-900 dark:text-zinc-100">{u.name || "—"}</div>
-                            <div className="text-xs text-muted-foreground">{u.email || u.userId}</div>
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                u.status === "online"
-                                  ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
-                                  : "bg-amber-500/15 text-amber-800 dark:text-amber-200"
-                              }`}
-                            >
-                              {u.status === "online" ? "Online" : "Recent"}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {u.status === "online"
-                              ? "Just now"
-                              : u.minutesAgo <= 1
-                                ? "1 min ago"
-                                : `${u.minutesAgo} min ago`}
-                          </TableCell>
-                          <TableCell className="text-sm">{u.lastPathLabel}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground capitalize">{u.deviceType ?? "—"}</TableCell>
+              {activeUsers && activeUsers.members.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Members</p>
+                  <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>User</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Last seen</TableHead>
+                          <TableHead>Location</TableHead>
+                          <TableHead>Last page</TableHead>
+                          <TableHead>Device</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {activeUsers.members.map((u) => (
+                          <TableRow key={u.userId}>
+                            <TableCell className="text-sm">
+                              <div className="font-medium text-zinc-900 dark:text-zinc-100">{u.name || "—"}</div>
+                              <div className="text-xs text-muted-foreground">{u.email || u.userId}</div>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                  u.status === "online"
+                                    ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
+                                    : "bg-amber-500/15 text-amber-800 dark:text-amber-200"
+                                }`}
+                              >
+                                {u.status === "online" ? "Online" : "Recent"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {u.status === "online"
+                                ? "Just now"
+                                : u.minutesAgo <= 1
+                                  ? "1 min ago"
+                                  : `${u.minutesAgo} min ago`}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{u.locationLabel ?? "—"}</TableCell>
+                            <TableCell className="text-sm">{u.lastPathLabel}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground capitalize">{u.deviceType ?? "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               ) : (
                 !activeUsersLoading && (
-                  <p className="text-sm text-muted-foreground">No signed-in users with recent page activity.</p>
+                  <p className="text-sm text-muted-foreground">No signed-in members with recent page activity.</p>
+                )
+              )}
+              {activeUsers && activeUsers.visitors.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Guests / visitors</p>
+                  <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Visitor</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Last seen</TableHead>
+                          <TableHead>Location</TableHead>
+                          <TableHead>Last page</TableHead>
+                          <TableHead>Device</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {activeUsers.visitors.map((v) => (
+                          <TableRow key={v.visitorId}>
+                            <TableCell className="text-sm">
+                              <div className="font-medium text-zinc-900 dark:text-zinc-100">Guest</div>
+                              <div className="text-xs text-muted-foreground font-mono">…{v.visitorId.slice(-8)}</div>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                  v.status === "online"
+                                    ? "bg-sky-500/15 text-sky-800 dark:text-sky-200"
+                                    : "bg-sky-500/10 text-sky-700/80 dark:text-sky-300/80"
+                                }`}
+                              >
+                                {v.status === "online" ? "Online" : "Recent"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {v.status === "online"
+                                ? "Just now"
+                                : v.minutesAgo <= 1
+                                  ? "1 min ago"
+                                  : `${v.minutesAgo} min ago`}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{v.locationLabel ?? "—"}</TableCell>
+                            <TableCell className="text-sm">{v.lastPathLabel}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground capitalize">{v.deviceType ?? "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              ) : (
+                !activeUsersLoading && (
+                  <p className="text-sm text-muted-foreground">
+                    No guests tracked yet in this window. Open the site in a private/incognito window (while signed out)
+                    to test — guests appear after they browse a page.
+                  </p>
                 )
               )}
             </CardContent>
