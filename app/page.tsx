@@ -78,7 +78,6 @@ import DashboardPathHintBanner from "@/components/DashboardPathHintBanner";
 import { DashboardOverlayProvider } from "@/components/DashboardOverlayProvider";
 import { DashboardPathPickerOverlay, FuturesOnboardingOverlay } from "@/components/DashboardOverlayModals";
 import DashboardNextStepBanner, { markNextStepDoneForTab } from "@/components/DashboardNextStepBanner";
-import MobileDashboardTabBar from "@/components/MobileDashboardTabBar";
 import PublicStatusStrip from "@/components/PublicStatusStrip";
 import DashboardPaywallHelp from "@/components/DashboardPaywallHelp";
 import type { NextStepAction } from "@/lib/dashboard-next-step";
@@ -1755,10 +1754,6 @@ export default function Dashboard() {
   ]);
 
   const [novaConnectEnabled, setNovaConnectEnabled] = useState(true);
-  const isMobileTabVisible = useCallback(
-    (tab: DashboardTabId) => isTabVisibleInGui(tab as TabId),
-    [pageTabFlags, novaConnectEnabled, isOwner]
-  );
   const [novaConnectRulesAccepted, setNovaConnectRulesAccepted] = useState(false);
   const novaConnectRulesRef = useRef<HTMLDivElement | null>(null);
   const novaConnectPrivacyRef = useRef<HTMLDivElement | null>(null);
@@ -3890,7 +3885,7 @@ export default function Dashboard() {
 
       <PublicStatusStrip />
 
-      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-8 pb-24 md:pb-8">
+      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-8 pb-20 sm:pb-8">
         {mounted && (
           <DashboardPathHintBanner
             path={dashboardPath}
@@ -4098,7 +4093,7 @@ export default function Dashboard() {
                   </button>
                 )}
               </div>
-              <div className="-mx-1 sm:mx-0 hidden md:flex flex-col gap-3 w-full overflow-x-visible overflow-y-visible pb-1">
+              <div className="-mx-1 sm:mx-0 flex flex-col gap-3 w-full overflow-x-visible overflow-y-visible pb-1">
               <TabsList className={DASHBOARD_TOP_TABS_LIST_CLASS}>
                 {showTopTab("new") && (
                   <TabsTrigger value="new" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
@@ -9343,14 +9338,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      <MobileDashboardTabBar
-        activeTab={activeTab as DashboardTabId}
-        dashboardPath={dashboardPath}
-        isTabVisible={isMobileTabVisible}
-        watchlistCount={watchlist.length}
-        onTabChange={(tab) => setActiveTab(tab as TabId)}
-      />
     </div>
     </DashboardOverlayProvider>
   );
