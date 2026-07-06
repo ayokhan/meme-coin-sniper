@@ -6,6 +6,8 @@ export type AnnouncementAudience = "newsletter" | "all";
 export type AnnouncementEmailStats = {
   newsletterCount: number;
   allEmailCount: number;
+  newsletterEmails: string[];
+  allEmails: string[];
 };
 
 function escapeHtml(s: string): string {
@@ -16,8 +18,14 @@ export function announcementBodyToHtml(body: string): string {
   return escapeHtml(body.trim()).replace(/\n/g, "<br />");
 }
 
-export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStats> {
-  const users = await (prisma as unknown as {
+function normalizeEmail(email: string): string | null {
+  const v = email.trim().toLowerCase();
+  if (!v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return null;
+  return v;
+}
+
+async function fetchUserEmails(): Promise<Array<{ email: string | null; newsletterOptIn: boolean }>> {
+  return (prisma as unknown as {
     user: {
       findMany: (args: {
         where: { email: { not: null } };
@@ -28,48 +36,68 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
     where: { email: { not: null } },
     select: { email: true, newsletterOptIn: true },
   });
+}
 
-  const emails = new Set<string>();
-  const newsletterEmails = new Set<string>();
+export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStats> {
+  const users = await fetchUserEmails();
+
+  const allEmails: string[] = [];
+  const newsletterEmails: string[] = [];
+  const allSet = new Set<string>();
+  const newsletterSet = new Set<string>();
+
   for (const u of users) {
-    const email = u.email?.trim().toLowerCase();
+    const email = normalizeEmail(u.email ?? "");
     if (!email) continue;
-    emails.add(email);
-    if (u.newsletterOptIn) newsletterEmails.add(email);
+    if (!allSet.has(email)) {
+      allSet.add(email);
+      allEmails.push(email);
+    }
+    if (u.newsletterOptIn && !newsletterSet.has(email)) {
+      newsletterSet.add(email);
+      newsletterEmails.push(email);
+    }
   }
 
+  allEmails.sort();
+  newsletterEmails.sort();
+
   return {
-    newsletterCount: newsletterEmails.size,
-    allEmailCount: emails.size,
+    newsletterCount: newsletterEmails.length,
+    allEmailCount: allEmails.length,
+    newsletterEmails,
+    allEmails,
   };
+}
+
+export function getRecipientsForAudience(
+  stats: AnnouncementEmailStats,
+  audience: AnnouncementAudience
+): string[] {
+  return audience === "newsletter" ? [...stats.newsletterEmails] : [...stats.allEmails];
 }
 
 export async function sendAnnouncementEmails(args: {
   subject: string;
   body: string;
-  audience: AnnouncementAudience;
+  audience?: AnnouncementAudience;
+  recipients?: string[];
 }): Promise<{ sent: number; failed: number; total: number; errors: string[] }> {
   const subject = args.subject.trim();
   const body = args.body.trim();
   if (!subject) throw new Error("Subject is required.");
   if (!body) throw new Error("Message body is required.");
 
-  const users = await (prisma as unknown as {
-    user: {
-      findMany: (args: {
-        where: { email: { not: null }; newsletterOptIn?: boolean };
-        select: { email: true };
-      }) => Promise<Array<{ email: string | null }>>;
-    };
-  }).user.findMany({
-    where:
-      args.audience === "newsletter"
-        ? { email: { not: null }, newsletterOptIn: true }
-        : { email: { not: null } },
-    select: { email: true },
-  });
+  let recipients: string[];
+  if (args.recipients && args.recipients.length > 0) {
+    recipients = [...new Set(args.recipients.map((e) => normalizeEmail(e)).filter(Boolean) as string[])];
+  } else {
+    const stats = await getAnnouncementEmailStats();
+    recipients = getRecipientsForAudience(stats, args.audience ?? "newsletter");
+  }
 
-  const recipients = [...new Set(users.map((u) => u.email?.trim().toLowerCase()).filter(Boolean) as string[])];
+  if (recipients.length === 0) throw new Error("No valid recipient emails.");
+
   const html = [
     `<p>${announcementBodyToHtml(body)}</p>`,
     `<p style="margin-top:24px;font-size:12px;color:#666;">You received this from NovaStaris. Manage newsletter preferences in your account settings.</p>`,

@@ -31,16 +31,21 @@ export async function POST(request: Request) {
       subject?: string;
       body?: string;
       audience?: AnnouncementAudience;
+      recipients?: string[];
       confirm?: boolean;
     };
     if (!body.confirm) {
       return NextResponse.json({ success: false, error: "Set confirm: true to send." }, { status: 400 });
     }
     const audience = body.audience === "all" ? "all" : "newsletter";
+    const recipients = Array.isArray(body.recipients)
+      ? body.recipients.filter((e): e is string => typeof e === "string")
+      : undefined;
     const result = await sendAnnouncementEmails({
       subject: body.subject ?? "",
       body: body.body ?? "",
       audience,
+      recipients,
     });
     return NextResponse.json({ success: true, result });
   } catch (e) {

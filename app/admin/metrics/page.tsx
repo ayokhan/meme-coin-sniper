@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays, TrendingUp, X } from "lucide-react";
+import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays, TrendingUp, X, Radio } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,6 +14,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+type ActiveUserRow = {
+  userId: string;
+  email: string | null;
+  name: string | null;
+  lastSeenAt: string;
+  lastPath: string;
+  lastPathLabel: string;
+  deviceType: string | null;
+  status: "online" | "recent";
+  minutesAgo: number;
+};
+
+type ActiveUsersSnapshot = {
+  onlineCount: number;
+  recentCount: number;
+  users: ActiveUserRow[];
+  windowMinutes: number;
+};
 
 type AiAgentFunnelStats = {
   periodDays: number;
@@ -116,6 +135,30 @@ export default function AdminMetricsPage() {
   const [pageDrill, setPageDrill] = useState<UserPageDrill | null>(null);
   const [pageDrillLoading, setPageDrillLoading] = useState(false);
   const [pageDrillError, setPageDrillError] = useState("");
+  const [activeUsers, setActiveUsers] = useState<ActiveUsersSnapshot | null>(null);
+  const [activeUsersLoading, setActiveUsersLoading] = useState(false);
+  const [activeUsersError, setActiveUsersError] = useState("");
+
+  const loadActiveUsers = useCallback(() => {
+    if (status !== "authenticated" || !isOwner) return;
+    setActiveUsersLoading(true);
+    fetch("/api/admin/metrics/active-users")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.snapshot) {
+          setActiveUsers(data.snapshot as ActiveUsersSnapshot);
+          setActiveUsersError("");
+        } else {
+          setActiveUsers(null);
+          setActiveUsersError(data.error ?? "Failed to load live activity.");
+        }
+      })
+      .catch(() => {
+        setActiveUsers(null);
+        setActiveUsersError("Failed to load live activity.");
+      })
+      .finally(() => setActiveUsersLoading(false));
+  }, [status, isOwner]);
 
   const loadFunnel = useCallback(() => {
     if (status !== "authenticated") return;
@@ -164,6 +207,13 @@ export default function AdminMetricsPage() {
     loadFunnel();
     loadReport();
   }, [status, loadFunnel, loadReport]);
+
+  useEffect(() => {
+    if (!isOwner || status !== "authenticated") return;
+    loadActiveUsers();
+    const id = window.setInterval(loadActiveUsers, 30000);
+    return () => window.clearInterval(id);
+  }, [isOwner, status, loadActiveUsers]);
 
   const openPageDrill = (user: UsageReportUser) => {
     setPageDrillLoading(true);
@@ -246,6 +296,90 @@ export default function AdminMetricsPage() {
           <Card className="border-rose-200 dark:border-rose-800 mb-6">
             <CardContent className="py-4 text-rose-700 dark:text-rose-300">
               {error}
+            </CardContent>
+          </Card>
+        )}
+
+        {isOwner && (
+          <Card className="border-emerald-200 dark:border-emerald-800 mb-6">
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <Radio className="h-5 w-5 text-emerald-500" />
+                  <div>
+                    <CardTitle>Live activity</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Signed-in users with page activity in the last {activeUsers?.windowMinutes ?? 30} minutes. Online
+                      = active within 5 minutes (owner only).
+                    </p>
+                  </div>
+                </div>
+                <Button type="button" size="sm" variant="outline" disabled={activeUsersLoading} onClick={loadActiveUsers}>
+                  {activeUsersLoading ? "Refreshing…" : "Refresh"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {activeUsersError && <p className="text-sm text-rose-600 dark:text-rose-400">{activeUsersError}</p>}
+              <div className="flex flex-wrap gap-4 text-sm">
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  <strong>{activeUsers?.onlineCount ?? 0}</strong> online now
+                </span>
+                <span className="inline-flex items-center gap-2 text-muted-foreground">
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                  <strong>{activeUsers?.recentCount ?? 0}</strong> recently active
+                </span>
+              </div>
+              {activeUsers && activeUsers.users.length > 0 ? (
+                <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Last seen</TableHead>
+                        <TableHead>Last page</TableHead>
+                        <TableHead>Device</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activeUsers.users.map((u) => (
+                        <TableRow key={u.userId}>
+                          <TableCell className="text-sm">
+                            <div className="font-medium text-zinc-900 dark:text-zinc-100">{u.name || "—"}</div>
+                            <div className="text-xs text-muted-foreground">{u.email || u.userId}</div>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                u.status === "online"
+                                  ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
+                                  : "bg-amber-500/15 text-amber-800 dark:text-amber-200"
+                              }`}
+                            >
+                              {u.status === "online" ? "Online" : "Recent"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {u.status === "online"
+                              ? "Just now"
+                              : u.minutesAgo <= 1
+                                ? "1 min ago"
+                                : `${u.minutesAgo} min ago`}
+                          </TableCell>
+                          <TableCell className="text-sm">{u.lastPathLabel}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground capitalize">{u.deviceType ?? "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                !activeUsersLoading && (
+                  <p className="text-sm text-muted-foreground">No signed-in users with recent page activity.</p>
+                )
+              )}
             </CardContent>
           </Card>
         )}

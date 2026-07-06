@@ -114,10 +114,17 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
   });
   const [siteAnnouncementPreviewOpen, setSiteAnnouncementPreviewOpen] = useState(false);
 
-  const [emailStats, setEmailStats] = useState<{ newsletterCount: number; allEmailCount: number } | null>(null);
+  const [emailStats, setEmailStats] = useState<{
+    newsletterCount: number;
+    allEmailCount: number;
+    newsletterEmails: string[];
+    allEmails: string[];
+  } | null>(null);
   const [emailStatsLoading, setEmailStatsLoading] = useState(true);
   const [emailSending, setEmailSending] = useState(false);
   const [emailDraft, setEmailDraft] = useState({ subject: "", body: "", audience: "newsletter" as "newsletter" | "all" });
+  const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
+  const [emailAddInput, setEmailAddInput] = useState("");
   const [emailConfirm, setEmailConfirm] = useState(false);
 
   const applyMemeAgentDraft = useCallback((b: MemeAgentBannerAdmin) => {
@@ -213,7 +220,14 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
           });
         }
         if (emailStatsData.success && emailStatsData.stats) {
-          setEmailStats(emailStatsData.stats as { newsletterCount: number; allEmailCount: number });
+          setEmailStats(
+            emailStatsData.stats as {
+              newsletterCount: number;
+              allEmailCount: number;
+              newsletterEmails: string[];
+              allEmails: string[];
+            }
+          );
         }
       })
       .catch(() => onError?.("Failed to load banners."))
@@ -231,6 +245,35 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!emailStats) return;
+    const list = emailDraft.audience === "newsletter" ? emailStats.newsletterEmails : emailStats.allEmails;
+    setEmailRecipients([...list]);
+    setEmailConfirm(false);
+  }, [emailDraft.audience, emailStats]);
+
+  const reloadEmailRecipientsFromAudience = () => {
+    if (!emailStats) return;
+    const list = emailDraft.audience === "newsletter" ? emailStats.newsletterEmails : emailStats.allEmails;
+    setEmailRecipients([...list]);
+    setEmailConfirm(false);
+  };
+
+  const addEmailRecipient = () => {
+    const v = emailAddInput.trim().toLowerCase();
+    if (!v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      onError?.("Enter a valid email address.");
+      return;
+    }
+    setEmailRecipients((prev) => (prev.includes(v) ? prev : [...prev, v].sort()));
+    setEmailAddInput("");
+  };
+
+  const removeEmailRecipient = (email: string) => {
+    setEmailRecipients((prev) => prev.filter((e) => e !== email));
+    setEmailConfirm(false);
+  };
 
   const patchPromo = async (body: Record<string, unknown>) => {
     setPromoSaving(true);
@@ -393,7 +436,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       const res = await fetch("/api/admin/announcement-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...emailDraft, confirm: true }),
+        body: JSON.stringify({ ...emailDraft, recipients: emailRecipients, confirm: true }),
       });
       const data = await res.json();
       if (data.success && data.result) {
@@ -1049,6 +1092,56 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
               <option value="all">All customers with email</option>
             </select>
           </label>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                Recipients ({emailRecipients.length}) — edit before sending
+              </p>
+              <Button type="button" size="sm" variant="ghost" onClick={reloadEmailRecipientsFromAudience}>
+                Reset list from audience
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-700 p-2 bg-zinc-50/80 dark:bg-zinc-900/50">
+              {emailRecipients.length === 0 ? (
+                <span className="text-xs text-muted-foreground">No recipients — add an email below to test.</span>
+              ) : (
+                emailRecipients.map((email) => (
+                  <span
+                    key={email}
+                    className="inline-flex items-center gap-1 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-900 dark:text-violet-100 px-2 py-0.5 text-xs"
+                  >
+                    {email}
+                    <button
+                      type="button"
+                      onClick={() => removeEmailRecipient(email)}
+                      className="rounded-full hover:bg-violet-200/80 dark:hover:bg-violet-800/60 px-1"
+                      aria-label={`Remove ${email}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="email"
+                value={emailAddInput}
+                onChange={(e) => setEmailAddInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addEmailRecipient();
+                  }
+                }}
+                placeholder="Add test email…"
+                className="flex-1 min-w-[12rem] text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={addEmailRecipient}>
+                Add email
+              </Button>
+            </div>
+          </div>
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
             Subject
             <input
@@ -1075,19 +1168,19 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
               className="mt-1"
             />
             <span>
-              I confirm sending to{" "}
-              <strong>
-                {emailDraft.audience === "newsletter"
-                  ? emailStats?.newsletterCount ?? 0
-                  : emailStats?.allEmailCount ?? 0}
-              </strong>{" "}
-              recipients. This cannot be undone.
+              I confirm sending to <strong>{emailRecipients.length}</strong> recipient
+              {emailRecipients.length === 1 ? "" : "s"}. This cannot be undone.
             </span>
           </label>
           <Button
             size="sm"
             variant="destructive"
-            disabled={emailSending || !emailDraft.subject.trim() || !emailDraft.body.trim()}
+            disabled={
+              emailSending ||
+              !emailDraft.subject.trim() ||
+              !emailDraft.body.trim() ||
+              emailRecipients.length === 0
+            }
             onClick={() => void sendAnnouncementEmail()}
           >
             {emailSending ? "Sending…" : "Send email announcement"}
