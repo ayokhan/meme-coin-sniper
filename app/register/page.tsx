@@ -45,12 +45,23 @@ function RegisterForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [sitePromo, setSitePromo] = useState<PromoBannerAdmin | null>(null);
+  const [registerSuccessMessage, setRegisterSuccessMessage] = useState(
+    "Account created. Sign in to continue — then enable two-factor authentication in Account settings."
+  );
 
   useEffect(() => {
     fetch("/api/promo-banner")
       .then((r) => r.json())
       .then((data) => {
         if (data.success) setSitePromo(data.promo ?? null);
+      })
+      .catch(() => {});
+    fetch("/api/two-factor-security-nudge-banner")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.banner?.registerSuccessMessage) {
+          setRegisterSuccessMessage(data.banner.registerSuccessMessage);
+        }
       })
       .catch(() => {});
   }, []);
@@ -100,7 +111,7 @@ function RegisterForm() {
         setError(data.error || "Registration failed.");
         return;
       }
-      setSuccess("Registration successful. Sign in to continue.");
+      setSuccess(registerSuccessMessage);
     } catch {
       setError("Something went wrong.");
     } finally {

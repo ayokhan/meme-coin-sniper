@@ -145,7 +145,7 @@ export default function TwoFactorSettings({ hasPassword }: { hasPassword: boolea
   }
 
   return (
-    <Card className="border-zinc-200 dark:border-zinc-800">
+    <Card id="two-factor" className="border-zinc-200 dark:border-zinc-800 scroll-mt-24">
       <CardHeader>
         <CardTitle className="text-lg">Two-factor authentication</CardTitle>
         <p className="text-sm text-muted-foreground">

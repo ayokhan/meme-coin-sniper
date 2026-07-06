@@ -12,11 +12,13 @@ import {
 } from "@/lib/meme-agent-banner";
 import type { MemeTableAnalyzeHintBannerAdmin } from "@/lib/meme-table-analyze-hint-banner";
 import type { GuestRegistrationNudgeBannerAdmin } from "@/lib/guest-registration-nudge-banner";
+import type { TwoFactorSecurityNudgeBannerAdmin } from "@/lib/two-factor-security-nudge-banner";
 import { formatPromoDrawDate } from "@/lib/promo-banner";
 import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
 import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
 import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
 import { GuestRegistrationBanner } from "@/components/GuestRegistrationNudge";
+import { TwoFactorSecurityNudgeModal } from "@/components/TwoFactorSecurityNudgeModal";
 
 function toDatetimeLocalValue(iso: string | null): string {
   if (!iso) return "";
@@ -88,6 +90,17 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     bodyEngaged: "",
   });
 
+  const [twoFactorNudge, setTwoFactorNudge] = useState<TwoFactorSecurityNudgeBannerAdmin | null>(null);
+  const [twoFactorNudgeLoading, setTwoFactorNudgeLoading] = useState(true);
+  const [twoFactorNudgeSaving, setTwoFactorNudgeSaving] = useState(false);
+  const [twoFactorNudgeDraft, setTwoFactorNudgeDraft] = useState({
+    title: "",
+    body: "",
+    ctaLabel: "",
+    registerSuccessMessage: "",
+  });
+  const [twoFactorNudgePreviewOpen, setTwoFactorNudgePreviewOpen] = useState(false);
+
   const applyMemeAgentDraft = useCallback((b: MemeAgentBannerAdmin) => {
     setMemeAgentBanner(b);
     setMemeAgentBannerDraft({
@@ -118,13 +131,15 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     setMemeAgentBannerLoading(true);
     setMemeTableHintLoading(true);
     setGuestNudgeLoading(true);
+    setTwoFactorNudgeLoading(true);
     return Promise.all([
       fetch("/api/admin/promo-banner").then((r) => r.json()),
       fetch("/api/admin/meme-agent-banner").then((r) => r.json()),
       fetch("/api/admin/meme-table-analyze-hint").then((r) => r.json()),
       fetch("/api/admin/guest-registration-nudge-banner").then((r) => r.json()),
+      fetch("/api/admin/two-factor-security-nudge-banner").then((r) => r.json()),
     ])
-      .then(([promoData, memeBannerData, memeTableHintData, guestNudgeData]) => {
+      .then(([promoData, memeBannerData, memeTableHintData, guestNudgeData, twoFactorNudgeData]) => {
         if (promoData.success && promoData.promo) {
           applyPromoDraft(promoData.promo as PromoBannerAdmin);
         } else onError?.(promoData.error ?? "Failed to load promo banner.");
@@ -154,6 +169,16 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
             bodyEngaged: b.bodyEngaged,
           });
         }
+        if (twoFactorNudgeData.success && twoFactorNudgeData.banner) {
+          const b = twoFactorNudgeData.banner as TwoFactorSecurityNudgeBannerAdmin;
+          setTwoFactorNudge(b);
+          setTwoFactorNudgeDraft({
+            title: b.title,
+            body: b.body,
+            ctaLabel: b.ctaLabel,
+            registerSuccessMessage: b.registerSuccessMessage,
+          });
+        }
       })
       .catch(() => onError?.("Failed to load banners."))
       .finally(() => {
@@ -161,6 +186,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         setMemeAgentBannerLoading(false);
         setMemeTableHintLoading(false);
         setGuestNudgeLoading(false);
+        setTwoFactorNudgeLoading(false);
       });
   }, [applyPromoDraft, applyMemeAgentDraft, onError]);
 
@@ -262,6 +288,33 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       onError?.("Update failed.");
     } finally {
       setGuestNudgeSaving(false);
+    }
+  };
+
+  const patchTwoFactorNudge = async (body: Record<string, unknown>) => {
+    setTwoFactorNudgeSaving(true);
+    try {
+      const res = await fetch("/api/admin/two-factor-security-nudge-banner", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success && data.banner) {
+        const b = data.banner as TwoFactorSecurityNudgeBannerAdmin;
+        setTwoFactorNudge(b);
+        setTwoFactorNudgeDraft({
+          title: b.title,
+          body: b.body,
+          ctaLabel: b.ctaLabel,
+          registerSuccessMessage: b.registerSuccessMessage,
+        });
+        onNotice?.("2FA security nudge updated.");
+      } else onError?.(data.error ?? "Update failed.");
+    } catch {
+      onError?.("Update failed.");
+    } finally {
+      setTwoFactorNudgeSaving(false);
     }
   };
 
@@ -774,6 +827,105 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
           ) : null}
         </CardContent>
       </Card>
+
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader>
+          <CardTitle className="text-base">2FA security nudge</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Centered modal shown after sign-in for email/password users who have not enabled 2FA. Also sets the
+            registration success message on the sign-up page.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {twoFactorNudgeLoading ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : twoFactorNudge ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span
+                  className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                    twoFactorNudge.enabled
+                      ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border-emerald-500/30"
+                      : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                  }`}
+                >
+                  {twoFactorNudge.enabled ? "ON" : "OFF"}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={twoFactorNudge.enabled ? "outline" : "default"}
+                    disabled={twoFactorNudgeSaving}
+                    onClick={() => void patchTwoFactorNudge({ enabled: !twoFactorNudge.enabled })}
+                  >
+                    {twoFactorNudgeSaving ? "…" : twoFactorNudge.enabled ? "Turn off" : "Turn on"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={twoFactorNudgeSaving}
+                    onClick={() => setTwoFactorNudgePreviewOpen(true)}
+                  >
+                    Preview modal
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={twoFactorNudgeSaving}
+                    onClick={() => void patchTwoFactorNudge({ resetToDefault: true })}
+                  >
+                    Reset defaults
+                  </Button>
+                </div>
+              </div>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Modal title
+                <input
+                  value={twoFactorNudgeDraft.title}
+                  onChange={(e) => setTwoFactorNudgeDraft((d) => ({ ...d, title: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Modal body
+                <textarea
+                  rows={3}
+                  value={twoFactorNudgeDraft.body}
+                  onChange={(e) => setTwoFactorNudgeDraft((d) => ({ ...d, body: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                CTA button label
+                <input
+                  value={twoFactorNudgeDraft.ctaLabel}
+                  onChange={(e) => setTwoFactorNudgeDraft((d) => ({ ...d, ctaLabel: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Registration success message
+                <textarea
+                  rows={2}
+                  value={twoFactorNudgeDraft.registerSuccessMessage}
+                  onChange={(e) => setTwoFactorNudgeDraft((d) => ({ ...d, registerSuccessMessage: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <Button size="sm" disabled={twoFactorNudgeSaving} onClick={() => void patchTwoFactorNudge(twoFactorNudgeDraft)}>
+                {twoFactorNudgeSaving ? "Saving…" : "Save 2FA nudge"}
+              </Button>
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <TwoFactorSecurityNudgeModal
+        open={twoFactorNudgePreviewOpen}
+        config={twoFactorNudgeDraft}
+        onRemindLater={() => setTwoFactorNudgePreviewOpen(false)}
+        onDismissPermanent={() => setTwoFactorNudgePreviewOpen(false)}
+      />
     </div>
   );
 }

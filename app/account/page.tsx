@@ -67,6 +67,11 @@ export default function AccountPage() {
       return;
     }
     if (status !== "authenticated") return;
+    if (typeof window !== "undefined" && window.location.hash === "#two-factor") {
+      window.setTimeout(() => {
+        document.getElementById("two-factor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
+    }
     (async () => {
       try {
         const [profileRes, subRes] = await Promise.all([

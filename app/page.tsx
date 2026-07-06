@@ -73,6 +73,7 @@ import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
 import NovaRadarPanel from "@/components/NovaRadarPanel";
 import FuturesOnboardingModal, { useFuturesOnboarding } from "@/components/FuturesOnboardingModal";
 import DashboardPathPickerModal from "@/components/DashboardPathPickerModal";
+import { TwoFactorSecurityNudgeHost } from "@/components/TwoFactorSecurityNudgeModal";
 import DashboardPathHintBanner from "@/components/DashboardPathHintBanner";
 import AiAgentOnboardingPanel, { type AiAgentOnboardingStep } from "@/components/AiAgentOnboardingPanel";
 import VipExpiryBanner from "@/components/VipExpiryBanner";
@@ -3934,6 +3935,7 @@ export default function Dashboard() {
           }}
           onApply={applyDashboardPathResult}
         />
+        <TwoFactorSecurityNudgeHost blocked={pathPickerOpen} />
         {error && (
           <div className="mb-6 rounded-xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50/95 dark:bg-slate-900/80 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2">
             <span className="flex-1">{error}</span>
