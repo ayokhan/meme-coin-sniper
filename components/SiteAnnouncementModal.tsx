@@ -7,6 +7,7 @@ import { Megaphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SiteAnnouncementBannerAdmin } from "@/lib/site-announcement-banner";
 import { DEFAULT_SITE_ANNOUNCEMENT } from "@/lib/site-announcement-banner";
+import { useDashboardOverlay } from "@/components/DashboardOverlayProvider";
 
 export const SITE_ANNOUNCEMENT_DISMISS_KEY = "novastaris_site_announcement_dismissed_at";
 export const SITE_ANNOUNCEMENT_LATER_KEY = "novastaris_site_announcement_later_at";
@@ -135,28 +136,25 @@ export function SiteAnnouncementModal({ open, banner, onRemindLater, onDismissPe
   );
 }
 
-type HostProps = {
-  blocked?: boolean;
-};
-
 /** Shows owner-managed site announcement modal for signed-in users. */
-export function SiteAnnouncementHost({ blocked = false }: HostProps) {
+export function SiteAnnouncementHost() {
   const { status } = useSession();
-  const [open, setOpen] = useState(false);
+  const [wantsOpen, setWantsOpen] = useState(false);
   const [banner, setBanner] = useState<SiteAnnouncementBannerAdmin | null>(null);
+  const open = useDashboardOverlay("site-announcement", wantsOpen);
 
   const closeLater = useCallback(() => {
     if (banner?.updatedAt) dismissSiteAnnouncementLater(banner.updatedAt);
-    setOpen(false);
+    setWantsOpen(false);
   }, [banner?.updatedAt]);
 
   const closePermanent = useCallback(() => {
     if (banner?.updatedAt) dismissSiteAnnouncementPermanent(banner.updatedAt);
-    setOpen(false);
+    setWantsOpen(false);
   }, [banner?.updatedAt]);
 
   useEffect(() => {
-    if (status !== "authenticated" || blocked) return;
+    if (status !== "authenticated") return;
 
     let cancelled = false;
     const timer = window.setTimeout(() => {
@@ -167,16 +165,16 @@ export function SiteAnnouncementHost({ blocked = false }: HostProps) {
           const b = data.banner;
           if (!shouldShowAnnouncement(b)) return;
           setBanner(b);
-          setOpen(true);
+          setWantsOpen(true);
         })
         .catch(() => {});
-    }, 2000);
+    }, 1200);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [status, blocked]);
+  }, [status]);
 
   if (!banner) return null;
 

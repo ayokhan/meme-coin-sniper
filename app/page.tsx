@@ -71,11 +71,18 @@ import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
 import NovaRadarPanel from "@/components/NovaRadarPanel";
-import FuturesOnboardingModal, { useFuturesOnboarding } from "@/components/FuturesOnboardingModal";
-import DashboardPathPickerModal from "@/components/DashboardPathPickerModal";
+import { useFuturesOnboarding } from "@/components/FuturesOnboardingModal";
 import { TwoFactorSecurityNudgeHost } from "@/components/TwoFactorSecurityNudgeModal";
 import { SiteAnnouncementHost } from "@/components/SiteAnnouncementModal";
 import DashboardPathHintBanner from "@/components/DashboardPathHintBanner";
+import { DashboardOverlayProvider } from "@/components/DashboardOverlayProvider";
+import { DashboardPathPickerOverlay, FuturesOnboardingOverlay } from "@/components/DashboardOverlayModals";
+import DashboardNextStepBanner, { markNextStepDoneForTab } from "@/components/DashboardNextStepBanner";
+import MobileDashboardTabBar from "@/components/MobileDashboardTabBar";
+import PublicStatusStrip from "@/components/PublicStatusStrip";
+import DashboardPaywallHelp from "@/components/DashboardPaywallHelp";
+import type { NextStepAction } from "@/lib/dashboard-next-step";
+import type { DashboardTabId } from "@/lib/dashboard-tabs";
 import AiAgentOnboardingPanel, { type AiAgentOnboardingStep } from "@/components/AiAgentOnboardingPanel";
 import VipExpiryBanner from "@/components/VipExpiryBanner";
 import NoticeBanner, { NoticeInline } from "@/components/NoticeBanner";
@@ -749,6 +756,19 @@ export default function Dashboard() {
     } catch {}
   };
 
+  const handleNextStepAction = useCallback((action: NextStepAction) => {
+    if (action.type === "tab") {
+      setActiveTab(action.tab as TabId);
+      return;
+    }
+    setActiveTab("futures");
+    setFuturesView("workflow");
+  }, []);
+
+  useEffect(() => {
+    if (dashboardPath) markNextStepDoneForTab(dashboardPath, activeTab as DashboardTabId);
+  }, [activeTab, dashboardPath]);
+
   useEffect(() => {
     if (!adminMenuOpen) return;
     const close = (e: MouseEvent) => {
@@ -971,11 +991,7 @@ export default function Dashboard() {
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
   const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map">("workflow");
   const { shouldShow: showFuturesOnboardingPrompt, dismiss: dismissFuturesOnboarding } = useFuturesOnboarding();
-  const [futuresOnboardingOpen, setFuturesOnboardingOpen] = useState(false);
-
-  useEffect(() => {
-    if (activeTab === "futures" && showFuturesOnboardingPrompt) setFuturesOnboardingOpen(true);
-  }, [activeTab, showFuturesOnboardingPrompt]);
+  const [futuresOnboardingForce, setFuturesOnboardingForce] = useState(false);
 
   const [vipFuturesAddons, setVipFuturesAddons] = useState<{
     novaEagle: boolean;
@@ -1739,6 +1755,10 @@ export default function Dashboard() {
   ]);
 
   const [novaConnectEnabled, setNovaConnectEnabled] = useState(true);
+  const isMobileTabVisible = useCallback(
+    (tab: DashboardTabId) => isTabVisibleInGui(tab as TabId),
+    [pageTabFlags, novaConnectEnabled, isOwner]
+  );
   const [novaConnectRulesAccepted, setNovaConnectRulesAccepted] = useState(false);
   const novaConnectRulesRef = useRef<HTMLDivElement | null>(null);
   const novaConnectPrivacyRef = useRef<HTMLDivElement | null>(null);
@@ -3564,6 +3584,7 @@ export default function Dashboard() {
     `https://t.me/ttf_sol_bot?start=${encodeURIComponent(t.contractAddress)}`;
 
   return (
+    <DashboardOverlayProvider>
     <div className="min-h-screen font-sans relative overflow-x-hidden">
       {/* Electric background */}
       <div
@@ -3867,7 +3888,9 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-8 pb-20 sm:pb-8">
+      <PublicStatusStrip />
+
+      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-8 pb-24 md:pb-8">
         {mounted && (
           <DashboardPathHintBanner
             path={dashboardPath}
@@ -3923,7 +3946,7 @@ export default function Dashboard() {
             />
           );
         })()}
-        <DashboardPathPickerModal
+        <DashboardPathPickerOverlay
           open={pathPickerOpen}
           pathOptions={{ subscriptionTier: tier, isPaid }}
           onClose={() => {
@@ -3936,8 +3959,20 @@ export default function Dashboard() {
           }}
           onApply={applyDashboardPathResult}
         />
-        <TwoFactorSecurityNudgeHost blocked={pathPickerOpen} />
-        <SiteAnnouncementHost blocked={pathPickerOpen} />
+        <TwoFactorSecurityNudgeHost />
+        <SiteAnnouncementHost />
+        <FuturesOnboardingOverlay
+          activeTab={activeTab}
+          showPrompt={showFuturesOnboardingPrompt || futuresOnboardingForce}
+          onClose={() => {
+            dismissFuturesOnboarding();
+            setFuturesOnboardingForce(false);
+          }}
+          onGoNovaRadar={() => {
+            setActiveTab("nova-forecast");
+            setNovaForecastSubTab("nova-radar");
+          }}
+        />
         {error && (
           <div className="mb-6 rounded-xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50/95 dark:bg-slate-900/80 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2">
             <span className="flex-1">{error}</span>
@@ -4063,7 +4098,7 @@ export default function Dashboard() {
                   </button>
                 )}
               </div>
-              <div className="-mx-1 sm:mx-0 flex flex-col gap-3 w-full overflow-x-visible overflow-y-visible pb-1">
+              <div className="-mx-1 sm:mx-0 hidden md:flex flex-col gap-3 w-full overflow-x-visible overflow-y-visible pb-1">
               <TabsList className={DASHBOARD_TOP_TABS_LIST_CLASS}>
                 {showTopTab("new") && (
                   <TabsTrigger value="new" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
@@ -4275,21 +4310,27 @@ export default function Dashboard() {
                   )}
                 </p>
                 {isGuest ? (
-                  <GuestAuthActions registerHref="/register" signInHref="/signin" />
+                  <>
+                    <GuestAuthActions registerHref="/register" signInHref="/signin" />
+                    <DashboardPaywallHelp />
+                  </>
                 ) : (
-                  <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
-                    <Link
-                      href={
-                        onDemandLocked
-                          ? activeTab === "ct"
-                            ? "/support?subject=CT%20Scan%20access%20request"
-                            : "/support?subject=Mem%20Coins%20Trader%20access%20request"
-                          : "/subscribe"
-                      }
-                    >
-                      {onDemandLocked ? "Contact for access" : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner ? "Upgrade to VIP" : "Subscribe to VIP"}
-                    </Link>
-                  </Button>
+                  <>
+                    <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
+                      <Link
+                        href={
+                          onDemandLocked
+                            ? activeTab === "ct"
+                              ? "/support?subject=CT%20Scan%20access%20request"
+                              : "/support?subject=Mem%20Coins%20Trader%20access%20request"
+                            : "/subscribe"
+                        }
+                      >
+                        {onDemandLocked ? "Contact for access" : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner ? "Upgrade to VIP" : "Subscribe to VIP"}
+                      </Link>
+                    </Button>
+                    <DashboardPaywallHelp />
+                  </>
                 )}
               </div>
             ) : (
@@ -5938,17 +5979,6 @@ export default function Dashboard() {
               <NovaMemeIntelligencePanel />
             ) : activeTab === "futures" ? (
               <div className="mx-3 sm:mx-6 py-6 sm:py-8">
-                <FuturesOnboardingModal
-                  open={futuresOnboardingOpen}
-                  onClose={() => {
-                    dismissFuturesOnboarding();
-                    setFuturesOnboardingOpen(false);
-                  }}
-                  onGoNovaRadar={() => {
-                    setActiveTab("nova-forecast");
-                    setNovaForecastSubTab("nova-radar");
-                  }}
-                />
                 <div className="flex flex-wrap items-center gap-2 mb-6">
                   <Button
                     variant={futuresView === "workflow" ? "default" : "outline"}
@@ -5989,7 +6019,7 @@ export default function Dashboard() {
                     variant="ghost"
                     size="sm"
                     className="text-xs text-cyan-700 dark:text-cyan-300"
-                    onClick={() => setFuturesOnboardingOpen(true)}
+                    onClick={() => setFuturesOnboardingForce(true)}
                   >
                     Quick start
                   </Button>
@@ -9313,6 +9343,15 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <MobileDashboardTabBar
+        activeTab={activeTab as DashboardTabId}
+        dashboardPath={dashboardPath}
+        isTabVisible={isMobileTabVisible}
+        watchlistCount={watchlist.length}
+        onTabChange={(tab) => setActiveTab(tab as TabId)}
+      />
     </div>
+    </DashboardOverlayProvider>
   );
 }

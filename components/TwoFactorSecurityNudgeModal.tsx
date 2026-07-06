@@ -7,6 +7,7 @@ import { Shield, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TwoFactorSecurityNudgeBannerConfig } from "@/lib/two-factor-security-nudge-banner";
 import { DEFAULT_TWO_FACTOR_SECURITY_NUDGE } from "@/lib/two-factor-security-nudge-banner";
+import { useDashboardOverlay } from "@/components/DashboardOverlayProvider";
 
 export const TWO_FACTOR_NUDGE_DISMISS_KEY = "novastaris_2fa_nudge_dismissed";
 export const TWO_FACTOR_NUDGE_LATER_KEY = "novastaris_2fa_nudge_later";
@@ -132,31 +133,27 @@ export function TwoFactorSecurityNudgeModal({ open, config, onRemindLater, onDis
   );
 }
 
-type HostProps = {
-  /** Wait until another modal (e.g. dashboard path picker) closes first. */
-  blocked?: boolean;
-};
-
 /** Fetches eligibility and shows the 2FA security modal after sign-in. */
-export function TwoFactorSecurityNudgeHost({ blocked = false }: HostProps) {
+export function TwoFactorSecurityNudgeHost() {
   const { status } = useSession();
-  const [open, setOpen] = useState(false);
+  const [wantsOpen, setWantsOpen] = useState(false);
   const [config, setConfig] = useState<Pick<TwoFactorSecurityNudgeBannerConfig, "title" | "body" | "ctaLabel"> | null>(
     null
   );
+  const open = useDashboardOverlay("two-factor", wantsOpen);
 
   const closeLater = useCallback(() => {
     dismissTwoFactorNudgeLater();
-    setOpen(false);
+    setWantsOpen(false);
   }, []);
 
   const closePermanent = useCallback(() => {
     dismissTwoFactorNudgePermanent();
-    setOpen(false);
+    setWantsOpen(false);
   }, []);
 
   useEffect(() => {
-    if (status !== "authenticated" || blocked) return;
+    if (status !== "authenticated") return;
     if (readTwoFactorNudgeDismissed() || readTwoFactorNudgeLater()) return;
 
     let cancelled = false;
@@ -167,16 +164,16 @@ export function TwoFactorSecurityNudgeHost({ blocked = false }: HostProps) {
           if (cancelled || !data.success || !data.show) return;
           if (readTwoFactorNudgeDismissed() || readTwoFactorNudgeLater()) return;
           if (data.banner) setConfig(data.banner);
-          setOpen(true);
+          setWantsOpen(true);
         })
         .catch(() => {});
-    }, 800);
+    }, 1600);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [status, blocked]);
+  }, [status]);
 
   return (
     <TwoFactorSecurityNudgeModal
