@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { randomBytes } from 'crypto';
 import { sendPasswordResetEmail } from '@/lib/send-reset-email';
+import { getPublicAppUrl } from '@/lib/public-app-url';
 
 const TOKEN_BYTES = 32;
 const EXPIRY_HOURS = 1;
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       data: { token, userId: user.id, expiresAt },
     });
 
-    const baseUrl = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+    const baseUrl = getPublicAppUrl(request);
     const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
     await sendPasswordResetEmail(email, resetUrl);
 
