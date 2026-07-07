@@ -81,7 +81,19 @@ export default function NovaScalpWatchBanner() {
       setAnalysis(detail.analysis);
       setStatus(detail.status);
       setLivePrice(detail.livePrice);
-      if (detail.status !== "active") setDismissedAt(null);
+      // Actionable status (at entry / invalidated / target / stale): clear any
+      // dismissal and surface the banner again.
+      if (detail.status !== "active") {
+        setDismissedAt(null);
+        setVisible(true);
+        return;
+      }
+      // Still just waiting for entry — respect the user's dismiss so the ~12s
+      // price poll can't keep re-showing a banner they closed with X.
+      if (dismissedAt === detail.analysis.analyzedAt) {
+        setVisible(false);
+        return;
+      }
       setVisible(true);
     };
 
