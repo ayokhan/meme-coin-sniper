@@ -7,7 +7,8 @@ export function quotePriceDecimals(price: number): number {
   const abs = Math.abs(price);
   if (!Number.isFinite(abs) || abs === 0) return 2;
   if (abs >= 10_000) return 0;
-  if (abs >= 1_000) return 1;
+  // 1,000–9,999 (e.g. gold XAU ~4,106.87) — show 2 decimals like TradingView.
+  if (abs >= 1_000) return 2;
   if (abs >= 100) return 2;
   if (abs >= 1) return 4;
   if (abs >= 0.1) return 5;
