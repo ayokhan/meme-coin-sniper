@@ -6,6 +6,7 @@ import { VIP_PLANS, CARD_PAYMENT_FEE_USD, getActiveSubscription, getActiveSubscr
 import { getStripeCustomerId } from '@/lib/stripe-billing';
 import { verifyUsdcPayment } from '@/lib/verify-solana-payment';
 import { getUsageThisMonth } from '@/lib/usage';
+import { recordReferralCommissionForSubscription } from '@/lib/referral-commission';
 
 const PAYMENT_WALLET = process.env.SOLANA_PAYMENT_WALLET ?? '';
 const USDC_MINT = process.env.SOLANA_USDC_MINT ?? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
   const expiresAt = new Date();
   expiresAt.setMonth(expiresAt.getMonth() + plan.months);
 
-  await prisma.subscription.create({
+  const sub = await prisma.subscription.create({
     data: {
       userId: session.user.id,
       tier: 'vip',
@@ -109,6 +110,8 @@ export async function POST(request: Request) {
       txSignature,
     },
   });
+
+  await recordReferralCommissionForSubscription(sub.id);
 
   return NextResponse.json({
     success: true,

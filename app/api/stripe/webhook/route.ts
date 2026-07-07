@@ -7,6 +7,7 @@ import {
   upsertSubscriptionFromStripePeriod,
 } from "@/lib/stripe-billing";
 import { VIP_PLANS, findPlanByListOrCardAmount } from "@/lib/subscription";
+import { recordReferralCommissionForSubscription } from "@/lib/referral-commission";
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
@@ -81,7 +82,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + plan.months);
 
-    await prisma.subscription.create({
+    const created = await prisma.subscription.create({
       data: {
         userId,
         tier: "vip",
@@ -92,6 +93,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         autoRenew: false,
       } as Record<string, unknown>,
     });
+    await recordReferralCommissionForSubscription(created.id);
   }
 
   console.info("Stripe webhook: subscription created", {

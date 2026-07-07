@@ -11,6 +11,7 @@ import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
 import type { PromoBannerAdmin } from "@/lib/promo-banner";
 import { PasswordInput } from "@/components/PasswordInput";
 import { signInWithGoogle } from "@/lib/google-oauth-client";
+import { readReferralCookie } from "@/components/ReferralCapture";
 
 function GoogleLogo() {
   return (
@@ -26,6 +27,7 @@ function GoogleLogo() {
 function RegisterForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const refFromUrl = searchParams.get("ref");
   const signInHref = callbackUrl !== "/" ? `/signin?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/signin";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -104,6 +106,7 @@ function RegisterForm() {
           experienceTradingCrypto: experienceTradingCrypto || undefined,
           newsletterOptIn,
           novaConnectOptIn,
+          referralCode: refFromUrl || readReferralCookie() || undefined,
         }),
       });
       const data = await res.json();

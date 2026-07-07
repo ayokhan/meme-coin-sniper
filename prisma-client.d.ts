@@ -36,6 +36,8 @@ declare module '@prisma/client' {
     phone: string | null;
     country: string | null;
     experienceTradingCrypto: string | null;
+    referralCode?: string | null;
+    referredByUserId?: string | null;
     createdAt: Date;
     updatedAt: Date;
   }
@@ -52,11 +54,13 @@ declare module '@prisma/client' {
       create: (args: { data: { chain: string; tokensFound: number } }) => Promise<unknown>;
     };
     user: {
-      findUnique: (args: { where: { email?: string; id?: string; walletAddress?: string } }) => Promise<PrismaUser | null>;
-      findMany: (args?: { include?: { subscriptions?: boolean }; orderBy?: unknown }) => Promise<(PrismaUser & { subscriptions?: Array<{ id: string; plan: string; amountUsd: number; expiresAt: Date }> })[]>;
+      findUnique: (args: { where: { email?: string; id?: string; walletAddress?: string; referralCode?: string }; select?: unknown }) => Promise<PrismaUser | null>;
+      findFirst: (args?: { where?: unknown; select?: unknown }) => Promise<PrismaUser | null>;
+      findMany: (args?: { include?: { subscriptions?: boolean }; orderBy?: unknown; where?: unknown }) => Promise<(PrismaUser & { subscriptions?: Array<{ id: string; plan: string; amountUsd: number; expiresAt: Date }> })[]>;
+      count: (args?: { where?: unknown }) => Promise<number>;
       create: (args: {
         data: { email?: string; hashedPassword?: string; name?: string; image?: string; walletAddress?: string; phone?: string; country?: string; experienceTradingCrypto?: string };
-      }) => Promise<PrismaUser>;
+      }) => Promise<PrismaUser & { id: string }>;
       update: (args: { where: { id: string }; data: unknown }) => Promise<PrismaUser>;
       delete: (args: { where: { id: string } }) => Promise<PrismaUser>;
     };
@@ -66,12 +70,19 @@ declare module '@prisma/client' {
       upsert: (args: { where: unknown; create: unknown; update: unknown }) => Promise<unknown>;
     };
     subscription: {
-      findMany: (args?: { where?: { userId?: string; expiresAt?: { gt: Date } }; orderBy?: unknown }) => Promise<unknown[]>;
+      findMany: (args?: { where?: unknown; orderBy?: unknown; select?: unknown }) => Promise<unknown[]>;
       findFirst: (args?: {
-        where?: { userId?: string; txSignature?: string; expiresAt?: { gt: Date } };
+        where?: unknown;
         orderBy?: { expiresAt?: 'asc' | 'desc' };
-      }) => Promise<{ expiresAt: Date } | null>;
+      }) => Promise<{ id?: string; expiresAt: Date } | null>;
+      findUnique: (args?: { where?: { id?: string }; include?: unknown }) => Promise<unknown>;
+      create: (args: { data: unknown }) => Promise<{ id: string }>;
+    };
+    referralCommission: {
+      findMany: (args?: unknown) => Promise<unknown[]>;
+      findUnique: (args: { where: { id?: string; subscriptionId?: string } }) => Promise<unknown>;
       create: (args: { data: unknown }) => Promise<unknown>;
+      update: (args: { where: { id: string }; data: unknown }) => Promise<unknown>;
     };
     supportTicket: {
       findUnique: (args: { where: { supportNumber?: string; id?: string } }) => Promise<unknown>;

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap, BarChart3, Sparkles, Bell, CreditCard } from "lucide-react";
+import { Zap, BarChart3, Sparkles, Bell, CreditCard, Gift } from "lucide-react";
 import { PasswordInput } from "@/components/PasswordInput";
 import TwoFactorSettings from "@/components/TwoFactorSettings";
 
@@ -310,6 +310,23 @@ export default function AccountPage() {
             </CardContent>
           </Card>
         )}
+
+        <Card className="border-amber-200/60 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/40 to-white dark:from-amber-950/20 dark:to-zinc-900">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <CardTitle className="text-lg">Affiliate program</CardTitle>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Refer friends to VIP and earn 10% commission. Payouts every Friday after verification.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="border-amber-300/80 dark:border-amber-800">
+              <Link href="/affiliate">Open affiliate dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         {subscriptionPaid && (hasStripeSubscription || hasStripeCustomer) && (
           <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">

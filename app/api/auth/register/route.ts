@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcrypt';
+import { applyReferralOnSignup } from '@/lib/referral-commission';
+import { normalizeReferralCode } from '@/lib/referral-program';
+import { readReferralCodeFromCookies } from '@/lib/referral-cookie-server';
 
 export async function POST(request: Request) {
   try {
@@ -29,7 +32,11 @@ export async function POST(request: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    await prisma.user.create({
+    const referralFromBody = normalizeReferralCode((body.referralCode ?? body.ref ?? '').toString());
+    const referralFromCookie = await readReferralCodeFromCookies();
+    const referralCode = referralFromBody ?? referralFromCookie;
+
+    const created = await prisma.user.create({
       data: {
         email,
         hashedPassword,
@@ -43,6 +50,10 @@ export async function POST(request: Request) {
         novaConnectAvatarUrl: avatarUrl,
       } as any,
     });
+
+    if (referralCode) {
+      await applyReferralOnSignup(created.id, referralCode);
+    }
 
     return NextResponse.json({ success: true, message: 'Account created. You can sign in.' });
   } catch (e) {

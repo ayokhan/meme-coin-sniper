@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import type { SubscriptionPlan } from "@/lib/subscription";
+import { recordReferralCommissionForSubscription } from "@/lib/referral-commission";
 
 export function planToStripeRecurring(plan: SubscriptionPlan): {
   interval: "month" | "year";
@@ -55,7 +56,7 @@ export async function upsertSubscriptionFromStripePeriod(input: {
     if (bySession) return;
   }
 
-  await db.subscription.create({
+  const created = (await db.subscription.create({
     data: {
       userId: input.userId,
       tier: "vip",
@@ -66,7 +67,9 @@ export async function upsertSubscriptionFromStripePeriod(input: {
       stripeSubscriptionId: input.stripeSubscriptionId ?? null,
       autoRenew: input.autoRenew ?? false,
     },
-  });
+  })) as { id: string };
+
+  await recordReferralCommissionForSubscription(created.id);
 }
 
 export async function setStripeCustomerId(userId: string, customerId: string): Promise<void> {

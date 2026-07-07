@@ -191,6 +191,17 @@ model User {
   novaConnectBlocksReceived  NovaConnectBlock[] @relation("NovaConnectBlocksReceived")
   novaConnectReportsFiled    NovaConnectReport[] @relation("NovaConnectReportsFiled")
   novaConnectReportsAgainst  NovaConnectReport[] @relation("NovaConnectReportsAgainst")
+
+  /** Unique code for NovaStaris Affiliate Program (e.g. wAwpn7). */
+  referralCode               String?   @unique
+  /** User who referred this account at registration (if any). */
+  referredByUserId           String?
+  referredBy                 User?     @relation("UserReferrals", fields: [referredByUserId], references: [id], onDelete: SetNull)
+  referredUsers              User[]    @relation("UserReferrals")
+  referralCommissionsEarned  ReferralCommission[] @relation("ReferrerCommissions")
+  referralCommissionsAsReferee ReferralCommission[] @relation("RefereeCommissions")
+
+  @@index([referredByUserId])
 }
 
 // Per-user usage counts for current month (AI analyses; alerts are counted from UserMemeCoinAlert + LeverageAlert)
@@ -419,9 +430,38 @@ model Subscription {
   cancelAtPeriodEnd Boolean  @default(false)
   createdAt         DateTime @default(now())
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referralCommission ReferralCommission?
   @@unique([stripeSessionId])
   @@index([userId])
   @@index([expiresAt])
+}
+
+/** Affiliate commission when a referred user pays for VIP. Owner marks paid after weekly Friday payout. */
+model ReferralCommission {
+  id                    String    @id @default(cuid())
+  referrerUserId        String
+  refereeUserId         String
+  subscriptionId        String    @unique
+  subscriptionAmountUsd Int
+  commissionRatePct     Float     @default(10)
+  commissionAmountUsd   Float
+  /** pending_verification | paid */
+  status                String    @default("pending_verification")
+  paidAt                DateTime?
+  /** Owner user id who marked paid. */
+  paidByUserId          String?
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  referrer     User         @relation("ReferrerCommissions", fields: [referrerUserId], references: [id], onDelete: Cascade)
+  referee      User         @relation("RefereeCommissions", fields: [refereeUserId], references: [id], onDelete: Cascade)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([referrerUserId])
+  @@index([refereeUserId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // Admin-managed tracked wallets for Wallet Tracker (3+ wallets buy same coin → alert)

@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/theme-provider";
 import NeedHelpWidget from "@/components/NeedHelpWidget";
@@ -10,6 +11,8 @@ import CapacitorAuthBridge from "@/components/CapacitorAuthBridge";
 import NovaScalpPlanWatcher from "@/components/NovaScalpPlanWatcher";
 import NovaScalpWatchBanner from "@/components/NovaScalpWatchBanner";
 import NovaScalpActiveTradeBar from "@/components/NovaScalpActiveTradeBar";
+import ReferralCapture from "@/components/ReferralCapture";
+import ReferralClaimOnAuth from "@/components/ReferralClaimOnAuth";
 import { DashboardScreenProvider } from "@/components/DashboardScreenContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -20,6 +23,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <CapacitorAuthBridge />
           <AnalyticsPing />
           <WelcomeVoice />
+          <Suspense fallback={null}>
+            <ReferralCapture />
+          </Suspense>
+          <ReferralClaimOnAuth />
           {children}
           <AdminLiveTransferNotifier />
           <NeedHelpWidget />

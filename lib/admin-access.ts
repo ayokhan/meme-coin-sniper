@@ -19,6 +19,7 @@ export function getDelegatedAdminNavHrefs(session: { user?: AdminSessionUser } |
   if (session.user.customersViewerAdmin) hrefs.push('/admin/customers');
   if (session.user.supportViewerAdmin) hrefs.push('/admin/support');
   if (session.user.liveChatAgentAdmin) hrefs.push('/admin/chat');
+  if (hrefs.length > 0) hrefs.push('/admin/affiliates');
   return hrefs;
 }
 
@@ -88,5 +89,17 @@ export function canAccessLiveChatAgentSession(session: { user?: AdminSessionUser
 }
 
 export function canDeleteAdminChatSession(session: { user?: AdminSessionUser } | null): boolean {
+  return isOwnerFromSession(session);
+}
+
+/** Owner or any delegated admin can view affiliate payout records. */
+export function canViewAdminAffiliateSession(session: { user?: AdminSessionUser } | null): boolean {
+  if (!session?.user) return false;
+  if (isOwnerFromSession(session)) return true;
+  return delegatedAdminOnly(session);
+}
+
+/** Only owner can mark affiliate commissions as paid. */
+export function canEditAdminAffiliateSession(session: { user?: AdminSessionUser } | null): boolean {
   return isOwnerFromSession(session);
 }
