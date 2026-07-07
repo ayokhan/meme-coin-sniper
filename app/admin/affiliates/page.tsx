@@ -113,12 +113,6 @@ export default function AdminAffiliatesPage() {
         description="Review referral commissions for weekly Friday payouts. Owner can mark rows as paid after verifying the VIP subscription was not refunded."
       />
 
-      {!canEdit && (
-        <div className="rounded-lg border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
-          Read-only view — only the owner can mark commissions as paid.
-        </div>
-      )}
-
       {error && (
         <div className="rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50/50 p-3 text-sm text-rose-700 dark:text-rose-300">
           {error}
