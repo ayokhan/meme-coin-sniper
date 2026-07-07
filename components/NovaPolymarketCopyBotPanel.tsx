@@ -50,6 +50,15 @@ type AnalyzeJson = {
     realizedPnl?: number;
     timestamp?: number;
   }>;
+  closedStats?: {
+    total: number;
+    wins: number;
+    losses: number;
+    zero: number;
+    winRate: number | null;
+    totalRealizedPnl: number;
+    avgRealizedPnl: number | null;
+  };
   trades?: PolymarketTradeRow[];
   tradeStats?: { tradeCount: number; volumeUsd: number; totalShares: number; netFlowUsd: number };
   tradeStatsNote?: string;
@@ -308,13 +317,16 @@ export default function NovaPolymarketCopyBotPanel({
   }, [topic]);
 
   const closed = analyzed?.closedPositions ?? [];
-  const wins = closed.filter((c) => Number(c.realizedPnl ?? 0) > 0).length;
-  const losses = closed.filter((c) => Number(c.realizedPnl ?? 0) < 0).length;
-  const closedCount = closed.length;
-  const winRate = closedCount > 0 ? (wins / closedCount) * 100 : null;
+  const cs = analyzed?.closedStats;
+  const wins = cs?.wins ?? closed.filter((c) => Number(c.realizedPnl ?? 0) > 0).length;
+  const losses = cs?.losses ?? closed.filter((c) => Number(c.realizedPnl ?? 0) < 0).length;
+  const closedCount = cs?.total ?? closed.length;
+  // Win rate is decided outcomes only (wins / (wins + losses)); ties/zero-PnL excluded.
+  const winRate = cs?.winRate ?? (wins + losses > 0 ? (wins / (wins + losses)) * 100 : null);
   const totalRealizedPnl =
-    closed.reduce((acc, c) => acc + (Number.isFinite(Number(c.realizedPnl)) ? Number(c.realizedPnl) : 0), 0) || 0;
-  const avgRealizedPnl = closedCount > 0 ? totalRealizedPnl / closedCount : null;
+    cs?.totalRealizedPnl ??
+    (closed.reduce((acc, c) => acc + (Number.isFinite(Number(c.realizedPnl)) ? Number(c.realizedPnl) : 0), 0) || 0);
+  const avgRealizedPnl = cs?.avgRealizedPnl ?? (closedCount > 0 ? totalRealizedPnl / closedCount : null);
 
   return (
     <div className="space-y-4">
@@ -465,11 +477,11 @@ export default function NovaPolymarketCopyBotPanel({
                   <p className="text-sm font-semibold tabular-nums">{analyzed.positionCount ?? "—"}</p>
                 </div>
                 <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
-                  <p className="text-[10px] text-muted-foreground uppercase">Closed (batch)</p>
-                  <p className="text-sm font-semibold tabular-nums">{analyzed.closedPositionCount ?? "—"}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">Closed positions</p>
+                  <p className="text-sm font-semibold tabular-nums">{closedCount || "—"}</p>
                 </div>
                 <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
-                  <p className="text-[10px] text-muted-foreground uppercase">Win rate (closed batch)</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">Win rate</p>
                   <p className="text-sm font-semibold tabular-nums">{winRate == null ? "—" : `${fmtNum(winRate, 1)}%`}</p>
                 </div>
               </div>
@@ -496,8 +508,9 @@ export default function NovaPolymarketCopyBotPanel({
               )}
               {analyzed.tradeStatsNote && <p className="text-[10px] text-muted-foreground">{analyzed.tradeStatsNote}</p>}
               <p className="text-[10px] text-muted-foreground">
-                Closed outcomes: Wins {wins} · Losses {losses} · Total {closedCount}. Win rate depends on the closed
-                positions batch returned by Polymarket.
+                Closed outcomes: Wins {wins} · Losses {losses}
+                {cs && cs.zero > 0 ? ` · Ties ${cs.zero}` : ""} · Total {closedCount}. Win rate = wins ÷ (wins + losses)
+                across the wallet&apos;s full closed-position history from Polymarket.
               </p>
 
               <div>

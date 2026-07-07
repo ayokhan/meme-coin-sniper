@@ -4,10 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { getPolymarketTrackerAccess } from "@/lib/polymarket-tracker-access";
 import {
   aggregateTradesStats,
-  fetchPolymarketClosedPositions,
+  fetchAllPolymarketClosedPositions,
   fetchPolymarketPortfolioValueUsd,
   fetchPolymarketPositions,
   fetchPolymarketTrades,
+  summarizeClosedPositions,
 } from "@/lib/polymarket-data-api";
 
 export const dynamic = "force-dynamic";
@@ -56,23 +57,29 @@ export async function GET(request: Request) {
       });
     }
 
-    const [valueUsd, positions, trades, closedPositions] = await Promise.all([
+    const [valueUsd, positions, trades, allClosedPositions] = await Promise.all([
       fetchPolymarketPortfolioValueUsd(address),
       fetchPolymarketPositions(address, posLimit),
       fetchPolymarketTrades(address, tradeLimit, tradeOffset),
-      fetchPolymarketClosedPositions(address, closedLimit),
+      fetchAllPolymarketClosedPositions(address, 1000),
     ]);
 
     const stats = aggregateTradesStats(trades);
     const tradesHasMore = trades.length === tradeLimit && tradeOffset + tradeLimit < 10000;
     const nextTradeOffset = tradeOffset + trades.length;
 
+    // Win rate is computed across the wallet's full closed-position history (paginated),
+    // not a single PnL-sorted batch — otherwise it always looks near 100%.
+    const closedStats = summarizeClosedPositions(allClosedPositions);
+    const closedPositions = allClosedPositions.slice(0, closedLimit);
+
     return NextResponse.json({
       success: true,
       address,
       valueUsd,
       positionCount: positions.length,
-      closedPositionCount: closedPositions.length,
+      closedPositionCount: closedStats.total,
+      closedStats,
       positions,
       closedPositions,
       trades,
@@ -81,7 +88,7 @@ export async function GET(request: Request) {
       tradesHasMore,
       tradeStats: stats,
       tradeStatsNote:
-        "Stats are for this trade batch only (offset pagination). Polymarket’s public data API; not financial advice.",
+        "Trade-flow stats are for this trade batch only (offset pagination). Win rate uses full closed-position history. Polymarket’s public data API; not financial advice.",
       polymarketProfileUrl: `https://polymarket.com/profile/${address}`,
     });
   } catch (e) {

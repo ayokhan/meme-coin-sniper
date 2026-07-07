@@ -103,6 +103,69 @@ export async function fetchPolymarketClosedPositions(
   return Array.isArray(raw) ? (raw as PolymarketClosedPositionRow[]).slice(0, capped) : [];
 }
 
+/**
+ * Fetch ALL closed positions via offset pagination (Polymarket caps each page at 50).
+ * Without paginating, the default `/closed-positions` response is sorted by realized PnL
+ * descending, so a single capped batch only returns a wallet's biggest winners — which makes
+ * win rate look artificially high (often 100%). Uses TIMESTAMP sort so pages are stable.
+ */
+export async function fetchAllPolymarketClosedPositions(
+  userAddress: string,
+  maxPositions = 1000
+): Promise<PolymarketClosedPositionRow[]> {
+  const pageSize = 50;
+  const cap = Math.min(5000, Math.max(pageSize, maxPositions));
+  const all: PolymarketClosedPositionRow[] = [];
+  let offset = 0;
+  for (let i = 0; i < 100 && all.length < cap; i++) {
+    const page = await fetchPolymarketClosedPositionsSorted(userAddress, {
+      limit: pageSize,
+      offset,
+      sortBy: "TIMESTAMP",
+      sortDirection: "DESC",
+    });
+    if (page.length === 0) break;
+    all.push(...page);
+    offset += page.length;
+    if (page.length < pageSize) break;
+  }
+  return all.slice(0, cap);
+}
+
+/** Win/loss summary over a set of closed positions. Ignores zero-PnL rows in the win rate. */
+export function summarizeClosedPositions(closed: PolymarketClosedPositionRow[]): {
+  total: number;
+  wins: number;
+  losses: number;
+  zero: number;
+  winRate: number | null;
+  totalRealizedPnl: number;
+  avgRealizedPnl: number | null;
+} {
+  let wins = 0;
+  let losses = 0;
+  let zero = 0;
+  let totalRealizedPnl = 0;
+  for (const c of closed) {
+    const pnl = Number(c.realizedPnl);
+    const v = Number.isFinite(pnl) ? pnl : 0;
+    totalRealizedPnl += v;
+    if (v > 0) wins += 1;
+    else if (v < 0) losses += 1;
+    else zero += 1;
+  }
+  const decided = wins + losses;
+  return {
+    total: closed.length,
+    wins,
+    losses,
+    zero,
+    winRate: decided > 0 ? (wins / decided) * 100 : null,
+    totalRealizedPnl,
+    avgRealizedPnl: closed.length > 0 ? totalRealizedPnl / closed.length : null,
+  };
+}
+
 /** Polymarket `/closed-positions` supports sort (see Data API OpenAPI). Max limit 50 per spec. */
 export async function fetchPolymarketClosedPositionsSorted(
   userAddress: string,
