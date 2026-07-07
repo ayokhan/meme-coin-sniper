@@ -1,9 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
+import {
+  clearNovaScalperPrefill,
+  readNovaScalperPrefill,
+  scalperEntryTriggerFor,
+  scalperInstrumentPairFor,
+} from "@/lib/nova-scalper-prefill";
 
 type ScalperConfig = {
   id: string;
@@ -61,6 +68,8 @@ export default function NovaScalperPanel() {
   const [removingConfig, setRemovingConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
+  const prefillAppliedRef = useRef(false);
   const [autoSec, setAutoSec] = useState<0 | 15 | 30 | 60>(0);
   const [userBlofinConfigured, setUserBlofinConfigured] = useState<boolean | null>(null);
   const [blofinKeysForm, setBlofinKeysForm] = useState({
@@ -138,6 +147,46 @@ export default function NovaScalperPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Apply a "Scalp this trade" hand-off from Nova Scalp Agent onto the active config.
+  // We only pre-fill the form; the user reviews and clicks Save (never auto-trades).
+  useEffect(() => {
+    if (prefillAppliedRef.current) return;
+    if (loading || !activeConfigId || configs.length === 0) return;
+    const prefill = readNovaScalperPrefill();
+    if (!prefill) return;
+    prefillAppliedRef.current = true;
+    const leverage = Math.max(1, Math.min(125, Math.round(prefill.leverage) || 1));
+    const pair = scalperInstrumentPairFor(prefill.symbol);
+    setConfigs((list) =>
+      list.map((c) =>
+        c.id === activeConfigId
+          ? {
+              ...c,
+              instrumentPair: pair,
+              instId: "",
+              side: prefill.side,
+              entryTrigger: scalperEntryTriggerFor(prefill.side),
+              entryPrice: prefill.entryPrice,
+              exitPrice: prefill.exitPrice,
+              stopLossPrice:
+                prefill.stopLossPrice != null && Number.isFinite(prefill.stopLossPrice)
+                  ? prefill.stopLossPrice
+                  : null,
+              leverage,
+              positionSizeUsdt:
+                Number.isFinite(prefill.marginUsd) && prefill.marginUsd > 0
+                  ? prefill.marginUsd
+                  : c.positionSizeUsdt,
+            }
+          : c
+      )
+    );
+    setPrefillNotice(
+      `Loaded ${prefill.side.toUpperCase()} ${pair} from ${prefill.source}. Review the levels below, then Save. Nothing is placed until you Save and run a tick.`
+    );
+    clearNovaScalperPrefill();
+  }, [loading, activeConfigId, configs.length]);
 
   const fetchPositionPnl = useCallback(async () => {
     const cfg = configs.find((c) => c.id === activeConfigId);
@@ -440,6 +489,22 @@ export default function NovaScalperPanel() {
         <span className="font-mono text-xs">{displayInstId || "…"}</span>.
       </p>
 
+      {prefillNotice && (
+        <div className="rounded-lg border border-cyan-300/80 dark:border-cyan-700/80 bg-cyan-50/70 dark:bg-cyan-950/30 p-3 text-sm text-cyan-900 dark:text-cyan-100 flex items-start gap-2">
+          <Zap className="h-4 w-4 mt-0.5 shrink-0 text-cyan-600 dark:text-cyan-400" />
+          <div className="flex-1 space-y-1">
+            <p className="font-medium">Prefilled from Nova Scalp</p>
+            <p className="text-cyan-800/90 dark:text-cyan-200/90">{prefillNotice}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPrefillNotice(null)}
+            className="text-cyan-700/70 dark:text-cyan-300/70 hover:text-cyan-900 dark:hover:text-cyan-100 text-xs font-medium"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       {success && (
         <div className="rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/60 dark:bg-emerald-950/30 p-3 text-sm text-emerald-800 dark:text-emerald-200">
           {success}

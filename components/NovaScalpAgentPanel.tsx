@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Send } from "lucide-react";
+import { Send, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
+import { sendTradeToNovaScalper } from "@/lib/nova-scalper-prefill";
 import {
   NOVA_SCALP_DISCLAIMER,
   QUICK_WIN_SCALP_TIMEFRAME_ID,
@@ -428,6 +429,28 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
                           }
                         >
                           Analyze
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-7 text-xs bg-cyan-600 hover:bg-cyan-700 text-white"
+                          title="Send these levels to NovaScalper (Crypto Futures) to place the trade"
+                          onClick={() =>
+                            sendTradeToNovaScalper({
+                              symbol: w.symbol,
+                              side: w.scalpSide,
+                              entryPrice: w.entryPrice,
+                              exitPrice: w.exitPrice,
+                              stopLossPrice: Number.isFinite(w.stopLossPrice) ? w.stopLossPrice : null,
+                              leverage: w.suggestedLeverage,
+                              marginUsd: Number(amount) || 100,
+                              source: "Quick Win",
+                              createdAt: new Date().toISOString(),
+                            })
+                          }
+                        >
+                          <Zap className="h-3 w-3 mr-0.5" />
+                          Scalp
                         </Button>
                         {canShareCoach && (
                           <Button

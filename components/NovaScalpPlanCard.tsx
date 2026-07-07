@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, BellOff, Check, Copy, RefreshCw, Send } from "lucide-react";
+import { Bell, BellOff, Check, Copy, RefreshCw, Send, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
@@ -42,6 +42,7 @@ import {
 } from "@/lib/nova-scalp-plan-watch";
 import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 import { scalpPlanFeedbackApi } from "@/lib/scalp-plan-market";
+import { sendTradeToNovaScalper } from "@/lib/nova-scalper-prefill";
 
 type BlofinPositionSummary = {
   symbol: string;
@@ -392,6 +393,30 @@ export function NovaScalpPlanCard({
     startWatchingScalpPlan(result, planStatus, market);
   };
 
+  const canScalpTrade =
+    showBlofin &&
+    (result.side === "long" || result.side === "short") &&
+    result.entryPrice != null &&
+    Number.isFinite(result.entryPrice) &&
+    result.exitPrice != null &&
+    Number.isFinite(result.exitPrice);
+
+  const scalpThisTrade = () => {
+    if (!canScalpTrade || (result.side !== "long" && result.side !== "short")) return;
+    sendTradeToNovaScalper({
+      symbol: result.symbol,
+      side: result.side,
+      entryPrice: result.entryPrice as number,
+      exitPrice: result.exitPrice as number,
+      stopLossPrice:
+        result.recommendedStopPrice ?? result.stopLossPrice ?? null,
+      leverage: result.leverage,
+      marginUsd: result.amountUsd,
+      source: "Nova Scalp Agent",
+      createdAt: new Date().toISOString(),
+    });
+  };
+
   const getSharePayload = () =>
     formatNovaScalpAnalysisForShare(result, {
       planStatusLabel: statusLabel,
@@ -414,6 +439,18 @@ export function NovaScalpPlanCard({
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             {sideBadge(result.side)}
+            {canScalpTrade && (
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white"
+                onClick={scalpThisTrade}
+                title="Send these levels to NovaScalper (Crypto Futures) to place the trade"
+              >
+                <Zap className="h-3.5 w-3.5 mr-1" />
+                Scalp this trade
+              </Button>
+            )}
             {showPlanMonitor && (
               <Button
                 type="button"

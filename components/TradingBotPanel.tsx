@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import NovaScalperPanel from "@/components/NovaScalperPanel";
+import { hasNovaScalperPrefill } from "@/lib/nova-scalper-prefill";
 import NovaPolymarketTrackerPanel from "@/components/NovaPolymarketTrackerPanel";
 import NovaPolymarketCopyBotPanel from "@/components/NovaPolymarketCopyBotPanel";
 import NovaPolymarketLeaderboardPanel from "@/components/NovaPolymarketLeaderboardPanel";
@@ -321,6 +322,12 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     if (mode === "polymarket-only") setBotSubTab("polymarket");
     if (mode === "futures-only" && botSubTab === "polymarket") setBotSubTab("ai");
   }, [mode, botSubTab]);
+
+  // Arriving from Nova Scalp Agent "Scalp this trade" → jump straight to the NovaScalper bot.
+  useEffect(() => {
+    if (mode !== "polymarket-only" && hasNovaScalperPrefill()) setBotSubTab("scalper");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (polyInnerTab === "radar" && !canAccessPolymarket) setPolyInnerTab("copilot");
