@@ -32,6 +32,7 @@ type BlofinStatus = {
   blofinDemo?: boolean;
   credentialSource?: string;
   error?: string;
+  blofinIntegrationEnabled?: boolean;
 };
 
 type SyncResponse = {
@@ -58,7 +59,7 @@ export default function PropFirmBotPanel() {
   const [proposedRiskUsd, setProposedRiskUsd] = useState("");
   const [positions, setPositions] = useState<SyncedPosition[]>([]);
   const [challengeActive, setChallengeActive] = useState(false);
-  const [blofinStatus, setBlofinStatus] = useState<BlofinStatus>({ configured: false });
+  const [blofinStatus, setBlofinStatus] = useState<BlofinStatus>({ configured: false, blofinIntegrationEnabled: true });
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState("");
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
@@ -98,6 +99,13 @@ export default function PropFirmBotPanel() {
     hydrated.current = true;
     setReady(true);
   }, []);
+
+  const blofinIntegrationEnabled = blofinStatus.blofinIntegrationEnabled !== false;
+
+  useEffect(() => {
+    if (!ready || blofinIntegrationEnabled) return;
+    if (trackingMode === "blofin") setTrackingMode("manual");
+  }, [ready, blofinIntegrationEnabled, trackingMode]);
 
   const displaySymbol = symbol === "CUSTOM" ? customSymbol.trim().toUpperCase() || "CUSTOM" : symbol;
   const openContracts = positions.reduce((s, p) => s + p.size, 0);
@@ -184,8 +192,9 @@ export default function PropFirmBotPanel() {
         blofinDemo: data.blofin?.blofinDemo ?? configData.demoMode,
         credentialSource: data.blofin?.credentialSource ?? configData.credentialSource,
         error: data.error,
+        blofinIntegrationEnabled: data.blofinIntegrationEnabled !== false,
       });
-      return !!data.configured;
+      return !!data.configured && data.blofinIntegrationEnabled !== false;
     } catch {
       setBlofinStatus({ configured: false, error: "Could not check Blofin status." });
       return false;
@@ -194,7 +203,7 @@ export default function PropFirmBotPanel() {
 
   const runSync = useCallback(
     async (riskOverride?: number) => {
-      if (trackingMode !== "blofin") return;
+      if (trackingMode !== "blofin" || blofinStatus.blofinIntegrationEnabled === false) return;
       setSyncing(true);
       setSyncError("");
       try {
@@ -220,11 +229,11 @@ export default function PropFirmBotPanel() {
         setSyncing(false);
       }
     },
-    [cfg, state, proposedRiskUsd, blofinSyncDemo, trackingMode]
+    [cfg, state, proposedRiskUsd, blofinSyncDemo, trackingMode, blofinStatus.blofinIntegrationEnabled]
   );
 
   useEffect(() => {
-    if (!ready || trackingMode !== "blofin") return;
+    if (!ready || trackingMode !== "blofin" || !blofinIntegrationEnabled) return;
     let cancelled = false;
     void loadBlofinStatus().then((ok) => {
       if (!cancelled && ok) void runSync(0);
@@ -236,10 +245,15 @@ export default function PropFirmBotPanel() {
   }, [ready, trackingMode]);
 
   useEffect(() => {
-    if (trackingMode !== "blofin" || !autoSync || !blofinStatus.configured) return;
+    if (!ready) return;
+    void loadBlofinStatus();
+  }, [ready, loadBlofinStatus]);
+
+  useEffect(() => {
+    if (trackingMode !== "blofin" || !autoSync || !blofinStatus.configured || !blofinIntegrationEnabled) return;
     const id = setInterval(() => void runSync(0), 30000);
     return () => clearInterval(id);
-  }, [trackingMode, autoSync, blofinStatus.configured, runSync]);
+  }, [trackingMode, autoSync, blofinStatus.configured, blofinIntegrationEnabled, runSync]);
 
   const checkEntry = () => {
     setEntryCheckedAt(new Date().toLocaleTimeString());
@@ -397,7 +411,7 @@ export default function PropFirmBotPanel() {
               <strong>Check entry</strong> — confirm planned risk at stop fits challenge caps.
             </li>
             <li>
-              <strong>After trades</strong> — update PnL manually or use Blofin sync.
+              <strong>After trades</strong> — update PnL manually{blofinIntegrationEnabled ? " or use Blofin sync" : ""}.
             </li>
           </ol>
         </CardContent>
@@ -417,23 +431,27 @@ export default function PropFirmBotPanel() {
               onClick={() => setTrackingMode("manual")}
             >
               <Hand className="h-4 w-4 mr-1" />
-              Manual (no Blofin)
+              Manual{blofinIntegrationEnabled ? " (no Blofin)" : ""}
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={trackingMode === "blofin" ? "default" : "outline"}
-              className={trackingMode === "blofin" ? "bg-cyan-600 hover:bg-cyan-700 text-white" : ""}
-              onClick={() => setTrackingMode("blofin")}
-            >
-              <Link2 className="h-4 w-4 mr-1" />
-              Blofin auto-sync
-            </Button>
+            {blofinIntegrationEnabled && (
+              <Button
+                type="button"
+                size="sm"
+                variant={trackingMode === "blofin" ? "default" : "outline"}
+                className={trackingMode === "blofin" ? "bg-cyan-600 hover:bg-cyan-700 text-white" : ""}
+                onClick={() => setTrackingMode("blofin")}
+              >
+                <Link2 className="h-4 w-4 mr-1" />
+                Blofin auto-sync
+              </Button>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
-            {trackingMode === "manual"
-              ? "No exchange connection needed. You type PnL, open risk, and trades — guardrails still run."
-              : "Connect Blofin keys below to pull positions and PnL automatically."}
+            {!blofinIntegrationEnabled
+              ? "Blofin auto-sync is turned off by admin. Use manual tracking — type PnL, open risk, and trades; guardrails still run."
+              : trackingMode === "manual"
+                ? "No exchange connection needed. You type PnL, open risk, and trades — guardrails still run."
+                : "Connect Blofin keys below to pull positions and PnL automatically."}
           </p>
         </CardContent>
       </Card>
@@ -731,7 +749,7 @@ export default function PropFirmBotPanel() {
         </CardContent>
       </Card>
 
-      {trackingMode === "blofin" && (
+      {trackingMode === "blofin" && blofinIntegrationEnabled && (
         <Card className="border-cyan-200/60 dark:border-cyan-800/50">
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center justify-between gap-3">

@@ -94,6 +94,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Nova Prop Firm Challenge is disabled." }, { status: 403 });
     }
 
+    const blofinEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.PROP_FIRM_BLOFIN);
+    if (!blofinEnabled) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Blofin integration is disabled for Nova Prop Firm Challenge. Use manual tracking.",
+          blofinIntegrationEnabled: false,
+        },
+        { status: 403 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     const resolved = await resolveBlofinConfigForPropFirmSession(session);
     if (!resolved.ok) {
@@ -183,7 +195,19 @@ export async function GET() {
         configured: false,
         canAccess: false,
         featureDisabled: true,
+        blofinIntegrationEnabled: false,
         error: "Nova Prop Firm Challenge is disabled by admin.",
+      });
+    }
+
+    const blofinEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.PROP_FIRM_BLOFIN);
+    if (!blofinEnabled) {
+      return NextResponse.json({
+        success: true,
+        configured: false,
+        canAccess: true,
+        blofinIntegrationEnabled: false,
+        error: "Blofin integration is disabled for Nova Prop Firm Challenge. Use manual tracking.",
       });
     }
 
@@ -202,6 +226,7 @@ export async function GET() {
       success: true,
       configured: true,
       canAccess: true,
+      blofinIntegrationEnabled: true,
       blofin,
     });
   } catch (e) {

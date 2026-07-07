@@ -119,6 +119,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
   { id: "ai", title: "AI experiments", match: (k) => k.startsWith("ai_") || k.startsWith("nova_ai_agent") },
   { id: "moralis", title: "API & notifications", match: (k) => k.startsWith("moralis_") || k.startsWith("telegram_") || k === "live_trades_enabled" },
   {
+    id: "prop-firm",
+    title: "Prop Firm Challenge",
+    match: (k) => k === "prop_firm_blofin" || k === "page_tab_prop_firm_bot",
+  },
+  {
     id: "wallet-subs",
     title: "Wallet Tracker subtabs",
     match: (k) =>
@@ -227,6 +232,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Tab: Nova Prop Firm Challenge",
     description:
       "Show/hide the Nova Prop Firm Challenge workbook (rules + live setup). VIP on-demand access still required per user.",
+  },
+  prop_firm_blofin: {
+    label: "Prop Firm — Blofin integration",
+    description:
+      "When ON, VIP users can connect Blofin API keys and auto-sync positions/PnL in Nova Prop Firm Challenge. When OFF, manual tracking only — no Blofin API calls from prop firm (saves CPU). Trading Bot Blofin is unaffected. Default ON.",
   },
   page_tab_nova_ultimate: {
     label: "Tab: Nova Ultimate",
