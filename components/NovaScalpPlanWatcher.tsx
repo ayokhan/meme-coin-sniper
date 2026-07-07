@@ -61,6 +61,19 @@ export default function NovaScalpPlanWatcher() {
       const livePrice = await fetchScalpLivePrice(watched.analysis.symbol, market);
       if (cancelled) return;
 
+      // The fetch above is async; the user may have stopped watching (or switched
+      // plans) while it was in flight. Re-read before writing so a stale tick can't
+      // resurrect a dismissed plan and re-show the banner.
+      const current = readWatchedScalpPlan();
+      if (
+        !current ||
+        current.analysis.analyzedAt !== watched.analysis.analyzedAt ||
+        current.analysis.symbol !== watched.analysis.symbol ||
+        (current.market ?? "crypto") !== market
+      ) {
+        return;
+      }
+
       const status = planStatusFromAnalysis(watched.analysis, livePrice);
       const prev = watched.lastStatus;
       const updated: WatchedScalpPlan = {
