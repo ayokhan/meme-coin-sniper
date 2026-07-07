@@ -47,7 +47,7 @@ export function toBlofinInstId(symbol: string): string {
 export function blofinMetalContractDescription(symbol: BlofinMetal): string {
   const inst = BLOFIN_METAL_INST[symbol];
   const label = symbol === "XAU" ? "gold" : "silver";
-  return `${symbol}: Blofin USDT-margined ${label} perpetual (${inst}). Candles and last price use Blofin’s public market API. Other symbols use Hyperliquid.`;
+  return `${symbol}: ${label} structure from Blofin USDT-margined perpetual candles (${inst}), with price and levels aligned to broker/TradingView-style spot mid (Swissquote XAU/XAG-USD). Other symbols use Hyperliquid.`;
 }
 
 export function novaQUnknownHlSymbolMessage(symbol: string): string {

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getTicker } from "@/lib/hyperliquid";
 import { getBlofinMetalTicker, isBlofinMetal, type BlofinMetal } from "@/lib/blofin-metals";
+import { getForexSpotMid, usesSpotCalibration } from "@/lib/forex-spot-feed";
 import { resolveScalpSymbol } from "@/lib/nova-scalp-agent";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
@@ -22,10 +23,18 @@ export async function GET(request: Request) {
     const symbol = resolveScalpSymbol(
       new URL(request.url).searchParams.get("symbol")?.trim() ?? "BTC"
     );
-    const ticker = isBlofinMetal(symbol)
-      ? await getBlofinMetalTicker(symbol as BlofinMetal)
-      : await getTicker(symbol);
-    const price = ticker?.last ? Number(ticker.last) : null;
+    let price: number | null = null;
+    if (isBlofinMetal(symbol) && usesSpotCalibration(symbol)) {
+      // Align metals to broker/TradingView-style spot mid instead of Blofin perp last.
+      const spotMid = await getForexSpotMid(symbol);
+      if (spotMid != null && Number.isFinite(spotMid)) price = spotMid;
+    }
+    if (price == null) {
+      const ticker = isBlofinMetal(symbol)
+        ? await getBlofinMetalTicker(symbol as BlofinMetal)
+        : await getTicker(symbol);
+      price = ticker?.last ? Number(ticker.last) : null;
+    }
 
     return NextResponse.json({
       success: true,

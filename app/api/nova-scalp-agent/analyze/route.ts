@@ -8,6 +8,7 @@ import {
   isBlofinMetal,
   type BlofinMetal,
 } from "@/lib/blofin-metals";
+import { calibrateCandlesToSpotMid, getForexSpotMid, usesSpotCalibration } from "@/lib/forex-spot-feed";
 import { analyzeScalpSetup, resolveScalpSymbol, scalpTimeframeConfig } from "@/lib/nova-scalp-agent";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
@@ -39,16 +40,22 @@ export async function POST(request: Request) {
     const leverage = Math.min(125, Math.max(1, Number(body.leverage) || 10));
     const maxLossPctOnMargin = Math.min(100, Math.max(0.5, Number(body.maxLossPctOnMargin) || 5));
 
-    const [candles, ticker] = await Promise.all([
-      isBlofinMetal(symbol)
+    const metal = isBlofinMetal(symbol);
+    const spotMid = metal && usesSpotCalibration(symbol) ? await getForexSpotMid(symbol) : null;
+    const hasSpot = spotMid != null && Number.isFinite(spotMid);
+
+    const [candlesRaw, ticker] = await Promise.all([
+      metal
         ? getBlofinMetalCandles(symbol as BlofinMetal, tf.interval, tf.limit)
         : getCandles(symbol, tf.interval, tf.limit),
-      isBlofinMetal(symbol)
+      metal
         ? getBlofinMetalTicker(symbol as BlofinMetal)
         : getTicker(symbol),
     ]);
 
-    const currentPrice = ticker?.last ? Number(ticker.last) : null;
+    // Align metals price + levels to broker/TradingView-style spot mid (Swissquote).
+    const candles = metal && hasSpot ? calibrateCandlesToSpotMid(candlesRaw, spotMid!) : candlesRaw;
+    const currentPrice = metal && hasSpot ? spotMid! : ticker?.last ? Number(ticker.last) : null;
     const analysis = analyzeScalpSetup({
       symbol,
       timeframeId: tf.id,

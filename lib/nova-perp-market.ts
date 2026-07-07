@@ -16,6 +16,7 @@ import {
   type Candle,
   type HyperliquidPerpSpec,
 } from "@/lib/hyperliquid";
+import { calibrateCandlesToSpotMid, getForexSpotMid, usesSpotCalibration } from "@/lib/forex-spot-feed";
 
 export type NovaPerpVenue = "hyperliquid" | "blofin";
 
@@ -53,7 +54,16 @@ export async function getNovaPerpCandles(
 ): Promise<Candle[]> {
   const symbol = normalizeNovaSymbol(rawSymbol);
   if (venue === "blofin") {
-    if (isBlofinMetal(symbol)) return getBlofinMetalCandles(symbol as BlofinMetal, hlInterval, limit);
+    if (isBlofinMetal(symbol)) {
+      const candles = await getBlofinMetalCandles(symbol as BlofinMetal, hlInterval, limit);
+      // Blofin's XAU/XAG-USDT perp trades a bit off global spot; align OHLC to
+      // TradingView/broker-style spot mid (Swissquote) so levels match the price shown.
+      if (usesSpotCalibration(symbol)) {
+        const spotMid = await getForexSpotMid(symbol);
+        if (spotMid != null && Number.isFinite(spotMid)) return calibrateCandlesToSpotMid(candles, spotMid);
+      }
+      return candles;
+    }
     return getBlofinCandles(toBlofinInstId(symbol), toBlofinBar(hlInterval), limit) as Promise<Candle[]>;
   }
   return getHlCandles(symbol, hlInterval, limit);
@@ -62,7 +72,14 @@ export async function getNovaPerpCandles(
 export async function getNovaPerpTicker(rawSymbol: string, venue: NovaPerpVenue) {
   const symbol = normalizeNovaSymbol(rawSymbol);
   if (venue === "blofin") {
-    if (isBlofinMetal(symbol)) return getBlofinMetalTicker(symbol as BlofinMetal);
+    if (isBlofinMetal(symbol)) {
+      // Show TradingView/broker-style spot for metals instead of Blofin's perp last.
+      if (usesSpotCalibration(symbol)) {
+        const spotMid = await getForexSpotMid(symbol);
+        if (spotMid != null && Number.isFinite(spotMid)) return { last: String(spotMid) };
+      }
+      return getBlofinMetalTicker(symbol as BlofinMetal);
+    }
     return getBlofinTicker(toBlofinInstId(symbol));
   }
   return getHlTicker(symbol);
