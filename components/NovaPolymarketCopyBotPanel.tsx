@@ -113,6 +113,7 @@ export default function NovaPolymarketCopyBotPanel({
   const [tradesHasMore, setTradesHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [mergedStats, setMergedStats] = useState<ReturnType<typeof aggregateTradesStats> | null>(null);
+  const [closedFilter, setClosedFilter] = useState<"all" | "wins" | "losses">("all");
 
   const [addingTracker, setAddingTracker] = useState(false);
   const [trackerMsg, setTrackerMsg] = useState<string | null>(null);
@@ -327,6 +328,14 @@ export default function NovaPolymarketCopyBotPanel({
     cs?.totalRealizedPnl ??
     (closed.reduce((acc, c) => acc + (Number.isFinite(Number(c.realizedPnl)) ? Number(c.realizedPnl) : 0), 0) || 0);
   const avgRealizedPnl = cs?.avgRealizedPnl ?? (closedCount > 0 ? totalRealizedPnl / closedCount : null);
+  const closedTrades = [...closed]
+    .sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0))
+    .filter((c) => {
+      const pnl = Number(c.realizedPnl);
+      if (closedFilter === "wins") return Number.isFinite(pnl) && pnl > 0;
+      if (closedFilter === "losses") return Number.isFinite(pnl) && pnl < 0;
+      return true;
+    });
 
   return (
     <div className="space-y-4">
@@ -543,7 +552,7 @@ export default function NovaPolymarketCopyBotPanel({
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2 max-h-64 overflow-y-auto">
-                  <p className="text-xs font-medium mb-2">Current positions (sample)</p>
+                  <p className="text-xs font-medium mb-2">Current positions</p>
                   <ul className="space-y-1 text-xs">
                     {(analyzed.positions ?? []).length === 0 ? (
                       <li className="text-muted-foreground">None returned.</li>
@@ -600,6 +609,70 @@ export default function NovaPolymarketCopyBotPanel({
                       {loadingMore ? "Loading…" : "Load older fills"}
                     </Button>
                   )}
+                </div>
+              </div>
+
+              <div className="rounded border border-zinc-200 dark:border-zinc-700 p-2">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium">Closed trades (win / loss)</p>
+                  <div className="flex gap-1">
+                    {(["all", "wins", "losses"] as const).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setClosedFilter(f)}
+                        className={`rounded px-2 py-0.5 text-[10px] font-medium capitalize transition-colors ${
+                          closedFilter === f
+                            ? "bg-cyan-600 text-white"
+                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        }`}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  <ul className="space-y-1 text-xs">
+                    {closedTrades.length === 0 ? (
+                      <li className="text-muted-foreground">No closed trades returned.</li>
+                    ) : (
+                      closedTrades.map((c, i) => {
+                        const pnl = Number(c.realizedPnl);
+                        const isWin = Number.isFinite(pnl) && pnl > 0;
+                        const isLoss = Number.isFinite(pnl) && pnl < 0;
+                        return (
+                          <li key={i} className="flex items-start justify-between gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-1">
+                            <div className="min-w-0">
+                              <span className="font-medium text-zinc-800 dark:text-zinc-200">{c.title ?? "—"}</span>
+                              {c.outcome != null && <span className="text-muted-foreground"> — {c.outcome}</span>}
+                              <span className="block text-muted-foreground tabular-nums">{formatLocal(tradeTimestampToMs(c.timestamp))}</span>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <span
+                                className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                                  isWin
+                                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300"
+                                    : isLoss
+                                      ? "bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300"
+                                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+                                }`}
+                              >
+                                {isWin ? "WIN" : isLoss ? "LOSS" : "TIE"}
+                              </span>
+                              <span
+                                className={`block tabular-nums font-medium ${
+                                  isWin ? "text-emerald-600 dark:text-emerald-400" : isLoss ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"
+                                }`}
+                              >
+                                {fmtUsd(Number.isFinite(pnl) ? pnl : null)}
+                              </span>
+                            </div>
+                          </li>
+                        );
+                      })
+                    )}
+                  </ul>
                 </div>
               </div>
             </div>

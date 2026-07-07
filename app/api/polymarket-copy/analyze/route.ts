@@ -88,7 +88,7 @@ export async function GET(request: Request) {
       tradesHasMore,
       tradeStats: stats,
       tradeStatsNote:
-        "Trade-flow stats are for this trade batch only (offset pagination). Win rate uses full closed-position history. Polymarket’s public data API; not financial advice.",
+        "Trade-flow stats are for this trade batch only (offset pagination). Win rate uses full closed-position history.",
       polymarketProfileUrl: `https://polymarket.com/profile/${address}`,
     });
   } catch (e) {
