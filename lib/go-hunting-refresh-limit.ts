@@ -186,7 +186,7 @@ async function checkVipDailyLimit(userId: string, dailyLimit: number): Promise<G
     return {
       allowed: false,
       retryAfterSeconds,
-      message: `VIP Go Hunting refresh limit reached (${dailyLimit}/day). Try again after midnight UTC, or ask support if you need a higher limit.`,
+      message: `Daily market refresh limit reached (${dailyLimit}/day for Go Hunting, Trending, and Surge). Try again after midnight UTC, or ask support if you need a higher limit.`,
       limitReached: true,
       remainingToday: 0,
       dailyLimit,
@@ -241,8 +241,8 @@ export async function checkGoHuntingRefreshLimit(req: Request): Promise<GoHuntin
       const retryAfterSeconds = Math.ceil((requiredMs - elapsedMs) / 1000);
       const wait = formatRefreshWait(retryAfterSeconds);
       const message = userId
-        ? `Free accounts can refresh Go Hunting once every ${intervalMinutes} minute${intervalMinutes === 1 ? "" : "s"}. Try again in ${wait}, or upgrade to VIP for a higher daily refresh allowance.`
-        : `Guests can refresh Go Hunting once every ${intervalMinutes} minute${intervalMinutes === 1 ? "" : "s"}. Try again in ${wait}, or sign up free / upgrade to VIP for more access.`;
+        ? `Free accounts can refresh market data (Go Hunting, Trending, Surge) once every ${intervalMinutes} minute${intervalMinutes === 1 ? "" : "s"}. Try again in ${wait}, or upgrade to VIP for a higher daily allowance.`
+        : `Guests can refresh market data (Go Hunting, Trending, Surge) once every ${intervalMinutes} minute${intervalMinutes === 1 ? "" : "s"}. Try again in ${wait}, or sign up free / upgrade to VIP for more access.`;
       return { allowed: false, retryAfterSeconds, message, limitReached: true };
     }
   }

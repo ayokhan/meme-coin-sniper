@@ -672,7 +672,7 @@ export default function AdminFeatureFlagsPage() {
         const g = data.config as GoHuntingRefreshAdminState;
         setGoHuntingRefresh(g);
         setGoHuntingRefreshDraft(goHuntingRefreshToDraft(g));
-        setSuccessMessage("Go Hunting refresh limits updated.");
+        setSuccessMessage("Market refresh limits updated.");
         setTimeout(() => setSuccessMessage(""), 4000);
       } else setError(data.error ?? "Update failed");
     } catch {
@@ -878,12 +878,12 @@ export default function AdminFeatureFlagsPage() {
                 </div>
                 <div className="rounded-xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/30 dark:bg-amber-950/20 p-4 space-y-3">
                   <div>
-                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">Go Hunting refresh limits</p>
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">Market data refresh limits</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Limits Refresh / Scan for guests, free users, and VIP. Owner is always unlimited.
-                      Set VIP daily limit to <strong>0</strong> for unlimited VIP refreshes. Auto-refresh is off by
-                      default (saves Fluid Active CPU). Users only see an error if they exceed their limit — no
-                      proactive banner.
+                      Shared across <strong>Go Hunting (Sol + BSC)</strong>, <strong>Trending</strong>, and{" "}
+                      <strong>Surge</strong>. Owner is always unlimited. VIP daily limit default is 10 (set{" "}
+                      <strong>0</strong> for unlimited). Auto-refresh is off unless you turn it on. Users only see
+                      an error if they exceed the limit — no proactive banner.
                     </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -909,22 +909,44 @@ export default function AdminFeatureFlagsPage() {
                         className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
                       />
                     </label>
-                    <label className="flex items-center gap-2 sm:col-span-2">
-                      <input
-                        type="checkbox"
-                        checked={goHuntingRefreshDraft.guestAutoRefreshEnabled}
-                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, guestAutoRefreshEnabled: e.target.checked }))}
-                      />
-                      <span className="text-sm">Allow guest auto-refresh on Go Hunting (uses guest interval above)</span>
-                    </label>
-                    <label className="flex items-center gap-2 sm:col-span-2">
-                      <input
-                        type="checkbox"
-                        checked={goHuntingRefreshDraft.freeAutoRefreshEnabled}
-                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, freeAutoRefreshEnabled: e.target.checked }))}
-                      />
-                      <span className="text-sm">Allow free-member auto-refresh on Go Hunting</span>
-                    </label>
+                    <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300">Guest auto-refresh</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={goHuntingRefreshDraft.guestAutoRefreshEnabled ? "default" : "outline"}
+                        onClick={() => setGoHuntingRefreshDraft((d) => ({ ...d, guestAutoRefreshEnabled: true }))}
+                      >
+                        On
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={!goHuntingRefreshDraft.guestAutoRefreshEnabled ? "default" : "outline"}
+                        onClick={() => setGoHuntingRefreshDraft((d) => ({ ...d, guestAutoRefreshEnabled: false }))}
+                      >
+                        Off
+                      </Button>
+                    </div>
+                    <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300">Free-member auto-refresh</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={goHuntingRefreshDraft.freeAutoRefreshEnabled ? "default" : "outline"}
+                        onClick={() => setGoHuntingRefreshDraft((d) => ({ ...d, freeAutoRefreshEnabled: true }))}
+                      >
+                        On
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={!goHuntingRefreshDraft.freeAutoRefreshEnabled ? "default" : "outline"}
+                        onClick={() => setGoHuntingRefreshDraft((d) => ({ ...d, freeAutoRefreshEnabled: false }))}
+                      >
+                        Off
+                      </Button>
+                    </div>
                     <label className="space-y-1 sm:col-span-2">
                       <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Free auto-refresh interval (minutes)</span>
                       <input
@@ -937,7 +959,7 @@ export default function AdminFeatureFlagsPage() {
                       />
                     </label>
                     <label className="space-y-1">
-                      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">VIP daily refresh limit (0 = unlimited)</span>
+                      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">VIP daily shared limit (0 = unlimited)</span>
                       <input
                         type="number"
                         min={0}
@@ -958,18 +980,30 @@ export default function AdminFeatureFlagsPage() {
                         className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
                       />
                     </label>
-                    <label className="flex items-center gap-2 sm:col-span-2">
-                      <input
-                        type="checkbox"
-                        checked={goHuntingRefreshDraft.vipAutoRefreshEnabled}
-                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, vipAutoRefreshEnabled: e.target.checked }))}
-                      />
-                      <span className="text-sm">Allow VIP auto-refresh on Go Hunting (counts toward daily limit; pauses when tab is hidden)</span>
-                    </label>
+                    <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300">VIP auto-refresh (Go Hunting / Trending / Surge)</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={goHuntingRefreshDraft.vipAutoRefreshEnabled ? "default" : "outline"}
+                        onClick={() => setGoHuntingRefreshDraft((d) => ({ ...d, vipAutoRefreshEnabled: true }))}
+                      >
+                        On
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={!goHuntingRefreshDraft.vipAutoRefreshEnabled ? "default" : "outline"}
+                        onClick={() => setGoHuntingRefreshDraft((d) => ({ ...d, vipAutoRefreshEnabled: false }))}
+                      >
+                        Off
+                      </Button>
+                      <span className="text-xs text-muted-foreground">Counts toward daily limit; pauses when tab is hidden</span>
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <Button size="sm" onClick={patchGoHuntingRefresh} disabled={goHuntingRefreshSaving}>
-                      {goHuntingRefreshSaving ? "Saving…" : "Save Go Hunting limits"}
+                      {goHuntingRefreshSaving ? "Saving…" : "Save market refresh limits"}
                     </Button>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
@@ -979,7 +1013,7 @@ export default function AdminFeatureFlagsPage() {
                     {goHuntingRefresh.freeAutoRefreshEnabled
                       ? ` · auto every ${goHuntingRefresh.freeAutoRefreshMinutes}m`
                       : " · auto off"}{" "}
-                    · VIP: {goHuntingRefresh.vipDailyLimit === 0 ? "unlimited/day" : `${goHuntingRefresh.vipDailyLimit}/day`}
+                    · VIP: {goHuntingRefresh.vipDailyLimit === 0 ? "unlimited/day" : `${goHuntingRefresh.vipDailyLimit}/day shared`}
                     {goHuntingRefresh.vipAutoRefreshEnabled
                       ? ` · auto every ${goHuntingRefresh.vipAutoRefreshMinutes}m`
                       : " · auto off"}

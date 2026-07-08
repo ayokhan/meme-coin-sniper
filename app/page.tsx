@@ -2996,7 +2996,7 @@ export default function Dashboard() {
     }
   }, [perpRadarItems, activeTab, perpRadarView, isPaid, blofinInAppAlertsEnabled]);
 
-  // Auto-refresh current tab (skip ai-analysis, futures, etc.). Go Hunting: guest/free/VIP use admin limits; owner unlimited.
+  // Auto-refresh: Go Hunting / Trending / Surge share VIP daily limit; auto off unless admin enables.
   useEffect(() => {
     if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence") return;
     if (activeTab === "wallets") {
@@ -3010,27 +3010,34 @@ export default function Dashboard() {
       return () => clearInterval(interval);
     }
 
-    const isGoHuntingTab = activeTab === "new" || activeTab === "bsc";
+    const isMarketRefreshTab =
+      activeTab === "new" ||
+      activeTab === "bsc" ||
+      activeTab === "trending" ||
+      activeTab === "surge" ||
+      activeTab === "transactions";
+
+    if (!isMarketRefreshTab) {
+      const interval = setInterval(() => {
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+        fetchTokens(activeTab, false);
+      }, AUTO_REFRESH_SECONDS * 1000);
+      return () => clearInterval(interval);
+    }
+
     let intervalMs = AUTO_REFRESH_SECONDS * 1000;
 
-    if (isGoHuntingTab) {
-      if (isOwner) {
-        // Owner keeps a slow background refresh; still pauses when tab is hidden.
-        intervalMs = Math.max(1, goHuntingRefreshConfig.vipAutoRefreshMinutes || 5) * 60 * 1000;
-        if (!goHuntingRefreshConfig.vipAutoRefreshEnabled) {
-          // Even for owner, skip auto-refresh when VIP auto is off — manual refresh only.
-          return;
-        }
-      } else if (isVip) {
-        if (!goHuntingRefreshConfig.vipAutoRefreshEnabled) return;
-        intervalMs = Math.max(1, goHuntingRefreshConfig.vipAutoRefreshMinutes || 5) * 60 * 1000;
-      } else if (status === "unauthenticated") {
-        if (!goHuntingRefreshConfig.guestAutoRefreshEnabled) return;
-        intervalMs = Math.max(1, goHuntingRefreshConfig.guestIntervalMinutes) * 60 * 1000;
-      } else if (!isPaid) {
-        if (!goHuntingRefreshConfig.freeAutoRefreshEnabled) return;
-        intervalMs = Math.max(1, goHuntingRefreshConfig.freeAutoRefreshMinutes) * 60 * 1000;
-      }
+    if (isOwner || isVip) {
+      if (!goHuntingRefreshConfig.vipAutoRefreshEnabled) return;
+      intervalMs = Math.max(1, goHuntingRefreshConfig.vipAutoRefreshMinutes || 5) * 60 * 1000;
+    } else if (status === "unauthenticated") {
+      if (!goHuntingRefreshConfig.guestAutoRefreshEnabled) return;
+      intervalMs = Math.max(1, goHuntingRefreshConfig.guestIntervalMinutes) * 60 * 1000;
+    } else if (!isPaid) {
+      if (!goHuntingRefreshConfig.freeAutoRefreshEnabled) return;
+      intervalMs = Math.max(1, goHuntingRefreshConfig.freeAutoRefreshMinutes) * 60 * 1000;
+    } else {
+      return;
     }
 
     const interval = setInterval(() => {

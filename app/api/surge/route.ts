@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSurgeSolanaPairs, type DexPair, type SurgeWindow } from '@/lib/api-clients/dexscreener';
 import { getSessionAndSubscription } from '@/lib/auth-server';
+import { checkGoHuntingRefreshLimit } from '@/lib/go-hunting-refresh-limit';
 import { pairToMemeToken } from '@/lib/meme-token-out';
 
 const WINDOW_LABELS: Record<string, string> = {
@@ -46,6 +47,20 @@ export async function GET(request: Request) {
     if (!isPaid) {
       return NextResponse.json({ success: false, error: 'Subscribe to access Surge.', locked: true }, { status: 403 });
     }
+
+    const limitCheck = await checkGoHuntingRefreshLimit(request);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: limitCheck.message,
+          limitReached: true,
+          retryAfterSeconds: limitCheck.retryAfterSeconds,
+        },
+        { status: 429, headers: { 'Retry-After': String(limitCheck.retryAfterSeconds) } }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const windowParam = (searchParams.get('window') || 'h24').toLowerCase();
     const window: SurgeWindow =
