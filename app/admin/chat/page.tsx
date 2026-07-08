@@ -69,10 +69,26 @@ export default function AdminChatPage() {
 
   useEffect(() => {
     if (!canUseLiveChat) return;
-    const ping = () => fetch("/api/chat/presence", { method: "POST" }).catch(() => {});
-    ping();
-    presenceIntervalRef.current = setInterval(ping, 20000);
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((d: { liveSupportChatEnabled?: boolean }) => {
+        if (cancelled || !d.liveSupportChatEnabled) return;
+        const ping = () => {
+          if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+          fetch("/api/chat/presence", { method: "POST" }).catch(() => {});
+        };
+        ping();
+        interval = setInterval(ping, 60_000);
+        presenceIntervalRef.current = interval;
+      })
+      .catch(() => {});
+
     return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
       if (presenceIntervalRef.current) clearInterval(presenceIntervalRef.current);
     };
   }, [canUseLiveChat]);

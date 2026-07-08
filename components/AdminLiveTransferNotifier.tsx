@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
-const POLL_MS = 12_000;
+/** Poll only when live support is enabled; slower to cut Fluid Active CPU. */
+const POLL_MS = 45_000;
 const BANNER_MS = 22_000;
 
 type TransferRow = { sessionId: string; customerName: string | null; liveTransferAt: string };
@@ -14,6 +15,7 @@ export default function AdminLiveTransferNotifier() {
   const { data: session, status } = useSession();
   const isOwner = !!session?.user?.isOwner;
   const lastAfterRef = useRef<string | null>(null);
+  const [enabled, setEnabled] = useState(false);
   const [banners, setBanners] = useState<Array<{ key: string; name: string; sessionId: string }>>([]);
 
   const dismiss = useCallback((key: string) => {
@@ -22,18 +24,35 @@ export default function AdminLiveTransferNotifier() {
 
   useEffect(() => {
     if (status !== "authenticated" || !isOwner) return;
-    if (typeof Notification === "undefined") return;
-    if (Notification.permission !== "default") return;
-    void Notification.requestPermission();
+    let cancelled = false;
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((d: { liveSupportChatEnabled?: boolean }) => {
+        if (!cancelled) setEnabled(!!d.liveSupportChatEnabled);
+      })
+      .catch(() => {
+        if (!cancelled) setEnabled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [status, isOwner]);
 
   useEffect(() => {
-    if (status !== "authenticated" || !isOwner) return;
+    if (status !== "authenticated" || !isOwner || !enabled) return;
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission !== "default") return;
+    void Notification.requestPermission();
+  }, [status, isOwner, enabled]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !isOwner || !enabled) return;
 
     let cancelled = false;
 
     const poll = async () => {
       if (cancelled) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       if (lastAfterRef.current === null) {
         lastAfterRef.current = new Date().toISOString();
         return;
@@ -47,8 +66,13 @@ export default function AdminLiveTransferNotifier() {
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as {
           success?: boolean;
+          disabled?: boolean;
           transfers?: TransferRow[];
         };
+        if (data.disabled) {
+          setEnabled(false);
+          return;
+        }
         if (!data.success || !Array.isArray(data.transfers) || cancelled) return;
 
         let maxAfter = after;
@@ -88,18 +112,16 @@ export default function AdminLiveTransferNotifier() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [status, isOwner]);
+  }, [status, isOwner, enabled]);
 
   useEffect(() => {
-    const timers = banners.map((b) =>
-      setTimeout(() => dismiss(b.key), BANNER_MS)
-    );
+    const timers = banners.map((b) => setTimeout(() => dismiss(b.key), BANNER_MS));
     return () => {
       timers.forEach(clearTimeout);
     };
   }, [banners, dismiss]);
 
-  if (!isOwner || banners.length === 0) return null;
+  if (!isOwner || !enabled || banners.length === 0) return null;
 
   return (
     <div className="fixed top-16 right-4 z-[260] flex max-w-[min(100vw-2rem,22rem)] flex-col gap-2 pointer-events-none sm:top-20">

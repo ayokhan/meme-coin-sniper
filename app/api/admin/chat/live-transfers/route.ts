@@ -6,6 +6,12 @@ import { prisma } from '@/lib/db';
 /** GET - Live transfers after `after` (ISO). Owner-only. Used to alert owners when customers join live queue. */
 export async function GET(req: Request) {
   try {
+    const { getFeatureFlag, FEATURE_FLAG_KEYS } = await import('@/lib/feature-flags');
+    const liveChatOn = await getFeatureFlag(FEATURE_FLAG_KEYS.LIVE_SUPPORT_CHAT);
+    if (!liveChatOn) {
+      return NextResponse.json({ success: true, transfers: [], disabled: true });
+    }
+
     const session = await getServerSession(authOptions);
     if (!isOwnerSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });

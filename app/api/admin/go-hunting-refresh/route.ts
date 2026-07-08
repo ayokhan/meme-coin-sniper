@@ -32,6 +32,11 @@ export async function PATCH(request: Request) {
       body.freeAutoRefreshEnabled !== undefined ? !!body.freeAutoRefreshEnabled : undefined,
     freeAutoRefreshMinutes:
       body.freeAutoRefreshMinutes !== undefined ? Number(body.freeAutoRefreshMinutes) : undefined,
+    vipDailyLimit: body.vipDailyLimit !== undefined ? Number(body.vipDailyLimit) : undefined,
+    vipAutoRefreshEnabled:
+      body.vipAutoRefreshEnabled !== undefined ? !!body.vipAutoRefreshEnabled : undefined,
+    vipAutoRefreshMinutes:
+      body.vipAutoRefreshMinutes !== undefined ? Number(body.vipAutoRefreshMinutes) : undefined,
   });
   return NextResponse.json({ success: true, config });
 }

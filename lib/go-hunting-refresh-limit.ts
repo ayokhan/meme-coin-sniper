@@ -9,6 +9,10 @@ export type GoHuntingRefreshConfig = {
   guestAutoRefreshEnabled: boolean;
   freeAutoRefreshEnabled: boolean;
   freeAutoRefreshMinutes: number;
+  /** Max VIP Go Hunting refreshes per UTC day. 0 = unlimited. */
+  vipDailyLimit: number;
+  vipAutoRefreshEnabled: boolean;
+  vipAutoRefreshMinutes: number;
 };
 
 const DEFAULT_CONFIG: GoHuntingRefreshConfig = {
@@ -17,9 +21,14 @@ const DEFAULT_CONFIG: GoHuntingRefreshConfig = {
   guestAutoRefreshEnabled: false,
   freeAutoRefreshEnabled: false,
   freeAutoRefreshMinutes: 60,
+  vipDailyLimit: 10,
+  vipAutoRefreshEnabled: false,
+  vipAutoRefreshMinutes: 5,
 };
 
 type ConfigRow = GoHuntingRefreshConfig & { updatedAt?: Date };
+
+type CooldownRow = { lastRefreshAt: Date; refreshCount?: number };
 
 type CooldownDb = {
   goHuntingRefreshConfig?: {
@@ -31,11 +40,11 @@ type CooldownDb = {
     }) => Promise<unknown>;
   };
   goHuntingRefreshCooldown?: {
-    findUnique: (args: { where: { subjectKey: string } }) => Promise<{ lastRefreshAt: Date } | null>;
+    findUnique: (args: { where: { subjectKey: string } }) => Promise<CooldownRow | null>;
     upsert: (args: {
       where: { subjectKey: string };
-      create: { subjectKey: string; lastRefreshAt: Date };
-      update: { lastRefreshAt: Date };
+      create: { subjectKey: string; lastRefreshAt: Date; refreshCount?: number };
+      update: { lastRefreshAt: Date; refreshCount?: number };
     }) => Promise<unknown>;
   };
 };
@@ -49,6 +58,15 @@ function clampMinutes(n: number, fallback: number): number {
   return Math.max(0, Math.min(24 * 60, Math.round(n)));
 }
 
+function clampDailyLimit(n: number, fallback: number): number {
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(10_000, Math.round(n)));
+}
+
+function utcDayKey(d = new Date()): string {
+  return d.toISOString().slice(0, 10);
+}
+
 function rowToConfig(row: ConfigRow | null): GoHuntingRefreshConfig {
   if (!row) return DEFAULT_CONFIG;
   return {
@@ -57,6 +75,14 @@ function rowToConfig(row: ConfigRow | null): GoHuntingRefreshConfig {
     guestAutoRefreshEnabled: !!row.guestAutoRefreshEnabled,
     freeAutoRefreshEnabled: !!row.freeAutoRefreshEnabled,
     freeAutoRefreshMinutes: clampMinutes(row.freeAutoRefreshMinutes, DEFAULT_CONFIG.freeAutoRefreshMinutes) || 60,
+    vipDailyLimit: clampDailyLimit(
+      row.vipDailyLimit ?? DEFAULT_CONFIG.vipDailyLimit,
+      DEFAULT_CONFIG.vipDailyLimit
+    ),
+    vipAutoRefreshEnabled: row.vipAutoRefreshEnabled ?? DEFAULT_CONFIG.vipAutoRefreshEnabled,
+    vipAutoRefreshMinutes:
+      clampMinutes(row.vipAutoRefreshMinutes ?? DEFAULT_CONFIG.vipAutoRefreshMinutes, DEFAULT_CONFIG.vipAutoRefreshMinutes) ||
+      5,
   };
 }
 
@@ -86,6 +112,15 @@ export async function setGoHuntingRefreshConfig(input: Partial<GoHuntingRefreshC
       input.freeAutoRefreshMinutes !== undefined
         ? clampMinutes(input.freeAutoRefreshMinutes, current.freeAutoRefreshMinutes) || 60
         : current.freeAutoRefreshMinutes,
+    vipDailyLimit:
+      input.vipDailyLimit !== undefined
+        ? clampDailyLimit(input.vipDailyLimit, current.vipDailyLimit)
+        : current.vipDailyLimit,
+    vipAutoRefreshEnabled: input.vipAutoRefreshEnabled ?? current.vipAutoRefreshEnabled,
+    vipAutoRefreshMinutes:
+      input.vipAutoRefreshMinutes !== undefined
+        ? clampMinutes(input.vipAutoRefreshMinutes, current.vipAutoRefreshMinutes) || 5
+        : current.vipAutoRefreshMinutes,
   };
   const configDb = db().goHuntingRefreshConfig;
   if (!configDb) return next;
@@ -117,27 +152,79 @@ export function formatRefreshWait(seconds: number): string {
 
 export type GoHuntingRefreshCheck =
   | { allowed: true; unlimited: true }
-  | { allowed: true; unlimited: false; intervalMinutes: number }
-  | { allowed: false; retryAfterSeconds: number; message: string; limitReached: true };
+  | { allowed: true; unlimited: false; intervalMinutes: number; remainingToday?: number; dailyLimit?: number }
+  | {
+      allowed: false;
+      retryAfterSeconds: number;
+      message: string;
+      limitReached: true;
+      remainingToday?: number;
+      dailyLimit?: number;
+    };
 
 export async function isUnlimitedRefreshUser(): Promise<boolean> {
-  const { session, isPaid, tier } = await getSessionAndSubscription();
+  const { session } = await getSessionAndSubscription();
   if (session?.user?.email && isOwnerEmail(session.user.email)) return true;
-  if (isPaid || tier === "vip" || tier === "pro") return true;
   return false;
 }
 
-/** Enforce cooldown for guest + free members on Go Hunting fetch/scan. VIP/owner skip. */
+async function checkVipDailyLimit(userId: string, dailyLimit: number): Promise<GoHuntingRefreshCheck> {
+  if (dailyLimit <= 0) {
+    return { allowed: true, unlimited: true };
+  }
+
+  const day = utcDayKey();
+  const subjectKey = `vip:${userId}:${day}`;
+  const cooldownDb = db().goHuntingRefreshCooldown;
+  const existing = cooldownDb ? await cooldownDb.findUnique({ where: { subjectKey } }) : null;
+  const used = existing?.refreshCount ?? 0;
+
+  if (used >= dailyLimit) {
+    const now = new Date();
+    const tomorrowUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+    const retryAfterSeconds = Math.max(1, Math.ceil((tomorrowUtc - now.getTime()) / 1000));
+    return {
+      allowed: false,
+      retryAfterSeconds,
+      message: `VIP Go Hunting refresh limit reached (${dailyLimit}/day). Try again after midnight UTC, or ask support if you need a higher limit.`,
+      limitReached: true,
+      remainingToday: 0,
+      dailyLimit,
+    };
+  }
+
+  if (cooldownDb) {
+    const at = new Date();
+    await cooldownDb.upsert({
+      where: { subjectKey },
+      create: { subjectKey, lastRefreshAt: at, refreshCount: 1 },
+      update: { lastRefreshAt: at, refreshCount: used + 1 },
+    });
+  }
+
+  return {
+    allowed: true,
+    unlimited: false,
+    intervalMinutes: 0,
+    remainingToday: Math.max(0, dailyLimit - used - 1),
+    dailyLimit,
+  };
+}
+
+/** Enforce cooldown / daily caps for Go Hunting fetch/scan. Owner skips. */
 export async function checkGoHuntingRefreshLimit(req: Request): Promise<GoHuntingRefreshCheck> {
   const { session, userId, isPaid, tier } = await getSessionAndSubscription();
   if (session?.user?.email && isOwnerEmail(session.user.email)) {
     return { allowed: true, unlimited: true };
   }
-  if (isPaid || tier === "vip" || tier === "pro") {
-    return { allowed: true, unlimited: true };
-  }
 
   const config = await getGoHuntingRefreshConfig();
+  const isVip = !!(isPaid || tier === "vip" || tier === "pro");
+
+  if (isVip && userId) {
+    return checkVipDailyLimit(userId, config.vipDailyLimit);
+  }
+
   const intervalMinutes = userId ? config.freeMemberIntervalMinutes : config.guestIntervalMinutes;
   if (intervalMinutes <= 0) {
     return { allowed: true, unlimited: false, intervalMinutes: 0 };
@@ -154,7 +241,7 @@ export async function checkGoHuntingRefreshLimit(req: Request): Promise<GoHuntin
       const retryAfterSeconds = Math.ceil((requiredMs - elapsedMs) / 1000);
       const wait = formatRefreshWait(retryAfterSeconds);
       const message = userId
-        ? `Free accounts can refresh Go Hunting once every ${intervalMinutes} minute${intervalMinutes === 1 ? "" : "s"}. Try again in ${wait}, or upgrade to VIP for unlimited refresh.`
+        ? `Free accounts can refresh Go Hunting once every ${intervalMinutes} minute${intervalMinutes === 1 ? "" : "s"}. Try again in ${wait}, or upgrade to VIP for a higher daily refresh allowance.`
         : `Guests can refresh Go Hunting once every ${intervalMinutes} minute${intervalMinutes === 1 ? "" : "s"}. Try again in ${wait}, or sign up free / upgrade to VIP for more access.`;
       return { allowed: false, retryAfterSeconds, message, limitReached: true };
     }
@@ -164,7 +251,7 @@ export async function checkGoHuntingRefreshLimit(req: Request): Promise<GoHuntin
     const at = new Date();
     await cooldownDb.upsert({
       where: { subjectKey },
-      create: { subjectKey, lastRefreshAt: at },
+      create: { subjectKey, lastRefreshAt: at, refreshCount: 1 },
       update: { lastRefreshAt: at },
     });
   }

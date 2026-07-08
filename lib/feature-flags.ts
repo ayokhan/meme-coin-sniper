@@ -131,6 +131,12 @@ export const FEATURE_FLAG_KEYS = {
   ANALYTICS_PING_ENABLED: 'analytics_ping_enabled',
   /** Owner Admin → Metrics live activity panel (30s polling + DB reads). When OFF, panel shows disabled. Default ON. */
   LIVE_ACTIVITY_ENABLED: 'live_activity_enabled',
+  /**
+   * Need Help widget + owner live-transfer polling + agent presence heartbeats.
+   * When OFF: widget hidden, /api/admin/chat/live-transfers stops, presence heartbeats skip.
+   * Default OFF (turn on only when staffing live chat).
+   */
+  LIVE_SUPPORT_CHAT: 'live_support_chat',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -162,6 +168,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_FOREX_FIB,
   FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_AGENT,
   FEATURE_FLAG_KEYS.AI_ANALYSIS_RAG,
+  FEATURE_FLAG_KEYS.LIVE_SUPPORT_CHAT,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {

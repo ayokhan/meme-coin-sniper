@@ -178,6 +178,9 @@ type GoHuntingRefreshConfigState = {
   guestAutoRefreshEnabled: boolean;
   freeAutoRefreshEnabled: boolean;
   freeAutoRefreshMinutes: number;
+  vipDailyLimit: number;
+  vipAutoRefreshEnabled: boolean;
+  vipAutoRefreshMinutes: number;
 };
 const DEFAULT_GO_HUNTING_REFRESH: GoHuntingRefreshConfigState = {
   guestIntervalMinutes: 60,
@@ -185,6 +188,9 @@ const DEFAULT_GO_HUNTING_REFRESH: GoHuntingRefreshConfigState = {
   guestAutoRefreshEnabled: false,
   freeAutoRefreshEnabled: false,
   freeAutoRefreshMinutes: 60,
+  vipDailyLimit: 10,
+  vipAutoRefreshEnabled: false,
+  vipAutoRefreshMinutes: 5,
 };
 const LEVERAGE_TRADER_FAVORITES_LS_KEY = "novastaris-leverage-trader-favorites";
 
@@ -384,6 +390,7 @@ export default function Dashboard() {
   const [topTabFilter, setTopTabFilter] = useState<TopTabFilter>("all");
   const [pageTabFlags, setPageTabFlags] = useState<Record<string, boolean> | null>(null);
   const [pageTabFlagsLoaded, setPageTabFlagsLoaded] = useState(false);
+  const [liveSupportChatEnabled, setLiveSupportChatEnabled] = useState(false);
   const [tabNewBadges, setTabNewBadges] = useState<Record<string, string>>({});
   const [sitePromo, setSitePromo] = useState<PromoBannerAdmin | null>(null);
   const [memeAgentBanner, setMemeAgentBanner] = useState<MemeAgentBannerAdmin | null>(null);
@@ -404,7 +411,10 @@ export default function Dashboard() {
     ])
       .then(([flagsData, badgesData, promoData, memeBannerData, memeTableHintData, guestNudgeData]) => {
         if (cancelled) return;
-        if (flagsData?.success) setPageTabFlags(flagsData.flags ?? {});
+        if (flagsData?.success) {
+          setPageTabFlags(flagsData.flags ?? {});
+          setLiveSupportChatEnabled(!!flagsData.liveSupportChatEnabled);
+        }
         if (badgesData?.success) setTabNewBadges(badgesData.badges ?? {});
         if (promoData?.success) setSitePromo(promoData.promo ?? null);
         if (memeBannerData?.success) setMemeAgentBanner(memeBannerData.banner ?? null);
@@ -566,13 +576,14 @@ export default function Dashboard() {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [status, fetchSubscription]);
 
-  // Poll on-demand access so admin enable/disable changes reflect instantly (no logout required).
+  // Poll on-demand access so admin enable/disable changes reflect (paused when tab hidden).
   useEffect(() => {
     if (status !== "authenticated") return;
 
     let cancelled = false;
     const load = async () => {
       try {
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
         const r = await fetch("/api/user/on-demand-access", { cache: "no-store", credentials: "include" });
         const d = await r.json();
         if (cancelled) return;
@@ -586,7 +597,7 @@ export default function Dashboard() {
     };
 
     load();
-    const interval = setInterval(load, 15000);
+    const interval = setInterval(load, 60_000);
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -800,14 +811,17 @@ export default function Dashboard() {
     return () => document.removeEventListener("click", close);
   }, [adminMenuOpen]);
 
-  // Mark live agent as online when owner has dashboard open (so Nja shows "live agent available")
+  // Mark live agent as online when owner has dashboard open (only if live support chat is enabled)
   useEffect(() => {
-    if (status !== "authenticated" || !canPingLivePresence) return;
-    const ping = () => fetch("/api/chat/presence", { method: "POST" }).catch(() => {});
+    if (status !== "authenticated" || !canPingLivePresence || !liveSupportChatEnabled) return;
+    const ping = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      fetch("/api/chat/presence", { method: "POST" }).catch(() => {});
+    };
     ping();
-    const interval = setInterval(ping, 20000);
+    const interval = setInterval(ping, 60_000);
     return () => clearInterval(interval);
-  }, [status, canPingLivePresence]);
+  }, [status, canPingLivePresence, liveSupportChatEnabled]);
 
   // Load NovaConnect rules acceptance from localStorage and profile when needed
   useEffect(() => {
@@ -2982,11 +2996,12 @@ export default function Dashboard() {
     }
   }, [perpRadarItems, activeTab, perpRadarView, isPaid, blofinInAppAlertsEnabled]);
 
-  // Auto-refresh current tab (skip ai-analysis, futures, etc.). Go Hunting: guest/free use admin limits; VIP unlimited.
+  // Auto-refresh current tab (skip ai-analysis, futures, etc.). Go Hunting: guest/free/VIP use admin limits; owner unlimited.
   useEffect(() => {
     if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
         if (walletTrackerView === "meme") {
           fetchTrackedWallets();
           if (liveTradesEnabled && canAccessMemeCoinsTraderEffective) fetchWalletTrades();
@@ -2996,11 +3011,20 @@ export default function Dashboard() {
     }
 
     const isGoHuntingTab = activeTab === "new" || activeTab === "bsc";
-    const unlimitedRefresh = isVip || isOwner;
     let intervalMs = AUTO_REFRESH_SECONDS * 1000;
 
-    if (isGoHuntingTab && !unlimitedRefresh) {
-      if (status === "unauthenticated") {
+    if (isGoHuntingTab) {
+      if (isOwner) {
+        // Owner keeps a slow background refresh; still pauses when tab is hidden.
+        intervalMs = Math.max(1, goHuntingRefreshConfig.vipAutoRefreshMinutes || 5) * 60 * 1000;
+        if (!goHuntingRefreshConfig.vipAutoRefreshEnabled) {
+          // Even for owner, skip auto-refresh when VIP auto is off — manual refresh only.
+          return;
+        }
+      } else if (isVip) {
+        if (!goHuntingRefreshConfig.vipAutoRefreshEnabled) return;
+        intervalMs = Math.max(1, goHuntingRefreshConfig.vipAutoRefreshMinutes || 5) * 60 * 1000;
+      } else if (status === "unauthenticated") {
         if (!goHuntingRefreshConfig.guestAutoRefreshEnabled) return;
         intervalMs = Math.max(1, goHuntingRefreshConfig.guestIntervalMinutes) * 60 * 1000;
       } else if (!isPaid) {
@@ -3009,7 +3033,10 @@ export default function Dashboard() {
       }
     }
 
-    const interval = setInterval(() => fetchTokens(activeTab, false), intervalMs);
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      fetchTokens(activeTab, false);
+    }, intervalMs);
     return () => clearInterval(interval);
   }, [
     activeTab,

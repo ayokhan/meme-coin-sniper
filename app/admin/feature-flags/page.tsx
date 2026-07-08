@@ -48,6 +48,9 @@ type GoHuntingRefreshAdminState = {
   guestAutoRefreshEnabled: boolean;
   freeAutoRefreshEnabled: boolean;
   freeAutoRefreshMinutes: number;
+  vipDailyLimit: number;
+  vipAutoRefreshEnabled: boolean;
+  vipAutoRefreshMinutes: number;
 };
 
 type GoHuntingRefreshDraft = {
@@ -56,6 +59,9 @@ type GoHuntingRefreshDraft = {
   guestAutoRefreshEnabled: boolean;
   freeAutoRefreshEnabled: boolean;
   freeAutoRefreshMinutes: string;
+  vipDailyLimit: string;
+  vipAutoRefreshEnabled: boolean;
+  vipAutoRefreshMinutes: string;
 };
 
 const DEFAULT_GO_HUNTING_REFRESH_ADMIN: GoHuntingRefreshAdminState = {
@@ -64,6 +70,9 @@ const DEFAULT_GO_HUNTING_REFRESH_ADMIN: GoHuntingRefreshAdminState = {
   guestAutoRefreshEnabled: false,
   freeAutoRefreshEnabled: false,
   freeAutoRefreshMinutes: 60,
+  vipDailyLimit: 10,
+  vipAutoRefreshEnabled: false,
+  vipAutoRefreshMinutes: 5,
 };
 
 function goHuntingRefreshToDraft(c: GoHuntingRefreshAdminState): GoHuntingRefreshDraft {
@@ -73,6 +82,9 @@ function goHuntingRefreshToDraft(c: GoHuntingRefreshAdminState): GoHuntingRefres
     guestAutoRefreshEnabled: c.guestAutoRefreshEnabled,
     freeAutoRefreshEnabled: c.freeAutoRefreshEnabled,
     freeAutoRefreshMinutes: String(c.freeAutoRefreshMinutes),
+    vipDailyLimit: String(c.vipDailyLimit),
+    vipAutoRefreshEnabled: c.vipAutoRefreshEnabled,
+    vipAutoRefreshMinutes: String(c.vipAutoRefreshMinutes),
   };
 }
 
@@ -114,7 +126,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
   {
     id: "ops",
     title: "Vercel & usage (cost control)",
-    match: (k) => k === "vercel_cron_enabled" || k === "analytics_ping_enabled" || k === "live_activity_enabled",
+    match: (k) =>
+      k === "vercel_cron_enabled" ||
+      k === "analytics_ping_enabled" ||
+      k === "live_activity_enabled" ||
+      k === "live_support_chat",
   },
   { id: "ai", title: "AI experiments", match: (k) => k.startsWith("ai_") || k.startsWith("nova_ai_agent") },
   { id: "moralis", title: "API & notifications", match: (k) => k.startsWith("moralis_") || k.startsWith("telegram_") || k === "live_trades_enabled" },
@@ -462,6 +478,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, the owner Live activity section polls every 30s while Admin → Metrics is open. When OFF, that panel is disabled (stops polling and heavy DB reads). Turn OFF when you are not watching who is online.",
   },
+  live_support_chat: {
+    label: "Live support chat (Need Help + admin inbox alerts)",
+    description:
+      "When ON, customers see the Need Help widget and owner live-transfer polling / agent presence heartbeats run. When OFF (default), the widget is hidden and those polls stop — turn ON only when you are staffing live chat. Saves Fluid Active CPU.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {
@@ -616,8 +637,16 @@ export default function AdminFeatureFlagsPage() {
     const guest = Number(goHuntingRefreshDraft.guestIntervalMinutes);
     const free = Number(goHuntingRefreshDraft.freeMemberIntervalMinutes);
     const freeAuto = Number(goHuntingRefreshDraft.freeAutoRefreshMinutes);
-    if (!Number.isFinite(guest) || !Number.isFinite(free) || !Number.isFinite(freeAuto)) {
-      setError("Enter valid minute values for Go Hunting refresh.");
+    const vipDaily = Number(goHuntingRefreshDraft.vipDailyLimit);
+    const vipAuto = Number(goHuntingRefreshDraft.vipAutoRefreshMinutes);
+    if (
+      !Number.isFinite(guest) ||
+      !Number.isFinite(free) ||
+      !Number.isFinite(freeAuto) ||
+      !Number.isFinite(vipDaily) ||
+      !Number.isFinite(vipAuto)
+    ) {
+      setError("Enter valid values for Go Hunting refresh.");
       return;
     }
     setGoHuntingRefreshSaving(true);
@@ -633,6 +662,9 @@ export default function AdminFeatureFlagsPage() {
           guestAutoRefreshEnabled: goHuntingRefreshDraft.guestAutoRefreshEnabled,
           freeAutoRefreshEnabled: goHuntingRefreshDraft.freeAutoRefreshEnabled,
           freeAutoRefreshMinutes: freeAuto,
+          vipDailyLimit: vipDaily,
+          vipAutoRefreshEnabled: goHuntingRefreshDraft.vipAutoRefreshEnabled,
+          vipAutoRefreshMinutes: vipAuto,
         }),
       });
       const data = await res.json();
@@ -848,8 +880,10 @@ export default function AdminFeatureFlagsPage() {
                   <div>
                     <p className="font-semibold text-zinc-900 dark:text-zinc-100">Go Hunting refresh limits</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Limits manual Refresh and Scan new pairs for guests and free (non-VIP) users. VIP and owner are unlimited.
-                      Set <strong>0</strong> minutes to disable the cooldown for that tier. Auto-refresh for Go Hunting is off by default for guests/free (saves Vercel CPU).
+                      Limits Refresh / Scan for guests, free users, and VIP. Owner is always unlimited.
+                      Set VIP daily limit to <strong>0</strong> for unlimited VIP refreshes. Auto-refresh is off by
+                      default (saves Fluid Active CPU). Users only see an error if they exceed their limit — no
+                      proactive banner.
                     </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -902,6 +936,36 @@ export default function AdminFeatureFlagsPage() {
                         className="w-full max-w-xs rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
                       />
                     </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">VIP daily refresh limit (0 = unlimited)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={10000}
+                        value={goHuntingRefreshDraft.vipDailyLimit}
+                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, vipDailyLimit: e.target.value }))}
+                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">VIP auto-refresh interval (minutes)</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={1440}
+                        value={goHuntingRefreshDraft.vipAutoRefreshMinutes}
+                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, vipAutoRefreshMinutes: e.target.value }))}
+                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 sm:col-span-2">
+                      <input
+                        type="checkbox"
+                        checked={goHuntingRefreshDraft.vipAutoRefreshEnabled}
+                        onChange={(e) => setGoHuntingRefreshDraft((d) => ({ ...d, vipAutoRefreshEnabled: e.target.checked }))}
+                      />
+                      <span className="text-sm">Allow VIP auto-refresh on Go Hunting (counts toward daily limit; pauses when tab is hidden)</span>
+                    </label>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <Button size="sm" onClick={patchGoHuntingRefresh} disabled={goHuntingRefreshSaving}>
@@ -910,9 +974,14 @@ export default function AdminFeatureFlagsPage() {
                   </div>
                   <p className="text-[11px] text-muted-foreground">
                     Current — Guest: {goHuntingRefresh.guestIntervalMinutes}m manual
-                    {goHuntingRefresh.guestAutoRefreshEnabled ? " · auto on" : " · auto off"} · Free: {goHuntingRefresh.freeMemberIntervalMinutes}m manual
+                    {goHuntingRefresh.guestAutoRefreshEnabled ? " · auto on" : " · auto off"} · Free:{" "}
+                    {goHuntingRefresh.freeMemberIntervalMinutes}m manual
                     {goHuntingRefresh.freeAutoRefreshEnabled
                       ? ` · auto every ${goHuntingRefresh.freeAutoRefreshMinutes}m`
+                      : " · auto off"}{" "}
+                    · VIP: {goHuntingRefresh.vipDailyLimit === 0 ? "unlimited/day" : `${goHuntingRefresh.vipDailyLimit}/day`}
+                    {goHuntingRefresh.vipAutoRefreshEnabled
+                      ? ` · auto every ${goHuntingRefresh.vipAutoRefreshMinutes}m`
                       : " · auto off"}
                   </p>
                 </div>

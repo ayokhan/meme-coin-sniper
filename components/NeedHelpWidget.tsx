@@ -71,6 +71,8 @@ function getSubscriptionReply(): string {
 type Message = { id: string; role: string; content: string; agentDisplayName?: string | null; createdAt: string };
 
 export default function NeedHelpWidget() {
+  const [liveSupportEnabled, setLiveSupportEnabled] = useState(false);
+  const [flagsLoaded, setFlagsLoaded] = useState(false);
   const [open, setOpen] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -88,6 +90,24 @@ export default function NeedHelpWidget() {
   const [view, setView] = useState<"welcome" | "subscription" | "chat">("welcome");
   const [showOutOfScopeChoice, setShowOutOfScopeChoice] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((d: { liveSupportChatEnabled?: boolean }) => {
+        if (!cancelled) setLiveSupportEnabled(!!d.liveSupportChatEnabled);
+      })
+      .catch(() => {
+        if (!cancelled) setLiveSupportEnabled(false);
+      })
+      .finally(() => {
+        if (!cancelled) setFlagsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const hasStarted = view === "chat" && messages.length > 0;
   const showSubscriptionInfo = view === "subscription";
@@ -363,6 +383,8 @@ export default function NeedHelpWidget() {
     setOpen(false);
     setMinimized(false);
   };
+
+  if (!flagsLoaded || !liveSupportEnabled) return null;
 
   return (
     <>

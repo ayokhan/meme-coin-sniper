@@ -240,7 +240,7 @@ model AiAgentQuotaConfig {
   updatedAt                    DateTime @updatedAt
 }
 
-/** Admin-tunable cooldown for Go Hunting manual refresh (guest + free tier). VIP/owner bypass. */
+/** Admin-tunable Go Hunting refresh limits (guest / free / VIP). Owner bypasses all limits. */
 model GoHuntingRefreshConfig {
   id                         String   @id @default("default")
   guestIntervalMinutes       Int      @default(60)
@@ -248,13 +248,18 @@ model GoHuntingRefreshConfig {
   guestAutoRefreshEnabled    Boolean  @default(false)
   freeAutoRefreshEnabled     Boolean  @default(false)
   freeAutoRefreshMinutes     Int      @default(60)
+  /** Max Go Hunting refresh/scan calls per UTC day for VIP. 0 = unlimited. Default 10. */
+  vipDailyLimit              Int      @default(10)
+  vipAutoRefreshEnabled      Boolean  @default(false)
+  vipAutoRefreshMinutes      Int      @default(5)
   updatedAt                  DateTime @updatedAt
 }
 
-/** Last Go Hunting refresh per guest IP or signed-in user (free tier cooldown tracking). */
+/** Last Go Hunting refresh per guest IP / free user; VIP daily counters use refreshCount. */
 model GoHuntingRefreshCooldown {
   subjectKey    String   @id
   lastRefreshAt DateTime
+  refreshCount  Int      @default(0)
   updatedAt     DateTime @updatedAt
 }
 

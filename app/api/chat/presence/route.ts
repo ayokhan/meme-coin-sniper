@@ -21,6 +21,12 @@ export async function GET() {
 /** POST - Agent heartbeat (owner or live chat agent). Body { offline: true } = mark agent offline now (e.g. on sign out). */
 export async function POST(req: Request) {
   try {
+    const { getFeatureFlag, FEATURE_FLAG_KEYS } = await import('@/lib/feature-flags');
+    const liveChatOn = await getFeatureFlag(FEATURE_FLAG_KEYS.LIVE_SUPPORT_CHAT);
+    if (!liveChatOn) {
+      return NextResponse.json({ success: true, disabled: true });
+    }
+
     const session = await getServerSession(authOptions);
     if (!canAccessLiveChatAgentSession(session)) {
       return NextResponse.json({ success: false, error: 'Not authorized.' }, { status: 403 });
