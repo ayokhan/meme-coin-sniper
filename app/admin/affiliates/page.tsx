@@ -24,17 +24,34 @@ type Row = {
   createdAt: string;
 };
 
+type LinkedRow = {
+  refereeId: string;
+  refereeEmail: string | null;
+  refereeName: string | null;
+  refereeRegisteredAt: string;
+  referrerEmail: string | null;
+  referrerName: string | null;
+  referrerCode: string | null;
+  hasCommission: boolean;
+};
+
 export default function AdminAffiliatesPage() {
   const { data: session, status } = useSession();
   const [month, setMonth] = useState("");
   const [date, setDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
+  const [linkedRows, setLinkedRows] = useState<LinkedRow[]>([]);
   const [canEdit, setCanEdit] = useState(false);
   const [stats, setStats] = useState({ count: 0, pendingUsd: 0, paidUsd: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [linkReferrer, setLinkReferrer] = useState("");
+  const [linkReferee, setLinkReferee] = useState("");
+  const [linkNotes, setLinkNotes] = useState("");
+  const [linkSaving, setLinkSaving] = useState(false);
+  const [linkMessage, setLinkMessage] = useState<string | null>(null);
 
   const allowed = canViewAdminAffiliateSession(session);
 
@@ -54,6 +71,7 @@ export default function AdminAffiliatesPage() {
         return;
       }
       setRows(data.commissions ?? []);
+      setLinkedRows(data.linkedReferrals ?? []);
       setCanEdit(!!data.canEdit);
       setStats(data.stats ?? { count: 0, pendingUsd: 0, paidUsd: 0 });
     } catch {
@@ -89,6 +107,60 @@ export default function AdminAffiliatesPage() {
     }
   };
 
+  const syncCommission = async (refereeId: string, refereeEmail: string | null) => {
+    if (!canEdit) return;
+    setSavingId(refereeId);
+    try {
+      const res = await fetch("/api/admin/affiliates/sync", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refereeQuery: refereeEmail || refereeId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.error ?? "Sync failed.");
+        return;
+      }
+      await load();
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const submitManualLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canEdit) return;
+    setLinkSaving(true);
+    setLinkMessage(null);
+    try {
+      const res = await fetch("/api/admin/affiliates/link", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          referrerQuery: linkReferrer.trim(),
+          refereeQuery: linkReferee.trim(),
+          notes: linkNotes.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setLinkMessage(data.error ?? "Link failed.");
+        return;
+      }
+      setLinkMessage(data.message ?? "Referral linked.");
+      setLinkReferrer("");
+      setLinkReferee("");
+      setLinkNotes("");
+      await load();
+    } catch {
+      setLinkMessage("Network error.");
+    } finally {
+      setLinkSaving(false);
+    }
+  };
+
   if (status === "loading") {
     return <p className="text-sm text-muted-foreground py-8">Loading…</p>;
   }
@@ -117,6 +189,61 @@ export default function AdminAffiliatesPage() {
         <div className="rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50/50 p-3 text-sm text-rose-700 dark:text-rose-300">
           {error}
         </div>
+      )}
+
+      {canEdit && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Manually link referral</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Use when you verified someone was invited but did not use the referral link at signup. Creates a
+              commission if the invitee has VIP (including admin grants).
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={(e) => void submitManualLink(e)} className="space-y-3">
+              <div className="grid sm:grid-cols-2 gap-3">
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  Referrer (email or code)
+                  <input
+                    value={linkReferrer}
+                    onChange={(e) => setLinkReferrer(e.target.value)}
+                    placeholder="referrer@email.com or 3fNcdD"
+                    className="text-sm rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5"
+                    required
+                  />
+                </label>
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  Invitee (email)
+                  <input
+                    value={linkReferee}
+                    onChange={(e) => setLinkReferee(e.target.value)}
+                    placeholder="invitee@email.com"
+                    className="text-sm rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5"
+                    required
+                  />
+                </label>
+              </div>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Notes (optional)
+                <input
+                  value={linkNotes}
+                  onChange={(e) => setLinkNotes(e.target.value)}
+                  placeholder="Verified via support ticket #123"
+                  className="text-sm rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5"
+                />
+              </label>
+              {linkMessage && (
+                <p className={`text-sm ${linkMessage.includes("failed") || linkMessage.includes("not found") ? "text-rose-600" : "text-emerald-600"}`}>
+                  {linkMessage}
+                </p>
+              )}
+              <Button type="submit" size="sm" disabled={linkSaving}>
+                {linkSaving ? "Linking…" : "Link referral & create commission"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid sm:grid-cols-3 gap-3">
@@ -225,6 +352,75 @@ export default function AdminAffiliatesPage() {
                             <span className="text-xs text-muted-foreground">
                               {r.paidAt ? new Date(r.paidAt).toLocaleDateString() : "Paid"}
                             </span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Linked referrals</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Users attributed to a referrer. If VIP was granted manually and no commission appears above, use
+            &quot;Create commission&quot;.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : linkedRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No linked referrals for this filter.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground border-b border-zinc-200 dark:border-zinc-700">
+                    <th className="py-2 pr-3">Referrer</th>
+                    <th className="py-2 pr-3">Invitee</th>
+                    <th className="py-2 pr-3">Registered</th>
+                    <th className="py-2 pr-3">Commission</th>
+                    {canEdit && <th className="py-2">Action</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {linkedRows.map((r) => (
+                    <tr key={r.refereeId} className="border-b border-zinc-100 dark:border-zinc-800/80 align-top">
+                      <td className="py-2.5 pr-3">
+                        <p>{r.referrerName || r.referrerEmail || "—"}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{r.referrerCode ?? ""}</p>
+                      </td>
+                      <td className="py-2.5 pr-3">{r.refereeName || r.refereeEmail || "—"}</td>
+                      <td className="py-2.5 pr-3 text-muted-foreground">
+                        {new Date(r.refereeRegisteredAt).toLocaleString()}
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        {r.hasCommission ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">Yes</span>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400">Missing</span>
+                        )}
+                      </td>
+                      {canEdit && (
+                        <td className="py-2.5">
+                          {!r.hasCommission ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={savingId === r.refereeId}
+                              onClick={() => void syncCommission(r.refereeId, r.refereeEmail)}
+                            >
+                              {savingId === r.refereeId ? "…" : "Create commission"}
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </td>
                       )}

@@ -33,6 +33,7 @@ import { useSession, signOut, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import AccountNavMenu from "@/components/AccountNavMenu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -3730,9 +3731,7 @@ export default function Dashboard() {
               </>
             )}
             {status === "authenticated" && (
-              <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-                <Link href="/account">Account</Link>
-              </Button>
+              <AccountNavMenu />
             )}
             {status === "authenticated" && !isPaid && (
               <Button size="sm" asChild className="bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
@@ -3898,9 +3897,14 @@ export default function Dashboard() {
                 </>
               )}
               {status === "authenticated" && (
-                <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                  <Link href="/account" onClick={() => setMobileMenuOpen(false)}>Account</Link>
-                </Button>
+                <>
+                  <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
+                    <Link href="/account" onClick={() => setMobileMenuOpen(false)}>Account</Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
+                    <Link href="/affiliate" onClick={() => setMobileMenuOpen(false)}>Affiliate program</Link>
+                  </Button>
+                </>
               )}
               {status === "authenticated" && !isPaid && (
                 <Button size="sm" asChild className="justify-start h-12 bg-amber-500 hover:bg-amber-600 text-white">

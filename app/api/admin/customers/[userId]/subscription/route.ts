@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { syncReferralCommissionForReferee } from "@/lib/referral-commission";
 import Stripe from "stripe";
 import { getServerSession } from "next-auth";
 import { authOptions, isOwnerEmail } from "@/lib/auth";
@@ -138,6 +139,11 @@ export async function POST(
         } as Record<string, unknown>,
       });
     }
+
+    await syncReferralCommissionForReferee(userId, {
+      allowAdminGrants: true,
+      notes: "Admin VIP grant",
+    }).catch((e) => console.error("referral sync after admin grant:", e));
 
     return NextResponse.json({
       success: true,

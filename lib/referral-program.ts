@@ -25,6 +25,15 @@ export const AFFILIATE_TERMS = {
   payoutNote: "Payouts are sent weekly on Fridays after your commission is verified and marked paid.",
 } as const;
 
+/** Site announcement preset for affiliate program launch (Admin → Banners). */
+export const AFFILIATE_LAUNCH_BANNER = {
+  enabled: true,
+  title: "Earn 10% with the NovaStaris Affiliate Program",
+  body: "Share your unique referral link — when friends subscribe to VIP, you earn 10% commission. Payouts every Friday after verification.",
+  ctaLabel: "Get your link",
+  ctaHref: "/affiliate",
+} as const;
+
 export function referralRegisterPath(code: string): string {
   return `/register?ref=${encodeURIComponent(code)}`;
 }

@@ -56,7 +56,16 @@ declare module '@prisma/client' {
     user: {
       findUnique: (args: { where: { email?: string; id?: string; walletAddress?: string; referralCode?: string }; select?: unknown }) => Promise<PrismaUser | null>;
       findFirst: (args?: { where?: unknown; select?: unknown }) => Promise<PrismaUser | null>;
-      findMany: (args?: { include?: { subscriptions?: boolean }; orderBy?: unknown; where?: unknown }) => Promise<(PrismaUser & { subscriptions?: Array<{ id: string; plan: string; amountUsd: number; expiresAt: Date }> })[]>;
+      findMany: (args?: {
+        include?: { subscriptions?: boolean; referredBy?: { select?: unknown } };
+        select?: unknown;
+        orderBy?: unknown;
+        where?: unknown;
+        take?: number;
+      }) => Promise<(PrismaUser & {
+        subscriptions?: Array<{ id: string; plan: string; amountUsd: number; expiresAt: Date }>;
+        referredBy?: { email: string | null; name: string | null; referralCode: string | null } | null;
+      })[]>;
       count: (args?: { where?: unknown }) => Promise<number>;
       create: (args: {
         data: { email?: string; hashedPassword?: string; name?: string; image?: string; walletAddress?: string; phone?: string; country?: string; experienceTradingCrypto?: string };

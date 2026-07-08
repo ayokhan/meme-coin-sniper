@@ -64,6 +64,39 @@ export async function GET(request: Request) {
 
   const filtered = rows.filter((r) => matchesCreatedAt(r.createdAt, month, date));
 
+  const linkedReferrals = (await prisma.user.findMany({
+    where: { referredByUserId: { not: null } },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      createdAt: true,
+      referredByUserId: true,
+      referredBy: { select: { email: true, name: true, referralCode: true } },
+    },
+  } as unknown as Parameters<typeof prisma.user.findMany>[0])) as Array<{
+    id: string;
+    email: string | null;
+    name: string | null;
+    createdAt: Date;
+    referredByUserId: string | null;
+    referredBy: { email: string | null; name: string | null; referralCode: string | null } | null;
+  }>;
+
+  const linkedFiltered = linkedReferrals.filter((u) => matchesCreatedAt(u.createdAt, month, date));
+
+  const refereeIds = linkedFiltered.map((u) => u.id);
+  const commissionsForReferees =
+    refereeIds.length > 0
+      ? ((await prisma.referralCommission.findMany({
+          where: { refereeUserId: { in: refereeIds } },
+          select: { refereeUserId: true },
+        })) as Array<{ refereeUserId: string }>)
+      : [];
+  const hasCommissionSet = new Set(commissionsForReferees.map((c) => c.refereeUserId));
+
   const pendingTotal = filtered
     .filter((r) => r.status === REFERRAL_COMMISSION_STATUS.PENDING)
     .reduce((acc, r) => acc + r.commissionAmountUsd, 0);
@@ -95,6 +128,16 @@ export async function GET(request: Request) {
       paidAt: r.paidAt?.toISOString() ?? null,
       notes: r.notes,
       createdAt: r.createdAt.toISOString(),
+    })),
+    linkedReferrals: linkedFiltered.map((u) => ({
+      refereeId: u.id,
+      refereeEmail: u.email,
+      refereeName: u.name,
+      refereeRegisteredAt: u.createdAt.toISOString(),
+      referrerEmail: u.referredBy?.email ?? null,
+      referrerName: u.referredBy?.name ?? null,
+      referrerCode: u.referredBy?.referralCode ?? null,
+      hasCommission: hasCommissionSet.has(u.id),
     })),
   });
 }

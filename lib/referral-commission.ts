@@ -81,19 +81,148 @@ export async function applyReferralOnSignup(
   });
 }
 
-function isQualifyingPaidSubscription(sub: {
-  tier: string;
-  amountUsd: number;
-  txSignature?: string | null;
-  stripeSessionId?: string | null;
-  stripeSubscriptionId?: string | null;
-}): boolean {
+function isQualifyingPaidSubscription(
+  sub: {
+    tier: string;
+    amountUsd: number;
+    txSignature?: string | null;
+    stripeSessionId?: string | null;
+    stripeSubscriptionId?: string | null;
+  },
+  opts?: { allowAdminGrants?: boolean }
+): boolean {
   if (sub.tier !== "vip" || sub.amountUsd <= 0) return false;
   if (sub.stripeSessionId || sub.stripeSubscriptionId) return true;
   const tx = sub.txSignature?.trim() ?? "";
   if (!tx) return false;
-  if (tx.startsWith("admin-grant-")) return false;
+  if (tx.startsWith("admin-grant-")) return !!opts?.allowAdminGrants;
   return true;
+}
+
+export async function findUserByEmailOrId(query: string): Promise<{ id: string; email: string | null; name: string | null } | null> {
+  const q = query.trim();
+  if (!q) return null;
+  const byId = (await prisma.user.findUnique({
+    where: { id: q },
+    select: { id: true, email: true, name: true },
+  })) as { id: string; email: string | null; name: string | null } | null;
+  if (byId) return byId;
+  const email = q.toLowerCase();
+  const byEmail = (await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+    select: { id: true, email: true, name: true },
+  })) as { id: string; email: string | null; name: string | null } | null;
+  return byEmail;
+}
+
+/** Owner manually links invitee → referrer when the referral link was not used at signup. */
+export async function manuallyLinkReferral(input: {
+  referrerQuery: string;
+  refereeQuery: string;
+  notes?: string;
+  allowAdminGrants?: boolean;
+}): Promise<{
+  referrerId: string;
+  refereeId: string;
+  commissionCreated: boolean;
+  commissionId: string | null;
+}> {
+  const referrerCode = normalizeReferralCode(input.referrerQuery);
+  let referrer = referrerCode ? await findReferrerByCode(referrerCode) : null;
+  if (!referrer) {
+    const byQuery = await findUserByEmailOrId(input.referrerQuery);
+    if (byQuery) referrer = { id: byQuery.id };
+  }
+  if (!referrer) throw new Error("Referrer not found. Use their email or referral code.");
+
+  const referee = await findUserByEmailOrId(input.refereeQuery);
+  if (!referee) throw new Error("Invitee not found. Use their account email.");
+
+  if (referrer.id === referee.id) throw new Error("Referrer and invitee cannot be the same user.");
+
+  const refereeRow = (await prisma.user.findUnique({
+    where: { id: referee.id },
+    select: { referredByUserId: true },
+  })) as { referredByUserId?: string | null } | null;
+
+  if (refereeRow?.referredByUserId && refereeRow.referredByUserId !== referrer.id) {
+    throw new Error("Invitee is already linked to a different referrer.");
+  }
+
+  if (!refereeRow?.referredByUserId) {
+    await prisma.user.update({
+      where: { id: referee.id },
+      data: { referredByUserId: referrer.id } as Record<string, unknown>,
+    });
+  }
+
+  const commissionId = await syncReferralCommissionForReferee(referee.id, {
+    allowAdminGrants: input.allowAdminGrants ?? true,
+    notes: input.notes,
+  });
+
+  return {
+    referrerId: referrer.id,
+    refereeId: referee.id,
+    commissionCreated: !!commissionId,
+    commissionId,
+  };
+}
+
+/** After manual link or VIP grant, create commission from invitee's first VIP subscription if missing. */
+export async function syncReferralCommissionForReferee(
+  refereeUserId: string,
+  opts?: { allowAdminGrants?: boolean; notes?: string }
+): Promise<string | null> {
+  const referee = (await prisma.user.findUnique({
+    where: { id: refereeUserId },
+    select: { id: true, referredByUserId: true },
+  })) as { id: string; referredByUserId?: string | null } | null;
+
+  if (!referee?.referredByUserId || referee.referredByUserId === referee.id) return null;
+
+  const subs = (await prisma.subscription.findMany({
+    where: { userId: refereeUserId, tier: "vip", amountUsd: { gt: 0 } },
+    orderBy: { createdAt: "asc" },
+  })) as Array<{
+    id: string;
+    userId: string;
+    tier: string;
+    amountUsd: number;
+    txSignature?: string | null;
+    stripeSessionId?: string | null;
+    stripeSubscriptionId?: string | null;
+  }>;
+
+  const qualifying = subs.find((s) =>
+    isQualifyingPaidSubscription(s, { allowAdminGrants: opts?.allowAdminGrants })
+  );
+  if (!qualifying) return null;
+
+  const existing = await prisma.referralCommission.findUnique({
+    where: { subscriptionId: qualifying.id },
+  });
+  if (existing) return (existing as { id: string }).id;
+
+  const commissionAmountUsd = commissionAmountFromSubscription(
+    qualifying.amountUsd,
+    REFERRAL_COMMISSION_RATE_PCT
+  );
+
+  const created = (await prisma.referralCommission.create({
+    data: {
+      referrerUserId: referee.referredByUserId,
+      refereeUserId: referee.id,
+      subscriptionId: qualifying.id,
+      subscriptionAmountUsd: qualifying.amountUsd,
+      commissionRatePct: REFERRAL_COMMISSION_RATE_PCT,
+      commissionAmountUsd,
+      status: REFERRAL_COMMISSION_STATUS.PENDING,
+      notes: opts?.notes?.trim() || "Manually verified referral",
+    },
+  })) as { id: string };
+
+  return created.id;
 }
 
 /** Create affiliate commission row when a referred user pays for VIP (idempotent). */

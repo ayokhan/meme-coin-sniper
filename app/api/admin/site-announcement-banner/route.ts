@@ -7,6 +7,7 @@ import {
   setSiteAnnouncementBanner,
   type SiteAnnouncementBannerConfig,
 } from "@/lib/site-announcement-banner";
+import { AFFILIATE_LAUNCH_BANNER } from "@/lib/referral-program";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -28,12 +29,19 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
   }
   try {
-    const body = (await request.json()) as Partial<SiteAnnouncementBannerConfig> & { resetToDefault?: boolean };
+    const body = (await request.json()) as Partial<SiteAnnouncementBannerConfig> & {
+      resetToDefault?: boolean;
+      preset?: string;
+    };
     if (body.resetToDefault) {
       const banner = await resetSiteAnnouncementBannerToDefault();
       return NextResponse.json({ success: true, banner });
     }
-    const { resetToDefault: _, ...patch } = body;
+    if (body.preset === "affiliate-launch") {
+      const banner = await setSiteAnnouncementBanner({ ...AFFILIATE_LAUNCH_BANNER });
+      return NextResponse.json({ success: true, banner });
+    }
+    const { resetToDefault: _, preset: __, ...patch } = body;
     const banner = await setSiteAnnouncementBanner(patch);
     return NextResponse.json({ success: true, banner });
   } catch (e) {
