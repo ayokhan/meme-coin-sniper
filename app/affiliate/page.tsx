@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Copy, Gift, Users } from "lucide-react";
+import { Check, Copy, Gift, Users, Zap } from "lucide-react";
 
 type CommissionRow = {
   id: string;
@@ -112,15 +112,30 @@ export default function AffiliatePage() {
         <Gift className="h-10 w-10 mx-auto text-amber-500" />
         <h1 className="text-xl font-semibold">NovaStaris Affiliate Program</h1>
         <p className="text-sm text-muted-foreground">Sign in to get your referral link and track commissions.</p>
-        <Button asChild>
-          <Link href="/signin?callbackUrl=/affiliate">Sign in</Link>
-        </Button>
+        <div className="flex items-center justify-center gap-2">
+          <Button asChild>
+            <Link href="/signin?callbackUrl=/affiliate">Sign in</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/">Back to app</Link>
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <Link href="/" className="inline-flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">
+          <Zap className="h-5 w-5 text-amber-500" />
+          NovaStaris
+        </Link>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/">Back to app</Link>
+        </Button>
+      </div>
+
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">NovaStaris Affiliate Program</h1>
         <p className="text-sm text-muted-foreground">
