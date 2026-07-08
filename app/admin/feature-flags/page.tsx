@@ -881,9 +881,8 @@ export default function AdminFeatureFlagsPage() {
                     <p className="font-semibold text-zinc-900 dark:text-zinc-100">Market data refresh limits</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Shared across <strong>Go Hunting (Sol + BSC)</strong>, <strong>Trending</strong>, and{" "}
-                      <strong>Surge</strong>. Owner is always unlimited. VIP daily limit default is 10 (set{" "}
-                      <strong>0</strong> for unlimited). Auto-refresh is off unless you turn it on. Users only see
-                      an error if they exceed the limit — no proactive banner.
+                      <strong>Surge</strong>. Opening tabs or switching views does <strong>not</strong> count — only
+                      the Refresh button, Scan, or enabled auto-refresh. Owner is always unlimited.
                     </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">

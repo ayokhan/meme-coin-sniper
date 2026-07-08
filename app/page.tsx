@@ -1991,7 +1991,10 @@ export default function Dashboard() {
     if (typeof window !== "undefined") window.localStorage.setItem("novaConnectNicknamePromptDismissed", "1");
   };
 
-  const fetchTokens = async (tab: TabId = activeTab, showLoading = true) => {
+  const fetchTokens = async (tab: TabId = activeTab, showLoading = true, countTowardLimit = false) => {
+    const marketFetchInit = countTowardLimit
+      ? { headers: { "X-Nova-Count-Refresh": "1" } as HeadersInit }
+      : undefined;
     if (tab === "ai-analysis") {
       if (showLoading) setLoading(false);
       if (status === "authenticated") fetchPinnedTokens();
@@ -2024,7 +2027,7 @@ export default function Dashboard() {
       if (tab === "bsc") {
         const view = bscGoHuntingView;
         const url = view === "trending" ? "/api/trending-bsc" : `/api/new-pairs-bsc?view=${view}&maxAgeMinutes=120&limit=150`;
-        const res = await fetch(url);
+        const res = await fetch(url, marketFetchInit);
         const data = await res.json();
         if (res.status === 429 && data.limitReached) {
           setError(data.error || "Go Hunting refresh limit reached. Upgrade to VIP for unlimited refresh.");
@@ -2076,7 +2079,7 @@ export default function Dashboard() {
         : tab === "new" ? `/api/new-pairs?maxAgeMinutes=180&limit=${limit}&view=${goHuntingView}`
         : tab === "ct" ? "/api/tokens?source=twitter"
         : "/api/tokens";
-      const res = await fetch(url);
+      const res = await fetch(url, marketFetchInit);
       const data = await res.json();
       if (res.status === 429 && data.limitReached) {
         setError(data.error || "Go Hunting refresh limit reached. Upgrade to VIP for unlimited refresh.");
@@ -3042,7 +3045,7 @@ export default function Dashboard() {
 
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      fetchTokens(activeTab, false);
+      fetchTokens(activeTab, false, true);
     }, intervalMs);
     return () => clearInterval(interval);
   }, [
@@ -3466,7 +3469,7 @@ export default function Dashboard() {
     setError(null);
     try {
       const url = type === "twitter" ? "/api/scan-twitter" : "/api/scan?type=new";
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: { "X-Nova-Count-Refresh": "1" } });
       const data = await res.json();
       if (res.status === 429 && data.limitReached) {
         setError(data.error || "Scan limit reached. Upgrade to VIP for unlimited refresh.");
@@ -3866,7 +3869,7 @@ export default function Dashboard() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fetchTokens()}
+              onClick={() => fetchTokens(activeTab, true, true)}
               disabled={loading}
               className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
             >
@@ -3968,7 +3971,7 @@ export default function Dashboard() {
                   Log out
                 </Button>
               )}
-              <Button variant="outline" size="sm" className="justify-start h-12 border-zinc-200 dark:border-zinc-700" onClick={() => { setMobileMenuOpen(false); fetchTokens(); }}>
+              <Button variant="outline" size="sm" className="justify-start h-12 border-zinc-200 dark:border-zinc-700" onClick={() => { setMobileMenuOpen(false); fetchTokens(activeTab, true, true); }}>
                 Refresh
               </Button>
               <Button size="sm" className="justify-start h-12 bg-gradient-to-r from-cyan-500 via-violet-500 to-blue-600 text-white" onClick={() => { setMobileMenuOpen(false); runScan("scan"); }} disabled={scanning !== "idle"}>
@@ -4071,7 +4074,7 @@ export default function Dashboard() {
           <div className="mb-6 rounded-xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50/95 dark:bg-slate-900/80 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2">
             <span className="flex-1">{error}</span>
             <span className="flex gap-2 shrink-0">
-              <Button variant="outline" size="sm" onClick={() => { setError(null); fetchTokens(activeTab); }} className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200">Retry</Button>
+              <Button variant="outline" size="sm" onClick={() => { setError(null); fetchTokens(activeTab, true, true); }} className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200">Retry</Button>
               <Link href="/support"><Button variant="ghost" size="sm" className="text-slate-700 dark:text-slate-200">Report issue</Button></Link>
             </span>
           </div>
@@ -9167,7 +9170,7 @@ export default function Dashboard() {
                           : "Trending = live movers. List auto-refreshes every 60s."}
                 </p>
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-                  <Button onClick={() => fetchTokens(activeTab)} disabled={loading} variant="outline" size="sm" className="border-zinc-300 dark:border-zinc-600">
+                  <Button onClick={() => fetchTokens(activeTab, true, true)} disabled={loading} variant="outline" size="sm" className="border-zinc-300 dark:border-zinc-600">
                     {loading ? "Loading…" : "Refresh"}
                   </Button>
                   {activeTab === "ct" && (

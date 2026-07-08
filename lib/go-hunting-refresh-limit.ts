@@ -139,6 +139,13 @@ function guestSubjectKey(req: Request): string {
   return `guest:${hash}`;
 }
 
+/** Client sends this header only for manual Refresh, Scan, or enabled auto-refresh ticks. */
+export const MARKET_COUNT_REFRESH_HEADER = "x-nova-count-refresh";
+
+export function requestCountsTowardRefreshLimit(req: Request): boolean {
+  return req.headers.get(MARKET_COUNT_REFRESH_HEADER) === "1";
+}
+
 export function formatRefreshWait(seconds: number): string {
   const s = Math.max(1, Math.ceil(seconds));
   if (s < 60) return `${s} second${s === 1 ? "" : "s"}`;
@@ -186,7 +193,7 @@ async function checkVipDailyLimit(userId: string, dailyLimit: number): Promise<G
     return {
       allowed: false,
       retryAfterSeconds,
-      message: `Daily market refresh limit reached (${dailyLimit}/day for Go Hunting, Trending, and Surge). Try again after midnight UTC, or ask support if you need a higher limit.`,
+      message: `Daily refresh limit reached (${dailyLimit}/day for Go Hunting, Trending, and Surge). Use the Refresh button sparingly, or try again after midnight UTC.`,
       limitReached: true,
       remainingToday: 0,
       dailyLimit,
@@ -216,6 +223,11 @@ export async function checkGoHuntingRefreshLimit(req: Request): Promise<GoHuntin
   const { session, userId, isPaid, tier } = await getSessionAndSubscription();
   if (session?.user?.email && isOwnerEmail(session.user.email)) {
     return { allowed: true, unlimited: true };
+  }
+
+  // Opening a tab or switching views does not count — only manual Refresh, Scan, or auto-refresh.
+  if (!requestCountsTowardRefreshLimit(req)) {
+    return { allowed: true, unlimited: false, intervalMinutes: 0 };
   }
 
   const config = await getGoHuntingRefreshConfig();
