@@ -122,8 +122,12 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_AI_AGENT_CHART: 'nova_ai_agent_chart',
   /** Self-service Delete account on /account (web + Capacitor). Required for Google Play; owner can disable in Admin. Default ON. */
   ACCOUNT_SELF_DELETE: 'account_self_delete',
-  /** Billing history (invoices) on /account for signed-in users. DB only — no Stripe API on page load. Default OFF until admin enables. */
+  /** Billing history (invoices) on /account for signed-in users. DB only. Default OFF until admin enables. */
   ACCOUNT_BILLING_HISTORY: 'account_billing_history',
+  /** Nja (Need Help) can answer NovaStaris Affiliate Program questions. Default ON. */
+  NJA_AFFILIATE_KNOWLEDGE: 'nja_affiliate_knowledge',
+  /** Nja can answer active partner promos (e.g. Blofin when enabled). Default ON. */
+  NJA_PARTNER_PROMOS: 'nja_partner_promos',
   /** Optional two-factor authentication (Google Authenticator + email codes). When OFF, 2FA is not enforced at sign-in and users cannot enroll. Default ON. */
   TWO_FACTOR_AUTH: 'two_factor_auth',
 

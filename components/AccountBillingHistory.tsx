@@ -62,7 +62,7 @@ export default function AccountBillingHistory({ enabled }: Props) {
               <CardTitle className="text-lg">Billing history</CardTitle>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Your NovaStaris VIP payments. Filter by month — loaded from your account records (no live Stripe calls).
+              Your NovaStaris VIP payments. Filter by billing period.
             </p>
           </div>
           <label className="text-xs text-muted-foreground flex flex-col gap-1 min-w-[160px]">
@@ -86,9 +86,6 @@ export default function AccountBillingHistory({ enabled }: Props) {
           <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2">
             {error}
           </div>
-        )}
-        {error === "Billing history is not enabled." && (
-          <p className="text-xs text-muted-foreground">Ask the site owner to enable Account billing history in Admin → Feature flags.</p>
         )}
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading invoices…</p>

@@ -6,7 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap, BarChart3, Sparkles, Bell, CreditCard, Gift } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Zap, BarChart3, Sparkles, Bell, CreditCard, Gift, User, Receipt } from "lucide-react";
 import { PasswordInput } from "@/components/PasswordInput";
 import TwoFactorSettings from "@/components/TwoFactorSettings";
 import AccountBillingHistory from "@/components/AccountBillingHistory";
@@ -62,6 +63,17 @@ export default function AccountPage() {
   const [billingMessage, setBillingMessage] = useState("");
   const [billingError, setBillingError] = useState("");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [mainTab, setMainTab] = useState<"profile" | "billing">("profile");
+  const [billingSection, setBillingSection] = useState<"vip" | "history" | "affiliate">("vip");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace("#", "");
+    if (hash === "billing" || hash === "billing-history") {
+      setMainTab("billing");
+      if (hash === "billing-history") setBillingSection("history");
+    }
+  }, []);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -70,6 +82,7 @@ export default function AccountPage() {
     }
     if (status !== "authenticated") return;
     if (typeof window !== "undefined" && window.location.hash === "#two-factor") {
+      setMainTab("profile");
       window.setTimeout(() => {
         document.getElementById("two-factor")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 300);
@@ -275,6 +288,24 @@ export default function AccountPage() {
           </Button>
         </div>
 
+        <div>
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Profile &amp; Billing</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage your account, payments, and affiliate program.</p>
+        </div>
+
+        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "profile" | "billing")} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2 h-10">
+            <TabsTrigger value="profile" className="gap-1.5">
+              <User className="h-4 w-4" />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="billing" className="gap-1.5">
+              <CreditCard className="h-4 w-4" />
+              Billing
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="profile" className="space-y-6 mt-0">
         {profile?.usageThisMonth != null && (
           <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
             <CardHeader className="pb-2">
@@ -312,158 +343,6 @@ export default function AccountPage() {
             </CardContent>
           </Card>
         )}
-
-        <Card className="border-amber-200/60 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/40 to-white dark:from-amber-950/20 dark:to-zinc-900">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              <CardTitle className="text-lg">Affiliate program</CardTitle>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Refer friends to VIP and earn 10% commission. Payouts every Friday after verification.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" className="border-amber-300/80 dark:border-amber-800">
-              <Link href="/affiliate">Open affiliate dashboard</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {subscriptionPaid && (hasStripeSubscription || hasStripeCustomer) && (
-          <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-cyan-500" />
-                <CardTitle className="text-lg">VIP billing</CardTitle>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Manage card auto-renewal for your NovaStaris VIP subscription.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {subscriptionExpiresAt && (
-                <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                  VIP access valid until{" "}
-                  <strong>
-                    {new Date(subscriptionExpiresAt).toLocaleDateString(undefined, {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </strong>
-                </p>
-              )}
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                {cancelAtPeriodEnd
-                  ? "Auto-renewal is off. You will not be charged again unless you re-enable it or renew manually."
-                  : subscriptionAutoRenew
-                    ? "Auto-renewal is on. Your card will be charged automatically at the end of each billing period."
-                    : "Card subscription on file."}
-              </p>
-              {billingError && (
-                <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2">
-                  {billingError}
-                </div>
-              )}
-              {billingMessage && (
-                <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-sm px-3 py-2">
-                  {billingMessage}
-                </div>
-              )}
-              {showCancelConfirm ? (
-                <div className="rounded-lg border border-violet-400/35 dark:border-violet-600/40 bg-slate-50/95 dark:bg-slate-900/70 p-4 space-y-3">
-                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Turn off automatic renewal?</p>
-                  <p className="text-sm text-muted-foreground">
-                    Your VIP access continues until the date above. After that, your card will not be charged unless you renew manually.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      disabled={billingLoading}
-                      className="bg-rose-600 hover:bg-rose-700"
-                      onClick={async () => {
-                        setBillingLoading(true);
-                        setBillingError("");
-                        setBillingMessage("");
-                        try {
-                          const res = await fetch("/api/stripe/cancel-auto-renew", { method: "POST" });
-                          const data = await res.json();
-                          if (data.success) {
-                            setCancelAtPeriodEnd(true);
-                            setShowCancelConfirm(false);
-                            setBillingMessage(
-                              data.message ??
-                                "Auto-renewal is off. You will not be billed again at renewal — VIP access continues until your current period ends."
-                            );
-                          } else {
-                            setBillingError(data.error ?? "Could not turn off auto-renewal.");
-                          }
-                        } catch {
-                          setBillingError("Something went wrong. Try again.");
-                        } finally {
-                          setBillingLoading(false);
-                        }
-                      }}
-                    >
-                      {billingLoading ? "Updating…" : "Yes, turn off auto-renewal"}
-                    </Button>
-                    <Button type="button" variant="outline" disabled={billingLoading} onClick={() => setShowCancelConfirm(false)}>
-                      Keep auto-renewal on
-                    </Button>
-                  </div>
-                </div>
-              ) : cancelAtPeriodEnd ? (
-                <Button
-                  type="button"
-                  disabled={billingLoading}
-                  className="bg-violet-600 hover:bg-violet-700 text-white"
-                  onClick={async () => {
-                    setBillingLoading(true);
-                    setBillingError("");
-                    setBillingMessage("");
-                    try {
-                      const res = await fetch("/api/stripe/resume-auto-renew", { method: "POST" });
-                      const data = await res.json();
-                      if (data.success) {
-                        setCancelAtPeriodEnd(false);
-                        setSubscriptionAutoRenew(true);
-                        setBillingMessage(data.message ?? "Auto-renewal is enabled again.");
-                      } else {
-                        setBillingError(data.error ?? "Could not enable auto-renewal.");
-                      }
-                    } catch {
-                      setBillingError("Something went wrong. Try again.");
-                    } finally {
-                      setBillingLoading(false);
-                    }
-                  }}
-                >
-                  {billingLoading ? "Updating…" : "Turn auto-renewal back on"}
-                </Button>
-              ) : subscriptionAutoRenew ? (
-                <Button type="button" variant="outline" disabled={billingLoading} onClick={() => setShowCancelConfirm(true)}>
-                  Turn off auto-renewal
-                </Button>
-              ) : null}
-              {hasStripeCustomer && (
-                <Button type="button" variant="outline" disabled={billingLoading} onClick={openBillingPortal}>
-                  {billingLoading ? "Opening…" : "Update payment method"}
-                </Button>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Need to change plan or pay by USDC?{" "}
-                <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">
-                  Visit subscribe page
-                </Link>
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        <AccountBillingHistory enabled={!!profile?.billingHistoryEnabled} />
 
         <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <CardHeader>
@@ -742,6 +621,219 @@ export default function AccountPage() {
             </CardContent>
           </Card>
         )}
+
+          </TabsContent>
+
+          <TabsContent value="billing" className="space-y-4 mt-0">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={billingSection === "vip" ? "default" : "outline"}
+                onClick={() => setBillingSection("vip")}
+              >
+                VIP &amp; payments
+              </Button>
+              {profile?.billingHistoryEnabled && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={billingSection === "history" ? "default" : "outline"}
+                  onClick={() => setBillingSection("history")}
+                >
+                  <Receipt className="h-3.5 w-3.5 mr-1" />
+                  Billing history
+                </Button>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                variant={billingSection === "affiliate" ? "default" : "outline"}
+                onClick={() => setBillingSection("affiliate")}
+              >
+                <Gift className="h-3.5 w-3.5 mr-1" />
+                Affiliate
+              </Button>
+            </div>
+
+            {billingSection === "affiliate" && (
+        <Card className="border-amber-200/60 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/40 to-white dark:from-amber-950/20 dark:to-zinc-900">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <CardTitle className="text-lg">Affiliate program</CardTitle>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Refer friends to VIP and earn 10% commission. Payouts every Friday after verification.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="border-amber-300/80 dark:border-amber-800">
+              <Link href="/affiliate">Open affiliate dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
+            )}
+
+            {billingSection === "vip" && (
+              <>
+                {subscriptionPaid && (hasStripeSubscription || hasStripeCustomer) ? (
+          <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-cyan-500" />
+                <CardTitle className="text-lg">VIP billing</CardTitle>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Manage card auto-renewal for your NovaStaris VIP subscription.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {subscriptionExpiresAt && (
+                <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                  VIP access valid until{" "}
+                  <strong>
+                    {new Date(subscriptionExpiresAt).toLocaleDateString(undefined, {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </strong>
+                </p>
+              )}
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                {cancelAtPeriodEnd
+                  ? "Auto-renewal is off. You will not be charged again unless you re-enable it or renew manually."
+                  : subscriptionAutoRenew
+                    ? "Auto-renewal is on. Your card will be charged automatically at the end of each billing period."
+                    : "Card subscription on file."}
+              </p>
+              {billingError && (
+                <div className="rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-sm px-3 py-2">
+                  {billingError}
+                </div>
+              )}
+              {billingMessage && (
+                <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-sm px-3 py-2">
+                  {billingMessage}
+                </div>
+              )}
+              {showCancelConfirm ? (
+                <div className="rounded-lg border border-violet-400/35 dark:border-violet-600/40 bg-slate-50/95 dark:bg-slate-900/70 p-4 space-y-3">
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Turn off automatic renewal?</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your VIP access continues until the date above. After that, your card will not be charged unless you renew manually.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={billingLoading}
+                      className="bg-rose-600 hover:bg-rose-700"
+                      onClick={async () => {
+                        setBillingLoading(true);
+                        setBillingError("");
+                        setBillingMessage("");
+                        try {
+                          const res = await fetch("/api/stripe/cancel-auto-renew", { method: "POST" });
+                          const data = await res.json();
+                          if (data.success) {
+                            setCancelAtPeriodEnd(true);
+                            setShowCancelConfirm(false);
+                            setBillingMessage(
+                              data.message ??
+                                "Auto-renewal is off. You will not be billed again at renewal — VIP access continues until your current period ends."
+                            );
+                          } else {
+                            setBillingError(data.error ?? "Could not turn off auto-renewal.");
+                          }
+                        } catch {
+                          setBillingError("Something went wrong. Try again.");
+                        } finally {
+                          setBillingLoading(false);
+                        }
+                      }}
+                    >
+                      {billingLoading ? "Updating…" : "Yes, turn off auto-renewal"}
+                    </Button>
+                    <Button type="button" variant="outline" disabled={billingLoading} onClick={() => setShowCancelConfirm(false)}>
+                      Keep auto-renewal on
+                    </Button>
+                  </div>
+                </div>
+              ) : cancelAtPeriodEnd ? (
+                <Button
+                  type="button"
+                  disabled={billingLoading}
+                  className="bg-violet-600 hover:bg-violet-700 text-white"
+                  onClick={async () => {
+                    setBillingLoading(true);
+                    setBillingError("");
+                    setBillingMessage("");
+                    try {
+                      const res = await fetch("/api/stripe/resume-auto-renew", { method: "POST" });
+                      const data = await res.json();
+                      if (data.success) {
+                        setCancelAtPeriodEnd(false);
+                        setSubscriptionAutoRenew(true);
+                        setBillingMessage(data.message ?? "Auto-renewal is enabled again.");
+                      } else {
+                        setBillingError(data.error ?? "Could not enable auto-renewal.");
+                      }
+                    } catch {
+                      setBillingError("Something went wrong. Try again.");
+                    } finally {
+                      setBillingLoading(false);
+                    }
+                  }}
+                >
+                  {billingLoading ? "Updating…" : "Turn auto-renewal back on"}
+                </Button>
+              ) : subscriptionAutoRenew ? (
+                <Button type="button" variant="outline" disabled={billingLoading} onClick={() => setShowCancelConfirm(true)}>
+                  Turn off auto-renewal
+                </Button>
+              ) : null}
+              {hasStripeCustomer && (
+                <Button type="button" variant="outline" disabled={billingLoading} onClick={openBillingPortal}>
+                  {billingLoading ? "Opening…" : "Update payment method"}
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Need to change plan or pay by USDC?{" "}
+                <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+                  Visit subscribe page
+                </Link>
+              </p>
+            </CardContent>
+          </Card>
+                ) : (
+                  <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <CardHeader>
+                      <CardTitle className="text-lg">VIP subscription</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {subscriptionPaid
+                          ? "Manage your subscription and payment methods."
+                          : "Upgrade to VIP for full platform access, or subscribe to start earning with the affiliate program."}
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <Button asChild>
+                        <Link href="/subscribe">View plans &amp; subscribe</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+
+            {billingSection === "history" && (
+              <AccountBillingHistory enabled={!!profile?.billingHistoryEnabled} />
+            )}
+          </TabsContent>
+        </Tabs>
+
       </div>
     </div>
   );

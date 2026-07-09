@@ -155,6 +155,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
     title: "Account & billing",
     match: (k) => k.startsWith("account_") || k === "two_factor_auth",
   },
+  {
+    id: "nja",
+    title: "Nja (Need Help assistant)",
+    match: (k) => k.startsWith("nja_"),
+  },
   { id: "other", title: "Other", match: () => true },
 ];
 
@@ -182,7 +187,17 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   account_billing_history: {
     label: "Account billing history (invoices)",
     description:
-      "When ON, signed-in users see Billing history on /account with month filter and receipt links. Loaded from your database only (past VIP payments backfilled + new Stripe webhook records) — no Stripe API calls when users open the page. Default OFF until you enable.",
+      "When ON, signed-in users see Billing history on Account → Billing with month filter and receipt links. Past VIP payments are backfilled; new card payments are recorded via Stripe webhooks. Default OFF until you enable.",
+  },
+  nja_affiliate_knowledge: {
+    label: "Nja — Affiliate program answers",
+    description:
+      "When ON, the Need Help assistant (Nja) can answer questions about the NovaStaris Affiliate Program (referral link, 10% commission, payouts). Default ON.",
+  },
+  nja_partner_promos: {
+    label: "Nja — Partner promo answers (Blofin, etc.)",
+    description:
+      "When ON, Nja can answer questions about active partner promos (e.g. Blofin partnership when enabled in Admin → Banners). Default ON.",
   },
   two_factor_auth: {
     label: "Two-factor authentication (2FA)",

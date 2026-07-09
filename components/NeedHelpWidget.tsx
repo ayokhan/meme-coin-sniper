@@ -5,6 +5,7 @@ import { MessageCircle, Send, Bot, User, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_SUPPORT_AGENT_NAME } from "@/lib/support-agent";
 import { VIP_PLANS, CARD_PAYMENT_FEE_USD, getCardPriceForPlan } from "@/lib/subscription";
+import { findNjaTopicReply, type NjaKnowledgeTopic } from "@/lib/nja-support-knowledge";
 
 const WELCOME = "Hi, I'm Nja, your AI assistant for NovaStaris. I'm here to help anytime, anywhere.";
 const ASK_START = "Ask me a question to get started.";
@@ -89,7 +90,23 @@ export default function NeedHelpWidget() {
   const [minimized, setMinimized] = useState(false);
   const [view, setView] = useState<"welcome" | "subscription" | "chat">("welcome");
   const [showOutOfScopeChoice, setShowOutOfScopeChoice] = useState(false);
+  const [njaTopics, setNjaTopics] = useState<NjaKnowledgeTopic[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/chat/nja-knowledge")
+      .then((r) => r.json())
+      .then((d: { success?: boolean; topics?: NjaKnowledgeTopic[] }) => {
+        if (!cancelled && d.success && Array.isArray(d.topics)) setNjaTopics(d.topics);
+      })
+      .catch(() => {
+        if (!cancelled) setNjaTopics([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,6 +206,31 @@ export default function NeedHelpWidget() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const getTopicReply = (text: string): string | null => findNjaTopicReply(text, njaTopics);
+
+  const postNjaReply = async (sid: string, reply: string) => {
+    await fetch("/api/chat/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: sid, role: "nja", content: reply }),
+    });
+    await fetchMessages(sid);
+  };
+
+  const welcomeTopicButtons = njaTopics.map((topic) => (
+    <Button
+      key={topic.id}
+      type="button"
+      variant="outline"
+      size="sm"
+      className="justify-start text-left"
+      onClick={() => sendOptionOrMessage(topic.label)}
+      disabled={sending}
+    >
+      {topic.label}
+    </Button>
+  ));
+
   const startTechSupportFlow = async () => {
     setView("chat");
     setSending(true);
@@ -238,7 +280,10 @@ export default function NeedHelpWidget() {
       setMessages((prev) => [...prev, { id: `opt-${Date.now()}`, role: "customer", content: trimmed, createdAt: new Date().toISOString() }]);
       setInput("");
       let njaReply: string;
-      if (isSubscriptionQuestion(trimmed)) {
+      const topicReply = getTopicReply(trimmed);
+      if (topicReply) {
+        njaReply = topicReply;
+      } else if (isSubscriptionQuestion(trimmed)) {
         njaReply = getSubscriptionReply();
       } else if (isProductQuestion(trimmed)) {
         njaReply = NJA_PRODUCT_OVERVIEW;
@@ -293,6 +338,12 @@ export default function NeedHelpWidget() {
 
       if (status === "live") {
         await fetchMessages();
+        return;
+      }
+
+      const topicReply = getTopicReply(trimmed);
+      if (topicReply) {
+        await postNjaReply(sessionId, topicReply);
         return;
       }
 
@@ -446,6 +497,7 @@ export default function NeedHelpWidget() {
                       <Button type="button" variant="outline" size="sm" className="justify-start text-left" onClick={() => setView("subscription")} disabled={sending}>
                         Subscription
                       </Button>
+                      {welcomeTopicButtons}
                       <Button type="button" variant="outline" size="sm" className="justify-start text-left" onClick={() => startTechSupportFlow()} disabled={sending}>
                         Get technical support
                       </Button>
@@ -459,6 +511,7 @@ export default function NeedHelpWidget() {
                       <Button type="button" variant="outline" size="sm" className="justify-start text-left" onClick={() => setView("subscription")} disabled={sending}>
                         Subscription
                       </Button>
+                      {welcomeTopicButtons}
                       <Button type="button" variant="outline" size="sm" className="justify-start text-left" onClick={() => startTechSupportFlow()} disabled={sending}>
                         Get technical support
                       </Button>
