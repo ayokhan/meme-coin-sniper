@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DEFAULT_SUPPORT_AGENT_NAME } from "@/lib/support-agent";
+import { findNjaTopicReply, type NjaKnowledgeTopic } from "@/lib/nja-support-knowledge";
 import { Zap, Send, Bot, User, Headphones } from "lucide-react";
 
 const NJA_INTRO =
@@ -32,6 +33,8 @@ const SUBSCRIPTION_KEYWORDS = [
 ];
 const NJA_SUBSCRIPTION_REPLY =
   "NovaStaris has a free tier and VIP subscription. VIP: 1 month $150 USDC ($158 card), 6 months $750 USDC ($758 card), 12 months $1,500 USDC ($1,508 card). USDC pays list price; card adds $8. Use the Subscribe page in the app to sign up. Anything else?";
+const NJA_PRODUCT_OVERVIEW =
+  "NovaStaris is an AI-powered platform that helps you discover and evaluate new crypto tokens. Key features include: Surge (volume and momentum), NovaStaris AI Agent, Crypto Futures tools, and—on VIP—CT Scan, Profitable Traders Wallet Tracker, and Coach Calls + Telegram Signals. You can explore plans on the Subscribe page. Would you like details on subscriptions or something else?";
 
 function isGreeting(text: string): boolean {
   const lower = text.trim().toLowerCase().replace(/[^\w\s]/g, "");
@@ -64,6 +67,7 @@ export default function ChatPage() {
   const [requestingLive, setRequestingLive] = useState(false);
   const [error, setError] = useState("");
   const [showOutOfScopeChoice, setShowOutOfScopeChoice] = useState(false);
+  const [njaTopics, setNjaTopics] = useState<NjaKnowledgeTopic[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -128,6 +132,20 @@ export default function ChatPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/chat/nja-knowledge")
+      .then((r) => r.json())
+      .then((d: { success?: boolean; topics?: NjaKnowledgeTopic[] }) => {
+        if (!cancelled && d.success && Array.isArray(d.topics)) setNjaTopics(d.topics);
+      })
+      .catch(() => {
+        if (!cancelled) setNjaTopics([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isLive || !sessionId) return;
@@ -145,6 +163,25 @@ export default function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const postNjaReply = async (content: string) => {
+    if (!sessionId) return;
+    await fetch("/api/chat/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, role: "nja", content }),
+    });
+    await fetchMessages();
+  };
+
+  const resolveKnowledgeReply = (text: string): string | null => {
+    const topicReply = findNjaTopicReply(text, njaTopics);
+    if (topicReply) return topicReply;
+    if (isSubscriptionQuestion(text)) return NJA_SUBSCRIPTION_REPLY;
+    if (isProductQuestion(text)) return NJA_PRODUCT_OVERVIEW;
+    if (isGreeting(text)) return NJA_INTRO;
+    return null;
+  };
 
   const sendMessage = async (text: string, name?: string, email?: string) => {
     if (!sessionId || !text.trim()) return;
@@ -175,14 +212,16 @@ export default function ChatPage() {
         await fetchMessages();
         return;
       }
+
+      const knowledgeReply = resolveKnowledgeReply(trimmed);
+      if (knowledgeReply && (step === "issue" || step === "choice" || isSubscriptionQuestion(trimmed))) {
+        await postNjaReply(knowledgeReply);
+        return;
+      }
+
       // Intake (name / email / issue): accept any reply — do not run out-of-scope on a name like "Elon Musk"
       if (step === "name" && isSubscriptionQuestion(trimmed)) {
-        await fetch("/api/chat/message", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, role: "nja", content: NJA_SUBSCRIPTION_REPLY }),
-        });
-        await fetchMessages();
+        await postNjaReply(NJA_SUBSCRIPTION_REPLY);
         return;
       }
       if (step === "name") setCustomerName(trimmed);
@@ -370,6 +409,23 @@ export default function ChatPage() {
                 >
                   {requestingLive ? "Sending…" : showOutOfScopeChoice ? "Create support ticket" : "Get back to me in 48 hours"}
                 </Button>
+              </div>
+            )}
+
+            {!showTransferOrTicketButtons && !isSubmitted && step === "issue" && njaTopics.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {njaTopics.map((topic) => (
+                  <Button
+                    key={topic.id}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={sending}
+                    onClick={() => sendMessage(topic.label)}
+                  >
+                    {topic.label}
+                  </Button>
+                ))}
               </div>
             )}
 
