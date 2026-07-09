@@ -25,11 +25,11 @@ export type BlofinPartnerPromoAdmin = BlofinPartnerPromoConfig & {
 
 export const DEFAULT_BLOFIN_PARTNER_PROMO: BlofinPartnerPromoConfig = {
   enabled: false,
-  registerUrl: "",
-  headline: "Trade on Blofin with NovaStaris",
+  registerUrl: "https://blofin.com/register?referral_code=wAwpn7",
+  headline: "Trade Futures & Spot on Blofin with NovaStaris",
   bodyText:
-    "Open a Blofin account through our partner link, then connect your API keys to run NovaStaris trading bots on your account.",
-  promoLabel: "10% back on transfer fees",
+    "Register with referral code wAwpn7 for 10% cashback on trading fees—on both futures and spot. Connect your API keys in NovaStaris to run Trading Bot and NovaScalper on your account.",
+  promoLabel: "10% cashback on trading fees",
   ctaLabel: "Register on Blofin",
   showLogosInBanner: true,
   includeLogosInEmail: true,
@@ -40,7 +40,7 @@ export const DEFAULT_BLOFIN_PARTNER_PROMO: BlofinPartnerPromoConfig = {
 export const BLOFIN_PARTNERSHIP_LAUNCH_BANNER: SiteAnnouncementBannerConfig = {
   enabled: true,
   title: "NovaStaris × Blofin — partner rewards",
-  body: "Register on Blofin through NovaStaris and get 10% back on transfer fees. Connect your API keys in Trading Bot or NovaScalper to trade with AI on your account.",
+  body: "Register on Blofin through NovaStaris and get 10% cashback on trading fees—on both futures and spot. Connect your API keys in Trading Bot or NovaScalper to trade with AI on your account.",
   ctaLabel: "Open Trading Bot",
   ctaHref: "/?tab=trading-bot",
   showPartnerLogos: true,
@@ -48,16 +48,19 @@ export const BLOFIN_PARTNERSHIP_LAUNCH_BANNER: SiteAnnouncementBannerConfig = {
 
 /** Suggested customer email copy (Admin → Banners → Email). */
 export const BLOFIN_PARTNERSHIP_EMAIL = {
-  subject: "NovaStaris × Blofin — 10% back on transfer fees",
+  subject: "NovaStaris × Blofin — 10% cashback on trading fees (Futures & Spot)",
   body: `Hi there,
 
-We partnered with Blofin so NovaStaris members can trade futures on a top exchange and connect API keys directly to our Trading Bot and NovaScalper.
+We partnered with Blofin so NovaStaris members can trade futures and spot on a top exchange—and connect API keys directly to our Trading Bot and NovaScalper.
 
-Register through our partner link and you'll get 10% back on transfer fees as a NovaStaris member perk.
+Register through our partner link and you'll get 10% cashback on trading fees on both futures and spot as a NovaStaris member perk.
+
+Your referral link: https://blofin.com/register?referral_code=wAwpn7
+Referral code: wAwpn7
 
 How to get started:
-1. Sign in to NovaStaris → open Trading Bot (Futures).
-2. Tap "Register on Blofin" in the partnership banner.
+1. Sign in to NovaStaris → open Trading Bot (Futures) or trade spot on Blofin.
+2. Tap "Register on Blofin" in the partnership banner—or use the link above.
 3. After your Blofin account is ready, save your API keys in NovaStaris and start trading with AI on your account.
 
 Questions? Reply to this email or use Need Help in the app.

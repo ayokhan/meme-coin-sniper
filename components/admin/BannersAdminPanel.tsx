@@ -1107,7 +1107,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                 <input
                   value={blofinPartnerDraft.registerUrl}
                   onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, registerUrl: e.target.value }))}
-                  placeholder="https://blofin.com/register?ref=..."
+                  placeholder="https://blofin.com/register?referral_code=wAwpn7"
                   className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
                 />
               </label>
@@ -1130,7 +1130,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
               </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="text-xs text-muted-foreground flex flex-col gap-1">
-                  Promo badge (e.g. 10% back)
+                  Promo badge (e.g. 10% cashback on trading fees)
                   <input
                     value={blofinPartnerDraft.promoLabel}
                     onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, promoLabel: e.target.value }))}

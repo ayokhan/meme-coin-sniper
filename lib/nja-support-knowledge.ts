@@ -30,8 +30,12 @@ const BLOFIN_KEYWORDS = [
   "register on blofin",
   "blofin api",
   "blofin keys",
-  "transfer fee",
-  "transfer fees",
+  "trading fee",
+  "trading fees",
+  "cashback",
+  "referral code",
+  "wawpn7",
+  "spot",
 ];
 
 function buildAffiliateReply(): string {
@@ -52,14 +56,17 @@ Open Account → Billing → Affiliate, or visit /affiliate for your dashboard. 
 
 function buildBlofinReply(promo: Awaited<ReturnType<typeof getBlofinPartnerPromoForPublic>>): string {
   const registerPath = blofinPartnerRegisterPath();
-  const base = `NovaStaris partners with Blofin for futures trading and API-connected bots (Trading Bot, NovaScalper, Prop Firm).
+  const base = `NovaStaris partners with Blofin for futures and spot trading, plus API-connected bots (Trading Bot, NovaScalper, Prop Firm).
+
+Member perk: 10% cashback on trading fees (futures and spot) when you register with referral code wAwpn7.
+Partner link: https://blofin.com/register?referral_code=wAwpn7
 
 `;
   if (promo.active) {
     return (
       base +
       `${promo.headline}
-${promo.promoLabel ? `Member perk: ${promo.promoLabel}.` : ""}
+${promo.promoLabel ? `Badge: ${promo.promoLabel}.` : ""}
 ${promo.bodyText}
 
 To register: open Trading Bot or NovaScalper, use the partnership banner, or go to ${registerPath} while signed in. After your Blofin account is ready, save your API keys in NovaStaris under the bot settings.
@@ -69,7 +76,7 @@ Need help connecting keys? Ask about technical support.`
   }
   return (
     base +
-    `Register a Blofin account, then connect your API keys in NovaStaris under AI Trading Bots → Blofin keys (also NovaScalper and Prop Firm).
+    `Register a Blofin account with code wAwpn7, then connect your API keys in NovaStaris under AI Trading Bots → Blofin keys (also NovaScalper and Prop Firm).
 
 The in-app partnership register link may appear when NovaStaris enables the promo. Check Trading Bot or Account → Billing for updates.`
   );
