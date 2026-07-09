@@ -122,6 +122,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_AI_AGENT_CHART: 'nova_ai_agent_chart',
   /** Self-service Delete account on /account (web + Capacitor). Required for Google Play; owner can disable in Admin. Default ON. */
   ACCOUNT_SELF_DELETE: 'account_self_delete',
+  /** Billing history (invoices) on /account for signed-in users. DB only — no Stripe API on page load. Default OFF until admin enables. */
+  ACCOUNT_BILLING_HISTORY: 'account_billing_history',
   /** Optional two-factor authentication (Google Authenticator + email codes). When OFF, 2FA is not enforced at sign-in and users cannot enroll. Default ON. */
   TWO_FACTOR_AUTH: 'two_factor_auth',
 
@@ -169,6 +171,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_AGENT,
   FEATURE_FLAG_KEYS.AI_ANALYSIS_RAG,
   FEATURE_FLAG_KEYS.LIVE_SUPPORT_CHAT,
+  FEATURE_FLAG_KEYS.ACCOUNT_BILLING_HISTORY,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {

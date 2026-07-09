@@ -16,10 +16,11 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Sign in required.' }, { status: 401 });
   }
-  const [user, usageThisMonth, selfDeleteEnabled] = await Promise.all([
+  const [user, usageThisMonth, selfDeleteEnabled, billingHistoryEnabled] = await Promise.all([
     prisma.user.findUnique({ where: { id: session.user.id } }),
     getUsageThisMonth(session.user.id),
     getFeatureFlag(FEATURE_FLAG_KEYS.ACCOUNT_SELF_DELETE),
+    getFeatureFlag(FEATURE_FLAG_KEYS.ACCOUNT_BILLING_HISTORY),
   ]);
   if (!user) {
     return NextResponse.json({ error: 'User not found.' }, { status: 404 });
@@ -45,6 +46,7 @@ export async function GET() {
     avatarUrl: u.novaConnectAvatarUrl ?? null,
     usageThisMonth,
     selfDeleteEnabled,
+    billingHistoryEnabled,
     hasPassword: !!u.hashedPassword,
     isProtectedOwner: isOwnerEmail(u.email) || isOwnerWallet(u.walletAddress),
   });

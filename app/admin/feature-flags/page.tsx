@@ -150,6 +150,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
       k === "nova_deep_meme_agent",
   },
   { id: "tabs", title: "Dashboard tabs", match: (k) => k.startsWith("page_tab_") },
+  {
+    id: "account",
+    title: "Account & billing",
+    match: (k) => k.startsWith("account_") || k === "two_factor_auth",
+  },
   { id: "other", title: "Other", match: () => true },
 ];
 
@@ -173,6 +178,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Self-service Delete account",
     description:
       "When ON, signed-in users see Delete account on /account (web and Android app). Permanently removes profile, subscriptions, wallets, NovaConnect, and related data. Required for Google Play. Owner accounts are protected and cannot self-delete. Default ON.",
+  },
+  account_billing_history: {
+    label: "Account billing history (invoices)",
+    description:
+      "When ON, signed-in users see Billing history on /account with month filter and receipt links. Loaded from your database only (past VIP payments backfilled + new Stripe webhook records) — no Stripe API calls when users open the page. Default OFF until you enable.",
   },
   two_factor_auth: {
     label: "Two-factor authentication (2FA)",

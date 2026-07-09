@@ -87,6 +87,9 @@ export default function AccountBillingHistory({ enabled }: Props) {
             {error}
           </div>
         )}
+        {error === "Billing history is not enabled." && (
+          <p className="text-xs text-muted-foreground">Ask the site owner to enable Account billing history in Admin → Feature flags.</p>
+        )}
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading invoices…</p>
         ) : invoices.length === 0 ? (

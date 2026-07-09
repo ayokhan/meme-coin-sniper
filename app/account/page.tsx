@@ -21,6 +21,7 @@ type Profile = {
   avatarUrl: string | null;
   usageThisMonth?: { aiAnalyses: number; alerts: number };
   selfDeleteEnabled?: boolean;
+  billingHistoryEnabled?: boolean;
   hasPassword?: boolean;
   isProtectedOwner?: boolean;
 };
@@ -462,7 +463,7 @@ export default function AccountPage() {
           </Card>
         )}
 
-        <AccountBillingHistory enabled={subscriptionPaid} />
+        <AccountBillingHistory enabled={!!profile?.billingHistoryEnabled} />
 
         <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <CardHeader>
