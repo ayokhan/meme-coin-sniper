@@ -8,6 +8,12 @@ import {
 } from "@/lib/stripe-billing";
 import { VIP_PLANS, findPlanByListOrCardAmount } from "@/lib/subscription";
 import { recordReferralCommissionForSubscription } from "@/lib/referral-commission";
+import {
+  findUserIdByStripeCustomerId,
+  recordBillingInvoiceFromStripeInvoice,
+  recordBillingInvoiceFromCheckout,
+  recordBillingInvoiceFromSubscriptionRow,
+} from "@/lib/billing-invoices";
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
@@ -94,6 +100,53 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       } as Record<string, unknown>,
     });
     await recordReferralCommissionForSubscription(created.id);
+    await recordBillingInvoiceFromSubscriptionRow({
+      userId,
+      subscriptionId: created.id,
+      amountUsd: amountUsd || plan.priceUsd,
+      planId: plan.id,
+      paidAt: new Date(),
+      periodEnd: expiresAt,
+      stripeSessionId: session.id,
+      paymentMethod: "card",
+    });
+  }
+
+  const invoiceId =
+    typeof session.invoice === "string" ? session.invoice : (session.invoice as { id?: string } | null)?.id;
+  let hostedInvoiceUrl: string | null = null;
+  let invoicePdfUrl: string | null = null;
+  if (invoiceId && stripe) {
+    try {
+      const inv = await stripe.invoices.retrieve(invoiceId);
+      hostedInvoiceUrl = inv.hosted_invoice_url ?? null;
+      invoicePdfUrl = inv.invoice_pdf ?? null;
+      await recordBillingInvoiceFromStripeInvoice(inv, userId);
+    } catch {
+      /* fall through to session-based record */
+    }
+  }
+  if (!invoiceId) {
+    const periodEnd =
+      session.mode === "subscription" && session.subscription && stripe
+        ? periodEndFromStripeSubscription(
+            await stripe.subscriptions.retrieve(session.subscription as string)
+          )
+        : (() => {
+            const d = new Date();
+            d.setMonth(d.getMonth() + plan.months);
+            return d;
+          })();
+    await recordBillingInvoiceFromCheckout({
+      userId,
+      amountUsd: amountUsd || plan.priceUsd,
+      planId: plan.id,
+      stripeSessionId: session.id,
+      hostedInvoiceUrl,
+      invoicePdfUrl,
+      periodEnd,
+      paymentMethod: "card",
+    });
   }
 
   console.info("Stripe webhook: subscription created", {
@@ -179,12 +232,18 @@ export async function POST(request: Request) {
         const invoice = event.data.object as Stripe.Invoice & {
           subscription?: string | Stripe.Subscription | null;
         };
+        const customerId =
+          typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? null;
+        const userId = customerId ? await findUserIdByStripeCustomerId(customerId) : null;
+        if (userId) {
+          await recordBillingInvoiceFromStripeInvoice(invoice, userId);
+        }
         const subId =
           typeof invoice.subscription === "string"
             ? invoice.subscription
             : invoice.subscription?.id ?? null;
         if (subId) {
-          const stripeSub = await stripe.subscriptions.retrieve(subId);
+          const stripeSub = await stripe!.subscriptions.retrieve(subId);
           await syncStripeSubscription(stripeSub);
         }
         break;

@@ -127,6 +127,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     bodyText: "",
     promoLabel: "",
     ctaLabel: "",
+    showLogosInBanner: true,
+    includeLogosInEmail: true,
+    includeLogosInBroadcast: true,
   });
 
   const [emailStats, setEmailStats] = useState<{
@@ -137,7 +140,12 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
   } | null>(null);
   const [emailStatsLoading, setEmailStatsLoading] = useState(true);
   const [emailSending, setEmailSending] = useState(false);
-  const [emailDraft, setEmailDraft] = useState({ subject: "", body: "", audience: "newsletter" as "newsletter" | "all" });
+  const [emailDraft, setEmailDraft] = useState({
+    subject: "",
+    body: "",
+    audience: "newsletter" as "newsletter" | "all",
+    includePartnerLogos: false,
+  });
   const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
   const [emailAddInput, setEmailAddInput] = useState("");
   const [emailConfirm, setEmailConfirm] = useState(false);
@@ -245,6 +253,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
             bodyText: p.bodyText,
             promoLabel: p.promoLabel,
             ctaLabel: p.ctaLabel,
+            showLogosInBanner: p.showLogosInBanner,
+            includeLogosInEmail: p.includeLogosInEmail,
+            includeLogosInBroadcast: p.includeLogosInBroadcast,
           });
           setBlofinPartnerClicks((blofinPartnerData.clicks ?? []) as BlofinPartnerLinkClickRow[]);
         }
@@ -474,6 +485,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
           bodyText: p.bodyText,
           promoLabel: p.promoLabel,
           ctaLabel: p.ctaLabel,
+          showLogosInBanner: p.showLogosInBanner,
+          includeLogosInEmail: p.includeLogosInEmail,
+          includeLogosInBroadcast: p.includeLogosInBroadcast,
         });
         if (data.broadcastPublished) {
           void load();
@@ -501,7 +515,14 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       const res = await fetch("/api/admin/announcement-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...emailDraft, recipients: emailRecipients, confirm: true }),
+        body: JSON.stringify({
+          subject: emailDraft.subject,
+          body: emailDraft.body,
+          audience: emailDraft.audience,
+          includePartnerLogos: emailDraft.includePartnerLogos,
+          recipients: emailRecipients,
+          confirm: true,
+        }),
       });
       const data = await res.json();
       if (data.success && data.result) {
@@ -1030,7 +1051,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         <CardHeader>
           <CardTitle className="text-base">Blofin partner promo</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Shown on Trading Bot, NovaScalper, Prop Firm, and NovaRadar when enabled and a register URL is set. Off by default until you paste your affiliate link.
+            Shown on Trading Bot, NovaScalper, Prop Firm, and NovaRadar when enabled and a register URL is set. Off by default until you paste your NovaStaris / Blofin register link.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1082,7 +1103,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                 </div>
               </div>
               <label className="text-xs text-muted-foreground flex flex-col gap-1">
-                Affiliate register URL
+                NovaStaris / Blofin register URL
                 <input
                   value={blofinPartnerDraft.registerUrl}
                   onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, registerUrl: e.target.value }))}
@@ -1125,6 +1146,32 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                   />
                 </label>
               </div>
+              <div className="grid gap-2 sm:grid-cols-3 text-sm">
+                <label className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-2">
+                  <input
+                    type="checkbox"
+                    checked={blofinPartnerDraft.showLogosInBanner}
+                    onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, showLogosInBanner: e.target.checked }))}
+                  />
+                  Logos on bot banner
+                </label>
+                <label className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-2">
+                  <input
+                    type="checkbox"
+                    checked={blofinPartnerDraft.includeLogosInEmail}
+                    onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, includeLogosInEmail: e.target.checked }))}
+                  />
+                  Logos in email
+                </label>
+                <label className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-2">
+                  <input
+                    type="checkbox"
+                    checked={blofinPartnerDraft.includeLogosInBroadcast}
+                    onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, includeLogosInBroadcast: e.target.checked }))}
+                  />
+                  Logos in broadcast
+                </label>
+              </div>
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
@@ -1136,13 +1183,14 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() =>
+                  onClick={() => {
                     setEmailDraft({
                       subject: BLOFIN_PARTNERSHIP_EMAIL.subject,
                       body: BLOFIN_PARTNERSHIP_EMAIL.body,
                       audience: "all",
-                    })
-                  }
+                      includePartnerLogos: blofinPartnerDraft.includeLogosInEmail,
+                    });
+                  }}
                 >
                   Load email template
                 </Button>
@@ -1172,10 +1220,19 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                   </table>
                 </div>
               )}
-              {blofinPartner.active && (
+              {blofinPartner && (
                 <div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 p-3">
-                  <p className="text-xs text-muted-foreground mb-2">Preview (live when saved + enabled + URL set)</p>
-                  <BlofinPartnerPromoBanner />
+                  <p className="text-xs text-muted-foreground mb-2">Customer preview (logos {blofinPartnerDraft.showLogosInBanner ? "on" : "off"})</p>
+                  <BlofinPartnerPromoBanner
+                    preview={{
+                      active: true,
+                      headline: blofinPartnerDraft.headline,
+                      bodyText: blofinPartnerDraft.bodyText,
+                      promoLabel: blofinPartnerDraft.promoLabel,
+                      ctaLabel: blofinPartnerDraft.ctaLabel,
+                      showLogosInBanner: blofinPartnerDraft.showLogosInBanner,
+                    }}
+                  />
                 </div>
               )}
             </>
@@ -1329,6 +1386,14 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
               <option value="newsletter">Newsletter subscribers only (recommended)</option>
               <option value="all">All customers with email</option>
             </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <input
+              type="checkbox"
+              checked={emailDraft.includePartnerLogos}
+              onChange={(e) => setEmailDraft((d) => ({ ...d, includePartnerLogos: e.target.checked }))}
+            />
+            Include NovaStaris × Blofin logos at top of email
           </label>
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">

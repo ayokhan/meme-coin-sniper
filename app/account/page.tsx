@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, BarChart3, Sparkles, Bell, CreditCard, Gift } from "lucide-react";
 import { PasswordInput } from "@/components/PasswordInput";
 import TwoFactorSettings from "@/components/TwoFactorSettings";
+import AccountBillingHistory from "@/components/AccountBillingHistory";
 
 type Profile = {
   name: string | null;
@@ -460,6 +461,8 @@ export default function AccountPage() {
             </CardContent>
           </Card>
         )}
+
+        <AccountBillingHistory enabled={subscriptionPaid} />
 
         <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <CardHeader>

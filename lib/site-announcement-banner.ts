@@ -8,6 +8,7 @@ export type SiteAnnouncementBannerConfig = {
   body: string;
   ctaLabel: string;
   ctaHref: string;
+  showPartnerLogos: boolean;
 };
 
 export type SiteAnnouncementBannerAdmin = SiteAnnouncementBannerConfig & {
@@ -21,6 +22,7 @@ export const DEFAULT_SITE_ANNOUNCEMENT: SiteAnnouncementBannerConfig = {
   body: "We have product updates for you. Check your account settings and explore the latest tools on the dashboard.",
   ctaLabel: "",
   ctaHref: "",
+  showPartnerLogos: false,
 };
 
 type Row = SiteAnnouncementBannerConfig & { updatedAt?: Date };
@@ -47,6 +49,7 @@ function normalize(row: Partial<Row>): SiteAnnouncementBannerConfig {
     body: (row.body ?? d.body).trim() || d.body,
     ctaLabel: (row.ctaLabel ?? d.ctaLabel).trim(),
     ctaHref: (row.ctaHref ?? d.ctaHref).trim(),
+    showPartnerLogos: row.showPartnerLogos ?? d.showPartnerLogos,
   };
 }
 
@@ -74,6 +77,7 @@ export async function setSiteAnnouncementBanner(
     body: patch.body ?? current.body,
     ctaLabel: patch.ctaLabel ?? current.ctaLabel,
     ctaHref: patch.ctaHref ?? current.ctaHref,
+    showPartnerLogos: patch.showPartnerLogos ?? current.showPartnerLogos,
   });
   await bannerDb.upsert({
     where: { id: SITE_ANNOUNCEMENT_ID },

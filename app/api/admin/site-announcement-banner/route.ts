@@ -8,7 +8,7 @@ import {
   type SiteAnnouncementBannerConfig,
 } from "@/lib/site-announcement-banner";
 import { AFFILIATE_LAUNCH_BANNER } from "@/lib/referral-program";
-import { BLOFIN_PARTNERSHIP_LAUNCH_BANNER } from "@/lib/blofin-partner-promo";
+import { BLOFIN_PARTNERSHIP_LAUNCH_BANNER, getBlofinPartnerPromoForAdmin } from "@/lib/blofin-partner-promo";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -43,7 +43,11 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: true, banner });
     }
     if (body.preset === "blofin-partnership") {
-      const banner = await setSiteAnnouncementBanner({ ...BLOFIN_PARTNERSHIP_LAUNCH_BANNER });
+      const promo = await getBlofinPartnerPromoForAdmin().catch(() => null);
+      const banner = await setSiteAnnouncementBanner({
+        ...BLOFIN_PARTNERSHIP_LAUNCH_BANNER,
+        showPartnerLogos: promo?.includeLogosInBroadcast ?? true,
+      });
       return NextResponse.json({ success: true, banner });
     }
     const { resetToDefault: _, preset: __, ...patch } = body;

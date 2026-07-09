@@ -45,8 +45,12 @@ export async function PATCH(request: Request) {
     }
 
     if (body.publishLaunchBroadcast) {
-      await setSiteAnnouncementBanner({ ...BLOFIN_PARTNERSHIP_LAUNCH_BANNER });
-      const promo = await getBlofinPartnerPromoForAdmin();
+      const { resetToDefault: _r, publishLaunchBroadcast: _p, ...patch } = body;
+      const promo = await setBlofinPartnerPromo(patch);
+      await setSiteAnnouncementBanner({
+        ...BLOFIN_PARTNERSHIP_LAUNCH_BANNER,
+        showPartnerLogos: promo.includeLogosInBroadcast,
+      });
       return NextResponse.json({ success: true, promo, broadcastPublished: true });
     }
 

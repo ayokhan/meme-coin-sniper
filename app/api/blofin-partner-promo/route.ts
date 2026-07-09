@@ -13,6 +13,7 @@ export async function GET() {
       bodyText: promo.bodyText,
       promoLabel: promo.promoLabel,
       ctaLabel: promo.ctaLabel,
+      showLogosInBanner: promo.showLogosInBanner,
     };
     return NextResponse.json({ success: true, promo: publicPromo });
   } catch (e) {

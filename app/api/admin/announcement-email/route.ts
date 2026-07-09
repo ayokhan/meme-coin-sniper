@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       audience?: AnnouncementAudience;
       recipients?: string[];
       confirm?: boolean;
+      includePartnerLogos?: boolean;
     };
     if (!body.confirm) {
       return NextResponse.json({ success: false, error: "Set confirm: true to send." }, { status: 400 });
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       body: body.body ?? "",
       audience,
       recipients,
+      includePartnerLogos: !!body.includePartnerLogos,
     });
     return NextResponse.json({ success: true, result });
   } catch (e) {

@@ -11,6 +11,9 @@ export type BlofinPartnerPromoConfig = {
   bodyText: string;
   promoLabel: string;
   ctaLabel: string;
+  showLogosInBanner: boolean;
+  includeLogosInEmail: boolean;
+  includeLogosInBroadcast: boolean;
 };
 
 export type BlofinPartnerPromoAdmin = BlofinPartnerPromoConfig & {
@@ -28,6 +31,9 @@ export const DEFAULT_BLOFIN_PARTNER_PROMO: BlofinPartnerPromoConfig = {
     "Open a Blofin account through our partner link, then connect your API keys to run NovaStaris trading bots on your account.",
   promoLabel: "10% back on transfer fees",
   ctaLabel: "Register on Blofin",
+  showLogosInBanner: true,
+  includeLogosInEmail: true,
+  includeLogosInBroadcast: true,
 };
 
 /** Site announcement preset for Blofin partnership launch (Admin → Banners). */
@@ -37,6 +43,7 @@ export const BLOFIN_PARTNERSHIP_LAUNCH_BANNER: SiteAnnouncementBannerConfig = {
   body: "Register on Blofin through NovaStaris and get 10% back on transfer fees. Connect your API keys in Trading Bot or NovaScalper to trade with AI on your account.",
   ctaLabel: "Open Trading Bot",
   ctaHref: "/?tab=trading-bot",
+  showPartnerLogos: true,
 };
 
 /** Suggested customer email copy (Admin → Banners → Email). */
@@ -106,6 +113,9 @@ function normalize(row: Partial<Row>): BlofinPartnerPromoConfig {
     bodyText: (row.bodyText ?? d.bodyText).trim() || d.bodyText,
     promoLabel: (row.promoLabel ?? d.promoLabel).trim() || d.promoLabel,
     ctaLabel: (row.ctaLabel ?? d.ctaLabel).trim() || d.ctaLabel,
+    showLogosInBanner: row.showLogosInBanner ?? d.showLogosInBanner,
+    includeLogosInEmail: row.includeLogosInEmail ?? d.includeLogosInEmail,
+    includeLogosInBroadcast: row.includeLogosInBroadcast ?? d.includeLogosInBroadcast,
   };
 }
 
@@ -163,6 +173,9 @@ export async function setBlofinPartnerPromo(
     bodyText: patch.bodyText ?? current.bodyText,
     promoLabel: patch.promoLabel ?? current.promoLabel,
     ctaLabel: patch.ctaLabel ?? current.ctaLabel,
+    showLogosInBanner: patch.showLogosInBanner ?? current.showLogosInBanner,
+    includeLogosInEmail: patch.includeLogosInEmail ?? current.includeLogosInEmail,
+    includeLogosInBroadcast: patch.includeLogosInBroadcast ?? current.includeLogosInBroadcast,
   });
   await db.upsert({
     where: { id: BLOFIN_PARTNER_PROMO_ID },

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { partnerLogosEmailHtml } from "@/lib/partner-logos-email";
 import { sendEmailDetailed } from "@/lib/send-email";
 
 export type AnnouncementAudience = "newsletter" | "all";
@@ -82,6 +83,7 @@ export async function sendAnnouncementEmails(args: {
   body: string;
   audience?: AnnouncementAudience;
   recipients?: string[];
+  includePartnerLogos?: boolean;
 }): Promise<{ sent: number; failed: number; total: number; errors: string[] }> {
   const subject = args.subject.trim();
   const body = args.body.trim();
@@ -99,6 +101,7 @@ export async function sendAnnouncementEmails(args: {
   if (recipients.length === 0) throw new Error("No valid recipient emails.");
 
   const html = [
+    args.includePartnerLogos ? partnerLogosEmailHtml() : "",
     `<p>${announcementBodyToHtml(body)}</p>`,
     `<p style="margin-top:24px;font-size:12px;color:#666;">You received this from NovaStaris. Manage newsletter preferences in your account settings.</p>`,
     `<p style="font-size:12px;color:#666;"><a href="https://novastaris.ai/account">novastaris.ai/account</a></p>`,

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Megaphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PartnerLogosStrip } from "@/components/PartnerLogosStrip";
 import type { SiteAnnouncementBannerAdmin } from "@/lib/site-announcement-banner";
 import { DEFAULT_SITE_ANNOUNCEMENT } from "@/lib/site-announcement-banner";
 import { useDashboardOverlay } from "@/components/DashboardOverlayProvider";
@@ -90,9 +91,16 @@ export function SiteAnnouncementModal({ open, banner, onRemindLater, onDismissPe
         </button>
 
         <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
-          <div className="mb-4 rounded-full bg-violet-100 dark:bg-violet-900/40 p-3">
-            <Megaphone className="h-7 w-7 text-violet-600 dark:text-violet-400" aria-hidden />
-          </div>
+          {cfg.showPartnerLogos && (
+            <div className="mb-4 w-full flex justify-center sm:justify-start">
+              <PartnerLogosStrip />
+            </div>
+          )}
+          {!cfg.showPartnerLogos && (
+            <div className="mb-4 rounded-full bg-violet-100 dark:bg-violet-900/40 p-3">
+              <Megaphone className="h-7 w-7 text-violet-600 dark:text-violet-400" aria-hidden />
+            </div>
+          )}
           <h2 id="site-announcement-title" className="text-lg font-bold text-zinc-900 dark:text-zinc-100 pr-8">
             {cfg.title}
           </h2>
