@@ -52,6 +52,25 @@ function isSubscriptionQuestion(text: string): boolean {
 }
 
 type Message = { id: string; role: string; content: string; agentDisplayName?: string | null; createdAt: string };
+type ChatStep = "name" | "email" | "issue" | "qa" | "support_choice";
+
+function inferChatStepFromMessages(msgs: Message[]): ChatStep {
+  const customerMsgs = msgs.filter((m) => m.role === "customer");
+  if (customerMsgs.length === 0) return "name";
+  if (customerMsgs.length === 1) return "email";
+  if (customerMsgs.length === 2) return "issue";
+  const lastNja = [...msgs].reverse().find((m) => m.role === "nja");
+  if (
+    lastNja &&
+    (lastNja.content === NJA_CHOICE_LIVE ||
+      lastNja.content === NJA_CHOICE_OFFLINE ||
+      lastNja.content === NJA_OUT_OF_SCOPE_LIVE ||
+      lastNja.content === NJA_OUT_OF_SCOPE_OFFLINE)
+  ) {
+    return "support_choice";
+  }
+  return "qa";
+}
 
 export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -68,13 +87,12 @@ export default function ChatPage() {
   const [error, setError] = useState("");
   const [showOutOfScopeChoice, setShowOutOfScopeChoice] = useState(false);
   const [njaTopics, setNjaTopics] = useState<NjaKnowledgeTopic[]>([]);
+  const [chatStep, setChatStep] = useState<ChatStep>("name");
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const customerCount = messages.filter((m) => m.role === "customer").length;
-  const step = customerCount === 0 ? "name" : customerCount === 1 ? "email" : customerCount === 2 ? "issue" : "choice";
-  const showChoice = step === "choice" && status === "nja";
-  const showTransferOrTicketButtons = (showChoice || showOutOfScopeChoice) && status === "nja";
+  const showTransferOrTicketButtons =
+    (chatStep === "support_choice" || showOutOfScopeChoice) && status === "nja";
   const isLive = status === "live";
   const isSubmitted = status === "submitted";
 
@@ -92,6 +110,8 @@ export default function ChatPage() {
     setMessages(data.messages ?? []);
     setCustomerName(data.customerName ?? "");
     setCustomerEmail(data.customerEmail ?? "");
+    const initialMsgs = data.messages ?? [];
+    if (initialMsgs.length > 0) setChatStep(inferChatStepFromMessages(initialMsgs));
     if ((data.messages ?? []).length === 0 && data.status === "nja") {
       await fetch("/api/chat/message", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: sid, role: "nja", content: NJA_INTRO }) });
       await fetch("/api/chat/message", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: sid, role: "nja", content: NJA_ASK_NAME }) });
@@ -120,7 +140,11 @@ export default function ChatPage() {
     return fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sessionId)}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) setMessages(d.messages ?? []);
+        if (d.success) {
+          const msgs = d.messages ?? [];
+          setMessages(msgs);
+          if (msgs.length > 0) setChatStep(inferChatStepFromMessages(msgs));
+        }
       })
       .catch(() => {});
   };
@@ -156,9 +180,9 @@ export default function ChatPage() {
   }, [isLive, sessionId]);
 
   useEffect(() => {
-    if (!showChoice) return;
+    if (chatStep !== "support_choice") return;
     checkPresenceNow().then(setAgentOnline);
-  }, [showChoice]);
+  }, [chatStep]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -214,22 +238,44 @@ export default function ChatPage() {
       }
 
       const knowledgeReply = resolveKnowledgeReply(trimmed);
-      if (knowledgeReply && (step === "issue" || step === "choice" || isSubscriptionQuestion(trimmed))) {
+      if (knowledgeReply && (chatStep === "issue" || chatStep === "qa" || isSubscriptionQuestion(trimmed))) {
         await postNjaReply(knowledgeReply);
+        if (chatStep === "issue") setChatStep("qa");
+        return;
+      }
+
+      if (chatStep === "qa") {
+        if (isSupportIntent(trimmed)) {
+          const onlineNow = await checkPresenceNow();
+          setAgentOnline(onlineNow);
+          await postNjaReply(onlineNow ? NJA_CHOICE_LIVE : NJA_CHOICE_OFFLINE);
+          setChatStep("support_choice");
+          return;
+        }
+        const onlineNow = await checkPresenceNow();
+        setAgentOnline(onlineNow);
+        await postNjaReply(onlineNow ? NJA_OUT_OF_SCOPE_LIVE : NJA_OUT_OF_SCOPE_OFFLINE);
+        setShowOutOfScopeChoice(true);
         return;
       }
 
       // Intake (name / email / issue): accept any reply — do not run out-of-scope on a name like "Elon Musk"
-      if (step === "name" && isSubscriptionQuestion(trimmed)) {
+      if (chatStep === "name" && isSubscriptionQuestion(trimmed)) {
         await postNjaReply(NJA_SUBSCRIPTION_REPLY);
+        setChatStep("qa");
         return;
       }
-      if (step === "name") setCustomerName(trimmed);
-      if (step === "email") setCustomerEmail(trimmed);
+      if (chatStep === "name") setCustomerName(trimmed);
+      if (chatStep === "email") setCustomerEmail(trimmed);
 
-      const nextStep = step === "name" ? "email" : step === "email" ? "issue" : "choice";
-      const onlineNow = nextStep === "choice" ? await checkPresenceNow() : agentOnline;
-      if (nextStep === "choice") setAgentOnline(onlineNow);
+      const nextStep: ChatStep =
+        chatStep === "name" ? "email" : chatStep === "email" ? "issue" : "support_choice";
+      if (chatStep === "name") setChatStep("email");
+      else if (chatStep === "email") setChatStep("issue");
+      else setChatStep("support_choice");
+
+      const onlineNow = nextStep === "support_choice" ? await checkPresenceNow() : agentOnline;
+      if (nextStep === "support_choice") setAgentOnline(onlineNow);
       const nextNjaContent =
         nextStep === "email"
           ? NJA_ASK_EMAIL
@@ -412,7 +458,7 @@ export default function ChatPage() {
               </div>
             )}
 
-            {!showTransferOrTicketButtons && !isSubmitted && step === "issue" && (
+            {!showTransferOrTicketButtons && !isSubmitted && (chatStep === "issue" || chatStep === "qa") && (
               <div className="flex flex-wrap gap-2 mb-3">
                 <Button
                   type="button"
@@ -445,21 +491,21 @@ export default function ChatPage() {
                   e.preventDefault();
                   const t = input.trim();
                   if (!t || sending) return;
-                  if (step === "name") sendMessage(t, t, undefined);
-                  else if (step === "email") sendMessage(t, undefined, t);
+                  if (chatStep === "name") sendMessage(t, t, undefined);
+                  else if (chatStep === "email") sendMessage(t, undefined, t);
                   else sendMessage(t);
                 }}
               >
                 <input
-                  type={step === "email" ? "email" : "text"}
+                  type={chatStep === "email" ? "email" : "text"}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={
-                    step === "name"
+                    chatStep === "name"
                       ? "Your name"
-                      : step === "email"
+                      : chatStep === "email"
                         ? "Your email"
-                        : isLive
+                        : chatStep === "qa" || isLive
                           ? "Type your message…"
                           : "Describe your question or issue…"
                   }
