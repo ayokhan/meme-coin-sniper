@@ -412,8 +412,17 @@ export default function ChatPage() {
               </div>
             )}
 
-            {!showTransferOrTicketButtons && !isSubmitted && step === "issue" && njaTopics.length > 0 && (
+            {!showTransferOrTicketButtons && !isSubmitted && step === "issue" && (
               <div className="flex flex-wrap gap-2 mb-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={sending}
+                  onClick={() => sendMessage("Subscription and pricing")}
+                >
+                  Subscription
+                </Button>
                 {njaTopics.map((topic) => (
                   <Button
                     key={topic.id}
