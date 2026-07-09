@@ -93,7 +93,7 @@ export function SiteAnnouncementModal({ open, banner, onRemindLater, onDismissPe
         <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
           {cfg.showPartnerLogos && (
             <div className="mb-4 w-full flex justify-center sm:justify-start">
-              <PartnerLogosStrip />
+              <PartnerLogosStrip onLightBackground />
             </div>
           )}
           {!cfg.showPartnerLogos && (
