@@ -504,6 +504,8 @@ export default function AdminFeatureFlagsPage() {
     goHuntingRefreshToDraft(DEFAULT_GO_HUNTING_REFRESH_ADMIN)
   );
   const [goHuntingRefreshSaving, setGoHuntingRefreshSaving] = useState(false);
+  const [goHuntingRefreshResetting, setGoHuntingRefreshResetting] = useState(false);
+  const [goHuntingRefreshResetEmail, setGoHuntingRefreshResetEmail] = useState("");
 
   const load = () =>
     Promise.all([
@@ -679,6 +681,38 @@ export default function AdminFeatureFlagsPage() {
       setError("Update failed");
     } finally {
       setGoHuntingRefreshSaving(false);
+    }
+  };
+
+  const resetGoHuntingRefresh = async (scope: "all" | "user") => {
+    if (scope === "all" && !window.confirm("Reset market refresh limits for ALL users (guests, free, VIP)?")) return;
+    if (scope === "user" && !goHuntingRefreshResetEmail.trim()) {
+      setError("Enter a user email to reset individually.");
+      return;
+    }
+    setGoHuntingRefreshResetting(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const res = await fetch("/api/admin/go-hunting-refresh/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          scope === "all"
+            ? { scope: "all" }
+            : { scope: "user", email: goHuntingRefreshResetEmail.trim() }
+        ),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMessage(data.message ?? "Refresh limits reset.");
+        if (scope === "user") setGoHuntingRefreshResetEmail("");
+        setTimeout(() => setSuccessMessage(""), 5000);
+      } else setError(data.error ?? "Reset failed");
+    } catch {
+      setError("Reset failed");
+    } finally {
+      setGoHuntingRefreshResetting(false);
     }
   };
 
@@ -1017,6 +1051,37 @@ export default function AdminFeatureFlagsPage() {
                       ? ` · auto every ${goHuntingRefresh.vipAutoRefreshMinutes}m`
                       : " · auto off"}
                   </p>
+                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/40 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">Reset refresh counters</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Clears cooldown / daily VIP counts so users can refresh again immediately. Owner is always unlimited and unaffected.
+                    </p>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={goHuntingRefreshResetting}
+                        onClick={() => void resetGoHuntingRefresh("all")}
+                      >
+                        {goHuntingRefreshResetting ? "…" : "Reset all users"}
+                      </Button>
+                      <input
+                        type="email"
+                        placeholder="user@email.com"
+                        value={goHuntingRefreshResetEmail}
+                        onChange={(e) => setGoHuntingRefreshResetEmail(e.target.value)}
+                        className="min-w-[200px] flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                      />
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={goHuntingRefreshResetting || !goHuntingRefreshResetEmail.trim()}
+                        onClick={() => void resetGoHuntingRefresh("user")}
+                      >
+                        Reset this user
+                      </Button>
+                    </div>
+                  </div>
                 </div>
                 {groupedFlags.map((group) => (
                   <details key={group.id} open={group.id !== "tabs"} className="rounded-xl border border-zinc-200 dark:border-zinc-700">

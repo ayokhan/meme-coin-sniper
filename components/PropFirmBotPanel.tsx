@@ -26,6 +26,7 @@ import {
   type SessionState,
   type SyncedPosition,
 } from "@/lib/prop-firm-bot";
+import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
 
 type BlofinStatus = {
   configured: boolean;
@@ -794,6 +795,7 @@ export default function PropFirmBotPanel() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
+            <BlofinPartnerPromoBanner compact />
             {blofinStatus.configured ? (
               <p className="text-emerald-700 dark:text-emerald-300">
                 Connected — {blofinSyncDemo ? "Demo" : "Live"}

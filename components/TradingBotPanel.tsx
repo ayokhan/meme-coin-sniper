@@ -27,6 +27,7 @@ import PlatformHealthStrip from "@/components/PlatformHealthStrip";
 import TradingRiskDisclaimer from "@/components/TradingRiskDisclaimer";
 import TradeJournalPanel from "@/components/TradeJournalPanel";
 import TradingBotJournalPanel from "@/components/TradingBotJournalPanel";
+import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
 import { buildAnalysisShareCaption } from "@/lib/pnl-share";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
@@ -2243,6 +2244,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           <CardTitle className="text-base font-semibold">Your Blofin API keys</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <BlofinPartnerPromoBanner />
           <p className="text-sm text-muted-foreground">Store your Blofin API keys here to run the bot with your account. Keys are encrypted and never sent to our servers except to place orders. Leave empty to use server env keys (owner).</p>
           {userBlofinConfigured === true && (
             <p className="text-sm text-emerald-600 dark:text-emerald-400">Keys are configured. Run uses your account.</p>

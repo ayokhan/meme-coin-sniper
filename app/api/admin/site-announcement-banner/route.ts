@@ -8,6 +8,7 @@ import {
   type SiteAnnouncementBannerConfig,
 } from "@/lib/site-announcement-banner";
 import { AFFILIATE_LAUNCH_BANNER } from "@/lib/referral-program";
+import { BLOFIN_PARTNERSHIP_LAUNCH_BANNER } from "@/lib/blofin-partner-promo";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -39,6 +40,10 @@ export async function PATCH(request: Request) {
     }
     if (body.preset === "affiliate-launch") {
       const banner = await setSiteAnnouncementBanner({ ...AFFILIATE_LAUNCH_BANNER });
+      return NextResponse.json({ success: true, banner });
+    }
+    if (body.preset === "blofin-partnership") {
+      const banner = await setSiteAnnouncementBanner({ ...BLOFIN_PARTNERSHIP_LAUNCH_BANNER });
       return NextResponse.json({ success: true, banner });
     }
     const { resetToDefault: _, preset: __, ...patch } = body;

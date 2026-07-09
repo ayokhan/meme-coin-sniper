@@ -11,6 +11,7 @@ import {
   scalperEntryTriggerFor,
   scalperInstrumentPairFor,
 } from "@/lib/nova-scalper-prefill";
+import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
 
 type ScalperConfig = {
   id: string;
@@ -528,6 +529,7 @@ export default function NovaScalperPanel() {
           <CardTitle className="text-base font-semibold">Your Blofin API keys</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <BlofinPartnerPromoBanner compact />
           <p className="text-sm text-muted-foreground">
             VIP and on-demand: save keys here so NovaScalper uses your account (encrypted; used only to call Blofin).
             Server-side <code className="text-xs rounded bg-zinc-200/80 dark:bg-zinc-700/80 px-1">BLOFIN_*</code> env keys are

@@ -14,8 +14,11 @@ import type { MemeTableAnalyzeHintBannerAdmin } from "@/lib/meme-table-analyze-h
 import type { GuestRegistrationNudgeBannerAdmin } from "@/lib/guest-registration-nudge-banner";
 import type { TwoFactorSecurityNudgeBannerAdmin } from "@/lib/two-factor-security-nudge-banner";
 import type { SiteAnnouncementBannerAdmin } from "@/lib/site-announcement-banner";
+import type { BlofinPartnerPromoAdmin, BlofinPartnerLinkClickRow } from "@/lib/blofin-partner-promo";
+import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import { formatPromoDrawDate } from "@/lib/promo-banner";
 import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
+import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
 import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
 import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
 import { GuestRegistrationBanner } from "@/components/GuestRegistrationNudge";
@@ -114,6 +117,18 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
   });
   const [siteAnnouncementPreviewOpen, setSiteAnnouncementPreviewOpen] = useState(false);
 
+  const [blofinPartner, setBlofinPartner] = useState<BlofinPartnerPromoAdmin | null>(null);
+  const [blofinPartnerClicks, setBlofinPartnerClicks] = useState<BlofinPartnerLinkClickRow[]>([]);
+  const [blofinPartnerLoading, setBlofinPartnerLoading] = useState(true);
+  const [blofinPartnerSaving, setBlofinPartnerSaving] = useState(false);
+  const [blofinPartnerDraft, setBlofinPartnerDraft] = useState({
+    registerUrl: "",
+    headline: "",
+    bodyText: "",
+    promoLabel: "",
+    ctaLabel: "",
+  });
+
   const [emailStats, setEmailStats] = useState<{
     newsletterCount: number;
     allEmailCount: number;
@@ -159,6 +174,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     setGuestNudgeLoading(true);
     setTwoFactorNudgeLoading(true);
     setSiteAnnouncementLoading(true);
+    setBlofinPartnerLoading(true);
     setEmailStatsLoading(true);
     return Promise.all([
       fetch("/api/admin/promo-banner").then((r) => r.json()),
@@ -167,9 +183,10 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       fetch("/api/admin/guest-registration-nudge-banner").then((r) => r.json()),
       fetch("/api/admin/two-factor-security-nudge-banner").then((r) => r.json()),
       fetch("/api/admin/site-announcement-banner").then((r) => r.json()),
+      fetch("/api/admin/blofin-partner-promo").then((r) => r.json()),
       fetch("/api/admin/announcement-email").then((r) => r.json()),
     ])
-      .then(([promoData, memeBannerData, memeTableHintData, guestNudgeData, twoFactorNudgeData, siteAnnouncementData, emailStatsData]) => {
+      .then(([promoData, memeBannerData, memeTableHintData, guestNudgeData, twoFactorNudgeData, siteAnnouncementData, blofinPartnerData, emailStatsData]) => {
         if (promoData.success && promoData.promo) {
           applyPromoDraft(promoData.promo as PromoBannerAdmin);
         } else onError?.(promoData.error ?? "Failed to load promo banner.");
@@ -219,6 +236,18 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
             ctaHref: b.ctaHref,
           });
         }
+        if (blofinPartnerData.success && blofinPartnerData.promo) {
+          const p = blofinPartnerData.promo as BlofinPartnerPromoAdmin;
+          setBlofinPartner(p);
+          setBlofinPartnerDraft({
+            registerUrl: p.registerUrl,
+            headline: p.headline,
+            bodyText: p.bodyText,
+            promoLabel: p.promoLabel,
+            ctaLabel: p.ctaLabel,
+          });
+          setBlofinPartnerClicks((blofinPartnerData.clicks ?? []) as BlofinPartnerLinkClickRow[]);
+        }
         if (emailStatsData.success && emailStatsData.stats) {
           setEmailStats(
             emailStatsData.stats as {
@@ -238,6 +267,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         setGuestNudgeLoading(false);
         setTwoFactorNudgeLoading(false);
         setSiteAnnouncementLoading(false);
+        setBlofinPartnerLoading(false);
         setEmailStatsLoading(false);
       });
   }, [applyPromoDraft, applyMemeAgentDraft, onError]);
@@ -423,6 +453,41 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       onError?.("Update failed.");
     } finally {
       setSiteAnnouncementSaving(false);
+    }
+  };
+
+  const patchBlofinPartner = async (body: Record<string, unknown>) => {
+    setBlofinPartnerSaving(true);
+    try {
+      const res = await fetch("/api/admin/blofin-partner-promo", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success && data.promo) {
+        const p = data.promo as BlofinPartnerPromoAdmin;
+        setBlofinPartner(p);
+        setBlofinPartnerDraft({
+          registerUrl: p.registerUrl,
+          headline: p.headline,
+          bodyText: p.bodyText,
+          promoLabel: p.promoLabel,
+          ctaLabel: p.ctaLabel,
+        });
+        if (data.broadcastPublished) {
+          void load();
+        }
+        onNotice?.(
+          data.broadcastPublished
+            ? "Blofin promo saved and in-app broadcast published."
+            : "Blofin partner promo updated."
+        );
+      } else onError?.(data.error ?? "Update failed.");
+    } catch {
+      onError?.("Update failed.");
+    } finally {
+      setBlofinPartnerSaving(false);
     }
   };
 
@@ -961,6 +1026,163 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         </CardContent>
       </Card>
 
+      <Card className="border-cyan-200/80 dark:border-cyan-900/60">
+        <CardHeader>
+          <CardTitle className="text-base">Blofin partner promo</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Shown on Trading Bot, NovaScalper, Prop Firm, and NovaRadar when enabled and a register URL is set. Off by default until you paste your affiliate link.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {blofinPartnerLoading ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : blofinPartner ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span
+                  className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                    blofinPartner.active
+                      ? "bg-cyan-500/15 text-cyan-800 dark:text-cyan-200 border-cyan-500/30"
+                      : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                  }`}
+                >
+                  {blofinPartner.active ? "LIVE on bot screens" : blofinPartner.enabled ? "ON (needs URL)" : "OFF"}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={blofinPartner.enabled ? "outline" : "default"}
+                    disabled={blofinPartnerSaving}
+                    onClick={() => void patchBlofinPartner({ enabled: !blofinPartner.enabled })}
+                  >
+                    {blofinPartnerSaving ? "…" : blofinPartner.enabled ? "Turn off" : "Turn on"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={blofinPartnerSaving}
+                    onClick={() =>
+                      void patchBlofinPartner({
+                        ...blofinPartnerDraft,
+                        enabled: true,
+                        publishLaunchBroadcast: true,
+                      })
+                    }
+                  >
+                    Save + publish in-app broadcast
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={blofinPartnerSaving}
+                    onClick={() => void patchBlofinPartner({ resetToDefault: true })}
+                  >
+                    Reset defaults
+                  </Button>
+                </div>
+              </div>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Affiliate register URL
+                <input
+                  value={blofinPartnerDraft.registerUrl}
+                  onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, registerUrl: e.target.value }))}
+                  placeholder="https://blofin.com/register?ref=..."
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Headline
+                <input
+                  value={blofinPartnerDraft.headline}
+                  onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, headline: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Body
+                <textarea
+                  rows={3}
+                  value={blofinPartnerDraft.bodyText}
+                  onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, bodyText: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  Promo badge (e.g. 10% back)
+                  <input
+                    value={blofinPartnerDraft.promoLabel}
+                    onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, promoLabel: e.target.value }))}
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                  />
+                </label>
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  CTA label
+                  <input
+                    value={blofinPartnerDraft.ctaLabel}
+                    onChange={(e) => setBlofinPartnerDraft((d) => ({ ...d, ctaLabel: e.target.value }))}
+                    className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                  />
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={blofinPartnerSaving}
+                  onClick={() => void patchBlofinPartner({ ...blofinPartnerDraft, enabled: blofinPartner.enabled })}
+                >
+                  {blofinPartnerSaving ? "Saving…" : "Save Blofin promo"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setEmailDraft({
+                      subject: BLOFIN_PARTNERSHIP_EMAIL.subject,
+                      body: BLOFIN_PARTNERSHIP_EMAIL.body,
+                      audience: "all",
+                    })
+                  }
+                >
+                  Load email template
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Register link clicks tracked: {blofinPartner.registerClickCount}. Blofin does not expose confirmed signups via API — use your Blofin affiliate dashboard for conversions; this list is NovaStaris link clicks only.
+              </p>
+              {blofinPartnerClicks.length > 0 && (
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-700 text-left text-muted-foreground">
+                        <th className="p-2">When</th>
+                        <th className="p-2">User</th>
+                        <th className="p-2">Guest</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {blofinPartnerClicks.slice(0, 20).map((c) => (
+                        <tr key={c.id} className="border-b border-zinc-100 dark:border-zinc-800">
+                          <td className="p-2 whitespace-nowrap">{new Date(c.clickedAt).toLocaleString()}</td>
+                          <td className="p-2">{c.userEmail ?? "—"}</td>
+                          <td className="p-2 font-mono text-[10px]">{c.guestHash ? c.guestHash.slice(0, 8) : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {blofinPartner.active && (
+                <div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 p-3">
+                  <p className="text-xs text-muted-foreground mb-2">Preview (live when saved + enabled + URL set)</p>
+                  <BlofinPartnerPromoBanner />
+                </div>
+              )}
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+
       <Card className="border-zinc-200 dark:border-zinc-800">
         <CardHeader>
           <CardTitle className="text-base">Site announcement (in-app)</CardTitle>
@@ -1000,6 +1222,14 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                     onClick={() => void patchSiteAnnouncement({ preset: "affiliate-launch" })}
                   >
                     Publish affiliate launch
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={siteAnnouncementSaving}
+                    onClick={() => void patchSiteAnnouncement({ preset: "blofin-partnership" })}
+                  >
+                    Publish Blofin partnership
                   </Button>
                   <Button
                     size="sm"

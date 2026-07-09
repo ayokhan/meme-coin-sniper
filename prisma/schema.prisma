@@ -200,6 +200,7 @@ model User {
   referredUsers              User[]    @relation("UserReferrals")
   referralCommissionsEarned  ReferralCommission[] @relation("ReferrerCommissions")
   referralCommissionsAsReferee ReferralCommission[] @relation("RefereeCommissions")
+  blofinPartnerLinkClicks    BlofinPartnerLinkClick[]
 
   @@index([referredByUserId])
 }
@@ -401,6 +402,29 @@ model SiteAnnouncementBanner {
   ctaLabel  String   @default("")
   ctaHref   String   @default("")
   updatedAt DateTime @updatedAt
+}
+
+/** Owner-managed Blofin affiliate registration promo (Trading Bot / NovaScalper / Prop Firm). Off by default until link is set. */
+model BlofinPartnerPromo {
+  id          String   @id @default("default")
+  enabled     Boolean  @default(false)
+  registerUrl String   @default("")
+  headline    String   @default("Trade on Blofin with NovaStaris")
+  bodyText    String   @default("Open a Blofin account through our partner link, then connect your API keys to run NovaStaris trading bots on your account.")
+  promoLabel  String   @default("10% back on transfer fees")
+  ctaLabel    String   @default("Register on Blofin")
+  updatedAt   DateTime @updatedAt
+}
+
+/** Tracked clicks on NovaStaris Blofin affiliate register link (not confirmed Blofin signups). */
+model BlofinPartnerLinkClick {
+  id        String   @id @default(cuid())
+  userId    String?
+  guestHash String?
+  clickedAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([userId])
+  @@index([clickedAt])
 }
 
 model Account {

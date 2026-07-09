@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import NovaRadarPreTradeChecklist from "@/components/NovaRadarPreTradeChecklist";
 import PlatformHealthStrip from "@/components/PlatformHealthStrip";
+import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
 import TradingRiskDisclaimer from "@/components/TradingRiskDisclaimer";
 import type {
   NovaRadarPlanId,
@@ -682,10 +683,13 @@ export default function NovaRadarPanel() {
           )}
         </div>
         {blofinKeysConfigured === false && (
-          <p className="text-xs text-slate-900 dark:text-slate-100">
-            Save your Blofin API keys once under{" "}
-            <strong className="font-medium">NovaStaris AI Trading Bots → Blofin keys</strong> — then return here; no second Blofin login.
-          </p>
+          <div className="space-y-2">
+            <BlofinPartnerPromoBanner compact />
+            <p className="text-xs text-slate-900 dark:text-slate-100">
+              Save your Blofin API keys once under{" "}
+              <strong className="font-medium">NovaStaris AI Trading Bots → Blofin keys</strong> — then return here; no second Blofin login.
+            </p>
+          </div>
         )}
         {blofinKeysConfigured === true && blofinCredentialSource === "server" && (
           <p className="text-xs text-emerald-800 dark:text-emerald-200">

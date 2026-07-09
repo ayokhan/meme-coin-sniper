@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { getSessionAndSubscription } from "@/lib/auth-server";
-import { isOwnerEmail } from "@/lib/auth";
+import { isOwnerEmail, isOwnerWallet, isOwnerUserId } from "@/lib/auth";
 
 export type GoHuntingRefreshConfig = {
   guestIntervalMinutes: number;
@@ -41,6 +41,8 @@ type CooldownDb = {
   };
   goHuntingRefreshCooldown?: {
     findUnique: (args: { where: { subjectKey: string } }) => Promise<CooldownRow | null>;
+    findMany: (args: { where: { subjectKey?: { startsWith?: string } }; select?: { subjectKey: true } }) => Promise<{ subjectKey: string }[]>;
+    deleteMany: (args: { where: { subjectKey?: { startsWith?: string } } }) => Promise<{ count: number }>;
     upsert: (args: {
       where: { subjectKey: string };
       create: { subjectKey: string; lastRefreshAt: Date; refreshCount?: number };
@@ -169,9 +171,44 @@ export type GoHuntingRefreshCheck =
       dailyLimit?: number;
     };
 
+function isOwnerFromSession(session: { user?: { email?: string | null; walletAddress?: string | null } } | null): boolean {
+  return !!(session?.user && (isOwnerEmail(session.user.email) || isOwnerWallet(session.user.walletAddress)));
+}
+
+export async function resetAllGoHuntingRefreshCooldowns(): Promise<number> {
+  try {
+    const result = await (
+      prisma as unknown as { goHuntingRefreshCooldown: { deleteMany: (args?: object) => Promise<{ count: number }> } }
+    ).goHuntingRefreshCooldown.deleteMany();
+    return result.count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+export async function resetGoHuntingRefreshForUserId(userId: string): Promise<number> {
+  try {
+    const cooldown = (
+      prisma as unknown as {
+        goHuntingRefreshCooldown: {
+          deleteMany: (args: { where: object }) => Promise<{ count: number }>;
+        };
+      }
+    ).goHuntingRefreshCooldown;
+    const userResult = await cooldown.deleteMany({ where: { subjectKey: `user:${userId}` } });
+    const vipResult = await cooldown.deleteMany({
+      where: { subjectKey: { startsWith: `vip:${userId}:` } },
+    });
+    return (userResult.count ?? 0) + (vipResult.count ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
 export async function isUnlimitedRefreshUser(): Promise<boolean> {
-  const { session } = await getSessionAndSubscription();
-  if (session?.user?.email && isOwnerEmail(session.user.email)) return true;
+  const { session, userId } = await getSessionAndSubscription();
+  if (isOwnerFromSession(session)) return true;
+  if (userId && (await isOwnerUserId(userId))) return true;
   return false;
 }
 
@@ -221,7 +258,7 @@ async function checkVipDailyLimit(userId: string, dailyLimit: number): Promise<G
 /** Enforce cooldown / daily caps for Go Hunting fetch/scan. Owner skips. */
 export async function checkGoHuntingRefreshLimit(req: Request): Promise<GoHuntingRefreshCheck> {
   const { session, userId, isPaid, tier } = await getSessionAndSubscription();
-  if (session?.user?.email && isOwnerEmail(session.user.email)) {
+  if (isOwnerFromSession(session) || (userId && (await isOwnerUserId(userId)))) {
     return { allowed: true, unlimited: true };
   }
 
