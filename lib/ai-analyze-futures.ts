@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { CLAUDE_SONNET_MODEL } from '@/lib/anthropic-models';
+import { parseClaudeJsonResponse } from '@/lib/parse-claude-json';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -153,15 +154,7 @@ export async function runFuturesAnalysis(
     { type: 'text' as const, text: prompt },
   ];
 
-  const message = await anthropic.messages.create({
-    model: CLAUDE_SONNET_MODEL,
-    max_tokens: 900,
-    messages: [{ role: 'user', content }],
-  });
-
-  const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}';
-  const cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  const parsed = JSON.parse(cleaned) as {
+  type ParsedAnalysis = {
     score?: number;
     signal?: string;
     tradeDirection?: string;
@@ -174,6 +167,22 @@ export async function runFuturesAnalysis(
       stopLossPct?: string;
     };
   };
+
+  let parsed: ParsedAnalysis = {};
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const message = await anthropic.messages.create({
+      model: CLAUDE_SONNET_MODEL,
+      max_tokens: 1024,
+      messages: [{ role: 'user', content }],
+    });
+    const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}';
+    try {
+      parsed = parseClaudeJsonResponse<ParsedAnalysis>(responseText);
+      break;
+    } catch (e) {
+      if (attempt === 1) throw e;
+    }
+  }
 
   const score = typeof parsed.score === 'number' ? Math.min(100, Math.max(0, Math.round(parsed.score))) : 50;
   const signal = (parsed.signal ?? '').toLowerCase() === 'buy' ? 'buy' : 'no_buy';
