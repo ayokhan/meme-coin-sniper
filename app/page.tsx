@@ -955,6 +955,8 @@ export default function Dashboard() {
     recommendations?: {
       supportResistance?: string;
       marketStructure?: string;
+      priceOutlook?: string;
+      /** @deprecated Legacy field — use priceOutlook */
       directionBias?: string;
       trendlineRead?: string;
       demandSupplyZones?: string;
@@ -3503,12 +3505,21 @@ export default function Dashboard() {
         ? v.toExponential(2)
         : v.toFixed(6)
       : "—";
-  const normalizeDirectionBias = (value?: string): "long" | "short" | "neutral" | null => {
+  const memePriceOutlookRaw = (rec?: { priceOutlook?: string; directionBias?: string }) =>
+    rec?.priceOutlook?.trim() || rec?.directionBias?.trim() || undefined;
+
+  const normalizeMemePriceOutlook = (value?: string): "bullish" | "bearish" | "neutral" | null => {
     const t = (value ?? "").toLowerCase();
     if (!t) return null;
-    if (t.includes("short")) return "short";
-    if (t.includes("long")) return "long";
-    if (t.includes("neutral") || t.includes("mixed") || t.includes("unclear")) return "neutral";
+    if (t.includes("bearish") || t.includes("avoid") || t.includes("wait") || t.includes("downside") || t.includes("short")) {
+      return "bearish";
+    }
+    if (t.includes("bullish") || t.includes("upside") || t.includes("accumulate") || t.includes("long")) {
+      return "bullish";
+    }
+    if (t.includes("neutral") || t.includes("mixed") || t.includes("unclear") || t.includes("sideways")) {
+      return "neutral";
+    }
     return null;
   };
   const formatAge = (launchedAt: string) => {
@@ -3542,11 +3553,12 @@ export default function Dashboard() {
     }
     lines.push("");
     const rec = r.recommendations;
-    if (rec && (rec.supportResistance || rec.marketStructure || rec.directionBias || rec.trendlineRead || rec.demandSupplyZones || rec.buyZoneMcap || rec.takeProfitPct || rec.stopLossPct)) {
+    if (rec && (rec.supportResistance || rec.marketStructure || memePriceOutlookRaw(rec) || rec.trendlineRead || rec.demandSupplyZones || rec.buyZoneMcap || rec.takeProfitPct || rec.stopLossPct)) {
       lines.push("📐 Trading levels (meme coins are volatile — use risk management)");
       if (rec.supportResistance) lines.push(`  📍 Support / Resistance: ${rec.supportResistance}`);
       if (rec.marketStructure) lines.push(`  📈 Market structure: ${rec.marketStructure}`);
-      if (rec.directionBias) lines.push(`  🧭 Direction bias: ${rec.directionBias}`);
+      const outlook = memePriceOutlookRaw(rec);
+      if (outlook) lines.push(`  🧭 Price outlook: ${outlook}`);
       if (rec.trendlineRead) lines.push(`  📉 Trendline read: ${rec.trendlineRead}`);
       if (rec.demandSupplyZones) lines.push(`  🧱 Demand / Supply zones: ${rec.demandSupplyZones}`);
       if (rec.buyZoneMcap) lines.push(`  🎯 Buy zone (mcap): ${rec.buyZoneMcap}`);
@@ -4915,18 +4927,18 @@ export default function Dashboard() {
                         {aiAnalysisResult.signal === "buy" ? "BUY" : "NO BUY"}
                       </Badge>
                       {(() => {
-                        const biasRaw = aiAnalysisResult.recommendations?.directionBias;
-                        const bias = normalizeDirectionBias(biasRaw);
-                        if (!bias) return null;
+                        const outlookRaw = memePriceOutlookRaw(aiAnalysisResult.recommendations);
+                        const outlook = normalizeMemePriceOutlook(outlookRaw);
+                        if (!outlook) return null;
                         const cls =
-                          bias === "long"
+                          outlook === "bullish"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-300/60"
-                            : bias === "short"
-                              ? "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border-rose-300/60"
+                            : outlook === "bearish"
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300/60"
                               : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-300/60";
                         return (
-                          <Badge variant="outline" className={`text-sm font-semibold px-3 py-1 ${cls}`} title={biasRaw}>
-                            Bias: {bias === "long" ? "Long" : bias === "short" ? "Short" : "Neutral"}
+                          <Badge variant="outline" className={`text-sm font-semibold px-3 py-1 ${cls}`} title={outlookRaw}>
+                            Outlook: {outlook === "bullish" ? "Bullish" : outlook === "bearish" ? "Bearish" : "Neutral"}
                           </Badge>
                         );
                       })()}
@@ -4998,12 +5010,12 @@ export default function Dashboard() {
                         <p className="text-slate-600 dark:text-slate-300">{aiAnalysisResult.amountRiskNote}</p>
                       </div>
                     )}
-                    {aiAnalysisResult.recommendations && (aiAnalysisResult.recommendations.supportResistance || aiAnalysisResult.recommendations.marketStructure || aiAnalysisResult.recommendations.directionBias || aiAnalysisResult.recommendations.trendlineRead || aiAnalysisResult.recommendations.demandSupplyZones || aiAnalysisResult.recommendations.buyZoneMcap || aiAnalysisResult.recommendations.takeProfitPct || aiAnalysisResult.recommendations.stopLossPct) && (
+                    {aiAnalysisResult.recommendations && (aiAnalysisResult.recommendations.supportResistance || aiAnalysisResult.recommendations.marketStructure || memePriceOutlookRaw(aiAnalysisResult.recommendations) || aiAnalysisResult.recommendations.trendlineRead || aiAnalysisResult.recommendations.demandSupplyZones || aiAnalysisResult.recommendations.buyZoneMcap || aiAnalysisResult.recommendations.takeProfitPct || aiAnalysisResult.recommendations.stopLossPct) && (
                       <div className="mt-4 rounded-lg border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/50 dark:bg-cyan-950/30 p-4 space-y-2 text-sm">
                         <p className="font-semibold text-cyan-800 dark:text-cyan-200">Trading levels (meme coins are volatile — use risk management)</p>
                         {aiAnalysisResult.recommendations.supportResistance && <p><span className="text-muted-foreground">Support / Resistance:</span> {aiAnalysisResult.recommendations.supportResistance}</p>}
                         {aiAnalysisResult.recommendations.marketStructure && <p><span className="text-muted-foreground">Market structure:</span> {aiAnalysisResult.recommendations.marketStructure}</p>}
-                        {aiAnalysisResult.recommendations.directionBias && <p><span className="text-muted-foreground">Direction bias:</span> {aiAnalysisResult.recommendations.directionBias}</p>}
+                        {memePriceOutlookRaw(aiAnalysisResult.recommendations) && <p><span className="text-muted-foreground">Price outlook:</span> {memePriceOutlookRaw(aiAnalysisResult.recommendations)}</p>}
                         {aiAnalysisResult.recommendations.trendlineRead && <p><span className="text-muted-foreground">Trendline read:</span> {aiAnalysisResult.recommendations.trendlineRead}</p>}
                         {aiAnalysisResult.recommendations.demandSupplyZones && <p><span className="text-muted-foreground">Demand / Supply zones:</span> {aiAnalysisResult.recommendations.demandSupplyZones}</p>}
                         {aiAnalysisResult.recommendations.buyZoneMcap && <p><span className="text-muted-foreground">Buy zone (mcap):</span> {aiAnalysisResult.recommendations.buyZoneMcap}</p>}
