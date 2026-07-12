@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
@@ -28,6 +28,7 @@ import {
   type CertificatePayload,
 } from "@/lib/trading-university/certificate";
 import type { UniversityLesson } from "@/lib/trading-university/content";
+import { TRADING_UNIVERSITY_MAX_TAB_LEAVES } from "@/lib/trading-university/content";
 
 type Progress = {
   completedLessons: string[];
@@ -42,6 +43,8 @@ type Progress = {
   nextAttemptAt: string | null;
   allLessonsComplete: boolean;
   displayName: string | null;
+  examInProgress?: boolean;
+  examExpiresAt?: string | null;
 };
 
 type CatalogLesson = UniversityLesson & { locked?: boolean };
@@ -98,12 +101,31 @@ export default function TradingUniversityPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [examExpiresAt, setExamExpiresAt] = useState<string | null>(null);
+  const [examSecondsLeft, setExamSecondsLeft] = useState<number | null>(null);
+  const [tabLeaveCount, setTabLeaveCount] = useState(0);
+  const [proctorWarning, setProctorWarning] = useState<string | null>(null);
   const [result, setResult] = useState<{
     passed: boolean;
     scorePct: number;
     correct: number;
     total: number;
+    timedOut?: boolean;
+    tabLeaveFail?: boolean;
   } | null>(null);
+  const answersRef = useRef(answers);
+  const submittingRef = useRef(false);
+  const viewRef = useRef(view);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+  useEffect(() => {
+    submittingRef.current = submitting;
+  }, [submitting]);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
 
   const completedSet = useMemo(() => {
     const fromServer = progress?.completedLessons ?? [];
@@ -226,6 +248,13 @@ export default function TradingUniversityPanel() {
       setAnswers({});
       setQuizIndex(0);
       setResult(null);
+      setExamExpiresAt(data.examExpiresAt ?? null);
+      setTabLeaveCount(data.examTabLeaveCount ?? 0);
+      setProctorWarning(
+        data.resumed
+          ? "Resumed your timed exam — the clock did not reset."
+          : "Timed exam: 60 minutes. Stay on this tab — leaving repeatedly will end the attempt."
+      );
       setView("quiz");
     } catch {
       setError("Network error starting the exam.");
@@ -234,35 +263,115 @@ export default function TradingUniversityPanel() {
     }
   };
 
-  const submitQuiz = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/trading-university/quiz", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.error || "Could not grade the exam.");
-        return;
+  const submitQuiz = useCallback(
+    async (opts?: { reason?: "submit" | "timeout" | "tab_leaves" }) => {
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      setSubmitting(true);
+      setError(null);
+      const reason = opts?.reason ?? "submit";
+      try {
+        const res = await fetch("/api/trading-university/quiz", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            answers: answersRef.current,
+            reason,
+            tabLeaveCount,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setError(data.error || "Could not grade the exam.");
+          return;
+        }
+        if (data.progress) setProgress(data.progress);
+        setExamExpiresAt(null);
+        setExamSecondsLeft(null);
+        setResult({
+          passed: !!data.passed,
+          scorePct: data.scorePct,
+          correct: data.correct,
+          total: data.total,
+          timedOut: !!data.timedOut,
+          tabLeaveFail: !!data.tabLeaveFail,
+        });
+        setView("result");
+      } catch {
+        setError("Network error submitting the exam.");
+      } finally {
+        submittingRef.current = false;
+        setSubmitting(false);
       }
-      if (data.progress) setProgress(data.progress);
-      setResult({
-        passed: !!data.passed,
-        scorePct: data.scorePct,
-        correct: data.correct,
-        total: data.total,
-      });
-      setView("result");
-    } catch {
-      setError("Network error submitting the exam.");
-    } finally {
-      setSubmitting(false);
+    },
+    [tabLeaveCount]
+  );
+
+  useEffect(() => {
+    if (view !== "quiz" || !examExpiresAt) {
+      setExamSecondsLeft(null);
+      return;
     }
+    const tick = () => {
+      const left = Math.max(0, Math.floor((Date.parse(examExpiresAt) - Date.now()) / 1000));
+      setExamSecondsLeft(left);
+      if (left <= 0 && viewRef.current === "quiz") {
+        void submitQuiz({ reason: "timeout" });
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [view, examExpiresAt, submitQuiz]);
+
+  useEffect(() => {
+    if (view !== "quiz") return;
+
+    const onVis = () => {
+      if (document.visibilityState !== "hidden") return;
+      if (viewRef.current !== "quiz") return;
+      void fetch("/api/trading-university/quiz", {
+        method: "PATCH",
+        credentials: "include",
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (!data.success) return;
+          const n = data.examTabLeaveCount ?? 0;
+          setTabLeaveCount(n);
+          if (n >= TRADING_UNIVERSITY_MAX_TAB_LEAVES) {
+            setProctorWarning("Too many tab leaves — submitting your exam.");
+            void submitQuiz({ reason: "tab_leaves" });
+          } else {
+            setProctorWarning(
+              `Stay on this exam tab. Leaves: ${n}/${TRADING_UNIVERSITY_MAX_TAB_LEAVES}. Another browser or tab can end your attempt.`
+            );
+          }
+        })
+        .catch(() => {
+          setProctorWarning("Stay on this exam tab. Leaving may end your attempt.");
+        });
+    };
+
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+  }, [view, submitQuiz]);
+
+  const formatExamClock = (secs: number | null) => {
+    if (secs == null) return "—";
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
   };
 
   const certPayload = (): CertificatePayload | null => {
@@ -503,9 +612,10 @@ export default function TradingUniversityPanel() {
               </h2>
             </div>
             <p className="text-sm text-muted-foreground max-w-2xl">
-              After you finish learning, take a {quizSize}-question final exam. You need{" "}
-              {passCorrect} correct answers ({passPct}%) to pass. One attempt per day if you do not
-              pass. Graduates receive a personalized, downloadable certificate.
+              After you finish learning, take a timed {quizSize}-question final exam (60 minutes). You
+              need {passCorrect} correct answers ({passPct}%) to pass. One attempt per day if you do
+              not pass. Stay on the exam tab — switching away repeatedly ends the attempt. Graduates
+              receive a personalized, downloadable certificate.
             </p>
 
             {progress?.quizPassed ? (
@@ -544,7 +654,11 @@ export default function TradingUniversityPanel() {
                   </p>
                 ) : (
                   <Button type="button" disabled={submitting} onClick={() => void startQuiz()}>
-                    {submitting ? "Starting…" : `Start ${quizSize}-question final exam`}
+                    {submitting
+                      ? "Starting…"
+                      : progress?.examInProgress
+                        ? "Resume timed final exam"
+                        : `Start ${quizSize}-question final exam (60 min)`}
                   </Button>
                 )}
               </div>
@@ -659,14 +773,46 @@ export default function TradingUniversityPanel() {
 
       {view === "quiz" && questions.length > 0 && (
         <div className="max-w-2xl space-y-5">
-          <div className="flex items-center justify-between gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setView("home")}>
-              Exit exam
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Leave the exam screen? The 60-minute timer keeps running. Closing or switching tabs may end your attempt."
+                  )
+                ) {
+                  setView("home");
+                }
+              }}
+            >
+              Leave screen
             </Button>
-            <p className="text-xs font-mono text-muted-foreground">
-              Question {quizIndex + 1} / {questions.length}
-            </p>
+            <div className="text-right">
+              <p
+                className={`text-sm font-mono font-semibold ${
+                  examSecondsLeft != null && examSecondsLeft <= 300
+                    ? "text-rose-500"
+                    : "text-zinc-800 dark:text-zinc-100"
+                }`}
+              >
+                Time left {formatExamClock(examSecondsLeft)}
+              </p>
+              <p className="text-xs font-mono text-muted-foreground">
+                Question {quizIndex + 1} / {questions.length}
+                {tabLeaveCount > 0
+                  ? ` · Tab leaves ${tabLeaveCount}/${TRADING_UNIVERSITY_MAX_TAB_LEAVES}`
+                  : ""}
+              </p>
+            </div>
           </div>
+          {proctorWarning && (
+            <p className="text-xs text-amber-800 dark:text-amber-200 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+              {proctorWarning}
+            </p>
+          )}
           <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
             <div
               className="h-full bg-cyan-500 transition-all"
@@ -726,7 +872,7 @@ export default function TradingUniversityPanel() {
                       type="button"
                       size="sm"
                       disabled={submitting || questions.some((qq) => answers[qq.id] == null)}
-                      onClick={() => void submitQuiz()}
+                      onClick={() => void submitQuiz({ reason: "submit" })}
                     >
                       {submitting ? "Grading…" : "Submit exam"}
                     </Button>
@@ -757,12 +903,19 @@ export default function TradingUniversityPanel() {
           ) : (
             <>
               <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-                Not quite yet
+                {result.timedOut
+                  ? "Time’s up"
+                  : result.tabLeaveFail
+                    ? "Attempt ended"
+                    : "Not quite yet"}
               </h2>
               <p className="text-sm text-muted-foreground">
-                You scored {result.correct}/{result.total} ({result.scorePct}%). Pass mark is{" "}
-                {passCorrect}/{quizSize} ({passPct}%). Review the modules and try again tomorrow
-                (one attempt per UTC day).
+                {result.timedOut
+                  ? `The 60-minute limit ended. You scored ${result.correct}/${result.total} (${result.scorePct}%). Timed-out attempts do not pass.`
+                  : result.tabLeaveFail
+                    ? `The exam ended after too many tab/window leaves. You scored ${result.correct}/${result.total} (${result.scorePct}%).`
+                    : `You scored ${result.correct}/${result.total} (${result.scorePct}%). Pass mark is ${passCorrect}/${quizSize} (${passPct}%).`}{" "}
+                Review the modules and try again tomorrow (one attempt per UTC day).
               </p>
               {progress?.nextAttemptAt && (
                 <p className="text-xs text-amber-700 dark:text-amber-300">

@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/db";
-import { allLessonIds } from "@/lib/trading-university/content";
+import {
+  TRADING_UNIVERSITY_EXAM_MINUTES,
+  allLessonIds,
+} from "@/lib/trading-university/content";
+
+export const EXAM_DURATION_MS = TRADING_UNIVERSITY_EXAM_MINUTES * 60_000;
 
 export type TradingUniversityProgressRow = {
   completedLessons: string[];
@@ -14,9 +19,13 @@ export type TradingUniversityProgressRow = {
   nextAttemptAt: string | null;
   allLessonsComplete: boolean;
   displayName: string | null;
+  quizExamStartedAt: string | null;
+  examExpiresAt: string | null;
+  examInProgress: boolean;
+  examTabLeaveCount: number;
 };
 
-type DbProgress = {
+export type DbProgress = {
   completedLessons: unknown;
   quizPassed: boolean;
   quizBestScorePct: number | null;
@@ -25,6 +34,8 @@ type DbProgress = {
   lastAttemptAt: Date | null;
   lastFailedAt: Date | null;
   attemptCount: number;
+  quizExamStartedAt?: Date | null;
+  examTabLeaveCount?: number;
 };
 
 function parseLessonIds(raw: unknown): string[] {
@@ -45,17 +56,41 @@ export function nextUtcMidnightIso(from = new Date()): string {
   return new Date(Date.UTC(y, m, day + 1, 0, 0, 0, 0)).toISOString();
 }
 
-/** One graded attempt per UTC day until passed. */
+export function examExpiresAt(startedAt: Date): Date {
+  return new Date(startedAt.getTime() + EXAM_DURATION_MS);
+}
+
+export function isExamInProgress(row: {
+  quizExamStartedAt?: Date | null;
+  lastAttemptAt: Date | null;
+}): boolean {
+  const started = row.quizExamStartedAt ?? null;
+  if (!started) return false;
+  if (row.lastAttemptAt && row.lastAttemptAt.getTime() >= started.getTime()) return false;
+  return true;
+}
+
+export function isExamExpired(row: { quizExamStartedAt?: Date | null }, now = new Date()): boolean {
+  const started = row.quizExamStartedAt ?? null;
+  if (!started) return false;
+  return now.getTime() > examExpiresAt(started).getTime();
+}
+
+/** One graded attempt per UTC day until passed. Active timed sessions can resume. */
 export function canAttemptQuizToday(row: {
   quizPassed: boolean;
   lastAttemptAt: Date | null;
-}): { allowed: boolean; nextAttemptAt: string | null } {
-  if (row.quizPassed) return { allowed: false, nextAttemptAt: null };
-  if (!row.lastAttemptAt) return { allowed: true, nextAttemptAt: null };
-  if (utcDayKey(row.lastAttemptAt) === utcDayKey()) {
-    return { allowed: false, nextAttemptAt: nextUtcMidnightIso() };
+  quizExamStartedAt?: Date | null;
+}): { allowed: boolean; nextAttemptAt: string | null; resume: boolean } {
+  if (row.quizPassed) return { allowed: false, nextAttemptAt: null, resume: false };
+  if (isExamInProgress(row) && !isExamExpired(row)) {
+    return { allowed: true, nextAttemptAt: null, resume: true };
   }
-  return { allowed: true, nextAttemptAt: null };
+  if (!row.lastAttemptAt) return { allowed: true, nextAttemptAt: null, resume: false };
+  if (utcDayKey(row.lastAttemptAt) === utcDayKey()) {
+    return { allowed: false, nextAttemptAt: nextUtcMidnightIso(), resume: false };
+  }
+  return { allowed: true, nextAttemptAt: null, resume: false };
 }
 
 function progressDelegate() {
@@ -90,6 +125,8 @@ export function serializeProgress(
   const required = allLessonIds();
   const allLessonsComplete = required.every((id) => completedLessons.includes(id));
   const attempt = canAttemptQuizToday(row);
+  const inProgress = isExamInProgress(row) && !isExamExpired(row);
+  const started = row.quizExamStartedAt ?? null;
   return {
     completedLessons,
     quizPassed: row.quizPassed,
@@ -103,6 +140,10 @@ export function serializeProgress(
     nextAttemptAt: attempt.nextAttemptAt,
     allLessonsComplete,
     displayName,
+    quizExamStartedAt: started?.toISOString() ?? null,
+    examExpiresAt: inProgress && started ? examExpiresAt(started).toISOString() : null,
+    examInProgress: inProgress,
+    examTabLeaveCount: row.examTabLeaveCount ?? 0,
   };
 }
 
@@ -123,4 +164,31 @@ export async function markLessonComplete(userId: string, lessonId: string): Prom
 export function makeCertificateCode(): string {
   const part = () => Math.random().toString(36).slice(2, 6).toUpperCase();
   return `NS-TU-${part()}-${part()}`;
+}
+
+/** Close an expired exam session as a failed daily attempt. */
+export async function finalizeExpiredExam(userId: string, row: DbProgress): Promise<DbProgress> {
+  if (!isExamInProgress(row) || !isExamExpired(row)) return row;
+  const now = new Date();
+  const db = progressDelegate();
+  return db.upsert({
+    where: { userId },
+    create: {
+      userId,
+      completedLessons: parseLessonIds(row.completedLessons),
+      lastAttemptAt: now,
+      lastFailedAt: now,
+      attemptCount: 1,
+      quizExamStartedAt: null,
+      examTabLeaveCount: 0,
+    },
+    update: {
+      lastAttemptAt: now,
+      lastFailedAt: now,
+      attemptCount: (row.attemptCount ?? 0) + 1,
+      quizExamStartedAt: null,
+      examTabLeaveCount: 0,
+      quizBestScorePct: row.quizBestScorePct ?? 0,
+    },
+  });
 }

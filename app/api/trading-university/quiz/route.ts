@@ -3,6 +3,7 @@ import { getSessionAndSubscription } from "@/lib/auth-server";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
 import {
+  TRADING_UNIVERSITY_EXAM_MINUTES,
   TRADING_UNIVERSITY_PASS_CORRECT,
   TRADING_UNIVERSITY_PASS_PCT,
   allLessonIds,
@@ -10,33 +11,59 @@ import {
 import { getPublicQuizQuestions, scoreQuizAnswers } from "@/lib/trading-university/quiz";
 import {
   canAttemptQuizToday,
+  examExpiresAt,
+  finalizeExpiredExam,
   getOrCreateProgress,
+  isExamExpired,
+  isExamInProgress,
   makeCertificateCode,
   serializeProgress,
+  type DbProgress,
 } from "@/lib/trading-university/progress";
 
 export const dynamic = "force-dynamic";
 
-// re-export parse helper locally if not exported - I'll add parseLessonIdsSafe
 function parseCompleted(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const allowed = new Set(allLessonIds());
   return raw.filter((x): x is string => typeof x === "string" && allowed.has(x));
 }
 
-/** GET — quiz questions without answers (auth + lessons complete + daily attempt). */
+function progressDb() {
+  return (prisma as unknown as {
+    tradingUniversityProgress: {
+      upsert: (args: {
+        where: { userId: string };
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) => Promise<DbProgress>;
+    };
+  }).tradingUniversityProgress;
+}
+
+async function displayNameFor(userId: string, sessionName?: string | null, email?: string | null) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  return (
+    (user as { name?: string | null } | null)?.name?.trim() ||
+    sessionName?.trim() ||
+    email?.split("@")[0] ||
+    "Graduate"
+  );
+}
+
+/** GET — start or resume timed exam (auth + lessons complete + daily attempt). */
 export async function GET() {
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.PAGE_TAB_TRADING_UNIVERSITY);
   if (!enabled) {
     return NextResponse.json({ success: false, error: "Trading University is disabled." }, { status: 403 });
   }
 
-  const { userId } = await getSessionAndSubscription();
+  const { userId, session } = await getSessionAndSubscription();
   if (!userId) {
     return NextResponse.json({ success: false, error: "Sign in required to take the quiz." }, { status: 401 });
   }
 
-  const row = await getOrCreateProgress(userId);
+  let row = await getOrCreateProgress(userId);
   if (row.quizPassed) {
     return NextResponse.json({
       success: false,
@@ -50,28 +77,67 @@ export async function GET() {
   if (!allDone) {
     return NextResponse.json({
       success: false,
-      error: "Complete all lessons before taking the quiz.",
+      error: "Complete all modules before taking the final exam.",
     }, { status: 400 });
+  }
+
+  if (isExamInProgress(row) && isExamExpired(row)) {
+    row = await finalizeExpiredExam(userId, row);
+    return NextResponse.json({
+      success: false,
+      error: `Your ${TRADING_UNIVERSITY_EXAM_MINUTES}-minute exam window expired. That attempt is used — try again after UTC midnight.`,
+      nextAttemptAt: canAttemptQuizToday(row).nextAttemptAt,
+      timedOut: true,
+    }, { status: 429 });
   }
 
   const attempt = canAttemptQuizToday(row);
   if (!attempt.allowed) {
     return NextResponse.json({
       success: false,
-      error: "You already used today’s quiz attempt. Try again after UTC midnight.",
+      error: "You already used today’s exam attempt. Try again after UTC midnight.",
       nextAttemptAt: attempt.nextAttemptAt,
     }, { status: 429 });
   }
+
+  const db = progressDb();
+  let startedAt = row.quizExamStartedAt ?? null;
+  if (!attempt.resume || !startedAt) {
+    startedAt = new Date();
+    row = await db.upsert({
+      where: { userId },
+      create: {
+        userId,
+        completedLessons: completed,
+        quizExamStartedAt: startedAt,
+        examTabLeaveCount: 0,
+      },
+      update: {
+        quizExamStartedAt: startedAt,
+        examTabLeaveCount: 0,
+      },
+    });
+    startedAt = row.quizExamStartedAt ?? startedAt;
+  }
+
+  const expires = examExpiresAt(startedAt!);
+  const name = await displayNameFor(userId, session?.user?.name, session?.user?.email);
 
   return NextResponse.json({
     success: true,
     passPct: TRADING_UNIVERSITY_PASS_PCT,
     passCorrect: TRADING_UNIVERSITY_PASS_CORRECT,
+    examMinutes: TRADING_UNIVERSITY_EXAM_MINUTES,
+    examStartedAt: startedAt!.toISOString(),
+    examExpiresAt: expires.toISOString(),
+    resumed: attempt.resume,
+    examTabLeaveCount: row.examTabLeaveCount ?? 0,
     questions: getPublicQuizQuestions(),
+    progress: serializeProgress(row, name),
   });
 }
 
-/** POST — grade answers server-side. */
+/** POST — grade answers; enforces 60-minute window. */
 export async function POST(request: Request) {
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.PAGE_TAB_TRADING_UNIVERSITY);
   if (!enabled) {
@@ -83,7 +149,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
   }
 
-  const row = await getOrCreateProgress(userId);
+  let row = await getOrCreateProgress(userId);
   if (row.quizPassed) {
     return NextResponse.json({
       success: false,
@@ -94,52 +160,65 @@ export async function POST(request: Request) {
 
   const completed = parseCompleted(row.completedLessons);
   if (!allLessonIds().every((id) => completed.includes(id))) {
-    return NextResponse.json({ success: false, error: "Complete all lessons first." }, { status: 400 });
+    return NextResponse.json({ success: false, error: "Complete all modules first." }, { status: 400 });
   }
 
-  const attempt = canAttemptQuizToday(row);
-  if (!attempt.allowed) {
-    return NextResponse.json({
-      success: false,
-      error: "Daily attempt already used. Come back tomorrow (UTC).",
-      nextAttemptAt: attempt.nextAttemptAt,
-    }, { status: 429 });
-  }
-
-  let body: { answers?: Record<string, number> };
+  let body: {
+    answers?: Record<string, number>;
+    reason?: "submit" | "timeout" | "tab_leaves";
+    tabLeaveCount?: number;
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ success: false, error: "Invalid JSON." }, { status: 400 });
   }
 
-  const answers = body.answers;
-  if (!answers || typeof answers !== "object") {
-    return NextResponse.json({ success: false, error: "Answers required." }, { status: 400 });
+  const now = new Date();
+  const started = row.quizExamStartedAt ?? null;
+
+  if (!started || !isExamInProgress(row)) {
+    const attempt = canAttemptQuizToday(row);
+    if (!attempt.allowed) {
+      return NextResponse.json({
+        success: false,
+        error: "Daily attempt already used. Come back tomorrow (UTC).",
+        nextAttemptAt: attempt.nextAttemptAt,
+      }, { status: 429 });
+    }
+    return NextResponse.json({
+      success: false,
+      error: "No active exam session. Start the exam again.",
+    }, { status: 400 });
   }
 
+  const expired = isExamExpired(row, now);
+  const reason = body.reason === "timeout" || body.reason === "tab_leaves" ? body.reason : "submit";
+
+  const answers = body.answers;
   const normalized: Record<string, number> = {};
-  for (const [k, v] of Object.entries(answers)) {
-    if (typeof v === "number" && Number.isInteger(v)) normalized[k] = v;
+  if (answers && typeof answers === "object") {
+    for (const [k, v] of Object.entries(answers)) {
+      if (typeof v === "number" && Number.isInteger(v)) normalized[k] = v;
+    }
   }
 
   const scored = scoreQuizAnswers(normalized);
-  const passed = scored.correct >= TRADING_UNIVERSITY_PASS_CORRECT;
-  const now = new Date();
+  /** Timed-out or integrity auto-submit cannot pass, even if answers are complete. */
+  const integrityFail = reason === "timeout" || reason === "tab_leaves" || expired;
+  const passed = !integrityFail && scored.correct >= TRADING_UNIVERSITY_PASS_CORRECT;
 
-  const db = (prisma as unknown as {
-    tradingUniversityProgress: {
-      upsert: (args: {
-        where: { userId: string };
-        create: Record<string, unknown>;
-        update: Record<string, unknown>;
-      }) => Promise<typeof row>;
-    };
-  }).tradingUniversityProgress;
+  const leaveCount =
+    typeof body.tabLeaveCount === "number" && Number.isFinite(body.tabLeaveCount)
+      ? Math.max(row.examTabLeaveCount ?? 0, Math.floor(body.tabLeaveCount))
+      : row.examTabLeaveCount ?? 0;
 
+  const db = progressDb();
   const update: Record<string, unknown> = {
     lastAttemptAt: now,
     attemptCount: (row.attemptCount ?? 0) + 1,
+    quizExamStartedAt: null,
+    examTabLeaveCount: 0,
     quizBestScorePct:
       row.quizBestScorePct == null
         ? scored.scorePct
@@ -166,16 +245,13 @@ export async function POST(request: Request) {
       quizPassedAt: passed ? now : null,
       lastFailedAt: passed ? null : now,
       certificateCode: passed ? makeCertificateCode() : null,
+      quizExamStartedAt: null,
+      examTabLeaveCount: 0,
     },
     update,
   });
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  const displayName =
-    (user as { name?: string | null } | null)?.name?.trim() ||
-    session?.user?.name?.trim() ||
-    session?.user?.email?.split("@")[0] ||
-    "Graduate";
+  const name = await displayNameFor(userId, session?.user?.name, session?.user?.email);
 
   return NextResponse.json({
     success: true,
@@ -186,6 +262,40 @@ export async function POST(request: Request) {
     passPct: TRADING_UNIVERSITY_PASS_PCT,
     passCorrect: TRADING_UNIVERSITY_PASS_CORRECT,
     missedCount: scored.missedIds.length,
-    progress: serializeProgress(saved, displayName),
+    timedOut: expired || reason === "timeout",
+    tabLeaveFail: reason === "tab_leaves",
+    examTabLeaveCount: leaveCount,
+    progress: serializeProgress(saved, name),
+  });
+}
+
+/** PATCH — record a tab/window leave during an active exam. */
+export async function PATCH() {
+  const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.PAGE_TAB_TRADING_UNIVERSITY);
+  if (!enabled) {
+    return NextResponse.json({ success: false, error: "Trading University is disabled." }, { status: 403 });
+  }
+
+  const { userId } = await getSessionAndSubscription();
+  if (!userId) {
+    return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
+  }
+
+  const row = await getOrCreateProgress(userId);
+  if (!isExamInProgress(row) || isExamExpired(row)) {
+    return NextResponse.json({ success: false, error: "No active exam." }, { status: 400 });
+  }
+
+  const next = (row.examTabLeaveCount ?? 0) + 1;
+  const db = progressDb();
+  const saved = await db.upsert({
+    where: { userId },
+    create: { userId, completedLessons: [], examTabLeaveCount: next, quizExamStartedAt: row.quizExamStartedAt },
+    update: { examTabLeaveCount: next },
+  });
+
+  return NextResponse.json({
+    success: true,
+    examTabLeaveCount: saved.examTabLeaveCount ?? next,
   });
 }
