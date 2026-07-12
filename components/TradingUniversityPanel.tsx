@@ -28,8 +28,10 @@ import {
   type CertificatePayload,
 } from "@/lib/trading-university/certificate";
 import {
+  UniversityCandlesDiagram,
   UniversityFeesDiagram,
   UniversityMarginDiagram,
+  UniversitySessionsDiagram,
 } from "@/components/UniversityConceptDiagrams";
 import {
   buildGlossary,
@@ -66,6 +68,7 @@ type PublicQuestion = {
 type View = "home" | "lesson" | "quiz" | "result";
 
 const LOCAL_LESSONS_KEY = "novastaris_tu_lessons_v1";
+const LOCAL_CHAPTER_QUIZ_KEY = "novastaris_tu_chapter_quiz_v1";
 
 function readLocalLessons(): string[] {
   if (typeof window === "undefined") return [];
@@ -85,6 +88,28 @@ function writeLocalLessons(ids: string[]) {
   } catch {
     /* ignore */
   }
+}
+
+function readChapterQuizDone(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_CHAPTER_QUIZ_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as string[];
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function markChapterQuizDone(lessonId: string) {
+  const next = Array.from(new Set([...readChapterQuizDone(), lessonId]));
+  try {
+    localStorage.setItem(LOCAL_CHAPTER_QUIZ_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+  return next;
 }
 
 export default function TradingUniversityPanel() {
@@ -126,6 +151,7 @@ export default function TradingUniversityPanel() {
     results: { id: string; correct: boolean; correctIndex: number }[];
   } | null>(null);
   const [practiceLoading, setPracticeLoading] = useState(false);
+  const [chapterQuizDone, setChapterQuizDone] = useState<string[]>([]);
   const [result, setResult] = useState<{
     passed: boolean;
     scorePct: number;
@@ -175,8 +201,13 @@ export default function TradingUniversityPanel() {
       setQuizSize(data.catalog?.quizSize ?? 40);
       setFullAccess(!!data.catalog?.fullAccess);
       setProgress(data.progress ?? null);
-      if (data.authenticated) setLocalCompleted(readLocalLessons());
-      else setLocalCompleted([]);
+      if (data.authenticated) {
+        setLocalCompleted(readLocalLessons());
+        setChapterQuizDone(readChapterQuizDone());
+      } else {
+        setLocalCompleted([]);
+        setChapterQuizDone([]);
+      }
     } catch {
       setError("Network error loading Trading University.");
     } finally {
@@ -244,6 +275,31 @@ export default function TradingUniversityPanel() {
     if (!authenticated) {
       setError("Create a free account to enroll and track course progress.");
       return;
+    }
+    if (!chapterQuizDone.includes(lessonId) && !practiceResult) {
+      setError("Complete this module’s chapter check (practice quiz) before marking it complete.");
+      setProctorWarning(null);
+      // start chapter check
+      setPracticeLoading(true);
+      setPracticeResult(null);
+      setPracticeAnswers({});
+      try {
+        const res = await fetch(
+          `/api/trading-university/practice?lessonId=${encodeURIComponent(lessonId)}`,
+          { credentials: "include" }
+        );
+        const data = await res.json();
+        if (data.success) setPracticeQs(data.questions ?? []);
+        else setError(data.error || "Could not load chapter check.");
+      } catch {
+        setError("Could not load chapter check.");
+      } finally {
+        setPracticeLoading(false);
+      }
+      return;
+    }
+    if (!chapterQuizDone.includes(lessonId) && practiceResult) {
+      setChapterQuizDone(markChapterQuizDone(lessonId));
     }
     const next = Array.from(new Set([...readLocalLessons(), lessonId]));
     writeLocalLessons(next);
@@ -799,6 +855,8 @@ export default function TradingUniversityPanel() {
               ))}
               {activeLesson.diagram === "fees" && <UniversityFeesDiagram />}
               {activeLesson.diagram === "margin" && <UniversityMarginDiagram />}
+              {activeLesson.diagram === "candles" && <UniversityCandlesDiagram />}
+              {activeLesson.diagram === "sessions" && <UniversitySessionsDiagram />}
               <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-2">
                 <h3 className="text-sm font-semibold">Key terms</h3>
                 <dl className="space-y-2">
@@ -826,7 +884,16 @@ export default function TradingUniversityPanel() {
               )}
               {fullAccess && (
                 <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
-                  <h3 className="text-sm font-semibold">Practice quiz (untimed · no credit)</h3>
+                  <h3 className="text-sm font-semibold">Chapter check (required)</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Complete 3 practice questions before you can mark this module complete. Untimed —
+                    does not count toward the final exam.
+                  </p>
+                  {chapterQuizDone.includes(activeLesson.id) && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                      Chapter check completed for this module.
+                    </p>
+                  )}
                   {!practiceQs ? (
                     <Button
                       type="button"
@@ -837,6 +904,7 @@ export default function TradingUniversityPanel() {
                         setPracticeLoading(true);
                         setPracticeResult(null);
                         setPracticeAnswers({});
+                        setError(null);
                         void fetch(
                           `/api/trading-university/practice?lessonId=${encodeURIComponent(activeLesson.id)}`,
                           { credentials: "include" }
@@ -844,13 +912,13 @@ export default function TradingUniversityPanel() {
                           .then((r) => r.json())
                           .then((data) => {
                             if (data.success) setPracticeQs(data.questions ?? []);
-                            else setError(data.error || "Could not load practice.");
+                            else setError(data.error || "Could not load chapter check.");
                           })
-                          .catch(() => setError("Could not load practice."))
+                          .catch(() => setError("Could not load chapter check."))
                           .finally(() => setPracticeLoading(false));
                       }}
                     >
-                      {practiceLoading ? "Loading…" : "Start 3 practice questions"}
+                      {practiceLoading ? "Loading…" : "Start chapter check"}
                     </Button>
                   ) : (
                     <div className="space-y-4">
@@ -888,7 +956,11 @@ export default function TradingUniversityPanel() {
                             })
                               .then((r) => r.json())
                               .then((data) => {
-                                if (data.success) setPracticeResult(data);
+                                if (data.success) {
+                                  setPracticeResult(data);
+                                  setChapterQuizDone(markChapterQuizDone(activeLesson.id));
+                                  setError(null);
+                                }
                               });
                           }}
                         >
@@ -896,8 +968,8 @@ export default function TradingUniversityPanel() {
                         </Button>
                       ) : (
                         <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                          Practice score: {practiceResult.correct}/{practiceResult.total}. This does
-                          not count toward the final exam.
+                          Chapter check: {practiceResult.correct}/{practiceResult.total}. You can now
+                          mark the module complete.
                         </p>
                       )}
                       <Button
@@ -910,7 +982,7 @@ export default function TradingUniversityPanel() {
                           setPracticeAnswers({});
                         }}
                       >
-                        Close practice
+                        Close chapter check
                       </Button>
                     </div>
                   )}
@@ -923,11 +995,17 @@ export default function TradingUniversityPanel() {
                     onClick={() => void markLearned(activeLesson.id)}
                     variant={completedSet.has(activeLesson.id) ? "outline" : "default"}
                     className="gap-2"
+                    disabled={
+                      !completedSet.has(activeLesson.id) &&
+                      !chapterQuizDone.includes(activeLesson.id)
+                    }
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     {completedSet.has(activeLesson.id)
                       ? "Marked complete"
-                      : "Mark module complete"}
+                      : chapterQuizDone.includes(activeLesson.id)
+                        ? "Mark module complete"
+                        : "Finish chapter check first"}
                   </Button>
                 ) : (
                   <Button asChild className="gap-2">

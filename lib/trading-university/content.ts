@@ -10,7 +10,7 @@ export type UniversityLesson = {
   /** Suggested NovaStaris product links after the module. */
   relatedTools?: { label: string; href: string }[];
   /** Optional concept diagram key rendered in the lesson UI. */
-  diagram?: "fees" | "margin" | null;
+  diagram?: "fees" | "margin" | "candles" | "sessions" | null;
 };
 
 export const TRADING_UNIVERSITY_PASS_PCT = 80;
@@ -158,6 +158,58 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
       { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+    ],
+  },
+  {
+    id: "chart-basics",
+    title: "Charts & candlesticks",
+    subtitle: "How to read OHLC candles, common patterns, and timeframes.",
+    estimatedMinutes: 10,
+    sections: [
+      {
+        heading: "Why charts matter",
+        body: [
+          "Price charts are how traders visualize history and plan entries, stops, and targets. NovaForecast, Nova Scalp, and Forex tools all assume you can read a basic candle chart.",
+          "A timeframe (1m, 5m, 1h, 1d) is the length of each candle. Lower timeframes are noisier; higher timeframes show bigger structure.",
+        ],
+      },
+      {
+        heading: "Candlestick anatomy (OHLC)",
+        body: [
+          "Each candle shows Open, High, Low, and Close for that period.",
+          "The body is the distance between open and close. Wicks (shadows) show the extreme high and low.",
+          "A bullish candle usually closes above its open (often colored green). A bearish candle closes below its open (often red).",
+          "Long wicks can mean rejection: buyers or sellers pushed price back before the period ended.",
+        ],
+      },
+      {
+        heading: "Common candle types (basics)",
+        body: [
+          "Doji: open and close nearly equal — indecision.",
+          "Hammer / inverted hammer: small body with a long wick — possible rejection (context matters).",
+          "Engulfing: a candle whose body fully covers the prior body — potential reversal signal when it appears at extremes, not mid-chop.",
+          "Never trade a single candle in isolation. Combine with structure (higher highs/lows), levels, and your invalidation.",
+        ],
+      },
+      {
+        heading: "Support, resistance, and structure",
+        body: [
+          "Support is a zone where buying previously appeared; resistance where selling appeared. Zones beat exact lines.",
+          "Uptrend: higher highs and higher lows. Downtrend: lower highs and lower lows. Range: price oscillating between bounds.",
+          "Breakouts can continue or fake out — wait for confirmation or plan the invalidation before you enter.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "OHLC", definition: "Open, High, Low, Close — the four prices in a candle." },
+      { term: "Wick / shadow", definition: "The thin line showing period high or low beyond the body." },
+      { term: "Timeframe", definition: "Duration each candle represents (e.g. 5 minutes, 1 hour)." },
+      { term: "Support / resistance", definition: "Zones where price previously bounced or stalled." },
+    ],
+    diagram: "candles",
+    relatedTools: [
+      { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
+      { label: "Nova Forex Agent", href: "/?tab=nova-forex" },
     ],
   },
   {
@@ -460,36 +512,54 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   {
     id: "forex",
     title: "Forex trading",
-    subtitle: "FX pairs, pips, leverage, sessions — the global currency market.",
-    estimatedMinutes: 12,
+    subtitle: "FX pairs, pips, leverage, sessions, orders, and swaps.",
+    estimatedMinutes: 14,
     sections: [
       {
         heading: "What forex is",
         body: [
           "Foreign exchange (forex/FX) is trading one currency against another (e.g. EUR/USD). It is the world's largest financial market, open 24h on weekdays across sessions.",
-          "Major pairs (EURUSD, GBPUSD, USDJPY, etc.) usually have tight spreads. Exotics can be wider and jumpier.",
+          "You speculate on whether the base currency will strengthen or weaken versus the quote currency — going long or short the pair.",
+        ],
+      },
+      {
+        heading: "Majors, minors, and exotics",
+        body: [
+          "Majors: pairs with USD and other liquid currencies (EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, USDCAD, NZDUSD) — usually tightest spreads.",
+          "Minors (crosses): liquid pairs without USD (e.g. EURGBP, EURJPY). Exotics: a major plus an emerging-market currency — wider spreads and sharper gaps.",
+          "Pick liquidity that matches your size. Thin pairs punish market orders.",
         ],
       },
       {
         heading: "Pips, lots, and quotes",
         body: [
           "A pip is the standard smallest price move for most pairs (0.0001 for EURUSD; 0.01 for many JPY pairs). Pipettes are fractional pips.",
-          "Lot size scales risk: a standard lot is typically 100,000 units of base currency; mini/micro lots are smaller. Always convert risk to $ before entering.",
+          "Lot size scales risk: a standard lot is typically 100,000 units of base currency; mini (0.1) and micro (0.01) lots are smaller. Always convert risk to $ before entering.",
           "Bid is where you can sell; ask is where you can buy. Spread = ask − bid (your immediate cost to round-trip at market).",
         ],
       },
       {
-        heading: "Leverage & margin in FX",
+        heading: "Orders & trade management",
         body: [
-          "Brokers and CFD/fx platforms offer leverage. Same rule as crypto perps: higher leverage shrinks the distance to liquidation/margin call.",
+          "Market order: fill now at available price. Limit: fill only at your price or better. Stop order: triggers when price hits a level (breakout entry or stop-loss).",
+          "A stop-loss defines invalidation in price. A take-profit locks a target. Trailing stops follow price but can whip in chop.",
+          "Read the candle/timeframe you manage on — a 5m scalp stop is not the same as a daily swing stop.",
+        ],
+      },
+      {
+        heading: "Leverage, margin, and swaps",
+        body: [
+          "Brokers and CFD/fx platforms offer leverage. Higher leverage shrinks the distance to a margin call / forced close.",
           "Position sizing by % risk per trade beats 'max leverage' ego trading. Nova Forex Agent assumes disciplined invalidation, not gambling.",
+          "Swap / rollover: overnight financing credit or debit for holding past the broker’s rollover time. Factor it into multi-day holds.",
         ],
       },
       {
         heading: "Sessions & catalysts",
         body: [
-          "London and New York overlap often brings the best liquidity. Asia can be quieter or range-bound depending on the pair.",
-          "Central bank decisions, CPI/NFP, and geopolitics create spikes — widen stops or stand aside if you do not have an event plan.",
+          "Tokyo, London, and New York sessions drive volume. London–New York overlap often has the best liquidity for majors.",
+          "Central bank decisions, CPI, NFP, and geopolitics create spikes — widen stops or stand aside if you do not have an event plan.",
+          "Use an economic calendar. Trading blind into high-impact news is how accounts die.",
         ],
       },
     ],
@@ -497,8 +567,11 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Pip", definition: "Standard unit of FX price movement for a pair." },
       { term: "Spread", definition: "Difference between bid and ask prices." },
       { term: "Base / quote", definition: "In EUR/USD, EUR is base, USD is quote — price = USD per 1 EUR." },
+      { term: "Major / exotic", definition: "Most liquid USD pairs vs thinner emerging-market crosses." },
+      { term: "Swap / rollover", definition: "Overnight financing paid or earned for holding a position." },
       { term: "Session", definition: "Regional trading hours (Tokyo, London, New York) that affect volume." },
     ],
+    diagram: "sessions",
     relatedTools: [{ label: "Nova Forex Agent", href: "/?tab=nova-forex" }],
   },
 ];

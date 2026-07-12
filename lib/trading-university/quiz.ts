@@ -26,25 +26,25 @@ export const TRADING_UNIVERSITY_QUIZ_BANK: UniversityQuizQuestion[] = [
   },
   {
     id: "q2",
-    lessonId: "intro-crypto",
-    prompt: "An altcoin generally means:",
+    lessonId: "chart-basics",
+    prompt: "What do OHLC stand for on a candlestick chart?",
     options: [
-      "Any cryptocurrency other than Bitcoin",
-      "Only stablecoins pegged to gold",
-      "Only tokens listed on NYSE",
-      "A pipette on EUR/USD",
+      "Open, High, Low, Close",
+      "Order, Hedge, Lot, Contract",
+      "Only High Liquidity Candles",
+      "Overnight Holding Limit Cost",
     ],
     correctIndex: 0,
   },
   {
     id: "q3",
-    lessonId: "intro-crypto",
-    prompt: "DeFi primarily refers to:",
+    lessonId: "chart-basics",
+    prompt: "A bullish candle typically means:",
     options: [
-      "Financial services run via smart contracts instead of traditional intermediaries",
-      "Only centralized bank wire transfers",
-      "Printing physical cash",
-      "Forex dealing desks only",
+      "Close finished above open for that period",
+      "The exchange halted trading",
+      "Funding was negative",
+      "The wick length is always zero",
     ],
     correctIndex: 0,
   },
@@ -453,13 +453,13 @@ export const TRADING_UNIVERSITY_QUIZ_BANK: UniversityQuizQuestion[] = [
   },
   {
     id: "q38",
-    lessonId: "intro-crypto",
-    prompt: "Stablecoins like USDT or USDC are designed mainly to:",
+    lessonId: "chart-basics",
+    prompt: "A doji candle usually suggests:",
     options: [
-      "Track a fiat currency such as the US dollar",
-      "Always outperform Bitcoin",
-      "Replace seed phrases",
-      "Eliminate CEX custody risk",
+      "Open and close are nearly equal — indecision",
+      "Guaranteed continuation of the prior trend",
+      "A 10× leverage requirement",
+      "That the pair has no spread",
     ],
     correctIndex: 0,
   },
@@ -552,22 +552,109 @@ export function scoreQuizAnswers(
   return { correct, total, scorePct, missedIds };
 }
 
-/** Practice: up to `limit` questions for a lesson from all sets (no answers). */
+/** Extra chapter-check questions (not necessarily in final exam sets). */
+export const CHAPTER_PRACTICE_BANK: UniversityQuizQuestion[] = [
+  {
+    id: "cp-chart-1",
+    lessonId: "chart-basics",
+    prompt: "What do the letters OHLC stand for on a candlestick?",
+    options: [
+      "Open, High, Low, Close",
+      "Order, Hedge, Lot, Contract",
+      "Only High Liquidity Candles",
+      "Overnight Holding Limit Cost",
+    ],
+    correctIndex: 0,
+  },
+  {
+    id: "cp-chart-2",
+    lessonId: "chart-basics",
+    prompt: "A bullish candle typically means:",
+    options: [
+      "Close finished above open for that period",
+      "The exchange halted trading",
+      "Funding was negative",
+      "The wick length is always zero",
+    ],
+    correctIndex: 0,
+  },
+  {
+    id: "cp-chart-3",
+    lessonId: "chart-basics",
+    prompt: "What does a doji usually suggest?",
+    options: [
+      "Open and close are nearly equal — indecision",
+      "Guaranteed continuation of the prior trend",
+      "A 10× leverage requirement",
+      "That the pair has no spread",
+    ],
+    correctIndex: 0,
+  },
+  {
+    id: "cp-chart-4",
+    lessonId: "chart-basics",
+    prompt: "A chart timeframe is:",
+    options: [
+      "How long each candle represents (e.g. 5 minutes or 1 hour)",
+      "The broker’s overnight swap rate",
+      "The number of pips in a lot",
+      "Your account’s KYC tier",
+    ],
+    correctIndex: 0,
+  },
+  {
+    id: "cp-fx-1",
+    lessonId: "forex",
+    prompt: "Major FX pairs typically include:",
+    options: [
+      "USD with other highly liquid currencies (e.g. EURUSD)",
+      "Only meme coins quoted in SOL",
+      "Only exotic emerging-market crosses",
+      "Only metals and oil CFDs",
+    ],
+    correctIndex: 0,
+  },
+  {
+    id: "cp-fx-2",
+    lessonId: "forex",
+    prompt: "A swap / rollover in forex is mainly:",
+    options: [
+      "Overnight financing paid or earned for holding past rollover",
+      "The one-time fee to open a Phantom wallet",
+      "A Solana priority tip",
+      "The prediction market resolution bond",
+    ],
+    correctIndex: 0,
+  },
+  {
+    id: "cp-fx-3",
+    lessonId: "forex",
+    prompt: "A stop-loss order is typically used to:",
+    options: [
+      "Define invalidation and limit loss if price moves against you",
+      "Guarantee maximum profit every trade",
+      "Remove the bid–ask spread",
+      "Convert a CFD into spot BTC",
+    ],
+    correctIndex: 0,
+  },
+];
+
+/** Practice: up to `limit` questions for a lesson from all sets + chapter bank (no answers). */
 export function getPracticeQuestionsForLesson(
   lessonId: string,
   limit = 3
 ): PublicQuizQuestion[] {
   const seen = new Set<string>();
   const out: PublicQuizQuestion[] = [];
-  for (const setId of EXAM_SET_IDS) {
-    for (const q of EXAM_SETS[setId]) {
-      if (q.lessonId !== lessonId) continue;
-      const key = q.prompt.slice(0, 80);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ id: q.id, lessonId: q.lessonId, prompt: q.prompt, options: [...q.options] });
-      if (out.length >= limit) return out;
-    }
+  const pools = [...CHAPTER_PRACTICE_BANK, ...EXAM_SET_IDS.flatMap((id) => EXAM_SETS[id])];
+  for (const q of pools) {
+    if (q.lessonId !== lessonId) continue;
+    const key = q.prompt.slice(0, 80);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ id: q.id, lessonId: q.lessonId, prompt: q.prompt, options: [...q.options] });
+    if (out.length >= limit) return out;
   }
   return out;
 }
@@ -578,6 +665,7 @@ export function scorePracticeAnswers(answers: Record<string, number>): {
   results: { id: string; correct: boolean; correctIndex: number }[];
 } {
   const byId = new Map<string, UniversityQuizQuestion>();
+  for (const q of CHAPTER_PRACTICE_BANK) byId.set(q.id, q);
   for (const setId of EXAM_SET_IDS) {
     for (const q of EXAM_SETS[setId]) byId.set(q.id, q);
   }
