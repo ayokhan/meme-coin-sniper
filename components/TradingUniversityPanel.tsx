@@ -58,6 +58,11 @@ type Progress = {
 
 type CatalogLesson = UniversityLesson & { locked?: boolean; relatedTools?: UniversityLesson["relatedTools"]; diagram?: UniversityLesson["diagram"] };
 
+type TradingUniversityPanelProps = {
+  /** Same-page tab links must call this — Next Link only changes the URL, not dashboard tab state. */
+  onOpenToolHref?: (href: string) => void;
+};
+
 type PublicQuestion = {
   id: string;
   lessonId: string;
@@ -112,7 +117,7 @@ function markChapterQuizDone(lessonId: string) {
   return next;
 }
 
-export default function TradingUniversityPanel() {
+export default function TradingUniversityPanel({ onOpenToolHref }: TradingUniversityPanelProps = {}) {
   const { status } = useSession();
   const authenticated = status === "authenticated";
 
@@ -875,8 +880,20 @@ export default function TradingUniversityPanel() {
                   <h3 className="text-sm font-semibold">Try next on NovaStaris</h3>
                   <div className="flex flex-wrap gap-2">
                     {activeLesson.relatedTools.map((t) => (
-                      <Button key={t.href + t.label} asChild size="sm" variant="outline">
-                        <Link href={t.href}>{t.label}</Link>
+                      <Button
+                        key={t.href + t.label}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (onOpenToolHref) {
+                            onOpenToolHref(t.href);
+                            return;
+                          }
+                          window.location.assign(t.href);
+                        }}
+                      >
+                        {t.label}
                       </Button>
                     ))}
                   </div>

@@ -1486,6 +1486,78 @@ export default function Dashboard() {
     setOnboardingDismissed(true);
   }, []);
 
+  /** Open dashboard tools from in-page links (Trading University "Try next", etc.). */
+  const openDashboardToolHref = useCallback(
+    (href: string) => {
+      try {
+        const url = new URL(href, typeof window !== "undefined" ? window.location.origin : "https://novastaris.ai");
+        const tab = url.searchParams.get("tab");
+        if (!tab || !URL_TAB_IDS.has(tab)) {
+          window.location.assign(href);
+          return;
+        }
+        if (!isTabVisibleInGui(tab as TabId)) {
+          window.location.assign(href);
+          return;
+        }
+        setActiveTab(tab as TabId);
+
+        const gh = url.searchParams.get("goHunting");
+        if (gh === "new_pairs" || gh === "final_stretch" || gh === "migrated") {
+          setGoHuntingView(gh);
+        }
+        const bsc = url.searchParams.get("bsc");
+        if (bsc === "new_pairs" || bsc === "final_stretch" || bsc === "migrated" || bsc === "trending") {
+          setBscGoHuntingView(bsc);
+        }
+        const wallet = url.searchParams.get("wallet");
+        if (
+          wallet === "meme" ||
+          wallet === "leverage" ||
+          wallet === "nova-perp-wallet-analyst" ||
+          wallet === "meme-leaderboard" ||
+          wallet === "deep-meme-agent"
+        ) {
+          setWalletTrackerView(wallet);
+        }
+        const fv = url.searchParams.get("futures");
+        if (fv === "ai") {
+          setActiveTab("ai-analysis");
+          setAiAgentSubTab("chart");
+        } else if (fv && URL_FUTURES_VIEWS.has(fv)) {
+          setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map");
+        }
+        const agent = url.searchParams.get("agent");
+        if (agent === "meme" || agent === "chart") {
+          setAiAgentSubTab(agent);
+        }
+        const forecast = url.searchParams.get("forecast");
+        if (
+          forecast === "agent" ||
+          forecast === "nova-smart" ||
+          forecast === "nova-q" ||
+          forecast === "nova-q-fib" ||
+          forecast === "nova-extra" ||
+          forecast === "nova-pattern" ||
+          forecast === "nova-radar" ||
+          forecast === "nova-scalp"
+        ) {
+          setNovaForecastSubTab(forecast);
+        }
+        const boss = url.searchParams.get("boss");
+        if (boss === "chart" || boss === "demandFib") {
+          setOnlineBossSubTab(boss);
+        }
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      } catch {
+        window.location.assign(href);
+      }
+    },
+    [isTabVisibleInGui]
+  );
+
   useEffect(() => {
     if (!pageTabFlagsLoaded || typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -8426,7 +8498,7 @@ export default function Dashboard() {
             ) : activeTab === "nova-investment" ? (
               <NovaInvestmentAgentPanel isOwner={isOwner} />
             ) : activeTab === "trading-university" ? (
-              <TradingUniversityPanel />
+              <TradingUniversityPanel onOpenToolHref={openDashboardToolHref} />
             ) : activeTab === "coach-calls" ? (
               <CoachCallsPanel isOwner={isOwner} isCoachUser={isCoachUser} isVip={isVip} />
             ) : activeTab === "wallets" ? (

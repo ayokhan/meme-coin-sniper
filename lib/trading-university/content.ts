@@ -247,8 +247,8 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Rug", definition: "Developers or large holders dump liquidity / abandon the project." },
     ],
     relatedTools: [
+      { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
       { label: "Go Hunting", href: "/?tab=new" },
-      { label: "CT Scan", href: "/?tab=ct" },
     ],
   },
   {
@@ -304,8 +304,8 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     ],
     diagram: "fees",
     relatedTools: [
+      { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
       { label: "Go Hunting", href: "/?tab=new" },
-      { label: "Deep Meme Agent", href: "/?tab=wallets" },
     ],
   },
   {
@@ -343,8 +343,8 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Migration", definition: "Move from launchpad curve to open market liquidity." },
     ],
     relatedTools: [
+      { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
       { label: "Go Hunting", href: "/?tab=new" },
-      { label: "Nova Ultimate", href: "/?tab=nova-ultimate" },
     ],
   },
   {
@@ -382,8 +382,8 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Bundle", definition: "Coordinated wallets buying at launch to control supply (often a red flag)." },
     ],
     relatedTools: [
+      { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
       { label: "Go Hunting", href: "/?tab=new" },
-      { label: "Meme Leaderboard", href: "/?tab=wallets" },
     ],
   },
   {
@@ -421,7 +421,10 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "LP lock", definition: "Liquidity locked for a period so devs cannot instantly remove it." },
       { term: "Token tax", definition: "Contract-enforced % taken on buys/sells/transfers." },
     ],
-    relatedTools: [{ label: "BSC tab", href: "/?tab=bsc" }],
+    relatedTools: [
+      { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
+      { label: "BSC tab", href: "/?tab=bsc" },
+    ],
   },
   {
     id: "crypto-futures",
