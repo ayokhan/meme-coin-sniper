@@ -7,6 +7,10 @@ export type UniversityLesson = {
   estimatedMinutes: number;
   sections: { heading: string; body: string[] }[];
   keyTerms: { term: string; definition: string }[];
+  /** Suggested NovaStaris product links after the module. */
+  relatedTools?: { label: string; href: string }[];
+  /** Optional concept diagram key rendered in the lesson UI. */
+  diagram?: "fees" | "margin" | null;
 };
 
 export const TRADING_UNIVERSITY_PASS_PCT = 80;
@@ -30,6 +34,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         body: [
           "Cryptocurrency is digital money secured by cryptography and recorded on a blockchain — a shared ledger that many computers maintain, so no single bank has to approve every transfer.",
           "Bitcoin (BTC) is the first and largest example: scarce digital settlement asset often called 'digital gold.' Ether (ETH) powers Ethereum smart contracts. Solana’s SOL, BNB on BNB Chain, and thousands of other tokens fill different roles.",
+          "Common quote and settlement assets you will see everywhere: USDT (Tether) and USDC (USD Coin) — dollar-pegged stablecoins used to price pairs, park value between trades, and move funds across platforms.",
           "You typically hold crypto in a wallet (app or hardware device) controlled by cryptographic keys. Lose the keys/seed phrase and you usually lose access forever.",
         ],
       },
@@ -37,7 +42,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         heading: "Altcoins, stablecoins, and tokens",
         body: [
           "Altcoin generally means any crypto other than Bitcoin (ETH, SOL, meme tokens, etc.).",
-          "Stablecoins (USDT, USDC, and others) aim to track a fiat currency like the US dollar — useful for parking value and quoting prices on exchanges.",
+          "Stablecoins (USDT, USDC, and others) aim to track a fiat currency like the US dollar — useful for parking value and quoting prices on exchanges. They are not risk-free: issuer, banking, and depeg events have happened historically.",
           "A token is a unit issued on a blockchain (fungible coins, governance tokens, meme tickers). Always verify the correct contract/mint — fakes clone names and logos.",
         ],
       },
@@ -51,26 +56,33 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       {
         heading: "Spot trading vs perpetual futures (perps)",
         body: [
-          "Spot: you buy or sell the asset itself. If you buy 1 ETH spot, you own 1 ETH (minus fees). No leverage unless you borrow separately.",
-          "Perps (perpetual futures): you trade a contract that tracks price, often with leverage, without owning the coin. You can go long or short. Funding payments and liquidation risk apply.",
+          "Spot: you buy or sell the asset itself. If you buy 1 ETH spot, you own 1 ETH (minus fees). No leverage unless you borrow separately. Example: buying BTC or SOL with USDT on a spot market.",
+          "Perps (perpetual futures): you trade a contract that tracks price, often with leverage, without owning the coin. You can go long or short. Funding payments and liquidation risk apply. Example: a BTC-USDT perpetual on Blofin or another futures venue.",
           "Rule of thumb: learn spot mechanics and risk first; treat leverage as an advanced tool, not a shortcut.",
         ],
       },
       {
         heading: "Centralized vs decentralized platforms",
         body: [
-          "Centralized exchanges (CEXs) — e.g. Binance, Blofin, Coinbase — custody funds for you, offer fiat on-ramps, order books, and often futures. You trust the company with KYC and custody risk (exchange hacks, freezes, insolvency).",
-          "Decentralized exchanges (DEXs) — e.g. Jupiter, Uniswap, PancakeSwap — let you trade from your own wallet via smart contracts. You keep custody, but you handle gas/fees, slippage, phishing, and irreversible txs.",
+          "Centralized exchanges (CEXs) — e.g. Binance, Blofin, Bybit, Coinbase, OKX — custody funds for you, offer fiat on-ramps, order books, and often futures. You trust the company with KYC and custody risk (exchange hacks, freezes, insolvency).",
+          "Decentralized exchanges (DEXs) — e.g. Jupiter (Solana), Uniswap (Ethereum), PancakeSwap (BSC), Raydium — let you trade from your own wallet via smart contracts. You keep custody, but you handle gas/fees, slippage, phishing, and irreversible txs.",
+          "Wallets you will meet early: Phantom and Solflare (Solana), MetaMask (EVM/BSC/ETH). Charting and discovery: Dexscreener, Birdeye, and NovaStaris hunting tools.",
           "Many traders use both: CEX for fiat and perps, DEX for on-chain meme discovery and self-custody.",
         ],
       },
     ],
     keyTerms: [
       { term: "Blockchain", definition: "Distributed ledger that records transfers and smart-contract state." },
+      { term: "Bitcoin (BTC)", definition: "The first major cryptocurrency; often treated as digital settlement / store-of-value." },
+      { term: "USDT / USDC", definition: "Dollar-pegged stablecoins widely used for quoting and transferring value." },
       { term: "Altcoin", definition: "Cryptocurrency other than Bitcoin." },
       { term: "Stablecoin", definition: "Token designed to track a fiat currency (often USD)." },
       { term: "DeFi", definition: "Financial apps built on smart contracts (swaps, lending, etc.)." },
       { term: "CEX / DEX", definition: "Centralized exchange vs decentralized (wallet-based) exchange." },
+    ],
+    relatedTools: [
+      { label: "Go Hunting", href: "/?tab=new" },
+      { label: "Crypto Futures", href: "/?tab=futures" },
     ],
   },
   {
@@ -107,6 +119,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Hot wallet", definition: "Internet-connected wallet used for active trading." },
       { term: "Approval", definition: "Permission for a contract to move your tokens (EVM)." },
     ],
+    relatedTools: [{ label: "Wallet Tracker", href: "/?tab=wallets" }],
   },
   {
     id: "risk-fundamentals",
@@ -140,6 +153,11 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Risk per trade", definition: "Max $ (or %) you accept losing if the stop hits." },
       { term: "Invalidation", definition: "Condition that proves the idea wrong — exit." },
       { term: "Revenge trade", definition: "Forcing a trade to 'win back' a loss — usually emotional." },
+    ],
+    diagram: "margin",
+    relatedTools: [
+      { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
+      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
     ],
   },
   {
@@ -175,6 +193,10 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Float", definition: "Tokens freely available to trade (not locked/vested)." },
       { term: "Narrative", definition: "The story driving attention (animal meme, politics, AI mashup, etc.)." },
       { term: "Rug", definition: "Developers or large holders dump liquidity / abandon the project." },
+    ],
+    relatedTools: [
+      { label: "Go Hunting", href: "/?tab=new" },
+      { label: "CT Scan", href: "/?tab=ct" },
     ],
   },
   {
@@ -228,6 +250,11 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Bribe (Jito tip)", definition: "Competitive tip (often SOL) to prioritize inclusion in hot launches." },
       { term: "Time stop", definition: "Exit if thesis has not played out within a set window." },
     ],
+    diagram: "fees",
+    relatedTools: [
+      { label: "Go Hunting", href: "/?tab=new" },
+      { label: "Deep Meme Agent", href: "/?tab=wallets" },
+    ],
   },
   {
     id: "solana",
@@ -263,6 +290,10 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Mint", definition: "The unique token contract address on Solana." },
       { term: "Migration", definition: "Move from launchpad curve to open market liquidity." },
     ],
+    relatedTools: [
+      { label: "Go Hunting", href: "/?tab=new" },
+      { label: "Nova Ultimate", href: "/?tab=nova-ultimate" },
+    ],
   },
   {
     id: "solana-memes",
@@ -297,6 +328,10 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Bonding curve", definition: "Pricing mechanism where price rises as more tokens are bought pre-DEX." },
       { term: "KOL", definition: "Key opinion leader — influencer whose posts can move thin markets." },
       { term: "Bundle", definition: "Coordinated wallets buying at launch to control supply (often a red flag)." },
+    ],
+    relatedTools: [
+      { label: "Go Hunting", href: "/?tab=new" },
+      { label: "Meme Leaderboard", href: "/?tab=wallets" },
     ],
   },
   {
@@ -334,6 +369,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "LP lock", definition: "Liquidity locked for a period so devs cannot instantly remove it." },
       { term: "Token tax", definition: "Contract-enforced % taken on buys/sells/transfers." },
     ],
+    relatedTools: [{ label: "BSC tab", href: "/?tab=bsc" }],
   },
   {
     id: "crypto-futures",
@@ -378,6 +414,12 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Liquidation", definition: "Forced close when margin falls below maintenance requirements." },
       { term: "Notional", definition: "Total position value (margin × leverage, roughly)." },
     ],
+    diagram: "margin",
+    relatedTools: [
+      { label: "Crypto Futures", href: "/?tab=futures" },
+      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+      { label: "Perp Radar", href: "/?tab=perp-radar" },
+    ],
   },
   {
     id: "predictions",
@@ -413,6 +455,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Resolution", definition: "Official determination of the outcome that settles the market." },
       { term: "Binary market", definition: "Yes/No payoff structure (most common form)." },
     ],
+    relatedTools: [{ label: "Nova Polymarket", href: "/?tab=polymarket-bot" }],
   },
   {
     id: "forex",
@@ -456,6 +499,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Base / quote", definition: "In EUR/USD, EUR is base, USD is quote — price = USD per 1 EUR." },
       { term: "Session", definition: "Regional trading hours (Tokyo, London, New York) that affect volume." },
     ],
+    relatedTools: [{ label: "Nova Forex Agent", href: "/?tab=nova-forex" }],
   },
 ];
 
@@ -465,4 +509,21 @@ export function getLessonById(id: string): UniversityLesson | undefined {
 
 export function allLessonIds(): string[] {
   return TRADING_UNIVERSITY_LESSONS.map((l) => l.id);
+}
+
+export type GlossaryEntry = { term: string; definition: string; lessonId: string; lessonTitle: string };
+
+export function buildGlossary(): GlossaryEntry[] {
+  const out: GlossaryEntry[] = [];
+  for (const lesson of TRADING_UNIVERSITY_LESSONS) {
+    for (const t of lesson.keyTerms) {
+      out.push({
+        term: t.term,
+        definition: t.definition,
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+      });
+    }
+  }
+  return out.sort((a, b) => a.term.localeCompare(b.term));
 }

@@ -35,6 +35,8 @@ export async function GET() {
         locked: !unlocked,
         sections: unlocked ? l.sections : [],
         keyTerms: unlocked ? l.keyTerms : [],
+        relatedTools: l.relatedTools ?? [],
+        diagram: unlocked ? l.diagram ?? null : null,
       };
     }),
     passPct: TRADING_UNIVERSITY_PASS_PCT,

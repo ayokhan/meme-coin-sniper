@@ -36,6 +36,7 @@ export type DbProgress = {
   attemptCount: number;
   quizExamStartedAt?: Date | null;
   examTabLeaveCount?: number;
+  examSetId?: string | null;
 };
 
 function parseLessonIds(raw: unknown): string[] {

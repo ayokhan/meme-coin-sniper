@@ -8,7 +8,13 @@ import {
   TRADING_UNIVERSITY_PASS_PCT,
   allLessonIds,
 } from "@/lib/trading-university/content";
-import { getPublicQuizQuestions, scoreQuizAnswers } from "@/lib/trading-university/quiz";
+import {
+  getPublicQuizQuestions,
+  isExamSetId,
+  pickExamSetId,
+  scoreQuizAnswers,
+  type ExamSetId,
+} from "@/lib/trading-university/quiz";
 import {
   canAttemptQuizToday,
   examExpiresAt,
@@ -102,8 +108,11 @@ export async function GET() {
 
   const db = progressDb();
   let startedAt = row.quizExamStartedAt ?? null;
+  let setId: ExamSetId =
+    isExamSetId(row.examSetId) && attempt.resume ? row.examSetId : pickExamSetId(row.examSetId);
   if (!attempt.resume || !startedAt) {
     startedAt = new Date();
+    setId = pickExamSetId(row.examSetId);
     row = await db.upsert({
       where: { userId },
       create: {
@@ -111,13 +120,16 @@ export async function GET() {
         completedLessons: completed,
         quizExamStartedAt: startedAt,
         examTabLeaveCount: 0,
+        examSetId: setId,
       },
       update: {
         quizExamStartedAt: startedAt,
         examTabLeaveCount: 0,
+        examSetId: setId,
       },
     });
     startedAt = row.quizExamStartedAt ?? startedAt;
+    if (isExamSetId(row.examSetId)) setId = row.examSetId;
   }
 
   const expires = examExpiresAt(startedAt!);
@@ -130,9 +142,10 @@ export async function GET() {
     examMinutes: TRADING_UNIVERSITY_EXAM_MINUTES,
     examStartedAt: startedAt!.toISOString(),
     examExpiresAt: expires.toISOString(),
+    examSetId: setId,
     resumed: attempt.resume,
     examTabLeaveCount: row.examTabLeaveCount ?? 0,
-    questions: getPublicQuizQuestions(),
+    questions: getPublicQuizQuestions(setId),
     progress: serializeProgress(row, name),
   });
 }
@@ -203,7 +216,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const scored = scoreQuizAnswers(normalized);
+  const scored = scoreQuizAnswers(normalized, isExamSetId(row.examSetId) ? row.examSetId : "A");
   /** Timed-out or integrity auto-submit cannot pass, even if answers are complete. */
   const integrityFail = reason === "timeout" || reason === "tab_leaves" || expired;
   const passed = !integrityFail && scored.correct >= TRADING_UNIVERSITY_PASS_CORRECT;

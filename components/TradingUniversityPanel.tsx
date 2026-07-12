@@ -27,8 +27,15 @@ import {
   TRADING_UNIVERSITY_SHARE_URL,
   type CertificatePayload,
 } from "@/lib/trading-university/certificate";
-import type { UniversityLesson } from "@/lib/trading-university/content";
-import { TRADING_UNIVERSITY_MAX_TAB_LEAVES } from "@/lib/trading-university/content";
+import {
+  UniversityFeesDiagram,
+  UniversityMarginDiagram,
+} from "@/components/UniversityConceptDiagrams";
+import {
+  buildGlossary,
+  TRADING_UNIVERSITY_MAX_TAB_LEAVES,
+  type UniversityLesson,
+} from "@/lib/trading-university/content";
 
 type Progress = {
   completedLessons: string[];
@@ -47,7 +54,7 @@ type Progress = {
   examExpiresAt?: string | null;
 };
 
-type CatalogLesson = UniversityLesson & { locked?: boolean };
+type CatalogLesson = UniversityLesson & { locked?: boolean; relatedTools?: UniversityLesson["relatedTools"]; diagram?: UniversityLesson["diagram"] };
 
 type PublicQuestion = {
   id: string;
@@ -105,6 +112,20 @@ export default function TradingUniversityPanel() {
   const [examSecondsLeft, setExamSecondsLeft] = useState<number | null>(null);
   const [tabLeaveCount, setTabLeaveCount] = useState(0);
   const [proctorWarning, setProctorWarning] = useState<string | null>(null);
+  const [glossaryQuery, setGlossaryQuery] = useState("");
+  const [graduates, setGraduates] = useState<
+    { displayName: string; scorePct: number | null; passedAt: string | null }[]
+  >([]);
+  const [practiceQs, setPracticeQs] = useState<
+    { id: string; prompt: string; options: string[] }[] | null
+  >(null);
+  const [practiceAnswers, setPracticeAnswers] = useState<Record<string, number>>({});
+  const [practiceResult, setPracticeResult] = useState<{
+    correct: number;
+    total: number;
+    results: { id: string; correct: boolean; correctIndex: number }[];
+  } | null>(null);
+  const [practiceLoading, setPracticeLoading] = useState(false);
   const [result, setResult] = useState<{
     passed: boolean;
     scorePct: number;
@@ -192,6 +213,27 @@ export default function TradingUniversityPanel() {
   }, [load, status]);
 
   useEffect(() => {
+    fetch("/api/trading-university/graduates")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setGraduates(data.graduates ?? []);
+      })
+      .catch(() => {});
+  }, []);
+
+  const glossary = useMemo(() => {
+    const all = buildGlossary();
+    const q = glossaryQuery.trim().toLowerCase();
+    if (!q) return all.slice(0, 24);
+    return all.filter(
+      (e) =>
+        e.term.toLowerCase().includes(q) ||
+        e.definition.toLowerCase().includes(q) ||
+        e.lessonTitle.toLowerCase().includes(q)
+    );
+  }, [glossaryQuery]);
+
+  useEffect(() => {
     if (!authenticated) return;
     const local = readLocalLessons();
     if (local.length === 0) return;
@@ -211,11 +253,9 @@ export default function TradingUniversityPanel() {
 
   const openLesson = (lesson: CatalogLesson) => {
     setError(null);
-    if (lesson.locked) {
-      setActiveLessonId(lesson.id);
-      setView("lesson");
-      return;
-    }
+    setPracticeQs(null);
+    setPracticeResult(null);
+    setPracticeAnswers({});
     setActiveLessonId(lesson.id);
     setView("lesson");
   };
@@ -604,6 +644,35 @@ export default function TradingUniversityPanel() {
             </div>
           </div>
 
+          <section className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-4 sm:p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Glossary</h2>
+            <input
+              value={glossaryQuery}
+              onChange={(e) => setGlossaryQuery(e.target.value)}
+              placeholder="Search terms (pip, liquidation, USDT…)"
+              className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm"
+            />
+            <ul className="grid sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto">
+              {glossary.map((g) => (
+                <li key={`${g.lessonId}-${g.term}`} className="text-xs">
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">{g.term}</span>
+                  <span className="text-muted-foreground"> — {g.definition}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {graduates.length > 0 && (
+            <section className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                Recent graduates
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {graduates.map((g) => g.displayName).join(" · ")}
+              </p>
+            </section>
+          )}
+
           <section className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-900/50 p-5 sm:p-6 space-y-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-amber-500" />
@@ -728,6 +797,8 @@ export default function TradingUniversityPanel() {
                   ))}
                 </section>
               ))}
+              {activeLesson.diagram === "fees" && <UniversityFeesDiagram />}
+              {activeLesson.diagram === "margin" && <UniversityMarginDiagram />}
               <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-2">
                 <h3 className="text-sm font-semibold">Key terms</h3>
                 <dl className="space-y-2">
@@ -741,6 +812,110 @@ export default function TradingUniversityPanel() {
                   ))}
                 </dl>
               </section>
+              {activeLesson.relatedTools && activeLesson.relatedTools.length > 0 && (
+                <section className="space-y-2">
+                  <h3 className="text-sm font-semibold">Try next on NovaStaris</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {activeLesson.relatedTools.map((t) => (
+                      <Button key={t.href + t.label} asChild size="sm" variant="outline">
+                        <Link href={t.href}>{t.label}</Link>
+                      </Button>
+                    ))}
+                  </div>
+                </section>
+              )}
+              {fullAccess && (
+                <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
+                  <h3 className="text-sm font-semibold">Practice quiz (untimed · no credit)</h3>
+                  {!practiceQs ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={practiceLoading}
+                      onClick={() => {
+                        setPracticeLoading(true);
+                        setPracticeResult(null);
+                        setPracticeAnswers({});
+                        void fetch(
+                          `/api/trading-university/practice?lessonId=${encodeURIComponent(activeLesson.id)}`,
+                          { credentials: "include" }
+                        )
+                          .then((r) => r.json())
+                          .then((data) => {
+                            if (data.success) setPracticeQs(data.questions ?? []);
+                            else setError(data.error || "Could not load practice.");
+                          })
+                          .catch(() => setError("Could not load practice."))
+                          .finally(() => setPracticeLoading(false));
+                      }}
+                    >
+                      {practiceLoading ? "Loading…" : "Start 3 practice questions"}
+                    </Button>
+                  ) : (
+                    <div className="space-y-4">
+                      {practiceQs.map((q) => (
+                        <div key={q.id} className="space-y-2">
+                          <p className="text-sm font-medium">{q.prompt}</p>
+                          {q.options.map((opt, oi) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              disabled={!!practiceResult}
+                              onClick={() => setPracticeAnswers((a) => ({ ...a, [q.id]: oi }))}
+                              className={`block w-full text-left text-xs rounded-md border px-2 py-1.5 ${
+                                practiceAnswers[q.id] === oi
+                                  ? "border-cyan-500 bg-cyan-500/10"
+                                  : "border-zinc-200 dark:border-zinc-700"
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                      {!practiceResult ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={practiceQs.some((q) => practiceAnswers[q.id] == null)}
+                          onClick={() => {
+                            void fetch("/api/trading-university/practice", {
+                              method: "POST",
+                              credentials: "include",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ answers: practiceAnswers }),
+                            })
+                              .then((r) => r.json())
+                              .then((data) => {
+                                if (data.success) setPracticeResult(data);
+                              });
+                          }}
+                        >
+                          Check answers
+                        </Button>
+                      ) : (
+                        <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                          Practice score: {practiceResult.correct}/{practiceResult.total}. This does
+                          not count toward the final exam.
+                        </p>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setPracticeQs(null);
+                          setPracticeResult(null);
+                          setPracticeAnswers({});
+                        }}
+                      >
+                        Close practice
+                      </Button>
+                    </div>
+                  )}
+                </section>
+              )}
               <div className="flex flex-wrap gap-2">
                 {fullAccess ? (
                   <Button

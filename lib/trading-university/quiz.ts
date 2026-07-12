@@ -1,5 +1,7 @@
 /** Quiz bank — correctIndex is server-only; clients never receive it on GET. */
 
+import { EXAM_SET_B, EXAM_SET_C } from "@/lib/trading-university/quiz-sets-extra";
+
 export type UniversityQuizQuestion = {
   id: string;
   lessonId: string;
@@ -494,8 +496,33 @@ export type PublicQuizQuestion = {
   options: string[];
 };
 
-export function getPublicQuizQuestions(): PublicQuizQuestion[] {
-  return TRADING_UNIVERSITY_QUIZ_BANK.map(({ id, lessonId, prompt, options }) => ({
+export type ExamSetId = "A" | "B" | "C";
+
+/** Set A = original bank (q1–q40). Sets B/C rotate for world-class variety. */
+export const EXAM_SETS: Record<ExamSetId, UniversityQuizQuestion[]> = {
+  A: TRADING_UNIVERSITY_QUIZ_BANK,
+  B: EXAM_SET_B,
+  C: EXAM_SET_C,
+};
+
+export const EXAM_SET_IDS: ExamSetId[] = ["A", "B", "C"];
+
+export function isExamSetId(v: unknown): v is ExamSetId {
+  return v === "A" || v === "B" || v === "C";
+}
+
+export function pickExamSetId(preferAvoid?: string | null): ExamSetId {
+  const avoid = isExamSetId(preferAvoid) ? preferAvoid : null;
+  const pool = avoid ? EXAM_SET_IDS.filter((id) => id !== avoid) : EXAM_SET_IDS;
+  return pool[Math.floor(Math.random() * pool.length)]!;
+}
+
+export function getExamSet(setId: ExamSetId): UniversityQuizQuestion[] {
+  return EXAM_SETS[setId];
+}
+
+export function getPublicQuizQuestions(setId: ExamSetId = "A"): PublicQuizQuestion[] {
+  return getExamSet(setId).map(({ id, lessonId, prompt, options }) => ({
     id,
     lessonId,
     prompt,
@@ -503,20 +530,81 @@ export function getPublicQuizQuestions(): PublicQuizQuestion[] {
   }));
 }
 
-export function scoreQuizAnswers(answers: Record<string, number>): {
+export function scoreQuizAnswers(
+  answers: Record<string, number>,
+  setId: ExamSetId = "A"
+): {
   correct: number;
   total: number;
   scorePct: number;
   missedIds: string[];
 } {
-  const total = TRADING_UNIVERSITY_QUIZ_BANK.length;
+  const bank = getExamSet(setId);
+  const total = bank.length;
   let correct = 0;
   const missedIds: string[] = [];
-  for (const q of TRADING_UNIVERSITY_QUIZ_BANK) {
+  for (const q of bank) {
     const picked = answers[q.id];
     if (picked === q.correctIndex) correct += 1;
     else missedIds.push(q.id);
   }
   const scorePct = total > 0 ? Math.round((correct / total) * 1000) / 10 : 0;
   return { correct, total, scorePct, missedIds };
+}
+
+/** Practice: up to `limit` questions for a lesson from all sets (no answers). */
+export function getPracticeQuestionsForLesson(
+  lessonId: string,
+  limit = 3
+): PublicQuizQuestion[] {
+  const seen = new Set<string>();
+  const out: PublicQuizQuestion[] = [];
+  for (const setId of EXAM_SET_IDS) {
+    for (const q of EXAM_SETS[setId]) {
+      if (q.lessonId !== lessonId) continue;
+      const key = q.prompt.slice(0, 80);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ id: q.id, lessonId: q.lessonId, prompt: q.prompt, options: [...q.options] });
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+export function scorePracticeAnswers(answers: Record<string, number>): {
+  correct: number;
+  total: number;
+  results: { id: string; correct: boolean; correctIndex: number }[];
+} {
+  const byId = new Map<string, UniversityQuizQuestion>();
+  for (const setId of EXAM_SET_IDS) {
+    for (const q of EXAM_SETS[setId]) byId.set(q.id, q);
+  }
+  const results: { id: string; correct: boolean; correctIndex: number }[] = [];
+  let correct = 0;
+  for (const [id, picked] of Object.entries(answers)) {
+    const q = byId.get(id);
+    if (!q) continue;
+    const ok = picked === q.correctIndex;
+    if (ok) correct += 1;
+    results.push({ id, correct: ok, correctIndex: q.correctIndex });
+  }
+  return { correct, total: results.length, results };
+}
+
+/** Admin: full keys for all sets. */
+export function getAdminExamKeys() {
+  return EXAM_SET_IDS.map((setId) => ({
+    setId,
+    questionCount: EXAM_SETS[setId].length,
+    questions: EXAM_SETS[setId].map((q) => ({
+      id: q.id,
+      lessonId: q.lessonId,
+      prompt: q.prompt,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      correctAnswer: q.options[q.correctIndex],
+    })),
+  }));
 }
