@@ -189,6 +189,7 @@ export const URL_TAB_IDS = new Set([
   "meme-intelligence",
   "nova-connect",
   "chris-clayton",
+  "trading-university",
 ]);
 
 export const URL_FUTURES_VIEWS = new Set(["ai", "workflow", "altcoins", "hot-perps", "liquidation-map"]);

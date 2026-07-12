@@ -202,6 +202,7 @@ model User {
   referralCommissionsAsReferee ReferralCommission[] @relation("RefereeCommissions")
   blofinPartnerLinkClicks    BlofinPartnerLinkClick[]
   billingInvoices            BillingInvoice[]
+  tradingUniversityProgress  TradingUniversityProgress?
 
   @@index([referredByUserId])
 }
@@ -1076,4 +1077,24 @@ model MemeRunnerSettings {
   chain     String   @id
   config    Json
   updatedAt DateTime @updatedAt
+}
+
+/** NovaStaris Trading University — lesson progress + graduate quiz (one row per user). */
+model TradingUniversityProgress {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  /** JSON string[] of completed lesson ids. */
+  completedLessons Json      @default("[]")
+  quizPassed       Boolean   @default(false)
+  quizBestScorePct Float?
+  quizPassedAt     DateTime?
+  certificateCode  String?   @unique
+  lastAttemptAt    DateTime?
+  lastFailedAt     DateTime?
+  attemptCount     Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([quizPassed, quizPassedAt])
 }

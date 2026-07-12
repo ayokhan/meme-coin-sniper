@@ -332,6 +332,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Tab: Online Boss Strategy",
     description: "Show/hide the Online Boss Strategy tab (owner-only) in the main GUI.",
   },
+  page_tab_trading_university: {
+    label: "Tab: NovaStaris Trading University",
+    description:
+      "Show/hide the NovaStaris Trading University tab (market dictionary + graduate quiz + certificate). Static content — no AI API cost. Default ON.",
+  },
   owner_first_buy_alerts: {
     label: "First buy alerts (owner only)",
     description: "Notify in-app and Telegram the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token.",

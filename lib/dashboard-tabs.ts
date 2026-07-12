@@ -28,7 +28,8 @@ export type DashboardTabId =
   | "crypto-buddie"
   | "meme-intelligence"
   | "nova-connect"
-  | "chris-clayton";
+  | "chris-clayton"
+  | "trading-university";
 
 export const DASHBOARD_TAB_ORDER: DashboardTabId[] = [
   "new",
@@ -59,6 +60,7 @@ export const DASHBOARD_TAB_ORDER: DashboardTabId[] = [
   "meme-intelligence",
   "nova-connect",
   "chris-clayton",
+  "trading-university",
 ];
 
 export const TAB_SHORT_LABELS: Record<DashboardTabId, string> = {
@@ -90,4 +92,5 @@ export const TAB_SHORT_LABELS: Record<DashboardTabId, string> = {
   "meme-intelligence": "Meme Intel",
   "nova-connect": "Community",
   "chris-clayton": "Boss",
+  "trading-university": "University",
 };

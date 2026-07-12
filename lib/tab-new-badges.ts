@@ -10,6 +10,7 @@ export const DEFAULT_TAB_NEW_BADGES: Record<string, string> = {
   "nova-eagle": "2026-05-31T23:59:59.999Z",
   "crypto-buddie": "2026-05-31T23:59:59.999Z",
   "meme-intelligence": "2026-06-30T23:59:59.999Z",
+  "trading-university": "2026-08-15T23:59:59.999Z",
 };
 
 /** Tabs owners can configure in admin (main GUI top tabs). */
@@ -42,6 +43,7 @@ export const TAB_NEW_BADGE_OPTIONS: { id: string; label: string }[] = [
   { id: "watchlist", label: "Watchlist" },
   { id: "nova-connect", label: "NovaConnect" },
   { id: "chris-clayton", label: "Online Boss Strategy" },
+  { id: "trading-university", label: "NovaStaris Trading University" },
 ];
 
 export type TabNewBadgeAdminRow = {
