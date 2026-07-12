@@ -14,7 +14,19 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { downloadTradingUniversityCertificate } from "@/lib/trading-university/certificate";
+import {
+  certificateShareText,
+  certificateToBlob,
+  downloadTradingUniversityCertificate,
+  nativeShareCertificate,
+  shareUrlFacebook,
+  shareUrlLinkedIn,
+  shareUrlTelegram,
+  shareUrlWhatsApp,
+  shareUrlX,
+  TRADING_UNIVERSITY_SHARE_URL,
+  type CertificatePayload,
+} from "@/lib/trading-university/certificate";
 import type { UniversityLesson } from "@/lib/trading-university/content";
 
 type Progress = {
@@ -72,8 +84,8 @@ export default function TradingUniversityPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lessons, setLessons] = useState<CatalogLesson[]>([]);
-  const [passPct, setPassPct] = useState(70);
-  const [passCorrect, setPassCorrect] = useState(28);
+  const [passPct, setPassPct] = useState(80);
+  const [passCorrect, setPassCorrect] = useState(32);
   const [quizSize, setQuizSize] = useState(40);
   const [fullAccess, setFullAccess] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -84,6 +96,8 @@ export default function TradingUniversityPanel() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [quizIndex, setQuizIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const [result, setResult] = useState<{
     passed: boolean;
     scorePct: number;
@@ -113,8 +127,8 @@ export default function TradingUniversityPanel() {
         return;
       }
       setLessons(data.catalog?.lessons ?? []);
-      setPassPct(data.catalog?.passPct ?? 70);
-      setPassCorrect(data.catalog?.passCorrect ?? 28);
+      setPassPct(data.catalog?.passPct ?? 80);
+      setPassCorrect(data.catalog?.passCorrect ?? 32);
       setQuizSize(data.catalog?.quizSize ?? 40);
       setFullAccess(!!data.catalog?.fullAccess);
       setProgress(data.progress ?? null);
@@ -251,18 +265,99 @@ export default function TradingUniversityPanel() {
     }
   };
 
+  const certPayload = (): CertificatePayload | null => {
+    if (!progress?.quizPassed || !progress.certificateCode || !progress.quizPassedAt) return null;
+    return {
+      graduateName: progress.displayName || "Graduate",
+      scorePct: progress.quizBestScorePct ?? result?.scorePct ?? 0,
+      certificateCode: progress.certificateCode,
+      passedAtIso: progress.quizPassedAt,
+    };
+  };
+
   const onDownloadCert = async () => {
-    if (!progress?.quizPassed || !progress.certificateCode || !progress.quizPassedAt) return;
+    const payload = certPayload();
+    if (!payload) return;
     try {
-      await downloadTradingUniversityCertificate({
-        graduateName: progress.displayName || "Graduate",
-        scorePct: progress.quizBestScorePct ?? result?.scorePct ?? 0,
-        certificateCode: progress.certificateCode,
-        passedAtIso: progress.quizPassedAt,
-      });
+      await downloadTradingUniversityCertificate(payload);
     } catch {
       setError("Could not download certificate.");
     }
+  };
+
+  const openShare = (href: string) => {
+    window.open(href, "_blank", "noopener,noreferrer");
+  };
+
+  const onNativeShare = async () => {
+    const payload = certPayload();
+    if (!payload || shareBusy) return;
+    setShareBusy(true);
+    try {
+      const blob = await certificateToBlob(payload);
+      const ok = await nativeShareCertificate(payload, blob);
+      if (!ok) await downloadTradingUniversityCertificate(payload);
+    } catch {
+      setError("Could not share certificate.");
+    } finally {
+      setShareBusy(false);
+    }
+  };
+
+  const onCopyShare = async () => {
+    const payload = certPayload();
+    if (!payload) return;
+    try {
+      await navigator.clipboard.writeText(certificateShareText(payload));
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      setError("Could not copy share text.");
+    }
+  };
+
+  const shareButtons = (payload: CertificatePayload) => {
+    const text = certificateShareText(payload);
+    return (
+      <div className="space-y-3">
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button type="button" onClick={() => void onDownloadCert()} className="gap-2">
+            <Download className="h-4 w-4" />
+            Download certificate
+          </Button>
+          {typeof navigator !== "undefined" && "share" in navigator && (
+            <Button type="button" variant="outline" disabled={shareBusy} onClick={() => void onNativeShare()}>
+              Share…
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">Share your achievement</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => openShare(shareUrlLinkedIn(text))}>
+            LinkedIn
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => openShare(shareUrlX(text))}>
+            X
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => openShare(shareUrlFacebook())}>
+            Facebook
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => openShare(shareUrlTelegram(text))}>
+            Telegram
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => openShare(shareUrlWhatsApp(text))}>
+            WhatsApp
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void onCopyShare()}>
+            {shareCopied ? "Copied" : "Copy text"}
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
+          Tip: download the PNG for Instagram or LinkedIn image posts, then attach it with your caption.
+          Course link: {TRADING_UNIVERSITY_SHARE_URL}
+        </p>
+      </div>
+    );
   };
 
   if (loading) {
@@ -414,16 +509,13 @@ export default function TradingUniversityPanel() {
             </p>
 
             {progress?.quizPassed ? (
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-3">
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-3 text-center sm:text-left">
                 <p className="text-emerald-800 dark:text-emerald-200 font-medium">
                   Congratulations{progress.displayName ? `, ${progress.displayName}` : ""} — you
                   completed NovaStaris Trading University
                   {progress.quizBestScorePct != null ? ` with ${progress.quizBestScorePct}%` : ""}.
                 </p>
-                <Button type="button" onClick={() => void onDownloadCert()} className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Download certificate
-                </Button>
+                {certPayload() && shareButtons(certPayload()!)}
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -660,10 +752,7 @@ export default function TradingUniversityPanel() {
                 You scored {result.correct}/{result.total} ({result.scorePct}%) and earned your
                 NovaStaris Trading University certificate.
               </p>
-              <Button type="button" onClick={() => void onDownloadCert()} className="gap-2">
-                <Download className="h-4 w-4" />
-                Download certificate
-              </Button>
+              {certPayload() && shareButtons(certPayload()!)}
             </>
           ) : (
             <>

@@ -1,4 +1,4 @@
-/** Client-side certificate PNG (no server CPU / no paid API). */
+/** Client-side certificate PNG + share helpers (no server CPU / no paid API). */
 
 export type CertificatePayload = {
   graduateName: string;
@@ -7,7 +7,14 @@ export type CertificatePayload = {
   passedAtIso: string;
 };
 
-export async function downloadTradingUniversityCertificate(payload: CertificatePayload): Promise<void> {
+export const TRADING_UNIVERSITY_SHARE_URL = "https://novastaris.ai/?tab=trading-university";
+
+export function certificateShareText(payload: CertificatePayload): string {
+  const name = payload.graduateName.slice(0, 48) || "I";
+  return `I completed NovaStaris Trading University and passed the final exam with ${payload.scorePct}% (Certificate ID: ${payload.certificateCode}). Free markets course: ${TRADING_UNIVERSITY_SHARE_URL}`;
+}
+
+export function buildCertificateCanvas(payload: CertificatePayload): HTMLCanvasElement {
   const w = 1200;
   const h = 850;
   const canvas = document.createElement("canvas");
@@ -55,12 +62,12 @@ export async function downloadTradingUniversityCertificate(payload: CertificateP
   ctx.fillStyle = "rgba(226, 232, 240, 0.92)";
   ctx.font = "400 18px system-ui, sans-serif";
   ctx.fillText(
-    "has successfully completed the NovaStaris Trading University curriculum",
+    "has successfully completed the NovaStaris Trading University course",
     w / 2,
     440
   );
   ctx.fillText(
-    `and passed the final assessment with ${payload.scorePct}% (pass mark 28/40).`,
+    `and passed the final examination with ${payload.scorePct}% (pass mark 32/40).`,
     w / 2,
     470
   );
@@ -78,14 +85,28 @@ export async function downloadTradingUniversityCertificate(payload: CertificateP
 
   ctx.fillStyle = "rgba(34, 211, 238, 0.75)";
   ctx.font = "600 14px system-ui, sans-serif";
-  ctx.fillText("novastaris.ai  ·  Markets literacy for meme coins, perps, predictions & forex", w / 2, 720);
+  ctx.fillText(
+    "novastaris.ai  ·  Free course: meme coins, perps, prediction markets & forex",
+    w / 2,
+    720
+  );
 
   ctx.fillStyle = "rgba(100, 116, 139, 0.9)";
   ctx.font = "400 12px system-ui, sans-serif";
   ctx.fillText("Educational credential · Not a financial license or investment advice", w / 2, 755);
 
+  return canvas;
+}
+
+export async function certificateToBlob(payload: CertificatePayload): Promise<Blob> {
+  const canvas = buildCertificateCanvas(payload);
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("Could not build certificate image");
+  return blob;
+}
+
+export async function downloadTradingUniversityCertificate(payload: CertificatePayload): Promise<void> {
+  const blob = await certificateToBlob(payload);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -94,4 +115,52 @@ export async function downloadTradingUniversityCertificate(payload: CertificateP
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+export function shareUrlLinkedIn(text: string): string {
+  return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(TRADING_UNIVERSITY_SHARE_URL)}`;
+}
+
+export function shareUrlX(text: string): string {
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+}
+
+export function shareUrlFacebook(): string {
+  return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(TRADING_UNIVERSITY_SHARE_URL)}`;
+}
+
+export function shareUrlTelegram(text: string): string {
+  return `https://t.me/share/url?url=${encodeURIComponent(TRADING_UNIVERSITY_SHARE_URL)}&text=${encodeURIComponent(text)}`;
+}
+
+export function shareUrlWhatsApp(text: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
+
+/** Native share sheet when available (often best on mobile; may attach image). */
+export async function nativeShareCertificate(
+  payload: CertificatePayload,
+  blob: Blob
+): Promise<boolean> {
+  const file = new File([blob], `NovaStaris-Trading-University-${payload.certificateCode}.png`, {
+    type: "image/png",
+  });
+  const text = certificateShareText(payload);
+  const nav = typeof navigator !== "undefined" ? navigator : null;
+  if (!nav?.share) return false;
+  try {
+    if (nav.canShare?.({ files: [file] })) {
+      await nav.share({
+        title: "NovaStaris Trading University Certificate",
+        text,
+        url: TRADING_UNIVERSITY_SHARE_URL,
+        files: [file],
+      });
+      return true;
+    }
+    await nav.share({ title: "NovaStaris Trading University Certificate", text, url: TRADING_UNIVERSITY_SHARE_URL });
+    return true;
+  } catch {
+    return false;
+  }
 }

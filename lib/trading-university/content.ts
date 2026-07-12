@@ -9,17 +9,140 @@ export type UniversityLesson = {
   keyTerms: { term: string; definition: string }[];
 };
 
-export const TRADING_UNIVERSITY_PASS_PCT = 70;
-/** Absolute pass threshold for the final exam (28 of 40). */
-export const TRADING_UNIVERSITY_PASS_CORRECT = 28;
+export const TRADING_UNIVERSITY_PASS_PCT = 80;
+/** Absolute pass threshold for the final exam (32 of 40). */
+export const TRADING_UNIVERSITY_PASS_CORRECT = 32;
 export const TRADING_UNIVERSITY_QUIZ_SIZE = 40;
 
 export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   {
+    id: "intro-crypto",
+    title: "Introduction to cryptocurrency",
+    subtitle: "What crypto is, altcoins, DeFi, spot vs perps, and CEX vs DEX.",
+    estimatedMinutes: 12,
+    sections: [
+      {
+        heading: "What is cryptocurrency?",
+        body: [
+          "Cryptocurrency is digital money secured by cryptography and recorded on a blockchain — a shared ledger that many computers maintain, so no single bank has to approve every transfer.",
+          "Bitcoin (BTC) is the first and largest example: scarce digital settlement asset often called 'digital gold.' Ether (ETH) powers Ethereum smart contracts. Solana’s SOL, BNB on BNB Chain, and thousands of other tokens fill different roles.",
+          "You typically hold crypto in a wallet (app or hardware device) controlled by cryptographic keys. Lose the keys/seed phrase and you usually lose access forever.",
+        ],
+      },
+      {
+        heading: "Altcoins, stablecoins, and tokens",
+        body: [
+          "Altcoin generally means any crypto other than Bitcoin (ETH, SOL, meme tokens, etc.).",
+          "Stablecoins (USDT, USDC, and others) aim to track a fiat currency like the US dollar — useful for parking value and quoting prices on exchanges.",
+          "A token is a unit issued on a blockchain (fungible coins, governance tokens, meme tickers). Always verify the correct contract/mint — fakes clone names and logos.",
+        ],
+      },
+      {
+        heading: "What is DeFi?",
+        body: [
+          "DeFi (decentralized finance) means financial services run by smart contracts instead of traditional intermediaries: swapping on a DEX, lending/borrowing pools, liquidity providing, and more.",
+          "DeFi is powerful and risky: smart-contract bugs, oracle failures, impermanent loss, and scams are real. Start small and understand what you sign.",
+        ],
+      },
+      {
+        heading: "Spot trading vs perpetual futures (perps)",
+        body: [
+          "Spot: you buy or sell the asset itself. If you buy 1 ETH spot, you own 1 ETH (minus fees). No leverage unless you borrow separately.",
+          "Perps (perpetual futures): you trade a contract that tracks price, often with leverage, without owning the coin. You can go long or short. Funding payments and liquidation risk apply.",
+          "Rule of thumb: learn spot mechanics and risk first; treat leverage as an advanced tool, not a shortcut.",
+        ],
+      },
+      {
+        heading: "Centralized vs decentralized platforms",
+        body: [
+          "Centralized exchanges (CEXs) — e.g. Binance, Blofin, Coinbase — custody funds for you, offer fiat on-ramps, order books, and often futures. You trust the company with KYC and custody risk (exchange hacks, freezes, insolvency).",
+          "Decentralized exchanges (DEXs) — e.g. Jupiter, Uniswap, PancakeSwap — let you trade from your own wallet via smart contracts. You keep custody, but you handle gas/fees, slippage, phishing, and irreversible txs.",
+          "Many traders use both: CEX for fiat and perps, DEX for on-chain meme discovery and self-custody.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Blockchain", definition: "Distributed ledger that records transfers and smart-contract state." },
+      { term: "Altcoin", definition: "Cryptocurrency other than Bitcoin." },
+      { term: "Stablecoin", definition: "Token designed to track a fiat currency (often USD)." },
+      { term: "DeFi", definition: "Financial apps built on smart contracts (swaps, lending, etc.)." },
+      { term: "CEX / DEX", definition: "Centralized exchange vs decentralized (wallet-based) exchange." },
+    ],
+  },
+  {
+    id: "wallets-security",
+    title: "Wallets & security",
+    subtitle: "Hot vs cold wallets, seed phrases, approvals, and common scams.",
+    estimatedMinutes: 8,
+    sections: [
+      {
+        heading: "Hot wallets vs cold wallets",
+        body: [
+          "Hot wallet: software connected to the internet (Phantom, MetaMask, exchange apps). Convenient for trading; higher attack surface.",
+          "Cold wallet: hardware or offline storage for long-term holdings. Use a hot wallet for degen size only.",
+        ],
+      },
+      {
+        heading: "Seed phrases & keys",
+        body: [
+          "Your seed phrase (recovery phrase) is the master backup. Never type it into a website, Telegram bot, or 'support agent.' NovaStaris will never ask for it.",
+          "Anyone with the seed or private key controls the funds. Screenshots in cloud photos are a common leak path.",
+        ],
+      },
+      {
+        heading: "Approvals, phishing, and hygiene",
+        body: [
+          "On EVM chains, unlimited token approvals can let a malicious contract drain balances — revoke unused approvals periodically.",
+          "Fake airdrop sites, Discord DMs, and cloned wallet extensions are standard attack paths. Bookmark real URLs; verify extensions.",
+          "Separate wallets: one for experiments, one for savings. Never mix life savings with sniper bots.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Seed phrase", definition: "Human-readable backup that recreates wallet keys." },
+      { term: "Hot wallet", definition: "Internet-connected wallet used for active trading." },
+      { term: "Approval", definition: "Permission for a contract to move your tokens (EVM)." },
+    ],
+  },
+  {
+    id: "risk-fundamentals",
+    title: "Risk management fundamentals",
+    subtitle: "Position sizing, risk per trade, and the psychology that blows accounts.",
+    estimatedMinutes: 8,
+    sections: [
+      {
+        heading: "Risk first, then entry",
+        body: [
+          "Decide how much you can lose on a trade before you decide how much you want to make. Professionals size from the stop distance; amateurs size from FOMO.",
+          "A common guideline is risking a small fixed % of trading capital per idea (e.g. 0.5–2%). Meme and high-leverage trades often deserve the low end — or less.",
+        ],
+      },
+      {
+        heading: "Expectancy and process",
+        body: [
+          "One win does not prove an edge; one loss does not prove you are broken. Track setups, rules followed, and outcomes over many trades.",
+          "If you cannot state invalidation in one sentence, you do not have a trade — you have a hope.",
+        ],
+      },
+      {
+        heading: "Behavioral traps",
+        body: [
+          "Revenge trading after a loss, oversizing after a win, and moving stops farther from entry to 'give it room' destroy accounts faster than a bad ticker.",
+          "Sleep, sobriety, and pre-written rules beat adrenaline. Walk away after a daily loss limit.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Risk per trade", definition: "Max $ (or %) you accept losing if the stop hits." },
+      { term: "Invalidation", definition: "Condition that proves the idea wrong — exit." },
+      { term: "Revenge trade", definition: "Forcing a trade to 'win back' a loss — usually emotional." },
+    ],
+  },
+  {
     id: "meme-coins",
     title: "Meme coins",
     subtitle: "What they are, why they move, and how culture becomes price action.",
-    estimatedMinutes: 8,
+    estimatedMinutes: 10,
     sections: [
       {
         heading: "Definition",
@@ -53,8 +176,8 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   {
     id: "meme-trading",
     title: "Meme coin trading",
-    subtitle: "Entries, exits, sizing, and process for high-volatility spots.",
-    estimatedMinutes: 10,
+    subtitle: "Entries, exits, fees, bribes/tips, sizing, and process.",
+    estimatedMinutes: 12,
     sections: [
       {
         heading: "Trading vs holding",
@@ -64,11 +187,21 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         ],
       },
       {
+        heading: "Transaction fees, tips, and bribes",
+        body: [
+          "Every on-chain buy/sell pays a network transaction fee (gas on EVM; SOL fees on Solana). During congestion, base fees rise and slow or failed txs become common.",
+          "Priority fees / tips: optional extra payment to land your transaction faster when the network is busy. Snipers and bots routinely tip higher to compete for early fills.",
+          "On Solana, traders often hear about Jito tips / 'bribes' — extra SOL paid so block engines prioritize your transaction in competitive launches. Paying more does not guarantee profit; it only improves inclusion odds and can wipe small size if overused.",
+          "DEX trading also includes price impact and slippage (your fill worse than the quoted mid). Aggregators try to route better, but thin meme pools still hurt large orders.",
+          "CEX meme listings add maker/taker fees instead of gas — still subtract from edge. Always count all-in cost: fee + tip + slippage + spread.",
+        ],
+      },
+      {
         heading: "Core process",
         body: [
           "1) Screen: new pairs, volume surge, smart-wallet buys, CT buzz.",
           "2) Vet: liquidity, tax/honeypot checks, top holders, age, social authenticity.",
-          "3) Size: small % of portfolio; scale in only if thesis strengthens.",
+          "3) Size: small % of portfolio; scale in only if thesis strengthens. Keep fee/tip budget proportional to size.",
           "4) Manage: take partial profits into strength; never move a stop farther from entry to 'give it room' without a new thesis.",
           "5) Review: journal what worked — NovaStaris feedback loops exist for this reason.",
         ],
@@ -79,6 +212,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
           "FOMO chasing after 5–10x already printed.",
           "Averaging down endless bags with no invalidation.",
           "Ignoring exit liquidity — if you cannot sell size, you do not have a real position.",
+          "Overpaying tips/bribes on tiny size so fees dominate PnL.",
           "Overtrading every new ticker; edge comes from selectivity.",
         ],
       },
@@ -86,6 +220,8 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     keyTerms: [
       { term: "Invalidation", definition: "Price or condition that proves your trade idea wrong — exit." },
       { term: "Slippage", definition: "Difference between expected fill and actual fill in thin markets." },
+      { term: "Priority fee / tip", definition: "Extra fee paid to land a transaction faster under congestion." },
+      { term: "Bribe (Jito tip)", definition: "Competitive tip (often SOL) to prioritize inclusion in hot launches." },
       { term: "Time stop", definition: "Exit if thesis has not played out within a set window." },
     ],
   },
@@ -114,7 +250,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         body: [
           "Keep a dedicated hot wallet for degen trades; never store life savings on a trading wallet.",
           "Verify mint addresses. Scammers clone tickers and logos constantly.",
-          "Revoke unused token approvals periodically if you use many dApps.",
+          "Revoke unused token approvals periodically if you use many dApps (especially when bridging to EVM).",
         ],
       },
     ],
@@ -147,7 +283,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       {
         heading: "Edge on Sol memes",
         body: [
-          "Follow quality wallets, not every KOLs' shill.",
+          "Follow quality wallets, not every KOL’s shill.",
           "Prefer coins with organic social graph over bot comment spam.",
           "Use NovaStaris Go Hunting views (new pairs, final stretch, migrated) as a map — then apply your own risk rules.",
         ],
@@ -177,14 +313,14 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         body: [
           "Often more 'classic' BEP-20 launches with LP locks, taxes, and Telegram-centric communities.",
           "Honeypots and high sell taxes are historically common — always simulate a sell before sizing up.",
-          "Narrative overlap with Sol exists (animals, trends), but liquidity hours and influencer networks differ.",
+          "Gas (paid in BNB) is usually cheap vs Ethereum, but failed txs and approval phishing still cost money and safety.",
         ],
       },
       {
         heading: "Trading notes",
         body: [
-          "Gas is usually cheap, but stuck txs and approval phishing still happen.",
           "NovaStaris BSC tab mirrors Sol hunting patterns — use chain-specific links (Dexscreener BSC) and never mix up addresses across chains.",
+          "Watch transfer/sell taxes baked into some contracts — they act like a fee on every trade.",
         ],
       },
     ],
@@ -192,6 +328,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "BEP-20", definition: "Token standard on BSC (similar role to ERC-20 on Ethereum)." },
       { term: "Honeypot", definition: "Contract you can buy but cannot sell (or sell only at extreme tax)." },
       { term: "LP lock", definition: "Liquidity locked for a period so devs cannot instantly remove it." },
+      { term: "Token tax", definition: "Contract-enforced % taken on buys/sells/transfers." },
     ],
   },
   {
@@ -212,7 +349,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         body: [
           "Leverage multiplies exposure. 10x means ~10% adverse move can wipe the position (before fees) depending on margin mode.",
           "Initial margin is collateral to open. Maintenance margin is the minimum to keep the position. Fall below it → liquidation.",
-          "Isolated margin limits loss to that position's collateral. Cross margin shares balance across positions — higher capital efficiency, higher contagion risk.",
+          "Isolated margin limits loss to that position’s collateral. Cross margin shares balance across positions — higher capital efficiency, higher contagion risk.",
         ],
       },
       {
