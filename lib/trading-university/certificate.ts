@@ -60,7 +60,7 @@ export async function downloadTradingUniversityCertificate(payload: CertificateP
     440
   );
   ctx.fillText(
-    `and passed the graduate assessment with ${payload.scorePct}% (pass mark 85%).`,
+    `and passed the final assessment with ${payload.scorePct}% (pass mark 28/40).`,
     w / 2,
     470
   );

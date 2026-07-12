@@ -9,8 +9,10 @@ export type UniversityLesson = {
   keyTerms: { term: string; definition: string }[];
 };
 
-export const TRADING_UNIVERSITY_PASS_PCT = 85;
-export const TRADING_UNIVERSITY_QUIZ_SIZE = 20;
+export const TRADING_UNIVERSITY_PASS_PCT = 70;
+/** Absolute pass threshold for the final exam (28 of 40). */
+export const TRADING_UNIVERSITY_PASS_CORRECT = 28;
+export const TRADING_UNIVERSITY_QUIZ_SIZE = 40;
 
 export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   {

@@ -3,6 +3,7 @@ import { getSessionAndSubscription } from "@/lib/auth-server";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
 import {
+  TRADING_UNIVERSITY_PASS_CORRECT,
   TRADING_UNIVERSITY_PASS_PCT,
   allLessonIds,
 } from "@/lib/trading-university/content";
@@ -65,6 +66,7 @@ export async function GET() {
   return NextResponse.json({
     success: true,
     passPct: TRADING_UNIVERSITY_PASS_PCT,
+    passCorrect: TRADING_UNIVERSITY_PASS_CORRECT,
     questions: getPublicQuizQuestions(),
   });
 }
@@ -122,7 +124,7 @@ export async function POST(request: Request) {
   }
 
   const scored = scoreQuizAnswers(normalized);
-  const passed = scored.scorePct >= TRADING_UNIVERSITY_PASS_PCT;
+  const passed = scored.correct >= TRADING_UNIVERSITY_PASS_CORRECT;
   const now = new Date();
 
   const db = (prisma as unknown as {
@@ -182,6 +184,7 @@ export async function POST(request: Request) {
     total: scored.total,
     scorePct: scored.scorePct,
     passPct: TRADING_UNIVERSITY_PASS_PCT,
+    passCorrect: TRADING_UNIVERSITY_PASS_CORRECT,
     missedCount: scored.missedIds.length,
     progress: serializeProgress(saved, displayName),
   });

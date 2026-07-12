@@ -111,6 +111,10 @@ import { formatQuotePriceUsd } from "@/lib/format-quote-price";
 import { NOVA_FORECAST_RANGES } from "@/lib/nova-timeframes";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import TradingUniversityPanel from "@/components/TradingUniversityPanel";
+import TradingUniversityInviteBanner, {
+  dismissTradingUniversityBannerStorage,
+  readTradingUniversityBannerDismissed,
+} from "@/components/TradingUniversityInviteBanner";
 import { TopTabNewPill } from "@/components/TopTabNewPill";
 import { isTabNewBadgeActive } from "@/lib/tab-new-badges";
 import {
@@ -727,6 +731,7 @@ export default function Dashboard() {
     (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid));
   const [guestNudgeDismissed, setGuestNudgeDismissed] = useState(true);
   const [guestTabEngagement, setGuestTabEngagement] = useState(0);
+  const [tuInviteDismissed, setTuInviteDismissed] = useState(true);
 
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [dashboardPath, setDashboardPath] = useState<DashboardPath | null>(null);
@@ -737,6 +742,7 @@ export default function Dashboard() {
   const adminMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setGuestNudgeDismissed(readGuestNudgeDismissed());
+    setTuInviteDismissed(readTradingUniversityBannerDismissed());
     try {
       setPromoBannerDismissed(sessionStorage.getItem(PROMO_BANNER_DISMISS_KEY) === "1");
     } catch {
@@ -3676,6 +3682,13 @@ export default function Dashboard() {
     !isTabPaywalled &&
     !showSitePromo &&
     (guestNudgeBanner?.enabled ?? true);
+  const showTradingUniversityInvite =
+    !tuInviteDismissed &&
+    !isTabPaywalled &&
+    activeTab !== "trading-university" &&
+    isTabVisibleInGui("trading-university") &&
+    !showSitePromo &&
+    (isGuest ? !showGuestRegistrationBanner : status === "authenticated");
 
   const dexUrl = (t: Token) =>
     t.pairAddress
@@ -4032,6 +4045,16 @@ export default function Dashboard() {
             onDismiss={() => {
               dismissGuestNudgeStorage();
               setGuestNudgeDismissed(true);
+            }}
+          />
+        )}
+        {showTradingUniversityInvite && (
+          <TradingUniversityInviteBanner
+            variant={isGuest ? "guest" : "member"}
+            onOpen={() => setActiveTab("trading-university")}
+            onDismiss={() => {
+              dismissTradingUniversityBannerStorage();
+              setTuInviteDismissed(true);
             }}
           />
         )}

@@ -32,7 +32,7 @@ type Progress = {
   displayName: string | null;
 };
 
-type CatalogLesson = UniversityLesson;
+type CatalogLesson = UniversityLesson & { locked?: boolean };
 
 type PublicQuestion = {
   id: string;
@@ -72,7 +72,10 @@ export default function TradingUniversityPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lessons, setLessons] = useState<CatalogLesson[]>([]);
-  const [passPct, setPassPct] = useState(85);
+  const [passPct, setPassPct] = useState(70);
+  const [passCorrect, setPassCorrect] = useState(28);
+  const [quizSize, setQuizSize] = useState(40);
+  const [fullAccess, setFullAccess] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [localCompleted, setLocalCompleted] = useState<string[]>([]);
   const [view, setView] = useState<View>("home");
@@ -95,7 +98,7 @@ export default function TradingUniversityPanel() {
 
   const completedCount = lessons.filter((l) => completedSet.has(l.id)).length;
   const allComplete =
-    lessons.length > 0 && lessons.every((l) => completedSet.has(l.id));
+    fullAccess && lessons.length > 0 && lessons.every((l) => completedSet.has(l.id));
 
   const activeLesson = lessons.find((l) => l.id === activeLessonId) ?? null;
 
@@ -110,9 +113,13 @@ export default function TradingUniversityPanel() {
         return;
       }
       setLessons(data.catalog?.lessons ?? []);
-      setPassPct(data.catalog?.passPct ?? 85);
+      setPassPct(data.catalog?.passPct ?? 70);
+      setPassCorrect(data.catalog?.passCorrect ?? 28);
+      setQuizSize(data.catalog?.quizSize ?? 40);
+      setFullAccess(!!data.catalog?.fullAccess);
       setProgress(data.progress ?? null);
-      setLocalCompleted(readLocalLessons());
+      if (data.authenticated) setLocalCompleted(readLocalLessons());
+      else setLocalCompleted([]);
     } catch {
       setError("Network error loading Trading University.");
     } finally {
@@ -120,26 +127,29 @@ export default function TradingUniversityPanel() {
     }
   }, []);
 
-  const syncLessonsToServer = useCallback(async (ids: string[]) => {
-    if (!authenticated || ids.length === 0) return null;
-    let lastProgress: Progress | null = null;
-    for (const lessonId of ids) {
-      try {
-        const res = await fetch("/api/trading-university/lessons", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lessonId }),
-        });
-        const data = await res.json();
-        if (res.ok && data.progress) lastProgress = data.progress;
-      } catch {
-        /* continue */
+  const syncLessonsToServer = useCallback(
+    async (ids: string[]) => {
+      if (!authenticated || ids.length === 0) return null;
+      let lastProgress: Progress | null = null;
+      for (const lessonId of ids) {
+        try {
+          const res = await fetch("/api/trading-university/lessons", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lessonId }),
+          });
+          const data = await res.json();
+          if (res.ok && data.progress) lastProgress = data.progress;
+        } catch {
+          /* continue */
+        }
       }
-    }
-    if (lastProgress) setProgress(lastProgress);
-    return lastProgress;
-  }, [authenticated]);
+      if (lastProgress) setProgress(lastProgress);
+      return lastProgress;
+    },
+    [authenticated]
+  );
 
   useEffect(() => {
     void load();
@@ -153,22 +163,35 @@ export default function TradingUniversityPanel() {
   }, [authenticated, syncLessonsToServer]);
 
   const markLearned = async (lessonId: string) => {
+    if (!authenticated) {
+      setError("Create a free account to enroll and track course progress.");
+      return;
+    }
     const next = Array.from(new Set([...readLocalLessons(), lessonId]));
     writeLocalLessons(next);
     setLocalCompleted(next);
-
-    if (!authenticated) return;
     await syncLessonsToServer([lessonId]);
+  };
+
+  const openLesson = (lesson: CatalogLesson) => {
+    setError(null);
+    if (lesson.locked) {
+      setActiveLessonId(lesson.id);
+      setView("lesson");
+      return;
+    }
+    setActiveLessonId(lesson.id);
+    setView("lesson");
   };
 
   const startQuiz = async () => {
     setError(null);
     if (!authenticated) {
-      setError("Register and sign in to take the graduate quiz.");
+      setError("Register and sign in to take the final exam.");
       return;
     }
     if (!allComplete) {
-      setError("Mark every chapter as learned before the quiz.");
+      setError("Complete every module (mark as complete) before the final exam.");
       return;
     }
     setSubmitting(true);
@@ -177,12 +200,10 @@ export default function TradingUniversityPanel() {
       const res = await fetch("/api/trading-university/quiz", { credentials: "include" });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error || "Could not start quiz.");
+        setError(data.error || "Could not start the exam.");
         if (data.nextAttemptAt) {
           setProgress((p) =>
-            p
-              ? { ...p, canAttemptQuiz: false, nextAttemptAt: data.nextAttemptAt }
-              : p
+            p ? { ...p, canAttemptQuiz: false, nextAttemptAt: data.nextAttemptAt } : p
           );
         }
         return;
@@ -193,7 +214,7 @@ export default function TradingUniversityPanel() {
       setResult(null);
       setView("quiz");
     } catch {
-      setError("Network error starting quiz.");
+      setError("Network error starting the exam.");
     } finally {
       setSubmitting(false);
     }
@@ -212,7 +233,7 @@ export default function TradingUniversityPanel() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error || "Could not grade quiz.");
+        setError(data.error || "Could not grade the exam.");
         return;
       }
       if (data.progress) setProgress(data.progress);
@@ -224,7 +245,7 @@ export default function TradingUniversityPanel() {
       });
       setView("result");
     } catch {
-      setError("Network error submitting quiz.");
+      setError("Network error submitting the exam.");
     } finally {
       setSubmitting(false);
     }
@@ -280,25 +301,57 @@ export default function TradingUniversityPanel() {
               Trading University
             </h1>
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              A living dictionary of our markets — meme coins, Solana & BSC, crypto perps, prediction
-              markets, and forex — then prove it with a graduate quiz.
+              A free course covering meme coins, Solana &amp; BSC, crypto futures &amp; perps,
+              prediction markets, and forex — then a final exam to earn your certificate.
             </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm backdrop-blur-sm">
-            <p className="text-slate-400 text-xs uppercase tracking-wide">Progress</p>
+            <p className="text-slate-400 text-xs uppercase tracking-wide">
+              {fullAccess ? "Course progress" : "Preview"}
+            </p>
             <p className="mt-1 font-mono text-lg text-cyan-200">
-              {completedCount}/{lessons.length} chapters
+              {fullAccess ? (
+                <>
+                  {completedCount}/{lessons.length} modules
+                </>
+              ) : (
+                <>{lessons.length} modules</>
+              )}
             </p>
             {progress?.quizPassed ? (
               <p className="mt-1 text-emerald-300 text-xs flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Graduated
+                <CheckCircle2 className="h-3.5 w-3.5" /> Course completed
               </p>
             ) : (
-              <p className="mt-1 text-slate-400 text-xs">Pass mark {passPct}%</p>
+              <p className="mt-1 text-slate-400 text-xs">
+                Final exam: {passCorrect}/{quizSize} to pass ({passPct}%)
+              </p>
             )}
           </div>
         </div>
       </header>
+
+      {!fullAccess && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Preview mode — enroll free to take the full course
+            </p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              Browse the syllabus and open the free sample module. Register to unlock all modules,
+              track progress, sit the final exam, and download your certificate.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button asChild size="sm">
+              <Link href="/register">Enroll free</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/signin">Sign in</Link>
+            </Button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <p className="text-sm text-amber-600 dark:text-amber-400 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
@@ -308,54 +361,63 @@ export default function TradingUniversityPanel() {
 
       {view === "home" && (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {lessons.map((lesson, i) => {
-              const done = completedSet.has(lesson.id);
-              return (
-                <button
-                  key={lesson.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveLessonId(lesson.id);
-                    setView("lesson");
-                    setError(null);
-                  }}
-                  className="group text-left rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/60 p-4 transition hover:border-cyan-500/50 hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-[11px] font-mono text-zinc-500">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    {done ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                    ) : (
-                      <BookOpen className="h-4 w-4 text-zinc-400 group-hover:text-cyan-500 shrink-0" />
-                    )}
-                  </div>
-                  <h2 className="mt-2 font-semibold text-zinc-900 dark:text-zinc-50">{lesson.title}</h2>
-                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{lesson.subtitle}</p>
-                  <p className="mt-3 text-[11px] text-zinc-500">~{lesson.estimatedMinutes} min</p>
-                </button>
-              );
-            })}
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 mb-3">
+              Course syllabus
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {lessons.map((lesson, i) => {
+                const done = completedSet.has(lesson.id);
+                const locked = !!lesson.locked;
+                return (
+                  <button
+                    key={lesson.id}
+                    type="button"
+                    onClick={() => openLesson(lesson)}
+                    className="group text-left rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/60 p-4 transition hover:border-cyan-500/50 hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-[11px] font-mono text-zinc-500">
+                        Module {String(i + 1).padStart(2, "0")}
+                      </span>
+                      {locked ? (
+                        <Lock className="h-4 w-4 text-zinc-400 shrink-0" />
+                      ) : done ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <BookOpen className="h-4 w-4 text-zinc-400 group-hover:text-cyan-500 shrink-0" />
+                      )}
+                    </div>
+                    <h3 className="mt-2 font-semibold text-zinc-900 dark:text-zinc-50">{lesson.title}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{lesson.subtitle}</p>
+                    <p className="mt-3 text-[11px] text-zinc-500">
+                      {locked ? "Enroll to unlock" : `~${lesson.estimatedMinutes} min`}
+                      {!locked && !fullAccess ? " · Free preview" : ""}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <section className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-900/50 p-5 sm:p-6 space-y-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-amber-500" />
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                Ready to test your knowledge?
+                Ready for the final exam?
               </h2>
             </div>
             <p className="text-sm text-muted-foreground max-w-2xl">
-              {TRADING_QUIZ_BLURB(passPct)}
+              After you finish learning, take a {quizSize}-question final exam. You need{" "}
+              {passCorrect} correct answers ({passPct}%) to pass. One attempt per day if you do not
+              pass. Graduates receive a personalized, downloadable certificate.
             </p>
 
             {progress?.quizPassed ? (
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-3">
                 <p className="text-emerald-800 dark:text-emerald-200 font-medium">
                   Congratulations{progress.displayName ? `, ${progress.displayName}` : ""} — you
-                  graduated NovaStaris Trading University
+                  completed NovaStaris Trading University
                   {progress.quizBestScorePct != null ? ` with ${progress.quizBestScorePct}%` : ""}.
                 </p>
                 <Button type="button" onClick={() => void onDownloadCert()} className="gap-2">
@@ -368,27 +430,29 @@ export default function TradingUniversityPanel() {
                 {!authenticated ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <Lock className="h-4 w-4 text-zinc-500" />
-                    <span className="text-sm text-muted-foreground">Sign in to unlock the quiz.</span>
-                    <Button asChild size="sm" variant="default">
-                      <Link href="/signin">Sign in</Link>
+                    <span className="text-sm text-muted-foreground">
+                      Enroll free to unlock the course and exam.
+                    </span>
+                    <Button asChild size="sm">
+                      <Link href="/register">Enroll free</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href="/register">Register</Link>
+                      <Link href="/signin">Sign in</Link>
                     </Button>
                   </div>
                 ) : !allComplete ? (
                   <p className="text-sm text-muted-foreground">
-                    Mark all {lessons.length} chapters as learned to unlock the quiz ({completedCount}/
+                    Mark all {lessons.length} modules complete to unlock the exam ({completedCount}/
                     {lessons.length}).
                   </p>
                 ) : progress && !progress.canAttemptQuiz && progress.nextAttemptAt ? (
                   <p className="text-sm text-amber-700 dark:text-amber-300">
-                    Daily attempt used. Next try after{" "}
+                    Daily attempt used. Next attempt after{" "}
                     {new Date(progress.nextAttemptAt).toLocaleString()} (UTC day reset).
                   </p>
                 ) : (
                   <Button type="button" disabled={submitting} onClick={() => void startQuiz()}>
-                    {submitting ? "Starting…" : "Start 20-question quiz"}
+                    {submitting ? "Starting…" : `Start ${quizSize}-question final exam`}
                   </Button>
                 )}
               </div>
@@ -407,51 +471,97 @@ export default function TradingUniversityPanel() {
             onClick={() => setView("home")}
           >
             <ChevronLeft className="h-4 w-4" />
-            All chapters
+            Course syllabus
           </Button>
-          <div>
-            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-              {activeLesson.title}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">{activeLesson.subtitle}</p>
-          </div>
-          {activeLesson.sections.map((s) => (
-            <section key={s.heading} className="space-y-2">
-              <h3 className="text-base font-semibold text-cyan-700 dark:text-cyan-300">{s.heading}</h3>
-              {s.body.map((p) => (
-                <p key={p.slice(0, 40)} className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
-                  {p}
-                </p>
+
+          {activeLesson.locked ? (
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4 text-center">
+              <Lock className="h-8 w-8 mx-auto text-zinc-400" />
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+                {activeLesson.title}
+              </h2>
+              <p className="text-sm text-muted-foreground">{activeLesson.subtitle}</p>
+              <p className="text-sm text-muted-foreground">
+                This module is part of the full course. Create a free account to enroll and continue
+                learning.
+              </p>
+              <div className="flex justify-center gap-2">
+                <Button asChild>
+                  <Link href="/register">Enroll free</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/signin">Sign in</Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+                  {activeLesson.title}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">{activeLesson.subtitle}</p>
+                {!fullAccess && (
+                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                    Free preview module — enroll to unlock the rest of the course.
+                  </p>
+                )}
+              </div>
+              {activeLesson.sections.map((s) => (
+                <section key={s.heading} className="space-y-2">
+                  <h3 className="text-base font-semibold text-cyan-700 dark:text-cyan-300">
+                    {s.heading}
+                  </h3>
+                  {s.body.map((p) => (
+                    <p
+                      key={p.slice(0, 48)}
+                      className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300"
+                    >
+                      {p}
+                    </p>
+                  ))}
+                </section>
               ))}
-            </section>
-          ))}
-          <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-2">
-            <h3 className="text-sm font-semibold">Key terms</h3>
-            <dl className="space-y-2">
-              {activeLesson.keyTerms.map((t) => (
-                <div key={t.term}>
-                  <dt className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t.term}</dt>
-                  <dd className="text-xs text-muted-foreground">{t.definition}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={() => {
-                void markLearned(activeLesson.id);
-              }}
-              variant={completedSet.has(activeLesson.id) ? "outline" : "default"}
-              className="gap-2"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              {completedSet.has(activeLesson.id) ? "Marked as learned" : "Mark as learned"}
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setView("home")}>
-              Back to dictionary
-            </Button>
-          </div>
+              <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-2">
+                <h3 className="text-sm font-semibold">Key terms</h3>
+                <dl className="space-y-2">
+                  {activeLesson.keyTerms.map((t) => (
+                    <div key={t.term}>
+                      <dt className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                        {t.term}
+                      </dt>
+                      <dd className="text-xs text-muted-foreground">{t.definition}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+              <div className="flex flex-wrap gap-2">
+                {fullAccess ? (
+                  <Button
+                    type="button"
+                    onClick={() => void markLearned(activeLesson.id)}
+                    variant={completedSet.has(activeLesson.id) ? "outline" : "default"}
+                    className="gap-2"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    {completedSet.has(activeLesson.id)
+                      ? "Marked complete"
+                      : "Mark module complete"}
+                  </Button>
+                ) : (
+                  <Button asChild className="gap-2">
+                    <Link href="/register">
+                      <Lock className="h-4 w-4" />
+                      Enroll free to continue
+                    </Link>
+                  </Button>
+                )}
+                <Button type="button" variant="ghost" onClick={() => setView("home")}>
+                  Back to syllabus
+                </Button>
+              </div>
+            </>
+          )}
         </article>
       )}
 
@@ -459,7 +569,7 @@ export default function TradingUniversityPanel() {
         <div className="max-w-2xl space-y-5">
           <div className="flex items-center justify-between gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setView("home")}>
-              Exit quiz
+              Exit exam
             </Button>
             <p className="text-xs font-mono text-muted-foreground">
               Question {quizIndex + 1} / {questions.length}
@@ -523,12 +633,10 @@ export default function TradingUniversityPanel() {
                     <Button
                       type="button"
                       size="sm"
-                      disabled={
-                        submitting || questions.some((qq) => answers[qq.id] == null)
-                      }
+                      disabled={submitting || questions.some((qq) => answers[qq.id] == null)}
                       onClick={() => void submitQuiz()}
                     >
-                      {submitting ? "Grading…" : "Submit quiz"}
+                      {submitting ? "Grading…" : "Submit exam"}
                     </Button>
                   )}
                 </div>
@@ -559,10 +667,13 @@ export default function TradingUniversityPanel() {
             </>
           ) : (
             <>
-              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Not quite yet</h2>
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+                Not quite yet
+              </h2>
               <p className="text-sm text-muted-foreground">
-                You scored {result.correct}/{result.total} ({result.scorePct}%). Pass mark is {passPct}
-                %. Review the chapters and try again tomorrow (one attempt per UTC day).
+                You scored {result.correct}/{result.total} ({result.scorePct}%). Pass mark is{" "}
+                {passCorrect}/{quizSize} ({passPct}%). Review the modules and try again tomorrow
+                (one attempt per UTC day).
               </p>
               {progress?.nextAttemptAt && (
                 <p className="text-xs text-amber-700 dark:text-amber-300">
@@ -572,14 +683,10 @@ export default function TradingUniversityPanel() {
             </>
           )}
           <Button type="button" variant="outline" onClick={() => setView("home")}>
-            Back to University
+            Back to Trading University
           </Button>
         </div>
       )}
     </div>
   );
-}
-
-function TRADING_QUIZ_BLURB(passPct: number) {
-  return `After you finish the dictionary, take a ${20}-question exam. You need ${passPct}% to pass. One attempt per day if you fail. Graduates get a personalized, downloadable certificate.`;
 }

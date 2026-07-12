@@ -335,7 +335,7 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   page_tab_trading_university: {
     label: "Tab: NovaStaris Trading University",
     description:
-      "Show/hide the NovaStaris Trading University tab (market dictionary + graduate quiz + certificate). Static content — no AI API cost. Default ON.",
+      "Show/hide the NovaStaris Trading University tab (free course + final exam + certificate). Guests see a preview; full course requires sign-in. Static content — no AI API cost. Default ON.",
   },
   owner_first_buy_alerts: {
     label: "First buy alerts (owner only)",

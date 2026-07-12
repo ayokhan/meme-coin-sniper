@@ -131,7 +131,7 @@ export const FEATURE_FLAG_KEYS = {
   /** Optional two-factor authentication (Google Authenticator + email codes). When OFF, 2FA is not enforced at sign-in and users cannot enroll. Default ON. */
   TWO_FACTOR_AUTH: 'two_factor_auth',
 
-  /** Show/hide NovaStaris Trading University tab (static lessons + graduate quiz). Default ON. */
+  /** Show/hide NovaStaris Trading University tab (static course + final exam). Default ON. */
   PAGE_TAB_TRADING_UNIVERSITY: 'page_tab_trading_university',
 
   /** Master switch: Vercel scheduled /api/cron (daily scan, wallet notify, trading bot, perp jobs). When OFF, cron returns immediately — saves CPU. Default ON. */

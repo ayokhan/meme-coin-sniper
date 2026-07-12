@@ -4,12 +4,16 @@ import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
 import {
   TRADING_UNIVERSITY_LESSONS,
+  TRADING_UNIVERSITY_PASS_CORRECT,
   TRADING_UNIVERSITY_PASS_PCT,
   TRADING_UNIVERSITY_QUIZ_SIZE,
 } from "@/lib/trading-university/content";
 import { getOrCreateProgress, serializeProgress } from "@/lib/trading-university/progress";
 
 export const dynamic = "force-dynamic";
+
+/** Guests see syllabus + one free preview module; full course requires sign-in. */
+const PREVIEW_LESSON_ID = TRADING_UNIVERSITY_LESSONS[0]?.id ?? "meme-coins";
 
 export async function GET() {
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.PAGE_TAB_TRADING_UNIVERSITY);
@@ -18,17 +22,26 @@ export async function GET() {
   }
 
   const { userId, session } = await getSessionAndSubscription();
+  const fullAccess = !!userId;
+
   const catalog = {
-    lessons: TRADING_UNIVERSITY_LESSONS.map((l) => ({
-      id: l.id,
-      title: l.title,
-      subtitle: l.subtitle,
-      estimatedMinutes: l.estimatedMinutes,
-      sections: l.sections,
-      keyTerms: l.keyTerms,
-    })),
+    lessons: TRADING_UNIVERSITY_LESSONS.map((l) => {
+      const unlocked = fullAccess || l.id === PREVIEW_LESSON_ID;
+      return {
+        id: l.id,
+        title: l.title,
+        subtitle: l.subtitle,
+        estimatedMinutes: l.estimatedMinutes,
+        locked: !unlocked,
+        sections: unlocked ? l.sections : [],
+        keyTerms: unlocked ? l.keyTerms : [],
+      };
+    }),
     passPct: TRADING_UNIVERSITY_PASS_PCT,
+    passCorrect: TRADING_UNIVERSITY_PASS_CORRECT,
     quizSize: TRADING_UNIVERSITY_QUIZ_SIZE,
+    previewLessonId: PREVIEW_LESSON_ID,
+    fullAccess,
   };
 
   if (!userId) {
