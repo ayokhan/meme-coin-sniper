@@ -30,12 +30,18 @@ import {
 import {
   UniversityCandlesDiagram,
   UniversityFeesDiagram,
+  UniversityJournalDiagram,
   UniversityMarginDiagram,
   UniversitySessionsDiagram,
+  UniversityStructureDiagram,
+  UniversityWorkflowDiagram,
 } from "@/components/UniversityConceptDiagrams";
 import {
   buildGlossary,
+  COURSE_TRACK_META,
+  getLessonTrack,
   TRADING_UNIVERSITY_MAX_TAB_LEAVES,
+  type CourseTrack,
   type UniversityLesson,
 } from "@/lib/trading-university/content";
 
@@ -671,43 +677,66 @@ export default function TradingUniversityPanel({
 
       {view === "home" && (
         <>
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 mb-3">
+          <div className="space-y-8">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
               Course syllabus
             </h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {lessons.map((lesson, i) => {
-                const done = completedSet.has(lesson.id);
-                const locked = !!lesson.locked;
-                return (
-                  <button
-                    key={lesson.id}
-                    type="button"
-                    onClick={() => openLesson(lesson)}
-                    className="group text-left rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/60 p-4 transition hover:border-cyan-500/50 hover:shadow-md"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-[11px] font-mono text-zinc-500">
-                        Module {String(i + 1).padStart(2, "0")}
+            {(["foundations", "markets", "applied"] as CourseTrack[]).map((track) => {
+              const trackLessons = lessons.filter((l) => getLessonTrack(l) === track);
+              if (trackLessons.length === 0) return null;
+              const meta = COURSE_TRACK_META[track];
+              return (
+                <div key={track}>
+                  <div className="mb-3">
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                      {meta.label}
+                      <span className="ml-2 text-[11px] font-medium uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
+                        {meta.level}
                       </span>
-                      {locked ? (
-                        <Lock className="h-4 w-4 text-zinc-400 shrink-0" />
-                      ) : done ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                      ) : (
-                        <BookOpen className="h-4 w-4 text-zinc-400 group-hover:text-cyan-500 shrink-0" />
-                      )}
-                    </div>
-                    <h3 className="mt-2 font-semibold text-zinc-900 dark:text-zinc-50">{lesson.title}</h3>
-                    <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{lesson.subtitle}</p>
-                    <p className="mt-3 text-[11px] text-zinc-500">
-                      {locked ? "Enroll to unlock" : `~${lesson.estimatedMinutes} min`}
-                      {!locked && !fullAccess ? " · Free preview" : ""}
                     </p>
-                  </button>
-                );
-              })}
-            </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{meta.blurb}</p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {trackLessons.map((lesson) => {
+                      const i = lessons.findIndex((l) => l.id === lesson.id);
+                      const done = completedSet.has(lesson.id);
+                      const locked = !!lesson.locked;
+                      return (
+                        <button
+                          key={lesson.id}
+                          type="button"
+                          onClick={() => openLesson(lesson)}
+                          className="group text-left rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/60 p-4 transition hover:border-cyan-500/50 hover:shadow-md"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-[11px] font-mono text-zinc-500">
+                              Module {String(i + 1).padStart(2, "0")}
+                            </span>
+                            {locked ? (
+                              <Lock className="h-4 w-4 text-zinc-400 shrink-0" />
+                            ) : done ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                            ) : (
+                              <BookOpen className="h-4 w-4 text-zinc-400 group-hover:text-cyan-500 shrink-0" />
+                            )}
+                          </div>
+                          <h3 className="mt-2 font-semibold text-zinc-900 dark:text-zinc-50">
+                            {lesson.title}
+                          </h3>
+                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                            {lesson.subtitle}
+                          </p>
+                          <p className="mt-3 text-[11px] text-zinc-500">
+                            {locked ? "Enroll to unlock" : `~${lesson.estimatedMinutes} min`}
+                            {!locked && !fullAccess ? " · Free preview" : ""}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <section className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-4 sm:p-5 space-y-3">
@@ -838,6 +867,10 @@ export default function TradingUniversityPanel({
           ) : (
             <>
               <div>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-cyan-700 dark:text-cyan-300 mb-1">
+                  {COURSE_TRACK_META[getLessonTrack(activeLesson)].label} ·{" "}
+                  {COURSE_TRACK_META[getLessonTrack(activeLesson)].level}
+                </p>
                 <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
                   {activeLesson.title}
                 </h2>
@@ -867,6 +900,9 @@ export default function TradingUniversityPanel({
               {activeLesson.diagram === "margin" && <UniversityMarginDiagram />}
               {activeLesson.diagram === "candles" && <UniversityCandlesDiagram />}
               {activeLesson.diagram === "sessions" && <UniversitySessionsDiagram />}
+              {activeLesson.diagram === "journal" && <UniversityJournalDiagram />}
+              {activeLesson.diagram === "structure" && <UniversityStructureDiagram />}
+              {activeLesson.diagram === "workflow" && <UniversityWorkflowDiagram />}
               <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-2">
                 <h3 className="text-sm font-semibold">Key terms</h3>
                 <dl className="space-y-2">

@@ -1,5 +1,28 @@
 /** Static curriculum for NovaStaris Trading University (no external API calls). */
 
+export type CourseTrack = "foundations" | "markets" | "applied";
+
+export const COURSE_TRACK_META: Record<
+  CourseTrack,
+  { label: string; level: string; blurb: string }
+> = {
+  foundations: {
+    label: "Foundations",
+    level: "Beginner",
+    blurb: "Crypto basics, security, risk, charts, psychology, and structure.",
+  },
+  markets: {
+    label: "Markets",
+    level: "Intermediate",
+    blurb: "Memes, Solana/BSC, futures, prediction markets, and forex.",
+  },
+  applied: {
+    label: "Applied",
+    level: "Advanced",
+    blurb: "NovaStaris workflow plus funding, tokenomics, and prop-firm basics.",
+  },
+};
+
 export type UniversityLesson = {
   id: string;
   title: string;
@@ -10,7 +33,9 @@ export type UniversityLesson = {
   /** Suggested NovaStaris product links after the module. */
   relatedTools?: { label: string; href: string }[];
   /** Optional concept diagram key rendered in the lesson UI. */
-  diagram?: "fees" | "margin" | "candles" | "sessions" | null;
+  diagram?: "fees" | "margin" | "candles" | "sessions" | "workflow" | "structure" | "journal" | null;
+  /** Syllabus track — if omitted, inferred from id. */
+  track?: CourseTrack;
 };
 
 export const TRADING_UNIVERSITY_PASS_PCT = 80;
@@ -210,6 +235,106 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
       { label: "Nova Forex Agent", href: "/?tab=nova-forex" },
+    ],
+  },
+  {
+    id: "psychology-journaling",
+    title: "Psychology & trade journaling",
+    subtitle: "Revenge trading, daily loss limits, and a simple log that builds edge.",
+    estimatedMinutes: 10,
+    track: "foundations",
+    sections: [
+      {
+        heading: "Why psychology is a position size",
+        body: [
+          "Most blow-ups are not mysterious chart failures — they are oversized revenge trades, FOMO entries, and moving stops after the plan broke.",
+          "Treat emotional state like leverage: if you are tilted, your effective risk is higher than the number on the screen.",
+        ],
+      },
+      {
+        heading: "Revenge trading & FOMO",
+        body: [
+          "Revenge trading: forcing a new trade to 'win back' a loss. Usually worse timing and larger size.",
+          "FOMO: chasing a move after the clear entry is gone. Late entries need smaller size or no trade — not bigger size.",
+          "Rule of thumb: after a full stop-out, sit out one candle (or a fixed cooldown) before the next idea.",
+        ],
+      },
+      {
+        heading: "Daily loss limit",
+        body: [
+          "Set a max daily loss in $ or % of trading capital (e.g. 1–3%). Hit it → platform closed for the day. No exceptions for 'one more setup.'",
+          "A weekly soft cap helps prevent death-by-a-thousand-small-breaches.",
+          "Write the limit before the session. Decisions made mid-drawdown are usually worse.",
+        ],
+      },
+      {
+        heading: "A simple trade journal",
+        body: [
+          "Log only what you will actually review: date, market, direction, thesis in one sentence, invalidation, size/risk $, result, and one lesson.",
+          "Tag process: followed plan / broke plan. Edge shows up in process tags more than in P&L screenshots.",
+          "Review weekly: which setups paid, which rule-breaks cost you, and whether sizing matched conviction.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Revenge trade", definition: "Forcing a trade to recover a loss — usually emotional and oversized." },
+      { term: "Daily loss limit", definition: "Hard stop on session risk; hit it and you stop trading for the day." },
+      { term: "Trade journal", definition: "Short written log of thesis, risk, outcome, and process adherence." },
+      { term: "Cooldown", definition: "Mandatory pause after a stop-out or emotional spike before the next entry." },
+    ],
+    diagram: "journal",
+    relatedTools: [
+      { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
+      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+    ],
+  },
+  {
+    id: "market-structure",
+    title: "Liquidity & market structure",
+    subtitle: "Trends, ranges, BOS/CHOCH lite, and why liquidity grabs fake traders out.",
+    estimatedMinutes: 12,
+    track: "foundations",
+    sections: [
+      {
+        heading: "Structure before signals",
+        body: [
+          "Candles are noise without structure. First ask: is price making higher highs and higher lows (uptrend), lower highs and lower lows (downtrend), or oscillating in a range?",
+          "Trade with the active structure on your execution timeframe, and respect the higher-timeframe bias when they conflict.",
+        ],
+      },
+      {
+        heading: "Break of structure (BOS) — lite",
+        body: [
+          "In an uptrend, a break of structure often means price takes out a prior swing high and continues — trend still intact.",
+          "In a downtrend, BOS often means a prior swing low gives way. Use BOS as context, not a standalone 'buy/sell' button.",
+        ],
+      },
+      {
+        heading: "Change of character (CHOCH) — lite",
+        body: [
+          "CHOCH is an early hint the prior trend may be shifting — e.g. in an uptrend, a clear break of a meaningful swing low.",
+          "One CHOCH does not equal a new trend. Wait for follow-through (new structure) or plan tight invalidation.",
+        ],
+      },
+      {
+        heading: "Liquidity grabs",
+        body: [
+          "Stops cluster above obvious highs and below obvious lows. Price often spikes through those levels (grab), then reverses — trapping breakout chasers.",
+          "When you see a wick through a level and a fast reclaim, ask whether that was liquidity taken rather than a clean breakout.",
+          "Your stop still belongs at true invalidation — not 'where everyone else put theirs' if that is the magnet.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Market structure", definition: "The pattern of swing highs/lows that defines trend vs range." },
+      { term: "BOS", definition: "Break of structure — price takes a key swing in the trend direction." },
+      { term: "CHOCH", definition: "Change of character — early sign the prior trend may be reversing." },
+      { term: "Liquidity grab", definition: "Spike beyond obvious highs/lows that runs stops, often before reversing." },
+    ],
+    diagram: "structure",
+    relatedTools: [
+      { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
+      { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=chart" },
     ],
   },
   {
@@ -577,7 +702,121 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     diagram: "sessions",
     relatedTools: [{ label: "Nova Forex Agent", href: "/?tab=nova-forex" }],
   },
+  {
+    id: "novastaris-workflow",
+    title: "NovaStaris end-to-end workflow",
+    subtitle: "How to chain Go Hunting, AI Agent, wallets, and forecast tools without FOMO.",
+    estimatedMinutes: 11,
+    track: "applied",
+    sections: [
+      {
+        heading: "One job per tool",
+        body: [
+          "NovaStaris is a toolkit, not a signal to size blindly. Each tab answers a different question: discovery, scoring, flow, chart levels, or execution context.",
+          "Workflow beats tab-hopping: decide the market (meme / perp / FX), then pick the matching path below.",
+        ],
+      },
+      {
+        heading: "Meme path (example)",
+        body: [
+          "1) Go Hunting / BSC — find candidates by stage (new, final stretch, migrated).",
+          "2) NovaStaris AI Agent (meme) — score CA, check risk notes, size vs liquidity.",
+          "3) Wallet Tracker / CT context — who is buying, is social real or bot spam?",
+          "4) Only then size with your risk rules. If you cannot state invalidation, skip.",
+        ],
+      },
+      {
+        heading: "Perps / FX path (example)",
+        body: [
+          "1) Futures / Trending perps or Nova Forex — bias and session context.",
+          "2) NovaForecast / Nova Scalp — levels, plan, hold window.",
+          "3) Chart Analysis in AI Agent when you want a second read on structure.",
+          "4) Execute only with predefined risk; journal the trade after.",
+        ],
+      },
+      {
+        heading: "Rules that keep the stack useful",
+        body: [
+          "Never let a green score override a broken thesis or missing invalidation.",
+          "If tools disagree, reduce size or stand aside — disagreement is information.",
+          "Finish with a journal line: which tab added edge, and which was noise.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Workflow", definition: "A repeatable order of tools and checks before you risk capital." },
+      { term: "Discovery", definition: "Finding candidates (Go Hunting) before deep analysis." },
+      { term: "Invalidation", definition: "The condition that proves the idea wrong — exit without debate." },
+    ],
+    diagram: "workflow",
+    relatedTools: [
+      { label: "Go Hunting", href: "/?tab=new" },
+      { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
+      { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
+    ],
+  },
+  {
+    id: "advanced-markets",
+    title: "Advanced market topics",
+    subtitle: "Funding & OI, tokenomics red flags, and prop-firm rule basics.",
+    estimatedMinutes: 12,
+    track: "applied",
+    sections: [
+      {
+        heading: "Funding rates & open interest (perps)",
+        body: [
+          "Funding is a periodic payment between longs and shorts that keeps perp price near spot. Positive funding usually means longs pay shorts; negative means shorts pay longs (platform-specific details vary).",
+          "Crowded side + extreme funding can mean the move is late — squeezes happen when the majority is forced out.",
+          "Open interest (OI) is outstanding perp contracts. Rising OI with a trend can confirm participation; falling OI into a spike can mean short-covering or long liquidation rather than fresh conviction.",
+        ],
+      },
+      {
+        heading: "Tokenomics red flags (memes & alts)",
+        body: [
+          "Check: who holds supply, unlock/vesting cliffs, mint authority, tax, LP lock, and whether liquidity can be pulled.",
+          "Red flags: tiny float controlled by a few wallets, hidden mint, honeypot sell tax, fake burned LP, or 'team' wallets that dump on first green candle.",
+          "A funny ticker is not due diligence. Contract and holder checks come before narrative FOMO.",
+        ],
+      },
+      {
+        heading: "Prop-firm rules (basics)",
+        body: [
+          "Prop challenges often enforce max daily loss, max total drawdown, min trading days, and banned strategies (e.g. news gambling or copy trading — read your firm’s rules).",
+          "Passing a challenge is not the same as keeping a funded account — consistency and rule adherence matter more than one lucky day.",
+          "If you use NovaStaris Prop Firm tools, treat the firm’s written rules as the boss — platform edge does not override their risk desk.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Funding rate", definition: "Periodic long/short payment that anchors perps near spot." },
+      { term: "Open interest (OI)", definition: "Number of outstanding perpetual contracts still open." },
+      { term: "Tokenomics", definition: "Supply, unlocks, authority, and distribution design of a token." },
+      { term: "Prop firm drawdown", definition: "Max loss limit (daily/total) that fails a challenge or funded account." },
+    ],
+    diagram: "margin",
+    relatedTools: [
+      { label: "Crypto Futures", href: "/?tab=futures" },
+      { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
+      { label: "Prop Firm Bot", href: "/?tab=prop-firm-bot" },
+    ],
+  },
 ];
+
+export function getLessonTrack(lesson: Pick<UniversityLesson, "id" | "track">): CourseTrack {
+  if (lesson.track) return lesson.track;
+  const foundations = new Set([
+    "intro-crypto",
+    "wallets-security",
+    "risk-fundamentals",
+    "chart-basics",
+    "psychology-journaling",
+    "market-structure",
+  ]);
+  const applied = new Set(["novastaris-workflow", "advanced-markets"]);
+  if (foundations.has(lesson.id)) return "foundations";
+  if (applied.has(lesson.id)) return "applied";
+  return "markets";
+}
 
 export function getLessonById(id: string): UniversityLesson | undefined {
   return TRADING_UNIVERSITY_LESSONS.find((l) => l.id === id);

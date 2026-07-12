@@ -86,7 +86,7 @@ export function buildCertificateCanvas(payload: CertificatePayload): HTMLCanvasE
   ctx.fillStyle = "rgba(34, 211, 238, 0.75)";
   ctx.font = "600 14px system-ui, sans-serif";
   ctx.fillText(
-    "novastaris.ai  ·  Free course: meme coins, perps, prediction markets & forex",
+    "novastaris.ai  ·  Free course: foundations, memes, perps, FX & platform workflow",
     w / 2,
     720
   );

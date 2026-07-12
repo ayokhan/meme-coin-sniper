@@ -126,3 +126,81 @@ export function UniversitySessionsDiagram() {
     </div>
   );
 }
+
+export function UniversityJournalDiagram() {
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 p-4 space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        Concept · Session guardrails
+      </p>
+      <ol className="grid sm:grid-cols-2 gap-2 text-xs">
+        {[
+          "Write daily loss limit before open",
+          "One-sentence thesis + invalidation",
+          "Cooldown after a full stop-out",
+          "Journal: followed plan? Y/N + lesson",
+        ].map((step, i) => (
+          <li
+            key={step}
+            className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 flex gap-2"
+          >
+            <span className="font-mono text-[10px] text-cyan-700 dark:text-cyan-300">{i + 1}</span>
+            <span className="text-zinc-700 dark:text-zinc-200">{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+export function UniversityStructureDiagram() {
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 p-4 space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        Concept · Structure lite
+      </p>
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-1">
+          <p className="font-medium text-emerald-800 dark:text-emerald-200">Uptrend</p>
+          <p className="text-muted-foreground">Higher highs + higher lows. BOS often = prior swing high taken.</p>
+        </div>
+        <div className="rounded-md border border-rose-500/30 bg-rose-500/5 p-3 space-y-1">
+          <p className="font-medium text-rose-800 dark:text-rose-200">Downtrend</p>
+          <p className="text-muted-foreground">Lower highs + lower lows. CHOCH hint = meaningful swing low breaks against trend.</p>
+        </div>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Liquidity grab: wick beyond an obvious high/low that runs stops, then reverses — not always a clean breakout.
+      </p>
+    </div>
+  );
+}
+
+export function UniversityWorkflowDiagram() {
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 p-4 space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        Concept · NovaStaris path
+      </p>
+      <div className="flex flex-wrap gap-2 text-xs">
+        {["Discover", "→ Score / levels", "→ Flow check", "→ Size + invalidation", "→ Journal"].map(
+          (label, i) => (
+            <span
+              key={label}
+              className={`rounded-md px-2.5 py-1.5 font-medium ${
+                i === 4
+                  ? "bg-cyan-600 text-white"
+                  : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200"
+              }`}
+            >
+              {label}
+            </span>
+          )
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Tools answer questions — they do not replace risk rules. Disagreement between tabs → smaller size or stand aside.
+      </p>
+    </div>
+  );
+}
