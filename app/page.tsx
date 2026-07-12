@@ -1496,8 +1496,8 @@ export default function Dashboard() {
           window.location.assign(href);
           return;
         }
+        // Tab feature-flagged off: do not navigate into a dead/fallback tab.
         if (!isTabVisibleInGui(tab as TabId)) {
-          window.location.assign(href);
           return;
         }
         setActiveTab(tab as TabId);
@@ -1552,7 +1552,21 @@ export default function Dashboard() {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
       } catch {
-        window.location.assign(href);
+        /* ignore bad href */
+      }
+    },
+    [isTabVisibleInGui]
+  );
+
+  const isDashboardToolHrefAvailable = useCallback(
+    (href: string) => {
+      try {
+        const url = new URL(href, typeof window !== "undefined" ? window.location.origin : "https://novastaris.ai");
+        const tab = url.searchParams.get("tab");
+        if (!tab || !URL_TAB_IDS.has(tab)) return true;
+        return isTabVisibleInGui(tab as TabId);
+      } catch {
+        return false;
       }
     },
     [isTabVisibleInGui]
@@ -8498,7 +8512,10 @@ export default function Dashboard() {
             ) : activeTab === "nova-investment" ? (
               <NovaInvestmentAgentPanel isOwner={isOwner} />
             ) : activeTab === "trading-university" ? (
-              <TradingUniversityPanel onOpenToolHref={openDashboardToolHref} />
+              <TradingUniversityPanel
+                onOpenToolHref={openDashboardToolHref}
+                isToolHrefAvailable={isDashboardToolHrefAvailable}
+              />
             ) : activeTab === "coach-calls" ? (
               <CoachCallsPanel isOwner={isOwner} isCoachUser={isCoachUser} isVip={isVip} />
             ) : activeTab === "wallets" ? (

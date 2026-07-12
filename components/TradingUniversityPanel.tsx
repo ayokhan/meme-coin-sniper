@@ -61,6 +61,8 @@ type CatalogLesson = UniversityLesson & { locked?: boolean; relatedTools?: Unive
 type TradingUniversityPanelProps = {
   /** Same-page tab links must call this — Next Link only changes the URL, not dashboard tab state. */
   onOpenToolHref?: (href: string) => void;
+  /** Hide Try-next links when the target tab is feature-flagged off. */
+  isToolHrefAvailable?: (href: string) => boolean;
 };
 
 type PublicQuestion = {
@@ -117,7 +119,10 @@ function markChapterQuizDone(lessonId: string) {
   return next;
 }
 
-export default function TradingUniversityPanel({ onOpenToolHref }: TradingUniversityPanelProps = {}) {
+export default function TradingUniversityPanel({
+  onOpenToolHref,
+  isToolHrefAvailable,
+}: TradingUniversityPanelProps = {}) {
   const { status } = useSession();
   const authenticated = status === "authenticated";
 
@@ -875,30 +880,36 @@ export default function TradingUniversityPanel({ onOpenToolHref }: TradingUniver
                   ))}
                 </dl>
               </section>
-              {activeLesson.relatedTools && activeLesson.relatedTools.length > 0 && (
-                <section className="space-y-2">
-                  <h3 className="text-sm font-semibold">Try next on NovaStaris</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {activeLesson.relatedTools.map((t) => (
-                      <Button
-                        key={t.href + t.label}
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          if (onOpenToolHref) {
-                            onOpenToolHref(t.href);
-                            return;
-                          }
-                          window.location.assign(t.href);
-                        }}
-                      >
-                        {t.label}
-                      </Button>
-                    ))}
-                  </div>
-                </section>
-              )}
+              {(() => {
+                const tools = (activeLesson.relatedTools ?? []).filter((t) =>
+                  isToolHrefAvailable ? isToolHrefAvailable(t.href) : true
+                );
+                if (tools.length === 0) return null;
+                return (
+                  <section className="space-y-2">
+                    <h3 className="text-sm font-semibold">Try next on NovaStaris</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {tools.map((t) => (
+                        <Button
+                          key={t.href + t.label}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (onOpenToolHref) {
+                              onOpenToolHref(t.href);
+                              return;
+                            }
+                            window.location.assign(t.href);
+                          }}
+                        >
+                          {t.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })()}
               {fullAccess && (
                 <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
                   <h3 className="text-sm font-semibold">Chapter check (required)</h3>
