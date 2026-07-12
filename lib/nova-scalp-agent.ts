@@ -21,6 +21,8 @@ export const SCALP_TIMEFRAMES = [
   { id: "30m", label: "30 mins", interval: "5m", limit: 60, estHoldMinutes: 35 },
   { id: "1h", label: "1 hour", interval: "5m", limit: 72, estHoldMinutes: 55 },
   { id: "2h", label: "2 hours", interval: "15m", limit: 48, estHoldMinutes: 110 },
+  { id: "4h", label: "4 hours", interval: "1h", limit: 48, estHoldMinutes: 240 },
+  { id: "1d", label: "1 day", interval: "1d", limit: 42, estHoldMinutes: 1440 },
 ] as const;
 
 export type ScalpTimeframeId = (typeof SCALP_TIMEFRAMES)[number]["id"];

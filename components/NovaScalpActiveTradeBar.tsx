@@ -13,7 +13,11 @@ import {
   type ScalpActiveTrade,
 } from "@/lib/nova-scalp-active-trade";
 import { fetchScalpLivePrice, SCALP_LIVE_PRICE_MS } from "@/lib/nova-scalp-plan-price";
-import { formatAnalyzedAtLocal } from "@/lib/nova-scalp-plan-status";
+import {
+  activeTradeHitLabel,
+  computeActiveTradeHit,
+  formatAnalyzedAtLocal,
+} from "@/lib/nova-scalp-plan-status";
 import { scalpPlanFeedbackApi, scalpPlanWatchLabel } from "@/lib/scalp-plan-market";
 
 function fmtUsd(n: number | null | undefined): string {
@@ -32,9 +36,13 @@ export default function NovaScalpActiveTradeBar() {
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [hitNotified, setHitNotified] = useState<"target_hit" | "stop_hit" | null>(null);
 
   useEffect(() => {
-    const sync = () => setTrade(readActiveScalpTrade());
+    const sync = () => {
+      setTrade(readActiveScalpTrade());
+      setHitNotified(null);
+    };
     sync();
     window.addEventListener(SCALP_ACTIVE_TRADE_EVENT, sync);
     return () => window.removeEventListener(SCALP_ACTIVE_TRADE_EVENT, sync);
@@ -59,6 +67,46 @@ export default function NovaScalpActiveTradeBar() {
       window.clearInterval(id);
     };
   }, [trade?.symbol, trade?.market, trade?.enteredAt]);
+
+  const tradeHit =
+    trade
+      ? computeActiveTradeHit({
+          side: trade.side,
+          livePrice,
+          exitPrice: trade.exitPrice,
+          stopLossPrice: trade.stopLossPrice,
+        })
+      : null;
+
+  useEffect(() => {
+    if (!trade || !tradeHit || hitNotified === tradeHit) return;
+    setHitNotified(tradeHit);
+    setExpanded(true);
+    const title = tradeHit === "target_hit" ? "Take profit reached" : "Stop loss hit";
+    const body = activeTradeHitLabel(tradeHit, {
+      exitPrice: trade.exitPrice,
+      stopLossPrice: trade.stopLossPrice,
+    });
+    try {
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        new Notification(`${title} · ${trade.symbol}`, {
+          body,
+          tag: `scalp-active-${trade.symbol}-${trade.enteredAt}-${tradeHit}`,
+        });
+      } else if (typeof Notification !== "undefined" && Notification.permission === "default") {
+        void Notification.requestPermission().then((p) => {
+          if (p === "granted") {
+            new Notification(`${title} · ${trade.symbol}`, {
+              body,
+              tag: `scalp-active-${trade.symbol}-${trade.enteredAt}-${tradeHit}`,
+            });
+          }
+        });
+      }
+    } catch {
+      /* ignore notification errors */
+    }
+  }, [trade, tradeHit, hitNotified]);
 
   if (!trade) return null;
 
@@ -131,9 +179,29 @@ export default function NovaScalpActiveTradeBar() {
 
   return (
     <div
-      className="fixed bottom-20 left-3 right-3 sm:left-auto sm:right-4 sm:max-w-lg z-[65] rounded-xl border border-emerald-400/50 bg-zinc-900/95 text-zinc-100 shadow-xl"
+      className={`fixed bottom-20 left-3 right-3 sm:left-auto sm:right-4 sm:max-w-lg z-[65] rounded-xl border shadow-xl ${
+        tradeHit === "target_hit"
+          ? "border-emerald-400/70 bg-emerald-950/95 text-zinc-100"
+          : tradeHit === "stop_hit"
+            ? "border-rose-400/70 bg-rose-950/95 text-zinc-100"
+            : "border-emerald-400/50 bg-zinc-900/95 text-zinc-100"
+      }`}
       role="status"
     >
+      {tradeHit && (
+        <div
+          className={`px-3 py-2 text-xs font-semibold border-b ${
+            tradeHit === "target_hit"
+              ? "bg-emerald-500/20 text-emerald-200 border-emerald-500/30"
+              : "bg-rose-500/20 text-rose-200 border-rose-500/30"
+          }`}
+        >
+          {activeTradeHitLabel(tradeHit, {
+            exitPrice: trade.exitPrice,
+            stopLossPrice: trade.stopLossPrice,
+          })}
+        </div>
+      )}
       <div className="flex items-start gap-2 px-3 py-2.5">
         {trade.side === "long" ? (
           <TrendingUp className="h-4 w-4 shrink-0 mt-0.5 text-emerald-400" aria-hidden />
@@ -233,12 +301,18 @@ export default function NovaScalpActiveTradeBar() {
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] text-zinc-400">Close it out:</span>
+            <span className="text-[11px] text-zinc-400">
+              {tradeHit === "target_hit"
+                ? "Close it out (suggested: Win):"
+                : tradeHit === "stop_hit"
+                  ? "Close it out (suggested: Loss):"
+                  : "Close it out:"}
+            </span>
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              className="h-7 text-xs"
+              className={`h-7 text-xs ${tradeHit === "target_hit" ? "ring-2 ring-emerald-400" : ""}`}
               disabled={feedbackLoading}
               onClick={() => void submitFeedback("win")}
             >
@@ -248,7 +322,7 @@ export default function NovaScalpActiveTradeBar() {
               type="button"
               variant="secondary"
               size="sm"
-              className="h-7 text-xs"
+              className={`h-7 text-xs ${tradeHit === "stop_hit" ? "ring-2 ring-rose-400" : ""}`}
               disabled={feedbackLoading}
               onClick={() => void submitFeedback("loss")}
             >

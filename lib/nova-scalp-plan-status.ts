@@ -216,3 +216,44 @@ export function planStatusFromAnalysis(
     entryMode: analysis.entryMode,
   });
 }
+
+/** Post-entry: has live price hit take-profit or stop-loss? */
+export function computeActiveTradeHit(input: {
+  side: "long" | "short";
+  livePrice: number | null;
+  exitPrice: number | null;
+  stopLossPrice: number | null;
+}): "target_hit" | "stop_hit" | null {
+  if (input.livePrice == null || !Number.isFinite(input.livePrice)) return null;
+  const { side, livePrice, exitPrice, stopLossPrice } = input;
+  if (side === "long") {
+    if (stopLossPrice != null && Number.isFinite(stopLossPrice) && livePrice <= stopLossPrice) return "stop_hit";
+    if (exitPrice != null && Number.isFinite(exitPrice) && livePrice >= exitPrice) return "target_hit";
+    return null;
+  }
+  if (stopLossPrice != null && Number.isFinite(stopLossPrice) && livePrice >= stopLossPrice) return "stop_hit";
+  if (exitPrice != null && Number.isFinite(exitPrice) && livePrice <= exitPrice) return "target_hit";
+  return null;
+}
+
+export function activeTradeHitLabel(
+  hit: "target_hit" | "stop_hit",
+  ctx?: { exitPrice?: number | null; stopLossPrice?: number | null }
+): string {
+  const tp =
+    ctx?.exitPrice != null && Number.isFinite(ctx.exitPrice)
+      ? `$${ctx.exitPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+      : null;
+  const sl =
+    ctx?.stopLossPrice != null && Number.isFinite(ctx.stopLossPrice)
+      ? `$${ctx.stopLossPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+      : null;
+  if (hit === "target_hit") {
+    return tp
+      ? `Take profit reached at ${tp} — close the trade and mark Win`
+      : "Take profit reached — close and mark Win";
+  }
+  return sl
+    ? `Stop loss hit at ${sl} — close the trade and mark Loss`
+    : "Stop loss hit — close and mark Loss";
+}

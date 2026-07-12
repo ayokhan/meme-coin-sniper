@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Flame, RefreshCw, Shield, ShieldAlert, ShieldCheck, Link2, Hand, ListOrdered, LineChart, Sparkles } from "lucide-react";
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
+import { SCALP_TIMEFRAMES } from "@/lib/nova-scalp-agent";
 import {
   combinePropFirmVerdict,
   riskAtStopFromSetup,
@@ -74,6 +75,7 @@ export default function PropFirmBotPanel() {
     currentPrice: number | null;
     timeframeLabel: string;
   } | null>(null);
+  const [resetMsg, setResetMsg] = useState("");
   const [analyzingSetup, setAnalyzingSetup] = useState(false);
   const [setupError, setSetupError] = useState("");
   const [setupTimeframe, setSetupTimeframe] = useState("15m");
@@ -203,7 +205,7 @@ export default function PropFirmBotPanel() {
   }, []);
 
   const runSync = useCallback(
-    async (riskOverride?: number) => {
+    async (riskOverride?: number, stateOverride?: SessionState) => {
       if (trackingMode !== "blofin" || blofinStatus.blofinIntegrationEnabled === false) return;
       setSyncing(true);
       setSyncError("");
@@ -212,7 +214,12 @@ export default function PropFirmBotPanel() {
         const res = await fetch("/api/prop-firm-bot/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cfg, state, proposedRiskUsd: proposed, blofinDemo: blofinSyncDemo }),
+          body: JSON.stringify({
+            cfg,
+            state: stateOverride ?? state,
+            proposedRiskUsd: proposed,
+            blofinDemo: blofinSyncDemo,
+          }),
         });
         const data = (await res.json()) as SyncResponse;
         if (!res.ok || !data.success) {
@@ -316,8 +323,24 @@ export default function PropFirmBotPanel() {
   };
 
   const resetTradingDay = () => {
-    setState((s) => ({ ...s, tradesToday: 0, todaysPnl: 0, openRiskUsd: 0 }));
-    if (trackingMode === "blofin" && blofinStatus.configured) void runSync(0);
+    const nowIso = new Date().toISOString();
+    const next: SessionState = {
+      ...state,
+      tradesToday: 0,
+      todaysPnl: 0,
+      openRiskUsd: trackingMode === "blofin" ? state.openRiskUsd : 0,
+      dayResetAt: nowIso,
+    };
+    setState(next);
+    setResetMsg(
+      trackingMode === "blofin"
+        ? "Trading day counters reset. Next Blofin sync only counts fills after now (open positions still show)."
+        : "Trading day counters cleared for manual tracking."
+    );
+    window.setTimeout(() => setResetMsg(""), 6000);
+    if (trackingMode === "blofin" && blofinStatus.configured) {
+      void runSync(0, next);
+    }
   };
 
   const GuardIcon = ({ severity }: { severity: "allow" | "caution" | "stop" }) => {
@@ -395,24 +418,29 @@ export default function PropFirmBotPanel() {
         </CardHeader>
         <CardContent className="text-xs text-muted-foreground space-y-2">
           <p>
-            Combines <strong>challenge rules</strong> with a <strong>live setup plan</strong> (entry, stop, target from
-            recent candles). Not auto-trading — you decide when to pull the trigger.
+            This is a <strong>challenge workbook</strong> — not an auto-trader. You set firm rules (daily loss, drawdown,
+            profit target), then use a <strong>live setup plan</strong> for entry / stop / target. You still place
+            orders on Blofin (or manually).
           </p>
-          <ol className="list-decimal list-inside space-y-1">
+          <ol className="list-decimal list-inside space-y-1.5">
             <li>
-              <strong>Start new challenge</strong> — baseline for your evaluation.
+              <strong>Tracking mode</strong> — Manual (type PnL) or Blofin sync (auto from your keys).
             </li>
             <li>
-              <strong>Analyze setup</strong> — live price + structure → entry / stop / target.
+              <strong>Start new challenge</strong> — sets your evaluation baseline.
             </li>
             <li>
-              <strong>Read the verdict</strong> — DO NOT ENTER / WAIT / CLEAR (rules + setup quality).
+              <strong>Analyze setup</strong> — pick a timeframe (incl. 4H / 1D), then get side, entry, stop, target.
             </li>
             <li>
-              <strong>Check entry</strong> — confirm planned risk at stop fits challenge caps.
+              <strong>Read the top verdict</strong> — DO NOT ENTER / WAIT / CLEAR combines rules + setup quality.
             </li>
             <li>
-              <strong>After trades</strong> — update PnL manually{blofinIntegrationEnabled ? " or use Blofin sync" : ""}.
+              <strong>Entry / Exit guards</strong> — go / no-go for challenge risk (Blofin mode also sees open positions).
+            </li>
+            <li>
+              <strong>Reset trading day</strong> — zeros today&apos;s trade count &amp; day PnL (Blofin: only counts
+              fills after the reset).
             </li>
           </ol>
         </CardContent>
@@ -550,6 +578,13 @@ export default function PropFirmBotPanel() {
               Reset trading day
             </Button>
           </div>
+          {resetMsg && <p className="text-xs text-emerald-600 dark:text-emerald-400">{resetMsg}</p>}
+          {state.dayResetAt && (
+            <p className="text-[11px] text-muted-foreground">
+              Day counters anchored at {new Date(state.dayResetAt).toLocaleString()}
+              {trackingMode === "blofin" ? " (Blofin fills before this are ignored for today)." : "."}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -573,10 +608,13 @@ export default function PropFirmBotPanel() {
                 onChange={(e) => setSetupTimeframe(e.target.value)}
                 className="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm"
               >
-                <option value="5m">5 min</option>
-                <option value="15m">15 min</option>
-                <option value="30m">30 min</option>
-                <option value="1h">1 hour</option>
+                {SCALP_TIMEFRAMES.filter((t) =>
+                  ["5m", "15m", "30m", "1h", "2h", "4h", "1d"].includes(t.id)
+                ).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
               </select>
             </div>
             <Button

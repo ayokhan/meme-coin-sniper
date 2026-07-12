@@ -140,9 +140,22 @@ export async function POST(request: Request) {
     const closed24h = filterClosedTradesByPeriod(allClosed, "24h");
     const closed30d = filterClosedTradesByPeriod(allClosed, "30d");
 
-    const todaysRealizedPnl = sumClosedTradesRealized(closed24h);
+    const dayResetMs = state?.dayResetAt ? Date.parse(state.dayResetAt) : NaN;
+    const closedToday =
+      Number.isFinite(dayResetMs)
+        ? closed24h.filter((t) => {
+            const ts = t.closedAt ? Date.parse(t.closedAt) : NaN;
+            // closedAt may be unix ms string — Date.parse handles ISO; normalizeUnixMs for numeric
+            if (Number.isFinite(ts) && ts >= dayResetMs) return true;
+            const n = Number(t.closedAt);
+            const ms = Number.isFinite(n) ? (n < 1e12 ? n * 1000 : n) : NaN;
+            return Number.isFinite(ms) && ms >= dayResetMs;
+          })
+        : closed24h;
+
+    const todaysRealizedPnl = sumClosedTradesRealized(closedToday);
     const totalRealizedPnl = sumClosedTradesRealized(closed30d);
-    const tradesToday = analyzeClosedTrades(closed24h).totalTrades;
+    const tradesToday = analyzeClosedTrades(closedToday).totalTrades;
 
     const syncedState: SessionState = {
       startBalance: cfg.accountSize,
@@ -151,6 +164,7 @@ export async function POST(request: Request) {
       openRiskUsd: positionPack.openRiskUsd,
       tradesToday,
       challengeStartedAt: state?.challengeStartedAt ?? new Date().toISOString(),
+      dayResetAt: state?.dayResetAt ?? null,
     };
 
     const metrics = computePropFirmMetrics(cfg, syncedState, positionPack.openContracts);

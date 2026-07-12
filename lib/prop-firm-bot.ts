@@ -18,6 +18,11 @@ export type SessionState = {
   openRiskUsd: number;
   tradesToday: number;
   challengeStartedAt: string | null;
+  /**
+   * When set, Blofin sync only counts closed trades after this timestamp for
+   * "today" PnL / trade count (lets Reset trading day stick until the next day).
+   */
+  dayResetAt: string | null;
 };
 
 export type SyncedPosition = {
@@ -110,6 +115,7 @@ export function defaultSessionState(accountSize: number): SessionState {
     openRiskUsd: 0,
     tradesToday: 0,
     challengeStartedAt: null,
+    dayResetAt: null,
   };
 }
 
