@@ -662,6 +662,22 @@ export function NovaScalpPlanCard({
                   Entry {fmtUsd(activeTrade.filledEntryPrice)} · {activeTrade.side.toUpperCase()} ·{" "}
                   {activeTrade.timeframeLabel}
                 </p>
+                {activeTrade.enteredAt && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Entered{" "}
+                    {new Date(activeTrade.enteredAt).toLocaleTimeString(undefined, {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                    {activeTrade.estimatedHoldMinutes != null
+                      ? ` · plan est. hold ~${activeTrade.estimatedHoldMinutes} min`
+                      : result.estimatedHoldMinutes != null
+                        ? ` · plan est. hold ~${result.estimatedHoldMinutes} min`
+                        : ""}
+                    {" "}
+                    (see Active trade bar for live hold timer)
+                  </p>
+                )}
               </div>
             ) : !entryRecord ? (
               <div className="flex flex-wrap items-center gap-2">

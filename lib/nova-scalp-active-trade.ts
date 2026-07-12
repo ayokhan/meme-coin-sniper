@@ -18,6 +18,8 @@ export type ScalpActiveTrade = {
   leverage: number;
   planAnalyzedAt: string;
   enteredAt: string;
+  /** From analysis at entry — used to compare elapsed hold vs plan estimate. */
+  estimatedHoldMinutes: number | null;
   feedbackSent?: boolean;
 };
 
@@ -29,7 +31,13 @@ export function readActiveScalpTrade(): ScalpActiveTrade | null {
     const parsed = JSON.parse(raw) as ScalpActiveTrade;
     if (!parsed?.symbol || !parsed.side || parsed.feedbackSent) return null;
     if (!Number.isFinite(parsed.filledEntryPrice)) return null;
-    return parsed;
+    return {
+      ...parsed,
+      estimatedHoldMinutes:
+        parsed.estimatedHoldMinutes != null && Number.isFinite(parsed.estimatedHoldMinutes)
+          ? parsed.estimatedHoldMinutes
+          : null,
+    };
   } catch {
     return null;
   }
@@ -65,6 +73,10 @@ export function startActiveScalpTrade(
     leverage: analysis.leverage,
     planAnalyzedAt: analysis.analyzedAt,
     enteredAt: new Date().toISOString(),
+    estimatedHoldMinutes:
+      analysis.estimatedHoldMinutes != null && Number.isFinite(analysis.estimatedHoldMinutes)
+        ? Math.round(analysis.estimatedHoldMinutes)
+        : null,
     feedbackSent: false,
   });
 }

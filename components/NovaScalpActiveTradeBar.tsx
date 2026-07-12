@@ -25,6 +25,16 @@ function fmtUsd(n: number | null | undefined): string {
   return "$" + n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 });
 }
 
+function formatHoldElapsed(enteredAtIso: string, nowMs: number): string {
+  const t = Date.parse(enteredAtIso);
+  if (!Number.isFinite(t)) return "—";
+  const mins = Math.max(0, Math.floor((nowMs - t) / 60_000));
+  if (mins < 60) return `${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return rem > 0 ? `${hrs}h ${rem}m` : `${hrs}h`;
+}
+
 function scalpTabHref(market: ScalpActiveTrade["market"]): string {
   return market === "forex"
     ? "/?tab=nova-forex&forex=nova-scalp"
@@ -37,6 +47,7 @@ export default function NovaScalpActiveTradeBar() {
   const [expanded, setExpanded] = useState(true);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [hitNotified, setHitNotified] = useState<"target_hit" | "stop_hit" | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     const sync = () => {
@@ -47,6 +58,13 @@ export default function NovaScalpActiveTradeBar() {
     window.addEventListener(SCALP_ACTIVE_TRADE_EVENT, sync);
     return () => window.removeEventListener(SCALP_ACTIVE_TRADE_EVENT, sync);
   }, []);
+
+  useEffect(() => {
+    if (!trade) return;
+    setNowMs(Date.now());
+    const id = window.setInterval(() => setNowMs(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, [trade?.enteredAt]);
 
   useEffect(() => {
     if (!trade) {
@@ -140,6 +158,13 @@ export default function NovaScalpActiveTradeBar() {
           trade.leverage
         )
       : null;
+
+  const enteredMs = Date.parse(trade.enteredAt);
+  const elapsedMins =
+    Number.isFinite(enteredMs) ? Math.max(0, Math.floor((nowMs - enteredMs) / 60_000)) : null;
+  const estHold = trade.estimatedHoldMinutes;
+  const overEstimate =
+    elapsedMins != null && estHold != null && Number.isFinite(estHold) && elapsedMins > estHold;
 
   const submitFeedback = async (outcome: "win" | "loss" | "scratch") => {
     if (feedbackLoading) return;
@@ -246,6 +271,18 @@ export default function NovaScalpActiveTradeBar() {
               Live {fmtUsd(livePrice)} · updates ~12s
             </p>
           )}
+          {Number.isFinite(enteredMs) && (
+            <p className={`text-[11px] mt-1 ${overEstimate ? "text-amber-300" : "text-zinc-300"}`}>
+              Entered {formatAnalyzedAtLocal(trade.enteredAt)} · held {formatHoldElapsed(trade.enteredAt, nowMs)}
+              {estHold != null ? (
+                <>
+                  {" "}
+                  / est. ~{estHold} min
+                  {overEstimate ? " · past estimate" : ""}
+                </>
+              ) : null}
+            </p>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <button
@@ -277,6 +314,14 @@ export default function NovaScalpActiveTradeBar() {
             Levels from plan {formatAnalyzedAtLocal(trade.planAnalyzedAt)} — browse other symbols
             freely; this bar stays pinned.
           </p>
+          {estHold != null && elapsedMins != null && (
+            <p className={`text-[11px] leading-relaxed ${overEstimate ? "text-amber-300" : "text-zinc-400"}`}>
+              Hold timer: {elapsedMins} min elapsed vs plan estimate ~{estHold} min
+              {overEstimate
+                ? " — longer than planned; re-check thesis or exit."
+                : ` — ${Math.max(0, estHold - elapsedMins)} min left on estimate.`}
+            </p>
+          )}
           {(atTarget != null || atStop != null) && (
             <p className="text-[11px] text-zinc-400 leading-relaxed">
               {atTarget != null && (
