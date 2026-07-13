@@ -23,6 +23,15 @@ export const COURSE_TRACK_META: Record<
   },
 };
 
+export type UniversityWorkedExample = {
+  title: string;
+  /** Short setup lines (facts of the hypothetical). */
+  setup: string[];
+  /** Numbered walkthrough steps. */
+  steps: string[];
+  takeaway: string;
+};
+
 export type UniversityLesson = {
   id: string;
   title: string;
@@ -30,6 +39,8 @@ export type UniversityLesson = {
   estimatedMinutes: number;
   sections: { heading: string; body: string[] }[];
   keyTerms: { term: string; definition: string }[];
+  /** Hypothetical walkthroughs — labeled “Example · not a signal” in the UI. */
+  workedExamples?: UniversityWorkedExample[];
   /** Suggested NovaStaris product links after the module. */
   relatedTools?: { label: string; href: string }[];
   /** Optional concept diagram key rendered in the lesson UI. */
@@ -202,6 +213,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Invalidation", definition: "Condition that proves the idea wrong — exit." },
       { term: "Revenge trade", definition: "Forcing a trade to 'win back' a loss — usually emotional." },
     ],
+    workedExamples: [
+      {
+        title: "Size from a $ stop (spot)",
+        setup: [
+          "Trading capital: $10,000",
+          "Risk per idea: 1% = $100",
+          "Long idea; invalidation is $2 below entry",
+        ],
+        steps: [
+          "Max loss if stopped = $100.",
+          "Risk per unit = $2 → max size ≈ $100 ÷ $2 = 50 units.",
+          "If price is $50/unit, notional ≈ $2,500 — still only ~$100 at risk if the stop hits (before fees/slippage).",
+        ],
+        takeaway: "Position size is an output of risk $ and stop distance — not a vibe about how bullish you feel.",
+      },
+    ],
     diagram: "risk",
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
@@ -306,6 +333,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Fibonacci retracement", definition: "Pullback levels (e.g. 38.2%, 50%, 61.8%) drawn on an impulse swing." },
       { term: "Support / resistance", definition: "Zones where price previously bounced or stalled." },
     ],
+    workedExamples: [
+      {
+        title: "Multi-timeframe read (hypothetical)",
+        setup: [
+          "4h chart: higher highs / higher lows → bullish bias",
+          "15m chart: pullback into a prior swing low + 50% Fib of the last impulse",
+          "Invalidation: clean break and close below that swing low",
+        ],
+        steps: [
+          "Bias comes from 4h — you are not hunting shorts against that structure for this idea.",
+          "Entry timing comes from 15m: wait for the pullback zone instead of chasing the 4h breakout candle.",
+          "Stop goes beyond the 15m invalidation; first target can be the prior 15m swing high or a measured move — not a random round number alone.",
+        ],
+        takeaway: "Higher timeframe = story; lower timeframe = timing. Fighting the story is how ‘perfect’ entries still lose.",
+      },
+    ],
     diagram: "candles",
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
@@ -371,6 +414,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Take-profit", definition: "Pre-set exit to lock gains at a target." },
       { term: "Open / working order", definition: "Unfilled order still live on the exchange." },
       { term: "Slippage", definition: "Difference between expected and actual fill price." },
+    ],
+    workedExamples: [
+      {
+        title: "Limit pullback vs market chase",
+        setup: [
+          "You want long after a breakout; price is extended",
+          "Plan: buy a pullback at 1.0820, SL 1.0790, TP 1.0880",
+          "Current price is already 1.0855 and accelerating",
+        ],
+        steps: [
+          "Market buy now = chase: worse entry, tighter remaining R:R to the same TP, and you still need the same SL distance or you accept more $ risk.",
+          "Place limit at 1.0820 (or stand aside). If it never fills, you missed the trade — that is allowed.",
+          "On fill: set SL/TP immediately. If thesis dies (e.g. structure breaks), cancel any leftover working orders.",
+        ],
+        takeaway: "A missed limit is cheaper than a filled FOMO market order with no plan.",
+      },
     ],
     diagram: "orders",
     relatedTools: [
@@ -740,6 +799,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Liquidation", definition: "Forced close when margin falls below maintenance requirements." },
       { term: "Notional", definition: "Total position value (margin × leverage, roughly)." },
     ],
+    workedExamples: [
+      {
+        title: "10× long — what actually risks $100",
+        setup: [
+          "Isolated margin: $100",
+          "Leverage: 10× → ~$1,000 notional",
+          "Entry $50,000 BTC; rough wipe zone near a ~10% adverse move (before fees)",
+        ],
+        steps: [
+          "You are not ‘only risking $100 of conviction’ in the spot sense — $100 is collateral; the exchange can liquidate the whole notional path when margin fails.",
+          "If your planned invalidation is 2% away, size so that a stop there loses ~your intended $ risk — do not wait for liquidation to be the stop.",
+          "Prefer isolated + hard SL for learning. Cross + high leverage turns one bad coin into an account event.",
+        ],
+        takeaway: "Liquidation is a failure mode, not a strategy. Your stop should hit first.",
+      },
+    ],
     diagram: "margin",
     relatedTools: [
       { label: "Crypto Futures", href: "/?tab=futures" },
@@ -845,6 +920,38 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Major / exotic", definition: "Most liquid USD pairs vs thinner emerging-market crosses." },
       { term: "Swap / rollover", definition: "Overnight financing paid or earned for holding a position." },
       { term: "Session", definition: "Regional trading hours (Tokyo, London, New York) that affect volume." },
+    ],
+    workedExamples: [
+      {
+        title: "EUR/USD long — pips to dollars",
+        setup: [
+          "Pair: EUR/USD at 1.0850",
+          "Account risk budget: $20 on this idea",
+          "Invalidation: 20 pips below entry (1.0830)",
+          "Session: London–New York overlap; no high-impact release in the next hour",
+        ],
+        steps: [
+          "On EUR/USD, ~$1 per pip per 0.10 (mini) lot is a common rule of thumb.",
+          "20-pip stop × $1/pip ≈ $20 → size ≈ 0.10 lot fits the $20 budget (before spread).",
+          "Spread matters: if bid/ask costs ~0.8 pip round-trip, your effective risk is slightly worse — tighten size or accept a slightly wider $ risk.",
+          "If NFP is due in 10 minutes and you have no event plan: stand aside. Session liquidity does not cancel calendar risk.",
+        ],
+        takeaway: "Pip distance × pip value = $ risk. Choose lot size last — after stop and budget.",
+      },
+      {
+        title: "Why the session diagram matters",
+        setup: [
+          "Same EUR/USD idea, same stop distance",
+          "Scenario A: Tokyo lunch, thin book",
+          "Scenario B: London–NY overlap",
+        ],
+        steps: [
+          "In thin hours, spreads widen and spikes can tag stops that would not print in the overlap.",
+          "Overlap usually means tighter spreads and cleaner follow-through for majors — still not a signal by itself.",
+          "Match strategy to liquidity: scalp-style entries prefer overlap; patient swing holds care more about the daily thesis than the exact hour.",
+        ],
+        takeaway: "Trade the pair and the clock. Liquidity is part of the setup.",
+      },
     ],
     diagram: "sessions",
     relatedTools: [{ label: "Nova Forex Agent", href: "/?tab=nova-forex" }],

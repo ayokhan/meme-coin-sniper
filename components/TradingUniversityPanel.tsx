@@ -38,6 +38,7 @@ import {
   UniversityCexDexDiagram,
   UniversityFeesDiagram,
   UniversityFibDiagram,
+  UniversityForexPipDiagram,
   UniversityFundingDiagram,
   UniversityJournalDiagram,
   UniversityLifecycleDiagram,
@@ -440,6 +441,12 @@ export default function TradingUniversityPanel({
       lesson.title,
       lesson.subtitle,
       ...lesson.sections.flatMap((s) => [s.heading, ...s.body]),
+      ...(lesson.workedExamples ?? []).flatMap((ex) => [
+        `Example: ${ex.title}`,
+        ...ex.setup,
+        ...ex.steps,
+        ex.takeaway,
+      ]),
       ...getCommonMistakes(lesson.id).map((m) => `Common mistake: ${m}`),
     ];
     const text = parts.join(". ");
@@ -1170,6 +1177,7 @@ export default function TradingUniversityPanel({
               {activeLesson.diagram === "candles" && <UniversityCandlesDiagram />}
               {activeLesson.id === "chart-basics" && <UniversityFibDiagram />}
               {activeLesson.diagram === "sessions" && <UniversitySessionsDiagram />}
+              {activeLesson.id === "forex" && <UniversityForexPipDiagram />}
               {activeLesson.diagram === "journal" && <UniversityJournalDiagram />}
               {activeLesson.diagram === "structure" && <UniversityStructureDiagram />}
               {activeLesson.diagram === "workflow" && <UniversityWorkflowDiagram />}
@@ -1184,6 +1192,44 @@ export default function TradingUniversityPanel({
               {activeLesson.diagram === "funding" && <UniversityFundingDiagram />}
               {activeLesson.diagram === "orders" && <UniversityOrdersDiagram />}
               {activeLesson.diagram === "fib" && <UniversityFibDiagram />}
+              {(activeLesson.workedExamples?.length ?? 0) > 0 && (
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold text-violet-700 dark:text-violet-300">
+                    Worked examples
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground -mt-1">
+                    Hypothetical teaching scenarios — not live signals or financial advice.
+                  </p>
+                  {activeLesson.workedExamples!.map((ex) => (
+                    <div
+                      key={ex.title}
+                      className="rounded-xl border border-violet-400/40 bg-gradient-to-br from-violet-500/15 via-fuchsia-500/10 to-sky-500/10 p-4 space-y-3"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-violet-600 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5">
+                          Example · not a signal
+                        </span>
+                        <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                          {ex.title}
+                        </h4>
+                      </div>
+                      <ul className="space-y-1 text-xs text-zinc-700 dark:text-zinc-300 list-disc pl-4">
+                        {ex.setup.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                      <ol className="space-y-1.5 text-sm text-zinc-800 dark:text-zinc-200 list-decimal pl-5">
+                        {ex.steps.map((step) => (
+                          <li key={step.slice(0, 40)}>{step}</li>
+                        ))}
+                      </ol>
+                      <p className="text-xs font-medium text-violet-800 dark:text-violet-200 border-t border-violet-400/20 pt-2">
+                        Takeaway: {ex.takeaway}
+                      </p>
+                    </div>
+                  ))}
+                </section>
+              )}
               {getCommonMistakes(activeLesson.id).length > 0 && (
                 <section className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 space-y-2">
                   <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200">
