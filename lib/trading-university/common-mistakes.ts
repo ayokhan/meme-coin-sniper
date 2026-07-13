@@ -19,7 +19,14 @@ export const COMMON_MISTAKES_BY_LESSON: Record<string, string[]> = {
   "chart-basics": [
     "Trading a single candle pattern with no structure or invalidation.",
     "Using a 1m stop on a daily idea (timeframe mismatch).",
-    "Treating support/resistance as exact magic lines instead of zones.",
+    "Treating Fib levels as guarantees instead of confluence zones.",
+    "Forcing trend lines through noise and trading every touch.",
+  ],
+  "orders-execution": [
+    "Entering without a stop-loss already planned.",
+    "Using a market order in a thin book and blaming 'manipulation' for slippage.",
+    "Leaving working limits live after the thesis changed.",
+    "Moving a stop farther from entry after you are already wrong.",
   ],
   "psychology-journaling": [
     "Forcing a trade to 'win back' a loss the same session.",

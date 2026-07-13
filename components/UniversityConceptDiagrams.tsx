@@ -452,3 +452,70 @@ export function UniversityFundingDiagram() {
     </ConceptShell>
   );
 }
+
+export function UniversityFibDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Fib retracement (lite)"
+      note="Fib is confluence — strongest when it overlaps structure, a trend line, or a round number. Not a guarantee."
+    >
+      <div className="space-y-1.5 text-xs">
+        {[
+          { lvl: "0%", note: "Swing end (impulse high/low)" },
+          { lvl: "38.2%", note: "Shallow pullback zone" },
+          { lvl: "50%", note: "Mid retracement (widely watched)" },
+          { lvl: "61.8%", note: "Deep pullback / 'golden' zone" },
+          { lvl: "100%", note: "Swing start" },
+        ].map((r) => (
+          <div key={r.lvl} className="flex items-center gap-3">
+            <span className="w-14 shrink-0 font-mono text-cyan-700 dark:text-cyan-300">{r.lvl}</span>
+            <div className="flex-1 h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+              <div className="h-full w-full bg-gradient-to-r from-cyan-600/30 to-cyan-500/70" />
+            </div>
+            <span className="text-muted-foreground hidden sm:block max-w-[14rem]">{r.note}</span>
+          </div>
+        ))}
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityOrdersDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Order path"
+      note="Set SL/TP right after fill. Cancel working orders when the thesis dies."
+    >
+      <div className="flex flex-wrap gap-2 text-xs">
+        {["Plan entry + SL + TP", "→ Choose market/limit/stop", "→ Fill", "→ Manage / exit"].map(
+          (label, i) => (
+            <span
+              key={label}
+              className={`rounded-md px-2.5 py-1.5 font-medium ${
+                i === 3
+                  ? "bg-cyan-600 text-white"
+                  : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200"
+              }`}
+            >
+              {label}
+            </span>
+          )
+        )}
+      </div>
+      <div className="grid sm:grid-cols-3 gap-2 text-[11px] text-center pt-1">
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-2">
+          <p className="font-medium">Market</p>
+          <p className="text-muted-foreground">Now · slippage risk</p>
+        </div>
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-2">
+          <p className="font-medium">Limit</p>
+          <p className="text-muted-foreground">Your price · may miss</p>
+        </div>
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-2">
+          <p className="font-medium">Stop</p>
+          <p className="text-muted-foreground">Trigger → market/limit</p>
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}

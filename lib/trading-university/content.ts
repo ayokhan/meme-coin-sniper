@@ -9,7 +9,7 @@ export const COURSE_TRACK_META: Record<
   foundations: {
     label: "Foundations",
     level: "Beginner",
-    blurb: "Crypto basics, security, risk, charts, psychology, and structure.",
+    blurb: "Crypto basics, security, risk, charts, orders, psychology, and structure.",
   },
   markets: {
     label: "Markets",
@@ -50,6 +50,8 @@ export type UniversityLesson = {
     | "bsc-check"
     | "probability"
     | "funding"
+    | "orders"
+    | "fib"
     | null;
   /** Syllabus track — if omitted, inferred from id. */
   track?: CourseTrack;
@@ -209,32 +211,81 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   {
     id: "chart-basics",
     title: "Charts & candlesticks",
-    subtitle: "How to read OHLC candles, common patterns, and timeframes.",
-    estimatedMinutes: 10,
+    subtitle: "OHLC candles, timeframes, trend lines, Fib, and classic chart patterns.",
+    estimatedMinutes: 16,
     sections: [
       {
         heading: "Why charts matter",
         body: [
-          "Price charts are how traders visualize history and plan entries, stops, and targets. NovaForecast, Nova Scalp, and Forex tools all assume you can read a basic candle chart.",
-          "A timeframe (1m, 5m, 1h, 1d) is the length of each candle. Lower timeframes are noisier; higher timeframes show bigger structure.",
+          "Price charts are how traders visualize history and plan entries, stops, and targets. NovaForecast, Nova Scalp, Chart Analysis, and Forex tools all assume you can read a basic candle chart.",
+          "A timeframe (1m, 5m, 15m, 1h, 4h, 1d, 1w) is the length of each candle. Lower timeframes are noisier and better for precise entries; higher timeframes show the bigger trend and key levels.",
+          "Multi-timeframe habit: decide bias on a higher timeframe (e.g. 4h/1d), then time the entry on a lower one (e.g. 5m/15m) without fighting the bigger picture.",
         ],
       },
       {
         heading: "Candlestick anatomy (OHLC)",
         body: [
           "Each candle shows Open, High, Low, and Close for that period.",
-          "The body is the distance between open and close. Wicks (shadows) show the extreme high and low.",
-          "A bullish candle usually closes above its open (often colored green). A bearish candle closes below its open (often red).",
-          "Long wicks can mean rejection: buyers or sellers pushed price back before the period ended.",
+          "The body is the distance between open and close. Wicks (shadows) show the extreme high and low beyond the body.",
+          "Bullish candle: close above open (often green). Bearish candle: close below open (often red). Color is convention — always read OHLC, not color alone.",
+          "Long upper wick = sellers rejected higher prices. Long lower wick = buyers rejected lower prices. Context (trend vs range) decides whether that matters.",
         ],
       },
       {
-        heading: "Common candle types (basics)",
+        heading: "Bullish candle types (basics)",
         body: [
-          "Doji: open and close nearly equal — indecision.",
-          "Hammer / inverted hammer: small body with a long wick — possible rejection (context matters).",
-          "Engulfing: a candle whose body fully covers the prior body — potential reversal signal when it appears at extremes, not mid-chop.",
-          "Never trade a single candle in isolation. Combine with structure (higher highs/lows), levels, and your invalidation.",
+          "Bullish engulfing: a green body that fully covers the prior red body — stronger near support or after a selloff, weaker mid-chop.",
+          "Hammer: small body near the high with a long lower wick — buyers defended after selling pressure (look for confirmation on the next candle).",
+          "Inverted hammer: small body near the low with a long upper wick after a decline — possible bullish rejection; wait for follow-through.",
+          "Morning star (3-candle idea): down move, small indecision candle, then strong up close — potential bottoming sequence.",
+          "Marubozu (bullish): long body with little/no wicks — strong directional close; still needs structure context.",
+        ],
+      },
+      {
+        heading: "Bearish candle types (basics)",
+        body: [
+          "Bearish engulfing: a red body that fully covers the prior green body — stronger near resistance or after a rally.",
+          "Shooting star: small body near the low with a long upper wick after a rise — sellers rejected the highs.",
+          "Hanging man: looks like a hammer but appears after an advance — warning of weakness if confirmed.",
+          "Evening star (3-candle idea): up move, small indecision, then strong down close — potential topping sequence.",
+          "Marubozu (bearish): long red body, little/no wicks — strong selling close; still not a standalone signal.",
+        ],
+      },
+      {
+        heading: "Doji family (indecision)",
+        body: [
+          "Standard doji: open ≈ close — indecision; meaning depends on where it prints (trend exhaustion vs mid-range noise).",
+          "Long-legged doji: long wicks both sides — wide indecision / volatility without a clear winner that period.",
+          "Dragonfly doji: long lower wick, open/close near the high — often bullish-leaning rejection of lows.",
+          "Gravestone doji: long upper wick, open/close near the low — often bearish-leaning rejection of highs.",
+          "Never trade a doji alone. Combine with level, structure, and the next candle’s confirmation.",
+        ],
+      },
+      {
+        heading: "Trend lines & channels",
+        body: [
+          "An uptrend line connects rising swing lows; a downtrend line connects falling swing highs. Prefer clear swings over forcing a line through noise.",
+          "A channel adds a parallel line on the other side of price — useful for targets and mean-reversion inside the channel.",
+          "Break of a well-respected trend line can signal acceleration or a regime change — still plan invalidation; false breaks are common.",
+        ],
+      },
+      {
+        heading: "Fibonacci retracements (lite)",
+        body: [
+          "After a strong swing (impulse), Fib retracement tools mark common pullback zones traders watch — especially 38.2%, 50%, and 61.8%.",
+          "Fib levels are confluence tools, not magic: they matter more when they overlap with prior structure, a trend line, or a round number.",
+          "Extensions (e.g. 127.2% / 161.8%) are sometimes used for take-profit targets after the pullback resumes the trend.",
+          "NovaForecast / Fib-related tools on NovaStaris assume you already understand that Fib is a map of attention, not a guarantee.",
+        ],
+      },
+      {
+        heading: "Classic chart patterns (lite)",
+        body: [
+          "Double top / double bottom: two failed tests of a high or low — potential reversal if the neckline breaks with follow-through.",
+          "Head and shoulders / inverse: three swings with a middle extreme — neckline break is the usual trigger; measured move is a rough target only.",
+          "Triangles (ascending/descending/symmetrical): compression of highs/lows — breakout direction + retest often matter more than the triangle label.",
+          "Flags / pennants: brief consolidation after an impulse — often continuation if the prior trend resumes; failure = trap.",
+          "Always define invalidation before entry. Patterns fail — your stop is the plan when they do.",
         ],
       },
       {
@@ -250,11 +301,81 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "OHLC", definition: "Open, High, Low, Close — the four prices in a candle." },
       { term: "Wick / shadow", definition: "The thin line showing period high or low beyond the body." },
       { term: "Timeframe", definition: "Duration each candle represents (e.g. 5 minutes, 1 hour)." },
+      { term: "Doji", definition: "Candle with open ≈ close — indecision; subtypes include dragonfly and gravestone." },
+      { term: "Trend line", definition: "Line along swing lows (uptrend) or swing highs (downtrend)." },
+      { term: "Fibonacci retracement", definition: "Pullback levels (e.g. 38.2%, 50%, 61.8%) drawn on an impulse swing." },
       { term: "Support / resistance", definition: "Zones where price previously bounced or stalled." },
     ],
     diagram: "candles",
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
+      { label: "Nova Forex Agent", href: "/?tab=nova-forex" },
+      { label: "Chart Analysis", href: "/?tab=ai-analysis&agent=chart" },
+    ],
+  },
+  {
+    id: "orders-execution",
+    title: "Orders & trade execution",
+    subtitle: "Market vs limit vs stop, stop-loss, take-profit, and managing open orders.",
+    estimatedMinutes: 12,
+    track: "foundations",
+    sections: [
+      {
+        heading: "The trade plan before the click",
+        body: [
+          "Before you enter: direction (long/short), entry type, stop-loss (invalidation), take-profit target(s), and max $ risk if stopped.",
+          "If you cannot write those in one line, you are gambling — not executing a trade.",
+        ],
+      },
+      {
+        heading: "Market, limit, and stop orders",
+        body: [
+          "Market order: fill now at the best available price. Fast, but you accept slippage (worse fill in thin or fast markets).",
+          "Limit order: fill only at your price or better. You control price; you may not get filled if price never trades there.",
+          "Stop order (stop-market): becomes a market order when a trigger price is hit — used for breakout entries or protective exits.",
+          "Stop-limit: when the stop triggers, places a limit instead of a market — more price control, risk of no fill in a gap/spike.",
+        ],
+      },
+      {
+        heading: "Stop-loss and take-profit",
+        body: [
+          "Stop-loss (SL): the price that proves your idea wrong — exit without debate. Place it beyond invalidation, not at the obvious round number everyone else uses if that is the liquidity magnet.",
+          "Take-profit (TP): pre-planned exit for the win side. Partial TPs (scale out) lock some profit while leaving a runner if structure allows.",
+          "Risk:reward is not a religion, but if your TP is closer than your SL with no edge, expectancy usually suffers.",
+          "Trailing stop: follows price in your favor. Useful in trends; can chop you out in ranges.",
+        ],
+      },
+      {
+        heading: "Open orders & working the book",
+        body: [
+          "Open / working orders: unfilled limits and stops still sitting on the exchange. Cancel or amend them when the thesis changes.",
+          "OCO (one-cancels-the-other) on some platforms: TP and SL linked so one fill cancels the other.",
+          "Reduce-only (futures): ensures the order can only shrink or close a position — helps avoid accidental flips.",
+          "Post-only / maker: tries to rest as liquidity (often lower fees); may cancel if it would take immediately.",
+        ],
+      },
+      {
+        heading: "Entering vs managing",
+        body: [
+          "Entry: how you get in (market, limit pullback, stop breakout). Management: how you adjust SL/TP or size after fill.",
+          "Common process: enter → confirm fill → set SL/TP immediately → journal the thesis. Never leave a naked position 'for a second.'",
+          "Moving a stop farther from entry to 'give it room' after you are wrong is usually revenge — not management.",
+          "Nova Scalp and Futures tools assume you already know these order basics before sizing leveraged risk.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Market order", definition: "Fill immediately at available price — speed over price control." },
+      { term: "Limit order", definition: "Fill only at your price or better — may not fill." },
+      { term: "Stop-loss", definition: "Protective exit at invalidation — defines max planned loss." },
+      { term: "Take-profit", definition: "Pre-set exit to lock gains at a target." },
+      { term: "Open / working order", definition: "Unfilled order still live on the exchange." },
+      { term: "Slippage", definition: "Difference between expected and actual fill price." },
+    ],
+    diagram: "orders",
+    relatedTools: [
+      { label: "Crypto Futures", href: "/?tab=futures" },
+      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
       { label: "Nova Forex Agent", href: "/?tab=nova-forex" },
     ],
   },
@@ -835,6 +956,7 @@ export function getLessonTrack(lesson: Pick<UniversityLesson, "id" | "track">): 
     "wallets-security",
     "risk-fundamentals",
     "chart-basics",
+    "orders-execution",
     "psychology-journaling",
     "market-structure",
   ]);

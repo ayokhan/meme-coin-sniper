@@ -37,11 +37,13 @@ import {
   UniversityCandlesDiagram,
   UniversityCexDexDiagram,
   UniversityFeesDiagram,
+  UniversityFibDiagram,
   UniversityFundingDiagram,
   UniversityJournalDiagram,
   UniversityLifecycleDiagram,
   UniversityMarginDiagram,
   UniversityNarrativeDiagram,
+  UniversityOrdersDiagram,
   UniversityProbabilityDiagram,
   UniversityRiskDiagram,
   UniversitySessionsDiagram,
@@ -1139,6 +1141,7 @@ export default function TradingUniversityPanel({
               {activeLesson.diagram === "fees" && <UniversityFeesDiagram />}
               {activeLesson.diagram === "margin" && <UniversityMarginDiagram />}
               {activeLesson.diagram === "candles" && <UniversityCandlesDiagram />}
+              {activeLesson.id === "chart-basics" && <UniversityFibDiagram />}
               {activeLesson.diagram === "sessions" && <UniversitySessionsDiagram />}
               {activeLesson.diagram === "journal" && <UniversityJournalDiagram />}
               {activeLesson.diagram === "structure" && <UniversityStructureDiagram />}
@@ -1152,6 +1155,8 @@ export default function TradingUniversityPanel({
               {activeLesson.diagram === "bsc-check" && <UniversityBscCheckDiagram />}
               {activeLesson.diagram === "probability" && <UniversityProbabilityDiagram />}
               {activeLesson.diagram === "funding" && <UniversityFundingDiagram />}
+              {activeLesson.diagram === "orders" && <UniversityOrdersDiagram />}
+              {activeLesson.diagram === "fib" && <UniversityFibDiagram />}
               {getCommonMistakes(activeLesson.id).length > 0 && (
                 <section className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 space-y-2">
                   <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200">
