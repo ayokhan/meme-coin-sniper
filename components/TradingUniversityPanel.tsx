@@ -28,12 +28,21 @@ import {
   type CertificatePayload,
 } from "@/lib/trading-university/certificate";
 import {
+  UniversityBscCheckDiagram,
   UniversityCandlesDiagram,
+  UniversityCexDexDiagram,
   UniversityFeesDiagram,
+  UniversityFundingDiagram,
   UniversityJournalDiagram,
+  UniversityLifecycleDiagram,
   UniversityMarginDiagram,
+  UniversityNarrativeDiagram,
+  UniversityProbabilityDiagram,
+  UniversityRiskDiagram,
   UniversitySessionsDiagram,
+  UniversitySolanaDiagram,
   UniversityStructureDiagram,
+  UniversityWalletDiagram,
   UniversityWorkflowDiagram,
 } from "@/components/UniversityConceptDiagrams";
 import {
@@ -903,6 +912,15 @@ export default function TradingUniversityPanel({
               {activeLesson.diagram === "journal" && <UniversityJournalDiagram />}
               {activeLesson.diagram === "structure" && <UniversityStructureDiagram />}
               {activeLesson.diagram === "workflow" && <UniversityWorkflowDiagram />}
+              {activeLesson.diagram === "cex-dex" && <UniversityCexDexDiagram />}
+              {activeLesson.diagram === "wallet" && <UniversityWalletDiagram />}
+              {activeLesson.diagram === "risk" && <UniversityRiskDiagram />}
+              {activeLesson.diagram === "narrative" && <UniversityNarrativeDiagram />}
+              {activeLesson.diagram === "solana" && <UniversitySolanaDiagram />}
+              {activeLesson.diagram === "lifecycle" && <UniversityLifecycleDiagram />}
+              {activeLesson.diagram === "bsc-check" && <UniversityBscCheckDiagram />}
+              {activeLesson.diagram === "probability" && <UniversityProbabilityDiagram />}
+              {activeLesson.diagram === "funding" && <UniversityFundingDiagram />}
               <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-2">
                 <h3 className="text-sm font-semibold">Key terms</h3>
                 <dl className="space-y-2">

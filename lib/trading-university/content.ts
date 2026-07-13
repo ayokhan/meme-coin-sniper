@@ -33,7 +33,24 @@ export type UniversityLesson = {
   /** Suggested NovaStaris product links after the module. */
   relatedTools?: { label: string; href: string }[];
   /** Optional concept diagram key rendered in the lesson UI. */
-  diagram?: "fees" | "margin" | "candles" | "sessions" | "workflow" | "structure" | "journal" | null;
+  diagram?:
+    | "fees"
+    | "margin"
+    | "candles"
+    | "sessions"
+    | "workflow"
+    | "structure"
+    | "journal"
+    | "cex-dex"
+    | "wallet"
+    | "risk"
+    | "narrative"
+    | "solana"
+    | "lifecycle"
+    | "bsc-check"
+    | "probability"
+    | "funding"
+    | null;
   /** Syllabus track — if omitted, inferred from id. */
   track?: CourseTrack;
 };
@@ -109,6 +126,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { label: "Go Hunting", href: "/?tab=new" },
       { label: "Crypto Futures", href: "/?tab=futures" },
     ],
+    diagram: "cex-dex",
   },
   {
     id: "wallets-security",
@@ -145,6 +163,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Approval", definition: "Permission for a contract to move your tokens (EVM)." },
     ],
     relatedTools: [{ label: "Wallet Tracker", href: "/?tab=wallets" }],
+    diagram: "wallet",
   },
   {
     id: "risk-fundamentals",
@@ -179,7 +198,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Invalidation", definition: "Condition that proves the idea wrong — exit." },
       { term: "Revenge trade", definition: "Forcing a trade to 'win back' a loss — usually emotional." },
     ],
-    diagram: "margin",
+    diagram: "risk",
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
       { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
@@ -375,6 +394,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
       { label: "Go Hunting", href: "/?tab=new" },
     ],
+    diagram: "narrative",
   },
   {
     id: "meme-trading",
@@ -471,6 +491,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
       { label: "Go Hunting", href: "/?tab=new" },
     ],
+    diagram: "solana",
   },
   {
     id: "solana-memes",
@@ -510,6 +531,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
       { label: "Go Hunting", href: "/?tab=new" },
     ],
+    diagram: "lifecycle",
   },
   {
     id: "bsc-memes",
@@ -550,6 +572,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
       { label: "BSC tab", href: "/?tab=bsc" },
     ],
+    diagram: "bsc-check",
   },
   {
     id: "crypto-futures",
@@ -636,6 +659,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Binary market", definition: "Yes/No payoff structure (most common form)." },
     ],
     relatedTools: [{ label: "Nova Polymarket", href: "/?tab=polymarket-bot" }],
+    diagram: "probability",
   },
   {
     id: "forex",
@@ -793,7 +817,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Tokenomics", definition: "Supply, unlocks, authority, and distribution design of a token." },
       { term: "Prop firm drawdown", definition: "Max loss limit (daily/total) that fails a challenge or funded account." },
     ],
-    diagram: "margin",
+    diagram: "funding",
     relatedTools: [
       { label: "Crypto Futures", href: "/?tab=futures" },
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 /** Lightweight concept diagrams (no external assets). */
 
 export function UniversityFeesDiagram() {
@@ -202,5 +204,251 @@ export function UniversityWorkflowDiagram() {
         Tools answer questions — they do not replace risk rules. Disagreement between tabs → smaller size or stand aside.
       </p>
     </div>
+  );
+}
+
+function ConceptShell({
+  title,
+  children,
+  note,
+}: {
+  title: string;
+  children: ReactNode;
+  note?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 p-4 space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{title}</p>
+      {children}
+      {note ? <p className="text-[11px] text-muted-foreground">{note}</p> : null}
+    </div>
+  );
+}
+
+export function UniversityCexDexDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · CEX vs DEX"
+      note="CEX = custody + order book convenience. DEX = wallet custody + on-chain settlement. Pick for the job, not vibes."
+    >
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-3 space-y-1">
+          <p className="font-medium text-zinc-900 dark:text-zinc-50">CEX</p>
+          <p className="text-muted-foreground">Account balances · KYC often · fiat on-ramps · perps common</p>
+        </div>
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-3 space-y-1">
+          <p className="font-medium text-zinc-900 dark:text-zinc-50">DEX</p>
+          <p className="text-muted-foreground">Self-custody wallet · on-chain swap · gas/tips · mint risk</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 text-[11px]">
+        {["BTC / ETH / SOL", "USDT / USDC quotes", "Spot vs perps"].map((t) => (
+          <span
+            key={t}
+            className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-cyan-800 dark:text-cyan-200"
+          >
+            {t}
+          </span>
+        ))}
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityWalletDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Wallet hygiene"
+      note="NovaStaris never asks for a seed phrase. Separate degen capital from savings."
+    >
+      <div className="grid sm:grid-cols-3 gap-2 text-xs text-center">
+        {[
+          { t: "Hot wallet", d: "Trading size only" },
+          { t: "Cold / vault", d: "Long-term holdings" },
+          { t: "Never share", d: "Seed / private key" },
+        ].map((x) => (
+          <div
+            key={x.t}
+            className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-3"
+          >
+            <p className="font-medium text-zinc-900 dark:text-zinc-50">{x.t}</p>
+            <p className="mt-1 text-muted-foreground">{x.d}</p>
+          </div>
+        ))}
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityRiskDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Size from the stop"
+      note="If you cannot state invalidation in one sentence, you do not have a trade."
+    >
+      <div className="flex flex-wrap gap-2 text-xs">
+        {["Define invalidation", "→ Measure risk $", "→ Size position", "→ Cap daily loss"].map(
+          (label, i) => (
+            <span
+              key={label}
+              className={`rounded-md px-2.5 py-1.5 font-medium ${
+                i === 3
+                  ? "bg-amber-600 text-white"
+                  : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200"
+              }`}
+            >
+              {label}
+            </span>
+          )
+        )}
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityNarrativeDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · What moves memes"
+      note="Attention leads price. Most experiments go to zero — size as entertainment capital."
+    >
+      <div className="grid sm:grid-cols-3 gap-2 text-xs text-center">
+        {[
+          { t: "Narrative", d: "Culture / story velocity" },
+          { t: "Liquidity", d: "Can you exit size?" },
+          { t: "Holders", d: "Concentration & dumps" },
+        ].map((x) => (
+          <div
+            key={x.t}
+            className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-3"
+          >
+            <p className="font-medium text-zinc-900 dark:text-zinc-50">{x.t}</p>
+            <p className="mt-1 text-muted-foreground">{x.d}</p>
+          </div>
+        ))}
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversitySolanaDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Solana trader stack"
+      note="Fast + cheap txs enable launch culture — and scams that clone logos and mints."
+    >
+      <div className="flex flex-wrap gap-2 text-xs">
+        {["Wallet (Phantom…)", "→ Launchpad / mint", "→ DEX / Jupiter", "→ Track & manage"].map(
+          (label, i) => (
+            <span
+              key={label}
+              className={`rounded-md px-2.5 py-1.5 font-medium ${
+                i === 3
+                  ? "bg-cyan-600 text-white"
+                  : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200"
+              }`}
+            >
+              {label}
+            </span>
+          )
+        )}
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityLifecycleDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Meme lifecycle"
+      note="Early = highest upside + rug risk. Late often = exit liquidity for early holders."
+    >
+      <div className="flex flex-wrap gap-2 text-xs">
+        {["Create", "→ Discovery", "→ Social ignition", "→ Migrate / deepen LP", "→ Distribute"].map(
+          (label, i) => (
+            <span
+              key={label}
+              className={`rounded-md px-2.5 py-1.5 font-medium ${
+                i === 4
+                  ? "bg-rose-600 text-white"
+                  : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200"
+              }`}
+            >
+              {label}
+            </span>
+          )
+        )}
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityBscCheckDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · BSC check list"
+      note="Same meme game, EVM rails — verify contract, tax, LP, and holders before size."
+    >
+      <div className="grid sm:grid-cols-2 gap-2 text-xs">
+        {[
+          "0x contract on BscScan",
+          "Honeypot / tax check",
+          "LP lock / ownership",
+          "Top holder concentration",
+        ].map((item, i) => (
+          <div
+            key={item}
+            className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 flex gap-2"
+          >
+            <span className="font-mono text-[10px] text-cyan-700 dark:text-cyan-300">{i + 1}</span>
+            <span className="text-zinc-700 dark:text-zinc-200">{item}</span>
+          </div>
+        ))}
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityProbabilityDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Prediction market price"
+      note="Price ≈ implied probability. Edge = your estimate vs the market — after fees and resolution risk."
+    >
+      <div className="grid sm:grid-cols-3 gap-2 text-center text-xs">
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-3">
+          <p className="text-zinc-500">Yes @ $0.35</p>
+          <p className="mt-1 font-mono font-semibold text-zinc-900 dark:text-zinc-50">~35%</p>
+        </div>
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-3">
+          <p className="text-zinc-500">Your estimate</p>
+          <p className="mt-1 font-mono font-semibold text-amber-600 dark:text-amber-300">50%?</p>
+        </div>
+        <div className="rounded-md border border-cyan-500/40 bg-cyan-500/10 p-3">
+          <p className="text-zinc-500">Possible edge</p>
+          <p className="mt-1 font-mono font-semibold text-cyan-700 dark:text-cyan-300">If right</p>
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityFundingDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Funding & OI"
+      note="Crowded side + extreme funding can mean the move is late. OI rising with trend = participation; falling into a spike can be covering."
+    >
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-1">
+          <p className="font-medium text-emerald-800 dark:text-emerald-200">Positive funding</p>
+          <p className="text-muted-foreground">Longs typically pay shorts — crowded long bias often.</p>
+        </div>
+        <div className="rounded-md border border-rose-500/30 bg-rose-500/5 p-3 space-y-1">
+          <p className="font-medium text-rose-800 dark:text-rose-200">Negative funding</p>
+          <p className="text-muted-foreground">Shorts typically pay longs — crowded short bias often.</p>
+        </div>
+      </div>
+    </ConceptShell>
   );
 }

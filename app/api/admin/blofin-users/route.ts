@@ -34,8 +34,13 @@ export async function GET() {
             walletAddress: true,
             tradingBotOnDemand: true,
             propFirmBotOnDemand: true,
-            subscriptionExpiresAt: true,
-            subscriptionStatus: true,
+            subscriptions: {
+              select: {
+                expiresAt: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: "desc" },
+            },
           },
         },
       },
@@ -51,8 +56,7 @@ export async function GET() {
         walletAddress: string | null;
         tradingBotOnDemand: boolean;
         propFirmBotOnDemand: boolean;
-        subscriptionExpiresAt: Date | null;
-        subscriptionStatus: string | null;
+        subscriptions: Array<{ expiresAt: Date; createdAt: Date }>;
       };
     }>;
 
@@ -94,9 +98,8 @@ export async function GET() {
     const now = Date.now();
     const users = rows.map((r) => {
       const u = r.user;
-      const vipUntil = u.subscriptionExpiresAt?.getTime() ?? 0;
-      const status = (u.subscriptionStatus ?? "").toLowerCase();
-      const isVip = vipUntil > now || status === "active" || status === "trialing";
+      const activeSub = u.subscriptions.find((s) => s.expiresAt.getTime() > now);
+      const isVip = !!activeSub;
       const scalper = scalperByUser.get(r.userId) ?? [];
       const lastTick = scalper
         .map((c) => c.lastTickAt?.getTime() ?? 0)
