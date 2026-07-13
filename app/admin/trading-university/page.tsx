@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap, RefreshCw, Download } from "lucide-react";
 import { downloadTradingUniversityCertificate } from "@/lib/trading-university/certificate";
+import UniversityDonationCard from "@/components/UniversityDonationCard";
+import { FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 
 type Student = {
   userId: string;
@@ -38,7 +40,7 @@ type ExamKeySet = {
   }[];
 };
 
-type Tab = "students" | "keys" | "certificate";
+type Tab = "students" | "keys" | "certificate" | "donation";
 
 export default function AdminTradingUniversityPage() {
   const { status } = useSession();
@@ -51,13 +53,17 @@ export default function AdminTradingUniversityPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [keySet, setKeySet] = useState("A");
+  const [donationsEnabled, setDonationsEnabled] = useState(true);
+  const [donationsSaving, setDonationsSaving] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
     setError("");
-    fetch("/api/admin/trading-university")
-      .then((r) => r.json())
-      .then((data) => {
+    Promise.all([
+      fetch("/api/admin/trading-university").then((r) => r.json()),
+      fetch("/api/admin/feature-flags").then((r) => r.json()),
+    ])
+      .then(([data, flagsData]) => {
         if (!data.success) {
           setError(data.error ?? "Failed to load");
           return;
@@ -66,10 +72,39 @@ export default function AdminTradingUniversityPage() {
         setGraduated(data.graduated ?? []);
         setCounts(data.counts ?? { progressRows: 0, enrolled: 0, graduated: 0 });
         setExamKeys(data.examKeys ?? []);
+        if (flagsData?.success && flagsData.flags) {
+          const v = flagsData.flags[FEATURE_FLAG_KEYS.TRADING_UNIVERSITY_DONATIONS];
+          setDonationsEnabled(v !== false);
+        }
       })
       .catch(() => setError("Failed to load"))
       .finally(() => setLoading(false));
   }, []);
+
+  const toggleDonations = async (enabled: boolean) => {
+    setDonationsSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/feature-flags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: FEATURE_FLAG_KEYS.TRADING_UNIVERSITY_DONATIONS,
+          enabled,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Could not update donation flag.");
+        return;
+      }
+      setDonationsEnabled(enabled);
+    } catch {
+      setError("Could not update donation flag.");
+    } finally {
+      setDonationsSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (status === "authenticated") load();
@@ -126,6 +161,7 @@ export default function AdminTradingUniversityPage() {
             ["students", "Students"],
             ["keys", "Exam Q&A"],
             ["certificate", "Certificate preview"],
+            ["donation", "Donation"],
           ] as const
         ).map(([id, label]) => (
           <Button
@@ -287,6 +323,64 @@ export default function AdminTradingUniversityPage() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {!loading && tab === "donation" && (
+        <div className="space-y-4 max-w-2xl">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Donation prompt</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Graduates see this after they <strong>pass</strong> the final exam (and again on the
+                University home). It never blocks the certificate. Payments are card-only via Stripe
+                (one-time or monthly). Toggle below or in{" "}
+                <Link href="/admin/feature-flags" className="underline">
+                  Feature flags
+                </Link>
+                .
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-medium">
+                  Status:{" "}
+                  <span
+                    className={
+                      donationsEnabled
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-zinc-500"
+                    }
+                  >
+                    {donationsEnabled ? "ON" : "OFF"}
+                  </span>
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={donationsEnabled ? "outline" : "default"}
+                  disabled={donationsSaving}
+                  onClick={() => void toggleDonations(!donationsEnabled)}
+                >
+                  {donationsSaving
+                    ? "Saving…"
+                    : donationsEnabled
+                      ? "Turn donations OFF"
+                      : "Turn donations ON"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Live preview (what graduates see)
+            </p>
+            <UniversityDonationCard variant="full" />
+            <p className="text-[11px] text-muted-foreground">
+              Checkout still requires a passed exam on your account. Preview is visual only for the
+              card layout and copy.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

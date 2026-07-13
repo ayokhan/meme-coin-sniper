@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import Stripe from "stripe";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 import { getStripeCustomerId } from "@/lib/stripe-billing";
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
@@ -23,6 +24,14 @@ export async function POST(request: Request) {
   }
   if (!stripe) {
     return NextResponse.json({ success: false, error: "Card payment is not configured." }, { status: 503 });
+  }
+
+  const donationsOn = await getFeatureFlag(FEATURE_FLAG_KEYS.TRADING_UNIVERSITY_DONATIONS);
+  if (!donationsOn) {
+    return NextResponse.json(
+      { success: false, error: "Donations are temporarily unavailable." },
+      { status: 403 }
+    );
   }
 
   const db = prisma as unknown as {

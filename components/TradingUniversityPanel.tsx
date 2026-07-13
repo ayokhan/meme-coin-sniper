@@ -180,6 +180,7 @@ export default function TradingUniversityPanel({
   const [passCorrect, setPassCorrect] = useState(32);
   const [quizSize, setQuizSize] = useState(40);
   const [fullAccess, setFullAccess] = useState(false);
+  const [donationsEnabled, setDonationsEnabled] = useState(true);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [localCompleted, setLocalCompleted] = useState<string[]>([]);
   const [view, setView] = useState<View>("home");
@@ -300,6 +301,7 @@ export default function TradingUniversityPanel({
       setPassCorrect(data.catalog?.passCorrect ?? 32);
       setQuizSize(data.catalog?.quizSize ?? 40);
       setFullAccess(!!data.catalog?.fullAccess);
+      setDonationsEnabled(data.catalog?.donationsEnabled !== false);
       setProgress(data.progress ?? null);
       if (data.authenticated) {
         setLocalCompleted(readLocalLessons());
@@ -816,7 +818,7 @@ export default function TradingUniversityPanel({
 
       {view === "home" && (
         <>
-          {fullAccess && progress?.quizPassed && (
+          {fullAccess && progress?.quizPassed && donationsEnabled && (
             <UniversityDonationCard variant="compact" />
           )}
           {fullAccess && (
@@ -1549,7 +1551,7 @@ export default function TradingUniversityPanel({
                 You scored {result.correct}/{result.total} ({result.scorePct}%) and earned your
                 NovaStaris Trading University certificate.
               </p>
-              <UniversityDonationCard variant="full" />
+              {donationsEnabled && <UniversityDonationCard variant="full" />}
               {certPayload() && shareButtons(certPayload()!)}
             </>
           ) : (

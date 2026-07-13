@@ -133,6 +133,8 @@ export const FEATURE_FLAG_KEYS = {
 
   /** Show/hide NovaStaris Trading University tab (static course + final exam). Default ON. */
   PAGE_TAB_TRADING_UNIVERSITY: 'page_tab_trading_university',
+  /** Post-pass voluntary donation prompt (Stripe card checkout). Default ON. */
+  TRADING_UNIVERSITY_DONATIONS: 'trading_university_donations',
 
   /** Master switch: Vercel scheduled /api/cron (daily scan, wallet notify, trading bot, perp jobs). When OFF, cron returns immediately — saves CPU. Default ON. */
   VERCEL_CRON_ENABLED: 'vercel_cron_enabled',

@@ -24,6 +24,8 @@ export async function GET() {
   const { userId, session } = await getSessionAndSubscription();
   const fullAccess = !!userId;
 
+  const donationsEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.TRADING_UNIVERSITY_DONATIONS);
+
   const catalog = {
     lessons: TRADING_UNIVERSITY_LESSONS.map((l) => {
       const unlocked = fullAccess || l.id === PREVIEW_LESSON_ID;
@@ -45,6 +47,7 @@ export async function GET() {
     quizSize: TRADING_UNIVERSITY_QUIZ_SIZE,
     previewLessonId: PREVIEW_LESSON_ID,
     fullAccess,
+    donationsEnabled,
   };
 
   if (!userId) {
