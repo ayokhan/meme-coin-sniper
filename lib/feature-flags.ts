@@ -124,6 +124,10 @@ export const FEATURE_FLAG_KEYS = {
   ACCOUNT_SELF_DELETE: 'account_self_delete',
   /** Billing history (invoices) on /account for signed-in users. DB only. Default OFF until admin enables. */
   ACCOUNT_BILLING_HISTORY: 'account_billing_history',
+  /** VIP subscribe: Stripe card checkout (new payments). Existing Stripe billing portal / cancel remain available. Default ON. */
+  SUBSCRIPTION_PAY_CARD: 'subscription_pay_card',
+  /** VIP subscribe: Solana USDC send + verify. Default ON. */
+  SUBSCRIPTION_PAY_USDC: 'subscription_pay_usdc',
   /** Nja (Need Help) can answer NovaStaris Affiliate Program questions. Default ON. */
   NJA_AFFILIATE_KNOWLEDGE: 'nja_affiliate_knowledge',
   /** Nja can answer active partner promos (e.g. Blofin when enabled). Default ON. */

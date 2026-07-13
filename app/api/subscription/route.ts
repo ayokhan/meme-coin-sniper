@@ -7,6 +7,7 @@ import { getStripeCustomerId } from '@/lib/stripe-billing';
 import { verifyUsdcPayment } from '@/lib/verify-solana-payment';
 import { getUsageThisMonth } from '@/lib/usage';
 import { recordReferralCommissionForSubscription } from '@/lib/referral-commission';
+import { FEATURE_FLAG_KEYS, getFeatureFlag } from '@/lib/feature-flags';
 
 const PAYMENT_WALLET = process.env.SOLANA_PAYMENT_WALLET ?? '';
 const USDC_MINT = process.env.SOLANA_USDC_MINT ?? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
@@ -17,7 +18,7 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, subscribed: false, paid: false });
   }
-  const [paid, expiresAt, tier, usage, user, billing, stripeCustomerId] = await Promise.all([
+  const [paid, expiresAt, tier, usage, user, billing, stripeCustomerId, payCard, payUsdc] = await Promise.all([
     getActiveSubscription(session.user.id),
     getSubscriptionExpiresAt(session.user.id),
     getSubscriptionTier(session.user.id),
@@ -25,6 +26,8 @@ export async function GET() {
     prisma.user.findUnique({ where: { id: session.user.id } }),
     getActiveSubscriptionDetails(session.user.id),
     getStripeCustomerId(session.user.id),
+    getFeatureFlag(FEATURE_FLAG_KEYS.SUBSCRIPTION_PAY_CARD),
+    getFeatureFlag(FEATURE_FLAG_KEYS.SUBSCRIPTION_PAY_USDC),
   ]);
   const paymentTermsAcceptedAt = (user as { paymentTermsAcceptedAt?: Date | null } | null)?.paymentTermsAcceptedAt;
   return NextResponse.json({
@@ -38,8 +41,10 @@ export async function GET() {
     hasStripeCustomer: !!stripeCustomerId || !!billing?.stripeSubscriptionId,
     vipPlans: VIP_PLANS,
     cardPaymentFeeUsd: CARD_PAYMENT_FEE_USD,
-    paymentWallet: paid ? undefined : PAYMENT_WALLET,
+    paymentWallet: paid || !payUsdc ? undefined : PAYMENT_WALLET,
     usdcMint: USDC_MINT,
+    payByCardEnabled: payCard,
+    payByUsdcEnabled: payUsdc,
     usageThisMonth: usage,
     paymentTermsAcceptedAt: paymentTermsAcceptedAt?.toISOString() ?? null,
   });
@@ -50,6 +55,14 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, error: 'Sign in required.' }, { status: 401 });
+  }
+
+  const usdcEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.SUBSCRIPTION_PAY_USDC);
+  if (!usdcEnabled) {
+    return NextResponse.json(
+      { success: false, error: 'USDC payment is temporarily unavailable. Try card payment or check back later.' },
+      { status: 403 }
+    );
   }
 
   const user = await prisma.user.findUnique({

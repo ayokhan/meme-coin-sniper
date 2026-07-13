@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getStripeCustomerId, planToStripeRecurring } from "@/lib/stripe-billing";
 import { VIP_PLANS, getCardPriceForPlan } from "@/lib/subscription";
+import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
@@ -16,6 +17,15 @@ export async function POST(request: Request) {
   if (!session?.user?.id || !session?.user?.email) {
     return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
   }
+
+  const cardEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.SUBSCRIPTION_PAY_CARD);
+  if (!cardEnabled) {
+    return NextResponse.json(
+      { success: false, error: "Card payment is temporarily unavailable. Try USDC or check back later." },
+      { status: 403 }
+    );
+  }
+
   if (!stripe) {
     return NextResponse.json({ success: false, error: "Card payment is not configured." }, { status: 503 });
   }

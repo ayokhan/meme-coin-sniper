@@ -50,6 +50,8 @@ function SubscribeContent() {
   const [billingActionLoading, setBillingActionLoading] = useState(false);
   const [billingMessage, setBillingMessage] = useState("");
   const [vipExpiryBannerDismissed, setVipExpiryBannerDismissed] = useState(true);
+  const [payByCardEnabled, setPayByCardEnabled] = useState(true);
+  const [payByUsdcEnabled, setPayByUsdcEnabled] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -76,6 +78,8 @@ function SubscribeContent() {
           setCancelAtPeriodEnd(!!data.cancelAtPeriodEnd);
           setHasStripeSubscription(!!data.hasStripeSubscription);
           setHasStripeCustomer(!!data.hasStripeCustomer);
+          setPayByCardEnabled(data.payByCardEnabled !== false);
+          setPayByUsdcEnabled(data.payByUsdcEnabled !== false);
           if (data.paymentTermsAcceptedAt) setTermsCheckbox(true);
           const exp = typeof data.expiresAt === "string" ? data.expiresAt : null;
           if (exp && typeof window !== "undefined") {
@@ -423,6 +427,9 @@ function SubscribeContent() {
               full workspace — meme discovery, futures decision support, wallet tracking, prediction markets, NovaForecast,
               Nova Forex Agent, and on-demand tools such as AI Trading Bot, Nova Prop Firm Challenge, and Nova Ultimate.
               Pay by USDC (Solana) at list price, or card (includes a ${cardFee} card payment fee).
+              {!payByCardEnabled && payByUsdcEnabled ? " Card checkout is temporarily unavailable." : ""}
+              {payByCardEnabled && !payByUsdcEnabled ? " USDC payment is temporarily unavailable." : ""}
+              {!payByCardEnabled && !payByUsdcEnabled ? " New payments are temporarily unavailable." : ""}
             </>
           )}
         </p>
@@ -437,7 +444,14 @@ function SubscribeContent() {
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
-          VIP: $150/month USDC (${150 + cardFee} card). 6 months $750 USDC; 12 months $1,500 USDC.
+          VIP: $150/month
+          {payByUsdcEnabled ? " USDC" : ""}
+          {payByUsdcEnabled && payByCardEnabled ? ` ($${150 + cardFee} card)` : ""}
+          {payByCardEnabled && !payByUsdcEnabled ? ` card ($${150 + cardFee} incl. fee)` : ""}
+          . 6 months $750
+          {payByUsdcEnabled ? " USDC" : ""}
+          ; 12 months $1,500
+          {payByUsdcEnabled ? " USDC" : ""}.
         </p>
 
         <div className="grid gap-4 mb-8 sm:grid-cols-3">
@@ -453,10 +467,15 @@ function SubscribeContent() {
               }`}
             >
               <div className="font-semibold text-zinc-900 dark:text-zinc-100">{p.label}</div>
-              <div className="mt-1 text-lg font-bold text-violet-600 dark:text-violet-400">${p.priceUsd} USDC</div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                ${p.priceUsd + cardFee} with card (incl. ${cardFee} fee)
+              <div className="mt-1 text-lg font-bold text-violet-600 dark:text-violet-400">
+                ${p.priceUsd}
+                {payByUsdcEnabled ? " USDC" : ""}
               </div>
+              {payByCardEnabled && (
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                  ${p.priceUsd + cardFee} with card (incl. ${cardFee} fee)
+                </div>
+              )}
             </button>
           ))}
         </div>
@@ -479,102 +498,122 @@ function SubscribeContent() {
           </div>
         )}
 
-        <div className="rounded-lg border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 p-4 mb-6">
-          <label htmlFor="payment-terms-checkbox" className="flex items-start gap-3 cursor-pointer">
-            <input
-              id="payment-terms-checkbox"
-              type="checkbox"
-              checked={termsCheckbox}
-              onChange={(e) => handleTermsCheckboxChange(e.target.checked)}
-              disabled={termsAccepting}
-              className="mt-1 h-4 w-4 rounded border-zinc-300 text-cyan-600 focus:ring-cyan-500 disabled:opacity-70 disabled:cursor-not-allowed"
-            />
-            <span className="text-sm text-zinc-800 dark:text-zinc-200">
-              I agree to the{" "}
-              <Link href="/payment-terms" className="font-medium text-cyan-600 dark:text-cyan-400 hover:underline" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                Payment Terms and Conditions
-              </Link>{" "}
-              (no refund after 24 hours of use).
-            </span>
-          </label>
-        </div>
+        {(payByCardEnabled || payByUsdcEnabled) && (
+          <div className="rounded-lg border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 p-4 mb-6">
+            <label htmlFor="payment-terms-checkbox" className="flex items-start gap-3 cursor-pointer">
+              <input
+                id="payment-terms-checkbox"
+                type="checkbox"
+                checked={termsCheckbox}
+                onChange={(e) => handleTermsCheckboxChange(e.target.checked)}
+                disabled={termsAccepting}
+                className="mt-1 h-4 w-4 rounded border-zinc-300 text-cyan-600 focus:ring-cyan-500 disabled:opacity-70 disabled:cursor-not-allowed"
+              />
+              <span className="text-sm text-zinc-800 dark:text-zinc-200">
+                I agree to the{" "}
+                <Link href="/payment-terms" className="font-medium text-cyan-600 dark:text-cyan-400 hover:underline" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                  Payment Terms and Conditions
+                </Link>{" "}
+                (no refund after 24 hours of use).
+              </span>
+            </label>
+          </div>
+        )}
 
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Payment method</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-          <Card className="border-zinc-200 dark:border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-cyan-500" />
-                Pay with card
-              </CardTitle>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Includes a ${cardFee} card payment fee. Secure checkout via Stripe.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {cardError && <p className="text-sm text-rose-600 dark:text-rose-400">{cardError}</p>}
-              <label className="flex items-start gap-2.5 cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
-                <input
-                  type="checkbox"
-                  checked={autoRenew}
-                  onChange={(e) => setAutoRenew(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-cyan-600 focus:ring-cyan-500"
-                />
-                <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                  <strong className="text-zinc-900 dark:text-zinc-100">Enable automatic renewal</strong>
-                  <span className="block mt-0.5 text-zinc-500 dark:text-zinc-400">
-                    Your card is charged each billing period until you turn this off. Manage your card anytime from Account → VIP billing after checkout.
-                  </span>
-                </span>
-              </label>
-              <Button
-                type="button"
-                onClick={handlePayWithCard}
-                disabled={!termsAcceptedForPayment || cardLoading}
-                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white"
-              >
-                {cardLoading
-                  ? "Redirecting…"
-                  : termsAcceptedForPayment
-                    ? autoRenew
-                      ? `Subscribe $${planCardPrice}/period with card`
-                      : `Pay $${planCardPrice} with card`
-                    : "Accept terms above to pay with card"}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-zinc-200 dark:border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-lg">Pay with USDC (Solana)</CardTitle>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Send <strong>{amountUsdc} USDC</strong> (list price — no card fee) to the wallet below, then paste the transaction signature.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {paymentWallet ? (
-                <>
-                  <p className="rounded-lg bg-zinc-100 dark:bg-zinc-800 px-3 py-2 text-sm font-mono break-all">{paymentWallet}</p>
-                  <form onSubmit={handleVerify} className="space-y-3">
+        {!payByCardEnabled && !payByUsdcEnabled ? (
+          <div className="mb-8 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-5 py-4 text-amber-900 dark:text-amber-100">
+            <p className="font-semibold">New payments temporarily unavailable</p>
+            <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
+              Card and USDC checkout are both turned off right now. If you already have VIP, you can still manage
+              billing from Account. Otherwise, please check back later or contact support.
+            </p>
+          </div>
+        ) : (
+          <div
+            className={`grid grid-cols-1 gap-4 mb-8 ${
+              payByCardEnabled && payByUsdcEnabled ? "lg:grid-cols-2" : ""
+            }`}
+          >
+            {payByCardEnabled && (
+              <Card className="border-zinc-200 dark:border-zinc-800">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-cyan-500" />
+                    Pay with card
+                  </CardTitle>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    Includes a ${cardFee} card payment fee. Secure checkout via Stripe.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {cardError && <p className="text-sm text-rose-600 dark:text-rose-400">{cardError}</p>}
+                  <label className="flex items-start gap-2.5 cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                     <input
-                      type="text"
-                      placeholder="Transaction signature"
-                      value={txSignature}
-                      onChange={(e) => setTxSignature(e.target.value)}
-                      className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+                      type="checkbox"
+                      checked={autoRenew}
+                      onChange={(e) => setAutoRenew(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-cyan-600 focus:ring-cyan-500"
                     />
-                    {verifyError && <p className="text-sm text-rose-600 dark:text-rose-400">{verifyError}</p>}
-                    <Button type="submit" disabled={verifyLoading || !termsAcceptedForPayment} className="bg-cyan-500 hover:bg-cyan-600 text-white">
-                      {verifyLoading ? "Verifying…" : "Verify payment & activate"}
-                    </Button>
-                  </form>
-                </>
-              ) : (
-                <p className="text-sm text-amber-700 dark:text-amber-400">Payment is not configured. Contact support.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                      <strong className="text-zinc-900 dark:text-zinc-100">Enable automatic renewal</strong>
+                      <span className="block mt-0.5 text-zinc-500 dark:text-zinc-400">
+                        Your card is charged each billing period until you turn this off. Manage your card anytime from Account → VIP billing after checkout.
+                      </span>
+                    </span>
+                  </label>
+                  <Button
+                    type="button"
+                    onClick={handlePayWithCard}
+                    disabled={!termsAcceptedForPayment || cardLoading}
+                    className="w-full bg-cyan-500 hover:bg-cyan-600 text-white"
+                  >
+                    {cardLoading
+                      ? "Redirecting…"
+                      : termsAcceptedForPayment
+                        ? autoRenew
+                          ? `Subscribe $${planCardPrice}/period with card`
+                          : `Pay $${planCardPrice} with card`
+                        : "Accept terms above to pay with card"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {payByUsdcEnabled && (
+              <Card className="border-zinc-200 dark:border-zinc-800">
+                <CardHeader>
+                  <CardTitle className="text-lg">Pay with USDC (Solana)</CardTitle>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    Send <strong>{amountUsdc} USDC</strong> (list price — no card fee) to the wallet below, then paste the transaction signature.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {paymentWallet ? (
+                    <>
+                      <p className="rounded-lg bg-zinc-100 dark:bg-zinc-800 px-3 py-2 text-sm font-mono break-all">{paymentWallet}</p>
+                      <form onSubmit={handleVerify} className="space-y-3">
+                        <input
+                          type="text"
+                          placeholder="Transaction signature"
+                          value={txSignature}
+                          onChange={(e) => setTxSignature(e.target.value)}
+                          className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+                        />
+                        {verifyError && <p className="text-sm text-rose-600 dark:text-rose-400">{verifyError}</p>}
+                        <Button type="submit" disabled={verifyLoading || !termsAcceptedForPayment} className="bg-cyan-500 hover:bg-cyan-600 text-white">
+                          {verifyLoading ? "Verifying…" : "Verify payment & activate"}
+                        </Button>
+                      </form>
+                    </>
+                  ) : (
+                    <p className="text-sm text-amber-700 dark:text-amber-400">Payment is not configured. Contact support.</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

@@ -153,7 +153,10 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
   {
     id: "account",
     title: "Account & billing",
-    match: (k) => k.startsWith("account_") || k === "two_factor_auth",
+    match: (k) =>
+      k.startsWith("account_") ||
+      k.startsWith("subscription_pay_") ||
+      k === "two_factor_auth",
   },
   {
     id: "nja",
@@ -188,6 +191,16 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Account billing history (invoices)",
     description:
       "When ON, signed-in users see Billing history on Account → Billing with month filter and receipt links. Past VIP payments are backfilled; new card payments are recorded via Stripe webhooks. Default OFF until you enable.",
+  },
+  subscription_pay_card: {
+    label: "VIP payment — credit card (Stripe)",
+    description:
+      "When ON, /subscribe shows Pay with card and Stripe checkout can start. When OFF, card checkout is hidden and blocked. Existing subscribers can still manage/cancel/update card via billing portal. Default ON.",
+  },
+  subscription_pay_usdc: {
+    label: "VIP payment — USDC (Solana)",
+    description:
+      "When ON, /subscribe shows Pay with USDC and tx signature verification works. When OFF, USDC payment UI is hidden and verify is blocked. Default ON.",
   },
   nja_affiliate_knowledge: {
     label: "Nja — Affiliate program answers",
