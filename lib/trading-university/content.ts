@@ -239,10 +239,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     id: "chart-basics",
     title: "Charts & candlesticks",
     subtitle: "OHLC candles, timeframes, trend lines, Fib, and classic chart patterns.",
-    estimatedMinutes: 16,
-    sections: [
-      {
-        heading: "Why charts matter",
+    estimatedMinutes: 18,
         body: [
           "Price charts are how traders visualize history and plan entries, stops, and targets. NovaForecast, Nova Scalp, Chart Analysis, and Forex tools all assume you can read a basic candle chart.",
           "A timeframe (1m, 5m, 15m, 1h, 4h, 1d, 1w) is the length of each candle. Lower timeframes are noisier and better for precise entries; higher timeframes show the bigger trend and key levels.",
@@ -759,14 +756,23 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   {
     id: "crypto-futures",
     title: "Crypto futures & perps",
-    subtitle: "Perpetuals, leverage, margin, liquidation — trade size with respect.",
-    estimatedMinutes: 12,
+    subtitle: "Perpetuals, leverage, margin, funding, liquidation, and long vs short.",
+    estimatedMinutes: 16,
     sections: [
       {
         heading: "Spot vs futures",
         body: [
           "Spot: you own the asset. Futures/perps: you trade a contract that tracks price, often with leverage, without owning the coin.",
-          "Perpetual swaps ('perps') have no expiry. Funding rates periodically pay longs or shorts to keep price near spot.",
+          "Perpetual swaps ('perps') have no expiry. Funding rates periodically pay longs or shorts to keep the contract near spot.",
+          "Dated futures expire on a set date and may converge to spot into delivery/settlement — most retail crypto trading today is perps.",
+        ],
+      },
+      {
+        heading: "Long vs short",
+        body: [
+          "Long: you profit if price rises; you lose if it falls. Short: you profit if price falls; you lose if it rises.",
+          "Perps make shorting as easy as longing — that also means squeezes (forced short covering) and cascades (forced long liquidations) are common in crypto.",
+          "Direction is only half the plan. The other half is invalidation, size, and how long you will hold through funding payments.",
         ],
       },
       {
@@ -774,15 +780,40 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         body: [
           "Leverage multiplies exposure. 10x means ~10% adverse move can wipe the position (before fees) depending on margin mode.",
           "Initial margin is collateral to open. Maintenance margin is the minimum to keep the position. Fall below it → liquidation.",
-          "Isolated margin limits loss to that position’s collateral. Cross margin shares balance across positions — higher capital efficiency, higher contagion risk.",
+          "Notional ≈ margin × leverage (roughly). Think in notional risk and dollar stop distance, not just 'I only put $50 in.'",
         ],
       },
       {
-        heading: "Liquidation & risk",
+        heading: "Isolated vs cross margin",
+        body: [
+          "Isolated margin: only the collateral assigned to that position is at risk of liquidation for that trade. Cleaner for learners.",
+          "Cross margin: your shared wallet balance backs multiple positions. Higher capital efficiency, but one bad book can contagion the rest.",
+          "Hobbyist rule: learn on isolated. Switch to cross only when you can explain max loss across the whole account.",
+        ],
+      },
+      {
+        heading: "Funding rates",
+        body: [
+          "When funding is positive, longs typically pay shorts; when negative, shorts typically pay longs. Payments settle on a schedule (e.g. every 8 hours — check your venue).",
+          "Extreme funding often means a crowded side. That is information about positioning — not a guaranteed reversal signal.",
+          "Holding through many funding intervals can erase edge even if price barely moves. Factor funding into multi-hour and multi-day holds.",
+        ],
+      },
+      {
+        heading: "Liquidation & mark price",
         body: [
           "Liquidation is the exchange forcibly closing you when margin is insufficient. In chaos, fills can be worse than the theoretical price.",
+          "Many venues use mark price (an index/fair price) for liquidation math — not always the last traded print you see on the chart.",
           "Nova Scalp and Crypto Futures tools on NovaStaris assume you already understand that leverage is a risk multiplier, not a shortcut to skill.",
           "Always know: entry, stop (invalidation), target, max $ loss on margin, and estimated hold time before you click buy/sell.",
+        ],
+      },
+      {
+        heading: "Open interest & crowded trades",
+        body: [
+          "Open interest (OI) is outstanding contract size. Rising OI with a trend often means new participation; falling OI into a spike can mean covering/closing.",
+          "Crowded longs + high positive funding + thin liquidity is a classic recipe for long liquidations on a sharp dump — and the mirror image for shorts.",
+          "Use OI and funding as context next to structure — not as standalone entries.",
         ],
       },
       {
@@ -790,6 +821,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         body: [
           "Market: immediate fill, more slippage. Limit: your price or better. Stop / stop-limit: triggers when price hits a level — used for protection or breakout entries.",
           "Reduce-only and post-only flags help avoid accidental flips or taker fees when you only want to exit or make liquidity.",
+          "Set SL/TP right after fill. Waiting 'until it settles' is how naked leveraged positions become liquidations.",
         ],
       },
     ],
@@ -798,6 +830,10 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Funding", definition: "Periodic payment between longs and shorts to anchor perp price to spot." },
       { term: "Liquidation", definition: "Forced close when margin falls below maintenance requirements." },
       { term: "Notional", definition: "Total position value (margin × leverage, roughly)." },
+      { term: "Isolated margin", definition: "Collateral risk limited to that position’s assigned margin." },
+      { term: "Cross margin", definition: "Shared balance backs multiple positions — contagion risk." },
+      { term: "Mark price", definition: "Fair/index price many venues use for PnL and liquidation math." },
+      { term: "Open interest", definition: "Total outstanding futures/perp contracts still open." },
     ],
     workedExamples: [
       {
@@ -813,6 +849,20 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
           "Prefer isolated + hard SL for learning. Cross + high leverage turns one bad coin into an account event.",
         ],
         takeaway: "Liquidation is a failure mode, not a strategy. Your stop should hit first.",
+      },
+      {
+        title: "Funding eats a flat trade",
+        setup: [
+          "Long perp, funding +0.05% per 8h interval (illustrative)",
+          "You hold ~24h (3 intervals) and price is flat",
+          "Notional $2,000",
+        ],
+        steps: [
+          "Rough funding paid ≈ 0.05% × 3 × $2,000 ≈ $3 — small here, but scales with size and extreme rates.",
+          "If funding is +0.2% per interval in a mania, the same hold can cost tens of dollars with no price edge.",
+          "Before multi-interval holds: check funding, your thesis duration, and whether standing aside is cheaper.",
+        ],
+        takeaway: "Flat price + expensive funding = a slow bleed. Time in a perp is a cost.",
       },
     ],
     diagram: "margin",

@@ -664,3 +664,261 @@ export function UniversityOrdersDiagram() {
     </ConceptShell>
   );
 }
+
+/** OHLC in 0–100 chart space (y grows downward in SVG). */
+function MiniCandle({
+  o,
+  h,
+  l,
+  c,
+  bullish,
+}: {
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  bullish?: boolean;
+}) {
+  const top = Math.min(o, c);
+  const bot = Math.max(o, c);
+  const fill = bullish === undefined ? "fill-violet-400" : bullish ? "fill-emerald-500" : "fill-rose-500";
+  const stroke =
+    bullish === undefined
+      ? "text-violet-500"
+      : bullish
+        ? "text-emerald-600 dark:text-emerald-400"
+        : "text-rose-600 dark:text-rose-400";
+  return (
+    <svg width="28" height="72" viewBox="0 0 28 100" aria-hidden className="shrink-0">
+      <line
+        x1="14"
+        y1={h}
+        x2="14"
+        y2={l}
+        stroke="currentColor"
+        className={stroke}
+        strokeWidth="2.5"
+      />
+      <rect x="6" y={top} width="16" height={Math.max(bot - top, 2)} className={fill} rx="1.5" />
+    </svg>
+  );
+}
+
+function CandleCard({
+  name,
+  hint,
+  children,
+  tone,
+}: {
+  name: string;
+  hint: string;
+  children: ReactNode;
+  tone: "bull" | "bear" | "neutral";
+}) {
+  const shell =
+    tone === "bull"
+      ? "border-emerald-400/45 bg-emerald-500/12"
+      : tone === "bear"
+        ? "border-rose-400/45 bg-rose-500/12"
+        : "border-violet-400/45 bg-violet-500/12";
+  return (
+    <div className={`rounded-lg border p-2.5 flex flex-col items-center gap-1.5 text-center ${shell}`}>
+      <div className="flex items-end justify-center gap-1 min-h-[72px]">{children}</div>
+      <p className="text-[11px] font-bold text-zinc-900 dark:text-zinc-50 leading-tight">{name}</p>
+      <p className="text-[10px] text-zinc-600 dark:text-zinc-400 leading-snug">{hint}</p>
+    </div>
+  );
+}
+
+export function UniversityCandleAtlasDiagram() {
+  return (
+    <ConceptShell
+      title="Candlestick atlas · identify the shape"
+      accent="emerald"
+      note="Shapes are vocabulary — not buy/sell buttons. Same wick can mean different things after a rally vs a selloff. Wait for confirmation and define invalidation."
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
+        Single candles
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <CandleCard name="Hammer" hint="Long lower wick · after decline" tone="bull">
+          <MiniCandle o={28} h={22} l={88} c={26} bullish />
+        </CandleCard>
+        <CandleCard name="Inverted hammer" hint="Long upper wick · after decline" tone="bull">
+          <MiniCandle o={72} h={12} l={80} c={74} bullish />
+        </CandleCard>
+        <CandleCard name="Shooting star" hint="Long upper wick · after rally" tone="bear">
+          <MiniCandle o={72} h={12} l={80} c={76} bullish={false} />
+        </CandleCard>
+        <CandleCard name="Hanging man" hint="Hammer shape · after rally" tone="bear">
+          <MiniCandle o={28} h={22} l={88} c={30} bullish={false} />
+        </CandleCard>
+        <CandleCard name="Bull marubozu" hint="Long body · tiny wicks" tone="bull">
+          <MiniCandle o={78} h={20} l={82} c={24} bullish />
+        </CandleCard>
+        <CandleCard name="Bear marubozu" hint="Long body · tiny wicks" tone="bear">
+          <MiniCandle o={22} h={18} l={82} c={80} bullish={false} />
+        </CandleCard>
+      </div>
+
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-800 dark:text-violet-200 pt-1">
+        Doji family (open ≈ close)
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <CandleCard name="Standard doji" hint="Indecision" tone="neutral">
+          <MiniCandle o={50} h={18} l={82} c={51} />
+        </CandleCard>
+        <CandleCard name="Long-legged" hint="Wide both wicks" tone="neutral">
+          <MiniCandle o={50} h={8} l={92} c={50} />
+        </CandleCard>
+        <CandleCard name="Dragonfly" hint="Long lower · near high" tone="bull">
+          <MiniCandle o={22} h={18} l={90} c={22} bullish />
+        </CandleCard>
+        <CandleCard name="Gravestone" hint="Long upper · near low" tone="bear">
+          <MiniCandle o={78} h={10} l={84} c={78} bullish={false} />
+        </CandleCard>
+      </div>
+
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-800 dark:text-sky-200 pt-1">
+        Two- & three-candle ideas
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <CandleCard name="Bullish engulfing" hint="Green body covers prior red" tone="bull">
+          <MiniCandle o={35} h={28} l={70} c={65} bullish={false} />
+          <MiniCandle o={72} h={20} l={80} c={28} bullish />
+        </CandleCard>
+        <CandleCard name="Bearish engulfing" hint="Red body covers prior green" tone="bear">
+          <MiniCandle o={68} h={30} l={75} c={38} bullish />
+          <MiniCandle o={30} h={22} l={82} c={74} bullish={false} />
+        </CandleCard>
+        <CandleCard name="Morning star" hint="Down → small → strong up" tone="bull">
+          <MiniCandle o={30} h={22} l={55} c={50} bullish={false} />
+          <MiniCandle o={58} h={48} l={70} c={60} />
+          <MiniCandle o={62} h={28} l={72} c={32} bullish />
+        </CandleCard>
+        <CandleCard name="Evening star" hint="Up → small → strong down" tone="bear">
+          <MiniCandle o={70} h={45} l={78} c={48} bullish />
+          <MiniCandle o={42} h={32} l={52} c={40} />
+          <MiniCandle o={38} h={28} l={72} c={68} bullish={false} />
+        </CandleCard>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityIsolatedCrossDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Isolated vs cross margin"
+      accent="amber"
+      note="Learning path: isolated + hard stop. Cross is for experienced risk managers who accept contagion."
+    >
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-lg border border-sky-400/50 bg-sky-500/20 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-sky-900 dark:text-sky-100">Isolated</p>
+          <p className="text-sky-950/80 dark:text-sky-100/85">
+            Only the margin assigned to <em>this</em> position can be liquidated.
+          </p>
+          <div className="flex gap-2">
+            <div className="flex-1 rounded-md bg-sky-600/80 text-white text-center py-2 font-mono text-[10px]">
+              Pos A
+              <br />
+              $100
+            </div>
+            <div className="flex-1 rounded-md bg-zinc-400/40 text-zinc-700 dark:text-zinc-200 text-center py-2 font-mono text-[10px]">
+              Wallet rest
+              <br />
+              safe*
+            </div>
+          </div>
+          <p className="text-[10px] text-sky-900/70 dark:text-sky-200/70">*Other open positions still have their own risk.</p>
+        </div>
+        <div className="rounded-lg border border-rose-400/50 bg-rose-500/20 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-rose-900 dark:text-rose-100">Cross</p>
+          <p className="text-rose-950/80 dark:text-rose-100/85">
+            Shared wallet balance backs every cross position — one wipe can stress the whole book.
+          </p>
+          <div className="rounded-md bg-gradient-to-r from-rose-600 to-amber-500 text-white text-center py-3 font-mono text-[10px] font-semibold">
+            Shared balance · Pos A + B + C
+          </div>
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityLiquidationPathDiagram() {
+  const steps = [
+    { t: "Entry", d: "Open with margin", c: "bg-sky-500" },
+    { t: "Adverse move", d: "Unrealized loss grows", c: "bg-amber-500" },
+    { t: "Near maint.", d: "Margin ratio stressed", c: "bg-orange-500" },
+    { t: "Liquidation", d: "Exchange force-closes", c: "bg-rose-600" },
+  ];
+  return (
+    <ConceptShell
+      title="Concept · Path to liquidation"
+      accent="rose"
+      note="Your stop-loss should fire before the exchange’s liquidation engine. Mark price (not last trade) often drives liq math."
+    >
+      <div className="flex flex-wrap gap-2">
+        {steps.map((s, i) => (
+          <div key={s.t} className="flex items-center gap-2">
+            <div className={`rounded-lg ${s.c} text-white px-3 py-2 text-xs shadow-sm min-w-[7.5rem]`}>
+              <p className="font-bold">{s.t}</p>
+              <p className="text-[10px] text-white/90">{s.d}</p>
+            </div>
+            {i < steps.length - 1 ? (
+              <span className="text-rose-500 font-bold hidden sm:inline">→</span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <div className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-950 dark:text-rose-100">
+        Higher leverage → shorter distance from entry to the liquidation zone. Fees and funding can nudge you closer.
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityLongShortDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Long vs short perps"
+      accent="cyan"
+      note="Funding is separate from PnL: you can be right on direction and still pay (or earn) funding while holding."
+    >
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-lg border border-emerald-400/50 bg-emerald-500/20 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-emerald-900 dark:text-emerald-100">Long</p>
+          <svg viewBox="0 0 120 40" className="w-full h-10" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-emerald-500"
+              strokeWidth="3"
+              points="4,32 40,28 70,18 116,6"
+            />
+          </svg>
+          <p className="text-emerald-950/80 dark:text-emerald-100/85">
+            Profit if price rises. Loss if price falls. At risk of liq on a sharp dump.
+          </p>
+        </div>
+        <div className="rounded-lg border border-rose-400/50 bg-rose-500/20 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-rose-900 dark:text-rose-100">Short</p>
+          <svg viewBox="0 0 120 40" className="w-full h-10" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-rose-500"
+              strokeWidth="3"
+              points="4,8 40,14 70,24 116,34"
+            />
+          </svg>
+          <p className="text-rose-950/80 dark:text-rose-100/85">
+            Profit if price falls. Loss if price rises. At risk of liq on a sharp squeeze up.
+          </p>
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}

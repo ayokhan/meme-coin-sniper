@@ -34,14 +34,18 @@ import { downloadTrackCheatSheet } from "@/lib/trading-university/cheat-sheets";
 import { getCommonMistakes } from "@/lib/trading-university/common-mistakes";
 import {
   UniversityBscCheckDiagram,
+  UniversityCandleAtlasDiagram,
   UniversityCandlesDiagram,
   UniversityCexDexDiagram,
   UniversityFeesDiagram,
   UniversityFibDiagram,
   UniversityForexPipDiagram,
   UniversityFundingDiagram,
+  UniversityIsolatedCrossDiagram,
   UniversityJournalDiagram,
   UniversityLifecycleDiagram,
+  UniversityLiquidationPathDiagram,
+  UniversityLongShortDiagram,
   UniversityMarginDiagram,
   UniversityNarrativeDiagram,
   UniversityOrdersDiagram,
@@ -1174,8 +1178,21 @@ export default function TradingUniversityPanel({
               ))}
               {activeLesson.diagram === "fees" && <UniversityFeesDiagram />}
               {activeLesson.diagram === "margin" && <UniversityMarginDiagram />}
+              {activeLesson.id === "crypto-futures" && (
+                <>
+                  <UniversityLongShortDiagram />
+                  <UniversityIsolatedCrossDiagram />
+                  <UniversityFundingDiagram />
+                  <UniversityLiquidationPathDiagram />
+                </>
+              )}
               {activeLesson.diagram === "candles" && <UniversityCandlesDiagram />}
-              {activeLesson.id === "chart-basics" && <UniversityFibDiagram />}
+              {activeLesson.id === "chart-basics" && (
+                <>
+                  <UniversityCandleAtlasDiagram />
+                  <UniversityFibDiagram />
+                </>
+              )}
               {activeLesson.diagram === "sessions" && <UniversitySessionsDiagram />}
               {activeLesson.id === "forex" && <UniversityForexPipDiagram />}
               {activeLesson.diagram === "journal" && <UniversityJournalDiagram />}
