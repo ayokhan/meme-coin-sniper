@@ -240,6 +240,9 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     title: "Charts & candlesticks",
     subtitle: "OHLC candles, timeframes, trend lines, Fib, and classic chart patterns.",
     estimatedMinutes: 18,
+    sections: [
+      {
+        heading: "Why charts matter",
         body: [
           "Price charts are how traders visualize history and plan entries, stops, and targets. NovaForecast, Nova Scalp, Chart Analysis, and Forex tools all assume you can read a basic candle chart.",
           "A timeframe (1m, 5m, 15m, 1h, 4h, 1d, 1w) is the length of each candle. Lower timeframes are noisier and better for precise entries; higher timeframes show the bigger trend and key levels.",
