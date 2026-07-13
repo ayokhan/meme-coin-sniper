@@ -10,6 +10,8 @@ import { downloadTradingUniversityCertificate } from "@/lib/trading-university/c
 import UniversityDonationCard from "@/components/UniversityDonationCard";
 import { FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 
+type StudentStatus = "not_started" | "in_progress" | "graduated";
+
 type Student = {
   userId: string;
   email: string | null;
@@ -25,6 +27,7 @@ type Student = {
   attemptCount: number;
   examSetId: string | null;
   updatedAt: string;
+  status?: StudentStatus;
 };
 
 type ExamKeySet = {
@@ -47,11 +50,18 @@ export default function AdminTradingUniversityPage() {
   const [tab, setTab] = useState<Tab>("students");
   const [enrolled, setEnrolled] = useState<Student[]>([]);
   const [graduated, setGraduated] = useState<Student[]>([]);
-  const [counts, setCounts] = useState({ progressRows: 0, enrolled: 0, graduated: 0 });
+  const [counts, setCounts] = useState({
+    progressRows: 0,
+    enrolled: 0,
+    notStarted: 0,
+    inProgress: 0,
+    graduated: 0,
+  });
   const [examKeys, setExamKeys] = useState<ExamKeySet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | StudentStatus>("all");
   const [keySet, setKeySet] = useState("A");
   const [donationsEnabled, setDonationsEnabled] = useState(true);
   const [donationsSaving, setDonationsSaving] = useState(false);
@@ -70,7 +80,15 @@ export default function AdminTradingUniversityPage() {
         }
         setEnrolled(data.enrolled ?? []);
         setGraduated(data.graduated ?? []);
-        setCounts(data.counts ?? { progressRows: 0, enrolled: 0, graduated: 0 });
+        setCounts(
+          data.counts ?? {
+            progressRows: 0,
+            enrolled: 0,
+            notStarted: 0,
+            inProgress: 0,
+            graduated: 0,
+          }
+        );
         setExamKeys(data.examKeys ?? []);
         if (flagsData?.success && flagsData.flags) {
           const v = flagsData.flags[FEATURE_FLAG_KEYS.TRADING_UNIVERSITY_DONATIONS];
@@ -112,15 +130,23 @@ export default function AdminTradingUniversityPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = enrolled;
-    if (!q) return list;
-    return list.filter(
-      (s) =>
+    return enrolled.filter((s) => {
+      const status =
+        s.status ??
+        (s.quizPassed
+          ? "graduated"
+          : s.modulesCompleted === 0 && s.attemptCount === 0
+            ? "not_started"
+            : "in_progress");
+      if (statusFilter !== "all" && status !== statusFilter) return false;
+      if (!q) return true;
+      return (
         (s.email ?? "").toLowerCase().includes(q) ||
         (s.name ?? "").toLowerCase().includes(q) ||
         s.userId.toLowerCase().includes(q)
-    );
-  }, [enrolled, search]);
+      );
+    });
+  }, [enrolled, search, statusFilter]);
 
   const activeKeys = examKeys.find((k) => k.setId === keySet) ?? examKeys[0];
 
@@ -146,14 +172,55 @@ export default function AdminTradingUniversityPage() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-4 text-sm">
-        <span className="rounded-md bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5">
+      <div className="flex flex-wrap gap-2 text-sm">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("all")}
+          className={`rounded-md px-3 py-1.5 ${
+            statusFilter === "all"
+              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+              : "bg-zinc-100 dark:bg-zinc-800"
+          }`}
+        >
           Enrolled <strong>{counts.enrolled}</strong>
-        </span>
-        <span className="rounded-md bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 px-3 py-1.5">
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("not_started")}
+          className={`rounded-md px-3 py-1.5 ${
+            statusFilter === "not_started"
+              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+              : "bg-amber-500/15 text-amber-900 dark:text-amber-200"
+          }`}
+        >
+          Not started <strong>{counts.notStarted ?? 0}</strong>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("in_progress")}
+          className={`rounded-md px-3 py-1.5 ${
+            statusFilter === "in_progress"
+              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+              : "bg-sky-500/15 text-sky-900 dark:text-sky-200"
+          }`}
+        >
+          In progress <strong>{counts.inProgress ?? 0}</strong>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("graduated")}
+          className={`rounded-md px-3 py-1.5 ${
+            statusFilter === "graduated"
+              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+              : "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
+          }`}
+        >
           Graduated <strong>{counts.graduated}</strong>
-        </span>
+        </button>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Enrolled = opened University while signed in. Not started = enrolled but 0 chapters done.
+      </p>
 
       <div className="flex flex-wrap gap-2">
         {(
@@ -195,6 +262,7 @@ export default function AdminTradingUniversityPage() {
               <thead>
                 <tr className="text-left text-xs text-muted-foreground border-b border-zinc-200 dark:border-zinc-700">
                   <th className="py-2 pr-3">User</th>
+                  <th className="py-2 pr-3">Status</th>
                   <th className="py-2 pr-3">Modules</th>
                   <th className="py-2 pr-3">Exam</th>
                   <th className="py-2 pr-3">Set</th>
@@ -202,11 +270,26 @@ export default function AdminTradingUniversityPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((s) => (
+                {filtered.map((s) => {
+                  const status =
+                    s.status ??
+                    (s.quizPassed
+                      ? "graduated"
+                      : s.modulesCompleted === 0 && s.attemptCount === 0
+                        ? "not_started"
+                        : "in_progress");
+                  return (
                   <tr key={s.userId} className="border-b border-zinc-100 dark:border-zinc-800">
                     <td className="py-2 pr-3">
                       <div className="font-medium">{s.name || "—"}</div>
                       <div className="text-xs text-muted-foreground">{s.email || s.userId}</div>
+                    </td>
+                    <td className="py-2 pr-3 text-xs">
+                      {status === "graduated"
+                        ? "Graduated"
+                        : status === "not_started"
+                          ? "Not started"
+                          : "In progress"}
                     </td>
                     <td className="py-2 pr-3 font-mono text-xs">
                       {s.modulesCompleted}/{s.modulesTotal}
@@ -230,15 +313,20 @@ export default function AdminTradingUniversityPage() {
                       {new Date(s.updatedAt ?? s.enrolledAt).toLocaleString()}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             {filtered.length === 0 && (
-              <p className="text-sm text-muted-foreground py-6">No enrollments yet.</p>
+              <p className="text-sm text-muted-foreground py-6">
+                {statusFilter === "not_started"
+                  ? "No enrolled students still at 0 chapters."
+                  : "No enrollments yet."}
+              </p>
             )}
-            {graduated.length > 0 && (
+            {graduated.length > 0 && statusFilter === "all" && (
               <p className="text-xs text-muted-foreground mt-4">
-                Graduates: {graduated.length} (included in table with Passed status).
+                Graduates: {graduated.length} (included in table).
               </p>
             )}
           </CardContent>

@@ -61,20 +61,33 @@ export async function GET() {
         lastAttemptAt: r.lastAttemptAt?.toISOString() ?? null,
         attemptCount: r.attemptCount,
         examSetId: r.examSetId,
+        /** Progress row exists = opened University while signed in (enrollment). */
+        status:
+          r.quizPassed
+            ? ("graduated" as const)
+            : completed.length === 0 && r.attemptCount === 0
+              ? ("not_started" as const)
+              : ("in_progress" as const),
       };
     });
 
-    const enrolled = students.filter((s) => s.modulesCompleted > 0 || s.attemptCount > 0 || s.quizPassed);
-    const graduated = students.filter((s) => s.quizPassed);
+    const enrolled = students;
+    const notStarted = students.filter((s) => s.status === "not_started");
+    const inProgress = students.filter((s) => s.status === "in_progress");
+    const graduated = students.filter((s) => s.status === "graduated");
 
     return NextResponse.json({
       success: true,
       counts: {
         progressRows: students.length,
         enrolled: enrolled.length,
+        notStarted: notStarted.length,
+        inProgress: inProgress.length,
         graduated: graduated.length,
       },
       enrolled,
+      notStarted,
+      inProgress,
       graduated,
       examKeys: getAdminExamKeys(),
     });
