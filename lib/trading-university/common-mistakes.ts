@@ -1,0 +1,88 @@
+/** Common mistakes callouts shown at the end of each Trading University module. */
+
+export const COMMON_MISTAKES_BY_LESSON: Record<string, string[]> = {
+  "intro-crypto": [
+    "Treating every token like Bitcoin — most alts and memes have different risk.",
+    "Confusing CEX custody with self-custody on a DEX.",
+    "Ignoring that USDT/USDC are useful but not risk-free.",
+  ],
+  "wallets-security": [
+    "Typing a seed phrase into a website, bot, or 'support' chat.",
+    "Keeping life savings on the same hot wallet used for degen trades.",
+    "Ignoring unlimited token approvals on EVM chains.",
+  ],
+  "risk-fundamentals": [
+    "Sizing from FOMO instead of stop distance.",
+    "Moving stops farther after entry without a new thesis.",
+    "Skipping a daily loss limit and revenge trading.",
+  ],
+  "chart-basics": [
+    "Trading a single candle pattern with no structure or invalidation.",
+    "Using a 1m stop on a daily idea (timeframe mismatch).",
+    "Treating support/resistance as exact magic lines instead of zones.",
+  ],
+  "psychology-journaling": [
+    "Forcing a trade to 'win back' a loss the same session.",
+    "Raising size after a win because you feel invincible.",
+    "Journaling only P&L screenshots with no process notes.",
+  ],
+  "market-structure": [
+    "Chasing every breakout through obvious highs/lows (liquidity grabs).",
+    "Calling CHOCH a full trend change after one candle.",
+    "Fighting higher-timeframe structure on a lower timeframe scalp.",
+  ],
+  "meme-coins": [
+    "Sizing memes like blue-chip holds.",
+    "Buying narrative without checking liquidity and holders.",
+    "Assuming a funny ticker equals due diligence.",
+  ],
+  "meme-trading": [
+    "Overpaying tips/bribes on tiny size so fees dominate PnL.",
+    "Averaging down with no invalidation.",
+    "FOMO chasing after a multi-x already printed.",
+  ],
+  solana: [
+    "Trusting ticker/logo clones without verifying the mint.",
+    "Mixing savings with a sniper/trading wallet.",
+    "Ignoring congestion and tip costs during mania.",
+  ],
+  "solana-memes": [
+    "Treating every bonding-curve launch as free money.",
+    "Ignoring bundles / coordinated launch wallets.",
+    "Entering late distribution as if it were early discovery.",
+  ],
+  "bsc-memes": [
+    "Skipping honeypot/tax checks on BEP-20 contracts.",
+    "Assuming LP is locked because a site said so.",
+    "Copying CA from social without verifying on BscScan.",
+  ],
+  "crypto-futures": [
+    "Using max leverage because 'it is only a small move.'",
+    "Ignoring funding and liquidation distance.",
+    "Cross-margining everything without understanding contagion risk.",
+  ],
+  predictions: [
+    "Buying Yes because the story feels good, not because price is wrong.",
+    "Ignoring resolution criteria and dispute risk.",
+    "Sizing into thin books near expiry.",
+  ],
+  forex: [
+    "Trading exotics with size meant for majors.",
+    "Blind trading into NFP/CPI with a scalp stop.",
+    "Forgetting swap costs on multi-day holds.",
+  ],
+  "novastaris-workflow": [
+    "Letting a green AI score override missing invalidation.",
+    "Tab-hopping without a market path (meme vs perps vs FX).",
+    "Doubling size when tools disagree.",
+  ],
+  "advanced-markets": [
+    "Fading extreme funding without a plan for squeezes.",
+    "Skipping unlock/holder red flags on memes.",
+    "Breaking prop-firm daily loss rules to 'make it back.'",
+  ],
+};
+
+export function getCommonMistakes(lessonId: string): string[] {
+  return COMMON_MISTAKES_BY_LESSON[lessonId] ?? [];
+}

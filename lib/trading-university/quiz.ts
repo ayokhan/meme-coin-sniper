@@ -538,18 +538,23 @@ export function scoreQuizAnswers(
   total: number;
   scorePct: number;
   missedIds: string[];
+  missedLessonIds: string[];
 } {
   const bank = getExamSet(setId);
   const total = bank.length;
   let correct = 0;
   const missedIds: string[] = [];
+  const missedLesson = new Set<string>();
   for (const q of bank) {
     const picked = answers[q.id];
     if (picked === q.correctIndex) correct += 1;
-    else missedIds.push(q.id);
+    else {
+      missedIds.push(q.id);
+      missedLesson.add(q.lessonId);
+    }
   }
   const scorePct = total > 0 ? Math.round((correct / total) * 1000) / 10 : 0;
-  return { correct, total, scorePct, missedIds };
+  return { correct, total, scorePct, missedIds, missedLessonIds: Array.from(missedLesson) };
 }
 
 /** Extra chapter-check questions (not necessarily in final exam sets). */

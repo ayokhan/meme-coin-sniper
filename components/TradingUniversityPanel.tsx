@@ -11,7 +11,10 @@ import {
   Download,
   GraduationCap,
   Lock,
+  Pause,
+  Play,
   Sparkles,
+  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +30,8 @@ import {
   TRADING_UNIVERSITY_SHARE_URL,
   type CertificatePayload,
 } from "@/lib/trading-university/certificate";
+import { downloadTrackCheatSheet } from "@/lib/trading-university/cheat-sheets";
+import { getCommonMistakes } from "@/lib/trading-university/common-mistakes";
 import {
   UniversityBscCheckDiagram,
   UniversityCandlesDiagram,
@@ -49,6 +54,7 @@ import {
   buildGlossary,
   COURSE_TRACK_META,
   getLessonTrack,
+  TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT,
   TRADING_UNIVERSITY_MAX_TAB_LEAVES,
   type CourseTrack,
   type UniversityLesson,
@@ -87,10 +93,11 @@ type PublicQuestion = {
   options: string[];
 };
 
-type View = "home" | "lesson" | "quiz" | "result";
+type View = "home" | "lesson" | "quiz" | "result" | "flashcards";
 
 const LOCAL_LESSONS_KEY = "novastaris_tu_lessons_v1";
 const LOCAL_CHAPTER_QUIZ_KEY = "novastaris_tu_chapter_quiz_v1";
+const LOCAL_RESUME_KEY = "novastaris_tu_resume_v1";
 
 function readLocalLessons(): string[] {
   if (typeof window === "undefined") return [];
@@ -132,6 +139,28 @@ function markChapterQuizDone(lessonId: string) {
     /* ignore */
   }
   return next;
+}
+
+function readResumeLessonId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(LOCAL_RESUME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeResumeLessonId(lessonId: string) {
+  try {
+    localStorage.setItem(LOCAL_RESUME_KEY, lessonId);
+  } catch {
+    /* ignore */
+  }
+}
+
+function stopSpeech() {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
 }
 
 export default function TradingUniversityPanel({
@@ -177,6 +206,11 @@ export default function TradingUniversityPanel({
   } | null>(null);
   const [practiceLoading, setPracticeLoading] = useState(false);
   const [chapterQuizDone, setChapterQuizDone] = useState<string[]>([]);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [speechPlaying, setSpeechPlaying] = useState(false);
+  const [resumeLessonId, setResumeLessonId] = useState<string | null>(null);
+  const [flashIndex, setFlashIndex] = useState(0);
+  const [flashRevealed, setFlashRevealed] = useState(false);
   const [result, setResult] = useState<{
     passed: boolean;
     scorePct: number;
@@ -184,6 +218,7 @@ export default function TradingUniversityPanel({
     total: number;
     timedOut?: boolean;
     tabLeaveFail?: boolean;
+    missedLessonIds?: string[];
   } | null>(null);
   const answersRef = useRef(answers);
   const submittingRef = useRef(false);
@@ -205,10 +240,31 @@ export default function TradingUniversityPanel({
   }, [progress, localCompleted]);
 
   const completedCount = lessons.filter((l) => completedSet.has(l.id)).length;
+  const progressPct =
+    lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
+  const minutesRemaining = lessons
+    .filter((l) => !completedSet.has(l.id))
+    .reduce((sum, l) => sum + (l.estimatedMinutes || 0), 0);
   const allComplete =
     fullAccess && lessons.length > 0 && lessons.every((l) => completedSet.has(l.id));
+  const resumeLesson = lessons.find((l) => l.id === resumeLessonId) ?? null;
 
   const activeLesson = lessons.find((l) => l.id === activeLessonId) ?? null;
+
+  const flashCards = useMemo(() => buildGlossary(), []);
+
+  useEffect(() => {
+    setSpeechSupported(
+      typeof window !== "undefined" && "speechSynthesis" in window && !!window.speechSynthesis
+    );
+    setResumeLessonId(readResumeLessonId());
+    return () => stopSpeech();
+  }, []);
+
+  useEffect(() => {
+    stopSpeech();
+    setSpeechPlaying(false);
+  }, [activeLessonId, view]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -302,7 +358,9 @@ export default function TradingUniversityPanel({
       return;
     }
     if (!chapterQuizDone.includes(lessonId) && !practiceResult) {
-      setError("Complete this module’s chapter check (practice quiz) before marking it complete.");
+      setError(
+        `Complete this module’s chapter check (need ${TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT}/3 correct) before marking it complete.`
+      );
       setProctorWarning(null);
       // start chapter check
       setPracticeLoading(true);
@@ -324,6 +382,12 @@ export default function TradingUniversityPanel({
       return;
     }
     if (!chapterQuizDone.includes(lessonId) && practiceResult) {
+      if (practiceResult.correct < TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT) {
+        setError(
+          `Need at least ${TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT}/${practiceResult.total} correct on the chapter check.`
+        );
+        return;
+      }
       setChapterQuizDone(markChapterQuizDone(lessonId));
     }
     const next = Array.from(new Set([...readLocalLessons(), lessonId]));
@@ -334,11 +398,52 @@ export default function TradingUniversityPanel({
 
   const openLesson = (lesson: CatalogLesson) => {
     setError(null);
+    stopSpeech();
+    setSpeechPlaying(false);
     setPracticeQs(null);
     setPracticeResult(null);
     setPracticeAnswers({});
     setActiveLessonId(lesson.id);
+    writeResumeLessonId(lesson.id);
+    setResumeLessonId(lesson.id);
     setView("lesson");
+  };
+
+  const playLessonAudio = (lesson: CatalogLesson) => {
+    if (!speechSupported) {
+      setError("Read aloud is not supported in this browser. Try Chrome, Edge, or Safari.");
+      return;
+    }
+    stopSpeech();
+    const parts = [
+      lesson.title,
+      lesson.subtitle,
+      ...lesson.sections.flatMap((s) => [s.heading, ...s.body]),
+      ...getCommonMistakes(lesson.id).map((m) => `Common mistake: ${m}`),
+    ];
+    const text = parts.join(". ");
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1;
+    utter.onend = () => setSpeechPlaying(false);
+    utter.onerror = () => setSpeechPlaying(false);
+    setSpeechPlaying(true);
+    window.speechSynthesis.speak(utter);
+  };
+
+  const toggleLessonAudio = (lesson: CatalogLesson) => {
+    if (!speechSupported) return;
+    const synth = window.speechSynthesis;
+    if (synth.speaking && !synth.paused) {
+      synth.pause();
+      setSpeechPlaying(false);
+      return;
+    }
+    if (synth.paused) {
+      synth.resume();
+      setSpeechPlaying(true);
+      return;
+    }
+    playLessonAudio(lesson);
   };
 
   const startQuiz = async () => {
@@ -417,6 +522,7 @@ export default function TradingUniversityPanel({
           total: data.total,
           timedOut: !!data.timedOut,
           tabLeaveFail: !!data.tabLeaveFail,
+          missedLessonIds: Array.isArray(data.missedLessonIds) ? data.missedLessonIds : [],
         });
         setView("result");
       } catch {
@@ -686,6 +792,81 @@ export default function TradingUniversityPanel({
 
       {view === "home" && (
         <>
+          {fullAccess && (
+            <section className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                    Progress {progressPct}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {completedCount}/{lessons.length} modules
+                    {minutesRemaining > 0
+                      ? ` · ~${minutesRemaining} min remaining`
+                      : progress?.quizPassed
+                        ? " · Course complete"
+                        : " · Ready for the final exam"}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {resumeLesson && !progress?.quizPassed && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => openLesson(resumeLesson)}
+                      className="gap-1"
+                    >
+                      Continue: {resumeLesson.title}
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setFlashIndex(0);
+                      setFlashRevealed(false);
+                      setView("flashcards");
+                    }}
+                  >
+                    Glossary flashcards
+                  </Button>
+                </div>
+              </div>
+              <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-cyan-500 transition-all"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <p className="text-xs text-muted-foreground w-full sm:w-auto sm:mr-2 self-center">
+                  Cheat sheets
+                </p>
+                {(["foundations", "markets", "applied"] as CourseTrack[]).map((track) => (
+                  <Button
+                    key={track}
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 text-xs"
+                    onClick={() => {
+                      try {
+                        downloadTrackCheatSheet(track, lessons);
+                      } catch {
+                        setError("Could not download cheat sheet.");
+                      }
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1" />
+                    {COURSE_TRACK_META[track].label}
+                  </Button>
+                ))}
+              </div>
+            </section>
+          )}
+
           <div className="space-y-8">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
               Course syllabus
@@ -750,12 +931,26 @@ export default function TradingUniversityPanel({
 
           <section className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-4 sm:p-5 space-y-3">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Glossary</h2>
-            <input
+            <div className="flex flex-wrap gap-2">
+              <input
               value={glossaryQuery}
               onChange={(e) => setGlossaryQuery(e.target.value)}
               placeholder="Search terms (pip, liquidation, USDT…)"
-              className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm"
+              className="flex-1 min-w-[12rem] rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm"
             />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setFlashIndex(0);
+                  setFlashRevealed(false);
+                  setView("flashcards");
+                }}
+              >
+                Flashcards
+              </Button>
+            </div>
             <ul className="grid sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto">
               {glossary.map((g) => (
                 <li key={`${g.lessonId}-${g.term}`} className="text-xs">
@@ -889,6 +1084,42 @@ export default function TradingUniversityPanel({
                     Free preview module — enroll to unlock the rest of the course.
                   </p>
                 )}
+                {speechSupported && !activeLesson.locked && activeLesson.sections.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => toggleLessonAudio(activeLesson)}
+                    >
+                      {speechPlaying ? (
+                        <Pause className="h-3.5 w-3.5" />
+                      ) : (
+                        <Play className="h-3.5 w-3.5" />
+                      )}
+                      {speechPlaying ? "Pause audio" : "Play lesson audio"}
+                    </Button>
+                    {speechPlaying && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1.5"
+                        onClick={() => {
+                          stopSpeech();
+                          setSpeechPlaying(false);
+                        }}
+                      >
+                        <Volume2 className="h-3.5 w-3.5" />
+                        Stop
+                      </Button>
+                    )}
+                    <p className="text-[11px] text-muted-foreground self-center">
+                      Uses your device’s free read-aloud voice
+                    </p>
+                  </div>
+                )}
               </div>
               {activeLesson.sections.map((s) => (
                 <section key={s.heading} className="space-y-2">
@@ -921,6 +1152,18 @@ export default function TradingUniversityPanel({
               {activeLesson.diagram === "bsc-check" && <UniversityBscCheckDiagram />}
               {activeLesson.diagram === "probability" && <UniversityProbabilityDiagram />}
               {activeLesson.diagram === "funding" && <UniversityFundingDiagram />}
+              {getCommonMistakes(activeLesson.id).length > 0 && (
+                <section className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 space-y-2">
+                  <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                    Common mistakes
+                  </h3>
+                  <ul className="space-y-1.5 text-sm text-zinc-700 dark:text-zinc-300 list-disc pl-5">
+                    {getCommonMistakes(activeLesson.id).map((m) => (
+                      <li key={m}>{m}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
               <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-2">
                 <h3 className="text-sm font-semibold">Key terms</h3>
                 <dl className="space-y-2">
@@ -968,8 +1211,8 @@ export default function TradingUniversityPanel({
                 <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
                   <h3 className="text-sm font-semibold">Chapter check (required)</h3>
                   <p className="text-xs text-muted-foreground">
-                    Complete 3 practice questions before you can mark this module complete. Untimed —
-                    does not count toward the final exam.
+                    Score at least {TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT}/3 to unlock Mark module
+                    complete. Untimed — does not count toward the final exam.
                   </p>
                   {chapterQuizDone.includes(activeLesson.id) && (
                     <p className="text-xs text-emerald-600 dark:text-emerald-400">
@@ -1040,32 +1283,75 @@ export default function TradingUniversityPanel({
                               .then((data) => {
                                 if (data.success) {
                                   setPracticeResult(data);
-                                  setChapterQuizDone(markChapterQuizDone(activeLesson.id));
-                                  setError(null);
+                                  if (data.correct >= TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT) {
+                                    setChapterQuizDone(markChapterQuizDone(activeLesson.id));
+                                    setError(null);
+                                  } else {
+                                    setError(
+                                      `Need ${TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT}/${data.total} correct. Review the module and try again.`
+                                    );
+                                  }
                                 }
                               });
                           }}
                         >
                           Check answers
                         </Button>
-                      ) : (
+                      ) : practiceResult.correct >= TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT ? (
                         <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                          Chapter check: {practiceResult.correct}/{practiceResult.total}. You can now
-                          mark the module complete.
+                          Chapter check passed: {practiceResult.correct}/{practiceResult.total}. You
+                          can now mark the module complete.
                         </p>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-sm text-amber-700 dark:text-amber-300">
+                            {practiceResult.correct}/{practiceResult.total} correct — need{" "}
+                            {TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT} to pass. Review and retry.
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setPracticeQs(null);
+                              setPracticeResult(null);
+                              setPracticeAnswers({});
+                              setError(null);
+                            }}
+                          >
+                            Retry chapter check
+                          </Button>
+                        </div>
                       )}
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setPracticeQs(null);
-                          setPracticeResult(null);
-                          setPracticeAnswers({});
-                        }}
-                      >
-                        Close chapter check
-                      </Button>
+                      {practiceResult &&
+                        practiceResult.correct >= TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setPracticeQs(null);
+                              setPracticeResult(null);
+                              setPracticeAnswers({});
+                            }}
+                          >
+                            Close chapter check
+                          </Button>
+                        )}
+                      {!practiceResult && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setPracticeQs(null);
+                            setPracticeResult(null);
+                            setPracticeAnswers({});
+                          }}
+                        >
+                          Close chapter check
+                        </Button>
+                      )}
                     </div>
                   )}
                 </section>
@@ -1257,11 +1543,101 @@ export default function TradingUniversityPanel({
                   Next attempt after {new Date(progress.nextAttemptAt).toLocaleString()}
                 </p>
               )}
+              {result.missedLessonIds && result.missedLessonIds.length > 0 && (
+                <div className="text-left rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 text-center">
+                    Review these modules
+                  </h3>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Based on questions you missed on this attempt.
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {result.missedLessonIds.map((id) => {
+                      const lesson = lessons.find((l) => l.id === id);
+                      if (!lesson) return null;
+                      return (
+                        <Button
+                          key={id}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openLesson(lesson)}
+                        >
+                          {lesson.title}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           )}
           <Button type="button" variant="outline" onClick={() => setView("home")}>
             Back to Trading University
           </Button>
+        </div>
+      )}
+
+      {view === "flashcards" && (
+        <div className="max-w-lg mx-auto space-y-4 py-4">
+          <Button type="button" variant="ghost" size="sm" className="gap-1 -ml-2" onClick={() => setView("home")}>
+            <ChevronLeft className="h-4 w-4" />
+            Back to syllabus
+          </Button>
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Glossary flashcards</h2>
+          {flashCards.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No glossary terms yet.</p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Card {flashIndex + 1} / {flashCards.length}
+              </p>
+              <button
+                type="button"
+                onClick={() => setFlashRevealed((v) => !v)}
+                className="w-full min-h-[160px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900/60 p-6 text-left space-y-3"
+              >
+                <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                  {flashCards[flashIndex]?.term}
+                </p>
+                {flashRevealed ? (
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {flashCards[flashIndex]?.definition}
+                    <span className="block mt-2 text-[11px] text-zinc-500">
+                      From: {flashCards[flashIndex]?.lessonTitle}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-cyan-700 dark:text-cyan-300">Tap to reveal definition</p>
+                )}
+              </button>
+              <div className="flex justify-between gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={flashIndex <= 0}
+                  onClick={() => {
+                    setFlashIndex((i) => Math.max(0, i - 1));
+                    setFlashRevealed(false);
+                  }}
+                >
+                  Previous
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={flashIndex >= flashCards.length - 1}
+                  onClick={() => {
+                    setFlashIndex((i) => Math.min(flashCards.length - 1, i + 1));
+                    setFlashRevealed(false);
+                  }}
+                >
+                  Next
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -275,6 +275,7 @@ export async function POST(request: Request) {
     passPct: TRADING_UNIVERSITY_PASS_PCT,
     passCorrect: TRADING_UNIVERSITY_PASS_CORRECT,
     missedCount: scored.missedIds.length,
+    missedLessonIds: scored.missedLessonIds,
     timedOut: expired || reason === "timeout",
     tabLeaveFail: reason === "tab_leaves",
     examTabLeaveCount: leaveCount,
