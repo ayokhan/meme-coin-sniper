@@ -52,6 +52,7 @@ import {
   UniversityWalletDiagram,
   UniversityWorkflowDiagram,
 } from "@/components/UniversityConceptDiagrams";
+import UniversityDonationCard from "@/components/UniversityDonationCard";
 import {
   buildGlossary,
   COURSE_TRACK_META,
@@ -213,6 +214,7 @@ export default function TradingUniversityPanel({
   const [resumeLessonId, setResumeLessonId] = useState<string | null>(null);
   const [flashIndex, setFlashIndex] = useState(0);
   const [flashRevealed, setFlashRevealed] = useState(false);
+  const [donationNote, setDonationNote] = useState<string | null>(null);
   const [result, setResult] = useState<{
     passed: boolean;
     scorePct: number;
@@ -260,6 +262,21 @@ export default function TradingUniversityPanel({
       typeof window !== "undefined" && "speechSynthesis" in window && !!window.speechSynthesis
     );
     setResumeLessonId(readResumeLessonId());
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const donation = params.get("donation");
+      if (donation === "success") {
+        setDonationNote("Thank you — your donation helps keep Trading University free for others.");
+      } else if (donation === "canceled") {
+        setDonationNote("Donation checkout was canceled. You can support anytime from this page.");
+      }
+      if (donation) {
+        params.delete("donation");
+        const next = params.toString();
+        const url = next ? `${window.location.pathname}?${next}` : window.location.pathname;
+        window.history.replaceState({}, "", url);
+      }
+    }
     return () => stopSpeech();
   }, []);
 
@@ -791,9 +808,17 @@ export default function TradingUniversityPanel({
           {error}
         </p>
       )}
+      {donationNote && (
+        <p className="text-sm text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+          {donationNote}
+        </p>
+      )}
 
       {view === "home" && (
         <>
+          {fullAccess && progress?.quizPassed && (
+            <UniversityDonationCard variant="compact" />
+          )}
           {fullAccess && (
             <section className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1524,6 +1549,7 @@ export default function TradingUniversityPanel({
                 You scored {result.correct}/{result.total} ({result.scorePct}%) and earned your
                 NovaStaris Trading University certificate.
               </p>
+              <UniversityDonationCard variant="full" />
               {certPayload() && shareButtons(certPayload()!)}
             </>
           ) : (

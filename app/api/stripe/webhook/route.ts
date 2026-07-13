@@ -52,6 +52,41 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return NextResponse.json({ received: true, billingTest: "receipt" });
   }
 
+  /** Voluntary Trading University donations — record receipt, never grant VIP. */
+  if ((session.metadata?.purpose ?? "").toString() === "trading_university_donation") {
+    const amountUsd =
+      session.amount_total != null
+        ? session.amount_total / 100
+        : parseFloat(session.metadata?.amountUsd ?? "0") || 0;
+    const monthly = session.metadata?.monthly === "true" || session.mode === "subscription";
+    const planId = monthly ? "donation_monthly" : "donation_once";
+    try {
+      await recordBillingInvoiceFromCheckout({
+        userId,
+        amountUsd,
+        planId,
+        stripeSessionId: session.id,
+        paymentMethod: "card",
+        periodEnd: monthly
+          ? (() => {
+              const d = new Date();
+              d.setMonth(d.getMonth() + 1);
+              return d;
+            })()
+          : undefined,
+      });
+    } catch (e) {
+      console.error("Stripe webhook: donation invoice record failed", e);
+    }
+    console.info("Stripe webhook: trading university donation received", {
+      userId,
+      sessionId: session.id,
+      amountUsd,
+      monthly,
+    });
+    return NextResponse.json({ received: true, donation: true });
+  }
+
   const planId = (session.metadata?.planId ?? session.metadata?.plan ?? "").toString();
   const amountUsd = parseInt(session.metadata?.amountUsd ?? "0", 10) || 0;
   const autoRenew = session.metadata?.autoRenew === "true" || session.mode === "subscription";
@@ -176,6 +211,16 @@ async function syncStripeSubscription(stripeSub: Stripe.Subscription) {
 
   const userId = stripeSub.metadata?.userId;
   const planId = stripeSub.metadata?.planId ?? "";
+
+  if ((stripeSub.metadata?.purpose ?? "").toString() === "trading_university_donation") {
+    console.info("Stripe webhook: donation subscription sync (no VIP)", {
+      subscriptionId: stripeSub.id,
+      userId,
+      status: stripeSub.status,
+    });
+    return;
+  }
+
   const plan = resolvePlan(planId, 0, 0);
 
   if (!subRow && userId && plan) {

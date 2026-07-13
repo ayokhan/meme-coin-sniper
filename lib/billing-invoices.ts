@@ -19,6 +19,8 @@ export type BillingInvoiceRow = {
 
 function planLabel(planId: string | null | undefined): string {
   if (!planId) return "NovaStaris VIP";
+  if (planId === "donation_once") return "Trading University donation (one-time)";
+  if (planId === "donation_monthly") return "Trading University donation (monthly)";
   return VIP_PLANS.find((p) => p.id === planId)?.label ?? `VIP (${planId})`;
 }
 

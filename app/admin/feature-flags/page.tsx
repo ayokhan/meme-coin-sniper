@@ -1121,33 +1121,33 @@ export default function AdminFeatureFlagsPage() {
                     </summary>
                     <ul className="space-y-3 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
                       {group.entries.map(([key, { label, description }]) => {
-                        const enabled = flags[key] ?? true;
-                        const busy = toggling === key;
-                        return (
+                  const enabled = flags[key] ?? true;
+                  const busy = toggling === key;
+                  return (
                           <li key={key} className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
                                 <p className="font-medium text-zinc-900 dark:text-zinc-100">{label}</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
+                        </div>
+                        <div className="flex items-center gap-2">
                                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${enabled ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"}`}>
-                                  {enabled ? "ON" : "OFF"}
-                                </span>
-                                <Button
-                                  size="sm"
-                                  variant={enabled ? "outline" : "default"}
-                                  onClick={() => handleToggle(key)}
-                                  disabled={busy}
-                                >
-                                  {busy ? "…" : enabled ? "Turn off" : "Turn on"}
-                                </Button>
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                            {enabled ? "ON" : "OFF"}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant={enabled ? "outline" : "default"}
+                            onClick={() => handleToggle(key)}
+                            disabled={busy}
+                          >
+                            {busy ? "…" : enabled ? "Turn off" : "Turn on"}
+                          </Button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
                   </details>
                 ))}
               </div>
@@ -1237,7 +1237,7 @@ export default function AdminFeatureFlagsPage() {
                             Reset default
                           </Button>
                         )}
-                      </div>
+      </div>
                     </li>
                   );
                 })}
