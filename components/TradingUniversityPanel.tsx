@@ -33,10 +33,13 @@ import {
 import { downloadTrackCheatSheet } from "@/lib/trading-university/cheat-sheets";
 import { getCommonMistakes } from "@/lib/trading-university/common-mistakes";
 import {
+  UniversityAdvancedTrioDiagram,
+  UniversityBondingCurveDiagram,
   UniversityBscCheckDiagram,
   UniversityCandleAtlasDiagram,
   UniversityCandlesDiagram,
   UniversityCexDexDiagram,
+  UniversityChartPatternsDiagram,
   UniversityFeesDiagram,
   UniversityFibDiagram,
   UniversityForexPipDiagram,
@@ -45,10 +48,13 @@ import {
   UniversityJournalDiagram,
   UniversityLifecycleDiagram,
   UniversityLiquidationPathDiagram,
+  UniversityLiquidityGrabDiagram,
   UniversityLongShortDiagram,
   UniversityMarginDiagram,
+  UniversityMarkVsLastDiagram,
   UniversityNarrativeDiagram,
   UniversityOrdersDiagram,
+  UniversityPhishingDiagram,
   UniversityProbabilityDiagram,
   UniversityRiskDiagram,
   UniversitySessionsDiagram,
@@ -1183,6 +1189,7 @@ export default function TradingUniversityPanel({
                   <UniversityLongShortDiagram />
                   <UniversityIsolatedCrossDiagram />
                   <UniversityFundingDiagram />
+                  <UniversityMarkVsLastDiagram />
                   <UniversityLiquidationPathDiagram />
                 </>
               )}
@@ -1191,22 +1198,43 @@ export default function TradingUniversityPanel({
                 <>
                   <UniversityCandleAtlasDiagram />
                   <UniversityFibDiagram />
+                  <UniversityChartPatternsDiagram />
                 </>
               )}
               {activeLesson.diagram === "sessions" && <UniversitySessionsDiagram />}
               {activeLesson.id === "forex" && <UniversityForexPipDiagram />}
               {activeLesson.diagram === "journal" && <UniversityJournalDiagram />}
-              {activeLesson.diagram === "structure" && <UniversityStructureDiagram />}
+              {activeLesson.diagram === "structure" && (
+                <>
+                  <UniversityStructureDiagram />
+                  <UniversityLiquidityGrabDiagram />
+                </>
+              )}
               {activeLesson.diagram === "workflow" && <UniversityWorkflowDiagram />}
               {activeLesson.diagram === "cex-dex" && <UniversityCexDexDiagram />}
-              {activeLesson.diagram === "wallet" && <UniversityWalletDiagram />}
+              {activeLesson.diagram === "wallet" && (
+                <>
+                  <UniversityWalletDiagram />
+                  <UniversityPhishingDiagram />
+                </>
+              )}
               {activeLesson.diagram === "risk" && <UniversityRiskDiagram />}
               {activeLesson.diagram === "narrative" && <UniversityNarrativeDiagram />}
               {activeLesson.diagram === "solana" && <UniversitySolanaDiagram />}
-              {activeLesson.diagram === "lifecycle" && <UniversityLifecycleDiagram />}
+              {activeLesson.diagram === "lifecycle" && (
+                <>
+                  <UniversityLifecycleDiagram />
+                  <UniversityBondingCurveDiagram />
+                </>
+              )}
               {activeLesson.diagram === "bsc-check" && <UniversityBscCheckDiagram />}
               {activeLesson.diagram === "probability" && <UniversityProbabilityDiagram />}
-              {activeLesson.diagram === "funding" && <UniversityFundingDiagram />}
+              {activeLesson.diagram === "funding" && (
+                <>
+                  <UniversityFundingDiagram />
+                  <UniversityAdvancedTrioDiagram />
+                </>
+              )}
               {activeLesson.diagram === "orders" && <UniversityOrdersDiagram />}
               {activeLesson.diagram === "fib" && <UniversityFibDiagram />}
               {(activeLesson.workedExamples?.length ?? 0) > 0 && (

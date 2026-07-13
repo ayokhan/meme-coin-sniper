@@ -291,7 +291,11 @@ export function UniversityJournalDiagram() {
     "border-emerald-400/50 bg-emerald-500/20",
   ];
   return (
-    <ConceptShell title="Concept · Session guardrails" accent="violet">
+    <ConceptShell
+      title="Concept · Session guardrails"
+      accent="violet"
+      note="Log process, not just P&L. A green day that broke rules is still a process fail."
+    >
       <ol className="grid sm:grid-cols-2 gap-2 text-xs">
         {steps.map((step, i) => (
           <li
@@ -305,6 +309,35 @@ export function UniversityJournalDiagram() {
           </li>
         ))}
       </ol>
+      <div className="rounded-lg border border-fuchsia-400/45 bg-fuchsia-500/15 p-3 space-y-2 text-xs shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-bold text-fuchsia-900 dark:text-fuchsia-100">Sample journal card</p>
+          <span className="rounded-md bg-emerald-600 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5">
+            Followed plan · Yes
+          </span>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-2">
+          <div className="rounded-md border border-sky-400/40 bg-sky-500/15 px-2.5 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:text-sky-200">
+              Thesis
+            </p>
+            <p className="mt-0.5 text-zinc-800 dark:text-zinc-100">
+              Long pullback into prior demand + HTF bias still up.
+            </p>
+          </div>
+          <div className="rounded-md border border-rose-400/40 bg-rose-500/15 px-2.5 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-800 dark:text-rose-200">
+              Invalidation
+            </p>
+            <p className="mt-0.5 text-zinc-800 dark:text-zinc-100">
+              Clean close below swing low → flat, no revenge add.
+            </p>
+          </div>
+        </div>
+        <p className="text-[10px] text-fuchsia-950/80 dark:text-fuchsia-100/85">
+          Result: −0.6R stop · Lesson: cooldown before next idea (daily loss still under limit).
+        </p>
+      </div>
     </ConceptShell>
   );
 }
@@ -312,42 +345,76 @@ export function UniversityJournalDiagram() {
 export function UniversityStructureDiagram() {
   return (
     <ConceptShell
-      title="Concept · Structure lite"
+      title="Concept · Structure lite · BOS vs CHOCH"
       accent="emerald"
-      note="Liquidity grab: wick beyond an obvious high/low that runs stops, then reverses — not always a clean breakout."
+      note="BOS = trend continues (break with the trend). CHOCH = early warning the character may be flipping against the prior trend."
     >
       <div className="grid sm:grid-cols-2 gap-3 text-xs">
         <div className="rounded-lg border border-emerald-400/50 bg-emerald-500/15 p-3 space-y-2">
-          <p className="font-bold text-emerald-800 dark:text-emerald-200">Uptrend</p>
-          <svg viewBox="0 0 120 48" className="w-full h-12" aria-hidden>
+          <p className="font-bold text-emerald-800 dark:text-emerald-200">Uptrend · BOS</p>
+          <svg viewBox="0 0 140 56" className="w-full h-14" aria-hidden>
             <polyline
               fill="none"
               stroke="currentColor"
               className="text-emerald-500"
               strokeWidth="3"
               strokeLinecap="round"
-              points="4,40 28,32 44,36 68,18 88,22 116,6"
+              points="4,44 28,36 44,40 68,22 88,26 116,10 134,6"
             />
+            <line
+              x1="68"
+              y1="22"
+              x2="134"
+              y2="22"
+              stroke="currentColor"
+              className="text-amber-500"
+              strokeWidth="1.5"
+              strokeDasharray="3 2"
+            />
+            <text x="98" y="18" className="fill-amber-700 dark:fill-amber-300" fontSize="8" fontWeight="700">
+              BOS →
+            </text>
           </svg>
           <p className="text-emerald-950/75 dark:text-emerald-100/80">
-            Higher highs + higher lows. BOS often = prior swing high taken.
+            HH + HL intact. Prior swing high taken in the trend direction = BOS (continuation context).
           </p>
         </div>
         <div className="rounded-lg border border-rose-400/50 bg-rose-500/15 p-3 space-y-2">
-          <p className="font-bold text-rose-800 dark:text-rose-200">Downtrend</p>
-          <svg viewBox="0 0 120 48" className="w-full h-12" aria-hidden>
+          <p className="font-bold text-rose-800 dark:text-rose-200">Uptrend → CHOCH</p>
+          <svg viewBox="0 0 140 56" className="w-full h-14" aria-hidden>
             <polyline
               fill="none"
               stroke="currentColor"
               className="text-rose-500"
               strokeWidth="3"
               strokeLinecap="round"
-              points="4,8 28,16 44,12 68,30 88,26 116,42"
+              points="4,40 30,28 48,32 72,14 90,18 110,34 134,48"
             />
+            <line
+              x1="48"
+              y1="32"
+              x2="134"
+              y2="32"
+              stroke="currentColor"
+              className="text-violet-500"
+              strokeWidth="1.5"
+              strokeDasharray="3 2"
+            />
+            <text x="88" y="28" className="fill-violet-700 dark:fill-violet-300" fontSize="8" fontWeight="700">
+              CHOCH ↓
+            </text>
           </svg>
           <p className="text-rose-950/75 dark:text-rose-100/80">
-            Lower highs + lower lows. CHOCH hint = meaningful swing low breaks against trend.
+            Meaningful swing low breaks against the prior uptrend = CHOCH hint — wait for follow-through.
           </p>
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-2 text-[11px]">
+        <div className="rounded-md border border-amber-400/45 bg-amber-500/15 px-2.5 py-2 font-medium text-amber-950 dark:text-amber-100">
+          <span className="font-bold text-amber-700 dark:text-amber-300">BOS</span> — with-trend break
+        </div>
+        <div className="rounded-md border border-violet-400/45 bg-violet-500/15 px-2.5 py-2 font-medium text-violet-950 dark:text-violet-100">
+          <span className="font-bold text-violet-700 dark:text-violet-300">CHOCH</span> — against-trend character shift
         </div>
       </div>
     </ConceptShell>
@@ -355,17 +422,37 @@ export function UniversityStructureDiagram() {
 }
 
 export function UniversityWorkflowDiagram() {
-  const steps = ["Discover", "→ Score / levels", "→ Flow check", "→ Size + invalidation", "→ Journal"];
+  const meme = ["Go Hunting", "→ AI score", "→ Wallets / CT", "→ Size + invalidation", "→ Journal"];
+  const perps = ["Futures / FX bias", "→ Forecast / Scalp", "→ Chart read", "→ Size + invalidation", "→ Journal"];
   return (
     <ConceptShell
-      title="Concept · NovaStaris path"
+      title="Concept · NovaStaris paths"
       accent="cyan"
-      note="Tools answer questions — they do not replace risk rules. Disagreement between tabs → smaller size or stand aside."
+      note="Pick the market first, then the path. Tools answer questions — they do not replace risk rules. Disagreement → smaller size or stand aside."
     >
-      <div className="flex flex-wrap gap-2">
-        {steps.map((label, i) => (
-          <StepChip key={label} label={label} index={i} total={steps.length} />
-        ))}
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-lg border border-fuchsia-400/50 bg-fuchsia-500/15 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-fuchsia-900 dark:text-fuchsia-100">Meme path</p>
+          <div className="flex flex-wrap gap-1.5">
+            {meme.map((label, i) => (
+              <StepChip key={label} label={label} index={i} total={meme.length} />
+            ))}
+          </div>
+          <p className="text-[10px] text-fuchsia-950/75 dark:text-fuchsia-100/80">
+            Discovery → vet CA/liquidity → flow → only then size.
+          </p>
+        </div>
+        <div className="rounded-lg border border-sky-400/50 bg-sky-500/15 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-sky-900 dark:text-sky-100">Perps / FX path</p>
+          <div className="flex flex-wrap gap-1.5">
+            {perps.map((label, i) => (
+              <StepChip key={label} label={label} index={i} total={perps.length} />
+            ))}
+          </div>
+          <p className="text-[10px] text-sky-950/75 dark:text-sky-100/80">
+            Bias + session → levels → structure → execute with a written stop.
+          </p>
+        </div>
       </div>
     </ConceptShell>
   );
@@ -918,6 +1005,339 @@ export function UniversityLongShortDiagram() {
             Profit if price falls. Loss if price rises. At risk of liq on a sharp squeeze up.
           </p>
         </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityLiquidityGrabDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Liquidity grab"
+      accent="rose"
+      note="Wick through an obvious high/low runs stops, then price reclaims — often a trap for breakout chasers, not a clean breakout."
+    >
+      <div className="rounded-lg border border-rose-400/40 bg-white/40 dark:bg-zinc-950/30 p-3">
+        <svg viewBox="0 0 280 110" className="w-full h-[7.5rem]" aria-hidden>
+          <line
+            x1="20"
+            y1="48"
+            x2="260"
+            y2="48"
+            stroke="currentColor"
+            className="text-amber-500"
+            strokeWidth="2"
+            strokeDasharray="5 3"
+          />
+          <text x="198" y="42" className="fill-amber-700 dark:fill-amber-300" fontSize="9" fontWeight="700">
+            Obvious high
+          </text>
+          <polyline
+            fill="none"
+            stroke="currentColor"
+            className="text-sky-500"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            points="20,78 55,70 90,62 125,55 155,50 175,22 195,52 230,58 260,64"
+          />
+          <circle cx="175" cy="22" r="4" className="fill-rose-500" />
+          <text x="148" y="16" className="fill-rose-600 dark:fill-rose-300" fontSize="8" fontWeight="700">
+            Wick / grab
+          </text>
+          <text x="198" y="72" className="fill-emerald-700 dark:fill-emerald-300" fontSize="8" fontWeight="700">
+            Reclaim ↓
+          </text>
+        </svg>
+      </div>
+      <div className="grid sm:grid-cols-3 gap-2 text-[11px] text-center">
+        <div className="rounded-lg border border-sky-400/45 bg-sky-500/15 px-2 py-2 font-medium text-sky-950 dark:text-sky-100">
+          1 · Approach level
+        </div>
+        <div className="rounded-lg border border-rose-400/45 bg-rose-500/20 px-2 py-2 font-medium text-rose-950 dark:text-rose-100">
+          2 · Spike through stops
+        </div>
+        <div className="rounded-lg border border-emerald-400/45 bg-emerald-500/15 px-2 py-2 font-medium text-emerald-950 dark:text-emerald-100">
+          3 · Fast reclaim
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityChartPatternsDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Classic patterns (sketches)"
+      accent="violet"
+      note="Labels are vocabulary. Define invalidation before entry — patterns fail often."
+    >
+      <div className="grid sm:grid-cols-3 gap-3 text-xs">
+        <div className="rounded-lg border border-rose-400/45 bg-rose-500/12 p-3 space-y-1.5 shadow-sm">
+          <p className="font-bold text-rose-900 dark:text-rose-100">Head &amp; shoulders</p>
+          <svg viewBox="0 0 120 56" className="w-full h-12" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-rose-500"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              points="8,40 28,28 40,40 60,12 80,40 95,26 112,42"
+            />
+            <line
+              x1="28"
+              y1="40"
+              x2="95"
+              y2="40"
+              stroke="currentColor"
+              className="text-amber-500"
+              strokeWidth="1.5"
+              strokeDasharray="3 2"
+            />
+            <text x="52" y="10" className="fill-rose-700 dark:fill-rose-300" fontSize="7" fontWeight="700">
+              H
+            </text>
+            <text x="24" y="26" className="fill-zinc-600 dark:fill-zinc-300" fontSize="6">
+              L
+            </text>
+            <text x="90" y="24" className="fill-zinc-600 dark:fill-zinc-300" fontSize="6">
+              R
+            </text>
+          </svg>
+          <p className="text-[10px] text-rose-950/75 dark:text-rose-100/80">Neckline break = usual trigger</p>
+        </div>
+        <div className="rounded-lg border border-sky-400/45 bg-sky-500/12 p-3 space-y-1.5 shadow-sm">
+          <p className="font-bold text-sky-900 dark:text-sky-100">Triangle</p>
+          <svg viewBox="0 0 120 56" className="w-full h-12" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-sky-500"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              points="10,48 35,22 55,38 75,18 95,32 115,12"
+            />
+            <line x1="10" y1="48" x2="115" y2="28" stroke="currentColor" className="text-violet-400" strokeWidth="1.5" />
+            <line x1="10" y1="12" x2="115" y2="28" stroke="currentColor" className="text-violet-400" strokeWidth="1.5" />
+          </svg>
+          <p className="text-[10px] text-sky-950/75 dark:text-sky-100/80">Compression → break + retest</p>
+        </div>
+        <div className="rounded-lg border border-emerald-400/45 bg-emerald-500/12 p-3 space-y-1.5 shadow-sm">
+          <p className="font-bold text-emerald-900 dark:text-emerald-100">Flag</p>
+          <svg viewBox="0 0 120 56" className="w-full h-12" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-emerald-500"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              points="8,48 40,14 48,22 62,18 76,24 90,20 118,8"
+            />
+            <rect
+              x="46"
+              y="16"
+              width="48"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              className="text-amber-500"
+              strokeWidth="1.5"
+              strokeDasharray="3 2"
+              rx="1"
+            />
+          </svg>
+          <p className="text-[10px] text-emerald-950/75 dark:text-emerald-100/80">Pause after impulse · often continuation</p>
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityBondingCurveDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Bonding curve (Sol memes)"
+      accent="violet"
+      note="On launchpads, price typically rises as more supply is bought along the curve — until migrate / open DEX liquidity."
+    >
+      <div className="rounded-lg border border-violet-400/40 bg-white/40 dark:bg-zinc-950/30 p-3">
+        <svg viewBox="0 0 260 100" className="w-full h-24" aria-hidden>
+          <text x="8" y="14" className="fill-violet-700 dark:fill-violet-300" fontSize="9" fontWeight="700">
+            Price
+          </text>
+          <text x="200" y="94" className="fill-sky-700 dark:fill-sky-300" fontSize="9" fontWeight="700">
+            Supply bought →
+          </text>
+          <path
+            d="M 24 88 Q 90 70 140 48 T 240 12"
+            fill="none"
+            stroke="currentColor"
+            className="text-fuchsia-500"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          <circle cx="70" cy="72" r="4" className="fill-sky-500" />
+          <circle cx="140" cy="48" r="4" className="fill-amber-500" />
+          <circle cx="210" cy="22" r="4" className="fill-emerald-500" />
+          <text x="58" y="88" className="fill-sky-800 dark:fill-sky-200" fontSize="7">
+            Early
+          </text>
+          <text x="122" y="42" className="fill-amber-800 dark:fill-amber-200" fontSize="7">
+            Mid
+          </text>
+          <text x="188" y="16" className="fill-emerald-800 dark:fill-emerald-200" fontSize="7">
+            Near migrate
+          </text>
+        </svg>
+      </div>
+      <div className="grid sm:grid-cols-3 gap-2 text-[11px] text-center">
+        <div className="rounded-lg border border-sky-400/45 bg-sky-500/15 px-2 py-2 text-sky-950 dark:text-sky-100">
+          Cheap · max rug risk
+        </div>
+        <div className="rounded-lg border border-amber-400/45 bg-amber-500/15 px-2 py-2 text-amber-950 dark:text-amber-100">
+          Clearer chart · worse entry
+        </div>
+        <div className="rounded-lg border border-emerald-400/45 bg-emerald-500/15 px-2 py-2 text-emerald-950 dark:text-emerald-100">
+          Deeper LP · often distribution
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityMarkVsLastDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Mark price vs last trade"
+      accent="rose"
+      note="Many venues liquidate from mark / index — not the last print you see on the candle chart."
+    >
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-lg border border-sky-400/50 bg-sky-500/20 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-sky-900 dark:text-sky-100">Last trade</p>
+          <p className="font-mono text-2xl font-bold text-sky-700 dark:text-sky-300">$50,120</p>
+          <p className="text-sky-950/80 dark:text-sky-100/85">
+            What just printed on the book / chart wick. Can spike thin and snap back.
+          </p>
+        </div>
+        <div className="rounded-lg border border-rose-400/50 bg-rose-500/20 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-rose-900 dark:text-rose-100">Mark (liq math)</p>
+          <p className="font-mono text-2xl font-bold text-rose-700 dark:text-rose-300">$49,980</p>
+          <p className="text-rose-950/80 dark:text-rose-100/85">
+            Fair / index-style price the engine often uses for margin &amp; liquidation.
+          </p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-[11px] text-amber-950 dark:text-amber-100">
+        Chart looks “safe” on last trade while mark already tags maintenance — know which price your venue uses.
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityAdvancedTrioDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Advanced trio"
+      accent="amber"
+      note="Three lenses: positioning (OI + price), token supply risks, and prop-firm drawdown rules."
+    >
+      <div className="grid sm:grid-cols-3 gap-3 text-xs">
+        <div className="rounded-lg border border-rose-400/45 bg-rose-500/15 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-rose-900 dark:text-rose-100">OI + price</p>
+          <svg viewBox="0 0 120 48" className="w-full h-12" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-emerald-500"
+              strokeWidth="2.5"
+              points="4,36 40,28 70,18 116,8"
+            />
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-amber-500"
+              strokeWidth="2"
+              strokeDasharray="3 2"
+              points="4,40 40,34 70,24 116,14"
+            />
+          </svg>
+          <p className="text-[10px] text-rose-950/80 dark:text-rose-100/85">
+            Solid = price · dashed = OI rising with trend
+          </p>
+        </div>
+        <div className="rounded-lg border border-violet-400/45 bg-violet-500/15 p-3 space-y-1.5 shadow-sm">
+          <p className="font-bold text-violet-900 dark:text-violet-100">Tokenomics flags</p>
+          <ul className="space-y-1 text-[10px] text-violet-950 dark:text-violet-100">
+            {[
+              "Top wallets dominate float",
+              "Mint / tax surprises",
+              "LP unlocked / fake burn",
+              "Unlock cliff soon",
+            ].map((item) => (
+              <li key={item} className="flex gap-1.5">
+                <span className="text-rose-500 font-bold">✗</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-lg border border-sky-400/45 bg-sky-500/15 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-sky-900 dark:text-sky-100">Prop DD gauges</p>
+          <div className="space-y-2">
+            <div>
+              <div className="flex justify-between text-[10px] mb-0.5">
+                <span>Daily loss</span>
+                <span className="font-mono text-amber-700 dark:text-amber-300">60%</span>
+              </div>
+              <div className="h-2 rounded-full bg-zinc-200/80 dark:bg-zinc-800 overflow-hidden">
+                <div className="h-full w-[60%] bg-gradient-to-r from-sky-500 to-amber-500" />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-[10px] mb-0.5">
+                <span>Max total DD</span>
+                <span className="font-mono text-rose-700 dark:text-rose-300">85%</span>
+              </div>
+              <div className="h-2 rounded-full bg-zinc-200/80 dark:bg-zinc-800 overflow-hidden">
+                <div className="h-full w-[85%] bg-gradient-to-r from-amber-500 to-rose-600" />
+              </div>
+            </div>
+          </div>
+          <p className="text-[10px] text-sky-950/80 dark:text-sky-100/85">Hit the limit → challenge fails</p>
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityPhishingDiagram() {
+  const steps = [
+    { t: "Fake support DM", d: "Discord / Telegram / X", c: "border-amber-400/50 bg-amber-500/20" },
+    { t: "Cloned site / bot", d: "Looks like wallet or CEX", c: "border-rose-400/50 bg-rose-500/20" },
+    { t: "Asks for seed", d: "Or “verify” private key", c: "border-fuchsia-400/50 bg-fuchsia-500/20" },
+    { t: "Stop · close tab", d: "Real apps never need seed", c: "border-emerald-400/50 bg-emerald-500/20" },
+  ];
+  return (
+    <ConceptShell
+      title="Concept · Phishing path"
+      accent="amber"
+      note="NovaStaris never asks for a seed phrase. Bookmark real URLs; ignore unsolicited “support.”"
+    >
+      <div className="flex flex-wrap gap-2">
+        {steps.map((s, i) => (
+          <div key={s.t} className="flex items-center gap-2">
+            <div className={`rounded-lg border px-3 py-2 text-xs shadow-sm min-w-[7.5rem] ${s.c}`}>
+              <p className="font-bold text-zinc-900 dark:text-zinc-50">{s.t}</p>
+              <p className="text-[10px] text-zinc-700 dark:text-zinc-300">{s.d}</p>
+            </div>
+            {i < steps.length - 1 ? (
+              <span className="text-amber-600 dark:text-amber-400 font-bold hidden sm:inline">→</span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <div className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-950 dark:text-rose-100">
+        Also revoke unused EVM approvals — unlimited allowances let a malicious contract drain balances later.
       </div>
     </ConceptShell>
   );

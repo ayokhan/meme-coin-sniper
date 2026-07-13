@@ -100,6 +100,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         body: [
           "Altcoin generally means any crypto other than Bitcoin (ETH, SOL, meme tokens, etc.).",
           "Stablecoins (USDT, USDC, and others) aim to track a fiat currency like the US dollar — useful for parking value and quoting prices on exchanges. They are not risk-free: issuer, banking, and depeg events have happened historically.",
+          "Depeg caution: during stress, a stablecoin can trade below $1 on secondary markets even if the issuer later restores the peg — treat large stable balances as having credit and liquidity risk, not “cash under the mattress.”",
           "A token is a unit issued on a blockchain (fungible coins, governance tokens, meme tickers). Always verify the correct contract/mint — fakes clone names and logos.",
         ],
       },
@@ -167,6 +168,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         heading: "Approvals, phishing, and hygiene",
         body: [
           "On EVM chains, unlimited token approvals can let a malicious contract drain balances — revoke unused approvals periodically.",
+          "Phishing pattern: fake “support” DM → cloned wallet/CEX site → asks for seed or “verification” of your private key. Real apps and NovaStaris never need your seed.",
           "Fake airdrop sites, Discord DMs, and cloned wallet extensions are standard attack paths. Bookmark real URLs; verify extensions.",
           "Separate wallets: one for experiments, one for savings. Never mix life savings with sniper bots.",
         ],
@@ -176,6 +178,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Seed phrase", definition: "Human-readable backup that recreates wallet keys." },
       { term: "Hot wallet", definition: "Internet-connected wallet used for active trading." },
       { term: "Approval", definition: "Permission for a contract to move your tokens (EVM)." },
+    ],
+    workedExamples: [
+      {
+        title: "Fake support asks for your seed",
+        setup: [
+          "You bought a meme; Telegram shows a “support admin” DM",
+          "They send a link that looks like your wallet’s recovery page",
+          "The form asks for your 12/24-word seed to “unlock stuck tokens”",
+        ],
+        steps: [
+          "Stop. No legitimate support, CEX, or NovaStaris flow ever needs your seed phrase.",
+          "Close the tab; do not paste words anywhere. Report/block the DM.",
+          "If you already typed the seed: treat the wallet as compromised — move remaining funds from a new wallet only if you still control them, then abandon the old one.",
+        ],
+        takeaway: "Anyone asking for a seed is an attacker. Bookmark real URLs; never recover a wallet from a DM link.",
+      },
     ],
     relatedTools: [{ label: "Wallet Tracker", href: "/?tab=wallets" }],
     diagram: "wallet",
@@ -483,6 +501,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Trade journal", definition: "Short written log of thesis, risk, outcome, and process adherence." },
       { term: "Cooldown", definition: "Mandatory pause after a stop-out or emotional spike before the next entry." },
     ],
+    workedExamples: [
+      {
+        title: "Daily loss hit — tilt sequence",
+        setup: [
+          "Daily loss limit: $150 (written before the session)",
+          "You just took a full stop: −$140 on a plan-following trade",
+          "A “perfect” revenge setup appears 2 minutes later",
+        ],
+        steps: [
+          "Check the ledger: $140 of $150 is used — one more full risk idea can breach the day limit.",
+          "Rule: hit/near daily loss → platform closed. No “one more” even if R:R looks great.",
+          "Journal: thesis, invalidation, followed plan Y, result −R, lesson = cooldown; reopen tomorrow.",
+        ],
+        takeaway: "The expensive trade after a stop is usually emotional size, not edge. Daily loss limits exist to protect tomorrow’s account.",
+      },
+    ],
     diagram: "journal",
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
@@ -531,6 +565,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "BOS", definition: "Break of structure — price takes a key swing in the trend direction." },
       { term: "CHOCH", definition: "Change of character — early sign the prior trend may be reversing." },
       { term: "Liquidity grab", definition: "Spike beyond obvious highs/lows that runs stops, often before reversing." },
+    ],
+    workedExamples: [
+      {
+        title: "Wick through highs, then reclaim",
+        setup: [
+          "Clear prior day high at $1.00 with stops stacked just above",
+          "5m candle spikes to $1.012 then closes back at $0.995",
+          "Breakout buyers entered on the spike; price reclaims below the level",
+        ],
+        steps: [
+          "Label the spike as a possible liquidity grab (stops run), not automatic confirmation of a new uptrend.",
+          "If you were long the breakout without a reclaim plan, the reclaim below $1.00 is often invalidation — exit.",
+          "If hunting a fade: wait for reclaim + structure (e.g. lower high), and place invalidation above the wick extreme — never mid-wick.",
+        ],
+        takeaway: "Wick through + fast reclaim = ask “whose stops?” before treating it as a clean breakout.",
+      },
     ],
     diagram: "structure",
     relatedTools: [
@@ -629,6 +679,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Bribe (Jito tip)", definition: "Competitive tip (often SOL) to prioritize inclusion in hot launches." },
       { term: "Time stop", definition: "Exit if thesis has not played out within a set window." },
     ],
+    workedExamples: [
+      {
+        title: "Tip budget vs trade size",
+        setup: [
+          "Planned buy size: $40 notional",
+          "You set a Jito tip / priority fee of ~$8 to “win” the launch",
+          "Expected edge if right: maybe +30% on the bag before sell fees",
+        ],
+        steps: [
+          "All-in cost on entry ≈ tip + base fee + slippage. $8 tip on $40 is ~20% of size before the trade even works.",
+          "If the bag does +30% then you sell with more fees/slippage, tip can erase most of the win — or turn it into a loss.",
+          "Rule: keep tip/fee budget a small % of size (or skip the launch). Raise size only if the fee budget still fits risk rules — never tip more because FOMO.",
+        ],
+        takeaway: "Tips buy inclusion odds, not profit. On tiny size, over-tipping is the whole trade.",
+      },
+    ],
     diagram: "fees",
     relatedTools: [
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
@@ -692,6 +758,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         heading: "Lifecycle (simplified)",
         body: [
           "Create → early bonding / discovery → social ignition → liquidity deepen or migrate → listing rumors / CEX chatter → distribution and decay — or second legs if culture sticks.",
+          "Bonding curve (lite): pre-migrate launchpads usually raise price as more supply is bought along the curve — early fills are cheaper and riskier; near migrate, price is higher and LP often deepens.",
           "Early = highest upside and highest rug risk. Mid = clearer chart structure but worse entry. Late = often exit liquidity for early holders.",
         ],
       },
@@ -708,6 +775,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Bonding curve", definition: "Pricing mechanism where price rises as more tokens are bought pre-DEX." },
       { term: "KOL", definition: "Key opinion leader — influencer whose posts can move thin markets." },
       { term: "Bundle", definition: "Coordinated wallets buying at launch to control supply (often a red flag)." },
+    ],
+    workedExamples: [
+      {
+        title: "Early curve vs post-migrate risk",
+        setup: [
+          "Coin A: still on bonding curve, tiny social, you can buy $25",
+          "Coin B: just migrated to DEX with deeper LP; entry is ~3× the early curve price",
+          "Same narrative hype on CT for both",
+        ],
+        steps: [
+          "Coin A: max upside if culture catches — also max rug / abandon risk; size as lottery tickets only.",
+          "Coin B: better exit liquidity and clearer chart, but early holders may distribute into your buy — demand invalidation and don’t FOMO size.",
+          "Pick one risk profile per session. Mixing “ape early” size on a migrated coin (or life-changing size on a newborn curve) is how accounts die.",
+        ],
+        takeaway: "Early = optionality + rug risk. Migrated = liquidity + distribution risk. Match size to stage.",
+      },
     ],
     relatedTools: [
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
@@ -749,6 +832,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Honeypot", definition: "Contract you can buy but cannot sell (or sell only at extreme tax)." },
       { term: "LP lock", definition: "Liquidity locked for a period so devs cannot instantly remove it." },
       { term: "Token tax", definition: "Contract-enforced % taken on buys/sells/transfers." },
+    ],
+    workedExamples: [
+      {
+        title: "Honeypot test-sell before sizing",
+        setup: [
+          "BEP-20 meme looks liquid on the chart; Telegram is loud",
+          "You can buy $15 on PancakeSwap without errors",
+          "You have not tried a sell yet",
+        ],
+        steps: [
+          "Buy dust size first. Immediately attempt a small sell (or use a reputable honeypot checker) before adding size.",
+          "If sell fails, reverts, or shows extreme tax — treat as honeypot / trap; do not average in.",
+          "Only if a real sell works at a sane tax: then apply normal risk size, LP/holder checks, and an invalidation.",
+        ],
+        takeaway: "A buy that works proves nothing. On BSC, a test sell is part of due diligence.",
+      },
     ],
     relatedTools: [
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
@@ -909,6 +1008,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Resolution", definition: "Official determination of the outcome that settles the market." },
       { term: "Binary market", definition: "Yes/No payoff structure (most common form)." },
     ],
+    workedExamples: [
+      {
+        title: "Implied prob vs your estimate",
+        setup: [
+          "Market: “Event X by date Y” trades Yes at $0.28 (≈28% implied)",
+          "After research, your honest estimate is ~45%",
+          "Fees + resolution ambiguity still exist",
+        ],
+        steps: [
+          "Edge candidate ≈ your 45% vs market 28% — but only if your research is independent and the resolution rules match what you think “Yes” means.",
+          "Size from risk of being wrong (full loss of stake on Yes if it resolves No), not from how loud CT is.",
+          "If you cannot explain why the market is “wrong,” there is no trade — cheap is not the same as mispriced.",
+        ],
+        takeaway: "Price ≈ implied probability. Trade the gap only after fees, rules, and your own estimate — not vibes.",
+      },
+    ],
     relatedTools: [{ label: "Nova Polymarket", href: "/?tab=polymarket-bot" }],
     diagram: "probability",
   },
@@ -1055,6 +1170,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Discovery", definition: "Finding candidates (Go Hunting) before deep analysis." },
       { term: "Invalidation", definition: "The condition that proves the idea wrong — exit without debate." },
     ],
+    workedExamples: [
+      {
+        title: "Meme path without FOMO size",
+        setup: [
+          "Go Hunting flags a migrated Sol meme with rising volume",
+          "AI Agent score looks decent; Wallet Tracker shows a quality wallet bought",
+          "You still cannot state invalidation in one sentence",
+        ],
+        steps: [
+          "Path: Hunting → AI Agent (CA/risk) → wallets/CT authenticity → only then size.",
+          "Because invalidation is missing, skip or paper the idea — a green score is not a stop level.",
+          "If you later define invalidation (e.g. reclaim fail below a swing), size from risk $ — not from the score number.",
+        ],
+        takeaway: "Workflow order matters. Discovery tools find candidates; risk rules decide whether you trade.",
+      },
+    ],
     diagram: "workflow",
     relatedTools: [
       { label: "Go Hunting", href: "/?tab=new" },
@@ -1099,6 +1230,22 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Open interest (OI)", definition: "Number of outstanding perpetual contracts still open." },
       { term: "Tokenomics", definition: "Supply, unlocks, authority, and distribution design of a token." },
       { term: "Prop firm drawdown", definition: "Max loss limit (daily/total) that fails a challenge or funded account." },
+    ],
+    workedExamples: [
+      {
+        title: "Tokenomics red flag before the narrative",
+        setup: [
+          "Meme ticker is viral; chart is green",
+          "Top 5 wallets hold ~70% of float; LP unlock is days away",
+          "Mint authority still enabled on the contract notes",
+        ],
+        steps: [
+          "Pause FOMO. Concentration + unlock + mint authority are classic distribution / rug rails.",
+          "Either skip, or size as entertainment dust with a hard time stop — do not treat it like a liquid major.",
+          "Journal the red flags you checked; “funny ticker” alone never clears due diligence.",
+        ],
+        takeaway: "Tokenomics checks beat narrative. If supply can be printed or dumped by a few wallets, the story is optional.",
+      },
     ],
     diagram: "funding",
     relatedTools: [
