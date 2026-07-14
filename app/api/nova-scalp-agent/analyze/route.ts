@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { isBlofinMetal, toBlofinInstId } from "@/lib/blofin-metals";
 import { calibrateCandlesToSpotMid, getForexSpotMid, usesSpotCalibration } from "@/lib/forex-spot-feed";
 import { analyzeScalpSetup, resolveScalpSymbol, scalpTimeframeConfig } from "@/lib/nova-scalp-agent";
-import { getNovaScalpCandles, getNovaScalpTicker } from "@/lib/nova-scalp-blofin-market";
+import { getNovaScalpCandles, getNovaScalpTickSize, getNovaScalpTicker } from "@/lib/nova-scalp-blofin-market";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
@@ -39,9 +39,10 @@ export async function POST(request: Request) {
     const spotMid = metal && usesSpotCalibration(symbol) ? await getForexSpotMid(symbol) : null;
     const hasSpot = spotMid != null && Number.isFinite(spotMid);
 
-    const [candlesRaw, ticker] = await Promise.all([
+    const [candlesRaw, ticker, tickSize] = await Promise.all([
       getNovaScalpCandles(symbol, tf.interval, tf.limit),
       getNovaScalpTicker(symbol),
+      getNovaScalpTickSize(symbol),
     ]);
 
     // Metals: align price + levels to broker/TradingView-style spot mid (Swissquote).
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
       maxLossPctOnMargin,
       candles,
       currentPrice,
+      tickSize,
     });
 
     return NextResponse.json({

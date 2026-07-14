@@ -13,6 +13,7 @@ import {
 } from "@/lib/nova-scalp-agent";
 import {
   getNovaScalpCandles,
+  getNovaScalpTickSize,
   resolveNovaScalpQuickWinUniverse,
 } from "@/lib/nova-scalp-blofin-market";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
@@ -52,10 +53,11 @@ export async function GET(request: Request) {
     const evaluated = await Promise.all(
       perps.map(async (p) => {
         try {
-          const [c5, c15, cScalp] = await Promise.all([
+          const [c5, c15, cScalp, tickSize] = await Promise.all([
             getNovaScalpCandles(p.coin, "5m", 12),
             getNovaScalpCandles(p.coin, "15m", 10),
             getNovaScalpCandles(p.coin, interval, limit),
+            getNovaScalpTickSize(p.coin),
           ]);
           if (!cScalp.length) return null;
 
@@ -64,7 +66,7 @@ export async function GET(request: Request) {
             pct5m: candlePct(c5, p.dayPct),
             pct15m: candlePct(c15, p.dayPct),
           };
-          return evaluateQuickWinPerp(enriched, c15, c5, cScalp, amountUsd, timeframeId, leverage);
+          return evaluateQuickWinPerp(enriched, c15, c5, cScalp, amountUsd, timeframeId, leverage, tickSize);
         } catch {
           return null;
         }

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, canAccessTradingBot } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { isBlofinConfigured } from "@/lib/blofin";
+import { getInstrument, isBlofinConfigured } from "@/lib/blofin";
+import { roundToTickSize } from "@/lib/blofin-tick";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
 import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
 import { NOVA_SCALPER_MAX_CONFIGS } from "@/lib/nova-scalper-constants";
@@ -229,10 +230,25 @@ export async function PATCH(request: Request) {
     );
 
     const stopRaw = body.stopLossPrice;
-    const stopLossPrice = stopRaw == null || stopRaw === "" ? null : Number(stopRaw);
+    let stopLossPrice = stopRaw == null || stopRaw === "" ? null : Number(stopRaw);
 
     const tpslTp = body.tpslTpPct != null && body.tpslTpPct !== "" ? Number(body.tpslTpPct) : null;
     const tpslSl = body.tpslSlPct != null && body.tpslSlPct !== "" ? Number(body.tpslSlPct) : null;
+
+    const { instId } = parseScalperInstrument(base, quote);
+    let entryPrice = Number(body.entryPrice);
+    let exitPrice = Number(body.exitPrice);
+    try {
+      const inst = await getInstrument(instId);
+      const tick = inst?.tickSize ? Number(inst.tickSize) : NaN;
+      if (Number.isFinite(tick) && tick > 0) {
+        entryPrice = roundToTickSize(entryPrice, tick);
+        exitPrice = roundToTickSize(exitPrice, tick);
+        if (stopLossPrice != null) stopLossPrice = roundToTickSize(stopLossPrice, tick);
+      }
+    } catch {
+      /* keep raw prices if instrument lookup fails */
+    }
 
     row = await db.novaScalperConfig.update({
       where: { id: row.id },
@@ -245,8 +261,8 @@ export async function PATCH(request: Request) {
         side: body.side === "short" ? "short" : "long",
         entryTrigger: body.entryTrigger === "cross_up" ? "cross_up" : "cross_down",
         leverage: Math.floor(Number(body.leverage) || 5),
-        entryPrice: Number(body.entryPrice),
-        exitPrice: Number(body.exitPrice),
+        entryPrice,
+        exitPrice,
         stopLossPrice,
         positionSizeUsdt: Number(body.positionSizeUsdt),
         maxRounds: Math.max(0, Math.min(10_000, Math.floor(Number(body.maxRounds) || 0))),

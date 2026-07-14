@@ -11,6 +11,7 @@ import { meanRangePct, momentumBias as perpMomentumBias, trendFrom15mCloses } fr
 import type { TrendingPerp } from "@/lib/api-clients/hyperliquid";
 import { normalizeMetalBase } from "@/lib/blofin-metals";
 import { estimateBlofinIsolatedLiquidation } from "@/lib/blofin-estimated-liq";
+import { roundPx as roundPxWithTick } from "@/lib/blofin-tick";
 
 export const SCALP_TIMEFRAMES = [
   { id: "1m", label: "1 min", interval: "1m", limit: 90, estHoldMinutes: 2 },
@@ -153,10 +154,9 @@ function asTuples(candles: Candle[]): CandleTuple[] {
   return candles as CandleTuple[];
 }
 
-function roundPx(n: number, ref: number): number {
-  if (!Number.isFinite(n)) return n;
-  const decimals = ref >= 1000 ? 2 : ref >= 10 ? 3 : ref >= 1 ? 4 : 6;
-  return Number(n.toFixed(decimals));
+/** Round plan levels to Blofin tickSize when provided; else heuristic decimals. */
+function roundPx(n: number, ref: number, tickSize?: number | null): number {
+  return roundPxWithTick(n, ref, tickSize);
 }
 
 function estimatePnl(
@@ -237,7 +237,8 @@ function scalpLiqFields(
   entry: number,
   stop: number | null,
   amountUsd: number,
-  leverage: number
+  leverage: number,
+  tickSize?: number | null
 ): Pick<
   NovaScalpAnalysis,
   "estimatedLiquidationPrice" | "estimatedLiqDistancePct" | "stopBeyondEstimatedLiq"
@@ -250,7 +251,7 @@ function scalpLiqFields(
     leverage,
     positionNotionalUsdt: notional,
   });
-  const liq = est.liquidationPrice != null ? roundPx(est.liquidationPrice, entry) : null;
+  const liq = est.liquidationPrice != null ? roundPx(est.liquidationPrice, entry, tickSize) : null;
   let stopBeyond: boolean | null = null;
   if (liq != null && stop != null && Number.isFinite(stop)) {
     stopBeyond = side === "long" ? stop < liq : stop > liq;
@@ -273,12 +274,13 @@ export function riskStopFromMaxLossPct(
   side: "long" | "short",
   entry: number,
   leverage: number,
-  maxLossPctOnMargin: number
+  maxLossPctOnMargin: number,
+  tickSize?: number | null
 ): number {
   const movePct = maxLossPctOnMargin / Math.max(1, leverage);
   return side === "long"
-    ? roundPx(entry * (1 - movePct / 100), entry)
-    : roundPx(entry * (1 + movePct / 100), entry);
+    ? roundPx(entry * (1 - movePct / 100), entry, tickSize)
+    : roundPx(entry * (1 + movePct / 100), entry, tickSize);
 }
 
 export function recommendedStopPrice(
@@ -325,6 +327,8 @@ export function analyzeScalpSetup(input: {
   analyzedAt?: string;
   candles: Candle[];
   currentPrice: number | null;
+  /** Blofin tickSize — when set, entry/exit/stop round to exchange-legal increments. */
+  tickSize?: number | null;
 }): NovaScalpAnalysis {
   const tf = scalpTimeframeConfig(input.timeframeId);
   const symbol = resolveScalpSymbol(input.symbol);
@@ -332,6 +336,8 @@ export function analyzeScalpSetup(input: {
   const leverage = Math.min(125, Math.max(1, Number(input.leverage) || 10));
   const maxLossPctOnMargin = Math.min(100, Math.max(0.5, Number(input.maxLossPctOnMargin) || 5));
   const analyzedAt = input.analyzedAt ?? new Date().toISOString();
+  const tickSize =
+    input.tickSize != null && Number.isFinite(input.tickSize) && input.tickSize > 0 ? input.tickSize : null;
   const rows = asTuples(input.candles);
   const hl = highLowFromCandles(rows);
   const price =
@@ -394,25 +400,25 @@ export function analyzeScalpSetup(input: {
   if (blendedDirection === "sideways") {
     if (pos <= 0.22) {
       side = "long";
-      entry = roundPx(low + buffer * 0.35, price);
-      exit = roundPx(mid + span * 0.12, price);
-      sl = roundPx(low - buffer * 0.5, price);
+      entry = roundPx(low + buffer * 0.35, price, tickSize);
+      exit = roundPx(mid + span * 0.12, price, tickSize);
+      sl = roundPx(low - buffer * 0.5, price, tickSize);
     } else if (pos >= 0.78) {
       side = "short";
-      entry = roundPx(high - buffer * 0.35, price);
-      exit = roundPx(mid - span * 0.12, price);
-      sl = roundPx(high + buffer * 0.5, price);
+      entry = roundPx(high - buffer * 0.35, price, tickSize);
+      exit = roundPx(mid - span * 0.12, price, tickSize);
+      sl = roundPx(high + buffer * 0.5, price, tickSize);
     }
   } else if (bullishSetup) {
     side = "long";
-    entry = roundPx(Math.min(price, low + buffer), price);
-    exit = roundPx(Math.max(mid, price + span * 0.35), price);
-    sl = roundPx(low - buffer * 0.65, price);
+    entry = roundPx(Math.min(price, low + buffer), price, tickSize);
+    exit = roundPx(Math.max(mid, price + span * 0.35), price, tickSize);
+    sl = roundPx(low - buffer * 0.65, price, tickSize);
   } else if (bearishSetup) {
     side = "short";
-    entry = roundPx(Math.max(price, high - buffer), price);
-    exit = roundPx(Math.min(mid, price - span * 0.35), price);
-    sl = roundPx(high + buffer * 0.65, price);
+    entry = roundPx(Math.max(price, high - buffer), price, tickSize);
+    exit = roundPx(Math.min(mid, price - span * 0.35), price, tickSize);
+    sl = roundPx(high + buffer * 0.65, price, tickSize);
   }
 
   if (side === "no_entry") {
@@ -446,7 +452,7 @@ export function analyzeScalpSetup(input: {
   const limitEntry = entry;
   const enterNowPrice = price;
   const entryMode = detectEntryMode(enterNowPrice, limitEntry);
-  const riskStop = riskStopFromMaxLossPct(side, limitEntry, leverage, maxLossPctOnMargin);
+  const riskStop = riskStopFromMaxLossPct(side, limitEntry, leverage, maxLossPctOnMargin, tickSize);
   const recStop = recommendedStopPrice(side, sl, riskStop);
 
   const distPct = Math.abs((exit - entry) / entry) * 100;
@@ -456,12 +462,12 @@ export function analyzeScalpSetup(input: {
   );
   const { pnlUsd, pnlPctMargin } = estimatePnl(side, limitEntry, exit, amountUsd, leverage);
   const { entryTouches, exitTouches } = countEntryExitTouches(rows, limitEntry, exit, side);
-  const liq = scalpLiqFields(symbol, side, limitEntry, sl, amountUsd, leverage);
+  const liq = scalpLiqFields(symbol, side, limitEntry, sl, amountUsd, leverage, tickSize);
 
   const entryNote =
     entryMode === "market"
       ? " Enter now — price is at the limit zone."
-      : ` Wait for limit entry near ${roundPx(limitEntry, price).toLocaleString()}.`;
+      : ` Wait for limit entry near ${roundPx(limitEntry, price, tickSize).toLocaleString()}.`;
 
   const rationale =
     side === "long"
@@ -510,7 +516,8 @@ export function evaluateQuickWinPerp(
   scalpCandles: Candle[],
   amountUsd = 100,
   scalpTimeframeId: string = QUICK_WIN_SCALP_TIMEFRAME_ID,
-  userLeverage?: number
+  userLeverage?: number,
+  tickSize?: number | null
 ): { win: NovaScalpQuickWin | null; near: NovaScalpNearSetup | null; oscillationOk: boolean } {
   const oscillation = scoreOscillationProfile(perp, candles15m, candles5m);
   if (!oscillation) return { win: null, near: null, oscillationOk: false };
@@ -528,6 +535,7 @@ export function evaluateQuickWinPerp(
     leverage,
     candles: scalpCandles,
     currentPrice: price,
+    tickSize,
   });
 
   if (
@@ -583,7 +591,8 @@ export function buildQuickWinCandidate(
   scalpCandles: Candle[],
   amountUsd = 100,
   scalpTimeframeId: string = QUICK_WIN_SCALP_TIMEFRAME_ID,
-  userLeverage?: number
+  userLeverage?: number,
+  tickSize?: number | null
 ): NovaScalpQuickWin | null {
   return evaluateQuickWinPerp(
     perp,
@@ -592,7 +601,8 @@ export function buildQuickWinCandidate(
     scalpCandles,
     amountUsd,
     scalpTimeframeId,
-    userLeverage
+    userLeverage,
+    tickSize
   ).win;
 }
 

@@ -6,6 +6,7 @@ import type { TrendingPerp } from "@/lib/api-clients/hyperliquid";
 import { TOP_ALTCOINS } from "@/lib/api-clients/hyperliquid";
 import {
   getCandles as getBlofinCandles,
+  getInstrument as getBlofinInstrument,
   getTicker as getBlofinTicker,
   toBlofinBar,
 } from "@/lib/blofin";
@@ -18,6 +19,38 @@ import {
 } from "@/lib/blofin-metals";
 import { fetchBlofinSwapTickersCached, type BlofinSwapTicker } from "@/lib/blofin-public-cache";
 import type { Candle } from "@/lib/hyperliquid";
+
+const TICK_TTL_MS = 60 * 60 * 1000;
+const tickByInst = new Map<string, { tick: number; at: number }>();
+const tickInflight = new Map<string, Promise<number | null>>();
+
+/** Blofin tickSize for a scalp symbol (SOL → SOL-USDT). Cached ~1h. */
+export async function getNovaScalpTickSize(symbol: string): Promise<number | null> {
+  const instId = toBlofinInstId(symbol).toUpperCase();
+  const now = Date.now();
+  const hit = tickByInst.get(instId);
+  if (hit && now - hit.at < TICK_TTL_MS) return hit.tick;
+
+  const pending = tickInflight.get(instId);
+  if (pending) return pending;
+
+  const promise = (async () => {
+    try {
+      const inst = await getBlofinInstrument(instId);
+      const tick = inst?.tickSize ? Number(inst.tickSize) : NaN;
+      if (!Number.isFinite(tick) || tick <= 0) return null;
+      tickByInst.set(instId, { tick, at: Date.now() });
+      return tick;
+    } catch {
+      return null;
+    } finally {
+      tickInflight.delete(instId);
+    }
+  })();
+
+  tickInflight.set(instId, promise);
+  return promise;
+}
 
 export async function getNovaScalpCandles(
   symbol: string,

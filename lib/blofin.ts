@@ -397,16 +397,30 @@ function roundPrice(p: number): number {
   return Math.round(p * Math.pow(10, scale)) / Math.pow(10, scale);
 }
 
+export type BlofinInstrumentInfo = {
+  minSize: string;
+  contractValue: string;
+  settleCurrency: string;
+  /** Minimum price increment (e.g. "0.01" for SOL-USDT). */
+  tickSize: string;
+};
+
 /** Get instrument info. options.config: per-user config. */
-export async function getInstrument(instId: string, options?: { demo?: boolean; config?: BlofinConfig | null }): Promise<{ minSize: string; contractValue: string; settleCurrency: string } | null> {
-  const out = await publicRequest<{ instId: string; minSize: string; contractValue: string; settleCurrency: string }[]>(
-    `/api/v1/market/instruments?instId=${encodeURIComponent(instId)}`,
-    options?.demo,
-    options?.config
-  );
+export async function getInstrument(
+  instId: string,
+  options?: { demo?: boolean; config?: BlofinConfig | null }
+): Promise<BlofinInstrumentInfo | null> {
+  const out = await publicRequest<
+    { instId: string; minSize: string; contractValue: string; settleCurrency: string; tickSize?: string }[]
+  >(`/api/v1/market/instruments?instId=${encodeURIComponent(instId)}`, options?.demo, options?.config);
   if (out.code !== "0" || !out.data?.length) return null;
   const d = out.data[0];
-  return { minSize: d.minSize, contractValue: d.contractValue, settleCurrency: d.settleCurrency };
+  return {
+    minSize: d.minSize,
+    contractValue: d.contractValue,
+    settleCurrency: d.settleCurrency,
+    tickSize: String(d.tickSize ?? ""),
+  };
 }
 
 /** Normalize open-order row from Blofin response. */

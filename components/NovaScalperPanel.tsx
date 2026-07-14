@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Zap } from "lucide-react";
+import { Activity, AlertTriangle, Clock, Crosshair, Layers, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
@@ -973,70 +973,170 @@ export default function NovaScalperPanel() {
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-200/80 dark:border-zinc-700/80">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Status</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm space-y-1 text-zinc-700 dark:text-zinc-300">
-          <p>
-            Contract: <strong className="font-mono">{displayInstId || "—"}</strong>
-          </p>
-          <p>
-            In position (internal): <strong>{config.inPosition ? "yes" : "no"}</strong>
-          </p>
-          <p>
-            Live PnL (unrealized):{" "}
-            {pnl.needsKeys ? (
-              <span className="text-muted-foreground font-normal">— save Blofin keys above to load from the exchange</span>
-            ) : pnl.loading ? (
-              <span className="text-muted-foreground font-normal">…</span>
-            ) : !pnl.hasPosition ? (
-              <span className="text-muted-foreground font-normal">
-                Flat — no open position on Blofin for {displayInstId || "this contract"}
-              </span>
-            ) : pnl.upl != null && Number.isFinite(pnl.upl) ? (
-              <strong
+      <Card className="overflow-hidden border-zinc-200/80 dark:border-zinc-700/80 bg-gradient-to-br from-zinc-50 via-white to-cyan-50/40 dark:from-zinc-950 dark:via-zinc-900 dark:to-cyan-950/30">
+        <CardHeader className="pb-3 border-b border-zinc-200/60 dark:border-zinc-700/60">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-sm font-semibold tracking-wide flex items-center gap-2">
+              <Activity className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+              Status
+            </CardTitle>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {config.enabled ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  </span>
+                  Armed
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider">
+                  Idle
+                </span>
+              )}
+              <span
                 className={
-                  pnl.upl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                  config.mode === "live"
+                    ? "rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-200 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
+                    : "rounded-full bg-sky-500/15 text-sky-800 dark:text-sky-200 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
+                }
+              >
+                {config.mode}
+              </span>
+              <span
+                className={
+                  config.side === "long"
+                    ? "rounded-full bg-emerald-600 text-white px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
+                    : "rounded-full bg-rose-600 text-white px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
+                }
+              >
+                {config.side}
+              </span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4 space-y-4 text-sm text-zinc-700 dark:text-zinc-300">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Contract</p>
+              <p className="font-mono text-lg font-semibold text-foreground tracking-tight">
+                {displayInstId || "—"}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Bot flag</p>
+              <p
+                className={
+                  config.inPosition
+                    ? "text-sm font-semibold text-amber-700 dark:text-amber-300"
+                    : "text-sm font-semibold text-zinc-500 dark:text-zinc-400"
+                }
+              >
+                {config.inPosition ? "In position (internal)" : "Flat (internal)"}
+              </p>
+            </div>
+          </div>
+
+          <div
+            className={
+              pnl.hasPosition && pnl.upl != null && Number.isFinite(pnl.upl)
+                ? pnl.upl >= 0
+                  ? "rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3"
+                  : "rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3"
+                : "rounded-xl border border-zinc-200/80 dark:border-zinc-700/70 bg-zinc-100/50 dark:bg-zinc-950/40 px-4 py-3"
+            }
+            title="Unrealized PnL from your Blofin position for this contract. If the exchange does not return it directly, we estimate from mark vs average entry."
+          >
+            <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-1">
+              Live unrealized PnL
+            </p>
+            {pnl.needsKeys ? (
+              <p className="text-sm text-muted-foreground">Save Blofin keys above to load from the exchange</p>
+            ) : pnl.loading ? (
+              <p className="text-sm text-muted-foreground animate-pulse">Fetching…</p>
+            ) : !pnl.hasPosition ? (
+              <p className="text-sm text-muted-foreground">
+                Flat on Blofin{displayInstId ? ` · ${displayInstId}` : ""}
+              </p>
+            ) : pnl.upl != null && Number.isFinite(pnl.upl) ? (
+              <p
+                className={
+                  pnl.upl >= 0
+                    ? "text-2xl font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
+                    : "text-2xl font-semibold tabular-nums text-rose-700 dark:text-rose-300"
                 }
               >
                 {pnl.upl >= 0 ? "+" : ""}
                 {pnl.upl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
-                {pnl.quote}
-              </strong>
+                <span className="text-base font-medium opacity-80">{pnl.quote}</span>
+              </p>
             ) : (
-              <span className="text-muted-foreground font-normal">—</span>
+              <p className="text-sm text-muted-foreground">—</p>
             )}
-          </p>
-          {pnl.err && (
-            <p className="text-xs text-rose-600 dark:text-rose-400">PnL: {pnl.err}</p>
+            {pnl.err && (
+              <p className="mt-1 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3 shrink-0" />
+                {pnl.err}
+              </p>
+            )}
+            {pnl.hasPosition && pnl.markPrice != null && Number.isFinite(pnl.markPrice) && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Mark{" "}
+                <span className="font-mono text-foreground/90">
+                  {pnl.markPrice.toLocaleString(undefined, { maximumFractionDigits: 8 })}
+                </span>{" "}
+                {pnl.quote}
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/70 bg-white/70 dark:bg-zinc-950/50 px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1">
+                <Layers className="h-3 w-3" />
+                Rounds
+              </p>
+              <p className="mt-0.5 font-semibold tabular-nums text-foreground">
+                {config.completedRounds}
+                {config.maxRounds > 0 ? (
+                  <span className="text-muted-foreground font-medium"> / {config.maxRounds}</span>
+                ) : null}
+              </p>
+            </div>
+            <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/70 bg-white/70 dark:bg-zinc-950/50 px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1">
+                <Crosshair className="h-3 w-3" />
+                Last ref
+              </p>
+              <p className="mt-0.5 font-mono font-semibold tabular-nums text-foreground">
+                {config.lastRefPrice != null ? config.lastRefPrice.toLocaleString() : "—"}
+              </p>
+            </div>
+            <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/70 bg-white/70 dark:bg-zinc-950/50 px-3 py-2.5 col-span-2 sm:col-span-1">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Last tick
+              </p>
+              <p className="mt-0.5 text-xs font-medium text-foreground leading-snug">
+                {config.lastTickAt ? new Date(config.lastTickAt).toLocaleString() : "—"}
+              </p>
+            </div>
+          </div>
+
+          {config.lastAction && (
+            <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-cyan-700/80 dark:text-cyan-300/80 mb-0.5">
+                Last action
+              </p>
+              <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">{config.lastAction}</p>
+            </div>
           )}
-          {pnl.hasPosition && pnl.markPrice != null && Number.isFinite(pnl.markPrice) && (
-            <p className="text-xs text-muted-foreground">
-              Mark (Blofin):{" "}
-              <strong>
-                {pnl.markPrice.toLocaleString(undefined, { maximumFractionDigits: 8 })}
-              </strong>{" "}
-              {pnl.quote}
-            </p>
+          {config.lastError && (
+            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>{config.lastError}</span>
+            </div>
           )}
-          <p className="text-[11px] text-muted-foreground">
-            Unrealized profit/loss from your Blofin position for this contract. If the exchange does not return it directly,
-            we estimate from mark vs average entry (same instrument as this config).
-          </p>
-          <p>
-            Completed rounds: <strong>{config.completedRounds}</strong>
-            {config.maxRounds > 0 ? ` / ${config.maxRounds}` : ""}
-          </p>
-          <p>
-            Last ref price:{" "}
-            <strong>{config.lastRefPrice != null ? config.lastRefPrice.toLocaleString() : "—"}</strong>
-          </p>
-          <p>
-            Last tick: <strong>{config.lastTickAt ? new Date(config.lastTickAt).toLocaleString() : "—"}</strong>
-          </p>
-          {config.lastAction && <p className="text-xs text-muted-foreground">Last action: {config.lastAction}</p>}
-          {config.lastError && <p className="text-xs text-rose-600 dark:text-rose-400">Error: {config.lastError}</p>}
         </CardContent>
       </Card>
     </div>
