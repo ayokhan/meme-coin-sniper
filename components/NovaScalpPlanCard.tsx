@@ -473,6 +473,7 @@ export function NovaScalpPlanCard({
               size="sm"
               className="h-8 text-xs"
               disabled={refreshing}
+              title="Rebuilds levels from live candles. Waiting plans are kept for ~25 min if still valid (not NO ENTRY just because price is mid-range)."
               onClick={onRefresh}
             >
               <RefreshCw className={`h-3.5 w-3.5 mr-1 ${refreshing ? "animate-spin" : ""}`} />

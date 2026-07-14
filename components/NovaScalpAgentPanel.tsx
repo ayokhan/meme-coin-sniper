@@ -9,6 +9,7 @@ import {
   NOVA_SCALP_DISCLAIMER,
   QUICK_WIN_SCALP_TIMEFRAME_ID,
   SCALP_TIMEFRAMES,
+  resolveScalpSymbol,
   type NovaScalpAnalysis,
   type NovaScalpNearSetup,
   type NovaScalpQuickWin,
@@ -89,7 +90,13 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
   }, []);
 
   const runAgent = useCallback(
-    async (overrides?: { symbol?: string; leverage?: number; timeframeId?: string }) => {
+    async (overrides?: {
+      symbol?: string;
+      leverage?: number;
+      timeframeId?: string;
+      /** When refreshing a waiting plan, pass prior levels so mid-range rescans don't wipe to NO ENTRY. */
+      reconfirmPrior?: boolean;
+    }) => {
     const sym = (overrides?.symbol ?? symbol).trim();
     const lev = overrides?.leverage ?? (Number(leverage) || 10);
     const tf = overrides?.timeframeId ?? timeframeId;
@@ -99,6 +106,17 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
     setLoading(true);
     setError(null);
     try {
+      const prior = result;
+      const useReconfirm =
+        overrides?.reconfirmPrior !== false &&
+        prior &&
+        (prior.side === "long" || prior.side === "short") &&
+        prior.entryPrice != null &&
+        prior.exitPrice != null &&
+        prior.stopLossPrice != null &&
+        prior.symbol.toUpperCase() === resolveScalpSymbol(sym) &&
+        prior.timeframeId === tf;
+
       const res = await fetch("/api/nova-scalp-agent/analyze", {
         method: "POST",
         credentials: "include",
@@ -109,6 +127,18 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
           leverage: lev,
           timeframeId: tf,
           maxLossPctOnMargin: Number(maxLossPct) || 5,
+          ...(useReconfirm
+            ? {
+                reconfirm: {
+                  side: prior!.side,
+                  entryPrice: prior!.entryPrice,
+                  exitPrice: prior!.exitPrice,
+                  stopLossPrice: prior!.stopLossPrice,
+                  analyzedAt: prior!.analyzedAt,
+                  entryMode: prior!.entryMode,
+                },
+              }
+            : {}),
         }),
       });
       const data = await res.json();
@@ -125,7 +155,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
       setLoading(false);
     }
   },
-    [symbol, amount, leverage, maxLossPct, timeframeId]
+    [symbol, amount, leverage, maxLossPct, timeframeId, result]
   );
 
   const findQuickWins = useCallback(async (tfId = qwTimeframeId, lev = Number(leverage) || 10) => {

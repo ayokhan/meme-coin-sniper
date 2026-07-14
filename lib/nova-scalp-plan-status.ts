@@ -181,7 +181,7 @@ export function planStatusHint(
         : ctx.livePrice < ctx.entryPrice
           ? "rise"
           : "drop";
-    return `Watching live price — status flips to "At entry zone" when price ${need}s to your limit. Updates every ~12s.`;
+    return `Watching live price — flips to "At entry zone" when price ${need}s to your limit (~12s). Prefer Watch over Refresh: Refresh can wipe a waiting plan if structure turns mid-range.`;
   }
   return "Status updates automatically every ~12s. Turn on Watch to get alerts if you leave this tab.";
 }

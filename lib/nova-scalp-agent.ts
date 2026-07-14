@@ -318,6 +318,123 @@ function emptyPlanMeta(
   };
 }
 
+export type ScalpReconfirmAnchor = {
+  side: "long" | "short";
+  entryPrice: number;
+  exitPrice: number;
+  stopLossPrice: number;
+  analyzedAt?: string | null;
+  entryMode?: ScalpEntryMode | null;
+};
+
+/** Keep a waiting limit plan alive this long when a fresh rescan would return NO ENTRY. */
+export const SCALP_RECONFIRM_MAX_AGE_MS = 25 * 60 * 1000;
+
+/**
+ * If a fresh scan says no_entry but the previous waiting plan is still structurally valid
+ * (price between stop and target), keep those levels so Refresh doesn't wipe a valid wait.
+ */
+function reconfirmWaitingLimitPlan(params: {
+  anchor: ScalpReconfirmAnchor;
+  symbol: string;
+  timeframeId: ScalpTimeframeId;
+  timeframeLabel: string;
+  amountUsd: number;
+  leverage: number;
+  maxLossPctOnMargin: number;
+  analyzedAt: string;
+  price: number;
+  tickSize: number | null;
+  structureDirection: NovaScalpAnalysis["structureDirection"];
+  trendlineBias: NovaScalpAnalysis["trendlineBias"];
+  blendedDirection: NovaScalpAnalysis["blendedDirection"];
+  trendlineRead: string;
+  candles: CandleTuple[];
+}): NovaScalpAnalysis | null {
+  const { anchor, price } = params;
+  if (anchor.side !== "long" && anchor.side !== "short") return null;
+  if (
+    !Number.isFinite(anchor.entryPrice) ||
+    !Number.isFinite(anchor.exitPrice) ||
+    !Number.isFinite(anchor.stopLossPrice)
+  ) {
+    return null;
+  }
+
+  const ageMs = anchor.analyzedAt ? Date.now() - Date.parse(anchor.analyzedAt) : 0;
+  if (Number.isFinite(ageMs) && ageMs > SCALP_RECONFIRM_MAX_AGE_MS) return null;
+
+  const side = anchor.side;
+  const entry = roundPx(anchor.entryPrice, price, params.tickSize);
+  const exit = roundPx(anchor.exitPrice, price, params.tickSize);
+  const sl = roundPx(anchor.stopLossPrice, price, params.tickSize);
+
+  if (side === "long") {
+    if (price <= sl) return null;
+    if (price >= exit) return null;
+  } else {
+    if (price >= sl) return null;
+    if (price <= exit) return null;
+  }
+
+  const entryMode = detectEntryMode(price, entry);
+  const riskStop = riskStopFromMaxLossPct(side, entry, params.leverage, params.maxLossPctOnMargin, params.tickSize);
+  const recStop = recommendedStopPrice(side, sl, riskStop);
+  const distPct = Math.abs((exit - entry) / entry) * 100;
+  const tfHold = scalpTimeframeConfig(params.timeframeId).estHoldMinutes;
+  const estHold = Math.max(
+    1,
+    Math.round(tfHold * Math.min(1.4, Math.max(0.35, distPct / 0.45)))
+  );
+  const { pnlUsd, pnlPctMargin } = estimatePnl(side, entry, exit, params.amountUsd, params.leverage);
+  const { entryTouches, exitTouches } = countEntryExitTouches(params.candles, entry, exit, side);
+  const liq = scalpLiqFields(
+    params.symbol,
+    side,
+    entry,
+    sl,
+    params.amountUsd,
+    params.leverage,
+    params.tickSize
+  );
+
+  const waitNote =
+    entryMode === "market"
+      ? " Price is at the limit zone — enter now."
+      : ` Still waiting for limit entry near ${entry.toLocaleString()} (kept from prior plan; structure mid-range on rescan).`;
+
+  return {
+    symbol: params.symbol,
+    timeframeId: params.timeframeId,
+    timeframeLabel: params.timeframeLabel,
+    amountUsd: params.amountUsd,
+    leverage: params.leverage,
+    maxLossPctOnMargin: params.maxLossPctOnMargin,
+    analyzedAt: params.analyzedAt,
+    currentPrice: price,
+    enterNowPrice: price,
+    entryMode,
+    side,
+    entryPrice: entry,
+    exitPrice: exit,
+    stopLossPrice: sl,
+    riskStopLossPrice: riskStop,
+    recommendedStopPrice: recStop,
+    entryTouches,
+    exitTouches,
+    expectedPnlUsd: Number(pnlUsd.toFixed(2)),
+    expectedPnlPctOnMargin: Number(pnlPctMargin.toFixed(2)),
+    ...lossFields(side, entry, sl, riskStop, params.amountUsd, params.leverage),
+    ...liq,
+    estimatedHoldMinutes: estHold,
+    structureDirection: params.structureDirection,
+    trendlineBias: params.trendlineBias,
+    blendedDirection: params.blendedDirection,
+    rationale: `Reconfirmed ${side.toUpperCase()} wait plan.${waitNote} ${params.trendlineRead}`.trim(),
+    disclaimer: NOVA_SCALP_DISCLAIMER,
+  };
+}
+
 export function analyzeScalpSetup(input: {
   symbol: string;
   timeframeId: string;
@@ -329,6 +446,11 @@ export function analyzeScalpSetup(input: {
   currentPrice: number | null;
   /** Blofin tickSize — when set, entry/exit/stop round to exchange-legal increments. */
   tickSize?: number | null;
+  /**
+   * Prior waiting plan — if a full rescan would return no_entry but price is still
+   * between stop and target, keep these levels (prevents "wait → refresh → NO ENTRY").
+   */
+  reconfirm?: ScalpReconfirmAnchor | null;
 }): NovaScalpAnalysis {
   const tf = scalpTimeframeConfig(input.timeframeId);
   const symbol = resolveScalpSymbol(input.symbol);
@@ -392,18 +514,18 @@ export function analyzeScalpSetup(input: {
 
   const bullishSetup =
     (blendedDirection === "bullish" || (structureDirection === "bullish" && trendlineBias !== "down")) &&
-    pos <= 0.42;
+    pos <= 0.48;
   const bearishSetup =
     (blendedDirection === "bearish" || (structureDirection === "bearish" && trendlineBias !== "up")) &&
-    pos >= 0.58;
+    pos >= 0.52;
 
   if (blendedDirection === "sideways") {
-    if (pos <= 0.22) {
+    if (pos <= 0.28) {
       side = "long";
       entry = roundPx(low + buffer * 0.35, price, tickSize);
       exit = roundPx(mid + span * 0.12, price, tickSize);
       sl = roundPx(low - buffer * 0.5, price, tickSize);
-    } else if (pos >= 0.78) {
+    } else if (pos >= 0.72) {
       side = "short";
       entry = roundPx(high - buffer * 0.35, price, tickSize);
       exit = roundPx(mid - span * 0.12, price, tickSize);
@@ -422,6 +544,28 @@ export function analyzeScalpSetup(input: {
   }
 
   if (side === "no_entry") {
+    const kept =
+      input.reconfirm && price != null
+        ? reconfirmWaitingLimitPlan({
+            anchor: input.reconfirm,
+            symbol,
+            timeframeId: tf.id,
+            timeframeLabel: tf.label,
+            amountUsd,
+            leverage,
+            maxLossPctOnMargin,
+            analyzedAt,
+            price,
+            tickSize,
+            structureDirection,
+            trendlineBias,
+            blendedDirection,
+            trendlineRead: tl?.read ?? "",
+            candles: rows,
+          })
+        : null;
+    if (kept) return kept;
+
     return {
       symbol,
       timeframeId: tf.id,
@@ -444,7 +588,7 @@ export function analyzeScalpSetup(input: {
       trendlineBias,
       blendedDirection,
       rationale:
-        "No clear scalp edge: price is mid-range or structure/trendline conflict. Wait for retest of range low (long) or high (short), or pick a tighter timeframe.",
+        "No clear scalp edge: price is mid-range or structure/trendline conflict. Wait for retest of range low (long) or high (short), or pick a tighter timeframe. Tip: while Waiting for limit entry, use Watch — Refresh rebuilds the setup and can flip to NO ENTRY.",
       disclaimer: NOVA_SCALP_DISCLAIMER,
     };
   }

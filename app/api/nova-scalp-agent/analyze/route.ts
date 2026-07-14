@@ -27,6 +27,14 @@ export async function POST(request: Request) {
       leverage?: number;
       timeframeId?: string;
       maxLossPctOnMargin?: number;
+      reconfirm?: {
+        side?: string;
+        entryPrice?: number;
+        exitPrice?: number;
+        stopLossPrice?: number;
+        analyzedAt?: string | null;
+        entryMode?: "limit" | "market" | null;
+      } | null;
     };
 
     const symbol = resolveScalpSymbol(body.symbol ?? "BTC");
@@ -34,6 +42,23 @@ export async function POST(request: Request) {
     const amountUsd = Math.max(1, Number(body.amountUsd) || 100);
     const leverage = Math.min(125, Math.max(1, Number(body.leverage) || 10));
     const maxLossPctOnMargin = Math.min(100, Math.max(0.5, Number(body.maxLossPctOnMargin) || 5));
+
+    const rc = body.reconfirm;
+    const reconfirm =
+      rc &&
+      (rc.side === "long" || rc.side === "short") &&
+      Number.isFinite(Number(rc.entryPrice)) &&
+      Number.isFinite(Number(rc.exitPrice)) &&
+      Number.isFinite(Number(rc.stopLossPrice))
+        ? {
+            side: rc.side as "long" | "short",
+            entryPrice: Number(rc.entryPrice),
+            exitPrice: Number(rc.exitPrice),
+            stopLossPrice: Number(rc.stopLossPrice),
+            analyzedAt: rc.analyzedAt ?? null,
+            entryMode: rc.entryMode === "market" || rc.entryMode === "limit" ? rc.entryMode : null,
+          }
+        : null;
 
     const metal = isBlofinMetal(symbol);
     const spotMid = metal && usesSpotCalibration(symbol) ? await getForexSpotMid(symbol) : null;
@@ -58,6 +83,7 @@ export async function POST(request: Request) {
       candles,
       currentPrice,
       tickSize,
+      reconfirm,
     });
 
     return NextResponse.json({
