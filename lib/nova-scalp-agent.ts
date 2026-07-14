@@ -10,6 +10,7 @@ import {
 import { meanRangePct, momentumBias as perpMomentumBias, trendFrom15mCloses } from "@/lib/crypto-buddie-score";
 import type { TrendingPerp } from "@/lib/api-clients/hyperliquid";
 import { normalizeMetalBase } from "@/lib/blofin-metals";
+import { estimateBlofinIsolatedLiquidation } from "@/lib/blofin-estimated-liq";
 
 export const SCALP_TIMEFRAMES = [
   { id: "1m", label: "1 min", interval: "1m", limit: 90, estHoldMinutes: 2 },
@@ -68,6 +69,15 @@ export type NovaScalpAnalysis = {
   /** If filled at limit entry then stopped at risk cap (max-loss % on margin). */
   lossAtRiskStopUsd: number | null;
   lossAtRiskStopPctOnMargin: number | null;
+  /**
+   * Estimated isolated Blofin liquidation price at plan entry + notional (margin × leverage).
+   * Confirm Est. Liq. on Blofin — not exchange truth.
+   */
+  estimatedLiquidationPrice: number | null;
+  /** % price move from entry to estimated liq. */
+  estimatedLiqDistancePct: number | null;
+  /** True when structural stop is beyond estimated liq (stop would not protect before liq). */
+  stopBeyondEstimatedLiq: boolean | null;
   estimatedHoldMinutes: number | null;
   structureDirection: "bullish" | "bearish" | "sideways";
   trendlineBias: "up" | "down" | "flat";
@@ -208,12 +218,50 @@ const EMPTY_LOSS_FIELDS: Pick<
   | "lossAtStopPctOnMargin"
   | "lossAtRiskStopUsd"
   | "lossAtRiskStopPctOnMargin"
+  | "estimatedLiquidationPrice"
+  | "estimatedLiqDistancePct"
+  | "stopBeyondEstimatedLiq"
 > = {
   lossAtStopUsd: null,
   lossAtStopPctOnMargin: null,
   lossAtRiskStopUsd: null,
   lossAtRiskStopPctOnMargin: null,
+  estimatedLiquidationPrice: null,
+  estimatedLiqDistancePct: null,
+  stopBeyondEstimatedLiq: null,
 };
+
+function scalpLiqFields(
+  symbol: string,
+  side: "long" | "short",
+  entry: number,
+  stop: number | null,
+  amountUsd: number,
+  leverage: number
+): Pick<
+  NovaScalpAnalysis,
+  "estimatedLiquidationPrice" | "estimatedLiqDistancePct" | "stopBeyondEstimatedLiq"
+> {
+  const notional = amountUsd * leverage;
+  const est = estimateBlofinIsolatedLiquidation({
+    symbol,
+    side,
+    entryPrice: entry,
+    leverage,
+    positionNotionalUsdt: notional,
+  });
+  const liq = est.liquidationPrice != null ? roundPx(est.liquidationPrice, entry) : null;
+  let stopBeyond: boolean | null = null;
+  if (liq != null && stop != null && Number.isFinite(stop)) {
+    stopBeyond = side === "long" ? stop < liq : stop > liq;
+  }
+  return {
+    estimatedLiquidationPrice: liq,
+    estimatedLiqDistancePct:
+      est.liqDistancePct != null ? Number(est.liqDistancePct.toFixed(2)) : null,
+    stopBeyondEstimatedLiq: stopBeyond,
+  };
+}
 
 function positionInRange(price: number, low: number, high: number): number {
   const span = high - low;
@@ -408,6 +456,7 @@ export function analyzeScalpSetup(input: {
   );
   const { pnlUsd, pnlPctMargin } = estimatePnl(side, limitEntry, exit, amountUsd, leverage);
   const { entryTouches, exitTouches } = countEntryExitTouches(rows, limitEntry, exit, side);
+  const liq = scalpLiqFields(symbol, side, limitEntry, sl, amountUsd, leverage);
 
   const entryNote =
     entryMode === "market"
@@ -441,6 +490,7 @@ export function analyzeScalpSetup(input: {
     expectedPnlUsd: Number(pnlUsd.toFixed(2)),
     expectedPnlPctOnMargin: Number(pnlPctMargin.toFixed(2)),
     ...lossFields(side, limitEntry, sl, riskStop, amountUsd, leverage),
+    ...liq,
     estimatedHoldMinutes: estHold,
     structureDirection,
     trendlineBias,

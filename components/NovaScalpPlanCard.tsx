@@ -577,6 +577,35 @@ export function NovaScalpPlanCard({
                 <p className="font-mono font-medium">{fmtUsd(result.recommendedStopPrice)}</p>
               </div>
             )}
+          {result.estimatedLiquidationPrice != null && result.side !== "no_entry" && (
+            <div>
+              <span className="text-muted-foreground text-xs">Est. liq (isolated)</span>
+              <p className="font-mono font-medium text-rose-700 dark:text-rose-300">
+                {fmtUsd(result.estimatedLiquidationPrice)}
+              </p>
+              {result.estimatedLiqDistancePct != null && (
+                <p className="text-[11px] text-muted-foreground">
+                  ~{result.estimatedLiqDistancePct}% from entry · confirm on Blofin
+                </p>
+              )}
+              {showPlanMonitor && livePrice != null && (
+                <p className="text-[11px] text-rose-700/90 dark:text-rose-300/90">
+                  {formatDistanceLabel(
+                    livePrice,
+                    result.estimatedLiquidationPrice,
+                    result.side as "long" | "short",
+                    "stop"
+                  )}
+                </p>
+              )}
+            </div>
+          )}
+          {result.stopBeyondEstimatedLiq && result.side !== "no_entry" && (
+            <div className="col-span-2 sm:col-span-3 rounded-md border border-rose-400/40 bg-rose-500/10 px-2.5 py-1.5 text-[11px] text-rose-800 dark:text-rose-200">
+              Structural stop is beyond estimated liq — Blofin may liquidate before your stop fills.
+              Prefer the suggested/risk stop, or lower leverage / size.
+            </div>
+          )}
           <div>
             <span className="text-muted-foreground text-xs">Live price</span>
             <p className="font-mono">{fmtUsd(livePrice)}</p>

@@ -36,6 +36,12 @@ export function formatNovaScalpAnalysisForShare(
     r.recommendedStopPrice != null && r.recommendedStopPrice !== r.stopLossPrice
       ? `Suggested stop (tighter): ${fmtPx(r.recommendedStopPrice)}`
       : null,
+    r.estimatedLiquidationPrice != null
+      ? `Est. liq (isolated Blofin): ${fmtPx(r.estimatedLiquidationPrice)}${r.estimatedLiqDistancePct != null ? ` (~${r.estimatedLiqDistancePct}% from entry)` : ""} — confirm on Blofin`
+      : null,
+    r.stopBeyondEstimatedLiq
+      ? "Warning: structural stop is beyond estimated liquidation — exchange may liquidate first."
+      : null,
     r.analyzedAt ? `Generated: ${new Date(r.analyzedAt).toLocaleString()}` : null,
     extras?.planStatusLabel ? `Live status: ${extras.planStatusLabel}` : null,
     extras?.livePrice != null && Number.isFinite(extras.livePrice)
