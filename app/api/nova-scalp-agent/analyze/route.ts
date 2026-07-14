@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getCandles, getTicker } from "@/lib/hyperliquid";
-import {
-  getBlofinMetalCandles,
-  getBlofinMetalTicker,
-  isBlofinMetal,
-  type BlofinMetal,
-} from "@/lib/blofin-metals";
+import { isBlofinMetal, toBlofinInstId } from "@/lib/blofin-metals";
 import { calibrateCandlesToSpotMid, getForexSpotMid, usesSpotCalibration } from "@/lib/forex-spot-feed";
 import { analyzeScalpSetup, resolveScalpSymbol, scalpTimeframeConfig } from "@/lib/nova-scalp-agent";
+import { getNovaScalpCandles, getNovaScalpTicker } from "@/lib/nova-scalp-blofin-market";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
@@ -45,15 +40,12 @@ export async function POST(request: Request) {
     const hasSpot = spotMid != null && Number.isFinite(spotMid);
 
     const [candlesRaw, ticker] = await Promise.all([
-      metal
-        ? getBlofinMetalCandles(symbol as BlofinMetal, tf.interval, tf.limit)
-        : getCandles(symbol, tf.interval, tf.limit),
-      metal
-        ? getBlofinMetalTicker(symbol as BlofinMetal)
-        : getTicker(symbol),
+      getNovaScalpCandles(symbol, tf.interval, tf.limit),
+      getNovaScalpTicker(symbol),
     ]);
 
-    // Align metals price + levels to broker/TradingView-style spot mid (Swissquote).
+    // Metals: align price + levels to broker/TradingView-style spot mid (Swissquote).
+    // Crypto: Blofin last so plans match Blofin Trade (INJUSDT Perp, etc.).
     const candles = metal && hasSpot ? calibrateCandlesToSpotMid(candlesRaw, spotMid!) : candlesRaw;
     const currentPrice = metal && hasSpot ? spotMid! : ticker?.last ? Number(ticker.last) : null;
     const analysis = analyzeScalpSetup({
@@ -66,7 +58,12 @@ export async function POST(request: Request) {
       currentPrice,
     });
 
-    return NextResponse.json({ success: true, analysis });
+    return NextResponse.json({
+      success: true,
+      analysis,
+      marketVenue: "blofin",
+      blofinInstId: toBlofinInstId(symbol),
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Nova Scalp Agent failed";
     console.error("nova-scalp-agent analyze:", e);

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getTicker } from "@/lib/hyperliquid";
-import { getBlofinMetalTicker, isBlofinMetal, type BlofinMetal } from "@/lib/blofin-metals";
+import { isBlofinMetal, toBlofinInstId } from "@/lib/blofin-metals";
 import { getForexSpotMid, usesSpotCalibration } from "@/lib/forex-spot-feed";
 import { resolveScalpSymbol } from "@/lib/nova-scalp-agent";
+import { getNovaScalpTicker } from "@/lib/nova-scalp-blofin-market";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +30,7 @@ export async function GET(request: Request) {
       if (spotMid != null && Number.isFinite(spotMid)) price = spotMid;
     }
     if (price == null) {
-      const ticker = isBlofinMetal(symbol)
-        ? await getBlofinMetalTicker(symbol as BlofinMetal)
-        : await getTicker(symbol);
+      const ticker = await getNovaScalpTicker(symbol);
       price = ticker?.last ? Number(ticker.last) : null;
     }
 
@@ -40,6 +38,8 @@ export async function GET(request: Request) {
       success: true,
       symbol,
       price: price != null && Number.isFinite(price) ? price : null,
+      marketVenue: "blofin",
+      blofinInstId: toBlofinInstId(symbol),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Price fetch failed";

@@ -47,11 +47,11 @@ export function toBlofinInstId(symbol: string): string {
 export function blofinMetalContractDescription(symbol: BlofinMetal): string {
   const inst = BLOFIN_METAL_INST[symbol];
   const label = symbol === "XAU" ? "gold" : "silver";
-  return `${symbol}: ${label} structure from Blofin USDT-margined perpetual candles (${inst}), with price and levels aligned to broker/TradingView-style spot mid (Swissquote XAU/XAG-USD). Other symbols use Hyperliquid.`;
+  return `${symbol}: ${label} structure from Blofin USDT-margined perpetual candles (${inst}), with price and levels aligned to broker/TradingView-style spot mid (Swissquote XAU/XAG-USD). Crypto symbols use Blofin USDT perps (same venue as Trade / sync).`;
 }
 
 export function novaQUnknownHlSymbolMessage(symbol: string): string {
-  return `${symbol} is not on Hyperliquid or Blofin USDT perps. Try the exact HL coin name (gold on HL: PAXG), Blofin symbols like SPCX, or metals XAU / XAG (XAU-USDT, XAG-USDT).`;
+  return `${symbol} is not listed as a Blofin USDT perp (or Hyperliquid fallback). Try bases like BTC, ETH, INJ, SPCX, or metals XAU / XAG.`;
 }
 
 export async function getBlofinMetalCandles(

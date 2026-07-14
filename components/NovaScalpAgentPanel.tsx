@@ -197,7 +197,9 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
         <div>
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Scalp Agent</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Leveraged scalp plan from market structure, regression trendline, and range position. Hyperliquid perps for most symbols; use XAU or XAG for Blofin metals (XAU-USDT, XAG-USDT).
+            Leveraged scalp plan from market structure, regression trendline, and range position. Prices and candles
+            use <strong className="font-medium text-zinc-800 dark:text-zinc-200">Blofin USDT perps</strong> (e.g.
+            INJUSDT) so levels match Blofin Trade. XAU / XAG use Blofin metals candles with spot mid calibration.
           </p>
         </div>
 
@@ -337,7 +339,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
           <div className="space-y-3 text-xs text-muted-foreground">
             <p>
               {qwScanSummary
-                ? `Scanned ${qwScanSummary.symbolsScanned} Hyperliquid perps on ${qwTimeframeLabel}: ${qwScanSummary.oscillationQualified} had tight range + liquidity, but none had a confirmed LONG/SHORT entry (price mid-range or structure conflict). This is normal in chop — not a platform error.`
+                ? `Scanned ${qwScanSummary.symbolsScanned} Blofin USDT perps on ${qwTimeframeLabel}: ${qwScanSummary.oscillationQualified} had tight range + liquidity, but none had a confirmed LONG/SHORT entry (price mid-range or structure conflict). This is normal in chop — not a platform error.`
                 : "No quick-win candidates right now."}
             </p>
             <p>

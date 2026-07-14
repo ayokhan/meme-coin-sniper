@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getPerpsByCoins, getTrendingPerps, TOP_ALTCOINS } from "@/lib/api-clients/hyperliquid";
-import { getCandles } from "@/lib/hyperliquid";
 import {
   evaluateQuickWinPerp,
   isValidScalpTimeframeId,
@@ -13,6 +11,10 @@ import {
   type NovaScalpQuickWin,
   type QuickWinScanSummary,
 } from "@/lib/nova-scalp-agent";
+import {
+  getNovaScalpCandles,
+  resolveNovaScalpQuickWinUniverse,
+} from "@/lib/nova-scalp-blofin-market";
 import { getNovaScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
@@ -24,19 +26,6 @@ function candlePct(candles: Array<[string, string, string, string, string, ...st
   const open = Number(c[1]);
   const close = Number(c[4]);
   return open && open > 0 ? ((close - open) / open) * 100 : fallback;
-}
-
-async function resolveQuickWinUniverse() {
-  const [basePerps, movers] = await Promise.all([
-    getPerpsByCoins([...TOP_ALTCOINS]),
-    getTrendingPerps(30),
-  ]);
-  const byCoin = new Map<string, (typeof basePerps)[number]>();
-  for (const p of basePerps) byCoin.set(p.coin.toUpperCase(), p);
-  for (const p of movers) {
-    if (!byCoin.has(p.coin.toUpperCase())) byCoin.set(p.coin.toUpperCase(), p);
-  }
-  return [...byCoin.values()].slice(0, 32);
 }
 
 export async function GET(request: Request) {
@@ -59,14 +48,14 @@ export async function GET(request: Request) {
     const rawMargin = Number(new URL(request.url).searchParams.get("amountUsd"));
     const amountUsd = Number.isFinite(rawMargin) ? Math.max(1, rawMargin) : 100;
 
-    const perps = await resolveQuickWinUniverse();
+    const perps = await resolveNovaScalpQuickWinUniverse(32);
     const evaluated = await Promise.all(
       perps.map(async (p) => {
         try {
           const [c5, c15, cScalp] = await Promise.all([
-            getCandles(p.coin, "5m", 12),
-            getCandles(p.coin, "15m", 10),
-            getCandles(p.coin, interval, limit),
+            getNovaScalpCandles(p.coin, "5m", 12),
+            getNovaScalpCandles(p.coin, "15m", 10),
+            getNovaScalpCandles(p.coin, interval, limit),
           ]);
           if (!cScalp.length) return null;
 
@@ -115,10 +104,11 @@ export async function GET(request: Request) {
       quickWins: quickWins.slice(0, 10),
       nearSetups: nearSetups.slice(0, 6),
       scanSummary: summary,
+      marketVenue: "blofin",
       disclaimer: NOVA_SCALP_DISCLAIMER,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Quick Wins scan failed";
+    const message = e instanceof Error ? e.message : "Quick wins failed";
     console.error("nova-scalp-agent quick-wins:", e);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
