@@ -4,16 +4,14 @@ import type { ReactNode } from "react";
 
 type Accent = "cyan" | "emerald" | "amber" | "rose" | "violet" | "sky";
 
+/** Flat fills (no multi-stop gradients) — stacked gradients + blur smear on iPad Safari. */
 const SHELL: Record<Accent, string> = {
-  cyan: "border-cyan-400/50 bg-gradient-to-br from-cyan-500/20 via-sky-500/10 to-indigo-500/15 dark:from-cyan-500/25 dark:via-sky-900/40 dark:to-indigo-950/50",
-  emerald:
-    "border-emerald-400/50 bg-gradient-to-br from-emerald-500/20 via-teal-500/10 to-cyan-500/15 dark:from-emerald-500/25 dark:via-teal-900/40 dark:to-cyan-950/50",
-  amber:
-    "border-amber-400/50 bg-gradient-to-br from-amber-500/25 via-orange-500/10 to-rose-500/10 dark:from-amber-500/25 dark:via-orange-900/40 dark:to-rose-950/40",
-  rose: "border-rose-400/50 bg-gradient-to-br from-rose-500/20 via-fuchsia-500/10 to-violet-500/15 dark:from-rose-500/25 dark:via-fuchsia-900/40 dark:to-violet-950/50",
-  violet:
-    "border-violet-400/50 bg-gradient-to-br from-violet-500/20 via-fuchsia-500/10 to-sky-500/15 dark:from-violet-500/25 dark:via-fuchsia-900/40 dark:to-sky-950/50",
-  sky: "border-sky-400/50 bg-gradient-to-br from-sky-500/20 via-blue-500/10 to-indigo-500/15 dark:from-sky-500/25 dark:via-blue-900/40 dark:to-indigo-950/50",
+  cyan: "border-cyan-400/50 bg-cyan-500/15 dark:bg-cyan-950/45",
+  emerald: "border-emerald-400/50 bg-emerald-500/15 dark:bg-emerald-950/45",
+  amber: "border-amber-400/50 bg-amber-500/20 dark:bg-amber-950/40",
+  rose: "border-rose-400/50 bg-rose-500/15 dark:bg-rose-950/45",
+  violet: "border-violet-400/50 bg-violet-500/15 dark:bg-violet-950/45",
+  sky: "border-sky-400/50 bg-sky-500/15 dark:bg-sky-950/45",
 };
 
 const TITLE: Record<Accent, string> = {

@@ -751,14 +751,12 @@ export default function TradingUniversityPanel({
   }
 
   return (
-    <div className="px-3 sm:px-6 pb-16 space-y-6">
-      <header className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 px-5 py-8 sm:px-8 sm:py-10 text-slate-50">
+    /* Avoid backdrop-blur / stacked radial overlays here — they smear on iPad Safari when opening this tab. */
+    <div className="px-3 sm:px-6 pb-16 space-y-6 isolate [transform:translateZ(0)]">
+      <header className="relative rounded-2xl border border-cyan-500/25 bg-slate-950 px-5 py-8 sm:px-8 sm:py-10 text-slate-50">
         <div
-          className="pointer-events-none absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 20%, rgba(34,211,238,0.25), transparent 45%), radial-gradient(circle at 80% 0%, rgba(250,204,21,0.12), transparent 40%)",
-          }}
+          className="pointer-events-none absolute inset-0 rounded-2xl bg-cyan-950/50"
+          aria-hidden
         />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2 max-w-2xl">
@@ -774,7 +772,7 @@ export default function TradingUniversityPanel({
               prediction markets, and forex — then a final exam to earn your certificate.
             </p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm backdrop-blur-sm">
+          <div className="rounded-xl border border-white/15 bg-slate-900 px-4 py-3 text-sm">
             <p className="text-slate-400 text-xs uppercase tracking-wide">
               {fullAccess ? "Course progress" : "Preview"}
             </p>
@@ -1248,7 +1246,7 @@ export default function TradingUniversityPanel({
                   {activeLesson.workedExamples!.map((ex) => (
                     <div
                       key={ex.title}
-                      className="rounded-xl border border-violet-400/40 bg-gradient-to-br from-violet-500/15 via-fuchsia-500/10 to-sky-500/10 p-4 space-y-3"
+                      className="rounded-xl border border-violet-400/40 bg-violet-500/10 dark:bg-violet-950/40 p-4 space-y-3"
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-md bg-violet-600 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5">
