@@ -751,20 +751,16 @@ export default function TradingUniversityPanel({
   }
 
   return (
-    /* Avoid backdrop-blur / stacked radial overlays here — they smear on iPad Safari when opening this tab. */
-    <div className="px-3 sm:px-6 pb-16 space-y-6 isolate [transform:translateZ(0)]">
+    /* Solid paints only — translucent cards + GPU layer hacks smear on Android tablet Chrome (and other WebViews). */
+    <div className="px-3 sm:px-6 pb-16 space-y-6 overflow-x-clip">
       <header className="relative rounded-2xl border border-cyan-500/25 bg-slate-950 px-5 py-8 sm:px-8 sm:py-10 text-slate-50">
-        <div
-          className="pointer-events-none absolute inset-0 rounded-2xl bg-cyan-950/50"
-          aria-hidden
-        />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2 max-w-2xl">
             <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-cyan-300/90">
               <GraduationCap className="h-4 w-4" />
               NovaStaris
             </p>
-            <h1 className="font-serif text-3xl sm:text-4xl font-semibold tracking-tight text-white">
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white">
               Trading University
             </h1>
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
@@ -940,7 +936,7 @@ export default function TradingUniversityPanel({
                           key={lesson.id}
                           type="button"
                           onClick={() => openLesson(lesson)}
-                          className="group text-left rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/60 p-4 transition hover:border-cyan-500/50 hover:shadow-md"
+                          className="group text-left rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 transition hover:border-cyan-500/50 hover:shadow-md"
                         >
                           <div className="flex items-start justify-between gap-2">
                             <span className="text-[11px] font-mono text-zinc-500">
@@ -1016,7 +1012,7 @@ export default function TradingUniversityPanel({
             </section>
           )}
 
-          <section className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-900/50 p-5 sm:p-6 space-y-4">
+          <section className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-5 sm:p-6 space-y-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-amber-500" />
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
@@ -1717,7 +1713,7 @@ export default function TradingUniversityPanel({
               <button
                 type="button"
                 onClick={() => setFlashRevealed((v) => !v)}
-                className="w-full min-h-[160px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900/60 p-6 text-left space-y-3"
+                className="w-full min-h-[160px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 text-left space-y-3"
               >
                 <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
                   {flashCards[flashIndex]?.term}

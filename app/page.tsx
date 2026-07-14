@@ -3795,22 +3795,35 @@ export default function Dashboard() {
   return (
     <DashboardOverlayProvider>
     <div className="min-h-screen font-sans relative overflow-x-hidden">
-      {/* Electric background */}
-      <div
-        className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,var(--nova-glow),transparent)] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,var(--nova-glow),transparent)]"
-        aria-hidden
-      />
-      <div className="fixed inset-0 -z-10 bg-zinc-100 dark:bg-zinc-950" aria-hidden />
-      <div
-        className="fixed inset-0 -z-10 opacity-[0.4] dark:opacity-[0.06]"
-        style={{
-          backgroundImage: `linear-gradient(rgba(34,211,238,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.03) 1px, transparent 1px)`,
-          backgroundSize: "48px 48px",
-        }}
-        aria-hidden
-      />
+      {/* Electric background — omit fixed layered grids on Trading University (Android tablet Chrome compositor smear). */}
+      {activeTab !== "trading-university" && (
+        <>
+          <div
+            className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,var(--nova-glow),transparent)] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,var(--nova-glow),transparent)]"
+            aria-hidden
+          />
+          <div className="fixed inset-0 -z-10 bg-zinc-100 dark:bg-zinc-950" aria-hidden />
+          <div
+            className="fixed inset-0 -z-10 opacity-[0.4] dark:opacity-[0.06]"
+            style={{
+              backgroundImage: `linear-gradient(rgba(34,211,238,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.03) 1px, transparent 1px)`,
+              backgroundSize: "48px 48px",
+            }}
+            aria-hidden
+          />
+        </>
+      )}
+      {activeTab === "trading-university" && (
+        <div className="fixed inset-0 -z-10 bg-zinc-100 dark:bg-zinc-950" aria-hidden />
+      )}
 
-      <header className="sticky top-0 z-10 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm dark:shadow-none">
+      <header
+        className={
+          activeTab === "trading-university"
+            ? "sticky top-0 z-10 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm dark:shadow-none"
+            : "sticky top-0 z-10 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm dark:shadow-none"
+        }
+      >
         <div className="mx-auto max-w-6xl px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">

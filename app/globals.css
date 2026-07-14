@@ -180,6 +180,21 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/*
+ * Android tablet / touch Chrome: sticky backdrop-filter often produces vertical GPU smear.
+ * Prefer solid paints on coarse pointers (tablets, phones).
+ */
+@media (pointer: coarse) {
+  .backdrop-blur-xl,
+  .backdrop-blur-lg,
+  .backdrop-blur-md,
+  .backdrop-blur-sm,
+  .backdrop-blur {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

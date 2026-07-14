@@ -4,14 +4,14 @@ import type { ReactNode } from "react";
 
 type Accent = "cyan" | "emerald" | "amber" | "rose" | "violet" | "sky";
 
-/** Flat fills (no multi-stop gradients) — stacked gradients + blur smear on iPad Safari. */
+/** Flat opaque-ish fills — translucent stacks + blur smear on Android tablet Chrome / WebViews. */
 const SHELL: Record<Accent, string> = {
-  cyan: "border-cyan-400/50 bg-cyan-500/15 dark:bg-cyan-950/45",
-  emerald: "border-emerald-400/50 bg-emerald-500/15 dark:bg-emerald-950/45",
-  amber: "border-amber-400/50 bg-amber-500/20 dark:bg-amber-950/40",
-  rose: "border-rose-400/50 bg-rose-500/15 dark:bg-rose-950/45",
-  violet: "border-violet-400/50 bg-violet-500/15 dark:bg-violet-950/45",
-  sky: "border-sky-400/50 bg-sky-500/15 dark:bg-sky-950/45",
+  cyan: "border-cyan-500/40 bg-cyan-50 dark:bg-cyan-950",
+  emerald: "border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950",
+  amber: "border-amber-500/40 bg-amber-50 dark:bg-amber-950",
+  rose: "border-rose-500/40 bg-rose-50 dark:bg-rose-950",
+  violet: "border-violet-500/40 bg-violet-50 dark:bg-violet-950",
+  sky: "border-sky-500/40 bg-sky-50 dark:bg-sky-950",
 };
 
 const TITLE: Record<Accent, string> = {
