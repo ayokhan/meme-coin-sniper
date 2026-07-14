@@ -4275,9 +4275,9 @@ export default function Dashboard() {
           </div>
         )}
 
-        <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-lg dark:shadow-none dark:shadow-[0_0_0_1px_rgba(34,211,238,0.06)] overflow-hidden">
+        <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white dark:bg-zinc-900 shadow-lg dark:shadow-none dark:shadow-[0_0_0_1px_rgba(34,211,238,0.06)] overflow-hidden">
           <CardHeader className="pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80">
-            <CardTitle className="text-lg font-bold bg-gradient-to-r from-zinc-900 to-zinc-700 dark:from-zinc-100 dark:to-zinc-300 bg-clip-text text-transparent">
+            <CardTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
               Multi-Market AI Trading Workspace
             </CardTitle>
             <p className="mt-2 max-w-5xl text-sm sm:text-[15px] leading-relaxed text-zinc-600 dark:text-zinc-300 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden sm:[display:block]">
