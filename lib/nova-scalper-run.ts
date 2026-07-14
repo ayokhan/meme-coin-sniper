@@ -148,7 +148,11 @@ export async function runNovaScalperTick(
   if (!Number.isFinite(price) || price <= 0) {
     await db.novaScalperConfig.update({
       where: { id: row.id },
-      data: { lastError: "No price", lastTickAt: new Date() },
+      data: {
+        lastError: "No price",
+        lastTickAt: new Date(),
+        lastAction: "Tick failed: could not read Blofin last price.",
+      },
     });
     return { ok: false, error: "Could not read last price." };
   }
@@ -197,7 +201,12 @@ export async function runNovaScalperTick(
     if (row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && stopHit(side, row.stopLossPrice, price)) {
       const cl = await closePositionViaApi(instId, marginMode, "net", blofinOpts);
       if (!cl.ok) {
-        await updateRow({ lastError: cl.error ?? "Stop close failed", lastTickAt: new Date() });
+        const err = cl.error ?? "Stop close failed";
+        await updateRow({
+          lastError: err,
+          lastTickAt: new Date(),
+          lastAction: `Stop hit @ ~${price}, but close failed: ${err}`,
+        });
         return { ok: false, error: cl.error };
       }
       const rounds = (row.completedRounds ?? 0) + 1;
@@ -220,7 +229,12 @@ export async function runNovaScalperTick(
     if (shouldExit(side, row.exitPrice, lastRef, price)) {
       const cl = await closePositionViaApi(instId, marginMode, "net", blofinOpts);
       if (!cl.ok) {
-        await updateRow({ lastError: cl.error ?? "Exit close failed", lastTickAt: new Date() });
+        const err = cl.error ?? "Exit close failed";
+        await updateRow({
+          lastError: err,
+          lastTickAt: new Date(),
+          lastAction: `Exit target @ ~${price}, but close failed: ${err}`,
+        });
         return { ok: false, error: cl.error };
       }
       const rounds = (row.completedRounds ?? 0) + 1;
@@ -268,13 +282,22 @@ export async function runNovaScalperTick(
 
   const instRes = await getInstrument(instId, { demo: isDemo, config: blofinConfig });
   if (!instRes) {
-    await updateRow({ lastError: "No instrument", lastTickAt: new Date() });
+    await updateRow({
+      lastError: "No instrument",
+      lastTickAt: new Date(),
+      lastAction: `Entry cross detected, but could not load instrument ${instId}.`,
+    });
     return { ok: false, error: "Could not load instrument." };
   }
   const contractValue = parseFloatSafe(instRes.contractValue);
   const minSize = parseFloatSafe(instRes.minSize);
   const lotSize = minSize;
   if (contractValue <= 0) {
+    await updateRow({
+      lastError: "Invalid contract value",
+      lastTickAt: new Date(),
+      lastAction: `Entry cross detected, but ${instId} has an invalid contract value.`,
+    });
     return { ok: false, error: "Invalid contract value." };
   }
 
@@ -283,14 +306,25 @@ export async function runNovaScalperTick(
   const sizeContracts = notionalUsdt / (price * contractValue);
   const sizeStr = roundSize(sizeContracts, minSize, lotSize);
   if (parseFloat(sizeStr) < minSize) {
-    return { ok: false, error: `Size below minimum (${minSize} contracts). Increase margin or leverage.` };
+    const err = `Size below minimum (${minSize} contracts). Increase margin or leverage.`;
+    await updateRow({
+      lastError: err,
+      lastTickAt: new Date(),
+      lastAction: `Entry cross @ ~${price}, but order size too small: ${err}`,
+    });
+    return { ok: false, error: err };
   }
 
   await setLeverage(instId, lev, marginMode, blofinOpts);
   const orderSide = side === "long" ? "buy" : "sell";
   const ord = await placeMarketOrder(instId, orderSide, sizeStr, marginMode, blofinOpts);
   if (!ord.ok) {
-    await updateRow({ lastError: ord.error ?? "Order failed", lastTickAt: new Date() });
+    const err = ord.error ?? "Order failed";
+    await updateRow({
+      lastError: err,
+      lastTickAt: new Date(),
+      lastAction: `Entry cross @ ~${price} — market ${orderSide} failed: ${err}`,
+    });
     return { ok: false, error: ord.error };
   }
 
