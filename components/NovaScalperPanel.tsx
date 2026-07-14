@@ -1024,7 +1024,9 @@ export default function NovaScalperPanel() {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Bot flag</p>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                In position (internal)
+              </p>
               <p
                 className={
                   config.inPosition
@@ -1032,7 +1034,7 @@ export default function NovaScalperPanel() {
                     : "text-sm font-semibold text-zinc-500 dark:text-zinc-400"
                 }
               >
-                {config.inPosition ? "In position (internal)" : "Flat (internal)"}
+                {config.inPosition ? "Yes" : "No"}
               </p>
             </div>
           </div>
@@ -1090,7 +1092,25 @@ export default function NovaScalperPanel() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div
+              className={
+                config.inPosition
+                  ? "rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5"
+                  : "rounded-lg border border-zinc-200/80 dark:border-zinc-700/70 bg-white/70 dark:bg-zinc-950/50 px-3 py-2.5"
+              }
+            >
+              <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">In position</p>
+              <p
+                className={
+                  config.inPosition
+                    ? "mt-0.5 font-semibold text-amber-700 dark:text-amber-300"
+                    : "mt-0.5 font-semibold text-zinc-500 dark:text-zinc-400"
+                }
+              >
+                {config.inPosition ? "Yes" : "No"}
+              </p>
+            </div>
             <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/70 bg-white/70 dark:bg-zinc-950/50 px-3 py-2.5">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1">
                 <Layers className="h-3 w-3" />
@@ -1112,7 +1132,7 @@ export default function NovaScalperPanel() {
                 {config.lastRefPrice != null ? config.lastRefPrice.toLocaleString() : "—"}
               </p>
             </div>
-            <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/70 bg-white/70 dark:bg-zinc-950/50 px-3 py-2.5 col-span-2 sm:col-span-1">
+            <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/70 bg-white/70 dark:bg-zinc-950/50 px-3 py-2.5">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 Last tick
