@@ -1646,3 +1646,86 @@ export function UniversityBacktestDiagram() {
     </ConceptShell>
   );
 }
+
+export function UniversityMetalsRailsDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Gold rails — XAU/USD vs XAU/USDT"
+      accent="amber"
+      note="Same metal narrative, different contract: FX/CFD language (pips, lots, swap) vs crypto-perp language (tick, funding, liquidation)."
+    >
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-lg border border-amber-500/45 bg-amber-50 dark:bg-amber-950 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-amber-950 dark:text-amber-100">XAU/USD · Forex / CFD</p>
+          <ul className="space-y-1 text-amber-950/85 dark:text-amber-100/90 list-disc pl-4">
+            <li>Gold vs USD on FX-style books</li>
+            <li>Lots / contract size + spread</li>
+            <li>
+              Often taught in <span className="font-semibold">pips</span>
+            </li>
+            <li>
+              Overnight <span className="font-semibold">swap / rollover</span> possible
+            </li>
+          </ul>
+          <p className="font-mono text-[11px] text-amber-800 dark:text-amber-200">Desk words: pip · lot · swap</p>
+        </div>
+        <div className="rounded-lg border border-cyan-500/45 bg-cyan-50 dark:bg-cyan-950 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-cyan-950 dark:text-cyan-100">XAU/USDT · Crypto perp</p>
+          <ul className="space-y-1 text-cyan-950/85 dark:text-cyan-100/90 list-disc pl-4">
+            <li>USDT-settled perpetual tracking gold</li>
+            <li>Leverage, margin, mark price</li>
+            <li>
+              Risk in <span className="font-semibold">$</span> / ticks — not EUR/USD pips
+            </li>
+            <li>
+              <span className="font-semibold">Funding</span> + liquidation like other perps
+            </li>
+          </ul>
+          <p className="font-mono text-[11px] text-cyan-800 dark:text-cyan-200">Desk words: tick · funding · liq</p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-violet-500/40 bg-violet-50 dark:bg-violet-950 px-3 py-2 text-[11px] text-violet-950 dark:text-violet-100">
+        NovaStaris path: Nova Forex for metals context → Nova Scalp / Blofin when the plan is a USDT metal perp.
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityGoldPipDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Pip units differ: EUR/USD vs XAU/USD"
+      accent="violet"
+      note="Illustrative desk conventions — always confirm pip size and pip value on your broker or exchange."
+    >
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-lg border border-sky-500/40 bg-sky-50 dark:bg-sky-950 p-3 space-y-2">
+          <p className="font-semibold text-sky-950 dark:text-sky-100">EUR/USD (typical)</p>
+          <p className="font-mono text-xl font-bold text-sky-800 dark:text-sky-200">1.0850 → 1.0851</p>
+          <p className="text-sky-950/80 dark:text-sky-100/85">
+            1 pip ≈ <span className="font-mono font-semibold">0.0001</span> (4th decimal)
+          </p>
+        </div>
+        <div className="rounded-lg border border-amber-500/45 bg-amber-50 dark:bg-amber-950 p-3 space-y-2">
+          <p className="font-semibold text-amber-950 dark:text-amber-100">XAU/USD (common FX desk)</p>
+          <p className="font-mono text-xl font-bold text-amber-800 dark:text-amber-200">4050.00 → 4050.01</p>
+          <p className="text-amber-950/80 dark:text-amber-100/85">
+            1 pip ≈ <span className="font-mono font-semibold">0.01</span> (one cent)
+          </p>
+          <p className="text-[11px] text-amber-900/75 dark:text-amber-100/75">
+            ≈ <span className="font-mono font-semibold">$1</span> move ≈{" "}
+            <span className="font-mono font-semibold">100 pips</span>
+          </p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-rose-500/40 bg-rose-50 dark:bg-rose-950 px-3 py-2 text-[11px] text-rose-950 dark:text-rose-100">
+        <span className="font-semibold">Trap:</span> copying a “20-pip” EUR/USD stop onto gold. On 0.01-pip gold that
+        can be only ~$0.20 of price — noise, not an invalidation.
+      </div>
+      <div className="rounded-lg border border-cyan-500/40 bg-cyan-50 dark:bg-cyan-950 px-3 py-2 text-[11px] text-cyan-950 dark:text-cyan-100">
+        <span className="font-semibold">XAU/USDT perps:</span> skip pip slang — use tickSize and $ risk like other
+        USDT contracts.
+      </div>
+    </ConceptShell>
+  );
+}

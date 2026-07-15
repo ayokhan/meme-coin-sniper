@@ -46,6 +46,7 @@ import {
   UniversityFibDiagram,
   UniversityForexPipDiagram,
   UniversityFundingDiagram,
+  UniversityGoldPipDiagram,
   UniversityIsolatedCrossDiagram,
   UniversityInstitutionalFlowDiagram,
   UniversityJournalDiagram,
@@ -56,6 +57,7 @@ import {
   UniversityMarginDiagram,
   UniversityMarkVsLastDiagram,
   UniversityMarketRegimesDiagram,
+  UniversityMetalsRailsDiagram,
   UniversityNarrativeDiagram,
   UniversityOptionsVolDiagram,
   UniversityOrdersDiagram,
@@ -1260,6 +1262,12 @@ export default function TradingUniversityPanel({
               )}
               {activeLesson.diagram === "sessions" && <UniversitySessionsDiagram />}
               {activeLesson.id === "forex" && <UniversityForexPipDiagram />}
+              {activeLesson.diagram === "metals" && (
+                <div className="space-y-3">
+                  <UniversityMetalsRailsDiagram />
+                  <UniversityGoldPipDiagram />
+                </div>
+              )}
               {activeLesson.diagram === "journal" && <UniversityJournalDiagram />}
               {activeLesson.diagram === "structure" && (
                 <div className="space-y-3">

@@ -104,6 +104,11 @@ export const COMMON_MISTAKES_BY_LESSON: Record<string, string[]> = {
     "Blind trading into NFP/CPI with a scalp stop.",
     "Forgetting swap costs on multi-day holds.",
   ],
+  "trading-metals": [
+    "Treating gold pips like EUR/USD (0.0001) — most XAU/USD desks use ~0.01.",
+    "Mixing XAU/USD forex charts with XAU/USDT perp risk without converting to $.",
+    "Running FX-style pip stops on a crypto metal perp (use ticks and $ distance).",
+  ],
   "novastaris-workflow": [
     "Letting a green AI score override missing invalidation.",
     "Tab-hopping without a market path (meme vs perps vs FX).",

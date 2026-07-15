@@ -1104,6 +1104,42 @@ export const CHAPTER_PRACTICE_BANK: UniversityQuizQuestion[] = [
     ],
     correctIndex: 0,
   },
+  {
+    id: "cp-metals-1",
+    lessonId: "trading-metals",
+    prompt: "XAU/USDT on a crypto exchange is best described as:",
+    options: [
+      "A USDT perpetual that tracks gold — funding and liquidation apply like other perps",
+      "Physical gold delivery settled in cash only on weekends",
+      "The same contract type as spot EUR/USD with FX pip math only",
+      "A stablecoin that always stays at $1",
+    ],
+    correctIndex: 0,
+  },
+  {
+    id: "cp-metals-2",
+    lessonId: "trading-metals",
+    prompt: "On many XAU/USD forex desks, 1 pip is commonly:",
+    options: [
+      "About 0.01 in price (one cent) — not 0.0001 like EUR/USD",
+      "Always exactly 0.0001 like EUR/USD",
+      "Always $10 of gold no matter the lot size",
+      "Impossible to define because gold never moves",
+    ],
+    correctIndex: 0,
+  },
+  {
+    id: "cp-metals-3",
+    lessonId: "trading-metals",
+    prompt: "The clean way to size a gold idea across FX and crypto rails is:",
+    options: [
+      "Convert the stop to $ risk on the venue you actually trade, then choose size",
+      "Always use a 20-pip EUR/USD calculator on every metal",
+      "Ignore tick size on Blofin because gold is traditional",
+      "Max leverage first, then invent a stop",
+    ],
+    correctIndex: 0,
+  },
 ];
 
 /** Practice: up to `limit` questions for a lesson from all sets + chapter bank (no answers). */

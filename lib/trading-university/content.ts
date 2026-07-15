@@ -14,7 +14,7 @@ export const COURSE_TRACK_META: Record<
   markets: {
     label: "Markets",
     level: "Intermediate",
-    blurb: "Memes, Solana/BSC, futures, prediction markets, and forex.",
+    blurb: "Memes, Solana/BSC, futures, prediction markets, forex, and metals (XAU/XAG).",
   },
   applied: {
     label: "Applied",
@@ -69,6 +69,7 @@ export type UniversityLesson = {
     | "eth-l2"
     | "options"
     | "backtest"
+    | "metals"
     | null;
   /** Syllabus track — if omitted, inferred from id. */
   track?: CourseTrack;
@@ -1415,6 +1416,112 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     ],
     diagram: "sessions",
     relatedTools: [{ label: "Nova Forex Agent", href: "/?tab=nova-forex" }],
+  },
+  {
+    id: "trading-metals",
+    title: "Trading Gold & Silver (XAU / XAG)",
+    subtitle: "XAU/USD forex vs XAU/USDT perps, gold pip rules, sessions, and sizing.",
+    estimatedMinutes: 12,
+    track: "markets",
+    sections: [
+      {
+        heading: "Why metals matter on NovaStaris",
+        body: [
+          "Gold (XAU) and silver (XAG) are among the most traded traditional market instruments. Nova Forex Agent and Nova Scalp support metals so you can analyze structure and take plans without leaving the product.",
+          "Do not treat gold like EUR/USD. Liquidity, quoting conventions, and risk units differ — and the product you trade (FX CFD vs crypto perp) changes what 'a move' costs.",
+        ],
+      },
+      {
+        heading: "Two common rails: XAU/USD vs XAU/USDT",
+        body: [
+          "XAU/USD (forex / CFD style): gold priced in US dollars on an FX or CFD venue. You trade lots or contract units under broker FX rules — spreads, swaps/rollover if held overnight, and often pip-based education language.",
+          "XAU/USDT (crypto perpetual): a USDT-settled perpetual futures contract that tracks gold. Same leverage / margin / funding / liquidation ideas as other crypto perps (see Crypto Futures & Perps) — mark vs last, funding every interval, isolated or cross margin.",
+          "Same metal, different plumbing. A Nova Scalp plan on Blofin XAUUSDT uses tickSize and USDT PnL. A forex-desk XAUUSD chart may speak in pips and lot sizes. Always size from $ risk on the venue you actually click.",
+        ],
+      },
+      {
+        heading: "Pips on gold are not EUR/USD pips",
+        body: [
+          "On EUR/USD, traders commonly treat 1 pip as 0.0001 in price (the 4th decimal).",
+          "On XAU/USD, most desks treat 1 pip as 0.01 (one cent) — so a print from 4050.00 to 4050.01 is often described as 1 pip, and a $1 move is ~100 pips. Brokers can differ; confirm pip and pip-value on your platform.",
+          "Crypto XAU/USDT perps usually do not use 'pips' at all. Risk is mark-price distance in $ × contract size × leverage — same mental model as BTCUSDT, not a 4-decimal FX pip calculator.",
+          "Practical tip: when a chat says 'gold moved 50 pips,' ask which quote they mean. On 0.01-pip gold, 50 pips ≈ $0.50. If they meant a $50 move, that is a different conversation entirely.",
+        ],
+      },
+      {
+        heading: "Sessions, USD, and silver",
+        body: [
+          "Gold and silver often wake up with London and especially the London–New York overlap — thinner books around Asia midday still whip stops.",
+          "USD strength usually pressures gold (inverse correlation is common, not a law). Risk events (CPI, FOMC, geopolitics) can dominate the session.",
+          "XAG is typically more volatile than XAU for the same notional style — smaller size until you know silver’s noise relative to your stop.",
+        ],
+      },
+      {
+        heading: "Process on NovaStaris",
+        body: [
+          "Use Nova Forex Agent for metals watch, NovaQ-style S/R and session context, and Nova Scalp when you want a short-horizon plan on Blofin metals rails.",
+          "Write invalidation in price ($), convert to $ risk, then choose size. Do not copy a EUR/USD lot calculator onto gold and hope.",
+        ],
+      },
+    ],
+    keyTerms: [
+      {
+        term: "XAU / XAG",
+        definition: "Market codes for gold and silver (precious metals).",
+      },
+      {
+        term: "XAU/USD",
+        definition: "Gold quoted vs USD on FX/CFD rails — often discussed in lots and pips.",
+      },
+      {
+        term: "XAU/USDT",
+        definition: "Gold-linked USDT perpetual — funding, margin, and liquidation like other crypto perps.",
+      },
+      {
+        term: "Gold pip (common)",
+        definition: "On many XAU/USD desks, 1 pip ≈ 0.01 in price — not 0.0001 like EUR/USD.",
+      },
+      {
+        term: "Tick size",
+        definition: "Smallest price increment on a perp/CFD quote (e.g. Blofin XAUUSDT) — use this for exchange-legal entries/stops.",
+      },
+    ],
+    workedExamples: [
+      {
+        title: "Same $1 gold move — two translations",
+        setup: [
+          "Spot / index gold ≈ $4,050",
+          "Price rises by $1.00 to ≈ $4,051",
+          "Case A: FX desk speaking in XAU/USD pips (0.01 = 1 pip)",
+          "Case B: Crypto XAU/USDT perp trader",
+        ],
+        steps: [
+          "FX language: $1.00 ≈ 100 pips if 1 pip = 0.01. Pip value still depends on lot/contract size — convert pips × pip value = $ PnL.",
+          "Perp language: ignore 'pips.' Your PnL ≈ price change × contract exposure (after leverage/margin rules). A 50× long loses fast if gold drops through your stop.",
+          "Do not paste a EUR/USD 20-pip stop onto gold assuming the same $ risk. On gold, 20 FX-style pips may only be $0.20 of price — noise, not a real scalp stop.",
+        ],
+        takeaway: "Translate every metal idea into $ risk on your venue. Pip labels are optional; dollar risk is mandatory.",
+      },
+      {
+        title: "Picking the rail before the entry",
+        setup: [
+          "Thesis: gold soft into NY; you want a short-horizon fade",
+          "Available: Nova Forex metals tools + Blofin XAUUSDT scalp",
+        ],
+        steps: [
+          "Decide rail first: FX/CFD XAUUSD (swap, lots, broker pip) vs XAUUSDT perp (funding, liq).",
+          "Pull S/R and session context on that rail’s chart — don’t mix a forex print with a perp tick book.",
+          "Size from stop distance in $ on that rail, then place the order where you actually trade.",
+        ],
+        takeaway: "Same thesis, different contract → different stop width and costs. Match tool → market → size.",
+      },
+    ],
+    diagram: "metals",
+    relatedTools: [
+      { label: "Nova Forex Agent", href: "/?tab=nova-forex" },
+      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+      { label: "Crypto Futures", href: "/?tab=futures" },
+    ],
   },
   {
     id: "options-volatility",
