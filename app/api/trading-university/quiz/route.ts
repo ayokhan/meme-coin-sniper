@@ -150,7 +150,7 @@ export async function GET() {
   });
 }
 
-/** POST — grade answers; enforces 60-minute window. */
+/** POST — grade answers; enforces timed exam window. */
 export async function POST(request: Request) {
   const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.PAGE_TAB_TRADING_UNIVERSITY);
   if (!enabled) {

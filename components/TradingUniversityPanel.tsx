@@ -195,8 +195,9 @@ export default function TradingUniversityPanel({
   const [error, setError] = useState<string | null>(null);
   const [lessons, setLessons] = useState<CatalogLesson[]>([]);
   const [passPct, setPassPct] = useState(80);
-  const [passCorrect, setPassCorrect] = useState(32);
-  const [quizSize, setQuizSize] = useState(40);
+  const [passCorrect, setPassCorrect] = useState(48);
+  const [quizSize, setQuizSize] = useState(60);
+  const [examMinutes, setExamMinutes] = useState(70);
   const [fullAccess, setFullAccess] = useState(false);
   const [donationsEnabled, setDonationsEnabled] = useState(true);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -316,8 +317,9 @@ export default function TradingUniversityPanel({
       }
       setLessons(data.catalog?.lessons ?? []);
       setPassPct(data.catalog?.passPct ?? 80);
-      setPassCorrect(data.catalog?.passCorrect ?? 32);
-      setQuizSize(data.catalog?.quizSize ?? 40);
+      setPassCorrect(data.catalog?.passCorrect ?? 48);
+      setQuizSize(data.catalog?.quizSize ?? 60);
+      setExamMinutes(data.catalog?.examMinutes ?? 70);
       setFullAccess(!!data.catalog?.fullAccess);
       setDonationsEnabled(data.catalog?.donationsEnabled !== false);
       setProgress(data.progress ?? null);
@@ -524,7 +526,7 @@ export default function TradingUniversityPanel({
       setProctorWarning(
         data.resumed
           ? "Resumed your timed exam — the clock did not reset."
-          : "Timed exam: 60 minutes. Stay on this tab — leaving repeatedly will end the attempt."
+          : `Timed exam: ${examMinutes} minutes. Stay on this tab — leaving repeatedly will end the attempt.`
       );
       setView("quiz");
     } catch {
@@ -1080,7 +1082,8 @@ export default function TradingUniversityPanel({
               </h2>
             </div>
             <p className="text-sm text-muted-foreground max-w-2xl">
-              After you finish learning, take a timed {quizSize}-question final exam (60 minutes). You
+              After you finish learning, take a timed {quizSize}-question final exam ({examMinutes}{" "}
+              minutes). You
               need {passCorrect} correct answers ({passPct}%) to pass. One attempt per day if you do
               not pass. Stay on the exam tab — switching away repeatedly ends the attempt. Graduates
               receive a personalized, downloadable certificate.
@@ -1126,7 +1129,7 @@ export default function TradingUniversityPanel({
                       ? "Starting…"
                       : progress?.examInProgress
                         ? "Resume timed final exam"
-                        : `Start ${quizSize}-question final exam (60 min)`}
+                        : `Start ${quizSize}-question final exam (${examMinutes} min)`}
                   </Button>
                 )}
               </div>
@@ -1586,7 +1589,7 @@ export default function TradingUniversityPanel({
               onClick={() => {
                 if (
                   window.confirm(
-                    "Leave the exam screen? The 60-minute timer keeps running. Closing or switching tabs may end your attempt."
+                    `Leave the exam screen? The ${examMinutes}-minute timer keeps running. Closing or switching tabs may end your attempt.`
                   )
                 ) {
                   setView("home");
@@ -1717,7 +1720,7 @@ export default function TradingUniversityPanel({
               </h2>
               <p className="text-sm text-muted-foreground">
                 {result.timedOut
-                  ? `The 60-minute limit ended. You scored ${result.correct}/${result.total} (${result.scorePct}%). Timed-out attempts do not pass.`
+                  ? `The ${examMinutes}-minute limit ended. You scored ${result.correct}/${result.total} (${result.scorePct}%). Timed-out attempts do not pass.`
                   : result.tabLeaveFail
                     ? `The exam ended after too many tab/window leaves. You scored ${result.correct}/${result.total} (${result.scorePct}%).`
                     : `You scored ${result.correct}/${result.total} (${result.scorePct}%). Pass mark is ${passCorrect}/${quizSize} (${passPct}%).`}{" "}

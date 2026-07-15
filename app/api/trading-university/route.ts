@@ -3,6 +3,7 @@ import { getSessionAndSubscription } from "@/lib/auth-server";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
 import {
+  TRADING_UNIVERSITY_EXAM_MINUTES,
   TRADING_UNIVERSITY_LESSONS,
   TRADING_UNIVERSITY_PASS_CORRECT,
   TRADING_UNIVERSITY_PASS_PCT,
@@ -45,6 +46,7 @@ export async function GET() {
     passPct: TRADING_UNIVERSITY_PASS_PCT,
     passCorrect: TRADING_UNIVERSITY_PASS_CORRECT,
     quizSize: TRADING_UNIVERSITY_QUIZ_SIZE,
+    examMinutes: TRADING_UNIVERSITY_EXAM_MINUTES,
     previewLessonId: PREVIEW_LESSON_ID,
     fullAccess,
     donationsEnabled,

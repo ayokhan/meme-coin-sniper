@@ -75,13 +75,13 @@ export type UniversityLesson = {
 };
 
 export const TRADING_UNIVERSITY_PASS_PCT = 80;
-/** Absolute pass threshold for the final exam (32 of 40). */
-export const TRADING_UNIVERSITY_PASS_CORRECT = 32;
-export const TRADING_UNIVERSITY_QUIZ_SIZE = 40;
+/** Absolute pass threshold for the final exam (48 of 60). */
+export const TRADING_UNIVERSITY_PASS_CORRECT = 48;
+export const TRADING_UNIVERSITY_QUIZ_SIZE = 60;
 /** Chapter check: need at least this many correct (of 3) to unlock Mark complete. */
 export const TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT = 2;
 /** Final exam time limit (minutes). Enforced server-side. */
-export const TRADING_UNIVERSITY_EXAM_MINUTES = 60;
+export const TRADING_UNIVERSITY_EXAM_MINUTES = 70;
 /** Tab/window leaves before the exam auto-submits (client deterrent). */
 export const TRADING_UNIVERSITY_MAX_TAB_LEAVES = 3;
 

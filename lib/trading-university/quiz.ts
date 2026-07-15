@@ -1,6 +1,11 @@
 /** Quiz bank — correctIndex is server-only; clients never receive it on GET. */
 
 import { EXAM_SET_B, EXAM_SET_C } from "@/lib/trading-university/quiz-sets-extra";
+import {
+  EXAM_SET_A_EXTRA,
+  EXAM_SET_B_EXTRA,
+  EXAM_SET_C_EXTRA,
+} from "@/lib/trading-university/quiz-expand-60";
 
 export type UniversityQuizQuestion = {
   id: string;
@@ -498,11 +503,11 @@ export type PublicQuizQuestion = {
 
 export type ExamSetId = "A" | "B" | "C";
 
-/** Set A = original bank (q1–q40). Sets B/C rotate for world-class variety. */
+/** Set A = base bank + expansion (60). Sets B/C rotate for variety. */
 export const EXAM_SETS: Record<ExamSetId, UniversityQuizQuestion[]> = {
-  A: TRADING_UNIVERSITY_QUIZ_BANK,
-  B: EXAM_SET_B,
-  C: EXAM_SET_C,
+  A: [...TRADING_UNIVERSITY_QUIZ_BANK, ...EXAM_SET_A_EXTRA],
+  B: [...EXAM_SET_B, ...EXAM_SET_B_EXTRA],
+  C: [...EXAM_SET_C, ...EXAM_SET_C_EXTRA],
 };
 
 export const EXAM_SET_IDS: ExamSetId[] = ["A", "B", "C"];

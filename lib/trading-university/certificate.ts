@@ -1,5 +1,10 @@
 /** Client-side certificate PNG + share helpers (no server CPU / no paid API). */
 
+import {
+  TRADING_UNIVERSITY_PASS_CORRECT,
+  TRADING_UNIVERSITY_QUIZ_SIZE,
+} from "@/lib/trading-university/content";
+
 export type CertificatePayload = {
   graduateName: string;
   scorePct: number;
@@ -67,7 +72,7 @@ export function buildCertificateCanvas(payload: CertificatePayload): HTMLCanvasE
     440
   );
   ctx.fillText(
-    `and passed the final examination with ${payload.scorePct}% (pass mark 32/40).`,
+    `and passed the final examination with ${payload.scorePct}% (pass mark ${TRADING_UNIVERSITY_PASS_CORRECT}/${TRADING_UNIVERSITY_QUIZ_SIZE}).`,
     w / 2,
     470
   );
