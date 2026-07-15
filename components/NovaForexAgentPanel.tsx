@@ -19,8 +19,9 @@ import {
 import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
 import {
   clearOpenWatchedScalpPlanPending,
+  findWatchedScalpPlan,
   hasOpenWatchedScalpPlanPending,
-  readWatchedScalpPlan,
+  peekOpenWatchedScalpPlanPending,
   SCALP_OPEN_WATCHED_EVENT,
 } from "@/lib/nova-scalp-plan-watch";
 import { clearNovaQPrefill, readNovaQPrefill } from "@/lib/nova-q-prefill";
@@ -169,7 +170,11 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
   }, []);
 
   const restoreWatchedForexPlan = useCallback(() => {
-    const w = readWatchedScalpPlan();
+    const pending = peekOpenWatchedScalpPlanPending();
+    if (pending && pending.market !== "forex") return false;
+    const w = pending
+      ? findWatchedScalpPlan({ symbol: pending.symbol, timeframeId: pending.timeframeId }, "forex")
+      : null;
     if (!w || (w.market ?? "crypto") !== "forex") return false;
     const a = w.analysis;
     if (a.side === "no_entry") return false;
@@ -178,7 +183,7 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
     setScalpAmount(String(a.amountUsd));
     setScalpLev(String(a.leverage));
     setScalpMaxLoss(String(a.maxLossPctOnMargin ?? 5));
-    setScalpTf(a.timeframeId);
+    setScalpTf(a.timeframeId as ScalpTimeframeId);
     setScalpResult(a);
     setScalpError(null);
     clearOpenWatchedScalpPlanPending();

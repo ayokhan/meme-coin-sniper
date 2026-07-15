@@ -10,9 +10,10 @@ import {
 } from "@/lib/nova-scalp-plan-status";
 import {
   dispatchScalpStatusChange,
-  readWatchedScalpPlan,
+  readWatchedScalpPlans,
   SCALP_WATCH_EVENT,
-  writeWatchedScalpPlan,
+  watchPlanKey,
+  writeWatchedScalpPlans,
   type WatchedScalpPlan,
 } from "@/lib/nova-scalp-plan-watch";
 import { scalpPlanWatchLabel } from "@/lib/scalp-plan-market";
@@ -39,7 +40,7 @@ function notifyScalpStatus(
   try {
     new Notification(`${scalpPlanWatchLabel(market ?? "crypto")} · ${analysis.symbol}`, {
       body: `${label}${priceBit}`,
-      tag: `scalp-watch-${analysis.symbol}-${analysis.analyzedAt}`,
+      tag: `scalp-watch-${analysis.symbol}-${analysis.timeframeId}`,
     });
   } catch {
     /* ignore */
@@ -47,54 +48,76 @@ function notifyScalpStatus(
 }
 
 export default function NovaScalpPlanWatcher() {
-  const lastNotified = useRef<string>("");
+  const lastNotified = useRef<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
     let intervalId: number | undefined;
+    let ticking = false;
 
     const tick = async () => {
-      const watched = readWatchedScalpPlan();
-      if (!watched || watched.analysis.side === "no_entry") return;
+      if (ticking) return;
+      ticking = true;
+      try {
+        const snapshot = readWatchedScalpPlans().filter((w) => w.analysis.side !== "no_entry");
+        if (snapshot.length === 0) return;
 
-      const market = watched.market ?? "crypto";
-      const livePrice = await fetchScalpLivePrice(watched.analysis.symbol, market);
-      if (cancelled) return;
+        const updates = await Promise.all(
+          snapshot.map(async (watched) => {
+            const market = watched.market ?? "crypto";
+            const livePrice = await fetchScalpLivePrice(watched.analysis.symbol, market);
+            return { watched, market, livePrice };
+          })
+        );
+        if (cancelled) return;
 
-      // The fetch above is async; the user may have stopped watching (or switched
-      // plans) while it was in flight. Re-read before writing so a stale tick can't
-      // resurrect a dismissed plan and re-show the banner.
-      const current = readWatchedScalpPlan();
-      if (
-        !current ||
-        current.analysis.analyzedAt !== watched.analysis.analyzedAt ||
-        current.analysis.symbol !== watched.analysis.symbol ||
-        (current.market ?? "crypto") !== market
-      ) {
-        return;
-      }
+        const current = readWatchedScalpPlans();
+        const currentKeys = new Set(current.map((p) => watchPlanKey(p.analysis, p.market ?? "crypto")));
+        let next = [...current];
+        let changed = false;
 
-      const status = planStatusFromAnalysis(watched.analysis, livePrice);
-      const prev = watched.lastStatus;
-      const updated: WatchedScalpPlan = {
-        ...watched,
-        lastStatus: status,
-        lastLivePrice: livePrice,
-        statusUpdatedAt:
-          status !== prev ? new Date().toISOString() : watched.statusUpdatedAt,
-      };
-      writeWatchedScalpPlan(updated);
+        for (const { watched, market, livePrice } of updates) {
+          const key = watchPlanKey(watched.analysis, market);
+          if (!currentKeys.has(key)) continue;
 
-      dispatchScalpStatusChange({
-        status,
-        analysis: watched.analysis,
-        livePrice,
-      });
+          const status = planStatusFromAnalysis(watched.analysis, livePrice);
+          const prev = watched.lastStatus;
+          const idx = next.findIndex((p) => watchPlanKey(p.analysis, p.market ?? "crypto") === key);
+          if (idx < 0) continue;
 
-      const notifyKey = `${watched.analysis.analyzedAt}:${status}`;
-      if (status !== prev && lastNotified.current !== notifyKey) {
-        lastNotified.current = notifyKey;
-        notifyScalpStatus(watched.analysis, status, livePrice, market);
+          const updated: WatchedScalpPlan = {
+            ...next[idx]!,
+            analysis: next[idx]!.analysis,
+            lastStatus: status,
+            lastLivePrice: livePrice,
+            statusUpdatedAt:
+              status !== prev ? new Date().toISOString() : next[idx]!.statusUpdatedAt,
+          };
+          if (
+            updated.lastStatus !== next[idx]!.lastStatus ||
+            updated.lastLivePrice !== next[idx]!.lastLivePrice
+          ) {
+            next[idx] = updated;
+            changed = true;
+          }
+
+          dispatchScalpStatusChange({
+            status,
+            analysis: watched.analysis,
+            livePrice,
+            market,
+          });
+
+          const notifyKey = `${key}:${status}`;
+          if (status !== prev && lastNotified.current[key] !== notifyKey) {
+            lastNotified.current[key] = notifyKey;
+            notifyScalpStatus(watched.analysis, status, livePrice, market);
+          }
+        }
+
+        if (changed) writeWatchedScalpPlans(next);
+      } finally {
+        ticking = false;
       }
     };
 
@@ -104,15 +127,13 @@ export default function NovaScalpPlanWatcher() {
       intervalId = window.setInterval(() => void tick(), SCALP_LIVE_PRICE_MS);
     };
 
-    const onWatchChange = () => start();
-
     start();
-    window.addEventListener(SCALP_WATCH_EVENT, onWatchChange);
+    window.addEventListener(SCALP_WATCH_EVENT, start);
 
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
-      window.removeEventListener(SCALP_WATCH_EVENT, onWatchChange);
+      window.removeEventListener(SCALP_WATCH_EVENT, start);
     };
   }, []);
 

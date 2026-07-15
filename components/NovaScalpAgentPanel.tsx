@@ -7,8 +7,9 @@ import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
 import { sendTradeToNovaScalper } from "@/lib/nova-scalper-prefill";
 import {
   clearOpenWatchedScalpPlanPending,
+  findWatchedScalpPlan,
   hasOpenWatchedScalpPlanPending,
-  readWatchedScalpPlan,
+  peekOpenWatchedScalpPlanPending,
   SCALP_OPEN_WATCHED_EVENT,
 } from "@/lib/nova-scalp-plan-watch";
 import {
@@ -96,7 +97,11 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
   }, []);
 
   const restoreWatchedPlan = useCallback(() => {
-    const w = readWatchedScalpPlan();
+    const pending = peekOpenWatchedScalpPlanPending();
+    if (pending && pending.market !== "crypto") return false;
+    const w = pending
+      ? findWatchedScalpPlan({ symbol: pending.symbol, timeframeId: pending.timeframeId }, "crypto")
+      : null;
     if (!w || (w.market ?? "crypto") !== "crypto") return false;
     const a = w.analysis;
     if (a.side === "no_entry") return false;
@@ -104,7 +109,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
     setAmount(String(a.amountUsd));
     setLeverage(String(a.leverage));
     setMaxLossPct(String(a.maxLossPctOnMargin ?? 5));
-    setTimeframeId(a.timeframeId);
+    setTimeframeId(a.timeframeId as ScalpTimeframeId);
     setResult(a);
     setError(null);
     clearOpenWatchedScalpPlanPending();

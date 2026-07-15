@@ -59,7 +59,7 @@ export function startActiveScalpTrade(
   filledEntryPrice: number
 ): void {
   if (analysis.side !== "long" && analysis.side !== "short") return;
-  stopWatchingScalpPlan();
+  stopWatchingScalpPlan(analysis, market);
   writeActiveScalpTrade({
     market,
     symbol: analysis.symbol,

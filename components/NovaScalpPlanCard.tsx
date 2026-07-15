@@ -35,7 +35,9 @@ import {
 } from "@/lib/nova-scalp-plan-status";
 import {
   isWatchingScalpPlan,
+  readWatchedScalpPlans,
   SCALP_WATCH_EVENT,
+  SCALP_WATCH_MAX,
   startWatchingScalpPlan,
   stopWatchingScalpPlan,
   updateWatchedScalpPlan,
@@ -185,6 +187,7 @@ export function NovaScalpPlanCard({
   const [livePrice, setLivePrice] = useState<number | null>(result.currentPrice);
   const [priceError, setPriceError] = useState(false);
   const [watching, setWatching] = useState(false);
+  const [watchCount, setWatchCount] = useState(0);
   const [entryRecord, setEntryRecord] = useState<ScalpPlanEntryRecord | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [blofinPosition, setBlofinPosition] = useState<BlofinPositionSummary | null>(null);
@@ -215,7 +218,10 @@ export function NovaScalpPlanCard({
   }, []);
 
   useEffect(() => {
-    const sync = () => setWatching(isWatchingScalpPlan(result, market));
+    const sync = () => {
+      setWatching(isWatchingScalpPlan(result, market));
+      setWatchCount(readWatchedScalpPlans().length);
+    };
     sync();
     window.addEventListener(SCALP_WATCH_EVENT, sync);
     return () => window.removeEventListener(SCALP_WATCH_EVENT, sync);
@@ -369,23 +375,26 @@ export function NovaScalpPlanCard({
       ? estimateScalpPnl(entrySide!, filledEntryPrice!, result.stopLossPrice, tradeMargin, tradeLeverage)
       : null;
 
-  // Keep the pinned watch in sync with live status — but only for THIS plan.
-  // Using local `watching` alone raced Analyze: old watching=true + new result
-  // overwrote sessionStorage before watching flipped to false.
+  // Keep this plan’s watch slot in sync — identity is market+symbol+TF (not analyzedAt),
+  // so Analyze on another symbol cannot overwrite unrelated watches.
   useEffect(() => {
     if (result.side === "no_entry") return;
     if (!isWatchingScalpPlan(result, market)) return;
-    updateWatchedScalpPlan({
-      analysis: result,
-      lastStatus: planStatus,
-      lastLivePrice: livePrice,
-      statusUpdatedAt: new Date().toISOString(),
-    });
+    updateWatchedScalpPlan(
+      result,
+      {
+        analysis: result,
+        lastStatus: planStatus,
+        lastLivePrice: livePrice,
+        statusUpdatedAt: new Date().toISOString(),
+      },
+      market
+    );
   }, [watching, result, planStatus, livePrice, market]);
 
   const toggleWatch = async () => {
     if (watching) {
-      stopWatchingScalpPlan();
+      stopWatchingScalpPlan(result, market);
       return;
     }
     if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
@@ -395,7 +404,10 @@ export function NovaScalpPlanCard({
         /* ignore */
       }
     }
-    startWatchingScalpPlan(result, planStatus, market);
+    const started = startWatchingScalpPlan(result, planStatus, market);
+    if (!started.ok) {
+      alert(`You can watch up to ${started.max} plans at once. Stop one before adding another.`);
+    }
   };
 
   const canScalpTrade =
@@ -493,7 +505,11 @@ export function NovaScalpPlanCard({
                 ) : (
                   <Bell className="h-3.5 w-3.5 mr-1" />
                 )}
-                {watching ? "Stop watching" : "Watch plan"}
+                {watching
+                  ? "Stop watching"
+                  : watchCount > 0
+                    ? `Watch plan (${watchCount}/${SCALP_WATCH_MAX})`
+                    : "Watch plan"}
               </Button>
             )}
             <Button

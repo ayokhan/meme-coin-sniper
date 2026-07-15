@@ -10,18 +10,20 @@ import {
   type ScalpPlanStatus,
 } from "@/lib/nova-scalp-plan-status";
 import {
-  readWatchedScalpPlan,
+  readWatchedScalpPlans,
+  requestOpenWatchedScalpPlan,
   SCALP_STATUS_EVENT,
   SCALP_WATCH_EVENT,
-  requestOpenWatchedScalpPlan,
+  SCALP_WATCH_MAX,
   stopWatchingScalpPlan,
+  watchPlanKey,
+  type WatchedScalpPlan,
 } from "@/lib/nova-scalp-plan-watch";
 import {
   readActiveScalpTrade,
   SCALP_ACTIVE_TRADE_EVENT,
 } from "@/lib/nova-scalp-active-trade";
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
-import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 import { scalpPlanWatchLabel } from "@/lib/scalp-plan-market";
 
 function toneClass(tone: ReturnType<typeof planStatusTone>): string {
@@ -37,13 +39,24 @@ function toneClass(tone: ReturnType<typeof planStatusTone>): string {
   }
 }
 
+function sortPlans(plans: WatchedScalpPlan[]): WatchedScalpPlan[] {
+  const rank = (s: ScalpPlanStatus) => {
+    if (s === "at_entry") return 0;
+    if (s === "invalidated" || s === "target_hit") return 1;
+    if (s === "stale") return 2;
+    return 3;
+  };
+  return [...plans].sort((a, b) => {
+    const rd = rank(a.lastStatus) - rank(b.lastStatus);
+    if (rd !== 0) return rd;
+    return (Date.parse(b.watchedAt) || 0) - (Date.parse(a.watchedAt) || 0);
+  });
+}
+
 export default function NovaScalpWatchBanner() {
-  const [visible, setVisible] = useState(false);
-  const [status, setStatus] = useState<ScalpPlanStatus>("active");
-  const [analysis, setAnalysis] = useState<NovaScalpAnalysis | null>(null);
-  const [livePrice, setLivePrice] = useState<number | null>(null);
-  const [market, setMarket] = useState<ScalpPlanMarket>("crypto");
-  const [dismissedAt, setDismissedAt] = useState<string | null>(null);
+  const [plans, setPlans] = useState<WatchedScalpPlan[]>([]);
+  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useState(false);
   const [hasActiveTrade, setHasActiveTrade] = useState(false);
 
   useEffect(() => {
@@ -55,21 +68,7 @@ export default function NovaScalpWatchBanner() {
 
   useEffect(() => {
     const sync = () => {
-      const w = readWatchedScalpPlan();
-      if (!w) {
-        setVisible(false);
-        setAnalysis(null);
-        return;
-      }
-      setAnalysis(w.analysis);
-      setStatus(w.lastStatus);
-      setLivePrice(w.lastLivePrice);
-      setMarket(w.market ?? "crypto");
-      if (dismissedAt === w.analysis.analyzedAt && w.lastStatus === "active") {
-        setVisible(false);
-        return;
-      }
-      setVisible(true);
+      setPlans(sortPlans(readWatchedScalpPlans().filter((p) => p.analysis.side !== "no_entry")));
     };
 
     const onStatus = (e: Event) => {
@@ -77,25 +76,21 @@ export default function NovaScalpWatchBanner() {
         status: ScalpPlanStatus;
         analysis: NovaScalpAnalysis;
         livePrice: number | null;
+        market?: "crypto" | "forex";
       }>).detail;
-      if (!detail) return;
-      setAnalysis(detail.analysis);
-      setStatus(detail.status);
-      setLivePrice(detail.livePrice);
-      // Actionable status (at entry / invalidated / target / stale): clear any
-      // dismissal and surface the banner again.
+      if (!detail?.analysis) return;
+      const market = detail.market ?? "crypto";
+      const key = watchPlanKey(detail.analysis, market);
       if (detail.status !== "active") {
-        setDismissedAt(null);
-        setVisible(true);
-        return;
+        setDismissedKeys((prev) => {
+          if (!prev.has(key)) return prev;
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+        setCollapsed(false);
       }
-      // Still just waiting for entry — respect the user's dismiss so the ~12s
-      // price poll can't keep re-showing a banner they closed with X.
-      if (dismissedAt === detail.analysis.analyzedAt) {
-        setVisible(false);
-        return;
-      }
-      setVisible(true);
+      sync();
     };
 
     sync();
@@ -105,84 +100,112 @@ export default function NovaScalpWatchBanner() {
       window.removeEventListener(SCALP_WATCH_EVENT, sync);
       window.removeEventListener(SCALP_STATUS_EVENT, onStatus);
     };
-  }, [dismissedAt]);
+  }, []);
 
-  if (!visible || !analysis || analysis.side === "no_entry") return null;
+  if (plans.length === 0) return null;
 
-  const tone = planStatusTone(status);
-  const label = planStatusLabel(status, {
-    side: analysis.side,
-    entryPrice: analysis.entryPrice,
-    stopPrice: analysis.stopLossPrice,
-    entryMode: analysis.entryMode,
+  const visiblePlans = plans.filter((p) => {
+    const key = watchPlanKey(p.analysis, p.market ?? "crypto");
+    if (dismissedKeys.has(key) && p.lastStatus === "active") return false;
+    return true;
   });
+
+  if (visiblePlans.length === 0 && collapsed) {
+    return (
+      <div
+        className={`fixed right-4 z-[60] rounded-xl border border-cyan-400/50 bg-zinc-900/95 text-zinc-100 shadow-lg px-3 py-2 ${hasActiveTrade ? "bottom-44" : "bottom-20"}`}
+      >
+        <button
+          type="button"
+          className="text-xs font-medium inline-flex items-center gap-1.5"
+          onClick={() => {
+            setDismissedKeys(new Set());
+            setCollapsed(false);
+          }}
+        >
+          <Bell className="h-3.5 w-3.5" />
+          Watching {plans.length}/{SCALP_WATCH_MAX} — show
+        </button>
+      </div>
+    );
+  }
+
+  if (visiblePlans.length === 0) return null;
+
+  const headlineTone = planStatusTone(visiblePlans[0]!.lastStatus);
 
   return (
     <div
-      className={`fixed left-3 right-3 sm:left-auto sm:right-4 sm:max-w-md z-[60] rounded-xl border shadow-lg px-3 py-2.5 ${hasActiveTrade ? "bottom-44" : "bottom-20"} ${toneClass(tone)}`}
+      className={`fixed left-3 right-3 sm:left-auto sm:right-4 sm:max-w-md z-[60] rounded-xl border shadow-lg px-3 py-2.5 space-y-2 ${hasActiveTrade ? "bottom-44" : "bottom-20"} ${toneClass(headlineTone)}`}
       role="status"
     >
-      <div className="flex items-start gap-2">
-        <Bell className="h-4 w-4 shrink-0 mt-0.5 opacity-80" aria-hidden />
-        <div className="flex-1 min-w-0 text-xs">
-          <p className="font-semibold">
-            {scalpPlanWatchLabel(market)} · {analysis.symbol} · {analysis.timeframeLabel}
-          </p>
-          <p className="mt-0.5 opacity-90">{label}</p>
-          {livePrice != null && (
-            <p className="mt-0.5 font-mono opacity-80">
-              Live ${livePrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2 mt-2">
-            <Button asChild size="sm" variant="secondary" className="h-7 text-xs">
-              <Link
-                href={
-                  market === "forex"
-                    ? "/?tab=nova-forex&forex=nova-scalp#nova-scalp-watched-plan"
-                    : "/?tab=nova-forecast&forecast=nova-scalp#nova-scalp-watched-plan"
-                }
-                onClick={() => requestOpenWatchedScalpPlan()}
-              >
-                Open plan
-              </Link>
-            </Button>
-            {(status === "invalidated" || status === "target_hit" || status === "stale") && (
-              <Button asChild size="sm" variant="secondary" className="h-7 text-xs">
-                <Link
-                  href={
-                    market === "forex"
-                      ? "/?tab=nova-forex&forex=nova-scalp"
-                      : "/?tab=nova-forecast&forecast=nova-scalp#nova-scalp-quick-wins"
-                  }
-                >
-                  {market === "forex" ? "Open Forex Scalp" : "Find quick wins"}
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide opacity-90 inline-flex items-center gap-1.5">
+          <Bell className="h-3.5 w-3.5" aria-hidden />
+          Watching {plans.length}/{SCALP_WATCH_MAX}
+        </p>
         <button
           type="button"
           className="shrink-0 rounded p-1 opacity-70 hover:opacity-100"
-          aria-label="Dismiss banner"
+          aria-label="Collapse watch list"
           onClick={() => {
-            setDismissedAt(analysis.analyzedAt);
-            setVisible(false);
+            setCollapsed(true);
+            setDismissedKeys(new Set(plans.map((p) => watchPlanKey(p.analysis, p.market ?? "crypto"))));
           }}
         >
           <X className="h-4 w-4" />
         </button>
-        <button
-          type="button"
-          className="shrink-0 text-[10px] underline opacity-70 hover:opacity-100"
-          onClick={() => {
-            stopWatchingScalpPlan();
-            setVisible(false);
-          }}
-        >
-          Stop watch
-        </button>
+      </div>
+
+      <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-0.5">
+        {visiblePlans.map((w) => {
+          const market = w.market ?? "crypto";
+          const a = w.analysis;
+          const key = watchPlanKey(a, market);
+          const label = planStatusLabel(w.lastStatus, {
+            side: a.side === "long" || a.side === "short" ? a.side : undefined,
+            entryPrice: a.entryPrice,
+            stopPrice: a.stopLossPrice,
+            entryMode: a.entryMode,
+          });
+          return (
+            <div
+              key={key}
+              className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 text-xs"
+            >
+              <p className="font-semibold truncate">
+                {scalpPlanWatchLabel(market)} · {a.symbol} · {a.timeframeLabel}
+              </p>
+              <p className="mt-0.5 opacity-90">{label}</p>
+              {w.lastLivePrice != null && (
+                <p className="mt-0.5 font-mono opacity-80">
+                  Live ${w.lastLivePrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Button asChild size="sm" variant="secondary" className="h-7 text-xs">
+                  <Link
+                    href={
+                      market === "forex"
+                        ? "/?tab=nova-forex&forex=nova-scalp#nova-scalp-watched-plan"
+                        : "/?tab=nova-forecast&forecast=nova-scalp#nova-scalp-watched-plan"
+                    }
+                    onClick={() => requestOpenWatchedScalpPlan(a, market)}
+                  >
+                    Open plan
+                  </Link>
+                </Button>
+                <button
+                  type="button"
+                  className="text-[10px] underline opacity-70 hover:opacity-100"
+                  onClick={() => stopWatchingScalpPlan(a, market)}
+                >
+                  Stop
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
