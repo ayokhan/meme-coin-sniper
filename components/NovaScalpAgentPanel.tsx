@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Send, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
-import { sendTradeToNovaScalper } from "@/lib/nova-scalper-prefill";
+import { NOVA_SCALPER_HANDOFF_URL, writeNovaScalperPrefill } from "@/lib/nova-scalper-prefill";
+import { useScalpHandoffNav } from "@/components/useScalpHandoffNav";
 import {
   clearOpenWatchedScalpPlanPending,
   findWatchedScalpPlan,
@@ -83,6 +84,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
   const [quickWins, setQuickWins] = useState<NovaScalpQuickWin[]>([]);
   const [nearSetups, setNearSetups] = useState<NovaScalpNearSetup[]>([]);
   const [qwScanSummary, setQwScanSummary] = useState<QuickWinScanSummary | null>(null);
+  const { requestHandoff, dialog: handoffDialog } = useScalpHandoffNav();
 
   useEffect(() => {
     const scrollToQuickWins = () => {
@@ -262,6 +264,8 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
   }
 
   return (
+    <>
+    {handoffDialog}
     <div className="space-y-6">
       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-4">
         <div>
@@ -508,16 +512,21 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
                           className="h-7 text-xs bg-cyan-600 hover:bg-cyan-700 text-white"
                           title="Send these levels to NovaScalper (Crypto Futures) to place the trade"
                           onClick={() =>
-                            sendTradeToNovaScalper({
-                              symbol: w.symbol,
-                              side: w.scalpSide,
-                              entryPrice: w.entryPrice,
-                              exitPrice: w.exitPrice,
-                              stopLossPrice: Number.isFinite(w.stopLossPrice) ? w.stopLossPrice : null,
-                              leverage: w.suggestedLeverage,
-                              marginUsd: Number(amount) || 100,
-                              source: "Quick Win",
-                              createdAt: new Date().toISOString(),
+                            requestHandoff({
+                              label: "NovaScalper",
+                              url: NOVA_SCALPER_HANDOFF_URL,
+                              prepare: () =>
+                                writeNovaScalperPrefill({
+                                  symbol: w.symbol,
+                                  side: w.scalpSide,
+                                  entryPrice: w.entryPrice,
+                                  exitPrice: w.exitPrice,
+                                  stopLossPrice: Number.isFinite(w.stopLossPrice) ? w.stopLossPrice : null,
+                                  leverage: w.suggestedLeverage,
+                                  marginUsd: Number(amount) || 100,
+                                  source: "Quick Win",
+                                  createdAt: new Date().toISOString(),
+                                }),
                             })
                           }
                         >
@@ -558,5 +567,6 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
         <p className="text-[11px] text-muted-foreground">{NOVA_SCALP_DISCLAIMER}</p>
       </div>
     </div>
+    </>
   );
 }

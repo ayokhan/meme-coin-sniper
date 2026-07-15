@@ -7,8 +7,16 @@
  * and Save (never auto-saves or auto-trades — the user stays in control).
  */
 
+import {
+  openScalpHandoffUrl,
+  readScalpHandoffNavPref,
+  type ScalpHandoffNavMode,
+} from "@/lib/nova-scalp-handoff-nav";
+
 export const NOVA_SCALPER_PREFILL_KEY = "novastaris_nova_scalper_prefill";
 export const NOVA_SCALPER_PREFILL_EVENT = "novastaris-nova-scalper-prefill";
+
+export const NOVA_SCALPER_HANDOFF_URL = "/?tab=trading-bot";
 
 export type NovaScalperPrefill = {
   /** Base symbol as shown in Nova Scalp (e.g. "BTC", "XAU"). */
@@ -74,12 +82,14 @@ export function hasNovaScalperPrefill(): boolean {
 }
 
 /**
- * Stash the trade and send the user to Crypto Futures → NovaScalper.
- * Uses a hard navigation so the dashboard re-reads `?tab=` on mount and opens the bot.
+ * Stash the trade and open Crypto Futures → NovaScalper.
+ * Pass `navMode` when the UI already resolved preference; otherwise uses saved pref or new tab.
  */
-export function sendTradeToNovaScalper(prefill: NovaScalperPrefill): void {
+export function sendTradeToNovaScalper(
+  prefill: NovaScalperPrefill,
+  navMode?: ScalpHandoffNavMode
+): void {
   writeNovaScalperPrefill(prefill);
-  if (typeof window !== "undefined") {
-    window.location.assign("/?tab=trading-bot");
-  }
+  const mode = navMode ?? readScalpHandoffNavPref() ?? "new_tab";
+  openScalpHandoffUrl(NOVA_SCALPER_HANDOFF_URL, mode);
 }

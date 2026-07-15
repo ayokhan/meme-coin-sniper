@@ -3,6 +3,12 @@
  * Prefills the symbol and opens the NovaQ tab; auto-runs analysis on load.
  */
 
+import {
+  openScalpHandoffUrl,
+  readScalpHandoffNavPref,
+  type ScalpHandoffNavMode,
+} from "@/lib/nova-scalp-handoff-nav";
+
 export const NOVA_Q_PREFILL_KEY = "novastaris_nova_q_prefill";
 export const NOVA_Q_PREFILL_EVENT = "novastaris-nova-q-prefill";
 
@@ -14,6 +20,12 @@ export type NovaQPrefill = {
   source: string;
   createdAt: string;
 };
+
+export function novaQHandoffUrl(market: "crypto" | "forex" = "crypto"): string {
+  return market === "forex"
+    ? "/?tab=nova-forex&forex=nova-q"
+    : "/?tab=nova-forecast&forecast=nova-q";
+}
 
 export function readNovaQPrefill(): NovaQPrefill | null {
   if (typeof window === "undefined") return null;
@@ -44,14 +56,18 @@ export function clearNovaQPrefill(): void {
 }
 
 /**
- * Stash symbol and open NovaQ. Hard navigation so the dashboard re-reads `?tab=` / `forecast`.
+ * Stash symbol and open NovaQ.
+ * Pass `navMode` when the UI already resolved preference; otherwise uses saved pref or new tab.
  */
-export function sendSymbolToNovaQ(input: {
-  symbol: string;
-  market?: "crypto" | "forex";
-  timeframeId?: string;
-  source?: string;
-}): void {
+export function sendSymbolToNovaQ(
+  input: {
+    symbol: string;
+    market?: "crypto" | "forex";
+    timeframeId?: string;
+    source?: string;
+  },
+  navMode?: ScalpHandoffNavMode
+): void {
   const market = input.market ?? "crypto";
   writeNovaQPrefill({
     symbol: String(input.symbol ?? "").trim().toUpperCase(),
@@ -60,10 +76,6 @@ export function sendSymbolToNovaQ(input: {
     source: input.source ?? "Nova Scalp",
     createdAt: new Date().toISOString(),
   });
-  if (typeof window === "undefined") return;
-  if (market === "forex") {
-    window.location.assign("/?tab=nova-forex&forex=nova-q");
-  } else {
-    window.location.assign("/?tab=nova-forecast&forecast=nova-q");
-  }
+  const mode = navMode ?? readScalpHandoffNavPref() ?? "new_tab";
+  openScalpHandoffUrl(novaQHandoffUrl(market), mode);
 }

@@ -44,8 +44,9 @@ import {
 } from "@/lib/nova-scalp-plan-watch";
 import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 import { scalpPlanFeedbackApi } from "@/lib/scalp-plan-market";
-import { sendTradeToNovaScalper } from "@/lib/nova-scalper-prefill";
-import { sendSymbolToNovaQ } from "@/lib/nova-q-prefill";
+import { NOVA_SCALPER_HANDOFF_URL, writeNovaScalperPrefill } from "@/lib/nova-scalper-prefill";
+import { novaQHandoffUrl, writeNovaQPrefill } from "@/lib/nova-q-prefill";
+import { useScalpHandoffNav } from "@/components/useScalpHandoffNav";
 
 type BlofinPositionSummary = {
   symbol: string;
@@ -188,6 +189,7 @@ export function NovaScalpPlanCard({
   const [priceError, setPriceError] = useState(false);
   const [watching, setWatching] = useState(false);
   const [watchCount, setWatchCount] = useState(0);
+  const { requestHandoff, dialog: handoffDialog } = useScalpHandoffNav();
   const [entryRecord, setEntryRecord] = useState<ScalpPlanEntryRecord | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [blofinPosition, setBlofinPosition] = useState<BlofinPositionSummary | null>(null);
@@ -420,17 +422,40 @@ export function NovaScalpPlanCard({
 
   const scalpThisTrade = () => {
     if (!canScalpTrade || (result.side !== "long" && result.side !== "short")) return;
-    sendTradeToNovaScalper({
+    const prefill = {
       symbol: result.symbol,
-      side: result.side,
+      side: result.side as "long" | "short",
       entryPrice: result.entryPrice as number,
       exitPrice: result.exitPrice as number,
-      stopLossPrice:
-        result.recommendedStopPrice ?? result.stopLossPrice ?? null,
+      stopLossPrice: result.recommendedStopPrice ?? result.stopLossPrice ?? null,
       leverage: result.leverage,
       marginUsd: result.amountUsd,
       source: "Nova Scalp Agent",
       createdAt: new Date().toISOString(),
+    };
+    requestHandoff({
+      label: "NovaScalper",
+      url: NOVA_SCALPER_HANDOFF_URL,
+      prepare: () => writeNovaScalperPrefill(prefill),
+    });
+  };
+
+  const sendToNovaQ = () => {
+    if (result.side === "no_entry") return;
+    const marketResolved = market;
+    const symbol = result.symbol;
+    const timeframeId = result.timeframeId;
+    requestHandoff({
+      label: marketResolved === "forex" ? "NovaQ Forex" : "NovaQ",
+      url: novaQHandoffUrl(marketResolved),
+      prepare: () =>
+        writeNovaQPrefill({
+          symbol,
+          market: marketResolved,
+          timeframeId,
+          source: "Nova Scalp plan",
+          createdAt: new Date().toISOString(),
+        }),
     });
   };
 
@@ -442,6 +467,8 @@ export function NovaScalpPlanCard({
     });
 
   return (
+    <>
+    {handoffDialog}
     <Card
       className={`${
         market === "forex"
@@ -474,14 +501,7 @@ export function NovaScalpPlanCard({
                 size="sm"
                 variant="outline"
                 className="h-8 text-xs"
-                onClick={() =>
-                  sendSymbolToNovaQ({
-                    symbol: result.symbol,
-                    market,
-                    timeframeId: result.timeframeId,
-                    source: "Nova Scalp plan",
-                  })
-                }
+                onClick={sendToNovaQ}
                 title={
                   market === "forex"
                     ? "Open this symbol in NovaQ Forex with S/R by timeframe"
@@ -935,5 +955,6 @@ export function NovaScalpPlanCard({
         )}
       </CardContent>
     </Card>
+    </>
   );
 }
