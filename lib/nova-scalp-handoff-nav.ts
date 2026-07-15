@@ -40,10 +40,22 @@ export function clearScalpHandoffNavPref(): void {
 export function openScalpHandoffUrl(url: string, mode: ScalpHandoffNavMode): void {
   if (typeof window === "undefined") return;
   if (mode === "new_tab") {
-    const win = window.open(url, "_blank", "noopener,noreferrer");
-    if (!win) {
-      // Popup blocked — fall back to same tab so the handoff still works.
-      window.location.assign(url);
+    // Do NOT pass "noopener" in windowFeatures — many browsers then return null
+    // even when the tab opens, which made us wrongly fall back to same-tab navigation.
+    const win = window.open(url, "_blank");
+    if (win) {
+      try {
+        win.opener = null;
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    // True popup block only — keep the Scalp plan in place and notify.
+    try {
+      window.alert("Pop-up blocked. Allow pop-ups for NovaStaris, or choose “Current tab” for handoffs.");
+    } catch {
+      /* ignore */
     }
     return;
   }
