@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, BellOff, Check, Copy, RefreshCw, Send, Zap } from "lucide-react";
+import { Bell, BellOff, Check, Copy, Layers, RefreshCw, Send, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { NovaScalpAnalysis } from "@/lib/nova-scalp-agent";
@@ -43,6 +43,7 @@ import {
 import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 import { scalpPlanFeedbackApi } from "@/lib/scalp-plan-market";
 import { sendTradeToNovaScalper } from "@/lib/nova-scalper-prefill";
+import { sendSymbolToNovaQ } from "@/lib/nova-q-prefill";
 
 type BlofinPositionSummary = {
   symbol: string;
@@ -453,6 +454,30 @@ export function NovaScalpPlanCard({
               >
                 <Zap className="h-3.5 w-3.5 mr-1" />
                 Scalp this trade
+              </Button>
+            )}
+            {result.side !== "no_entry" && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={() =>
+                  sendSymbolToNovaQ({
+                    symbol: result.symbol,
+                    market,
+                    timeframeId: result.timeframeId,
+                    source: "Nova Scalp plan",
+                  })
+                }
+                title={
+                  market === "forex"
+                    ? "Open this symbol in NovaQ Forex with S/R by timeframe"
+                    : "Open this symbol in NovaQ with S/R by timeframe"
+                }
+              >
+                <Layers className="h-3.5 w-3.5 mr-1" />
+                Send to NovaQ
               </Button>
             )}
             {showPlanMonitor && (

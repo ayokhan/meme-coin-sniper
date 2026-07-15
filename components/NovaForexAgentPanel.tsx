@@ -23,6 +23,7 @@ import {
   readWatchedScalpPlan,
   SCALP_OPEN_WATCHED_EVENT,
 } from "@/lib/nova-scalp-plan-watch";
+import { clearNovaQPrefill, readNovaQPrefill } from "@/lib/nova-q-prefill";
 
 import NovaForexRadarPanel from "@/components/NovaForexRadarPanel";
 import NovaQTimeframeTable from "@/components/NovaQTimeframeTable";
@@ -114,6 +115,57 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
     if (params.get("tab") === "nova-forex" && params.get("forex") === "nova-scalp") {
       setSubTab("nova-scalp");
     }
+    if (params.get("tab") === "nova-forex" && params.get("forex") === "nova-q") {
+      setSubTab("nova-q");
+    }
+  }, []);
+
+  useEffect(() => {
+    const prefill = readNovaQPrefill();
+    if (!prefill || prefill.market !== "forex") return;
+    clearNovaQPrefill();
+    const sym = prefill.symbol.trim().toUpperCase();
+    if (!sym) return;
+    setSubTab("nova-q");
+    setSymbol(sym);
+    if (prefill.timeframeId && !qTfs.includes(prefill.timeframeId)) {
+      setQTfs((prev) => [...prev, prefill.timeframeId!]);
+    }
+    let cancelled = false;
+    const tfs = prefill.timeframeId && !qTfs.includes(prefill.timeframeId)
+      ? [...qTfs, prefill.timeframeId]
+      : qTfs;
+    (async () => {
+      setQLoading(true);
+      setQError(null);
+      try {
+        const res = await fetch("/api/nova-forex/nova-q", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ symbol: sym, timeframes: tfs }),
+        });
+        const d = await res.json();
+        if (cancelled) return;
+        if (!res.ok || !d.success) {
+          setQError(d.error ?? "NovaQ Forex failed");
+          setQResult(null);
+          return;
+        }
+        setQResult(d.result as NovaQResult);
+      } catch {
+        if (!cancelled) {
+          setQError("NovaQ Forex failed");
+          setQResult(null);
+        }
+      } finally {
+        if (!cancelled) setQLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const restoreWatchedForexPlan = useCallback(() => {

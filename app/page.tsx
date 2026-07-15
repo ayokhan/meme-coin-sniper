@@ -107,6 +107,7 @@ import NovaTimeframeCheckboxPicker from "@/components/NovaTimeframeCheckboxPicke
 import NovaQTimeframeTable from "@/components/NovaQTimeframeTable";
 import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
 import type { NovaQAlignment, NovaQTradePlan } from "@/lib/nova-q-trade-plan";
+import { clearNovaQPrefill, readNovaQPrefill } from "@/lib/nova-q-prefill";
 import { formatQuotePriceUsd } from "@/lib/format-quote-price";
 import { NOVA_FORECAST_RANGES } from "@/lib/nova-timeframes";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
@@ -2750,6 +2751,59 @@ export default function Dashboard() {
       setNovaQLoading(false);
     }
   };
+
+  /** Scalp → NovaQ: prefill symbol (and TF) then auto-run. */
+  useEffect(() => {
+    if (!dashboardUrlReady || activeTab !== "nova-forecast") return;
+    const prefill = readNovaQPrefill();
+    if (!prefill || prefill.market !== "crypto") return;
+    clearNovaQPrefill();
+    const symbol = prefill.symbol.trim().toUpperCase() || "BTC";
+    setNovaForecastSubTab("nova-q");
+    setNovaQSymbol(symbol);
+    let tfs = novaQTimeframes;
+    if (prefill.timeframeId && !tfs.includes(prefill.timeframeId)) {
+      tfs = [...tfs, prefill.timeframeId];
+      setNovaQTimeframes(tfs);
+    }
+    let cancelled = false;
+    (async () => {
+      setNovaQLoading(true);
+      setNovaQError(null);
+      try {
+        const res = await fetch("/api/nova-q", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbol, timeframes: tfs }),
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        if (res.ok && data.success && data.result) {
+          setNovaQResult(data.result as NovaQResult);
+        } else {
+          setNovaQResult(null);
+          setNovaQError(
+            data?.locked
+              ? "NovaQ is for VIP subscribers."
+              : (data?.error ?? (res.ok ? "No data" : `Error ${res.status}`))
+          );
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setNovaQResult(null);
+          setNovaQError(e instanceof Error ? e.message : "NovaQ failed");
+        }
+      } finally {
+        if (!cancelled) setNovaQLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally once when landing with a prefill — do not re-run on TF toggles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashboardUrlReady, activeTab]);
 
   const fetchNovaPlus = async () => {
     setNovaPlusLoading(true);
