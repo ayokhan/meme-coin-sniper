@@ -1,7 +1,9 @@
 "use client";
 
+import { useCallback, useState } from "react";
+import { Check, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatQuotePrice } from "@/lib/format-quote-price";
+import { formatQuotePrice, quotePriceDecimals } from "@/lib/format-quote-price";
 
 export type NovaQTimeframeRow = {
   id: string;
@@ -40,7 +42,60 @@ function tlBadge(bias: "up" | "down" | "flat"): string {
   return "border-zinc-400/60 text-zinc-600 dark:text-zinc-400";
 }
 
+/** Plain number string for pasting into exchange order forms (no $ / grouping). */
+function copyablePrice(price: number): string {
+  return price.toFixed(quotePriceDecimals(price));
+}
+
+function CopyablePrice({
+  price,
+  copyId,
+  copiedId,
+  onCopied,
+  className,
+}: {
+  price: number;
+  copyId: string;
+  copiedId: string | null;
+  onCopied: (id: string) => void;
+  className?: string;
+}) {
+  const copied = copiedId === copyId;
+  return (
+    <button
+      type="button"
+      title={copied ? "Copied" : "Copy price"}
+      aria-label={copied ? "Copied" : `Copy ${formatQuotePrice(price)}`}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(copyablePrice(price));
+          onCopied(copyId);
+        } catch {
+          /* ignore */
+        }
+      }}
+      className={`group inline-flex items-center gap-1.5 rounded-md px-1 -mx-1 py-0.5 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-colors text-left ${className ?? ""}`}
+    >
+      <span className="font-mono text-sm font-semibold tabular-nums">${formatQuotePrice(price)}</span>
+      {copied ? (
+        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden />
+      ) : (
+        <Copy className="h-3.5 w-3.5 shrink-0 opacity-40 group-hover:opacity-90 transition-opacity" aria-hidden />
+      )}
+    </button>
+  );
+}
+
 export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const onCopied = useCallback((id: string) => {
+    setCopiedId(id);
+    window.setTimeout(() => {
+      setCopiedId((cur) => (cur === id ? null : cur));
+    }, 1600);
+  }, []);
+
   if (timeframes.length === 0) return null;
 
   return (
@@ -49,7 +104,7 @@ export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props)
         <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Support / resistance per timeframe</h4>
         <p className="text-[11px] text-muted-foreground mt-0.5">
           Period support (low) and resistance (high), retest counts, structure vs regression trendline, and blended
-          direction. Bar shows where price sits in the range.
+          direction. Tap a price to copy. Bar shows where price sits in the range.
         </p>
       </div>
 
@@ -88,9 +143,13 @@ export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props)
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
                 <div>
                   <span className="text-[10px] uppercase text-muted-foreground block">Support</span>
-                  <p className="font-mono text-sm font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                    ${formatQuotePrice(t.support)}
-                  </p>
+                  <CopyablePrice
+                    price={t.support}
+                    copyId={`${t.id}-s`}
+                    copiedId={copiedId}
+                    onCopied={onCopied}
+                    className="text-emerald-600 dark:text-emerald-400"
+                  />
                   <p
                     className={`text-[10px] mt-0.5 ${t.supportTouches > 0 ? "text-slate-600 dark:text-slate-300 font-medium" : "text-muted-foreground"}`}
                   >
@@ -99,9 +158,13 @@ export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props)
                 </div>
                 <div>
                   <span className="text-[10px] uppercase text-muted-foreground block">Resistance</span>
-                  <p className="font-mono text-sm font-semibold text-rose-600 dark:text-rose-400 tabular-nums">
-                    ${formatQuotePrice(t.resistance)}
-                  </p>
+                  <CopyablePrice
+                    price={t.resistance}
+                    copyId={`${t.id}-r`}
+                    copiedId={copiedId}
+                    onCopied={onCopied}
+                    className="text-rose-600 dark:text-rose-400"
+                  />
                   <p
                     className={`text-[10px] mt-0.5 ${t.resistanceTouches > 0 ? "text-slate-600 dark:text-slate-300 font-medium" : "text-muted-foreground"}`}
                   >
@@ -123,9 +186,16 @@ export default function NovaQTimeframeTable({ timeframes, currentPrice }: Props)
                     )}
                   </div>
                   {currentPrice != null && range > 0 && (
-                    <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-                      Now ${formatQuotePrice(currentPrice)}
-                    </p>
+                    <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <span>Now</span>
+                      <CopyablePrice
+                        price={currentPrice}
+                        copyId={`${t.id}-now`}
+                        copiedId={copiedId}
+                        onCopied={onCopied}
+                        className="text-zinc-700 dark:text-zinc-200 !text-[10px] font-medium"
+                      />
+                    </div>
                   )}
                 </div>
               </div>

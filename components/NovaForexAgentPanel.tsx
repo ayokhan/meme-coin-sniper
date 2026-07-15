@@ -25,6 +25,7 @@ import {
 } from "@/lib/nova-scalp-plan-watch";
 
 import NovaForexRadarPanel from "@/components/NovaForexRadarPanel";
+import NovaQTimeframeTable from "@/components/NovaQTimeframeTable";
 import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
 import { NOVA_FORECAST_RANGES, NOVA_FOREX_Q_TIMEFRAMES } from "@/lib/nova-forex-timeframes";
 import type { NovaQAlignment, NovaQTradePlan } from "@/lib/nova-q-trade-plan";
@@ -446,30 +447,15 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
                   <p className="text-xs text-muted-foreground">{qResult.contractDescription}</p>
                 )}
                 {qResult.tradePlan ? <NovaQTradePlanCard plan={qResult.tradePlan} /> : null}
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">TF</TableHead>
-                      <TableHead className="text-right text-xs">Support</TableHead>
-                      <TableHead className="text-right text-xs">S touches</TableHead>
-                      <TableHead className="text-right text-xs">Resistance</TableHead>
-                      <TableHead className="text-right text-xs">R touches</TableHead>
-                      <TableHead className="text-xs">Blended</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {qResult.timeframes.map((tf) => (
-                      <TableRow key={tf.id}>
-                        <TableCell className="text-xs">{tf.label}</TableCell>
-                        <TableCell className="text-right font-mono text-xs text-emerald-600">{fmtUsd(tf.support)}</TableCell>
-                        <TableCell className="text-right text-xs tabular-nums">{tf.supportTouches}</TableCell>
-                        <TableCell className="text-right font-mono text-xs text-rose-600">{fmtUsd(tf.resistance)}</TableCell>
-                        <TableCell className="text-right text-xs tabular-nums">{tf.resistanceTouches}</TableCell>
-                        <TableCell className="text-xs">{tf.direction}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <NovaQTimeframeTable
+                  currentPrice={qResult.currentPrice}
+                  timeframes={qResult.timeframes.map((tf) => ({
+                    ...tf,
+                    structureDirection: (tf.structureDirection as "bullish" | "bearish" | "sideways") || "sideways",
+                    trendlineBias: (tf.trendlineBias as "up" | "down" | "flat") || "flat",
+                    direction: (tf.direction as "bullish" | "bearish" | "sideways") || "sideways",
+                  }))}
+                />
               </div>
             )}
           </div>
