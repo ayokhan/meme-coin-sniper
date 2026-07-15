@@ -63,6 +63,8 @@ export type UniversityLesson = {
     | "funding"
     | "orders"
     | "fib"
+    | "styles"
+    | "regimes"
     | null;
   /** Syllabus track — if omitted, inferred from id. */
   track?: CourseTrack;
@@ -219,6 +221,14 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         ],
       },
       {
+        heading: "R-multiples and daily heat",
+        body: [
+          "R is your planned risk on a trade (e.g. $100 stop = 1R). A +2R win means you made about twice that planned risk — not 'I felt strong.'",
+          "Track wins/losses in R over a week. Edge shows as average R after costs — not as one lucky ticker.",
+          "Daily heat: sum of open risk across positions. Two 1% ideas at once is ~2% heat if both stops can hit. Correlated longs (e.g. BTC + high-beta alts) often fail together — treat them as related heat.",
+        ],
+      },
+      {
         heading: "Behavioral traps",
         body: [
           "Revenge trading after a loss, oversizing after a win, and moving stops farther from entry to 'give it room' destroy accounts faster than a bad ticker.",
@@ -230,6 +240,8 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Risk per trade", definition: "Max $ (or %) you accept losing if the stop hits." },
       { term: "Invalidation", definition: "Condition that proves the idea wrong — exit." },
       { term: "Revenge trade", definition: "Forcing a trade to 'win back' a loss — usually emotional." },
+      { term: "R-multiple", definition: "Outcome measured in units of your planned risk (e.g. +2R = twice the dollars you risked)." },
+      { term: "Daily heat", definition: "Combined open risk across positions — watch correlation." },
     ],
     workedExamples: [
       {
@@ -334,6 +346,15 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         ],
       },
       {
+        heading: "Indicators as confluence (lite)",
+        body: [
+          "Moving averages (e.g. 20/50/200): dynamic trend filters — price above a rising MA leans bullish bias, below a falling MA leans bearish. They lag; treat them as context, not entry buttons.",
+          "RSI / momentum oscillators: extreme readings can flag stretched conditions, but 'oversold' in a downtrend can stay oversold. Prefer divergence + structure over oscillator alone.",
+          "Volume (where available): rising volume on breakouts and drying volume on chop are useful clues — still secondary to structure and invalidation.",
+          "Rule: indicators confirm a plan built from structure and risk. They do not replace a stop.",
+        ],
+      },
+      {
         heading: "Support, resistance, and structure",
         body: [
           "Support is a zone where buying previously appeared; resistance where selling appeared. Zones beat exact lines.",
@@ -350,6 +371,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Trend line", definition: "Line along swing lows (uptrend) or swing highs (downtrend)." },
       { term: "Fibonacci retracement", definition: "Pullback levels (e.g. 38.2%, 50%, 61.8%) drawn on an impulse swing." },
       { term: "Support / resistance", definition: "Zones where price previously bounced or stalled." },
+      { term: "Confluence", definition: "Multiple independent reasons for the same idea (structure + level + indicator)." },
     ],
     workedExamples: [
       {
@@ -524,10 +546,94 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     ],
   },
   {
+    id: "trading-styles",
+    title: "Trading styles & time horizons",
+    subtitle: "Scalp, day, swing, and position — match style to timeframe, size, and lifestyle.",
+    estimatedMinutes: 10,
+    track: "foundations",
+    sections: [
+      {
+        heading: "Style is a risk system, not a personality quiz",
+        body: [
+          "A trading style is how long you expect to hold, which timeframe you manage on, and how you size. Mixing styles mid-trade (e.g. a 5m scalp that becomes a multi-day 'hope hold') is how accounts die.",
+          "Pick one primary style per session. Structure and liquidity (next module) apply to every style — only the clock and stop width change.",
+        ],
+      },
+      {
+        heading: "Scalping",
+        body: [
+          "Hold: seconds to ~30 minutes. Charts: 1m–5m (bias sometimes from 15m). Goal: many small edges; fees and slippage matter a lot.",
+          "Needs: fast execution, tight invalidation, strict daily loss limits. Poor fit if you cannot watch the book.",
+          "On NovaStaris: Nova Scalp is built for this horizon — levels and hold windows assume short duration, not overnight thesis.",
+        ],
+      },
+      {
+        heading: "Day trading",
+        body: [
+          "Hold: minutes to hours; flat by session end (no intentional overnight). Charts: 5m–15m execute, 1h for bias.",
+          "Needs: session plans, event awareness (CPI/NFP/FOMC for FX; major crypto unlocks/news), and a hard stop on daily heat.",
+          "Funding and overnight swaps are mostly avoided by design — that is a feature of the style.",
+        ],
+      },
+      {
+        heading: "Swing trading",
+        body: [
+          "Hold: ~1–10+ days. Charts: 1h–4h execute, 1d for bias. Stops are wider in $ terms; size must shrink so 1R still matches your risk $.",
+          "Needs: patience, tolerance for noise against you, and awareness of funding (perps), swaps (FX), and weekend gaps where relevant.",
+          "Do not manage a swing with a scalp stop — or a scalp with a swing diary excuse.",
+        ],
+      },
+      {
+        heading: "Position / investment-style holds",
+        body: [
+          "Hold: weeks to months+. Charts: daily/weekly. Thesis is fundamental or macro plus weekly structure — not a single candle.",
+          "Size is small vs account; invalidation can be thesis break (narrative/failed level), not a 15m wick.",
+          "Memes and high-leverage perps are usually a poor fit for true position style.",
+        ],
+      },
+      {
+        heading: "Match style → timeframe → size",
+        body: [
+          "Shorter style → tighter stops → smaller notional for the same $ risk. Longer style → wider stops → smaller size still.",
+          "If your life schedule cannot support the style (e.g. full-time job + pure scalping), change the style — not the risk rules.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Scalping", definition: "Very short holds; high trade count; fees-sensitive." },
+      { term: "Day trading", definition: "Intraday holds; typically flat by end of session." },
+      { term: "Swing trading", definition: "Multi-day holds managed on higher timeframes." },
+      { term: "Position trading", definition: "Weeks–months holds driven by larger thesis and weekly structure." },
+      { term: "Timeframe match", definition: "Stop and management TF fit the intended hold length." },
+    ],
+    workedExamples: [
+      {
+        title: "Same $ risk, different style width",
+        setup: [
+          "Risk budget: $100 (1R)",
+          "Scalp idea: stop $0.20 away → size = 500 units",
+          "Swing idea: stop $2.00 away → size = 50 units",
+        ],
+        steps: [
+          "Both ideas risk ~$100 if stopped — same R.",
+          "The swing must use 1/10th the size because the stop is 10× wider.",
+          "Using scalp size on a swing stop ≈ 10R disaster if the wider invalidation hits.",
+        ],
+        takeaway: "Style changes stop distance — size is the dial that keeps R constant.",
+      },
+    ],
+    diagram: "styles",
+    relatedTools: [
+      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+      { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
+      { label: "NovaScalper", href: "/?tab=trading-bot" },
+    ],
+  },
+  {
     id: "market-structure",
     title: "Liquidity & market structure",
-    subtitle: "Trends, ranges, BOS/CHOCH lite, and why liquidity grabs fake traders out.",
-    estimatedMinutes: 12,
+    subtitle: "Regimes, BOS/CHOCH, liquidity grabs, and how larger flow hunts stops.",
+    estimatedMinutes: 16,
     track: "foundations",
     sections: [
       {
@@ -535,6 +641,15 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         body: [
           "Candles are noise without structure. First ask: is price making higher highs and higher lows (uptrend), lower highs and lower lows (downtrend), or oscillating in a range?",
           "Trade with the active structure on your execution timeframe, and respect the higher-timeframe bias when they conflict.",
+        ],
+      },
+      {
+        heading: "Bullish vs bearish vs range regimes",
+        body: [
+          "Bullish regime (structure): HH + HL on your bias timeframe. Prefer longs / dips; shorts are counter-trend and need smaller size or clear liquidity traps.",
+          "Bearish regime: LH + LL. Prefer shorts / rips; long catch-a-knife needs defined reclaim and tight invalidation.",
+          "Range / chop: clear highs and lows with repeated failures. Best edges are fades near extremes — mid-range is where most retail overtrades.",
+          "Regime is not a permanent 'bull market' label — it is the active swing structure until it breaks. Update it when BOS/CHOCH proves you wrong.",
         ],
       },
       {
@@ -552,19 +667,30 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         ],
       },
       {
-        heading: "Liquidity grabs",
+        heading: "Liquidity grabs (retail vs larger flow)",
         body: [
-          "Stops cluster above obvious highs and below obvious lows. Price often spikes through those levels (grab), then reverses — trapping breakout chasers.",
-          "When you see a wick through a level and a fast reclaim, ask whether that was liquidity taken rather than a clean breakout.",
-          "Your stop still belongs at true invalidation — not 'where everyone else put theirs' if that is the magnet.",
+          "Stops cluster above obvious highs and below obvious lows. Larger players and algos often need that liquidity to fill size — so price spikes through the magnet (grab), then reverses.",
+          "You do not need a conspiracy theory: crowded stops are visible fuel. When you see a wick through a level and a fast reclaim, ask whether liquidity was taken rather than a clean breakout.",
+          "Institutional-style reading (practical): combine open interest / funding extremes (perps), obvious stop pools, and reclaim vs hold — not 'smart money' logos on Twitter.",
+          "Your stop still belongs at true invalidation — not exactly where the crowd parked if that is the magnet.",
+        ],
+      },
+      {
+        heading: "HTF bias → LTF entry",
+        body: [
+          "Higher timeframe (4h/1d) answers: bullish, bearish, or range? Lower timeframe (5m–1h) answers: where is the pullback or reclaim for my style?",
+          "If LTF screams long while HTF is cleanly bearish, you are fading the larger regime — size down or skip.",
+          "Link to styles: scalps still respect HTF bias; swings lean on it even more.",
         ],
       },
     ],
     keyTerms: [
       { term: "Market structure", definition: "The pattern of swing highs/lows that defines trend vs range." },
+      { term: "Regime", definition: "Active bullish / bearish / ranging behavior until structure proves otherwise." },
       { term: "BOS", definition: "Break of structure — price takes a key swing in the trend direction." },
       { term: "CHOCH", definition: "Change of character — early sign the prior trend may be reversing." },
       { term: "Liquidity grab", definition: "Spike beyond obvious highs/lows that runs stops, often before reversing." },
+      { term: "HTF / LTF", definition: "Higher / lower timeframe — bias vs timing." },
     ],
     workedExamples: [
       {
@@ -581,11 +707,26 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         ],
         takeaway: "Wick through + fast reclaim = ask “whose stops?” before treating it as a clean breakout.",
       },
+      {
+        title: "Bullish HTF, wait for LTF dip",
+        setup: [
+          "4h: HH/HL still intact (bullish regime)",
+          "15m: sharp pullback into prior HL + range mid",
+          "Style: day trade — want flat by session end",
+        ],
+        steps: [
+          "Bias: long-only or stand aside — no free shorts against 4h structure for this idea.",
+          "Wait for 15m reclaim or rejection wick at the dip zone; mark invalidation under the HL.",
+          "Size from the 15m stop width so 1R fits daily risk — do not use a scalp size on a fat stop.",
+        ],
+        takeaway: "Regime from HTF, timing from LTF, size from stop distance.",
+      },
     ],
     diagram: "structure",
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=chart" },
+      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
     ],
   },
   {
@@ -1265,6 +1406,7 @@ export function getLessonTrack(lesson: Pick<UniversityLesson, "id" | "track">): 
     "chart-basics",
     "orders-execution",
     "psychology-journaling",
+    "trading-styles",
     "market-structure",
   ]);
   const applied = new Set(["novastaris-workflow", "advanced-markets"]);

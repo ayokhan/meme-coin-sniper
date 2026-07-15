@@ -45,6 +45,7 @@ import {
   UniversityForexPipDiagram,
   UniversityFundingDiagram,
   UniversityIsolatedCrossDiagram,
+  UniversityInstitutionalFlowDiagram,
   UniversityJournalDiagram,
   UniversityLifecycleDiagram,
   UniversityLiquidationPathDiagram,
@@ -52,6 +53,7 @@ import {
   UniversityLongShortDiagram,
   UniversityMarginDiagram,
   UniversityMarkVsLastDiagram,
+  UniversityMarketRegimesDiagram,
   UniversityNarrativeDiagram,
   UniversityOrdersDiagram,
   UniversityPhishingDiagram,
@@ -60,6 +62,7 @@ import {
   UniversitySessionsDiagram,
   UniversitySolanaDiagram,
   UniversityStructureDiagram,
+  UniversityTradingStylesDiagram,
   UniversityWalletDiagram,
   UniversityWorkflowDiagram,
 } from "@/components/UniversityConceptDiagrams";
@@ -1199,11 +1202,14 @@ export default function TradingUniversityPanel({
               {activeLesson.id === "forex" && <UniversityForexPipDiagram />}
               {activeLesson.diagram === "journal" && <UniversityJournalDiagram />}
               {activeLesson.diagram === "structure" && (
-                <>
+                <div className="space-y-3">
+                  <UniversityMarketRegimesDiagram />
                   <UniversityStructureDiagram />
                   <UniversityLiquidityGrabDiagram />
-                </>
+                  <UniversityInstitutionalFlowDiagram />
+                </div>
               )}
+              {activeLesson.diagram === "styles" && <UniversityTradingStylesDiagram />}
               {activeLesson.diagram === "workflow" && <UniversityWorkflowDiagram />}
               {activeLesson.diagram === "cex-dex" && <UniversityCexDexDiagram />}
               {activeLesson.diagram === "wallet" && (

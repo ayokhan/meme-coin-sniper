@@ -1015,7 +1015,7 @@ export function UniversityLiquidityGrabDiagram() {
       accent="rose"
       note="Wick through an obvious high/low runs stops, then price reclaims — often a trap for breakout chasers, not a clean breakout."
     >
-      <div className="rounded-lg border border-rose-400/40 bg-white/40 dark:bg-zinc-950/30 p-3">
+      <div className="rounded-lg border border-rose-400/40 bg-white dark:bg-zinc-950 p-3">
         <svg viewBox="0 0 280 110" className="w-full h-[7.5rem]" aria-hidden>
           <line
             x1="20"
@@ -1057,6 +1057,145 @@ export function UniversityLiquidityGrabDiagram() {
         <div className="rounded-lg border border-emerald-400/45 bg-emerald-500/15 px-2 py-2 font-medium text-emerald-950 dark:text-emerald-100">
           3 · Fast reclaim
         </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityTradingStylesDiagram() {
+  const styles = [
+    {
+      name: "Scalp",
+      hold: "sec–30m",
+      tf: "1m–5m",
+      accent: "border-fuchsia-500/45 bg-fuchsia-50 dark:bg-fuchsia-950 text-fuchsia-950 dark:text-fuchsia-100",
+      title: "text-fuchsia-700 dark:text-fuchsia-300",
+    },
+    {
+      name: "Day",
+      hold: "min–hours",
+      tf: "5m–1h",
+      accent: "border-sky-500/45 bg-sky-50 dark:bg-sky-950 text-sky-950 dark:text-sky-100",
+      title: "text-sky-700 dark:text-sky-300",
+    },
+    {
+      name: "Swing",
+      hold: "1–10+ days",
+      tf: "1h–1d",
+      accent: "border-amber-500/45 bg-amber-50 dark:bg-amber-950 text-amber-950 dark:text-amber-100",
+      title: "text-amber-800 dark:text-amber-300",
+    },
+    {
+      name: "Position",
+      hold: "weeks+",
+      tf: "1d–1w",
+      accent: "border-emerald-500/45 bg-emerald-50 dark:bg-emerald-950 text-emerald-950 dark:text-emerald-100",
+      title: "text-emerald-700 dark:text-emerald-300",
+    },
+  ];
+  return (
+    <ConceptShell
+      title="Concept · Trading styles"
+      accent="violet"
+      note="Wider stops need smaller size for the same $ risk (1R). Mixing styles mid-trade is how 'scalps' become hope holds."
+    >
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        {styles.map((s) => (
+          <div key={s.name} className={`rounded-lg border p-3 space-y-1 shadow-sm ${s.accent}`}>
+            <p className={`font-bold uppercase tracking-wide text-[11px] ${s.title}`}>{s.name}</p>
+            <p className="font-mono text-[11px]">Hold · {s.hold}</p>
+            <p className="font-mono text-[11px]">Charts · {s.tf}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-lg border border-violet-400/40 bg-violet-50 dark:bg-violet-950 px-3 py-2 text-[11px] text-violet-950 dark:text-violet-100">
+        Same $ risk: tight scalp stop → larger size · fat swing stop → smaller size. Style picks the stop width;
+        size keeps R fixed.
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityMarketRegimesDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Market regimes"
+      accent="emerald"
+      note="Regime = active structure until it breaks — not a forever bull/bear blog label."
+    >
+      <div className="grid sm:grid-cols-3 gap-2 text-xs">
+        <div className="rounded-lg border border-emerald-500/45 bg-emerald-50 dark:bg-emerald-950 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-emerald-800 dark:text-emerald-200">Bullish</p>
+          <svg viewBox="0 0 120 48" className="w-full h-12" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-emerald-500"
+              strokeWidth="3"
+              strokeLinecap="round"
+              points="6,40 28,32 40,36 62,20 78,24 104,8 116,6"
+            />
+          </svg>
+          <p className="text-emerald-950/80 dark:text-emerald-100/85">HH + HL · prefer dips / longs</p>
+        </div>
+        <div className="rounded-lg border border-rose-500/45 bg-rose-50 dark:bg-rose-950 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-rose-800 dark:text-rose-200">Bearish</p>
+          <svg viewBox="0 0 120 48" className="w-full h-12" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-rose-500"
+              strokeWidth="3"
+              strokeLinecap="round"
+              points="6,8 28,14 40,12 62,26 78,22 104,40 116,44"
+            />
+          </svg>
+          <p className="text-rose-950/80 dark:text-rose-100/85">LH + LL · prefer rips / shorts</p>
+        </div>
+        <div className="rounded-lg border border-amber-500/45 bg-amber-50 dark:bg-amber-950 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-amber-900 dark:text-amber-200">Range</p>
+          <svg viewBox="0 0 120 48" className="w-full h-12" aria-hidden>
+            <line x1="10" y1="14" x2="110" y2="14" stroke="currentColor" className="text-amber-500" strokeWidth="2" strokeDasharray="3 2" />
+            <line x1="10" y1="36" x2="110" y2="36" stroke="currentColor" className="text-amber-500" strokeWidth="2" strokeDasharray="3 2" />
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-sky-500"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              points="12,30 30,18 48,32 66,16 84,34 104,18"
+            />
+          </svg>
+          <p className="text-amber-950/80 dark:text-amber-100/85">Fade extremes · avoid mid-chop</p>
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityInstitutionalFlowDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Liquidity & larger flow"
+      accent="sky"
+      note="Practical 'institutional' read: stops are fuel, reclaim vs hold decides trap vs break — not social 'smart money' captions."
+    >
+      <div className="grid sm:grid-cols-3 gap-2 text-xs text-center">
+        <div className="rounded-lg border border-amber-500/45 bg-amber-50 dark:bg-amber-950 p-3 space-y-1 shadow-sm">
+          <p className="font-bold text-amber-900 dark:text-amber-200">1 · Stop pools</p>
+          <p className="text-amber-950/80 dark:text-amber-100/85">Above obvious highs / below obvious lows</p>
+        </div>
+        <div className="rounded-lg border border-rose-500/45 bg-rose-50 dark:bg-rose-950 p-3 space-y-1 shadow-sm">
+          <p className="font-bold text-rose-900 dark:text-rose-200">2 · Hunt / fill</p>
+          <p className="text-rose-950/80 dark:text-rose-100/85">Spike through runs liquidity into size</p>
+        </div>
+        <div className="rounded-lg border border-emerald-500/45 bg-emerald-50 dark:bg-emerald-950 p-3 space-y-1 shadow-sm">
+          <p className="font-bold text-emerald-900 dark:text-emerald-200">3 · Decide</p>
+          <p className="text-emerald-950/80 dark:text-emerald-100/85">Fast reclaim = grab trap · Hold = real break?</p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-sky-500/40 bg-sky-50 dark:bg-sky-950 px-3 py-2 text-[11px] text-sky-950 dark:text-sky-100">
+        Add context from perps when useful: extreme funding + crowded OI often sits near those stop magnets.
       </div>
     </ConceptShell>
   );

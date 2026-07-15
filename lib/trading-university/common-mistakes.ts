@@ -33,10 +33,16 @@ export const COMMON_MISTAKES_BY_LESSON: Record<string, string[]> = {
     "Raising size after a win because you feel invincible.",
     "Journaling only P&L screenshots with no process notes.",
   ],
+  "trading-styles": [
+    "Turning a failed scalp into a multi-day hope hold.",
+    "Using scalp size with a swing-wide stop (silent 5–10R risk).",
+    "Picking a style you cannot actually monitor with your schedule.",
+  ],
   "market-structure": [
     "Chasing every breakout through obvious highs/lows (liquidity grabs).",
     "Calling CHOCH a full trend change after one candle.",
     "Fighting higher-timeframe structure on a lower timeframe scalp.",
+    "Calling mid-range chop a bull or bear 'regime' and overtrading it.",
   ],
   "meme-coins": [
     "Sizing memes like blue-chip holds.",
