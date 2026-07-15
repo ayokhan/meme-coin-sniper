@@ -88,7 +88,7 @@ export const TRADING_UNIVERSITY_MAX_TAB_LEAVES = 3;
 export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   {
     id: "intro-crypto",
-    title: "Introduction to cryptocurrency",
+    title: "Introduction to Cryptocurrency",
     subtitle: "What crypto is, altcoins, DeFi, spot vs perps, and CEX vs DEX.",
     estimatedMinutes: 12,
     sections: [
@@ -152,7 +152,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "wallets-security",
-    title: "Wallets & security",
+    title: "Wallets & Security",
     subtitle: "Hot vs cold wallets, seed phrases, approvals, and common scams.",
     estimatedMinutes: 8,
     sections: [
@@ -206,7 +206,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "risk-fundamentals",
-    title: "Risk management fundamentals",
+    title: "Risk Management Fundamentals",
     subtitle: "Position sizing, risk per trade, and the psychology that blows accounts.",
     estimatedMinutes: 8,
     sections: [
@@ -271,7 +271,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "chart-basics",
-    title: "Charts & candlesticks",
+    title: "Charts & Candlesticks",
     subtitle: "OHLC candles, timeframes, trend lines, Fib, and classic chart patterns.",
     estimatedMinutes: 18,
     sections: [
@@ -402,7 +402,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "orders-execution",
-    title: "Orders & trade execution",
+    title: "Orders & Trade Execution",
     subtitle: "Market vs limit vs stop, stop-loss, take-profit, and managing open orders.",
     estimatedMinutes: 12,
     track: "foundations",
@@ -484,7 +484,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "psychology-journaling",
-    title: "Psychology & trade journaling",
+    title: "Psychology & Trade Journaling",
     subtitle: "Revenge trading, daily loss limits, and a simple log that builds edge.",
     estimatedMinutes: 10,
     track: "foundations",
@@ -551,7 +551,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "trading-styles",
-    title: "Trading styles & time horizons",
+    title: "Trading Styles & Time Horizons",
     subtitle: "Scalp, day, swing, and position — match style to timeframe, size, and lifestyle.",
     estimatedMinutes: 10,
     track: "foundations",
@@ -635,7 +635,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "market-structure",
-    title: "Liquidity & market structure",
+    title: "Liquidity & Market Structure",
     subtitle: "Regimes, BOS/CHOCH, liquidity grabs, and how larger flow hunts stops.",
     estimatedMinutes: 16,
     track: "foundations",
@@ -735,7 +735,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "volume-vwap",
-    title: "Volume, VWAP & profile lite",
+    title: "Volume, VWAP & Profile Lite",
     subtitle: "Read participation — VWAP as institutional benchmark, volume as confirmation.",
     estimatedMinutes: 11,
     track: "foundations",
@@ -804,7 +804,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "meme-coins",
-    title: "Meme coins",
+    title: "Meme Coins",
     subtitle: "What they are, why they move, and how culture becomes price action.",
     estimatedMinutes: 10,
     sections: [
@@ -844,7 +844,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "meme-trading",
-    title: "Meme coin trading",
+    title: "Meme Coin Trading",
     subtitle: "Entries, exits, fees, bribes/tips, sizing, and process.",
     estimatedMinutes: 12,
     sections: [
@@ -957,7 +957,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "solana-memes",
-    title: "Solana meme coins",
+    title: "Solana Meme Coins",
     subtitle: "Launch culture, bonding curves, and how Sol memes behave.",
     estimatedMinutes: 9,
     sections: [
@@ -1014,7 +1014,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "bsc-memes",
-    title: "BSC meme coins",
+    title: "BSC Meme Coins",
     subtitle: "Binance Smart Chain memes — similar game, different rails.",
     estimatedMinutes: 8,
     sections: [
@@ -1138,7 +1138,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "crypto-futures",
-    title: "Crypto futures & perps",
+    title: "Crypto Futures & Perps",
     subtitle: "Perpetuals, leverage, margin, funding, liquidation, and long vs short.",
     estimatedMinutes: 16,
     sections: [
@@ -1268,7 +1268,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "predictions",
-    title: "Prediction markets",
+    title: "Prediction Markets",
     subtitle: "Trading probabilities on real-world events.",
     estimatedMinutes: 8,
     sections: [
@@ -1321,7 +1321,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "forex",
-    title: "Forex trading",
+    title: "Forex Trading",
     subtitle: "FX pairs, pips, leverage, sessions, orders, and swaps.",
     estimatedMinutes: 14,
     sections: [
@@ -1418,7 +1418,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "options-volatility",
-    title: "Options & volatility lite",
+    title: "Options & Volatility Lite",
     subtitle: "Calls, puts, premium, and why leverage of options differs from perps.",
     estimatedMinutes: 12,
     track: "markets",
@@ -1487,7 +1487,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "novastaris-workflow",
-    title: "NovaStaris end-to-end workflow",
+    title: "NovaStaris End-to-End Workflow",
     subtitle: "How to chain Go Hunting, AI Agent, wallets, and forecast tools without FOMO.",
     estimatedMinutes: 11,
     track: "applied",
@@ -1556,7 +1556,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "backtesting-expectancy",
-    title: "Backtesting & expectancy",
+    title: "Backtesting & Expectancy",
     subtitle: "Prove process with data — expectancy, sample size, and overfitting traps.",
     estimatedMinutes: 11,
     track: "applied",
@@ -1625,7 +1625,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
   },
   {
     id: "advanced-markets",
-    title: "Advanced market topics",
+    title: "Advanced Market Topics",
     subtitle: "Funding & OI, tokenomics red flags, and prop-firm rule basics.",
     estimatedMinutes: 12,
     track: "applied",

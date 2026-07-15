@@ -823,6 +823,56 @@ export default function TradingUniversityPanel({
         </div>
       )}
 
+      {fullAccess && !progress?.quizPassed && lessons[0] && (
+        <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {completedCount === 0
+                ? "You’re enrolled — start with Module 01"
+                : allComplete
+                  ? "Modules complete — take the final exam when ready"
+                  : "Continue where you left off"}
+            </p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              {completedCount === 0
+                ? `Open ${lessons[0].title} to begin the course and unlock progress tracking.`
+                : allComplete
+                  ? "Scroll to the final exam section below, or review any module from the syllabus."
+                  : `Next up: ${resumeLesson?.title ?? lessons[0].title}.`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {completedCount === 0 ? (
+              <Button type="button" size="sm" onClick={() => openLesson(lessons[0]!)} className="gap-1">
+                Start course
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            ) : allComplete ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  document.getElementById("tu-final-exam")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                Go to final exam
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => openLesson(resumeLesson ?? lessons[0]!)}
+                className="gap-1"
+              >
+                Continue
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {error && (
         <p className="text-sm text-amber-600 dark:text-amber-400 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
           {error}
@@ -1019,7 +1069,10 @@ export default function TradingUniversityPanel({
             </section>
           )}
 
-          <section className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-5 sm:p-6 space-y-4">
+          <section
+            id="tu-final-exam"
+            className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-5 sm:p-6 space-y-4"
+          >
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-amber-500" />
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
