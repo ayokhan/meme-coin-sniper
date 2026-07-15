@@ -368,15 +368,19 @@ export function NovaScalpPlanCard({
       ? estimateScalpPnl(entrySide!, filledEntryPrice!, result.stopLossPrice, tradeMargin, tradeLeverage)
       : null;
 
+  // Keep the pinned watch in sync with live status — but only for THIS plan.
+  // Using local `watching` alone raced Analyze: old watching=true + new result
+  // overwrote sessionStorage before watching flipped to false.
   useEffect(() => {
-    if (!watching || result.side === "no_entry") return;
+    if (result.side === "no_entry") return;
+    if (!isWatchingScalpPlan(result, market)) return;
     updateWatchedScalpPlan({
       analysis: result,
       lastStatus: planStatus,
       lastLivePrice: livePrice,
       statusUpdatedAt: new Date().toISOString(),
     });
-  }, [watching, result, planStatus, livePrice]);
+  }, [watching, result, planStatus, livePrice, market]);
 
   const toggleWatch = async () => {
     if (watching) {

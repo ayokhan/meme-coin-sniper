@@ -36,31 +36,56 @@ export function priceMovePct(from: number, to: number): number {
   return ((to - from) / from) * 100;
 }
 
+/**
+ * Describe where live sits relative to a plan level (entry / exit / stop).
+ * Wording is from the trader’s POV: e.g. live above a long limit → “above entry”.
+ */
 export function formatDistanceLabel(
   livePrice: number,
   level: number,
   side: "long" | "short",
   kind: "entry" | "exit" | "stop"
 ): string {
-  const pct = priceMovePct(livePrice, level);
-  const abs = Math.abs(pct).toFixed(2);
+  // (live − level) / level — positive means live is above the level
+  const liveVsLevel = priceMovePct(level, livePrice);
+  const abs = Math.abs(liveVsLevel).toFixed(2);
+  if (Math.abs(liveVsLevel) < 0.005) {
+    if (kind === "entry") return "at entry";
+    if (kind === "exit") return "at target";
+    return "at stop";
+  }
+
   if (kind === "stop") {
     if (side === "long") {
-      return pct <= 0 ? `${abs}% below (toward stop)` : `${abs}% above stop`;
+      return liveVsLevel < 0
+        ? `${abs}% below (toward stop)`
+        : `${abs}% above stop`;
     }
-    return pct >= 0 ? `${abs}% above (toward stop)` : `${abs}% below stop`;
+    return liveVsLevel > 0
+      ? `${abs}% above (toward stop)`
+      : `${abs}% below stop`;
   }
+
   if (kind === "exit") {
     if (side === "long") {
-      return pct >= 0 ? `${abs}% above (toward target)` : `${abs}% below target`;
+      return liveVsLevel > 0
+        ? `${abs}% above (past target)`
+        : `${abs}% below target`;
     }
-    return pct <= 0 ? `${abs}% below (toward target)` : `${abs}% above target`;
+    return liveVsLevel < 0
+      ? `${abs}% below (past target)`
+      : `${abs}% above target`;
   }
-  // entry
+
+  // entry — waiting for fill
   if (side === "long") {
-    return pct <= 0 ? `${abs}% below entry` : `${abs}% above entry`;
+    return liveVsLevel > 0
+      ? `${abs}% above entry — wait for pullback`
+      : `${abs}% below entry`;
   }
-  return pct >= 0 ? `${abs}% above entry` : `${abs}% below entry`;
+  return liveVsLevel < 0
+    ? `${abs}% below entry — wait for bounce`
+    : `${abs}% above entry`;
 }
 
 export function computeScalpPlanStatus(input: {

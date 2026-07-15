@@ -13,6 +13,7 @@ import {
   readWatchedScalpPlan,
   SCALP_STATUS_EVENT,
   SCALP_WATCH_EVENT,
+  requestOpenWatchedScalpPlan,
   stopWatchingScalpPlan,
 } from "@/lib/nova-scalp-plan-watch";
 import {
@@ -133,8 +134,20 @@ export default function NovaScalpWatchBanner() {
               Live ${livePrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
             </p>
           )}
-          {(status === "invalidated" || status === "target_hit" || status === "stale") && (
-            <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2">
+            <Button asChild size="sm" variant="secondary" className="h-7 text-xs">
+              <Link
+                href={
+                  market === "forex"
+                    ? "/?tab=nova-forex&forex=nova-scalp#nova-scalp-watched-plan"
+                    : "/?tab=nova-forecast&forecast=nova-scalp#nova-scalp-watched-plan"
+                }
+                onClick={() => requestOpenWatchedScalpPlan()}
+              >
+                Open plan
+              </Link>
+            </Button>
+            {(status === "invalidated" || status === "target_hit" || status === "stale") && (
               <Button asChild size="sm" variant="secondary" className="h-7 text-xs">
                 <Link
                   href={
@@ -146,8 +159,8 @@ export default function NovaScalpWatchBanner() {
                   {market === "forex" ? "Open Forex Scalp" : "Find quick wins"}
                 </Link>
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
         <button
           type="button"

@@ -5,6 +5,9 @@ import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 export const SCALP_WATCH_STORAGE_KEY = "novastaris_scalp_plan_watch";
 export const SCALP_WATCH_EVENT = "novastaris-scalp-watch-change";
 export const SCALP_STATUS_EVENT = "novastaris-scalp-status-change";
+/** Restore the watched analysis into the Scalp agent panel (do not replace watch). */
+export const SCALP_OPEN_WATCHED_EVENT = "novastaris-scalp-open-watched";
+export const SCALP_OPEN_WATCHED_PENDING_KEY = "novastaris_scalp_open_watched_pending";
 
 export type WatchedScalpPlan = {
   analysis: NovaScalpAnalysis;
@@ -77,6 +80,22 @@ export function isWatchingScalpPlan(
     w.analysis.timeframeId === analysis.timeframeId &&
     w.analysis.analyzedAt === analysis.analyzedAt
   );
+}
+
+export function requestOpenWatchedScalpPlan(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(SCALP_OPEN_WATCHED_PENDING_KEY, "1");
+  window.dispatchEvent(new CustomEvent(SCALP_OPEN_WATCHED_EVENT));
+}
+
+export function hasOpenWatchedScalpPlanPending(): boolean {
+  if (typeof window === "undefined") return false;
+  return sessionStorage.getItem(SCALP_OPEN_WATCHED_PENDING_KEY) === "1";
+}
+
+export function clearOpenWatchedScalpPlanPending(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(SCALP_OPEN_WATCHED_PENDING_KEY);
 }
 
 export function dispatchScalpStatusChange(payload: {

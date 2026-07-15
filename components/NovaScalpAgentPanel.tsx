@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
 import { sendTradeToNovaScalper } from "@/lib/nova-scalper-prefill";
 import {
+  clearOpenWatchedScalpPlanPending,
+  hasOpenWatchedScalpPlanPending,
+  readWatchedScalpPlan,
+  SCALP_OPEN_WATCHED_EVENT,
+} from "@/lib/nova-scalp-plan-watch";
+import {
   NOVA_SCALP_DISCLAIMER,
   QUICK_WIN_SCALP_TIMEFRAME_ID,
   SCALP_TIMEFRAMES,
@@ -88,6 +94,35 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
     window.addEventListener("hashchange", scrollToQuickWins);
     return () => window.removeEventListener("hashchange", scrollToQuickWins);
   }, []);
+
+  const restoreWatchedPlan = useCallback(() => {
+    const w = readWatchedScalpPlan();
+    if (!w || (w.market ?? "crypto") !== "crypto") return false;
+    const a = w.analysis;
+    if (a.side === "no_entry") return false;
+    setSymbol(a.symbol);
+    setAmount(String(a.amountUsd));
+    setLeverage(String(a.leverage));
+    setMaxLossPct(String(a.maxLossPctOnMargin ?? 5));
+    setTimeframeId(a.timeframeId);
+    setResult(a);
+    setError(null);
+    clearOpenWatchedScalpPlanPending();
+    window.setTimeout(() => {
+      document.getElementById("nova-scalp-watched-plan")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (!enabled || !isVip) return;
+    const onOpen = () => {
+      void restoreWatchedPlan();
+    };
+    window.addEventListener(SCALP_OPEN_WATCHED_EVENT, onOpen);
+    if (hasOpenWatchedScalpPlanPending()) restoreWatchedPlan();
+    return () => window.removeEventListener(SCALP_OPEN_WATCHED_EVENT, onOpen);
+  }, [enabled, isVip, restoreWatchedPlan]);
 
   const runAgent = useCallback(
     async (overrides?: {
@@ -298,7 +333,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
         {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
 
         {result && (
-          <div className="space-y-2">
+          <div id="nova-scalp-watched-plan" className="space-y-2 scroll-mt-24">
             <NovaScalpPlanCard
               result={result}
               onRefresh={() => void runAgent()}

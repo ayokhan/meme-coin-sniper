@@ -17,6 +17,12 @@ import {
   type ScalpTimeframeId,
 } from "@/lib/nova-scalp-agent";
 import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
+import {
+  clearOpenWatchedScalpPlanPending,
+  hasOpenWatchedScalpPlanPending,
+  readWatchedScalpPlan,
+  SCALP_OPEN_WATCHED_EVENT,
+} from "@/lib/nova-scalp-plan-watch";
 
 import NovaForexRadarPanel from "@/components/NovaForexRadarPanel";
 import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
@@ -108,6 +114,36 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
       setSubTab("nova-scalp");
     }
   }, []);
+
+  const restoreWatchedForexPlan = useCallback(() => {
+    const w = readWatchedScalpPlan();
+    if (!w || (w.market ?? "crypto") !== "forex") return false;
+    const a = w.analysis;
+    if (a.side === "no_entry") return false;
+    setSubTab("nova-scalp");
+    setSymbol(a.symbol);
+    setScalpAmount(String(a.amountUsd));
+    setScalpLev(String(a.leverage));
+    setScalpMaxLoss(String(a.maxLossPctOnMargin ?? 5));
+    setScalpTf(a.timeframeId);
+    setScalpResult(a);
+    setScalpError(null);
+    clearOpenWatchedScalpPlanPending();
+    window.setTimeout(() => {
+      document.getElementById("nova-scalp-watched-plan")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (!novaForexScalp) return;
+    const onOpen = () => {
+      void restoreWatchedForexPlan();
+    };
+    window.addEventListener(SCALP_OPEN_WATCHED_EVENT, onOpen);
+    if (hasOpenWatchedScalpPlanPending()) restoreWatchedForexPlan();
+    return () => window.removeEventListener(SCALP_OPEN_WATCHED_EVENT, onOpen);
+  }, [novaForexScalp, restoreWatchedForexPlan]);
 
   useEffect(() => {
     if (!enabled || !isVip) return;
@@ -539,12 +575,14 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
               </div>
               {scalpError && <p className="text-sm text-rose-600">{scalpError}</p>}
               {scalpResult && (
-                <NovaScalpPlanCard
-                  market="forex"
-                  result={scalpResult}
-                  onRefresh={() => void runScalp()}
-                  refreshing={scalpLoading}
-                />
+                <div id="nova-scalp-watched-plan" className="scroll-mt-24">
+                  <NovaScalpPlanCard
+                    market="forex"
+                    result={scalpResult}
+                    onRefresh={() => void runScalp()}
+                    refreshing={scalpLoading}
+                  />
+                </div>
               )}
               {!scalpResult && !scalpError && (
                 <p className="text-[11px] text-muted-foreground">{NOVA_SCALP_DISCLAIMER}</p>
