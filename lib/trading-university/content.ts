@@ -74,9 +74,9 @@ export type UniversityLesson = {
   track?: CourseTrack;
 };
 
-export const TRADING_UNIVERSITY_PASS_PCT = 80;
-/** Absolute pass threshold for the final exam (48 of 60). */
-export const TRADING_UNIVERSITY_PASS_CORRECT = 48;
+export const TRADING_UNIVERSITY_PASS_PCT = 75;
+/** Absolute pass threshold for the final exam (45 of 60). */
+export const TRADING_UNIVERSITY_PASS_CORRECT = 45;
 export const TRADING_UNIVERSITY_QUIZ_SIZE = 60;
 /** Chapter check: need at least this many correct (of 3) to unlock Mark complete. */
 export const TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT = 2;

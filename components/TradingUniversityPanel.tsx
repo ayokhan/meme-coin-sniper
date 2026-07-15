@@ -194,8 +194,8 @@ export default function TradingUniversityPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lessons, setLessons] = useState<CatalogLesson[]>([]);
-  const [passPct, setPassPct] = useState(80);
-  const [passCorrect, setPassCorrect] = useState(48);
+  const [passPct, setPassPct] = useState(75);
+  const [passCorrect, setPassCorrect] = useState(45);
   const [quizSize, setQuizSize] = useState(60);
   const [examMinutes, setExamMinutes] = useState(70);
   const [fullAccess, setFullAccess] = useState(false);
@@ -316,8 +316,8 @@ export default function TradingUniversityPanel({
         return;
       }
       setLessons(data.catalog?.lessons ?? []);
-      setPassPct(data.catalog?.passPct ?? 80);
-      setPassCorrect(data.catalog?.passCorrect ?? 48);
+      setPassPct(data.catalog?.passPct ?? 75);
+      setPassCorrect(data.catalog?.passCorrect ?? 45);
       setQuizSize(data.catalog?.quizSize ?? 60);
       setExamMinutes(data.catalog?.examMinutes ?? 70);
       setFullAccess(!!data.catalog?.fullAccess);

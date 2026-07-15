@@ -404,7 +404,7 @@ export default function AdminTradingUniversityPage() {
             </Button>
             <p className="text-xs text-muted-foreground">
               Live certificate text: NovaStaris · Trading University · Certificate of Completion ·
-              graduate name · score with pass mark 48/60 · date · certificate ID · disclaimer.
+              graduate name · score with pass mark 45/60 · date · certificate ID · disclaimer.
             </p>
             <Button asChild variant="outline" size="sm">
               <Link href="/?tab=trading-university">Open University tab</Link>
