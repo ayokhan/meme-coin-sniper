@@ -776,7 +776,7 @@ export default function TradingUniversityPanel({
             </h1>
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
               A free course covering meme coins, Solana &amp; BSC, crypto futures &amp; perps,
-              prediction markets, and forex — then a final exam to earn your certificate.
+              prediction markets, forex, and metals — then a final exam to earn your certificate.
             </p>
           </div>
           <div className="rounded-xl border border-white/15 bg-slate-900 px-4 py-3 text-sm">
