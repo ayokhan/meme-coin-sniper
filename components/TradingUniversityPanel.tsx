@@ -34,12 +34,14 @@ import { downloadTrackCheatSheet } from "@/lib/trading-university/cheat-sheets";
 import { getCommonMistakes } from "@/lib/trading-university/common-mistakes";
 import {
   UniversityAdvancedTrioDiagram,
+  UniversityBacktestDiagram,
   UniversityBondingCurveDiagram,
   UniversityBscCheckDiagram,
   UniversityCandleAtlasDiagram,
   UniversityCandlesDiagram,
   UniversityCexDexDiagram,
   UniversityChartPatternsDiagram,
+  UniversityEthL2Diagram,
   UniversityFeesDiagram,
   UniversityFibDiagram,
   UniversityForexPipDiagram,
@@ -55,6 +57,7 @@ import {
   UniversityMarkVsLastDiagram,
   UniversityMarketRegimesDiagram,
   UniversityNarrativeDiagram,
+  UniversityOptionsVolDiagram,
   UniversityOrdersDiagram,
   UniversityPhishingDiagram,
   UniversityProbabilityDiagram,
@@ -63,6 +66,7 @@ import {
   UniversitySolanaDiagram,
   UniversityStructureDiagram,
   UniversityTradingStylesDiagram,
+  UniversityVolumeVwapDiagram,
   UniversityWalletDiagram,
   UniversityWorkflowDiagram,
 } from "@/components/UniversityConceptDiagrams";
@@ -1210,6 +1214,10 @@ export default function TradingUniversityPanel({
                 </div>
               )}
               {activeLesson.diagram === "styles" && <UniversityTradingStylesDiagram />}
+              {activeLesson.diagram === "volume" && <UniversityVolumeVwapDiagram />}
+              {activeLesson.diagram === "eth-l2" && <UniversityEthL2Diagram />}
+              {activeLesson.diagram === "options" && <UniversityOptionsVolDiagram />}
+              {activeLesson.diagram === "backtest" && <UniversityBacktestDiagram />}
               {activeLesson.diagram === "workflow" && <UniversityWorkflowDiagram />}
               {activeLesson.diagram === "cex-dex" && <UniversityCexDexDiagram />}
               {activeLesson.diagram === "wallet" && (

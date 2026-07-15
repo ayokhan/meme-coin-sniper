@@ -44,6 +44,26 @@ export const COMMON_MISTAKES_BY_LESSON: Record<string, string[]> = {
     "Fighting higher-timeframe structure on a lower timeframe scalp.",
     "Calling mid-range chop a bull or bear 'regime' and overtrading it.",
   ],
+  "volume-vwap": [
+    "Treating VWAP as a guaranteed bounce button.",
+    "Trusting tiny-cap 'volume' without considering wash trading.",
+    "Ignoring that some FX/CFD feeds have unreliable volume bars.",
+  ],
+  "ethereum-l2s": [
+    "Swapping a CA on the wrong network because the ticker matched.",
+    "Leaving unlimited approvals on random routers forever.",
+    "Using random bridges from DMs instead of known routes.",
+  ],
+  "options-volatility": [
+    "Buying calls only because 'chart looks bullish' with no vol/expiry plan.",
+    "Selling naked crypto options without defined risk.",
+    "Confusing perp liquidations with option premium decay.",
+  ],
+  "backtesting-expectancy": [
+    "Optimizing 10 indicators on one bull month and calling it edge.",
+    "Ignoring fees/funding in the backtest.",
+    "Going full size after 12 lucky paper trades.",
+  ],
   "meme-coins": [
     "Sizing memes like blue-chip holds.",
     "Buying narrative without checking liquidity and holders.",

@@ -1479,3 +1479,170 @@ export function UniversityPhishingDiagram() {
     </ConceptShell>
   );
 }
+
+export function UniversityVolumeVwapDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · VWAP + volume profile lite"
+      accent="sky"
+      note="VWAP = session (or anchored) average paid. Profile = where volume accepted. Neither replaces a stop."
+    >
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-lg border border-sky-500/45 bg-sky-50 dark:bg-sky-950 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-sky-800 dark:text-sky-200">Session VWAP</p>
+          <svg viewBox="0 0 160 70" className="w-full h-16" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-emerald-500"
+              strokeWidth="2.5"
+              points="8,50 30,42 48,46 70,28 95,32 120,18 150,22"
+            />
+            <line
+              x1="8"
+              y1="36"
+              x2="150"
+              y2="30"
+              stroke="currentColor"
+              className="text-amber-500"
+              strokeWidth="2"
+              strokeDasharray="4 2"
+            />
+            <text x="108" y="26" className="fill-amber-800 dark:fill-amber-200" fontSize="8" fontWeight="700">
+              VWAP
+            </text>
+          </svg>
+          <p className="text-sky-950/80 dark:text-sky-100/85">Above VWAP → bullish lean for day traders; below → bearish lean.</p>
+        </div>
+        <div className="rounded-lg border border-violet-500/45 bg-violet-50 dark:bg-violet-950 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-violet-800 dark:text-violet-200">Profile nodes</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-16 rounded-sm bg-emerald-500/80" />
+              <span className="text-[11px]">HVN · accepted</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-24 rounded-sm bg-amber-500/90" />
+              <span className="text-[11px] font-semibold">POC · most volume</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-8 rounded-sm bg-rose-500/70" />
+              <span className="text-[11px]">LVN · thin / fast</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityEthL2Diagram() {
+  return (
+    <ConceptShell
+      title="Concept · Ethereum stack"
+      accent="violet"
+      note="Same ticker can live on multiple chains — verify network + contract every time."
+    >
+      <div className="flex flex-col gap-2 text-xs">
+        <div className="rounded-lg border border-violet-500/45 bg-violet-50 dark:bg-violet-950 px-3 py-3 text-center shadow-sm">
+          <p className="font-bold text-violet-900 dark:text-violet-100">Ethereum L1</p>
+          <p className="text-[11px] text-violet-950/80 dark:text-violet-100/80 mt-1">Settlement · DeFi · higher gas in mania</p>
+        </div>
+        <div className="text-center text-violet-600 dark:text-violet-300 font-bold">↕ bridges (delay + contract risk)</div>
+        <div className="grid sm:grid-cols-3 gap-2">
+          {["Arbitrum", "Optimism", "Base / other L2s"].map((name) => (
+            <div
+              key={name}
+              className="rounded-lg border border-sky-500/45 bg-sky-50 dark:bg-sky-950 px-2 py-3 text-center shadow-sm"
+            >
+              <p className="font-bold text-sky-900 dark:text-sky-100">{name}</p>
+              <p className="text-[10px] mt-1 text-sky-950/75 dark:text-sky-100/80">Cheaper txs · own CAs</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityOptionsVolDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Options payoff lite"
+      accent="amber"
+      note="Long call/put: premium is the usual max loss. Naked short options can be much larger — avoid while learning."
+    >
+      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="rounded-lg border border-emerald-500/45 bg-emerald-50 dark:bg-emerald-950 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-emerald-800 dark:text-emerald-200">Long call</p>
+          <svg viewBox="0 0 140 60" className="w-full h-14" aria-hidden>
+            <line x1="10" y1="40" x2="130" y2="40" stroke="currentColor" className="text-zinc-400" strokeWidth="1" />
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-emerald-500"
+              strokeWidth="3"
+              points="10,40 70,40 120,12"
+            />
+            <text x="62" y="54" className="fill-amber-800 dark:fill-amber-200" fontSize="8">
+              strike
+            </text>
+          </svg>
+          <p className="text-emerald-950/80 dark:text-emerald-100/85">Right to buy · loses premium if expires worthless</p>
+        </div>
+        <div className="rounded-lg border border-rose-500/45 bg-rose-50 dark:bg-rose-950 p-3 space-y-2 shadow-sm">
+          <p className="font-bold text-rose-800 dark:text-rose-200">Long put</p>
+          <svg viewBox="0 0 140 60" className="w-full h-14" aria-hidden>
+            <line x1="10" y1="20" x2="130" y2="20" stroke="currentColor" className="text-zinc-400" strokeWidth="1" />
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              className="text-rose-500"
+              strokeWidth="3"
+              points="20,48 70,20 130,20"
+            />
+            <text x="62" y="14" className="fill-amber-800 dark:fill-amber-200" fontSize="8">
+              strike
+            </text>
+          </svg>
+          <p className="text-rose-950/80 dark:text-rose-100/85">Right to sell · IV crush can hurt even if “directionally okay”</p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-amber-500/40 bg-amber-50 dark:bg-amber-950 px-3 py-2 text-[11px] text-amber-950 dark:text-amber-100">
+        Perps = funding + liquidation clock. Options = theta + expiry clock. Different risk shapes.
+      </div>
+    </ConceptShell>
+  );
+}
+
+export function UniversityBacktestDiagram() {
+  return (
+    <ConceptShell
+      title="Concept · Prove it before you size up"
+      accent="cyan"
+      note="Pretty curves on one bull month are not expectancy. Demand sample size across regimes."
+    >
+      <div className="flex flex-wrap gap-2 text-xs">
+        {[
+          { t: "1 · Rules", d: "Entry/stop/target written", c: "border-sky-500/45 bg-sky-50 dark:bg-sky-950" },
+          { t: "2 · Backtest", d: "History + fees/funding", c: "border-violet-500/45 bg-violet-50 dark:bg-violet-950" },
+          { t: "3 · Forward", d: "Unseen live/paper", c: "border-amber-500/45 bg-amber-50 dark:bg-amber-950" },
+          { t: "4 · Small live", d: "Then scale if stable", c: "border-emerald-500/45 bg-emerald-50 dark:bg-emerald-950" },
+        ].map((s) => (
+          <div key={s.t} className={`rounded-lg border px-3 py-2 min-w-[8rem] flex-1 shadow-sm ${s.c}`}>
+            <p className="font-bold text-zinc-900 dark:text-zinc-50">{s.t}</p>
+            <p className="text-[10px] text-zinc-700 dark:text-zinc-300">{s.d}</p>
+          </div>
+        ))}
+      </div>
+      <div className="grid sm:grid-cols-2 gap-2 text-[11px]">
+        <div className="rounded-lg border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950 px-3 py-2 text-emerald-950 dark:text-emerald-100">
+          Expectancy uses average win/loss × frequencies — preferably in R after costs.
+        </div>
+        <div className="rounded-lg border border-rose-500/40 bg-rose-50 dark:bg-rose-950 px-3 py-2 text-rose-950 dark:text-rose-100">
+          Overfitting: 10 indicators tuned on one path → dies in the next regime.
+        </div>
+      </div>
+    </ConceptShell>
+  );
+}

@@ -65,6 +65,10 @@ export type UniversityLesson = {
     | "fib"
     | "styles"
     | "regimes"
+    | "volume"
+    | "eth-l2"
+    | "options"
+    | "backtest"
     | null;
   /** Syllabus track — if omitted, inferred from id. */
   track?: CourseTrack;
@@ -730,6 +734,75 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     ],
   },
   {
+    id: "volume-vwap",
+    title: "Volume, VWAP & profile lite",
+    subtitle: "Read participation — VWAP as institutional benchmark, volume as confirmation.",
+    estimatedMinutes: 11,
+    track: "foundations",
+    sections: [
+      {
+        heading: "Why volume / participation matters",
+        body: [
+          "Price without participation is easier to fake. Rising volume on a break that holds is stronger context than a quiet spike that immediately reclaims.",
+          "On crypto, reported 'volume' quality varies by venue (wash trading risk). Prefer liquid majors/perps and treat tiny meme prints with skepticism.",
+        ],
+      },
+      {
+        heading: "VWAP (volume-weighted average price)",
+        body: [
+          "VWAP is the average price traded so far in the session, weighted by volume — a common institutional benchmark for 'fair' intraday price.",
+          "Price holding above session VWAP often leans bullish for day traders; below leans bearish. Mean-reversion toward VWAP is common in ranges; trend days can ride far from VWAP.",
+          "Anchored VWAP: start the average from a chosen event (swing low, listing, CPI candle) instead of the session open — useful for swings.",
+          "VWAP is not a magic entry. Pair it with structure and invalidation.",
+        ],
+      },
+      {
+        heading: "Volume profile (lite)",
+        body: [
+          "Volume profile shows how much volume traded at each price (histogram on the side), not only over time.",
+          "High-volume nodes (HVN): prices the market accepted — often balance / magnet zones. Low-volume nodes (LVN): thin acceptance — price can move through quickly.",
+          "Point of control (POC): price with the most volume in the profile window — often a fair-value magnet until it migrates.",
+          "Use profile to ask where liquidity was accepted, then plan stops beyond true structure — not exactly on the POC if that is crowded.",
+        ],
+      },
+      {
+        heading: "How to use this with NovaStaris styles",
+        body: [
+          "Scalps/day trades: session VWAP + volume on breakouts/reclaims.",
+          "Swings: anchored VWAP from impulse start + daily structure; ignore noisy 1m volume.",
+          "If chart has no reliable volume (some CFDs/FX feeds), lean harder on structure and session liquidity instead of fake volume bars.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "VWAP", definition: "Volume-weighted average price — session (or anchored) average paid by the market." },
+      { term: "Volume profile", definition: "Volume traded at each price level over a chosen window." },
+      { term: "POC", definition: "Point of control — price with the highest volume in the profile." },
+      { term: "HVN / LVN", definition: "High- / low-volume nodes — accepted vs thin price areas." },
+    ],
+    workedExamples: [
+      {
+        title: "Break above VWAP with volume",
+        setup: [
+          "Intraday: price reclaim and hold above session VWAP",
+          "Volume expands on the reclaim candle vs prior hour",
+          "HTF structure still bullish",
+        ],
+        steps: [
+          "Context says buyers paid up through the session average with participation.",
+          "Invalidation: lose VWAP and the reclaim swing — not a random tick under an HVN.",
+          "If the move was a silent wick with no volume, treat it as weaker — maybe a grab, not acceptance.",
+        ],
+        takeaway: "VWAP + volume answers 'was it accepted?' Structure answers 'where am I wrong?'",
+      },
+    ],
+    diagram: "volume",
+    relatedTools: [
+      { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
+      { label: "Chart Analysis", href: "/?tab=ai-analysis&agent=chart" },
+    ],
+  },
+  {
     id: "meme-coins",
     title: "Meme coins",
     subtitle: "What they are, why they move, and how culture becomes price action.",
@@ -997,6 +1070,73 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     diagram: "bsc-check",
   },
   {
+    id: "ethereum-l2s",
+    title: "Ethereum & Layer 2s",
+    subtitle: "ETH rails beyond Solana and BSC — gas, L2s, bridges, and scam surface.",
+    estimatedMinutes: 11,
+    track: "markets",
+    sections: [
+      {
+        heading: "Why Ethereum still matters for traders",
+        body: [
+          "Ethereum hosts deep DeFi, major stables, blue-chip NFTs history, and many reputable tokens — even if memes often launch on Solana/BSC for speed and fees.",
+          "ETH gas (transaction fees) rises with demand. In mania, a failed or crowded tx can cost real money — size dust checks carefully.",
+        ],
+      },
+      {
+        heading: "Layer 2s (L2s)",
+        body: [
+          "L2s (e.g. Arbitrum, Optimism, Base, and others) settle cheaper/faster while periodically anchoring security to Ethereum.",
+          "Same token ticker can exist on multiple networks with different contract addresses — always verify chain + CA.",
+          "Bridging moves value between L1 and L2 (or across L2s). Bridges add smart-contract and delay risk; official bridges and reputable aggregators beat random 'support' DMs.",
+        ],
+      },
+      {
+        heading: "Trading & risk differences vs Solana/BSC memes",
+        body: [
+          "ETH/L2 memes and microcaps still rug — honeypots, taxes, and approval scams exist. Unlimited ERC-20 approvals remain a classic drain vector.",
+          "Liquidity can sit on Uniswap (and forks) with different fee tiers — check pool depth and which chain you are on before sizing.",
+          "For serious ETH majors, structure and macro often matter more than tip wars — but security hygiene still beats chart skill if you sign a malicious permit.",
+        ],
+      },
+      {
+        heading: "Practical checklist",
+        body: [
+          "Confirm network in the wallet before every swap.",
+          "Verify contract on Etherscan / L2 explorer — not a Telegram screenshot.",
+          "Revoke stale approvals periodically; keep a burn/trading wallet separate from savings.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "L1 / L2", definition: "Base chain (e.g. Ethereum) vs scaling layer that posts back to it." },
+      { term: "Gas", definition: "Fee paid to execute an Ethereum (or EVM) transaction." },
+      { term: "Bridge", definition: "Mechanism to move assets across chains — adds contract and delay risk." },
+      { term: "ERC-20 approval", definition: "Permission for a contract to move your tokens — can be abused if unlimited." },
+    ],
+    workedExamples: [
+      {
+        title: "Same ticker, wrong chain",
+        setup: [
+          "Twitter pushes a 'new ETH meme' CA",
+          "Your wallet is still on Base from yesterday",
+          "You paste the CA and swap",
+        ],
+        steps: [
+          "If the CA is Ethereum mainnet-only, a Base swap may buy a worthless clone or fail — either way you risk funds.",
+          "Fix: switch network deliberately, open the explorer for that chain, verify the verified contract and liquidity pool.",
+          "Then dust-size test; only then apply risk size.",
+        ],
+        takeaway: "Chain + CA are part of the instrument. Ticker text is not.",
+      },
+    ],
+    diagram: "eth-l2",
+    relatedTools: [
+      { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
+      { label: "Wallets & security module", href: "/?tab=trading-university" },
+    ],
+  },
+  {
     id: "crypto-futures",
     title: "Crypto futures & perps",
     subtitle: "Perpetuals, leverage, margin, funding, liquidation, and long vs short.",
@@ -1052,6 +1192,15 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
         ],
       },
       {
+        heading: "Dated futures vs perps (basis)",
+        body: [
+          "Dated (calendar) futures expire on a fixed date and settle to a reference price. Perps do not expire — funding keeps them near spot instead.",
+          "Basis ≈ futures price − spot (or the reverse quote depending on venue). Contango: futures above spot (common in calm markets). Backwardation: futures below spot (often stress / short demand).",
+          "Traders sometimes express views via basis (cash-and-carry style) — that is a different skill than directional perp scalps. Know which instrument you hold before you size.",
+          "On NovaStaris, most crypto futures tools focus on USDT perps (Blofin). If you trade dated contracts elsewhere, manage expiry, roll, and margin separately.",
+        ],
+      },
+      {
         heading: "Open interest & crowded trades",
         body: [
           "Open interest (OI) is outstanding contract size. Rising OI with a trend often means new participation; falling OI into a spike can mean covering/closing.",
@@ -1077,6 +1226,8 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { term: "Cross margin", definition: "Shared balance backs multiple positions — contagion risk." },
       { term: "Mark price", definition: "Fair/index price many venues use for PnL and liquidation math." },
       { term: "Open interest", definition: "Total outstanding futures/perp contracts still open." },
+      { term: "Basis", definition: "Gap between futures/dated price and spot — contango or backwardation." },
+      { term: "Dated futures", definition: "Futures with a fixed expiry / settlement date (vs perpetual)." },
     ],
     workedExamples: [
       {
@@ -1266,6 +1417,75 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     relatedTools: [{ label: "Nova Forex Agent", href: "/?tab=nova-forex" }],
   },
   {
+    id: "options-volatility",
+    title: "Options & volatility lite",
+    subtitle: "Calls, puts, premium, and why leverage of options differs from perps.",
+    estimatedMinutes: 12,
+    track: "markets",
+    sections: [
+      {
+        heading: "What an option is",
+        body: [
+          "A call gives the right (not obligation) to buy at a strike by expiry. A put gives the right to sell at a strike by expiry.",
+          "You pay a premium for that right. Buyers' max loss is typically the premium paid (plus fees); sellers can face much larger risk depending on the structure.",
+          "Crypto options exist on several venues and as exotic on-chain products — always read settlement asset (coin-margined vs USDT) and expiry rules.",
+        ],
+      },
+      {
+        heading: "Volatility is the fuel",
+        body: [
+          "Implied volatility (IV) is the market's priced-in uncertainty. Higher IV → richer premiums (options cost more).",
+          "IV crush: after big events, IV often falls and long premium can lose even if direction was vaguely right.",
+          "Realized volatility is what actually printed. Trading options without a vol view is gambling on more than direction.",
+        ],
+      },
+      {
+        heading: "How this differs from futures/perps",
+        body: [
+          "Perps: mark-to-market, funding, liquidation from margin. Options: premium decay (theta), strike distance (delta), and expiry.",
+          "Long options can expire worthless. Long perps stay open until you close or get liquidated — different clocks, different risk shapes.",
+          "Start with understanding payoff diagrams before multi-leg spreads. Structured products inherit all the same risks plus complexity.",
+        ],
+      },
+      {
+        heading: "Risk rules for beginners",
+        body: [
+          "Prefer defined-risk long premium while learning — size so a total loss of premium is an acceptable 1R.",
+          "Do not sell naked calls/puts on volatile crypto without professional risk controls.",
+          "NovaStaris primary tools emphasize spot, perps, and prediction markets — treat options as advanced curriculum, not a default tab workflow.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Call / put", definition: "Option to buy / sell the underlying at a strike by expiry." },
+      { term: "Premium", definition: "Price paid for the option — buyer’s typical max loss on a simple long." },
+      { term: "Implied volatility", definition: "Vol priced into the option — drives premium richness." },
+      { term: "Theta", definition: "Time decay — options lose value as expiry approaches if other factors are static." },
+      { term: "Expiry", definition: "Date/time the option stops existing — after which long premium can go to zero." },
+    ],
+    workedExamples: [
+      {
+        title: "Right direction, still lose premium",
+        setup: [
+          "BTC call bought ahead of an event: premium $200",
+          "BTC rises slightly after the event",
+          "IV collapses and the call is still out-of-the-money near expiry",
+        ],
+        steps: [
+          "Direction was mildly correct, but optionality + IV crush + time decay reduced value.",
+          "A perp long with a stop might have scratched or small-won; the call can still finish near zero.",
+          "Lesson: options need a vol + path plan, not only 'I think up.'",
+        ],
+        takeaway: "Options price movement and uncertainty. Direction alone is not enough.",
+      },
+    ],
+    diagram: "options",
+    relatedTools: [
+      { label: "Crypto Futures (perps context)", href: "/?tab=futures" },
+      { label: "Trading styles module", href: "/?tab=trading-university" },
+    ],
+  },
+  {
     id: "novastaris-workflow",
     title: "NovaStaris end-to-end workflow",
     subtitle: "How to chain Go Hunting, AI Agent, wallets, and forecast tools without FOMO.",
@@ -1332,6 +1552,75 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
       { label: "Go Hunting", href: "/?tab=new" },
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=meme" },
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
+    ],
+  },
+  {
+    id: "backtesting-expectancy",
+    title: "Backtesting & expectancy",
+    subtitle: "Prove process with data — expectancy, sample size, and overfitting traps.",
+    estimatedMinutes: 11,
+    track: "applied",
+    sections: [
+      {
+        heading: "Expectancy in plain English",
+        body: [
+          "Expectancy ≈ (Win% × Average win) − (Loss% × Average loss), preferably in R-multiples after fees.",
+          "A system that wins 40% but pays +2R when right and −1R when wrong can beat a 70% winner that only makes +0.3R and loses −1R.",
+          "Journal tags (setup type, followed plan Y/N) are how you estimate these inputs in live trading.",
+        ],
+      },
+      {
+        heading: "Backtesting basics",
+        body: [
+          "Backtest: apply fixed rules on historical data and record trades. Forward test / paper: same rules on live data without (or with tiny) capital.",
+          "Write rules so a stranger could execute them: entry, stop, target, time stop, markets allowed.",
+          "Include fees, slippage, and funding when the style holds perps overnight — otherwise you invent a fake edge.",
+        ],
+      },
+      {
+        heading: "Overfitting & sample size",
+        body: [
+          "Curve-fitting: rules so specific they only worked on one past path. If the system needs 12 parameters to 'look perfect,' be suspicious.",
+          "Small samples lie. Prefer dozens to hundreds of trades across regimes (trend and chop) before believing equity curves.",
+          "Out-of-sample / walk-forward: keep a held-out period you do not tune on. If it collapses there, you optimized noise.",
+        ],
+      },
+      {
+        heading: "From test to live",
+        body: [
+          "Go live smaller than the backtest implies. Execution reality (latency, gaps, emotion) eats theoretical R.",
+          "If live expectancy diverges badly for a fixed sample, stop and review — do not 'enlarge size to get lucky.'",
+          "NovaStaris journaling + chapter discipline beats an untested indicator mashup.",
+        ],
+      },
+    ],
+    keyTerms: [
+      { term: "Expectancy", definition: "Average $ or R you expect per trade after wins and losses." },
+      { term: "Backtest", definition: "Simulated historical performance under fixed rules." },
+      { term: "Forward test", definition: "Running rules on unseen live/paper data before full size." },
+      { term: "Overfitting", definition: "Rules tuned to past noise that fail next regime." },
+      { term: "Sample size", definition: "Number of trades — too few makes stats meaningless." },
+    ],
+    workedExamples: [
+      {
+        title: "Pretty equity curve, bad live",
+        setup: [
+          "Backtest win rate 78% on one bull month of BTC 5m",
+          "Rules use 9 indicators with 'optimized' thresholds",
+          "Live chop week: −8R",
+        ],
+        steps: [
+          "Suspect overfitting and regime mismatch — bull-only sample.",
+          "Simplify to structure + one confirmation; retest across bull and range months.",
+          "Size down until a new forward sample shows stable expectancy.",
+        ],
+        takeaway: "If it only works on the month you optimized, it is not an edge — it is a diary of the past.",
+      },
+    ],
+    diagram: "backtest",
+    relatedTools: [
+      { label: "Psychology & journaling", href: "/?tab=trading-university" },
+      { label: "Risk fundamentals", href: "/?tab=trading-university" },
     ],
   },
   {
@@ -1408,8 +1697,9 @@ export function getLessonTrack(lesson: Pick<UniversityLesson, "id" | "track">): 
     "psychology-journaling",
     "trading-styles",
     "market-structure",
+    "volume-vwap",
   ]);
-  const applied = new Set(["novastaris-workflow", "advanced-markets"]);
+  const applied = new Set(["novastaris-workflow", "backtesting-expectancy", "advanced-markets"]);
   if (foundations.has(lesson.id)) return "foundations";
   if (applied.has(lesson.id)) return "applied";
   return "markets";
