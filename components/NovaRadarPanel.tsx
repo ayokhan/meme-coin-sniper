@@ -933,7 +933,7 @@ export default function NovaRadarPanel() {
               <label className="text-xs text-muted-foreground block mb-1">Contract</label>
               <input
                 type="text"
-                placeholder="e.g. XAU, BTC"
+                placeholder="e.g. BTC, SNXX, XAU"
                 value={plan1.symbol}
                 onChange={(e) => setPlan1((p) => ({ ...p, symbol: e.target.value.toUpperCase() }))}
                 className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-28 bg-white dark:bg-zinc-800"
