@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function PromoTermsPage() {
   const promo = await getPromoBannerForPublic();
   const drawLabel = formatPromoDrawDate(promo.drawAt);
-  const prize = promo.prizeLabel || "1 SOL";
+  const prize = promo.prizeLabel || "250 USDC";
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 px-4 py-8">
@@ -29,7 +29,7 @@ export default async function PromoTermsPage() {
               <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Promotion</h2>
               <p>
                 NovaStaris may run periodic giveaways for registered members. The current promotion offers one (
-                1) winner a prize of <strong>{prize}</strong> on the Solana network, subject to these terms.
+                1) winner a prize of <strong>{prize}</strong> (USDC on the Solana network), subject to these terms.
               </p>
             </section>
             <section>
@@ -46,17 +46,17 @@ export default async function PromoTermsPage() {
               <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Draw &amp; winner</h2>
               <p className="text-sm">
                 After {drawLabel}, NovaStaris will select one (1) eligible entrant at random from qualifying free
-                accounts. The winner will be contacted by email and must provide a valid Solana wallet address
-                within fourteen (14) days to receive {prize}. If the winner does not respond, NovaStaris may select
-                an alternate winner.
+                accounts. The winner will be contacted by email and must provide a valid Solana wallet address that
+                can receive USDC within fourteen (14) days to receive {prize}. If the winner does not respond,
+                NovaStaris may select an alternate winner.
               </p>
             </section>
             <section>
               <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">General</h2>
               <p className="text-sm">
                 NovaStaris may modify, suspend, or end this promotion at any time. This giveaway is not sponsored
-                by Solana Foundation or any exchange. Cryptocurrency prizes may fluctuate in value. By creating a
-                free account during the promo period you agree to these terms and our{" "}
+                by Solana Foundation, Circle, or any exchange. Prize delivery is USDC on Solana as described above.
+                By creating a free account during the promo period you agree to these terms and our{" "}
                 <Link href="/terms" className="text-cyan-600 dark:text-cyan-400 underline">
                   Terms of Service
                 </Link>

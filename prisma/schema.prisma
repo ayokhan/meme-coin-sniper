@@ -680,7 +680,7 @@ model PromoBanner {
   id              String    @id @default("default")
   enabled         Boolean   @default(false)
   headline        String    @default("Sign up for free for a chance to win")
-  prizeLabel      String    @default("1 SOL")
+  prizeLabel      String    @default("250 USDC")
   drawAt          DateTime?
   bodyText        String?
   ctaLabel        String    @default("Sign up free")

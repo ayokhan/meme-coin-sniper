@@ -27,7 +27,7 @@ export type PromoBannerAdmin = PromoBannerConfig & {
 export const DEFAULT_PROMO_BANNER: PromoBannerConfig = {
   enabled: true,
   headline: "Sign up for free for a chance to win",
-  prizeLabel: "1 SOL",
+  prizeLabel: "250 USDC",
   drawAt: "2026-08-31T23:59:59.000Z",
   bodyText:
     "Create your free NovaStaris account — no credit card. One random eligible member wins after the draw.",

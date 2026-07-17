@@ -617,7 +617,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                   />
                 </label>
                 <label className="text-xs text-muted-foreground flex flex-col gap-1">
-                  Prize (e.g. 1 SOL)
+                  Prize (e.g. 250 USDC)
                   <input
                     value={promoDraft.prizeLabel}
                     onChange={(e) => setPromoDraft((d) => ({ ...d, prizeLabel: e.target.value }))}
