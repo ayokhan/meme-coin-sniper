@@ -63,6 +63,7 @@ type Customer = {
   payments: Payment[];
   loginMultiLocation?: boolean;
   loginDistinctCountries?: number;
+  usedAndroidApp?: boolean;
   recentLogins?: import("@/components/admin/CustomerExpandedPanel").AdminCustomerLoginEvent[];
 };
 
@@ -129,6 +130,7 @@ export default function AdminCustomersPage() {
   const [onDemandOnly, setOnDemandOnly] = useState(false);
   const [newsletterOnly, setNewsletterOnly] = useState(false);
   const [multiLocationOnly, setMultiLocationOnly] = useState(false);
+  const [androidAppOnly, setAndroidAppOnly] = useState(false);
   const [showLegacyOnDemand, setShowLegacyOnDemand] = useState(false);
   const [expandedCustomerId, setExpandedCustomerId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -290,7 +292,8 @@ export default function AdminCustomersPage() {
     const vipActive = customers.filter((c) => c.isActive && (c.subscriptionTier === "vip" || c.subscriptionTier === "pro")).length;
     const newsletter = customers.filter((c) => c.newsletterOptIn && c.email).length;
     const multiLocation = customers.filter((c) => c.loginMultiLocation).length;
-    return { total, active, vipActive, newsletter, multiLocation };
+    const androidApp = customers.filter((c) => c.usedAndroidApp).length;
+    return { total, active, vipActive, newsletter, multiLocation, androidApp };
   }, [customers]);
 
   const filteredCustomers = useMemo(() => {
@@ -300,6 +303,7 @@ export default function AdminCustomersPage() {
       if (onDemandOnly && !customerHasOnDemand(c, showLegacyOnDemand)) return false;
       if (newsletterOnly && (!c.newsletterOptIn || !c.email)) return false;
       if (multiLocationOnly && !c.loginMultiLocation) return false;
+      if (androidAppOnly && !c.usedAndroidApp) return false;
       if (!matchesRegistrationFilter(c.createdAt, registrationMonth, registrationDate)) return false;
       if (!q) return true;
       if (readOnly) return (c.name ?? "").toLowerCase().includes(q);
@@ -324,6 +328,7 @@ export default function AdminCustomersPage() {
     onDemandOnly,
     newsletterOnly,
     multiLocationOnly,
+    androidAppOnly,
     showLegacyOnDemand,
     readOnly,
     isOwner,
@@ -1095,6 +1100,22 @@ export default function AdminCustomersPage() {
                     : `Multi-location (${metrics.multiLocation})`}
                 </button>
               )}
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => setAndroidAppOnly((v) => !v)}
+                  className={`text-xs font-medium px-3 py-2 rounded border ${
+                    androidAppOnly
+                      ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700"
+                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
+                  }`}
+                  title="Signed in via Capacitor Android app or Android device in the last 30 days"
+                >
+                  {androidAppOnly
+                    ? `Android app ✓ (${metrics.androidApp})`
+                    : `Android app (${metrics.androidApp})`}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setOnDemandOnly((v) => !v)}
@@ -1283,6 +1304,13 @@ export default function AdminCustomersPage() {
                                   {(c.phone || c.country) && (
                                     <p className="text-[11px] text-muted-foreground mt-0.5">
                                       {[c.phone, c.country].filter(Boolean).join(" · ")}
+                                    </p>
+                                  )}
+                                  {c.usedAndroidApp && (
+                                    <p className="mt-1">
+                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">
+                                        Android app
+                                      </span>
                                     </p>
                                   )}
                                   {c.loginMultiLocation && (

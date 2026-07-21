@@ -230,16 +230,27 @@ export async function getLoginIntelByUserIds(userIds: string[]): Promise<
     {
       multiLocationSuspect: boolean;
       distinctCountries: number;
+      usedAndroidApp: boolean;
       recentLogins: LoginEventRow[];
     }
   >
 > {
   const map = new Map<
     string,
-    { multiLocationSuspect: boolean; distinctCountries: number; recentLogins: LoginEventRow[] }
+    {
+      multiLocationSuspect: boolean;
+      distinctCountries: number;
+      usedAndroidApp: boolean;
+      recentLogins: LoginEventRow[];
+    }
   >();
   for (const id of userIds) {
-    map.set(id, { multiLocationSuspect: false, distinctCountries: 0, recentLogins: [] });
+    map.set(id, {
+      multiLocationSuspect: false,
+      distinctCountries: 0,
+      usedAndroidApp: false,
+      recentLogins: [],
+    });
   }
   if (userIds.length === 0) return map;
   if (!(await isLoginLocationIntelEnabled())) return map;
@@ -277,9 +288,15 @@ export async function getLoginIntelByUserIds(userIds: string[]): Promise<
     const countries = new Set(
       list.map((r) => (r.country ?? "").trim().toUpperCase()).filter(Boolean)
     );
+    const usedAndroidApp = list.some(
+      (r) =>
+        r.provider === "capacitor" ||
+        (r.os ?? "").toLowerCase() === "android"
+    );
     map.set(userId, {
       multiLocationSuspect: isMultiLocationSuspect(list),
       distinctCountries: countries.size,
+      usedAndroidApp,
       recentLogins,
     });
   }

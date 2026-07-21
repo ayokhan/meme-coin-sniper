@@ -75,6 +75,8 @@ export type AdminCustomerRecord = {
   payments: AdminCustomerPayment[];
   loginMultiLocation?: boolean;
   loginDistinctCountries?: number;
+  /** Signed in via Capacitor app or Android UA in last 30 days. */
+  usedAndroidApp?: boolean;
   recentLogins?: AdminCustomerLoginEvent[];
 };
 
@@ -296,6 +298,20 @@ export default function CustomerExpandedPanel({
             <span className="text-xs text-zinc-400">Email required</span>
           )}
         </DetailRow>
+        {isOwner && (
+          <DetailRow
+            label="Android app"
+            hint="Seen in last 30 days via Capacitor session or Android device sign-in (requires Login location intel ON)."
+          >
+            {c.usedAndroidApp ? (
+              <span className="text-xs font-medium px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">
+                Android app used
+              </span>
+            ) : (
+              <span className="text-xs text-zinc-500">Not seen on Android app yet</span>
+            )}
+          </DetailRow>
+        )}
         {isOwner && (
           <DetailRow
             label="Sign-in locations"

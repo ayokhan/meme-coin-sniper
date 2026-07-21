@@ -65,6 +65,7 @@ export async function GET() {
         | {
             multiLocationSuspect: boolean;
             distinctCountries: number;
+            usedAndroidApp?: boolean;
             recentLogins: unknown[];
           }
         | undefined;
@@ -113,6 +114,7 @@ export async function GET() {
         payments,
         loginMultiLocation: !!intel?.multiLocationSuspect,
         loginDistinctCountries: intel?.distinctCountries ?? 0,
+        usedAndroidApp: !!intel?.usedAndroidApp,
         recentLogins: intel?.recentLogins ?? [],
       };
       if (readOnly) {
@@ -143,6 +145,7 @@ export async function GET() {
           payments: [],
           loginMultiLocation: false,
           loginDistinctCountries: 0,
+          usedAndroidApp: false,
           recentLogins: [],
         };
       }
