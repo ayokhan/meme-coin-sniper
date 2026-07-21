@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, isOwnerEmail, isOwnerSession } from '@/lib/auth';
+import { authOptions, isOwnerSession } from '@/lib/auth';
 import { canViewAdminCustomersSession } from '@/lib/admin-access';
 import { prisma } from '@/lib/db';
+import { getLoginIntelByUserIds } from '@/lib/login-events';
 
 /** GET - List all customers. Owner or read-only customers admin. */
 export async function GET() {
@@ -20,6 +21,10 @@ export async function GET() {
       include: { subscriptions: true },
       orderBy: { createdAt: 'desc' },
     });
+
+    const loginIntel = readOnly
+      ? new Map()
+      : await getLoginIntelByUserIds(users.map((u) => u.id));
 
     const now = new Date();
     const customers = users.map((u) => {
@@ -56,6 +61,13 @@ export async function GET() {
             ? ("usdc" as const)
             : ("other" as const),
       }));
+      const intel = loginIntel.get(u.id) as
+        | {
+            multiLocationSuspect: boolean;
+            distinctCountries: number;
+            recentLogins: unknown[];
+          }
+        | undefined;
       const row = {
         id: u.id,
         name: u.name,
@@ -99,6 +111,9 @@ export async function GET() {
         hasStripeSubscription: !!(activeSub?.stripeSubscriptionId ?? stripeSub?.stripeSubscriptionId),
         stripeSubscriptionActive: !!activeSub?.stripeSubscriptionId,
         payments,
+        loginMultiLocation: !!intel?.multiLocationSuspect,
+        loginDistinctCountries: intel?.distinctCountries ?? 0,
+        recentLogins: intel?.recentLogins ?? [],
       };
       if (readOnly) {
         return {
@@ -126,6 +141,9 @@ export async function GET() {
           paymentTermsAcceptedAt: null,
           twoFactorMethod: null,
           payments: [],
+          loginMultiLocation: false,
+          loginDistinctCountries: 0,
+          recentLogins: [],
         };
       }
       return row;

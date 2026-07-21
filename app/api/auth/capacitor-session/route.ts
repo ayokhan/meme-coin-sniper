@@ -28,6 +28,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
   }
 
+  const { recordLoginEvent } = await import("@/lib/login-events");
+  await recordLoginEvent({ userId, provider: "capacitor", request: req });
+
   const isProd = process.env.NODE_ENV === "production";
   const res = NextResponse.json({ success: true });
   res.cookies.set(sessionCookieName(), sessionToken, {

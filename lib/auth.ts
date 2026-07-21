@@ -564,6 +564,17 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
+  events: {
+    async signIn({ user, account }) {
+      const userId = user?.id;
+      if (!userId) return;
+      const { recordLoginEvent } = await import("@/lib/login-events");
+      await recordLoginEvent({
+        userId,
+        provider: account?.provider ?? "email",
+      });
+    },
+  },
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: '/register', newUser: '/register' },
   secret: process.env.NEXTAUTH_SECRET,

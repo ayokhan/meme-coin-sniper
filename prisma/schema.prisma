@@ -203,6 +203,7 @@ model User {
   blofinPartnerLinkClicks    BlofinPartnerLinkClick[]
   billingInvoices            BillingInvoice[]
   tradingUniversityProgress  TradingUniversityProgress?
+  loginEvents                LoginEvent[]
 
   @@index([referredByUserId])
 }
@@ -854,6 +855,25 @@ model AnalyticsEvent {
   @@index([createdAt])
   @@index([userId, createdAt])
   @@index([visitorId, createdAt])
+}
+
+/** Successful sign-ins for owner abuse detection (credential sharing / multi-location). */
+model LoginEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider   String   // email | google | wallet | capacitor
+  country    String?
+  city       String?
+  deviceType String?
+  browser    String?
+  os         String?
+  /** SHA-256 of IP (no raw IP stored). */
+  ipHash     String?
+  createdAt  DateTime @default(now())
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([country])
 }
 
 // Crypto Futures Trading Bot — owner-only; provider: Blofin or Hyperliquid

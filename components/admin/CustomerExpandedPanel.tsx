@@ -20,6 +20,18 @@ export type AdminCustomerPayment = {
   method: "card" | "usdc" | "other";
 };
 
+export type AdminCustomerLoginEvent = {
+  id: string;
+  provider: string;
+  country: string | null;
+  city: string | null;
+  locationLabel: string | null;
+  deviceType: string | null;
+  browser: string | null;
+  os: string | null;
+  createdAt: string;
+};
+
 export type AdminCustomerRecord = {
   id: string;
   name: string | null;
@@ -61,6 +73,9 @@ export type AdminCustomerRecord = {
   hasStripeSubscription?: boolean;
   stripeSubscriptionActive?: boolean;
   payments: AdminCustomerPayment[];
+  loginMultiLocation?: boolean;
+  loginDistinctCountries?: number;
+  recentLogins?: AdminCustomerLoginEvent[];
 };
 
 function OnOffButton({
@@ -281,6 +296,24 @@ export default function CustomerExpandedPanel({
             <span className="text-xs text-zinc-400">Email required</span>
           )}
         </DetailRow>
+        {isOwner && (
+          <DetailRow
+            label="Sign-in locations"
+            hint="Amber = different countries within 48h (or 3+ countries in 30 days). Travel/VPN can false-positive."
+          >
+            {c.loginMultiLocation ? (
+              <span className="text-xs font-medium px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-100">
+                Multi-location · {c.loginDistinctCountries ?? "?"} countries
+              </span>
+            ) : (
+              <span className="text-xs text-zinc-500">
+                {(c.loginDistinctCountries ?? 0) > 0
+                  ? `${c.loginDistinctCountries} country · looks normal`
+                  : "No login history yet"}
+              </span>
+            )}
+          </DetailRow>
+        )}
         {isOwner && onCustomersViewerAdmin && (
           <DetailRow label="Customers viewer admin" hint="Read-only access to Admin → Customers">
             <OnOffButton
@@ -576,6 +609,38 @@ export default function CustomerExpandedPanel({
           </button>
         </div>
       </DetailSection>
+      )}
+
+      {isOwner && Array.isArray(c.recentLogins) && c.recentLogins.length > 0 && (
+        <DetailSection title={`Recent sign-ins (${c.recentLogins.length})`}>
+          <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
+            Last up to 20 successful logins. City/country from Vercel edge IP (approx).
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border border-zinc-200 dark:border-zinc-700 rounded overflow-hidden">
+              <thead>
+                <tr className="bg-zinc-100 dark:bg-zinc-800">
+                  <th className="text-left py-1.5 px-2">When</th>
+                  <th className="text-left py-1.5 px-2">Location</th>
+                  <th className="text-left py-1.5 px-2">Device</th>
+                  <th className="text-left py-1.5 px-2">Via</th>
+                </tr>
+              </thead>
+              <tbody>
+                {c.recentLogins.map((e) => (
+                  <tr key={e.id} className="border-t border-zinc-200 dark:border-zinc-700">
+                    <td className="py-1.5 px-2 whitespace-nowrap">{new Date(e.createdAt).toLocaleString()}</td>
+                    <td className="py-1.5 px-2">{e.locationLabel ?? "—"}</td>
+                    <td className="py-1.5 px-2">
+                      {[e.deviceType, e.browser, e.os].filter(Boolean).join(" · ") || "—"}
+                    </td>
+                    <td className="py-1.5 px-2">{e.provider}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DetailSection>
       )}
 
       {Array.isArray(c.payments) && c.payments.length > 0 && (

@@ -61,6 +61,9 @@ type Customer = {
   hasStripeSubscription?: boolean;
   stripeSubscriptionActive?: boolean;
   payments: Payment[];
+  loginMultiLocation?: boolean;
+  loginDistinctCountries?: number;
+  recentLogins?: import("@/components/admin/CustomerExpandedPanel").AdminCustomerLoginEvent[];
 };
 
 function customerHasOnDemand(c: Customer, includePropFirm: boolean) {
@@ -125,6 +128,7 @@ export default function AdminCustomersPage() {
   const [activeOnly, setActiveOnly] = useState(false);
   const [onDemandOnly, setOnDemandOnly] = useState(false);
   const [newsletterOnly, setNewsletterOnly] = useState(false);
+  const [multiLocationOnly, setMultiLocationOnly] = useState(false);
   const [showLegacyOnDemand, setShowLegacyOnDemand] = useState(false);
   const [expandedCustomerId, setExpandedCustomerId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -285,7 +289,8 @@ export default function AdminCustomersPage() {
     const active = customers.filter((c) => c.isActive).length;
     const vipActive = customers.filter((c) => c.isActive && (c.subscriptionTier === "vip" || c.subscriptionTier === "pro")).length;
     const newsletter = customers.filter((c) => c.newsletterOptIn && c.email).length;
-    return { total, active, vipActive, newsletter };
+    const multiLocation = customers.filter((c) => c.loginMultiLocation).length;
+    return { total, active, vipActive, newsletter, multiLocation };
   }, [customers]);
 
   const filteredCustomers = useMemo(() => {
@@ -294,6 +299,7 @@ export default function AdminCustomersPage() {
       if (activeOnly && !c.isActive) return false;
       if (onDemandOnly && !customerHasOnDemand(c, showLegacyOnDemand)) return false;
       if (newsletterOnly && (!c.newsletterOptIn || !c.email)) return false;
+      if (multiLocationOnly && !c.loginMultiLocation) return false;
       if (!matchesRegistrationFilter(c.createdAt, registrationMonth, registrationDate)) return false;
       if (!q) return true;
       if (readOnly) return (c.name ?? "").toLowerCase().includes(q);
@@ -304,7 +310,7 @@ export default function AdminCustomersPage() {
         (c.country ?? "").toLowerCase().includes(q)
       );
     });
-  }, [customers, search, registrationMonth, registrationDate, activeOnly, onDemandOnly, newsletterOnly, showLegacyOnDemand, readOnly]);
+  }, [customers, search, registrationMonth, registrationDate, activeOnly, onDemandOnly, newsletterOnly, multiLocationOnly, showLegacyOnDemand, readOnly]);
 
   const registrationPeriodActive = !!(registrationMonth || registrationDate);
 
@@ -961,6 +967,22 @@ export default function AdminCustomersPage() {
               >
                 {newsletterOnly ? `Newsletter ✓ (${metrics.newsletter})` : `Newsletter (${metrics.newsletter})`}
               </button>
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => setMultiLocationOnly((v) => !v)}
+                  className={`text-xs font-medium px-3 py-2 rounded border ${
+                    multiLocationOnly
+                      ? "bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-100 border-amber-300 dark:border-amber-700"
+                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
+                  }`}
+                  title="Different countries within 48h, or 3+ countries in 30 days"
+                >
+                  {multiLocationOnly
+                    ? `Multi-location ✓ (${metrics.multiLocation})`
+                    : `Multi-location (${metrics.multiLocation})`}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setOnDemandOnly((v) => !v)}
@@ -1143,6 +1165,13 @@ export default function AdminCustomersPage() {
                                   {(c.phone || c.country) && (
                                     <p className="text-[11px] text-muted-foreground mt-0.5">
                                       {[c.phone, c.country].filter(Boolean).join(" · ")}
+                                    </p>
+                                  )}
+                                  {c.loginMultiLocation && (
+                                    <p className="mt-1">
+                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-100">
+                                        Multi-location · {c.loginDistinctCountries} countries
+                                      </span>
                                     </p>
                                   )}
                                 </>
