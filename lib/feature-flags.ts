@@ -144,6 +144,12 @@ export const FEATURE_FLAG_KEYS = {
   VERCEL_CRON_ENABLED: 'vercel_cron_enabled',
   /** Client page-view pings to /api/analytics (Insights + live activity data). When OFF, no analytics writes. Default ON. */
   ANALYTICS_PING_ENABLED: 'analytics_ping_enabled',
+  /**
+   * Record sign-in city/country for multi-location abuse detection + Admin → Customers flags.
+   * When OFF: no LoginEvent writes on sign-in and Customers skips the login-intel query.
+   * Default ON. Turn OFF to save a small DB write per login and faster Customers load.
+   */
+  LOGIN_LOCATION_INTEL: 'login_location_intel',
   /** Owner Admin → Metrics live activity panel (30s polling + DB reads). When OFF, panel shows disabled. Default ON. */
   LIVE_ACTIVITY_ENABLED: 'live_activity_enabled',
   /**

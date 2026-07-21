@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { buildCityLabel } from "@/lib/analytics-insights";
 import { parseUserAgent } from "@/lib/ua-parse";
 import { getAuthRequest } from "@/lib/auth-request-context";
+import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 
 export type LoginProvider = "email" | "google" | "wallet" | "capacitor";
 
@@ -22,6 +23,10 @@ const KEEP_PER_USER = 20;
 const DEDUPE_MS = 10 * 60 * 1000;
 const MULTI_LOCATION_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const MULTI_LOCATION_NEAR_MS = 48 * 60 * 60 * 1000;
+
+export async function isLoginLocationIntelEnabled(): Promise<boolean> {
+  return getFeatureFlag(FEATURE_FLAG_KEYS.LOGIN_LOCATION_INTEL);
+}
 
 function loginEventDb() {
   return (prisma as unknown as {
@@ -129,6 +134,7 @@ export async function recordLoginEvent(args: {
   request?: Request | null;
 }): Promise<void> {
   try {
+    if (!(await isLoginLocationIntelEnabled())) return;
     const db = loginEventDb();
     if (!db) return;
     const req = args.request ?? getAuthRequest() ?? null;
@@ -196,6 +202,7 @@ export function isMultiLocationSuspect(
 }
 
 export async function getRecentLoginEventsForUser(userId: string, limit = KEEP_PER_USER): Promise<LoginEventRow[]> {
+  if (!(await isLoginLocationIntelEnabled())) return [];
   const db = loginEventDb();
   if (!db) return [];
   const rows = await db.findMany({
@@ -235,6 +242,7 @@ export async function getLoginIntelByUserIds(userIds: string[]): Promise<
     map.set(id, { multiLocationSuspect: false, distinctCountries: 0, recentLogins: [] });
   }
   if (userIds.length === 0) return map;
+  if (!(await isLoginLocationIntelEnabled())) return map;
 
   const db = loginEventDb();
   if (!db) return map;

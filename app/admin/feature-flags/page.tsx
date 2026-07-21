@@ -129,6 +129,7 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
     match: (k) =>
       k === "vercel_cron_enabled" ||
       k === "analytics_ping_enabled" ||
+      k === "login_location_intel" ||
       k === "live_activity_enabled" ||
       k === "live_support_chat",
   },
@@ -520,6 +521,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Analytics page pings",
     description:
       "When ON, visitors record page views to /api/analytics on navigation (powers Admin → Insights and live activity data). When OFF, no analytics DB writes from client pings. Does not stop AI usage metrics or subscription data.",
+  },
+  login_location_intel: {
+    label: "Login location intel (multi-location flags)",
+    description:
+      "When ON, successful sign-ins record approximate city/country/device for Admin → Customers multi-location detection (small DB write per login + a query when you open Customers). When OFF, no login events are written and Customers skips that query — use this to save a little DB/CPU if you are not reviewing sharing. Default ON.",
   },
   live_activity_enabled: {
     label: "Live activity panel (Admin → Metrics)",
