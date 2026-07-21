@@ -51,6 +51,7 @@ type Customer = {
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
   createdAt: string;
+  twoFactorMethod?: string | null;
   subscriptionTier: string | null;
   subscriptionPlan: string | null;
   subscriptionExpiresAt: string | null;
@@ -148,6 +149,7 @@ export default function AdminCustomersPage() {
   const [savingAiAgentLimitsId, setSavingAiAgentLimitsId] = useState<string | null>(null);
   const [acceptingRulesId, setAcceptingRulesId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
+  const [disabling2faId, setDisabling2faId] = useState<string | null>(null);
   const customersTableScrollRef = useRef<HTMLDivElement>(null);
   const TABLE_COL_COUNT = isOwner ? 6 : 5;
 
@@ -784,6 +786,33 @@ export default function AdminCustomersPage() {
     }
   };
 
+  const handleDisable2fa = async (id: string, email: string | null, method: string | null | undefined) => {
+    const label = email ?? id;
+    const methodLabel = method === "email" ? "email codes" : method === "totp" ? "authenticator app" : "2FA";
+    if (
+      !window.confirm(
+        `Disable ${methodLabel} for ${label}?\n\nThey will be able to sign in with password only. Ask them to re-enable 2FA after they regain access.`
+      )
+    ) {
+      return;
+    }
+    setDisabling2faId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}/disable-2fa`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(data.message ?? "2FA disabled.");
+        setTimeout(() => setSuccessMessage(""), 5000);
+      } else setError(data.error ?? "Failed to disable 2FA.");
+    } catch {
+      setError("Failed to disable 2FA.");
+    } finally {
+      setDisabling2faId(null);
+    }
+  };
+
   const handleGrantVip = async (id: string, grant: AdminVipGrantId) => {
     setUpdatingId(id);
     setError("");
@@ -1216,6 +1245,7 @@ export default function AdminCustomersPage() {
                                     rules: acceptingRulesId === c.id,
                                     subscription: updatingId === c.id,
                                     resetPassword: resettingPasswordId === c.id,
+                                    disable2fa: disabling2faId === c.id,
                                     delete: deletingId === c.id,
                                     customersViewerAdmin: togglingCustomersViewerAdminId === c.id,
                                     supportViewerAdmin: togglingSupportViewerAdminId === c.id,
@@ -1238,6 +1268,7 @@ export default function AdminCustomersPage() {
                                   onGrantVip={(grant) => handleGrantVip(c.id, grant)}
                                   onClearSubscription={() => handleClearSubscription(c.id)}
                                   onResetPassword={() => handleResetPassword(c.id, c.email)}
+                                  onDisable2fa={() => handleDisable2fa(c.id, c.email, c.twoFactorMethod)}
                                   onDelete={() => handleDelete(c.id)}
                                   onCustomersViewerAdmin={(v) => handleCustomersViewerAdminToggle(c.id, v)}
                                   onSupportViewerAdmin={(v) => handleSupportViewerAdminToggle(c.id, v)}

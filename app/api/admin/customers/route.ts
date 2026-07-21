@@ -88,6 +88,7 @@ export async function GET() {
         aiChartAnalysisWeeklyLimitOverride: (u as { aiChartAnalysisWeeklyLimitOverride?: number | null }).aiChartAnalysisWeeklyLimitOverride ?? null,
         aiChartAnalysisMonthlyLimitOverride: (u as { aiChartAnalysisMonthlyLimitOverride?: number | null }).aiChartAnalysisMonthlyLimitOverride ?? null,
         paymentTermsAcceptedAt: (u as { paymentTermsAcceptedAt?: Date | null }).paymentTermsAcceptedAt ?? null,
+        twoFactorMethod: (u as { twoFactorMethod?: string | null }).twoFactorMethod ?? null,
         createdAt: u.createdAt,
         subscriptionTier: subTier,
         subscriptionPlan: subPlan,
@@ -123,6 +124,7 @@ export async function GET() {
           aiChartAnalysisWeeklyLimitOverride: null,
           aiChartAnalysisMonthlyLimitOverride: null,
           paymentTermsAcceptedAt: null,
+          twoFactorMethod: null,
           payments: [],
         };
       }

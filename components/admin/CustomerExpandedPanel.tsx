@@ -52,6 +52,8 @@ export type AdminCustomerRecord = {
   aiChartAnalysisMonthlyLimitOverride?: number | null;
   novaConnectRulesAcceptedAt: string | null;
   paymentTermsAcceptedAt: string | null;
+  /** "totp" | "email" | null */
+  twoFactorMethod?: string | null;
   subscriptionExpiresAt: string | null;
   isActive: boolean;
   subscriptionAutoRenew?: boolean;
@@ -152,6 +154,7 @@ export type CustomerExpandedPanelProps = {
     rules: boolean;
     subscription: boolean;
     resetPassword: boolean;
+    disable2fa: boolean;
     delete: boolean;
     customersViewerAdmin?: boolean;
     supportViewerAdmin?: boolean;
@@ -174,6 +177,7 @@ export type CustomerExpandedPanelProps = {
   onGrantVip: (grant: AdminVipGrantId) => void;
   onClearSubscription: () => void;
   onResetPassword: () => void;
+  onDisable2fa: () => void;
   onDelete: () => void;
   onCustomersViewerAdmin?: (value: boolean) => void;
   onSupportViewerAdmin?: (value: boolean) => void;
@@ -208,6 +212,7 @@ export default function CustomerExpandedPanel({
   onGrantVip,
   onClearSubscription,
   onResetPassword,
+  onDisable2fa,
   onDelete,
   onCustomersViewerAdmin,
   onSupportViewerAdmin,
@@ -552,6 +557,19 @@ export default function CustomerExpandedPanel({
           )}
           <button type="button" onClick={onResetPassword} disabled={busy.resetPassword || !c.email} className="text-xs px-2.5 py-1 rounded border border-zinc-300 dark:border-zinc-600 disabled:opacity-50" title={c.email ? undefined : "Email accounts only"}>
             Reset password
+          </button>
+          <button
+            type="button"
+            onClick={onDisable2fa}
+            disabled={busy.disable2fa || !(c.twoFactorMethod === "totp" || c.twoFactorMethod === "email")}
+            className="text-xs px-2.5 py-1 rounded border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100 disabled:opacity-50"
+            title={
+              c.twoFactorMethod === "totp" || c.twoFactorMethod === "email"
+                ? `Disable ${c.twoFactorMethod === "email" ? "email" : "authenticator"} 2FA so the user can sign in`
+                : "2FA is already off"
+            }
+          >
+            {busy.disable2fa ? "…" : c.twoFactorMethod === "totp" || c.twoFactorMethod === "email" ? `Disable 2FA (${c.twoFactorMethod})` : "2FA off"}
           </button>
           <button type="button" onClick={onDelete} disabled={busy.delete} className="text-xs px-2.5 py-1 rounded bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 disabled:opacity-50">
             Delete user

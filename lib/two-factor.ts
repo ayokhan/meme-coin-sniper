@@ -172,6 +172,14 @@ export async function enableEmailTwoFactor(userId: string) {
   });
 }
 
+async function clearTwoFactorForUser(userId: string) {
+  await userDb().update({
+    where: { id: userId },
+    data: { twoFactorMethod: null, totpSecretEncrypted: null, totpBackupCodesHash: null },
+  });
+  await otpDb().deleteMany({ where: { userId } });
+}
+
 export async function disableTwoFactor(userId: string, password: string) {
   const user = await userDb().findUnique({
     where: { id: userId },
@@ -181,11 +189,20 @@ export async function disableTwoFactor(userId: string, password: string) {
   const bcrypt = await import("bcrypt");
   const ok = await bcrypt.compare(password, user.hashedPassword);
   if (!ok) throw new Error("Incorrect password.");
-  await userDb().update({
+  await clearTwoFactorForUser(userId);
+}
+
+/** Owner unlock: clear 2FA without the user's password (lost authenticator / email access). */
+export async function adminDisableTwoFactor(userId: string): Promise<{ wasEnabled: boolean; method: string | null }> {
+  const user = await userDb().findUnique({
     where: { id: userId },
-    data: { twoFactorMethod: null, totpSecretEncrypted: null, totpBackupCodesHash: null },
+    select: { id: true, twoFactorMethod: true },
   });
-  await otpDb().deleteMany({ where: { userId } });
+  if (!user) throw new Error("User not found.");
+  const method = user.twoFactorMethod;
+  const wasEnabled = isUserTwoFactorActive(user);
+  await clearTwoFactorForUser(userId);
+  return { wasEnabled, method };
 }
 
 function generateEmailOtp(): string {
