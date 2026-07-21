@@ -295,7 +295,7 @@ export default function AdminCustomersPage() {
 
   const filteredCustomers = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return customers.filter((c) => {
+    const list = customers.filter((c) => {
       if (activeOnly && !c.isActive) return false;
       if (onDemandOnly && !customerHasOnDemand(c, showLegacyOnDemand)) return false;
       if (newsletterOnly && (!c.newsletterOptIn || !c.email)) return false;
@@ -310,7 +310,29 @@ export default function AdminCustomersPage() {
         (c.country ?? "").toLowerCase().includes(q)
       );
     });
-  }, [customers, search, registrationMonth, registrationDate, activeOnly, onDemandOnly, newsletterOnly, multiLocationOnly, showLegacyOnDemand, readOnly]);
+    // Owner: flagged multi-location accounts float to the top so they're obvious.
+    if (isOwner) {
+      list.sort((a, b) => Number(!!b.loginMultiLocation) - Number(!!a.loginMultiLocation));
+    }
+    return list;
+  }, [
+    customers,
+    search,
+    registrationMonth,
+    registrationDate,
+    activeOnly,
+    onDemandOnly,
+    newsletterOnly,
+    multiLocationOnly,
+    showLegacyOnDemand,
+    readOnly,
+    isOwner,
+  ]);
+
+  const multiLocationCustomers = useMemo(
+    () => customers.filter((c) => c.loginMultiLocation),
+    [customers]
+  );
 
   const registrationPeriodActive = !!(registrationMonth || registrationDate);
 
@@ -933,7 +955,97 @@ export default function AdminCustomersPage() {
               <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400">{metrics.vipActive}</p>
             </CardContent>
           </Card>
+          {isOwner && (
+            <Card
+              className={
+                metrics.multiLocation > 0
+                  ? "border-amber-400 dark:border-amber-600 bg-amber-50/80 dark:bg-amber-950/30"
+                  : "border-zinc-200 dark:border-zinc-800"
+              }
+            >
+              <CardContent className="py-3">
+                <p className="text-xs text-muted-foreground">Multi-location flags</p>
+                <p
+                  className={`text-2xl font-semibold ${
+                    metrics.multiLocation > 0
+                      ? "text-amber-700 dark:text-amber-300"
+                      : "text-zinc-900 dark:text-zinc-100"
+                  }`}
+                >
+                  {metrics.multiLocation}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
+
+        {isOwner && metrics.multiLocation > 0 && (
+          <div
+            role="status"
+            className="mb-4 rounded-lg border border-amber-400/80 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/40 px-4 py-3"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+                  {metrics.multiLocation} customer{metrics.multiLocation === 1 ? "" : "s"} signed in from different
+                  locations
+                </p>
+                <p className="text-xs text-amber-900/80 dark:text-amber-200/80 mt-0.5">
+                  Possible credential sharing (or travel/VPN). Review highlighted rows — expand for recent sign-ins.
+                </p>
+                <ul className="mt-2 space-y-0.5 text-xs text-amber-950 dark:text-amber-100">
+                  {multiLocationCustomers.slice(0, 8).map((c) => (
+                    <li key={c.id} className="truncate">
+                      <button
+                        type="button"
+                        className="underline font-medium hover:no-underline text-left"
+                        onClick={() => {
+                          setMultiLocationOnly(true);
+                          setExpandedCustomerId(c.id);
+                          setSearch("");
+                        }}
+                      >
+                        {c.name || c.email || c.id}
+                      </button>
+                      {c.email && c.name ? (
+                        <span className="text-amber-800/70 dark:text-amber-200/60"> · {c.email}</span>
+                      ) : null}
+                      {c.isActive ? (
+                        <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                          VIP/active
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                  {multiLocationCustomers.length > 8 && (
+                    <li className="text-amber-800/70 dark:text-amber-200/60">
+                      +{multiLocationCustomers.length - 8} more
+                    </li>
+                  )}
+                </ul>
+              </div>
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setMultiLocationOnly(true)}
+                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  Show flagged only
+                </button>
+                {multiLocationOnly && (
+                  <button
+                    type="button"
+                    onClick={() => setMultiLocationOnly(false)}
+                    className="text-xs font-medium px-3 py-1.5 rounded-md border border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100"
+                  >
+                    Clear filter
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <Card className="border-zinc-200 dark:border-zinc-800">
           <CardContent className="pt-6">
             <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -1145,7 +1257,13 @@ export default function AdminCustomersPage() {
                         c.novaConnectEnabled || c.novaConnectAllowedByAdmin || c.coachUser || c.novaConnectCommunityRep;
                       return (
                         <Fragment key={c.id}>
-                          <tr className="border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40">
+                          <tr
+                            className={
+                              c.loginMultiLocation
+                                ? "border-b border-amber-200 dark:border-amber-800/60 bg-amber-50/90 dark:bg-amber-950/35 hover:bg-amber-100/90 dark:hover:bg-amber-950/50"
+                                : "border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40"
+                            }
+                          >
                             <td className="py-2 pr-2 align-top">
                               <button
                                 type="button"
