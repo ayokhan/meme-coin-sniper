@@ -41,6 +41,7 @@ type Connection = { broker: ForexBrokerId; connected: boolean };
 export default function NovaForexBotPanel() {
   const [config, setConfig] = useState<BotConfig | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [enabledBrokers, setEnabledBrokers] = useState<ForexBrokerId[]>([...FOREX_BROKER_IDS]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [ticking, setTicking] = useState(false);
@@ -51,7 +52,10 @@ export default function NovaForexBotPanel() {
     try {
       const res = await fetch("/api/user/forex-broker-config", { credentials: "include", cache: "no-store" });
       const data = await res.json().catch(() => ({}));
-      if (data.success) setConnections((data.connections ?? []) as Connection[]);
+      if (data.success) {
+        setConnections((data.connections ?? []) as Connection[]);
+        if (Array.isArray(data.enabledBrokers)) setEnabledBrokers(data.enabledBrokers as ForexBrokerId[]);
+      }
     } catch {
       /* ignore */
     }
@@ -218,7 +222,7 @@ export default function NovaForexBotPanel() {
                 onChange={(e) => setField("broker", e.target.value as ForexBrokerId)}
                 className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
               >
-                {FOREX_BROKER_IDS.map((b) => (
+                {enabledBrokers.map((b) => (
                   <option key={b} value={b}>
                     {FOREX_BROKER_LABELS[b]}
                     {connectedBrokers.includes(b) ? " (connected)" : ""}

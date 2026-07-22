@@ -77,11 +77,22 @@ export type CreateMetaApiAccountInput = {
   magic?: number;
 };
 
+/** Optional shared MetaAPI provisioning profile (when broker .dat is not in MetaAPI's known list). */
+function provisioningProfileId(platform: MetaApiPlatform): string | undefined {
+  const key =
+    platform === "mt4"
+      ? process.env.METAAPI_PROVISIONING_PROFILE_MT4
+      : process.env.METAAPI_PROVISIONING_PROFILE_MT5;
+  const id = key?.trim();
+  return id || undefined;
+}
+
 /** Provision a new MetaAPI trading account (links a broker MT4/MT5 login to MetaAPI cloud). */
 export async function createMetaApiAccount(
   input: CreateMetaApiAccountInput
 ): Promise<{ id: string }> {
-  const body = {
+  const profileId = provisioningProfileId(input.platform);
+  const body: Record<string, unknown> = {
     login: input.login,
     password: input.password,
     server: input.server,
@@ -91,11 +102,49 @@ export async function createMetaApiAccount(
     type: "cloud-g2",
     riskManagementApiEnabled: false,
   };
+  if (profileId) body.provisioningProfileId = profileId;
   return metaApiFetch<{ id: string }>(`${PROVISIONING_BASE}/users/current/accounts`, {
     method: "POST",
     body: JSON.stringify(body),
     includeTransactionId: true,
   });
+}
+
+/** Fuzzy search MetaAPI's known MT servers (helps when .dat / server name is wrong). */
+export async function searchKnownMtServers(
+  platform: MetaApiPlatform,
+  query: string
+): Promise<Record<string, string[]>> {
+  const version = platform === "mt4" ? 4 : 5;
+  const q = encodeURIComponent(query.trim());
+  if (!q) return {};
+  try {
+    return await metaApiFetch<Record<string, string[]>>(
+      `${PROVISIONING_BASE}/known-mt-servers/${version}/search?query=${q}`,
+      { method: "GET" }
+    );
+  } catch {
+    return {};
+  }
+}
+
+/** Flatten known-server search into a short unique list for UI hints. */
+export function flattenKnownServerSuggestions(
+  byBroker: Record<string, string[]>,
+  limit = 12
+): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const servers of Object.values(byBroker)) {
+    for (const s of servers ?? []) {
+      const name = String(s).trim();
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      out.push(name);
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
 }
 
 export type MetaApiAccount = {

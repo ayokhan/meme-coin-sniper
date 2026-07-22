@@ -51,12 +51,16 @@ export default function NovaForexScalperPanel() {
   const prefillAppliedRef = useRef(false);
   const [autoSec, setAutoSec] = useState<0 | 15 | 30 | 60>(0);
   const [connections, setConnections] = useState<{ broker: ForexBrokerId; connected: boolean }[]>([]);
+  const [enabledBrokers, setEnabledBrokers] = useState<ForexBrokerId[]>([...FOREX_BROKER_IDS]);
 
   const loadConnections = useCallback(async () => {
     try {
       const res = await fetch("/api/user/forex-broker-config", { credentials: "include", cache: "no-store" });
       const data = await res.json().catch(() => ({}));
-      if (data.success) setConnections((data.connections ?? []) as { broker: ForexBrokerId; connected: boolean }[]);
+      if (data.success) {
+        setConnections((data.connections ?? []) as { broker: ForexBrokerId; connected: boolean }[]);
+        if (Array.isArray(data.enabledBrokers)) setEnabledBrokers(data.enabledBrokers as ForexBrokerId[]);
+      }
     } catch {
       /* ignore */
     }
@@ -434,7 +438,7 @@ export default function NovaForexScalperPanel() {
                 onChange={(e) => setField("broker", e.target.value as ForexBrokerId)}
                 className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
               >
-                {FOREX_BROKER_IDS.map((b) => (
+                {enabledBrokers.map((b) => (
                   <option key={b} value={b}>
                     {FOREX_BROKER_LABELS[b]}
                     {connectedBrokers.includes(b) ? " (connected)" : ""}

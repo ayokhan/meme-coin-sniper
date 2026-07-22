@@ -124,6 +124,12 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_FOREX_SCALP_BOT_OWNER_ONLY: 'nova_forex_scalp_bot_owner_only',
   /** Server batch job for Nova Forex Scalp Bot: run ticks for enabled users. Default OFF; Admin → Feature flags. */
   NOVA_FOREX_SCALP_BOT_CRON: 'nova_forex_scalp_bot_cron',
+  /** Show Vantage Markets in Nova Forex broker connect + bot pickers. Default ON. */
+  FOREX_BROKER_VANTAGE: 'forex_broker_vantage',
+  /** Show TIOmarkets in Nova Forex broker connect + bot pickers. Default ON. */
+  FOREX_BROKER_TIOMARKETS: 'forex_broker_tiomarkets',
+  /** Show Assexmarkets in Nova Forex broker connect + bot pickers. Default OFF until admin enables. */
+  FOREX_BROKER_ASSEXMARKETS: 'forex_broker_assexmarkets',
   /** VIP + owner: per-user RAG over past Solana token analyses (requires OPENAI_API_KEY). Default OFF. */
   AI_ANALYSIS_RAG: 'ai_analysis_rag',
   /** Meme Coins Agent under NovaStaris AI Agent tab. When OFF, analysis API returns unavailable. Default ON. */
@@ -203,6 +209,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_BOT,
   FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_BOT_OWNER_ONLY,
   FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_BOT_CRON,
+  FEATURE_FLAG_KEYS.FOREX_BROKER_ASSEXMARKETS,
   FEATURE_FLAG_KEYS.AI_ANALYSIS_RAG,
   FEATURE_FLAG_KEYS.LIVE_SUPPORT_CHAT,
   FEATURE_FLAG_KEYS.ACCOUNT_BILLING_HISTORY,

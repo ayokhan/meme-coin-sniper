@@ -143,7 +143,8 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
   {
     id: "nova-forex-bots",
     title: "Nova Forex Bots (MT4/MT5)",
-    match: (k) => k.startsWith("nova_forex_bot") || k.startsWith("nova_forex_scalp_bot"),
+    match: (k) =>
+      k.startsWith("nova_forex_bot") || k.startsWith("nova_forex_scalp_bot") || k.startsWith("forex_broker_"),
   },
   {
     id: "wallet-subs",
@@ -476,6 +477,21 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Nova Forex Scalper Bot — overnight automation",
     description:
       "When ON, the server's daily maintenance job also advances Nova Forex Scalper for every user who has it enabled (one batch pass, like NovaScalper overnight automation). When OFF, users still get ticks from Check price / auto tick while their tab is open. Default OFF.",
+  },
+  forex_broker_vantage: {
+    label: "Forex broker — Vantage Markets",
+    description:
+      "When ON, users can connect a Vantage Markets MT4/MT5 account and pick it for Nova Forex Bot / Scalper. When OFF, the Vantage tab is hidden. Default ON.",
+  },
+  forex_broker_tiomarkets: {
+    label: "Forex broker — TIOmarkets",
+    description:
+      "When ON, users can connect a TIOmarkets MT4/MT5 account and pick it for Nova Forex Bot / Scalper. When OFF, the TIOmarkets tab is hidden. Default ON.",
+  },
+  forex_broker_assexmarkets: {
+    label: "Forex broker — Assexmarkets",
+    description:
+      "When ON, users can connect an Assexmarkets MT4/MT5 account and pick it for Nova Forex Bot / Scalper. When OFF, the Assexmarkets tab is hidden. Default OFF.",
   },
   nova_liquidation_map: {
     label: "Liquidation Map (Crypto Futures)",

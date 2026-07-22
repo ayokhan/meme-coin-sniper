@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import {
   FOREX_BROKER_IDS,
   deleteForexBrokerConfigForUser,
+  getForexBrokerConfigForUser,
   listForexBrokerConfigsForUser,
   parseForexBrokerId,
   saveForexBrokerConfigForUser,
@@ -11,11 +12,15 @@ import {
   type ForexBrokerId,
   type ForexBrokerPlatform,
 } from "@/lib/forex-broker-user-config";
+import { getEnabledForexBrokerIds, isForexBrokerEnabled } from "@/lib/forex-broker-availability";
+import { metaApiServerSearchQuery } from "@/lib/forex-broker-servers";
 import {
   createMetaApiAccount,
   deleteMetaApiAccount,
   deployMetaApiAccount,
+  flattenKnownServerSuggestions,
   isMetaApiConfigured,
+  searchKnownMtServers,
 } from "@/lib/metaapi";
 
 export const dynamic = "force-dynamic";
@@ -37,17 +42,27 @@ export async function GET() {
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
     }
-    const rows = await listForexBrokerConfigsForUser(session.user.id);
+    const [rows, enabledBrokers] = await Promise.all([
+      listForexBrokerConfigsForUser(session.user.id),
+      getEnabledForexBrokerIds(),
+    ]);
     const connections = rows.map((r) => ({
       broker: r.broker,
       platform: r.platform,
       loginMasked: maskLogin(r.login),
+      /** Unmasked login for reconnect form only (never password). */
+      login: r.login,
       server: r.server,
       demoMode: r.demoMode,
       metaApiAccountId: r.metaApiAccountId ?? null,
       connected: !!r.metaApiAccountId,
     }));
-    return NextResponse.json({ success: true, connections, metaApiConfigured: isMetaApiConfigured() });
+    return NextResponse.json({
+      success: true,
+      connections,
+      enabledBrokers,
+      metaApiConfigured: isMetaApiConfigured(),
+    });
   } catch (e) {
     console.error("forex-broker-config GET:", e);
     return NextResponse.json(
@@ -59,8 +74,9 @@ export async function GET() {
 
 /**
  * POST — save (or replace) a forex broker login.
- * Body: { broker, platform, login, password, server, demoMode?, provision? }
+ * Body: { broker, platform, login, password, server, demoMode?, provision?, reuseSavedPassword? }
  * When provision is true (default) and METAAPI_TOKEN is set, provisions + deploys a MetaAPI account.
+ * When reuseSavedPassword is true and password is empty, reuses the encrypted password already on file.
  */
 export async function POST(request: Request) {
   try {
@@ -76,24 +92,50 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (!(await isForexBrokerEnabled(broker))) {
+      return NextResponse.json(
+        { success: false, error: `${broker} is currently disabled by the site admin.` },
+        { status: 403 }
+      );
+    }
+
     const platform: ForexBrokerPlatform = body.platform === "mt4" ? "mt4" : "mt5";
-    const login = String(body.login ?? "").trim();
-    const password = String(body.password ?? "").trim();
+    let login = String(body.login ?? "").trim();
+    let password = String(body.password ?? "").trim();
     const server = String(body.server ?? "").trim();
     const demoMode = body.demoMode !== false;
     const provision = body.provision !== false;
+    const reuseSavedPassword = body.reuseSavedPassword === true;
+
+    const existing = await getForexBrokerConfigForUser(session.user.id, broker);
+    if (reuseSavedPassword && !password && existing?.password) {
+      password = existing.password;
+    }
+    if (!login && existing?.login) {
+      login = existing.login;
+    }
 
     if (!login || !password || !server) {
       return NextResponse.json(
-        { success: false, error: "login, password, and server are required." },
+        {
+          success: false,
+          error: reuseSavedPassword
+            ? "Server is required. Leave password blank only if you already saved this broker."
+            : "login, password, and server are required.",
+        },
         { status: 400 }
       );
     }
 
     let metaApiAccountId: string | null = null;
     let warning: string | undefined;
+    let suggestedServers: string[] = [];
 
     if (provision && isMetaApiConfigured()) {
+      // Drop a previous failed / stale MetaAPI account before re-provisioning
+      if (existing?.metaApiAccountId) {
+        await deleteMetaApiAccount(existing.metaApiAccountId).catch(() => {});
+      }
       try {
         const account = await createMetaApiAccount({
           login,
@@ -107,7 +149,18 @@ export async function POST(request: Request) {
           warning = `Account created but deploy failed: ${e instanceof Error ? e.message : "unknown error"}. It will retry on next connection.`;
         });
       } catch (e) {
-        warning = `Saved your login, but MetaAPI provisioning failed: ${e instanceof Error ? e.message : "unknown error"}. Check login/password/server and try again.`;
+        const msg = e instanceof Error ? e.message : "unknown error";
+        warning = `Saved your login, but MetaAPI provisioning failed: ${msg}. Check login/password/server and try again.`;
+        const known = await searchKnownMtServers(platform, metaApiServerSearchQuery(broker));
+        suggestedServers = flattenKnownServerSuggestions(known);
+        // Also parse "Suggested server names: A, B.." from MetaAPI error text
+        const m = msg.match(/Suggested server names:\s*([^.]+)/i);
+        if (m?.[1]) {
+          for (const part of m[1].split(/,\s*/)) {
+            const s = part.trim();
+            if (s && !suggestedServers.includes(s)) suggestedServers.push(s);
+          }
+        }
       }
     } else if (provision && !isMetaApiConfigured()) {
       warning = "Saved your login. MetaAPI is not configured on the server yet (METAAPI_TOKEN) — bots cannot trade until it is.";
@@ -129,12 +182,15 @@ export async function POST(request: Request) {
         broker,
         platform,
         loginMasked: maskLogin(login),
+        login,
         server,
         demoMode,
         metaApiAccountId,
         connected: !!metaApiAccountId,
       },
       warning,
+      suggestedServers: suggestedServers.length ? suggestedServers : undefined,
+      provisionFailed: !!warning && !metaApiAccountId,
     });
   } catch (e) {
     console.error("forex-broker-config POST:", e);
@@ -145,7 +201,7 @@ export async function POST(request: Request) {
   }
 }
 
-/** DELETE — remove a saved forex broker connection. ?broker=vantage|tiomarkets */
+/** DELETE — remove a saved forex broker connection. ?broker=vantage|tiomarkets|assexmarkets */
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
