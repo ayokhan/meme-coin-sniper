@@ -184,3 +184,50 @@ export async function getNovaForexScalpAgentAccess(session: Session | null): Pro
   }
   return base;
 }
+
+/**
+ * Tri-state flag gate: VIP is required first, then a master switch, then an optional
+ * owner-only restriction layered on top of the master switch.
+ * - Master OFF → disabled for everyone, including the owner.
+ * - Master ON + ownerOnly ON → only the owner session passes.
+ * - Master ON + ownerOnly OFF → any VIP/Coach/owner session passes.
+ */
+async function assertTriStateFlag(
+  session: Session | null,
+  masterKey: string,
+  ownerOnlyKey: string,
+  disabledMsg: string
+): Promise<VipFuturesAddonAccess> {
+  const base = await assertVip(session);
+  if (!base.ok) return base;
+
+  const masterOn = await getFeatureFlag(masterKey);
+  if (!masterOn) {
+    return { ok: false, status: 403, error: disabledMsg, disabled: true };
+  }
+
+  const ownerOnly = await getFeatureFlag(ownerOnlyKey);
+  if (ownerOnly && !isOwnerSession(session)) {
+    return { ok: false, status: 403, error: disabledMsg, disabled: true };
+  }
+
+  return base;
+}
+
+export async function getNovaForexBotAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  return assertTriStateFlag(
+    session,
+    FEATURE_FLAG_KEYS.NOVA_FOREX_BOT,
+    FEATURE_FLAG_KEYS.NOVA_FOREX_BOT_OWNER_ONLY,
+    "Nova Forex Bot is not available on your account yet. Contact support if you need access."
+  );
+}
+
+export async function getNovaForexScalpBotAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  return assertTriStateFlag(
+    session,
+    FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_BOT,
+    FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_BOT_OWNER_ONLY,
+    "Nova Forex Scalp Bot is not available on your account yet. Contact support if you need access."
+  );
+}

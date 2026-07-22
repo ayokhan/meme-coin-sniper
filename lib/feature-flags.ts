@@ -114,6 +114,16 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_FOREX_FIB: 'nova_forex_fib',
   /** VIP: Nova Forex Scalp Agent subtab. Default OFF until admin enables. */
   NOVA_FOREX_SCALP_AGENT: 'nova_forex_scalp_agent',
+  /** VIP: Nova Forex Bot (MT4/MT5 via MetaAPI, EMA/MA crossover). Master switch. Default OFF until admin enables. */
+  NOVA_FOREX_BOT: 'nova_forex_bot',
+  /** When master ON: restrict Nova Forex Bot to owner session only. Default OFF (VIP allowed once master is ON). */
+  NOVA_FOREX_BOT_OWNER_ONLY: 'nova_forex_bot_owner_only',
+  /** VIP: Nova Forex Scalp Bot (MT4/MT5 via MetaAPI, entry/exit cross). Master switch. Default OFF until admin enables. */
+  NOVA_FOREX_SCALP_BOT: 'nova_forex_scalp_bot',
+  /** When master ON: restrict Nova Forex Scalp Bot to owner session only. Default OFF (VIP allowed once master is ON). */
+  NOVA_FOREX_SCALP_BOT_OWNER_ONLY: 'nova_forex_scalp_bot_owner_only',
+  /** Server batch job for Nova Forex Scalp Bot: run ticks for enabled users. Default OFF; Admin → Feature flags. */
+  NOVA_FOREX_SCALP_BOT_CRON: 'nova_forex_scalp_bot_cron',
   /** VIP + owner: per-user RAG over past Solana token analyses (requires OPENAI_API_KEY). Default OFF. */
   AI_ANALYSIS_RAG: 'ai_analysis_rag',
   /** Meme Coins Agent under NovaStaris AI Agent tab. When OFF, analysis API returns unavailable. Default ON. */
@@ -188,6 +198,11 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.NOVA_FOREX_AGENT,
   FEATURE_FLAG_KEYS.NOVA_FOREX_FIB,
   FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_AGENT,
+  FEATURE_FLAG_KEYS.NOVA_FOREX_BOT,
+  FEATURE_FLAG_KEYS.NOVA_FOREX_BOT_OWNER_ONLY,
+  FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_BOT,
+  FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_BOT_OWNER_ONLY,
+  FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_BOT_CRON,
   FEATURE_FLAG_KEYS.AI_ANALYSIS_RAG,
   FEATURE_FLAG_KEYS.LIVE_SUPPORT_CHAT,
   FEATURE_FLAG_KEYS.ACCOUNT_BILLING_HISTORY,

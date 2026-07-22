@@ -201,6 +201,10 @@ model User {
   referralCommissionsEarned  ReferralCommission[] @relation("ReferrerCommissions")
   referralCommissionsAsReferee ReferralCommission[] @relation("RefereeCommissions")
   blofinPartnerLinkClicks    BlofinPartnerLinkClick[]
+  forexBrokerPartnerLinkClicks ForexBrokerPartnerLinkClick[]
+  userForexBrokerConfigs     UserForexBrokerConfig[]
+  novaForexBotConfigs        NovaForexBotConfig[]
+  novaForexScalperConfigs    NovaForexScalperConfig[]
   billingInvoices            BillingInvoice[]
   tradingUniversityProgress  TradingUniversityProgress?
   loginEvents                LoginEvent[]
@@ -309,6 +313,24 @@ model UserBlofinConfig {
   brokerId             String?
   updatedAt            DateTime @updatedAt
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+// Per-user forex broker (MT4/MT5) login for Nova Forex bots — encrypted at rest.
+// One row per user per broker (vantage | tiomarkets); metaApiAccountId set once provisioned on MetaAPI cloud.
+model UserForexBrokerConfig {
+  id                String   @id @default(cuid())
+  userId            String
+  broker            String   // vantage | tiomarkets
+  platform          String   @default("mt5") // mt4 | mt5
+  encryptedLogin    String
+  encryptedPassword String
+  server            String
+  demoMode          Boolean  @default(true)
+  metaApiAccountId  String?
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, broker])
   @@index([userId])
 }
 
@@ -431,6 +453,34 @@ model BlofinPartnerLinkClick {
   clickedAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   @@index([userId])
+  @@index([clickedAt])
+}
+
+/** Per-broker forex partner promo config (Admin → Banners → Forex Broker Partners). id = broker ("vantage" | "tiomarkets"). */
+model ForexBrokerPartnerPromo {
+  id                      String   @id // vantage | tiomarkets
+  enabled                 Boolean  @default(false)
+  registerUrl             String   @default("")
+  headline                String   @default("")
+  bodyText                String   @default("")
+  promoLabel              String   @default("")
+  ctaLabel                String   @default("")
+  showLogosInBanner       Boolean  @default(true)
+  includeLogosInEmail     Boolean  @default(true)
+  includeLogosInBroadcast Boolean  @default(true)
+  updatedAt               DateTime @updatedAt
+}
+
+/** Tracked clicks on NovaStaris forex broker affiliate register links (not confirmed broker signups). */
+model ForexBrokerPartnerLinkClick {
+  id        String   @id @default(cuid())
+  broker    String   // vantage | tiomarkets
+  userId    String?
+  guestHash String?
+  clickedAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([userId])
+  @@index([broker])
   @@index([clickedAt])
 }
 
@@ -948,6 +998,67 @@ model NovaScalperConfig {
   lastAction       String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  @@unique([userId, slot])
+  @@index([userId])
+}
+
+// Nova Forex Bot: per-user MT4/MT5 EMA/MA crossover bot, traded via MetaAPI.
+model NovaForexBotConfig {
+  id             String    @id @default(cuid())
+  userId         String
+  enabled        Boolean   @default(false)
+  /** When true (set by owner in Admin), user cannot turn Nova Forex Bot back on until owner clears it. */
+  ownerForceOff  Boolean   @default(false)
+  mode           String    @default("demo") // demo | live
+  broker         String    @default("vantage") // vantage | tiomarkets
+  symbol         String    @default("EURUSD")
+  timeframe      String    @default("15m")
+  lotSize        Float     @default(0.01)
+  fastMA         Int       @default(9)
+  slowMA         Int       @default(21)
+  stopLossPips   Float?
+  takeProfitPips Float?
+  magic          Int?
+  inPosition     Boolean   @default(false)
+  positionSide   String?   // long | short | null
+  lastRunAt      DateTime?
+  lastDecision   String?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+// Nova Forex Scalper: per-user MT4/MT5 entry/exit cross bot, traded via MetaAPI (mirrors NovaScalperConfig).
+model NovaForexScalperConfig {
+  id              String    @id @default(cuid())
+  userId          String?
+  /** 1-based slot per user: Config 1, Config 2, … for parallel symbols. */
+  slot            Int       @default(1)
+  enabled         Boolean   @default(false)
+  ownerForceOff   Boolean   @default(false)
+  mode            String    @default("demo") // demo | live
+  broker          String    @default("vantage") // vantage | tiomarkets
+  symbol          String    @default("EURUSD")
+  side            String    @default("long") // long | short
+  /** cross_down | cross_up — long dip = cross_down (price crosses down through entry); long breakout = cross_up */
+  entryTrigger    String    @default("cross_down")
+  entryPrice      Float
+  exitPrice       Float
+  stopLossPrice   Float?
+  lotSize         Float     @default(0.01)
+  /** 0 = unlimited repeat cycles */
+  maxRounds       Int       @default(0)
+  completedRounds Int       @default(0)
+  inPosition      Boolean   @default(false)
+  lastRefPrice    Float?
+  lastTickAt      DateTime?
+  lastError       String?
+  lastAction      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, slot])
   @@index([userId])
 }
