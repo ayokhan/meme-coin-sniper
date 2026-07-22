@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   FOREX_BROKER_IDS,
   FOREX_BROKER_LABELS,
+  parseForexBrokerId,
   type ForexBrokerId,
   type ForexBrokerPlatform,
 } from "@/lib/forex-broker-user-config";
@@ -40,6 +41,27 @@ type Props = {
 
 function rememberKey(broker: ForexBrokerId) {
   return `novastaris-forex-remember-v2-${broker}`;
+}
+
+function lastActiveBrokerKey() {
+  return "novastaris-forex-active-broker";
+}
+
+function readLastActiveBroker(): ForexBrokerId | null {
+  try {
+    const raw = localStorage.getItem(lastActiveBrokerKey());
+    return parseForexBrokerId(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeLastActiveBroker(broker: ForexBrokerId) {
+  try {
+    localStorage.setItem(lastActiveBrokerKey(), broker);
+  } catch {
+    /* ignore */
+  }
 }
 
 function loadRemembered(broker: ForexBrokerId): Remembered | null {
@@ -80,12 +102,30 @@ function clearRemembered(broker: ForexBrokerId) {
   }
 }
 
+/** Prefer last used broker, else a connected one, else keep/first enabled. */
+function pickActiveBroker(
+  prev: ForexBrokerId,
+  enabled: ForexBrokerId[],
+  connections: Connection[]
+): ForexBrokerId {
+  const connected = connections.filter((c) => c.connected).map((c) => c.broker);
+  const stored = readLastActiveBroker();
+  if (stored && enabled.includes(stored)) return stored;
+  if (connected.length) {
+    if (connected.includes(prev) && enabled.includes(prev)) return prev;
+    const preferred = FOREX_BROKER_IDS.find((b) => connected.includes(b) && enabled.includes(b));
+    if (preferred) return preferred;
+  }
+  if (enabled.includes(prev)) return prev;
+  return enabled[0] ?? prev;
+}
+
 export default function ForexBrokerConnectPanel({ onChange, compact = false }: Props) {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [enabledBrokers, setEnabledBrokers] = useState<ForexBrokerId[]>([...FOREX_BROKER_IDS]);
   const [metaApiConfigured, setMetaApiConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeBroker, setActiveBroker] = useState<ForexBrokerId>("vantage");
+  const [activeBroker, setActiveBroker] = useState<ForexBrokerId>(() => readLastActiveBroker() ?? "vantage");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [suggestedServers, setSuggestedServers] = useState<string[]>([]);
@@ -115,11 +155,16 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       const res = await fetch("/api/user/forex-broker-config", { credentials: "include", cache: "no-store" });
       const data = await res.json().catch(() => ({}));
       if (data.success) {
-        setConnections((data.connections ?? []) as Connection[]);
+        const rows = (data.connections ?? []) as Connection[];
+        setConnections(rows);
         const enabled = (data.enabledBrokers ?? FOREX_BROKER_IDS) as ForexBrokerId[];
         setEnabledBrokers(enabled);
         setMetaApiConfigured(!!data.metaApiConfigured);
-        setActiveBroker((prev) => (enabled.length && !enabled.includes(prev) ? enabled[0] : prev));
+        setActiveBroker((prev) => {
+          const next = pickActiveBroker(prev, enabled, rows);
+          writeLastActiveBroker(next);
+          return next;
+        });
       } else setError(data.error ?? "Failed to load broker connections.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load broker connections.");
@@ -276,6 +321,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
         } else {
           setSuccess(`${FOREX_BROKER_LABELS[activeBroker]} connected.`);
         }
+        writeLastActiveBroker(activeBroker);
         // Keep password in the form when remembering so Disconnect → reconnect stays filled
         setForm((f) => ({ ...f, password: rememberLogin ? f.password : "" }));
         await load();
@@ -497,7 +543,10 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
               <button
                 key={b}
                 type="button"
-                onClick={() => setActiveBroker(b)}
+                onClick={() => {
+                  writeLastActiveBroker(b);
+                  setActiveBroker(b);
+                }}
                 className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   b === activeBroker
                     ? "bg-emerald-500 text-white dark:bg-emerald-600"
