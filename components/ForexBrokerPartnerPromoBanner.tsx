@@ -23,18 +23,16 @@ type Props = {
 };
 
 export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact = false, preview = null }: Props) {
-  const [promo, setPromo] = useState<PromoView | null>(preview);
+  const [fetchedPromo, setFetchedPromo] = useState<PromoView | null>(null);
+  const promo = preview ?? fetchedPromo;
 
   useEffect(() => {
-    if (preview) {
-      setPromo(preview);
-      return;
-    }
+    if (preview) return;
     let cancelled = false;
     fetch(`/api/forex-broker-partner-promo?broker=${broker}`, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
-        if (!cancelled && data.success && data.promo?.active) setPromo(data.promo);
+        if (!cancelled && data.success && data.promo?.active) setFetchedPromo(data.promo);
       })
       .catch(() => {});
     return () => {
