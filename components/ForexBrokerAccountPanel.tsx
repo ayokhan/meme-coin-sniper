@@ -116,10 +116,8 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
       setOrders(Array.isArray(data.orders) ? data.orders : []);
       setClosedTrades(Array.isArray(data.closedTrades) ? data.closedTrades : []);
       if (data.accountError) setError(String(data.accountError));
-      if (data.metaApi && !data.metaApi.ready) {
-        setMetaHint(
-          `MetaAPI: ${data.metaApi.state ?? "?"} / ${data.metaApi.connectionStatus ?? "?"}. Balance appears once the cloud terminal finishes connecting.`
-        );
+      if (data.metaApi && !data.metaApi.ready && !data.account) {
+        setMetaHint("Broker link is still starting. Balance appears once the connection finishes — tap Refresh.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load account.");
@@ -149,8 +147,8 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Live book from MetaAPI — balance, leverage (read-only from your MT account), open positions, pending
-          orders, and closed records. Same share-PNL cards as Blofin.
+          Live account view — balance, leverage (from your MT4/MT5 account), open positions, pending orders, and closed
+          records. Share PNL cards work the same way as on Blofin.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -181,8 +179,15 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
             <p className="font-mono font-semibold text-sm">
               {account?.leverage ? `1:${account.leverage}` : loading ? "…" : "—"}
             </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Set in MT / broker — not changeable here</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+              Set in MT5 (or your broker portal) — NovaStaris cannot change it
+            </p>
           </div>
+        </div>
+
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 px-3 py-2 text-[11px] text-muted-foreground">
+          <strong className="text-foreground">Leverage:</strong> change it in MetaTrader (account settings / broker
+          website), then tap Refresh here. We only display what your MT account reports.
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

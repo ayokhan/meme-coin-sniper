@@ -100,8 +100,8 @@ export async function runNovaForexBotTick(
   };
 
   if (!isMetaApiConfigured()) {
-    await updateRow({ lastError: "METAAPI_TOKEN not configured", lastRunAt: new Date() });
-    return { ok: false, error: "MetaAPI is not configured on the server (METAAPI_TOKEN)." };
+    await updateRow({ lastError: "Broker trading temporarily unavailable", lastRunAt: new Date() });
+    return { ok: false, error: "Broker trading is temporarily unavailable. Please try again later." };
   }
 
   const broker = parseForexBrokerId(row.broker) ?? "vantage";

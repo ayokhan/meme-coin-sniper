@@ -2,17 +2,23 @@
  * MetaAPI (metaapi.cloud) REST client — MT4/MT5 account provisioning + trading.
  * Docs: https://metaapi.cloud/docs/provisioning/ and https://metaapi.cloud/docs/client/
  * Requires METAAPI_TOKEN (account access token from MetaAPI dashboard).
+ *
+ * Customer-facing UI must never mention MetaAPI — use {@link toUserFacingForexBridgeError}.
  */
 import crypto from "crypto";
 
 const PROVISIONING_BASE = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai";
 
-function region(): string {
+/** In-memory cache: MetaAPI account id → region (e.g. new-york, vint-hill). */
+const accountRegionCache = new Map<string, string>();
+
+function defaultRegion(): string {
   return process.env.METAAPI_REGION?.trim() || "new-york";
 }
 
-function clientBase(): string {
-  return `https://mt-client-api-v1.${region()}.agiliumtrade.ai`;
+function clientBaseForRegion(reg: string): string {
+  const r = (reg || defaultRegion()).trim().toLowerCase();
+  return `https://mt-client-api-v1.${r}.agiliumtrade.ai`;
 }
 
 export function isMetaApiConfigured(): boolean {
@@ -27,6 +33,47 @@ function getToken(): string {
 
 function transactionId(): string {
   return crypto.randomBytes(16).toString("hex");
+}
+
+/**
+ * Rewrite bridge/vendor errors into short customer-safe copy (no MetaAPI / vendor URLs).
+ */
+export function toUserFacingForexBridgeError(raw: string | null | undefined): string {
+  const msg = String(raw ?? "").trim();
+  if (!msg) return "Could not reach your broker right now. Tap Refresh and try again.";
+  const lower = msg.toLowerCase();
+
+  if (
+    lower.includes("not connected to broker") ||
+    lower.includes("does not match the account region") ||
+    lower.includes("request url you use does not match")
+  ) {
+    return "Your broker link is still connecting. Wait 20–30 seconds, then tap Refresh. If it keeps failing, Disconnect and connect again.";
+  }
+  if (lower.includes("undeployed") || (lower.includes("deploy") && lower.includes("connection"))) {
+    return "Your broker link is starting up. Tap Refresh in a few seconds.";
+  }
+  if (lower.includes(".dat file") || lower.includes("e_srv_not_found") || lower.includes("server name")) {
+    const suggested = msg.match(/Suggested server names:\s*([^.]+)/i)?.[1]?.trim();
+    return suggested
+      ? `Server name not recognized. Try one of: ${suggested}. Or copy the exact name from MT4/MT5.`
+      : "Server name not recognized. Copy the exact server name from your MT4/MT5 terminal and try again.";
+  }
+  if (lower.includes("unauthorized") || lower.includes("invalid password") || lower.includes("wrong password")) {
+    return "Login or password was rejected by the broker. Check your MT4/MT5 credentials and try again.";
+  }
+  if (lower.includes("metaapi_token") || lower.includes("not configured")) {
+    return "Broker trading is temporarily unavailable. Please try again later or contact support.";
+  }
+
+  let cleaned = msg
+    .replace(/https?:\/\/[^\s)]+/gi, "")
+    .replace(/\bmetaapi\b/gi, "connection")
+    .replace(/\([^)]*[0-9a-f]{8,}[^)]*\)/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (cleaned.length > 180) cleaned = cleaned.slice(0, 177) + "…";
+  return cleaned || "Could not reach your broker right now. Tap Refresh and try again.";
 }
 
 async function metaApiFetch<T>(
@@ -45,7 +92,7 @@ async function metaApiFetch<T>(
     ...init,
     headers,
     cache: "no-store",
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(25000),
   });
   const text = await res.text();
   let json: unknown = null;
@@ -60,7 +107,7 @@ async function metaApiFetch<T>(
     const message =
       (json as { message?: string })?.message ||
       (typeof json === "string" ? json : null) ||
-      `MetaAPI request failed (${res.status})`;
+      `Broker bridge request failed (${res.status})`;
     throw new Error(message);
   }
   return json as T;
@@ -77,7 +124,6 @@ export type CreateMetaApiAccountInput = {
   magic?: number;
 };
 
-/** Optional shared MetaAPI provisioning profile (when broker .dat is not in MetaAPI's known list). */
 function provisioningProfileId(platform: MetaApiPlatform): string | undefined {
   const key =
     platform === "mt4"
@@ -87,11 +133,12 @@ function provisioningProfileId(platform: MetaApiPlatform): string | undefined {
   return id || undefined;
 }
 
-/** Provision a new MetaAPI trading account (links a broker MT4/MT5 login to MetaAPI cloud). */
+/** Provision a new trading account on the bridge (links a broker MT4/MT5 login). */
 export async function createMetaApiAccount(
   input: CreateMetaApiAccountInput
 ): Promise<{ id: string }> {
   const profileId = provisioningProfileId(input.platform);
+  const reg = defaultRegion();
   const body: Record<string, unknown> = {
     login: input.login,
     password: input.password,
@@ -100,17 +147,20 @@ export async function createMetaApiAccount(
     name: input.name || `NovaStaris-${input.platform.toUpperCase()}-${Date.now()}`,
     magic: input.magic ?? 0,
     type: "cloud-g2",
+    /** Pin region so client API URLs match (avoids region-mismatch errors). */
+    region: reg,
     riskManagementApiEnabled: false,
   };
   if (profileId) body.provisioningProfileId = profileId;
-  return metaApiFetch<{ id: string }>(`${PROVISIONING_BASE}/users/current/accounts`, {
+  const created = await metaApiFetch<{ id: string }>(`${PROVISIONING_BASE}/users/current/accounts`, {
     method: "POST",
     body: JSON.stringify(body),
     includeTransactionId: true,
   });
+  if (created?.id) accountRegionCache.set(created.id, reg);
+  return created;
 }
 
-/** Fuzzy search MetaAPI's known MT servers (helps when .dat / server name is wrong). */
 export async function searchKnownMtServers(
   platform: MetaApiPlatform,
   query: string
@@ -128,7 +178,6 @@ export async function searchKnownMtServers(
   }
 }
 
-/** Flatten known-server search into a short unique list for UI hints. */
 export function flattenKnownServerSuggestions(
   byBroker: Record<string, string[]>,
   limit = 12
@@ -154,13 +203,33 @@ export type MetaApiAccount = {
   platform?: string;
   state?: string;
   connectionStatus?: string;
+  region?: string;
   [key: string]: unknown;
 };
 
 export async function getMetaApiAccount(accountId: string): Promise<MetaApiAccount> {
-  return metaApiFetch<MetaApiAccount>(`${PROVISIONING_BASE}/users/current/accounts/${accountId}`, {
+  const acc = await metaApiFetch<MetaApiAccount>(`${PROVISIONING_BASE}/users/current/accounts/${accountId}`, {
     method: "GET",
   });
+  const reg = typeof acc.region === "string" && acc.region.trim() ? acc.region.trim() : defaultRegion();
+  accountRegionCache.set(accountId, reg);
+  return acc;
+}
+
+export async function resolveMetaApiAccountRegion(accountId: string): Promise<string> {
+  const cached = accountRegionCache.get(accountId);
+  if (cached) return cached;
+  try {
+    const acc = await getMetaApiAccount(accountId);
+    return typeof acc.region === "string" && acc.region.trim() ? acc.region.trim() : defaultRegion();
+  } catch {
+    return defaultRegion();
+  }
+}
+
+async function clientBaseForAccount(accountId: string): Promise<string> {
+  const reg = await resolveMetaApiAccountRegion(accountId);
+  return clientBaseForRegion(reg);
 }
 
 export async function deployMetaApiAccount(accountId: string): Promise<void> {
@@ -176,6 +245,7 @@ export async function undeployMetaApiAccount(accountId: string): Promise<void> {
 }
 
 export async function deleteMetaApiAccount(accountId: string): Promise<void> {
+  accountRegionCache.delete(accountId);
   await metaApiFetch<unknown>(`${PROVISIONING_BASE}/users/current/accounts/${accountId}`, {
     method: "DELETE",
   });
@@ -204,8 +274,9 @@ export async function getMetaApiAccountInformationDetailed(
   accountId: string
 ): Promise<MetaApiFetchResult<MetaApiAccountInformation>> {
   try {
+    const base = await clientBaseForAccount(accountId);
     const data = await metaApiFetch<MetaApiAccountInformation>(
-      `${clientBase()}/users/current/accounts/${accountId}/account-information`,
+      `${base}/users/current/accounts/${accountId}/account-information`,
       { method: "GET" }
     );
     return { ok: true, data };
@@ -214,43 +285,56 @@ export async function getMetaApiAccountInformationDetailed(
   }
 }
 
-/** Deploy if needed and wait until MetaAPI reports the account is connected (or timeout). */
+/** Deploy if needed and wait until the cloud terminal reports connected (or timeout). */
 export async function ensureMetaApiAccountReady(
   accountId: string,
-  maxWaitMs = 20000
-): Promise<{ ready: boolean; state?: string; connectionStatus?: string; error?: string }> {
+  maxWaitMs = 45000
+): Promise<{ ready: boolean; state?: string; connectionStatus?: string; region?: string; error?: string }> {
   const started = Date.now();
   let lastState = "";
   let lastConn = "";
+  let lastRegion = "";
+  let deployAttempted = false;
   try {
     while (Date.now() - started < maxWaitMs) {
       const acc = await getMetaApiAccount(accountId);
       lastState = String(acc.state ?? "");
       lastConn = String(acc.connectionStatus ?? "");
+      lastRegion = typeof acc.region === "string" ? acc.region : lastRegion;
       const connected =
         lastConn === "CONNECTED" ||
         lastConn === "CONNECTED_TO_BROKER" ||
         lastConn.toUpperCase().includes("CONNECTED");
       if (lastState === "DEPLOYED" && connected) {
-        return { ready: true, state: lastState, connectionStatus: lastConn };
+        return { ready: true, state: lastState, connectionStatus: lastConn, region: lastRegion };
       }
-      if (lastState === "UNDEPLOYED" || lastState === "DEPLOY_FAILED") {
+      if (
+        !deployAttempted ||
+        lastState === "UNDEPLOYED" ||
+        lastState === "DEPLOY_FAILED" ||
+        (lastState === "DEPLOYED" && lastConn === "DISCONNECTED" && Date.now() - started > 8000)
+      ) {
+        deployAttempted = true;
         await deployMetaApiAccount(accountId).catch(() => {});
       }
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 2500));
     }
     return {
       ready: false,
       state: lastState,
       connectionStatus: lastConn,
-      error: `MetaAPI account not ready yet (state=${lastState || "?"}, connection=${lastConn || "?"}). Try Refresh again in a few seconds.`,
+      region: lastRegion,
+      error: toUserFacingForexBridgeError(
+        `undeployed connection=${lastConn || "?"} state=${lastState || "?"}`
+      ),
     };
   } catch (e) {
     return {
       ready: false,
       state: lastState,
       connectionStatus: lastConn,
-      error: e instanceof Error ? e.message : "Failed to check MetaAPI account status",
+      region: lastRegion,
+      error: toUserFacingForexBridgeError(e instanceof Error ? e.message : "Failed to check broker connection"),
     };
   }
 }
@@ -271,8 +355,9 @@ export type MetaApiPosition = {
 
 export async function getMetaApiPositions(accountId: string): Promise<MetaApiPosition[]> {
   try {
+    const base = await clientBaseForAccount(accountId);
     const res = await metaApiFetch<MetaApiPosition[]>(
-      `${clientBase()}/users/current/accounts/${accountId}/positions`,
+      `${base}/users/current/accounts/${accountId}/positions`,
       { method: "GET" }
     );
     return Array.isArray(res) ? res : [];
@@ -296,11 +381,11 @@ export type MetaApiOrder = {
   [key: string]: unknown;
 };
 
-/** Pending / working orders (limit, stop, etc.). */
 export async function getMetaApiOrders(accountId: string): Promise<MetaApiOrder[]> {
   try {
+    const base = await clientBaseForAccount(accountId);
     const res = await metaApiFetch<MetaApiOrder[]>(
-      `${clientBase()}/users/current/accounts/${accountId}/orders`,
+      `${base}/users/current/accounts/${accountId}/orders`,
       { method: "GET" }
     );
     return Array.isArray(res) ? res : [];
@@ -325,7 +410,6 @@ export type MetaApiDeal = {
   [key: string]: unknown;
 };
 
-/** History deals for a time window (ISO start inclusive, end exclusive). */
 export async function getMetaApiHistoryDeals(
   accountId: string,
   startTimeIso: string,
@@ -333,10 +417,11 @@ export async function getMetaApiHistoryDeals(
   limit = 500
 ): Promise<MetaApiDeal[]> {
   try {
+    const base = await clientBaseForAccount(accountId);
     const start = encodeURIComponent(startTimeIso);
     const end = encodeURIComponent(endTimeIso);
     const res = await metaApiFetch<MetaApiDeal[]>(
-      `${clientBase()}/users/current/accounts/${accountId}/history-deals/time/${start}/${end}?limit=${Math.min(1000, Math.max(1, limit))}`,
+      `${base}/users/current/accounts/${accountId}/history-deals/time/${start}/${end}?limit=${Math.min(1000, Math.max(1, limit))}`,
       { method: "GET" }
     );
     return Array.isArray(res) ? res : [];
@@ -345,7 +430,6 @@ export async function getMetaApiHistoryDeals(
   }
 }
 
-/** Pair IN/OUT deals into closed round-trips for records + share cards. */
 export function pairMetaApiClosedTrades(deals: MetaApiDeal[]): Array<{
   id: string;
   symbol: string;
@@ -413,14 +497,14 @@ export function pairMetaApiClosedTrades(deals: MetaApiDeal[]): Array<{
   return out.sort((a, b) => b.closedAt.localeCompare(a.closedAt));
 }
 
-/** Best-effort current bid/ask/last for a symbol. Returns null if unavailable. */
 export async function getMetaApiSymbolPrice(
   accountId: string,
   symbol: string
 ): Promise<{ bid: number; ask: number; last: number } | null> {
   try {
+    const base = await clientBaseForAccount(accountId);
     const res = await metaApiFetch<{ bid?: number; ask?: number }>(
-      `${clientBase()}/users/current/accounts/${accountId}/symbols/${encodeURIComponent(symbol)}/current-price`,
+      `${base}/users/current/accounts/${accountId}/symbols/${encodeURIComponent(symbol)}/current-price`,
       { method: "GET" }
     );
     const bid = res?.bid;
@@ -453,6 +537,7 @@ export async function placeMetaApiMarketOrder(
   input: PlaceMetaApiMarketOrderInput
 ): Promise<MetaApiTradeResult> {
   try {
+    const base = await clientBaseForAccount(input.accountId);
     const body = {
       actionType: input.side === "buy" ? "ORDER_TYPE_BUY" : "ORDER_TYPE_SELL",
       symbol: input.symbol,
@@ -467,16 +552,19 @@ export async function placeMetaApiMarketOrder(
       numericCode?: number;
       stringCode?: string;
       message?: string;
-    }>(`${clientBase()}/users/current/accounts/${input.accountId}/trade`, {
+    }>(`${base}/users/current/accounts/${input.accountId}/trade`, {
       method: "POST",
       body: JSON.stringify(body),
     });
     if (res?.stringCode && res.stringCode !== "TRADE_RETCODE_DONE" && !res.orderId && !res.positionId) {
-      return { ok: false, error: res.message || res.stringCode };
+      return { ok: false, error: toUserFacingForexBridgeError(res.message || res.stringCode) };
     }
     return { ok: true, orderId: res?.orderId, positionId: res?.positionId };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "MetaAPI order failed" };
+    return {
+      ok: false,
+      error: toUserFacingForexBridgeError(e instanceof Error ? e.message : "Order failed"),
+    };
   }
 }
 
@@ -485,8 +573,9 @@ export async function closeMetaApiPosition(input: {
   positionId: string;
 }): Promise<MetaApiTradeResult> {
   try {
+    const base = await clientBaseForAccount(input.accountId);
     const res = await metaApiFetch<{ orderId?: string; message?: string; stringCode?: string }>(
-      `${clientBase()}/users/current/accounts/${input.accountId}/trade`,
+      `${base}/users/current/accounts/${input.accountId}/trade`,
       {
         method: "POST",
         body: JSON.stringify({ actionType: "POSITION_CLOSE_ID", positionId: input.positionId }),
@@ -494,7 +583,10 @@ export async function closeMetaApiPosition(input: {
     );
     return { ok: true, orderId: res?.orderId };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "MetaAPI close failed" };
+    return {
+      ok: false,
+      error: toUserFacingForexBridgeError(e instanceof Error ? e.message : "Close failed"),
+    };
   }
 }
 

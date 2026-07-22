@@ -188,7 +188,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
         setBalances((prev) => ({ ...prev, [broker]: null }));
         setBalanceError((prev) => ({
           ...prev,
-          [broker]: data.accountError || data.error || "Balance unavailable — MetaAPI may still be connecting.",
+          [broker]: data.accountError || data.error || "Balance unavailable — broker link may still be connecting.",
         }));
       }
     } catch {
@@ -257,7 +257,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
         }
         if (Array.isArray(data.suggestedServers)) setSuggestedServers(data.suggestedServers);
         if (data.provisionFailed || data.warning) {
-          setError(data.warning ?? "Saved, but MetaAPI could not connect. Fix the server name and retry.");
+          setError(data.warning ?? "Saved, but could not link the broker yet. Fix the server name and retry.");
           setSuccess(null);
         } else {
           setSuccess(`${FOREX_BROKER_LABELS[activeBroker]} connected.`);
@@ -324,9 +324,9 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {needsReconnect && (
         <div className="sm:col-span-2 rounded-md border border-amber-300/70 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
-          <p className="font-medium">Saved, but not linked on MetaAPI yet</p>
+          <p className="font-medium">Saved, but not linked to your broker yet</p>
           <p>
-            MetaAPI needs the <span className="font-semibold">exact</span> server name from your MT4/MT5 terminal (e.g.{" "}
+            We need the <span className="font-semibold">exact</span> server name from your MT4/MT5 terminal (e.g.{" "}
             <span className="font-mono">TIOMarkets-Live1</span>). Fix the server below and retry — leave password blank to
             reuse your saved password.
           </p>
@@ -449,8 +449,8 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
         <CardTitle className="text-base font-semibold">Forex broker connection (MT4/MT5)</CardTitle>
         {!compact && (
           <p className="text-xs text-muted-foreground">
-            Connect your broker MT4/MT5 login so Nova Forex bots can trade on your account via MetaAPI. Credentials are
-            encrypted at rest. Available brokers are controlled by the site admin.
+            Connect your broker MT4/MT5 login so Nova Forex bots can trade on your account. Credentials are encrypted at
+            rest. Available brokers are controlled by the site admin.
           </p>
         )}
       </CardHeader>
@@ -483,8 +483,8 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
 
         {metaApiConfigured === false && (
           <p className="text-xs text-amber-700 dark:text-amber-300">
-            MetaAPI is not configured on the server (METAAPI_TOKEN). You can still save your login, but bots cannot trade
-            until the server admin sets it.
+            Broker trading is temporarily unavailable on the server. You can still save your login, but bots cannot trade
+            until support restores it.
           </p>
         )}
         {success && <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>}
@@ -503,7 +503,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
                 <span className="font-mono">{activeConnection!.server}</span> ({activeConnection!.platform.toUpperCase()})
               </p>
               {balanceLoading[activeBroker] ? (
-                <p className="text-xs text-muted-foreground">Loading balance (waiting for MetaAPI)…</p>
+                <p className="text-xs text-muted-foreground">Loading balance (waiting for broker link)…</p>
               ) : balance ? (
                 <p className="text-sm">
                   Balance{" "}
@@ -521,8 +521,8 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
                 </p>
               ) : (
                 <p className="text-xs text-amber-700 dark:text-amber-300">
-                  {balanceError[activeBroker] ?? "Balance unavailable right now."} Tap Refresh balance — MetaAPI often
-                  needs 10–30s after first connect.
+                  {balanceError[activeBroker] ?? "Balance unavailable right now."} Tap Refresh balance — the first
+                  connect often needs 20–30 seconds.
                 </p>
               )}
               <label className="flex items-center gap-2 text-xs pt-1">

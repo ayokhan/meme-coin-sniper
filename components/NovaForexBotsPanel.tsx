@@ -58,9 +58,9 @@ export default function NovaForexBotsPanel({ novaForexBot, novaForexScalpBot }: 
           Nova Forex Bots
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Trade forex, metals, and indices on your own <strong className="text-foreground">Vantage Markets</strong> or{" "}
-          <strong className="text-foreground">TIOmarkets</strong> MT4/MT5 account via MetaAPI. VIP only — same Off / Owner
-          only / All VIP flags as in Admin → Feature flags.
+          Trade forex, metals, and indices on your own <strong className="text-foreground">Vantage Markets</strong>,{" "}
+          <strong className="text-foreground">TIOmarkets</strong>, or <strong className="text-foreground">Assexmarkets</strong>{" "}
+          MT4/MT5 account. VIP only — same Off / Owner only / All VIP flags as in Admin → Feature flags.
         </p>
       </div>
 

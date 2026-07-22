@@ -326,7 +326,7 @@ export default function NovaForexScalperPanel() {
     <div className="space-y-6 max-w-2xl">
       <p className="text-sm text-muted-foreground">
         <strong className="text-emerald-600 dark:text-emerald-400">Nova Forex Scalper</strong> repeats{" "}
-        <strong>enter → exit</strong> on your MT4/MT5 account (via MetaAPI) using your prices. Use{" "}
+        <strong>enter → exit</strong> on your MT4/MT5 account using your prices. Use{" "}
         <strong className="text-foreground">Config 1, Config 2, …</strong> to run{" "}
         <strong className="text-foreground">different symbols in parallel</strong>.
       </p>

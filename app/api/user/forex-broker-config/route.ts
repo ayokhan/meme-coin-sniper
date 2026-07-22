@@ -21,6 +21,7 @@ import {
   flattenKnownServerSuggestions,
   isMetaApiConfigured,
   searchKnownMtServers,
+  toUserFacingForexBridgeError,
 } from "@/lib/metaapi";
 
 export const dynamic = "force-dynamic";
@@ -146,14 +147,15 @@ export async function POST(request: Request) {
         });
         metaApiAccountId = account.id;
         await deployMetaApiAccount(account.id).catch((e) => {
-          warning = `Account created but deploy failed: ${e instanceof Error ? e.message : "unknown error"}. It will retry on next connection.`;
+          warning = toUserFacingForexBridgeError(
+            `Account created but deploy failed: ${e instanceof Error ? e.message : "unknown error"}`
+          );
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "unknown error";
-        warning = `Saved your login, but MetaAPI provisioning failed: ${msg}. Check login/password/server and try again.`;
+        warning = toUserFacingForexBridgeError(msg);
         const known = await searchKnownMtServers(platform, metaApiServerSearchQuery(broker));
         suggestedServers = flattenKnownServerSuggestions(known);
-        // Also parse "Suggested server names: A, B.." from MetaAPI error text
         const m = msg.match(/Suggested server names:\s*([^.]+)/i);
         if (m?.[1]) {
           for (const part of m[1].split(/,\s*/)) {
@@ -163,7 +165,7 @@ export async function POST(request: Request) {
         }
       }
     } else if (provision && !isMetaApiConfigured()) {
-      warning = "Saved your login. MetaAPI is not configured on the server yet (METAAPI_TOKEN) — bots cannot trade until it is.";
+      warning = "Saved your login. Broker trading is temporarily unavailable — contact support if this continues.";
     }
 
     await saveForexBrokerConfigForUser(session.user.id, {

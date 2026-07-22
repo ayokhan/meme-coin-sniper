@@ -175,7 +175,7 @@ export default function NovaForexBotPanel() {
     <div className="space-y-6 max-w-3xl">
       <p className="text-sm text-muted-foreground">
         <strong className="text-emerald-600 dark:text-emerald-400">Nova Forex Bot</strong> runs a simple{" "}
-        <strong>MA crossover</strong> strategy on your connected MT4/MT5 account (Vantage or TIOmarkets, via MetaAPI).
+        <strong>MA crossover</strong> strategy on your connected MT4/MT5 account (Vantage, TIOmarkets, or Assexmarkets).
         It opens or flips a position on a fast/slow moving-average crossover, sized by lot size, with optional
         TP/SL from pips.
       </p>

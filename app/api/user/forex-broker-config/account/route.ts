@@ -10,6 +10,7 @@ import {
   getMetaApiPositions,
   isMetaApiConfigured,
   pairMetaApiClosedTrades,
+  toUserFacingForexBridgeError,
 } from "@/lib/metaapi";
 
 export const dynamic = "force-dynamic";
@@ -85,8 +86,8 @@ export async function GET(request: Request) {
         orders: [],
         closedTrades: [],
         accountError: !isMetaApiConfigured()
-          ? "METAAPI_TOKEN is not configured on the server."
-          : "Broker login is saved but not provisioned on MetaAPI yet.",
+          ? "Broker trading is temporarily unavailable. Please try again later."
+          : "Your broker login is saved but not linked yet. Use Retry / Connect below.",
       });
     }
 
@@ -126,9 +127,11 @@ export async function GET(request: Request) {
         : null,
       accountError: infoRes.ok
         ? null
-        : infoRes.error ||
-          readiness?.error ||
-          "Could not load balance from MetaAPI yet. Tap Refresh in a few seconds.",
+        : toUserFacingForexBridgeError(
+            infoRes.error ||
+              readiness?.error ||
+              "Could not load balance yet. Tap Refresh in a few seconds."
+          ),
       positions: positions.map((p) => ({
         id: p.id,
         symbol: p.symbol,
