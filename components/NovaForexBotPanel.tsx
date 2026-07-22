@@ -86,6 +86,19 @@ export default function NovaForexBotPanel() {
     void load();
   }, [load]);
 
+  const connectedBrokers = connections.filter((c) => c.connected).map((c) => c.broker);
+  const connectedBrokersKey = connectedBrokers.join(",");
+
+  // Prefer a connected broker in settings if current selection isn't connected
+  useEffect(() => {
+    if (!config) return;
+    if (connectedBrokers.includes(config.broker)) return;
+    if (connectedBrokers.length === 0) return;
+    const next = connectedBrokers[0];
+    setConfig((c) => (c && c.broker !== next ? { ...c, broker: next } : c));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- connectedBrokersKey tracks list
+  }, [config?.broker, connectedBrokersKey]);
+
   const setField = <K extends keyof BotConfig>(key: K, value: BotConfig[K]) => {
     setConfig((c) => (c ? { ...c, [key]: value } : c));
   };
@@ -158,10 +171,8 @@ export default function NovaForexBotPanel() {
     );
   }
 
-  const connectedBrokers = connections.filter((c) => c.connected).map((c) => c.broker);
-
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-3xl">
       <p className="text-sm text-muted-foreground">
         <strong className="text-emerald-600 dark:text-emerald-400">Nova Forex Bot</strong> runs a simple{" "}
         <strong>MA crossover</strong> strategy on your connected MT4/MT5 account (Vantage or TIOmarkets, via MetaAPI).
@@ -255,6 +266,9 @@ export default function NovaForexBotPanel() {
                   </option>
                 ))}
               </datalist>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Type any symbol your broker offers (e.g. EURUSD, XAUUSD, NAS100). It must match the MT symbol name exactly.
+              </p>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Timeframe</label>
@@ -372,15 +386,38 @@ export default function NovaForexBotPanel() {
               >
                 {config.mode}
               </span>
+              {config.inPosition && config.positionSide && (
+                <span
+                  className={
+                    config.positionSide === "long"
+                      ? "rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
+                      : "rounded-full bg-rose-500/15 text-rose-800 dark:text-rose-200 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
+                  }
+                >
+                  {config.positionSide}
+                </span>
+              )}
             </div>
           </div>
         </CardHeader>
         <CardContent className="pt-4 space-y-3 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="text-[11px] text-muted-foreground">
+            <strong className="text-foreground">Idle / Armed</strong> = bot switch.{" "}
+            <strong className="text-foreground">Demo / Live</strong> = your preference label (use Demo mode on the
+            broker connect for a demo MT login). <strong className="text-foreground">Long / Short</strong> appears when
+            the bot holds a position.
+          </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/70 bg-white/70 dark:bg-zinc-950/50 px-3 py-2.5">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">In position</p>
               <p className="mt-0.5 font-semibold text-foreground">
-                {config.inPosition ? `Yes · ${config.positionSide ?? "—"}` : "No"}
+                {config.inPosition ? (
+                  <span className={config.positionSide === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                    Yes · {(config.positionSide ?? "—").toUpperCase()}
+                  </span>
+                ) : (
+                  "No"
+                )}
               </p>
             </div>
             <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/70 bg-white/70 dark:bg-zinc-950/50 px-3 py-2.5">

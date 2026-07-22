@@ -11,6 +11,7 @@ import {
 } from "@/lib/forex-broker-user-config";
 import { suggestedServersForBroker } from "@/lib/forex-broker-servers";
 import { ForexBrokerPartnerPromoBanner } from "@/components/ForexBrokerPartnerPromoBanner";
+import ForexBrokerAccountPanel from "@/components/ForexBrokerAccountPanel";
 
 type Connection = {
   broker: ForexBrokerId;
@@ -87,8 +88,9 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
     server: "",
     demoMode: true,
   });
-  const [balances, setBalances] = useState<Record<string, { balance: number; equity: number; currency: string } | null>>({});
+  const [balances, setBalances] = useState<Record<string, { balance: number; equity: number; currency: string; leverage?: number } | null>>({});
   const [balanceLoading, setBalanceLoading] = useState<Record<string, boolean>>({});
+  const [balanceError, setBalanceError] = useState<Record<string, string | null>>({});
 
   const brokerTabs = useMemo(
     () => FOREX_BROKER_IDS.filter((b) => enabledBrokers.includes(b)),
@@ -165,8 +167,9 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
 
   const fetchBalance = useCallback(async (broker: ForexBrokerId) => {
     setBalanceLoading((prev) => ({ ...prev, [broker]: true }));
+    setBalanceError((prev) => ({ ...prev, [broker]: null }));
     try {
-      const res = await fetch(`/api/user/forex-broker-config/account?broker=${broker}`, {
+      const res = await fetch(`/api/user/forex-broker-config/account?broker=${broker}&period=7d&wait=1`, {
         credentials: "include",
         cache: "no-store",
       });
@@ -174,13 +177,23 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       if (data.success && data.account) {
         setBalances((prev) => ({
           ...prev,
-          [broker]: { balance: data.account.balance, equity: data.account.equity, currency: data.account.currency },
+          [broker]: {
+            balance: data.account.balance,
+            equity: data.account.equity,
+            currency: data.account.currency,
+            leverage: data.account.leverage,
+          },
         }));
       } else {
         setBalances((prev) => ({ ...prev, [broker]: null }));
+        setBalanceError((prev) => ({
+          ...prev,
+          [broker]: data.accountError || data.error || "Balance unavailable — MetaAPI may still be connecting.",
+        }));
       }
     } catch {
       setBalances((prev) => ({ ...prev, [broker]: null }));
+      setBalanceError((prev) => ({ ...prev, [broker]: "Network error loading balance." }));
     } finally {
       setBalanceLoading((prev) => ({ ...prev, [broker]: false }));
     }
@@ -490,7 +503,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
                 <span className="font-mono">{activeConnection!.server}</span> ({activeConnection!.platform.toUpperCase()})
               </p>
               {balanceLoading[activeBroker] ? (
-                <p className="text-xs text-muted-foreground">Loading balance…</p>
+                <p className="text-xs text-muted-foreground">Loading balance (waiting for MetaAPI)…</p>
               ) : balance ? (
                 <p className="text-sm">
                   Balance{" "}
@@ -499,9 +512,18 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
                   </span>{" "}
                   · Equity{" "}
                   <span className="font-mono">{balance.equity.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  {balance.leverage ? (
+                    <>
+                      {" "}
+                      · Leverage <span className="font-mono">1:{balance.leverage}</span>
+                    </>
+                  ) : null}
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">Balance unavailable right now.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  {balanceError[activeBroker] ?? "Balance unavailable right now."} Tap Refresh balance — MetaAPI often
+                  needs 10–30s after first connect.
+                </p>
               )}
               <label className="flex items-center gap-2 text-xs pt-1">
                 <input
@@ -520,6 +542,13 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
                 Refresh balance
               </Button>
             </div>
+            {activeConnection.connected && (
+              <ForexBrokerAccountPanel
+                broker={activeBroker}
+                connected
+                demoMode={activeConnection.demoMode}
+              />
+            )}
           </div>
         )}
       </CardContent>
