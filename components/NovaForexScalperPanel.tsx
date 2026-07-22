@@ -50,9 +50,11 @@ export default function NovaForexScalperPanel() {
   const [success, setSuccess] = useState<string | null>(null);
   const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
   const prefillAppliedRef = useRef(false);
-  /** Plan sizing from Scalp Agent (UI only — trade still uses lotSize). */
+  /** Margin from Scalp plan (editable for sizing). */
   const [planMarginUsd, setPlanMarginUsd] = useState(10);
-  const [planLeverage, setPlanLeverage] = useState(20);
+  /** Leverage from connected MT account (read-only). null = not loaded yet. */
+  const [accountLeverage, setAccountLeverage] = useState<number | null>(null);
+  const [leverageLoading, setLeverageLoading] = useState(false);
   const [autoSec, setAutoSec] = useState<0 | 15 | 30 | 60>(0);
   const [connections, setConnections] = useState<{ broker: ForexBrokerId; connected: boolean }[]>([]);
   const [enabledBrokers, setEnabledBrokers] = useState<ForexBrokerId[]>([...FOREX_BROKER_IDS]);
@@ -118,12 +120,9 @@ export default function NovaForexScalperPanel() {
       prefill.marginUsd != null && Number.isFinite(prefill.marginUsd) && prefill.marginUsd > 0
         ? prefill.marginUsd
         : 10;
-    const leverage =
-      prefill.leverage != null && Number.isFinite(prefill.leverage) && prefill.leverage > 0
-        ? prefill.leverage
-        : 20;
     setPlanMarginUsd(marginUsd);
-    setPlanLeverage(leverage);
+    const levForLots =
+      accountLeverage && accountLeverage > 0 ? accountLeverage : Math.max(1, Number(prefill.leverage) || 20);
     const lotFromPlan =
       Number.isFinite(prefill.lotSize) && prefill.lotSize > 0
         ? prefill.lotSize
@@ -131,7 +130,7 @@ export default function NovaForexScalperPanel() {
             symbol: prefill.symbol,
             entryPrice: prefill.entryPrice,
             marginUsd,
-            leverage,
+            leverage: levForLots,
           });
     setConfigs((list) =>
       list.map((c) =>
@@ -151,10 +150,63 @@ export default function NovaForexScalperPanel() {
       )
     );
     setPrefillNotice(
-      `Loaded ${prefill.side.toUpperCase()} ${prefill.symbol} from ${prefill.source} · $${marginUsd} margin · ${leverage}x → ~${lotFromPlan} lots. Review below, then Save.`
+      `Loaded ${prefill.side.toUpperCase()} ${prefill.symbol} from ${prefill.source} · $${marginUsd} margin → ~${lotFromPlan} lots. Review below, then Save.`
     );
     clearNovaForexScalperPrefill();
   }, [loading, activeConfigId, configs.length]);
+
+  const activeConfig = configs.find((c) => c.id === activeConfigId) ?? null;
+  const sizingLeverage = accountLeverage && accountLeverage > 0 ? accountLeverage : 20;
+
+  /** Load account leverage from the selected connected broker (MT5 — read-only). */
+  useEffect(() => {
+    if (!activeConfig?.broker) {
+      setAccountLeverage(null);
+      return;
+    }
+    const connected = connections.some((c) => c.broker === activeConfig.broker && c.connected);
+    if (!connected) {
+      setAccountLeverage(null);
+      return;
+    }
+    let cancelled = false;
+    setLeverageLoading(true);
+    fetch(`/api/user/forex-broker-config/account?broker=${activeConfig.broker}&period=1d&wait=1`, {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const lev = data?.account?.leverage;
+        setAccountLeverage(typeof lev === "number" && lev > 0 ? lev : null);
+      })
+      .catch(() => {
+        if (!cancelled) setAccountLeverage(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLeverageLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeConfig?.broker, connections]);
+
+  /** When MT leverage arrives, re-estimate lots from current margin (does not change MT leverage). */
+  useEffect(() => {
+    if (!activeConfig || !accountLeverage || accountLeverage <= 0) return;
+    const nextLots = estimateForexLotsFromMargin({
+      symbol: activeConfig.symbol,
+      entryPrice: activeConfig.entryPrice,
+      marginUsd: planMarginUsd,
+      leverage: accountLeverage,
+    });
+    if (Math.abs(nextLots - activeConfig.lotSize) < 0.001) return;
+    setConfigs((list) =>
+      list.map((c) => (c.id === activeConfig.id ? { ...c, lotSize: nextLots } : c))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when leverage / margin / symbol / entry change
+  }, [accountLeverage, planMarginUsd, activeConfig?.id, activeConfig?.symbol, activeConfig?.entryPrice]);
 
   /** Sync when returning to the tab. */
   useEffect(() => {
@@ -581,7 +633,7 @@ export default function NovaForexScalperPanel() {
                       symbol: config.symbol,
                       entryPrice: config.entryPrice,
                       marginUsd,
-                      leverage: planLeverage,
+                      leverage: sizingLeverage,
                     })
                   );
                 }}
@@ -590,33 +642,21 @@ export default function NovaForexScalperPanel() {
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-                Leverage (plan)
+                Account leverage
               </label>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={planLeverage}
-                onChange={(e) => {
-                  const leverage = Math.max(1, parseInt(e.target.value, 10) || 1);
-                  setPlanLeverage(leverage);
-                  setField(
-                    "lotSize",
-                    estimateForexLotsFromMargin({
-                      symbol: config.symbol,
-                      entryPrice: config.entryPrice,
-                      marginUsd: planMarginUsd,
-                      leverage,
-                    })
-                  );
-                }}
-                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
-              />
+              <div className="w-full rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2 py-1.5 text-sm font-mono">
+                {leverageLoading
+                  ? "…"
+                  : accountLeverage
+                    ? `1:${accountLeverage}`
+                    : "— (connect broker above)"}
+              </div>
             </div>
           </div>
           <p className="text-[11px] text-muted-foreground -mt-2">
-            From your Scalp plan. Changing margin or leverage re-estimates <strong className="text-foreground">lot size</strong>{" "}
-            below. Actual account leverage is set in MT5 — this is for sizing only.
+            Margin is from your Scalp plan (edit to re-size lots).{" "}
+            <strong className="text-foreground">Leverage comes from your MT5 account</strong> and cannot be changed in
+            NovaStaris — set it in MetaTrader or your broker portal, then refresh the connection.
           </p>
 
           <div className="grid grid-cols-2 gap-3">
