@@ -80,6 +80,7 @@ export async function PATCH(request: Request) {
       await setSiteAnnouncementBanner({
         ...FOREX_BROKER_LAUNCH_BANNER[broker],
         showPartnerLogos: promo.includeLogosInBroadcast,
+        partnerBrand: broker,
       });
       return NextResponse.json({ success: true, promo, broadcastPublished: true });
     }

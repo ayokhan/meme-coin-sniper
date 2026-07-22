@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { normalizePartnerBrand, type PartnerBrand } from "@/lib/partner-brand";
 
 export const SITE_ANNOUNCEMENT_ID = "default";
 
@@ -9,6 +10,8 @@ export type SiteAnnouncementBannerConfig = {
   ctaLabel: string;
   ctaHref: string;
   showPartnerLogos: boolean;
+  /** Which partner logo to show when showPartnerLogos is true. */
+  partnerBrand: PartnerBrand;
 };
 
 export type SiteAnnouncementBannerAdmin = SiteAnnouncementBannerConfig & {
@@ -23,6 +26,7 @@ export const DEFAULT_SITE_ANNOUNCEMENT: SiteAnnouncementBannerConfig = {
   ctaLabel: "",
   ctaHref: "",
   showPartnerLogos: false,
+  partnerBrand: "blofin",
 };
 
 type Row = SiteAnnouncementBannerConfig & { updatedAt?: Date };
@@ -50,6 +54,7 @@ function normalize(row: Partial<Row>): SiteAnnouncementBannerConfig {
     ctaLabel: (row.ctaLabel ?? d.ctaLabel).trim(),
     ctaHref: (row.ctaHref ?? d.ctaHref).trim(),
     showPartnerLogos: row.showPartnerLogos ?? d.showPartnerLogos,
+    partnerBrand: normalizePartnerBrand(row.partnerBrand ?? d.partnerBrand),
   };
 }
 
@@ -78,6 +83,7 @@ export async function setSiteAnnouncementBanner(
     ctaLabel: patch.ctaLabel ?? current.ctaLabel,
     ctaHref: patch.ctaHref ?? current.ctaHref,
     showPartnerLogos: patch.showPartnerLogos ?? current.showPartnerLogos,
+    partnerBrand: patch.partnerBrand ?? current.partnerBrand,
   });
   await bannerDb.upsert({
     where: { id: SITE_ANNOUNCEMENT_ID },

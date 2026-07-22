@@ -149,6 +149,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     body: "",
     audience: "newsletter" as "newsletter" | "all",
     includePartnerLogos: false,
+    partnerBrand: "blofin" as "blofin" | "vantage" | "tiomarkets",
   });
   const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
   const [emailAddInput, setEmailAddInput] = useState("");
@@ -524,6 +525,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
           body: emailDraft.body,
           audience: emailDraft.audience,
           includePartnerLogos: emailDraft.includePartnerLogos,
+          partnerBrand: emailDraft.partnerBrand,
           recipients: emailRecipients,
           confirm: true,
         }),
@@ -1193,6 +1195,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                       body: BLOFIN_PARTNERSHIP_EMAIL.body,
                       audience: "all",
                       includePartnerLogos: blofinPartnerDraft.includeLogosInEmail,
+                      partnerBrand: "blofin",
                     });
                   }}
                 >
@@ -1247,13 +1250,25 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       <ForexBrokerPartnerSection
         broker="vantage"
         onLoadEmailTemplate={(subject, body, includeLogos) =>
-          setEmailDraft({ subject, body, audience: "all", includePartnerLogos: includeLogos })
+          setEmailDraft({
+            subject,
+            body,
+            audience: "all",
+            includePartnerLogos: includeLogos,
+            partnerBrand: "vantage",
+          })
         }
       />
       <ForexBrokerPartnerSection
         broker="tiomarkets"
         onLoadEmailTemplate={(subject, body, includeLogos) =>
-          setEmailDraft({ subject, body, audience: "all", includePartnerLogos: includeLogos })
+          setEmailDraft({
+            subject,
+            body,
+            audience: "all",
+            includePartnerLogos: includeLogos,
+            partnerBrand: "tiomarkets",
+          })
         }
       />
 
@@ -1410,8 +1425,27 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
               checked={emailDraft.includePartnerLogos}
               onChange={(e) => setEmailDraft((d) => ({ ...d, includePartnerLogos: e.target.checked }))}
             />
-            Include NovaStaris × Blofin logos at top of email
+            Include NovaStaris × partner logos at top of email
           </label>
+          {emailDraft.includePartnerLogos && (
+            <label className="text-xs text-muted-foreground flex flex-col gap-1 min-w-[180px]">
+              Partner logo
+              <select
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                value={emailDraft.partnerBrand}
+                onChange={(e) =>
+                  setEmailDraft((d) => ({
+                    ...d,
+                    partnerBrand: e.target.value as "blofin" | "vantage" | "tiomarkets",
+                  }))
+                }
+              >
+                <option value="blofin">Blofin</option>
+                <option value="vantage">Vantage Markets</option>
+                <option value="tiomarkets">TIOmarkets</option>
+              </select>
+            </label>
+          )}
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">

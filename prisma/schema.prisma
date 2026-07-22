@@ -427,6 +427,8 @@ model SiteAnnouncementBanner {
   ctaLabel         String   @default("")
   ctaHref          String   @default("")
   showPartnerLogos Boolean  @default(false)
+  /** When showPartnerLogos: blofin | vantage | tiomarkets (which logo sits next to NovaStaris). */
+  partnerBrand     String   @default("blofin")
   updatedAt        DateTime @updatedAt
 }
 

@@ -84,6 +84,8 @@ export async function sendAnnouncementEmails(args: {
   audience?: AnnouncementAudience;
   recipients?: string[];
   includePartnerLogos?: boolean;
+  /** When includePartnerLogos: which logo (default Blofin). */
+  partnerBrand?: "blofin" | "vantage" | "tiomarkets";
 }): Promise<{ sent: number; failed: number; total: number; errors: string[] }> {
   const subject = args.subject.trim();
   const body = args.body.trim();
@@ -101,7 +103,7 @@ export async function sendAnnouncementEmails(args: {
   if (recipients.length === 0) throw new Error("No valid recipient emails.");
 
   const html = [
-    args.includePartnerLogos ? partnerLogosEmailHtml() : "",
+    args.includePartnerLogos ? partnerLogosEmailHtml(args.partnerBrand ?? "blofin") : "",
     `<p>${announcementBodyToHtml(body)}</p>`,
     `<p style="margin-top:24px;font-size:12px;color:#666;">You received this from NovaStaris. Manage newsletter preferences in your account settings.</p>`,
     `<p style="font-size:12px;color:#666;"><a href="https://novastaris.ai/account">novastaris.ai/account</a></p>`,

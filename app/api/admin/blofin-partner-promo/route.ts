@@ -50,6 +50,7 @@ export async function PATCH(request: Request) {
       await setSiteAnnouncementBanner({
         ...BLOFIN_PARTNERSHIP_LAUNCH_BANNER,
         showPartnerLogos: promo.includeLogosInBroadcast,
+        partnerBrand: "blofin",
       });
       return NextResponse.json({ success: true, promo, broadcastPublished: true });
     }

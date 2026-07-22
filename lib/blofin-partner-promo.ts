@@ -44,6 +44,7 @@ export const BLOFIN_PARTNERSHIP_LAUNCH_BANNER: SiteAnnouncementBannerConfig = {
   ctaLabel: "Open Trading Bot",
   ctaHref: "/?tab=trading-bot",
   showPartnerLogos: true,
+  partnerBrand: "blofin",
 };
 
 /** Suggested customer email copy (Admin → Banners → Email). */

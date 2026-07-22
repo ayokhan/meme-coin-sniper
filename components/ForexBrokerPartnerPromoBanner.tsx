@@ -50,7 +50,7 @@ export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact 
     <div
       className={`rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/40 via-zinc-950/80 to-cyan-950/30 p-4 ${className}`}
     >
-      {showLogos && <PartnerLogosStrip className="mb-3" />}
+      {showLogos && <PartnerLogosStrip className="mb-3" partner={broker} />}
       <div className={compact ? "space-y-2" : "space-y-3"}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>

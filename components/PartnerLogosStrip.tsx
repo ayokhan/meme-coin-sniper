@@ -1,15 +1,39 @@
 import Image from "next/image";
+import type { PartnerBrand } from "@/lib/partner-brand";
+
+export type { PartnerBrand };
 
 type Props = {
   className?: string;
   size?: "sm" | "md";
   /** Light parent background (e.g. in-app modal on white). */
   onLightBackground?: boolean;
+  /** Which broker/exchange logo to show next to NovaStaris. Default: Blofin. */
+  partner?: PartnerBrand;
 };
 
-export function PartnerLogosStrip({ className = "", size = "md", onLightBackground = false }: Props) {
+const PARTNER_ALT: Record<PartnerBrand, string> = {
+  blofin: "Blofin",
+  vantage: "Vantage",
+  tiomarkets: "TIOmarkets",
+};
+
+function partnerSrc(partner: PartnerBrand, onLightBackground: boolean): string {
+  if (partner === "vantage") return "/partners/vantage-logo.png";
+  if (partner === "tiomarkets") return "/partners/tiomarkets-logo.png";
+  return onLightBackground ? "/partners/blofin-logo-dark.png" : "/partners/blofin-logo-light.png";
+}
+
+export function PartnerLogosStrip({
+  className = "",
+  size = "md",
+  onLightBackground = false,
+  partner = "blofin",
+}: Props) {
   const h = size === "sm" ? "h-6" : "h-8";
-  const blofinSrc = onLightBackground ? "/partners/blofin-logo-dark.png" : "/partners/blofin-logo-light.png";
+  const partnerImage = partnerSrc(partner, onLightBackground);
+  /** TIOmarkets logo ships on black; keep a dark chip so orange wordmark stays readable on light modals. */
+  const partnerNeedsDarkChip = partner === "tiomarkets" && onLightBackground;
 
   return (
     <div
@@ -35,14 +59,22 @@ export function PartnerLogosStrip({ className = "", size = "md", onLightBackgrou
       >
         ×
       </span>
-      <Image
-        src={blofinSrc}
-        alt="Blofin"
-        width={140}
-        height={40}
-        className={`${h} w-auto object-contain`}
-        priority
-      />
+      <span
+        className={
+          partnerNeedsDarkChip
+            ? "inline-flex items-center rounded-md bg-zinc-950 px-2 py-1"
+            : "inline-flex items-center"
+        }
+      >
+        <Image
+          src={partnerImage}
+          alt={PARTNER_ALT[partner]}
+          width={partner === "vantage" ? 160 : 140}
+          height={40}
+          className={`${h} w-auto object-contain`}
+          priority
+        />
+      </span>
     </div>
   );
 }

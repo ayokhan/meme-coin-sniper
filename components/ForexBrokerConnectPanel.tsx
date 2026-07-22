@@ -8,7 +8,7 @@ import { suggestedServersForBroker } from "@/lib/forex-broker-servers";
 import { ForexBrokerPartnerPromoBanner } from "@/components/ForexBrokerPartnerPromoBanner";
 
 const BROKER_LABEL: Record<ForexBrokerId, string> = {
-  vantage: "Vantage",
+  vantage: "Vantage Markets",
   tiomarkets: "TIOmarkets",
 };
 

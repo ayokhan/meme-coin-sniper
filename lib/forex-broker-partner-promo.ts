@@ -26,7 +26,7 @@ export type ForexBrokerPartnerPromoAdmin = ForexBrokerPartnerPromoConfig & {
 };
 
 const BROKER_LABEL: Record<ForexBrokerId, string> = {
-  vantage: "Vantage",
+  vantage: "Vantage Markets",
   tiomarkets: "TIOmarkets",
 };
 
@@ -35,11 +35,11 @@ export const DEFAULT_FOREX_BROKER_PARTNER_PROMO: Record<ForexBrokerId, ForexBrok
   vantage: {
     enabled: false,
     registerUrl: "",
-    headline: "Trade Forex & CFDs on Vantage with NovaStaris",
+    headline: "Trade Forex & CFDs on Vantage Markets with NovaStaris",
     bodyText:
-      "Register with Vantage through NovaStaris and connect your MT4/MT5 account to run Nova Forex Bot and Nova Forex Scalper on your own trades.",
+      "Register with Vantage Markets through NovaStaris and connect your MT4/MT5 account to run Nova Forex Bot and Nova Forex Scalper on your own trades.",
     promoLabel: "NovaStaris partner offer",
-    ctaLabel: "Register on Vantage",
+    ctaLabel: "Register on Vantage Markets",
     showLogosInBanner: true,
     includeLogosInEmail: true,
     includeLogosInBroadcast: true,
@@ -61,30 +61,32 @@ export const DEFAULT_FOREX_BROKER_PARTNER_PROMO: Record<ForexBrokerId, ForexBrok
 /** Site announcement presets for forex broker partnership launches (Admin → Banners). Fill in registerUrl before enabling. */
 export const FOREX_BROKER_LAUNCH_BANNER: Record<ForexBrokerId, SiteAnnouncementBannerConfig> = {
   vantage: {
-    enabled: false,
-    title: "NovaStaris × Vantage — forex trading is here",
-    body: "Register on Vantage through NovaStaris and connect your MT4/MT5 account to trade with Nova Forex Bot and Nova Forex Scalper.",
+    enabled: true,
+    title: "NovaStaris × Vantage Markets — forex trading is here",
+    body: "Register on Vantage Markets through NovaStaris and connect your MT4/MT5 account to trade with Nova Forex Bot and Nova Forex Scalper.",
     ctaLabel: "Open Nova Forex",
     ctaHref: "/?tab=nova-forex",
     showPartnerLogos: true,
+    partnerBrand: "vantage",
   },
   tiomarkets: {
-    enabled: false,
+    enabled: true,
     title: "NovaStaris × TIOmarkets — forex trading is here",
     body: "Register on TIOmarkets through NovaStaris and connect your MT4/MT5 account to trade with Nova Forex Bot and Nova Forex Scalper.",
     ctaLabel: "Open Nova Forex",
     ctaHref: "/?tab=nova-forex",
     showPartnerLogos: true,
+    partnerBrand: "tiomarkets",
   },
 };
 
 /** Suggested customer email copy per broker (Admin → Banners → Email). Fill in the referral link before sending. */
 export const FOREX_PARTNERSHIP_EMAIL: Record<ForexBrokerId, { subject: string; body: string }> = {
   vantage: {
-    subject: "NovaStaris × Vantage — trade forex with your MT4/MT5 account",
+    subject: "NovaStaris × Vantage Markets — trade forex with your MT4/MT5 account",
     body: `Hi there,
 
-We partnered with Vantage so NovaStaris members can trade forex, metals, and indices — and connect MT4/MT5 directly to our Nova Forex Bot and Nova Forex Scalper.
+We partnered with Vantage Markets so NovaStaris members can trade forex, metals, and indices — and connect MT4/MT5 directly to our Nova Forex Bot and Nova Forex Scalper.
 
 Register through our partner link, then link your MT4/MT5 login in NovaStaris to start trading with AI on your account.
 

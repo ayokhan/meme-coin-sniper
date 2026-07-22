@@ -824,6 +824,57 @@ export default function AdminFeatureFlagsPage() {
     }
   };
 
+  /** Off | Owner only (test) | All VIP — for Nova Forex bots. VIP-only features; never free users. */
+  type ForexAudience = "off" | "owner" | "vip";
+  const forexAudienceFromFlags = (masterKey: string, ownerOnlyKey: string): ForexAudience => {
+    if (!flags[masterKey]) return "off";
+    if (flags[ownerOnlyKey]) return "owner";
+    return "vip";
+  };
+  const setForexAudience = async (masterKey: string, ownerOnlyKey: string, audience: ForexAudience) => {
+    setToggling(masterKey);
+    setError("");
+    setSuccessMessage("");
+    const updates =
+      audience === "off"
+        ? [
+            { key: masterKey, enabled: false },
+            { key: ownerOnlyKey, enabled: true },
+          ]
+        : audience === "owner"
+          ? [
+              { key: masterKey, enabled: true },
+              { key: ownerOnlyKey, enabled: true },
+            ]
+          : [
+              { key: masterKey, enabled: true },
+              { key: ownerOnlyKey, enabled: false },
+            ];
+    try {
+      const res = await fetch("/api/admin/feature-flags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFlags(data.flags ?? {});
+        setSuccessMessage(
+          audience === "off"
+            ? "Turned off for everyone."
+            : audience === "owner"
+              ? "Owner-only testing ON (VIP users cannot see it yet)."
+              : "Enabled for all VIP users."
+        );
+        setTimeout(() => setSuccessMessage(""), 5000);
+      } else setError(data.error ?? "Update failed");
+    } catch {
+      setError("Update failed");
+    } finally {
+      setToggling(null);
+    }
+  };
+
   const isOwner = (session?.user as { isOwner?: boolean })?.isOwner ?? false;
 
   if (status === "loading" || !session) {
@@ -1173,6 +1224,110 @@ export default function AdminFeatureFlagsPage() {
                       {group.title}
                       <span className="text-xs font-normal text-muted-foreground">{group.entries.length} flags</span>
                     </summary>
+                    {group.id === "nova-forex-bots" ? (
+                      <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                        <p className="text-xs text-muted-foreground">
+                          Forex bots are <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong>. Use{" "}
+                          <strong className="text-zinc-800 dark:text-zinc-200">Owner only</strong> while you test, then switch to{" "}
+                          <strong className="text-zinc-800 dark:text-zinc-200">All VIP</strong> when ready. Free users never see these.
+                        </p>
+                        {(
+                          [
+                            {
+                              title: "Nova Forex Bot",
+                              master: "nova_forex_bot",
+                              ownerOnly: "nova_forex_bot_owner_only",
+                              hint: "MA-crossover auto-trading on the user’s Vantage Markets or TIOmarkets MT4/MT5 account (MetaAPI).",
+                            },
+                            {
+                              title: "Nova Forex Scalper Bot",
+                              master: "nova_forex_scalp_bot",
+                              ownerOnly: "nova_forex_scalp_bot_owner_only",
+                              hint: "Entry→exit scalp bot + “Scalp this trade” hand-off from Nova Forex Scalp Agent.",
+                            },
+                          ] as const
+                        ).map((bot) => {
+                          const audience = forexAudienceFromFlags(bot.master, bot.ownerOnly);
+                          const busy = toggling === bot.master;
+                          const badge =
+                            audience === "off"
+                              ? { label: "OFF", className: "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400" }
+                              : audience === "owner"
+                                ? { label: "OWNER ONLY", className: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200" }
+                                : { label: "ALL VIP", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" };
+                          return (
+                            <div key={bot.master} className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3 space-y-3">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{bot.title}</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">{bot.hint}</p>
+                                </div>
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badge.className}`}>
+                                  {badge.label}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(
+                                  [
+                                    { id: "off" as const, label: "Off" },
+                                    { id: "owner" as const, label: "Owner only (test)" },
+                                    { id: "vip" as const, label: "All VIP" },
+                                  ] as const
+                                ).map((opt) => (
+                                  <Button
+                                    key={opt.id}
+                                    size="sm"
+                                    variant={audience === opt.id ? "default" : "outline"}
+                                    disabled={busy}
+                                    onClick={() => void setForexAudience(bot.master, bot.ownerOnly, opt.id)}
+                                  >
+                                    {busy && audience !== opt.id ? "…" : opt.label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {(() => {
+                          const cronKey = "nova_forex_scalp_bot_cron";
+                          const enabled = flags[cronKey] ?? false;
+                          const busy = toggling === cronKey;
+                          return (
+                            <div className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                                    Nova Forex Scalper — overnight automation
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    When ON, the server cron advances enabled Forex Scalper configs in batch (like NovaScalper overnight). When OFF, ticks only run while the user’s tab is open / manual Check.
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                      enabled
+                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                        : "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                    }`}
+                                  >
+                                    {enabled ? "ON" : "OFF"}
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant={enabled ? "outline" : "default"}
+                                    onClick={() => handleToggle(cronKey)}
+                                    disabled={busy}
+                                  >
+                                    {busy ? "…" : enabled ? "Turn off" : "Turn on"}
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : (
                     <ul className="space-y-3 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
                       {group.entries.map(([key, { label, description }]) => {
                   const enabled = flags[key] ?? true;
@@ -1202,6 +1357,7 @@ export default function AdminFeatureFlagsPage() {
                   );
                 })}
               </ul>
+                    )}
                   </details>
                 ))}
               </div>

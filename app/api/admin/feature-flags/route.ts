@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions, isOwnerEmail } from '@/lib/auth';
-import { getAllFeatureFlags, setFeatureFlag, FEATURE_FLAG_KEYS } from '@/lib/feature-flags';
+import { getAllFeatureFlags, setFeatureFlag, FEATURE_FLAG_KEYS, type FeatureFlagKey } from '@/lib/feature-flags';
 
 export const dynamic = 'force-dynamic';
 
-const VALID_KEYS = new Set(Object.values(FEATURE_FLAG_KEYS));
+const VALID_KEYS = new Set<string>(Object.values(FEATURE_FLAG_KEYS));
 
 /** GET - List all feature flags (owner only). */
 export async function GET() {
@@ -22,7 +22,10 @@ export async function GET() {
   }
 }
 
-/** PATCH - Set one feature flag (owner only). Body: { key: string, enabled: boolean } */
+/**
+ * PATCH - Set feature flag(s) (owner only).
+ * Body: { key, enabled } OR { updates: [{ key, enabled }, ...] }
+ */
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -30,12 +33,19 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: 'Owner only.' }, { status: 403 });
     }
     const body = await request.json();
-    const key = typeof body.key === 'string' ? body.key.trim() : '';
-    const enabled = Boolean(body.enabled);
-    if (!key || !VALID_KEYS.has(key)) {
-      return NextResponse.json({ success: false, error: 'Invalid key.' }, { status: 400 });
+
+    const updates: Array<{ key: string; enabled: boolean }> = Array.isArray(body.updates)
+      ? body.updates
+      : [{ key: typeof body.key === 'string' ? body.key.trim() : '', enabled: Boolean(body.enabled) }];
+
+    for (const u of updates) {
+      const key = typeof u.key === 'string' ? u.key.trim() : '';
+      if (!key || !VALID_KEYS.has(key)) {
+        return NextResponse.json({ success: false, error: `Invalid key: ${key || '(empty)'}` }, { status: 400 });
+      }
+      await setFeatureFlag(key as FeatureFlagKey, Boolean(u.enabled));
     }
-    await setFeatureFlag(key, enabled);
+
     const flags = await getAllFeatureFlags();
     return NextResponse.json({ success: true, flags });
   } catch (e) {
