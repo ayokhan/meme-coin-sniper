@@ -18,7 +18,7 @@ import type { BlofinPartnerPromoAdmin, BlofinPartnerLinkClickRow } from "@/lib/b
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import type { ForexBrokerPartnerPromoAdmin, ForexBrokerPartnerLinkClickRow } from "@/lib/forex-broker-partner-promo";
 import { FOREX_PARTNERSHIP_EMAIL, forexBrokerLabel } from "@/lib/forex-broker-partner-promo";
-import type { ForexBrokerId } from "@/lib/forex-broker-user-config";
+import type { ForexPartnerBrokerId } from "@/lib/forex-broker-user-config";
 import { formatPromoDrawDate } from "@/lib/promo-banner";
 import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
 import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
@@ -1657,7 +1657,7 @@ function ForexBrokerPartnerSection({
   broker,
   onLoadEmailTemplate,
 }: {
-  broker: ForexBrokerId;
+  broker: ForexPartnerBrokerId;
   onLoadEmailTemplate: (subject: string, body: string, includeLogos: boolean) => void;
 }) {
   const label = forexBrokerLabel(broker);

@@ -10,9 +10,36 @@ const ALGO = "aes-256-gcm";
 const IV_LEN = 16;
 const AUTH_TAG_LEN = 16;
 
-export type ForexBrokerId = "vantage" | "tiomarkets";
+/** Brokers users can connect for Nova Forex Bot / Scalper (any MT4/MT5 broker MetaAPI can reach). */
+export type ForexBrokerId = "vantage" | "tiomarkets" | "myaccessmarkets";
 
-export const FOREX_BROKER_IDS: ForexBrokerId[] = ["vantage", "tiomarkets"];
+/** Affiliate / partner promo brokers only (Admin → Banners). */
+export type ForexPartnerBrokerId = "vantage" | "tiomarkets";
+
+export const FOREX_BROKER_IDS: ForexBrokerId[] = ["vantage", "tiomarkets", "myaccessmarkets"];
+
+export const FOREX_PARTNER_BROKER_IDS: ForexPartnerBrokerId[] = ["vantage", "tiomarkets"];
+
+export const FOREX_BROKER_LABELS: Record<ForexBrokerId, string> = {
+  vantage: "Vantage Markets",
+  tiomarkets: "TIOmarkets",
+  myaccessmarkets: "MyAccessMarkets",
+};
+
+export function parseForexBrokerId(raw: unknown): ForexBrokerId | null {
+  const s = String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+  if (s === "vantage" || s === "vantagemarkets") return "vantage";
+  if (s === "tiomarkets" || s === "tio") return "tiomarkets";
+  if (s === "myaccessmarkets" || s === "myaccess" || s === "accessmarkets") return "myaccessmarkets";
+  return null;
+}
+
+export function isForexPartnerBrokerId(v: unknown): v is ForexPartnerBrokerId {
+  return v === "vantage" || v === "tiomarkets";
+}
 
 export type ForexBrokerPlatform = "mt4" | "mt5";
 
@@ -95,8 +122,10 @@ export async function listForexBrokerConfigsForUser(
     const out: UserForexBrokerConnection[] = [];
     for (const row of rows) {
       try {
+        const broker = parseForexBrokerId(row.broker);
+        if (!broker) continue;
         out.push({
-          broker: row.broker,
+          broker,
           platform: row.platform === "mt4" ? "mt4" : "mt5",
           login: decrypt(row.encryptedLogin),
           password: decrypt(row.encryptedPassword),
@@ -105,7 +134,7 @@ export async function listForexBrokerConfigsForUser(
           metaApiAccountId: row.metaApiAccountId ?? null,
         });
       } catch {
-        /* skip corrupt row */
+        /* skip bad row */
       }
     }
     return out;
@@ -114,42 +143,51 @@ export async function listForexBrokerConfigsForUser(
   }
 }
 
-/** Save (create or replace) a user's forex broker config. */
+/** Save forex broker config for a user (encrypt). */
 export async function saveForexBrokerConfigForUser(
   userId: string,
-  broker: ForexBrokerId,
   config: {
+    broker: ForexBrokerId;
     platform: ForexBrokerPlatform;
     login: string;
     password: string;
     server: string;
-    demoMode?: boolean;
+    demo?: boolean;
     metaApiAccountId?: string | null;
   }
 ): Promise<void> {
-  getEncryptionKey(); // throws if not set
-  const data = {
-    platform: config.platform,
-    encryptedLogin: encrypt(config.login),
-    encryptedPassword: encrypt(config.password),
-    server: config.server,
-    demoMode: config.demoMode ?? true,
-    metaApiAccountId: config.metaApiAccountId ?? null,
-  };
+  getEncryptionKey();
   await db.userForexBrokerConfig.upsert({
-    where: { userId_broker: { userId, broker } },
-    create: { userId, broker, ...data },
-    update: data,
+    where: { userId_broker: { userId, broker: config.broker } },
+    create: {
+      userId,
+      broker: config.broker,
+      platform: config.platform,
+      encryptedLogin: encrypt(config.login),
+      encryptedPassword: encrypt(config.password),
+      server: config.server,
+      demoMode: config.demo ?? true,
+      metaApiAccountId: config.metaApiAccountId ?? null,
+    },
+    update: {
+      platform: config.platform,
+      encryptedLogin: encrypt(config.login),
+      encryptedPassword: encrypt(config.password),
+      server: config.server,
+      demoMode: config.demo ?? true,
+      ...(config.metaApiAccountId !== undefined ? { metaApiAccountId: config.metaApiAccountId } : {}),
+    },
   });
 }
 
-/** Update demo/live mode without re-entering credentials. */
 export async function updateForexBrokerDemoModeForUser(
   userId: string,
   broker: ForexBrokerId,
   demo: boolean
 ): Promise<boolean> {
-  const row = await db.userForexBrokerConfig.findUnique({ where: { userId_broker: { userId, broker } } });
+  const row = await db.userForexBrokerConfig.findUnique({
+    where: { userId_broker: { userId, broker } },
+  });
   if (!row) return false;
   await db.userForexBrokerConfig.update({
     where: { userId_broker: { userId, broker } },
@@ -158,35 +196,22 @@ export async function updateForexBrokerDemoModeForUser(
   return true;
 }
 
-/** Persist the MetaAPI cloud account id once provisioned for this broker connection. */
 export async function updateForexBrokerMetaApiAccountId(
   userId: string,
   broker: ForexBrokerId,
   metaApiAccountId: string | null
-): Promise<boolean> {
-  const row = await db.userForexBrokerConfig.findUnique({ where: { userId_broker: { userId, broker } } });
-  if (!row) return false;
+): Promise<void> {
   await db.userForexBrokerConfig.update({
     where: { userId_broker: { userId, broker } },
     data: { metaApiAccountId },
   });
-  return true;
 }
 
-/** Remove a saved forex broker config for a user. */
-export async function deleteForexBrokerConfigForUser(
-  userId: string,
-  broker: ForexBrokerId
-): Promise<void> {
+export async function deleteForexBrokerConfigForUser(userId: string, broker: ForexBrokerId): Promise<void> {
   await db.userForexBrokerConfig.deleteMany({ where: { userId, broker } });
 }
 
-/** Check if any user has saved forex broker config (for feature hints / admin). */
 export async function hasAnyUserForexBrokerConfig(): Promise<boolean> {
-  try {
-    const count = await db.userForexBrokerConfig.count();
-    return count > 0;
-  } catch {
-    return false;
-  }
+  const count = await db.userForexBrokerConfig.count();
+  return count > 0;
 }

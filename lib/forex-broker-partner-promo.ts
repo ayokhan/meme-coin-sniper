@@ -1,9 +1,10 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import type { SiteAnnouncementBannerConfig } from "@/lib/site-announcement-banner";
-import type { ForexBrokerId } from "@/lib/forex-broker-user-config";
+import type { ForexPartnerBrokerId } from "@/lib/forex-broker-user-config";
+import { FOREX_PARTNER_BROKER_IDS, FOREX_BROKER_LABELS } from "@/lib/forex-broker-user-config";
 
-export const FOREX_BROKER_PARTNER_IDS: ForexBrokerId[] = ["vantage", "tiomarkets"];
+export const FOREX_BROKER_PARTNER_IDS = FOREX_PARTNER_BROKER_IDS;
 
 export type ForexBrokerPartnerPromoConfig = {
   enabled: boolean;
@@ -18,20 +19,20 @@ export type ForexBrokerPartnerPromoConfig = {
 };
 
 export type ForexBrokerPartnerPromoAdmin = ForexBrokerPartnerPromoConfig & {
-  broker: ForexBrokerId;
+  broker: ForexPartnerBrokerId;
   active: boolean;
   usesDefault: boolean;
   updatedAt: string | null;
   registerClickCount: number;
 };
 
-const BROKER_LABEL: Record<ForexBrokerId, string> = {
-  vantage: "Vantage Markets",
-  tiomarkets: "TIOmarkets",
+const BROKER_LABEL: Record<ForexPartnerBrokerId, string> = {
+  vantage: FOREX_BROKER_LABELS.vantage,
+  tiomarkets: FOREX_BROKER_LABELS.tiomarkets,
 };
 
 /** Placeholder affiliate URLs — edit in Admin → Banners → Forex Broker Partners before enabling. */
-export const DEFAULT_FOREX_BROKER_PARTNER_PROMO: Record<ForexBrokerId, ForexBrokerPartnerPromoConfig> = {
+export const DEFAULT_FOREX_BROKER_PARTNER_PROMO: Record<ForexPartnerBrokerId, ForexBrokerPartnerPromoConfig> = {
   vantage: {
     enabled: false,
     registerUrl: "",
@@ -59,7 +60,7 @@ export const DEFAULT_FOREX_BROKER_PARTNER_PROMO: Record<ForexBrokerId, ForexBrok
 };
 
 /** Site announcement presets for forex broker partnership launches (Admin → Banners). Fill in registerUrl before enabling. */
-export const FOREX_BROKER_LAUNCH_BANNER: Record<ForexBrokerId, SiteAnnouncementBannerConfig> = {
+export const FOREX_BROKER_LAUNCH_BANNER: Record<ForexPartnerBrokerId, SiteAnnouncementBannerConfig> = {
   vantage: {
     enabled: true,
     title: "NovaStaris × Vantage Markets — forex trading is here",
@@ -81,7 +82,7 @@ export const FOREX_BROKER_LAUNCH_BANNER: Record<ForexBrokerId, SiteAnnouncementB
 };
 
 /** Suggested customer email copy per broker (Admin → Banners → Email). Fill in the referral link before sending. */
-export const FOREX_PARTNERSHIP_EMAIL: Record<ForexBrokerId, { subject: string; body: string }> = {
+export const FOREX_PARTNERSHIP_EMAIL: Record<ForexPartnerBrokerId, { subject: string; body: string }> = {
   vantage: {
     subject: "NovaStaris × Vantage Markets — trade forex with your MT4/MT5 account",
     body: `Hi there,
@@ -165,7 +166,7 @@ function clickDb(): ClickDb | null {
   return (prisma as unknown as { forexBrokerPartnerLinkClick?: ClickDb }).forexBrokerPartnerLinkClick ?? null;
 }
 
-function normalize(broker: ForexBrokerId, row: Partial<Row>): ForexBrokerPartnerPromoConfig {
+function normalize(broker: ForexPartnerBrokerId, row: Partial<Row>): ForexBrokerPartnerPromoConfig {
   const d = DEFAULT_FOREX_BROKER_PARTNER_PROMO[broker];
   return {
     enabled: row.enabled ?? d.enabled,
@@ -184,7 +185,7 @@ function isActive(config: ForexBrokerPartnerPromoConfig): boolean {
   return config.enabled && !!config.registerUrl;
 }
 
-async function clickCount(broker: ForexBrokerId): Promise<number> {
+async function clickCount(broker: ForexPartnerBrokerId): Promise<number> {
   const db = clickDb();
   if (!db) return 0;
   try {
@@ -195,7 +196,7 @@ async function clickCount(broker: ForexBrokerId): Promise<number> {
 }
 
 function rowToAdmin(
-  broker: ForexBrokerId,
+  broker: ForexPartnerBrokerId,
   row: Row,
   usesDefault: boolean,
   count: number
@@ -212,7 +213,7 @@ function rowToAdmin(
 }
 
 export async function getForexBrokerPartnerPromoForPublic(
-  broker: ForexBrokerId
+  broker: ForexPartnerBrokerId
 ): Promise<ForexBrokerPartnerPromoAdmin> {
   const db = promoDb();
   const count = await clickCount(broker);
@@ -226,7 +227,7 @@ export async function getForexBrokerPartnerPromoForPublic(
 }
 
 export async function getForexBrokerPartnerPromoForAdmin(
-  broker: ForexBrokerId
+  broker: ForexPartnerBrokerId
 ): Promise<ForexBrokerPartnerPromoAdmin> {
   return getForexBrokerPartnerPromoForPublic(broker);
 }
@@ -236,7 +237,7 @@ export async function getAllForexBrokerPartnerPromosForAdmin(): Promise<ForexBro
 }
 
 export async function setForexBrokerPartnerPromo(
-  broker: ForexBrokerId,
+  broker: ForexPartnerBrokerId,
   patch: Partial<ForexBrokerPartnerPromoConfig>
 ): Promise<ForexBrokerPartnerPromoAdmin> {
   const db = promoDb();
@@ -262,7 +263,7 @@ export async function setForexBrokerPartnerPromo(
 }
 
 export async function resetForexBrokerPartnerPromoToDefault(
-  broker: ForexBrokerId
+  broker: ForexPartnerBrokerId
 ): Promise<ForexBrokerPartnerPromoAdmin> {
   const db = promoDb();
   if (!db) throw new Error("Forex broker partner promo storage unavailable.");
@@ -274,11 +275,11 @@ export async function resetForexBrokerPartnerPromoToDefault(
   return getForexBrokerPartnerPromoForAdmin(broker);
 }
 
-export function forexBrokerPartnerRegisterPath(broker: ForexBrokerId): string {
+export function forexBrokerPartnerRegisterPath(broker: ForexPartnerBrokerId): string {
   return `/api/forex-broker-partner/register?broker=${broker}`;
 }
 
-export function forexBrokerLabel(broker: ForexBrokerId): string {
+export function forexBrokerLabel(broker: ForexPartnerBrokerId): string {
   return BROKER_LABEL[broker] ?? broker;
 }
 
@@ -289,7 +290,7 @@ export function guestHashFromRequest(req: Request): string {
 }
 
 export async function recordForexBrokerPartnerLinkClick(input: {
-  broker: ForexBrokerId;
+  broker: ForexPartnerBrokerId;
   userId?: string | null;
   guestHash?: string | null;
 }): Promise<void> {
@@ -319,7 +320,7 @@ export type ForexBrokerPartnerLinkClickRow = {
 };
 
 export async function listForexBrokerPartnerLinkClicks(
-  broker?: ForexBrokerId,
+  broker?: ForexPartnerBrokerId,
   limit = 100
 ): Promise<ForexBrokerPartnerLinkClickRow[]> {
   const db = clickDb();

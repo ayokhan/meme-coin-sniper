@@ -3,14 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FOREX_BROKER_IDS, type ForexBrokerId, type ForexBrokerPlatform } from "@/lib/forex-broker-user-config";
+import { FOREX_BROKER_IDS, FOREX_BROKER_LABELS, type ForexBrokerId, type ForexBrokerPlatform } from "@/lib/forex-broker-user-config";
 import { suggestedServersForBroker } from "@/lib/forex-broker-servers";
 import { ForexBrokerPartnerPromoBanner } from "@/components/ForexBrokerPartnerPromoBanner";
-
-const BROKER_LABEL: Record<ForexBrokerId, string> = {
-  vantage: "Vantage Markets",
-  tiomarkets: "TIOmarkets",
-};
 
 type Connection = {
   broker: ForexBrokerId;
@@ -122,7 +117,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess(data.warning ?? `${BROKER_LABEL[activeBroker]} connected.`);
+        setSuccess(data.warning ?? `${FOREX_BROKER_LABELS[activeBroker]} connected.`);
         setForm((f) => ({ ...f, password: "" }));
         await load();
         onChange?.();
@@ -136,7 +131,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
 
   const disconnect = async () => {
     if (!activeConnection) return;
-    if (!window.confirm(`Disconnect ${BROKER_LABEL[activeBroker]}? Bots using this broker will stop trading.`)) return;
+    if (!window.confirm(`Disconnect ${FOREX_BROKER_LABELS[activeBroker]}? Bots using this broker will stop trading.`)) return;
     setRemoving(true);
     setError(null);
     setSuccess(null);
@@ -147,7 +142,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess(`${BROKER_LABEL[activeBroker]} disconnected.`);
+        setSuccess(`${FOREX_BROKER_LABELS[activeBroker]} disconnected.`);
         await load();
         onChange?.();
       } else setError(data.error ?? "Disconnect failed.");
@@ -186,7 +181,8 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
         <CardTitle className="text-base font-semibold">Forex broker connection (MT4/MT5)</CardTitle>
         {!compact && (
           <p className="text-xs text-muted-foreground">
-            Connect your Vantage or TIOmarkets MT4/MT5 login so Nova Forex bots can trade on your account via MetaAPI.
+            Connect your Vantage Markets, TIOmarkets, or MyAccessMarkets MT4/MT5 login so Nova Forex bots can trade on
+            your account via MetaAPI. Credentials are encrypted at rest.
             Credentials are encrypted at rest.
           </p>
         )}
@@ -206,7 +202,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
                   : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
               }`}
             >
-              {BROKER_LABEL[b]}
+              {FOREX_BROKER_LABELS[b]}
               {connections.find((c) => c.broker === b)?.connected ? " ✓" : ""}
             </button>
           ))}
@@ -227,7 +223,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
           <div className="space-y-3">
             <div className="rounded-md border border-emerald-300/60 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 text-sm space-y-1.5">
               <p>
-                <span className="font-medium text-foreground">{BROKER_LABEL[activeBroker]}</span> connected —{" "}
+                <span className="font-medium text-foreground">{FOREX_BROKER_LABELS[activeBroker]}</span> connected —{" "}
                 <span className="font-mono">{activeConnection.loginMasked}</span> on{" "}
                 <span className="font-mono">{activeConnection.server}</span> ({activeConnection.platform.toUpperCase()})
               </p>
@@ -329,7 +325,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
             </div>
             <div className="sm:col-span-2">
               <Button size="sm" disabled={saving} onClick={() => void connect()}>
-                {saving ? "Connecting…" : `Connect ${BROKER_LABEL[activeBroker]}`}
+                {saving ? "Connecting…" : `Connect ${FOREX_BROKER_LABELS[activeBroker]}`}
               </Button>
             </div>
           </div>

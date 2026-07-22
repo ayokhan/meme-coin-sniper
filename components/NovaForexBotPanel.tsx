@@ -5,13 +5,8 @@ import { Activity, AlertTriangle, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { normalizeForexSymbol, FOREX_MARKET_WATCH } from "@/lib/forex-market";
-import { FOREX_BROKER_IDS, type ForexBrokerId } from "@/lib/forex-broker-user-config";
+import { FOREX_BROKER_IDS, FOREX_BROKER_LABELS, type ForexBrokerId } from "@/lib/forex-broker-user-config";
 import ForexBrokerConnectPanel from "@/components/ForexBrokerConnectPanel";
-
-const BROKER_LABEL: Record<ForexBrokerId, string> = {
-  vantage: "Vantage",
-  tiomarkets: "TIOmarkets",
-};
 
 const TIMEFRAMES = [
   { id: "5m", label: "5 minutes" },
@@ -225,7 +220,7 @@ export default function NovaForexBotPanel() {
               >
                 {FOREX_BROKER_IDS.map((b) => (
                   <option key={b} value={b}>
-                    {BROKER_LABEL[b]}
+                    {FOREX_BROKER_LABELS[b]}
                     {connectedBrokers.includes(b) ? " (connected)" : ""}
                   </option>
                 ))}

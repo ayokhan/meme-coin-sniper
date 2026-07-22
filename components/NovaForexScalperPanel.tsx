@@ -5,18 +5,13 @@ import { Activity, AlertTriangle, Clock, Crosshair, Layers, Zap } from "lucide-r
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { normalizeForexSymbol, FOREX_MARKET_WATCH } from "@/lib/forex-market";
-import { FOREX_BROKER_IDS, type ForexBrokerId } from "@/lib/forex-broker-user-config";
+import { FOREX_BROKER_IDS, FOREX_BROKER_LABELS, type ForexBrokerId } from "@/lib/forex-broker-user-config";
 import {
   clearNovaForexScalperPrefill,
   forexScalperEntryTriggerFor,
   readNovaForexScalperPrefill,
 } from "@/lib/nova-forex-scalper-prefill";
 import ForexBrokerConnectPanel from "@/components/ForexBrokerConnectPanel";
-
-const BROKER_LABEL: Record<ForexBrokerId, string> = {
-  vantage: "Vantage",
-  tiomarkets: "TIOmarkets",
-};
 
 type ForexScalperConfig = {
   id: string;
@@ -441,7 +436,7 @@ export default function NovaForexScalperPanel() {
               >
                 {FOREX_BROKER_IDS.map((b) => (
                   <option key={b} value={b}>
-                    {BROKER_LABEL[b]}
+                    {FOREX_BROKER_LABELS[b]}
                     {connectedBrokers.includes(b) ? " (connected)" : ""}
                   </option>
                 ))}

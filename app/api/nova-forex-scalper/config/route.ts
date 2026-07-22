@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getNovaForexScalpBotAccess } from "@/lib/vip-futures-addon-access";
 import { normalizeForexSymbol, validateForexScalpSymbol } from "@/lib/forex-market";
 import { NOVA_FOREX_SCALPER_MAX_CONFIGS } from "@/lib/nova-forex-scalper-constants";
+import { parseForexBrokerId } from "@/lib/forex-broker-user-config";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +59,7 @@ function toConfig(row: Record<string, unknown>) {
     enabled: !!row.enabled && !ownerForceOff,
     ownerForceOff,
     mode: row.mode === "live" ? "live" : "demo",
-    broker: row.broker === "tiomarkets" ? "tiomarkets" : "vantage",
+    broker: parseForexBrokerId(row.broker) ?? "vantage",
     symbol: row.symbol ?? "EURUSD",
     side: row.side === "short" ? "short" : "long",
     entryTrigger: row.entryTrigger === "cross_up" ? "cross_up" : "cross_down",
@@ -168,7 +169,7 @@ export async function POST(request: Request) {
       data: {
         enabled: body.enabled === true,
         mode: body.mode === "live" ? "live" : "demo",
-        broker: body.broker === "tiomarkets" ? "tiomarkets" : "vantage",
+        broker: parseForexBrokerId(body.broker) ?? "vantage",
         symbol: normalizeForexSymbol(String(body.symbol ?? "")),
         side: body.side === "short" ? "short" : "long",
         entryTrigger: body.entryTrigger === "cross_up" ? "cross_up" : "cross_down",

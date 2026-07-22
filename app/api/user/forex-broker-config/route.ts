@@ -5,6 +5,7 @@ import {
   FOREX_BROKER_IDS,
   deleteForexBrokerConfigForUser,
   listForexBrokerConfigsForUser,
+  parseForexBrokerId,
   saveForexBrokerConfigForUser,
   updateForexBrokerDemoModeForUser,
   type ForexBrokerId,
@@ -26,7 +27,7 @@ function maskLogin(login: string): string {
 }
 
 function isValidBroker(v: unknown): v is ForexBrokerId {
-  return typeof v === "string" && (FOREX_BROKER_IDS as string[]).includes(v);
+  return parseForexBrokerId(v) != null;
 }
 
 /** GET — list connected forex brokers for current user (no passwords). */
@@ -112,12 +113,13 @@ export async function POST(request: Request) {
       warning = "Saved your login. MetaAPI is not configured on the server yet (METAAPI_TOKEN) — bots cannot trade until it is.";
     }
 
-    await saveForexBrokerConfigForUser(session.user.id, broker, {
+    await saveForexBrokerConfigForUser(session.user.id, {
+      broker,
       platform,
       login,
       password,
       server,
-      demoMode,
+      demo: demoMode,
       metaApiAccountId,
     });
 

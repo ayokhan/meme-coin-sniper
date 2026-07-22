@@ -12,12 +12,12 @@ import {
   type ForexBrokerPartnerPromoConfig,
 } from "@/lib/forex-broker-partner-promo";
 import { setSiteAnnouncementBanner } from "@/lib/site-announcement-banner";
-import type { ForexBrokerId } from "@/lib/forex-broker-user-config";
+import { isForexPartnerBrokerId, type ForexPartnerBrokerId } from "@/lib/forex-broker-user-config";
 
 export const dynamic = "force-dynamic";
 
-function isValidBroker(v: unknown): v is ForexBrokerId {
-  return typeof v === "string" && (FOREX_BROKER_PARTNER_IDS as string[]).includes(v);
+function isValidBroker(v: unknown): v is ForexPartnerBrokerId {
+  return isForexPartnerBrokerId(v);
 }
 
 /** GET ?broker= for one broker + its clicks, or no query for all brokers + all clicks. Owner only. */

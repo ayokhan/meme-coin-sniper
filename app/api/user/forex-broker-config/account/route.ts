@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { FOREX_BROKER_IDS, getForexBrokerConfigForUser, type ForexBrokerId } from "@/lib/forex-broker-user-config";
+import { FOREX_BROKER_IDS, getForexBrokerConfigForUser, parseForexBrokerId, type ForexBrokerId } from "@/lib/forex-broker-user-config";
 import { getMetaApiAccountInformation, getMetaApiPositions, isMetaApiConfigured } from "@/lib/metaapi";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 function isValidBroker(v: unknown): v is ForexBrokerId {
-  return typeof v === "string" && (FOREX_BROKER_IDS as string[]).includes(v);
+  return parseForexBrokerId(v) != null;
 }
 
 /** GET ?broker= — account info + open positions via MetaAPI (only when provisioned). */

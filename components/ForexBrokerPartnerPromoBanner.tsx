@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { forexBrokerPartnerRegisterPath } from "@/lib/forex-broker-partner-promo";
-import type { ForexBrokerId } from "@/lib/forex-broker-user-config";
+import {
+  isForexPartnerBrokerId,
+  type ForexBrokerId,
+  type ForexPartnerBrokerId,
+} from "@/lib/forex-broker-user-config";
 import { PartnerLogosStrip } from "@/components/PartnerLogosStrip";
 
 type PromoView = {
@@ -25,11 +29,12 @@ type Props = {
 export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact = false, preview = null }: Props) {
   const [fetchedPromo, setFetchedPromo] = useState<PromoView | null>(null);
   const promo = preview ?? fetchedPromo;
+  const partnerBroker: ForexPartnerBrokerId | null = isForexPartnerBrokerId(broker) ? broker : null;
 
   useEffect(() => {
-    if (preview) return;
+    if (preview || !partnerBroker) return;
     let cancelled = false;
-    fetch(`/api/forex-broker-partner-promo?broker=${broker}`, { credentials: "include" })
+    fetch(`/api/forex-broker-partner-promo?broker=${partnerBroker}`, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled && data.success && data.promo?.active) setFetchedPromo(data.promo);
@@ -38,8 +43,9 @@ export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact 
     return () => {
       cancelled = true;
     };
-  }, [preview, broker]);
+  }, [preview, partnerBroker]);
 
+  if (!partnerBroker) return null;
   if (!promo?.active && !preview) return null;
   if (!preview && !promo) return null;
 
@@ -50,7 +56,7 @@ export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact 
     <div
       className={`rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/40 via-zinc-950/80 to-cyan-950/30 p-4 ${className}`}
     >
-      {showLogos && <PartnerLogosStrip className="mb-3" partner={broker} />}
+      {showLogos && <PartnerLogosStrip className="mb-3" partner={partnerBroker} />}
       <div className={compact ? "space-y-2" : "space-y-3"}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
@@ -65,7 +71,7 @@ export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact 
         </div>
         {!preview && (
           <a
-            href={forexBrokerPartnerRegisterPath(broker)}
+            href={forexBrokerPartnerRegisterPath(partnerBroker)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 transition-colors"

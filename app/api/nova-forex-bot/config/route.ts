@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getNovaForexBotAccess } from "@/lib/vip-futures-addon-access";
 import { normalizeForexSymbol } from "@/lib/forex-market";
+import { parseForexBrokerId } from "@/lib/forex-broker-user-config";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ function toView(row: Record<string, unknown>) {
     enabled: !!row.enabled && !ownerForceOff,
     ownerForceOff,
     mode: row.mode === "live" ? "live" : "demo",
-    broker: row.broker === "tiomarkets" ? "tiomarkets" : "vantage",
+    broker: parseForexBrokerId(row.broker) ?? "vantage",
     symbol: row.symbol ?? "EURUSD",
     timeframe: row.timeframe ?? "15m",
     lotSize: row.lotSize ?? 0.01,
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
       data: {
         enabled: body.enabled === true,
         mode: body.mode === "live" ? "live" : "demo",
-        broker: body.broker === "tiomarkets" ? "tiomarkets" : "vantage",
+        broker: parseForexBrokerId(body.broker) ?? "vantage",
         symbol: normalizeForexSymbol(String(body.symbol ?? row.symbol ?? "EURUSD")) || "EURUSD",
         timeframe: String(body.timeframe ?? row.timeframe ?? "15m"),
         lotSize,

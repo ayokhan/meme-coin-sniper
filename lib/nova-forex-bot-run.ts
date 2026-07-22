@@ -8,6 +8,7 @@ import { normalizeForexSymbol, getForexCandles } from "@/lib/forex-market";
 import { getForexSpotMid, usesSpotCalibration } from "@/lib/forex-spot-feed";
 import { ema, maCrossoverSignal } from "@/lib/trading-bot-ta";
 import { resolveForexBrokerForSession } from "@/lib/forex-broker-session";
+import { parseForexBrokerId } from "@/lib/forex-broker-user-config";
 import {
   isMetaApiConfigured,
   getMetaApiPositions,
@@ -103,8 +104,8 @@ export async function runNovaForexBotTick(
     return { ok: false, error: "MetaAPI is not configured on the server (METAAPI_TOKEN)." };
   }
 
-  const broker = row.broker === "tiomarkets" ? "tiomarkets" : "vantage";
-  const connection = await resolveForexBrokerForSession(userId, false, broker as "vantage" | "tiomarkets");
+  const broker = parseForexBrokerId(row.broker) ?? "vantage";
+  const connection = await resolveForexBrokerForSession(userId, false, broker);
   if (!connection?.metaApiAccountId) {
     await updateRow({
       lastError: "Broker not connected",

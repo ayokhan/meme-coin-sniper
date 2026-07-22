@@ -22,8 +22,17 @@ export const TIOMARKETS_MT_SERVERS: string[] = [
   "TIOmarkets-MT5-Live",
 ];
 
+/** Common placeholders — users should paste the exact server from their MyAccessMarkets welcome email / MT terminal. */
+export const MYACCESSMARKETS_MT_SERVERS: string[] = [
+  "MyAccessMarkets-Demo",
+  "MyAccessMarkets-Live",
+  "MyAccessMarkets-MT5-Demo",
+  "MyAccessMarkets-MT5-Live",
+];
+
 export function suggestedServersForBroker(broker: ForexBrokerId): string[] {
   if (broker === "vantage") return VANTAGE_MT_SERVERS;
   if (broker === "tiomarkets") return TIOMARKETS_MT_SERVERS;
+  if (broker === "myaccessmarkets") return MYACCESSMARKETS_MT_SERVERS;
   return [];
 }

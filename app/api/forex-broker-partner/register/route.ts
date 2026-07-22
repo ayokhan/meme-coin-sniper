@@ -6,12 +6,12 @@ import {
   guestHashFromRequest,
   recordForexBrokerPartnerLinkClick,
 } from "@/lib/forex-broker-partner-promo";
-import type { ForexBrokerId } from "@/lib/forex-broker-user-config";
+import { isForexPartnerBrokerId, type ForexPartnerBrokerId } from "@/lib/forex-broker-user-config";
 
 export const dynamic = "force-dynamic";
 
-function isValidBroker(v: unknown): v is ForexBrokerId {
-  return typeof v === "string" && (FOREX_BROKER_PARTNER_IDS as string[]).includes(v);
+function isValidBroker(v: unknown): v is ForexPartnerBrokerId {
+  return isForexPartnerBrokerId(v);
 }
 
 /** GET ?broker= — record click and redirect to the broker's affiliate register URL. */
