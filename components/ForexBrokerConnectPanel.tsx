@@ -26,6 +26,7 @@ type Connection = {
 
 type Remembered = {
   login: string;
+  password: string;
   server: string;
   platform: ForexBrokerPlatform;
   demoMode: boolean;
@@ -38,16 +39,24 @@ type Props = {
 };
 
 function rememberKey(broker: ForexBrokerId) {
-  return `novastaris-forex-remember-${broker}`;
+  return `novastaris-forex-remember-v2-${broker}`;
 }
 
 function loadRemembered(broker: ForexBrokerId): Remembered | null {
   try {
-    const raw = localStorage.getItem(rememberKey(broker));
+    const raw =
+      localStorage.getItem(rememberKey(broker)) ??
+      localStorage.getItem(`novastaris-forex-remember-${broker}`);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Remembered;
+    const parsed = JSON.parse(raw) as Partial<Remembered>;
     if (!parsed || typeof parsed.login !== "string") return null;
-    return parsed;
+    return {
+      login: parsed.login,
+      password: typeof parsed.password === "string" ? parsed.password : "",
+      server: typeof parsed.server === "string" ? parsed.server : "",
+      platform: parsed.platform === "mt4" ? "mt4" : "mt5",
+      demoMode: parsed.demoMode !== false,
+    };
   } catch {
     return null;
   }
@@ -56,6 +65,8 @@ function loadRemembered(broker: ForexBrokerId): Remembered | null {
 function saveRemembered(broker: ForexBrokerId, data: Remembered) {
   try {
     localStorage.setItem(rememberKey(broker), JSON.stringify(data));
+    // Drop legacy key (no password) if present
+    localStorage.removeItem(`novastaris-forex-remember-${broker}`);
   } catch {
     /* ignore quota */
   }
@@ -129,10 +140,10 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       setForm((f) => ({
         ...f,
         login: remembered.login,
+        password: remembered.password,
         server: remembered.server,
         platform: remembered.platform,
         demoMode: remembered.demoMode,
-        password: "",
       }));
     } else {
       setForm({
@@ -154,16 +165,17 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
 
   useEffect(() => {
     if (needsReconnect && activeConnection) {
+      const remembered = loadRemembered(activeBroker);
       setForm((f) => ({
         ...f,
         platform: activeConnection.platform,
-        login: activeConnection.login || f.login || "",
+        login: activeConnection.login || f.login || remembered?.login || "",
         server: activeConnection.server || f.server,
         demoMode: activeConnection.demoMode,
-        password: "",
+        password: f.password || remembered?.password || "",
       }));
     }
-  }, [needsReconnect, activeConnection?.broker, activeConnection?.server, activeConnection?.login, activeConnection?.platform, activeConnection?.demoMode]);
+  }, [needsReconnect, activeBroker, activeConnection?.broker, activeConnection?.server, activeConnection?.login, activeConnection?.platform, activeConnection?.demoMode]);
 
   const fetchBalance = useCallback(async (broker: ForexBrokerId) => {
     setBalanceLoading((prev) => ({ ...prev, [broker]: true }));
@@ -246,8 +258,10 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       const data = await res.json();
       if (data.success) {
         if (rememberLogin) {
+          const pwd = form.password.trim() || loadRemembered(activeBroker)?.password || "";
           saveRemembered(activeBroker, {
             login: form.login.trim() || data.connection?.login || "",
+            password: pwd,
             server: form.server.trim(),
             platform: form.platform,
             demoMode: form.demoMode,
@@ -262,7 +276,8 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
         } else {
           setSuccess(`${FOREX_BROKER_LABELS[activeBroker]} connected.`);
         }
-        setForm((f) => ({ ...f, password: "" }));
+        // Keep password in the form when remembering so Disconnect → reconnect stays filled
+        setForm((f) => ({ ...f, password: rememberLogin ? f.password : "" }));
         await load();
         onChange?.();
       } else setError(data.error ?? "Connect failed.");
@@ -420,11 +435,26 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
             onChange={(e) => {
               const on = e.target.checked;
               setRememberLogin(on);
-              if (!on) clearRemembered(activeBroker);
+              if (!on) {
+                clearRemembered(activeBroker);
+              } else if (form.login.trim() && form.password && form.server.trim()) {
+                saveRemembered(activeBroker, {
+                  login: form.login.trim(),
+                  password: form.password,
+                  server: form.server.trim(),
+                  platform: form.platform,
+                  demoMode: form.demoMode,
+                });
+              }
             }}
           />
-          Remember login details on this device
+          Remember login and password on this device
         </label>
+        {rememberLogin && (
+          <p className="text-[11px] text-muted-foreground w-full">
+            Stored only in this browser. Uncheck to clear. Prefer a dedicated trading password if the device is shared.
+          </p>
+        )}
       </div>
       <div className="sm:col-span-2 flex flex-wrap gap-2">
         <Button size="sm" disabled={saving} onClick={() => void connect({ reuseSavedPassword: needsReconnect })}>
