@@ -16,9 +16,13 @@ import type { TwoFactorSecurityNudgeBannerAdmin } from "@/lib/two-factor-securit
 import type { SiteAnnouncementBannerAdmin } from "@/lib/site-announcement-banner";
 import type { BlofinPartnerPromoAdmin, BlofinPartnerLinkClickRow } from "@/lib/blofin-partner-promo";
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
+import type { ForexBrokerPartnerPromoAdmin, ForexBrokerPartnerLinkClickRow } from "@/lib/forex-broker-partner-promo";
+import { FOREX_PARTNERSHIP_EMAIL, forexBrokerLabel } from "@/lib/forex-broker-partner-promo";
+import type { ForexBrokerId } from "@/lib/forex-broker-user-config";
 import { formatPromoDrawDate } from "@/lib/promo-banner";
 import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
 import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
+import { ForexBrokerPartnerPromoBanner } from "@/components/ForexBrokerPartnerPromoBanner";
 import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
 import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
 import { GuestRegistrationBanner } from "@/components/GuestRegistrationNudge";
@@ -1240,6 +1244,19 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         </CardContent>
       </Card>
 
+      <ForexBrokerPartnerSection
+        broker="vantage"
+        onLoadEmailTemplate={(subject, body, includeLogos) =>
+          setEmailDraft({ subject, body, audience: "all", includePartnerLogos: includeLogos })
+        }
+      />
+      <ForexBrokerPartnerSection
+        broker="tiomarkets"
+        onLoadEmailTemplate={(subject, body, includeLogos) =>
+          setEmailDraft({ subject, body, audience: "all", includePartnerLogos: includeLogos })
+        }
+      />
+
       <Card className="border-zinc-200 dark:border-zinc-800">
         <CardHeader>
           <CardTitle className="text-base">Site announcement (in-app)</CardTitle>
@@ -1598,5 +1615,255 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         />
       )}
     </div>
+  );
+}
+
+/** Compact Vantage / TIOmarkets partner promo section — mirrors the Blofin card above. */
+function ForexBrokerPartnerSection({
+  broker,
+  onLoadEmailTemplate,
+}: {
+  broker: ForexBrokerId;
+  onLoadEmailTemplate: (subject: string, body: string, includeLogos: boolean) => void;
+}) {
+  const label = forexBrokerLabel(broker);
+  const [promo, setPromo] = useState<ForexBrokerPartnerPromoAdmin | null>(null);
+  const [clicks, setClicks] = useState<ForexBrokerPartnerLinkClickRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState({
+    registerUrl: "",
+    headline: "",
+    bodyText: "",
+    promoLabel: "",
+    ctaLabel: "",
+    showLogosInBanner: true,
+    includeLogosInEmail: true,
+    includeLogosInBroadcast: true,
+  });
+
+  const applyDraft = useCallback((p: ForexBrokerPartnerPromoAdmin) => {
+    setPromo(p);
+    setDraft({
+      registerUrl: p.registerUrl,
+      headline: p.headline,
+      bodyText: p.bodyText,
+      promoLabel: p.promoLabel,
+      ctaLabel: p.ctaLabel,
+      showLogosInBanner: p.showLogosInBanner,
+      includeLogosInEmail: p.includeLogosInEmail,
+      includeLogosInBroadcast: p.includeLogosInBroadcast,
+    });
+  }, []);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    return fetch(`/api/admin/forex-broker-partner-promo?broker=${broker}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.promo) applyDraft(data.promo as ForexBrokerPartnerPromoAdmin);
+        setClicks((data.clicks ?? []) as ForexBrokerPartnerLinkClickRow[]);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [broker, applyDraft]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const patch = async (body: Record<string, unknown>) => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/forex-broker-partner-promo", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ broker, ...body }),
+      });
+      const data = await res.json();
+      if (data.success && data.promo) {
+        applyDraft(data.promo as ForexBrokerPartnerPromoAdmin);
+        if (data.broadcastPublished) void load();
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="border-emerald-200/80 dark:border-emerald-900/60">
+      <CardHeader>
+        <CardTitle className="text-base">{label} partner promo</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Shown on Nova Forex Bot / Scalper connect panels when enabled and a register URL is set. Off by default until
+          you paste your NovaStaris / {label} referral link.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {loading ? (
+          <p className="text-muted-foreground text-sm">Loading…</p>
+        ) : promo ? (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span
+                className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                  promo.active
+                    ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border-emerald-500/30"
+                    : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                }`}
+              >
+                {promo.active ? "LIVE on Nova Forex" : promo.enabled ? "ON (needs URL)" : "OFF"}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant={promo.enabled ? "outline" : "default"} disabled={saving} onClick={() => void patch({ enabled: !promo.enabled })}>
+                  {saving ? "…" : promo.enabled ? "Turn off" : "Turn on"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={saving}
+                  onClick={() => void patch({ ...draft, enabled: true, publishLaunchBroadcast: true })}
+                >
+                  Save + publish in-app broadcast
+                </Button>
+                <Button size="sm" variant="ghost" disabled={saving} onClick={() => void patch({ resetToDefault: true })}>
+                  Reset defaults
+                </Button>
+              </div>
+            </div>
+            <label className="text-xs text-muted-foreground flex flex-col gap-1">
+              NovaStaris / {label} register URL
+              <input
+                value={draft.registerUrl}
+                onChange={(e) => setDraft((d) => ({ ...d, registerUrl: e.target.value }))}
+                placeholder={`https://${broker}.com/register?ref=novastaris`}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+              />
+            </label>
+            <label className="text-xs text-muted-foreground flex flex-col gap-1">
+              Headline
+              <input
+                value={draft.headline}
+                onChange={(e) => setDraft((d) => ({ ...d, headline: e.target.value }))}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+              />
+            </label>
+            <label className="text-xs text-muted-foreground flex flex-col gap-1">
+              Body
+              <textarea
+                rows={3}
+                value={draft.bodyText}
+                onChange={(e) => setDraft((d) => ({ ...d, bodyText: e.target.value }))}
+                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+              />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Promo badge
+                <input
+                  value={draft.promoLabel}
+                  onChange={(e) => setDraft((d) => ({ ...d, promoLabel: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                CTA label
+                <input
+                  value={draft.ctaLabel}
+                  onChange={(e) => setDraft((d) => ({ ...d, ctaLabel: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3 text-sm">
+              <label className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-2">
+                <input
+                  type="checkbox"
+                  checked={draft.showLogosInBanner}
+                  onChange={(e) => setDraft((d) => ({ ...d, showLogosInBanner: e.target.checked }))}
+                />
+                Logos on connect panel
+              </label>
+              <label className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-2">
+                <input
+                  type="checkbox"
+                  checked={draft.includeLogosInEmail}
+                  onChange={(e) => setDraft((d) => ({ ...d, includeLogosInEmail: e.target.checked }))}
+                />
+                Logos in email
+              </label>
+              <label className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-2">
+                <input
+                  type="checkbox"
+                  checked={draft.includeLogosInBroadcast}
+                  onChange={(e) => setDraft((d) => ({ ...d, includeLogosInBroadcast: e.target.checked }))}
+                />
+                Logos in broadcast
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" disabled={saving} onClick={() => void patch({ ...draft, enabled: promo.enabled })}>
+                {saving ? "Saving…" : `Save ${label} promo`}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  onLoadEmailTemplate(
+                    FOREX_PARTNERSHIP_EMAIL[broker].subject,
+                    FOREX_PARTNERSHIP_EMAIL[broker].body,
+                    draft.includeLogosInEmail
+                  )
+                }
+              >
+                Load email template
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Register link clicks tracked: {promo.registerClickCount}. {label} does not expose confirmed signups via
+              API — use your {label} affiliate dashboard for conversions; this list is NovaStaris link clicks only.
+            </p>
+            {clicks.length > 0 && (
+              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-200 dark:border-zinc-700 text-left text-muted-foreground">
+                      <th className="p-2">When</th>
+                      <th className="p-2">User</th>
+                      <th className="p-2">Guest</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clicks.slice(0, 20).map((c) => (
+                      <tr key={c.id} className="border-b border-zinc-100 dark:border-zinc-800">
+                        <td className="p-2 whitespace-nowrap">{new Date(c.clickedAt).toLocaleString()}</td>
+                        <td className="p-2">{c.userEmail ?? "—"}</td>
+                        <td className="p-2 font-mono text-[10px]">{c.guestHash ? c.guestHash.slice(0, 8) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 p-3">
+              <p className="text-xs text-muted-foreground mb-2">
+                Customer preview (logos {draft.showLogosInBanner ? "on" : "off"})
+              </p>
+              <ForexBrokerPartnerPromoBanner
+                broker={broker}
+                preview={{
+                  active: true,
+                  headline: draft.headline,
+                  bodyText: draft.bodyText,
+                  promoLabel: draft.promoLabel,
+                  ctaLabel: draft.ctaLabel,
+                  showLogosInBanner: draft.showLogosInBanner,
+                }}
+              />
+            </div>
+          </>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }

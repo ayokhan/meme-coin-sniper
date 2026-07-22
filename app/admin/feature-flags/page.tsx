@@ -141,6 +141,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
     match: (k) => k === "prop_firm_blofin" || k === "page_tab_prop_firm_bot",
   },
   {
+    id: "nova-forex-bots",
+    title: "Nova Forex Bots (MT4/MT5)",
+    match: (k) => k.startsWith("nova_forex_bot") || k.startsWith("nova_forex_scalp_bot"),
+  },
+  {
     id: "wallet-subs",
     title: "Wallet Tracker subtabs",
     match: (k) =>
@@ -446,6 +451,31 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Nova Forex Scalp Agent",
     description:
       "When ON, VIP users see Nova Forex Scalp subtab. Requires Nova Forex Agent ON. Default OFF.",
+  },
+  nova_forex_bot: {
+    label: "Nova Forex Bot (master)",
+    description:
+      "MA-crossover auto-trading bot on the user's own MT4/MT5 account (Vantage or TIOmarkets, via MetaAPI). Master ON + Owner-only OFF = all VIP users get access. Master ON + Owner-only ON = only the owner account can use it. Master OFF = disabled for everyone, including the owner. Requires METAAPI_TOKEN for live trading; users can still save broker credentials without it. Default OFF.",
+  },
+  nova_forex_bot_owner_only: {
+    label: "Nova Forex Bot — owner only",
+    description:
+      "Restricts Nova Forex Bot to the owner account even when the master flag above is ON. Turn OFF to roll it out to all VIP users. Has no effect while the master flag is OFF.",
+  },
+  nova_forex_scalp_bot: {
+    label: "Nova Forex Scalper Bot (master)",
+    description:
+      "Repeat entry→exit scalping bot on the user's own MT4/MT5 account (Vantage or TIOmarkets, via MetaAPI), with a 'Scalp this trade' hand-off from Nova Forex Scalp Agent. Master ON + Owner-only OFF = all VIP users get access. Master ON + Owner-only ON = only the owner account can use it. Master OFF = disabled for everyone, including the owner. Default OFF.",
+  },
+  nova_forex_scalp_bot_owner_only: {
+    label: "Nova Forex Scalper Bot — owner only",
+    description:
+      "Restricts Nova Forex Scalper Bot to the owner account even when the master flag above is ON. Turn OFF to roll it out to all VIP users. Has no effect while the master flag is OFF.",
+  },
+  nova_forex_scalp_bot_cron: {
+    label: "Nova Forex Scalper Bot — overnight automation",
+    description:
+      "When ON, the server's daily maintenance job also advances Nova Forex Scalper for every user who has it enabled (one batch pass, like NovaScalper overnight automation). When OFF, users still get ticks from Check price / auto tick while their tab is open. Default OFF.",
   },
   nova_liquidation_map: {
     label: "Liquidation Map (Crypto Futures)",

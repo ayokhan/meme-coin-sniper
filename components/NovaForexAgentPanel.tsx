@@ -29,7 +29,10 @@ import { clearNovaQPrefill, readNovaQPrefill } from "@/lib/nova-q-prefill";
 import NovaForexRadarPanel from "@/components/NovaForexRadarPanel";
 import NovaQTimeframeTable from "@/components/NovaQTimeframeTable";
 import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
+import NovaForexBotPanel from "@/components/NovaForexBotPanel";
+import NovaForexScalperPanel from "@/components/NovaForexScalperPanel";
 import { NOVA_FORECAST_RANGES, NOVA_FOREX_Q_TIMEFRAMES } from "@/lib/nova-forex-timeframes";
+import { hasNovaForexScalperPrefill } from "@/lib/nova-forex-scalper-prefill";
 import type { NovaQAlignment, NovaQTradePlan } from "@/lib/nova-q-trade-plan";
 
 const Q_TF = NOVA_FOREX_Q_TIMEFRAMES.map((t) => t.id);
@@ -63,6 +66,8 @@ type Props = {
   isVip: boolean;
   novaForexFib: boolean;
   novaForexScalp: boolean;
+  novaForexBot?: boolean;
+  novaForexScalpBot?: boolean;
 };
 
 function fmtUsd(n: number | null | undefined): string {
@@ -70,9 +75,16 @@ function fmtUsd(n: number | null | undefined): string {
   return `$${n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 })}`;
 }
 
-export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, novaForexScalp }: Props) {
+export default function NovaForexAgentPanel({
+  enabled,
+  isVip,
+  novaForexFib,
+  novaForexScalp,
+  novaForexBot = false,
+  novaForexScalpBot = false,
+}: Props) {
   const [subTab, setSubTab] = useState<
-    "forecast" | "nova-q" | "nova-smart" | "nova-q-fib" | "nova-radar" | "nova-scalp"
+    "forecast" | "nova-q" | "nova-smart" | "nova-q-fib" | "nova-radar" | "nova-scalp" | "forex-bot" | "scalp-bot"
   >("forecast");
   const [catalog, setCatalog] = useState<ForexSymbolEntry[]>([]);
   const [symbol, setSymbol] = useState("XAUUSD");
@@ -119,7 +131,18 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
     if (params.get("tab") === "nova-forex" && params.get("forex") === "nova-q") {
       setSubTab("nova-q");
     }
+    if (params.get("tab") === "nova-forex" && params.get("forex") === "forex-bot") {
+      setSubTab("forex-bot");
+    }
+    if (params.get("tab") === "nova-forex" && params.get("forex") === "scalp-bot") {
+      setSubTab("scalp-bot");
+    }
   }, []);
+
+  useEffect(() => {
+    if (!novaForexScalpBot) return;
+    if (hasNovaForexScalperPrefill()) setSubTab("scalp-bot");
+  }, [novaForexScalpBot]);
 
   useEffect(() => {
     const prefill = readNovaQPrefill();
@@ -430,6 +453,8 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
           {novaForexFib && <TabsTrigger value="nova-q-fib">NovaForex Fib</TabsTrigger>}
           <TabsTrigger value="nova-radar">NovaForex Radar</TabsTrigger>
           {novaForexScalp && <TabsTrigger value="nova-scalp">Nova Forex Scalp</TabsTrigger>}
+          {novaForexBot && <TabsTrigger value="forex-bot">Nova Forex Bot</TabsTrigger>}
+          {novaForexScalpBot && <TabsTrigger value="scalp-bot">Nova Forex Scalp Bot</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="forecast" className="mt-0">
@@ -764,6 +789,22 @@ export default function NovaForexAgentPanel({ enabled, isVip, novaForexFib, nova
             </div>
               );
             })()}
+          </TabsContent>
+        )}
+
+        {novaForexBot && (
+          <TabsContent value="forex-bot" className="mt-0">
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+              <NovaForexBotPanel />
+            </div>
+          </TabsContent>
+        )}
+
+        {novaForexScalpBot && (
+          <TabsContent value="scalp-bot" className="mt-0">
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+              <NovaForexScalperPanel />
+            </div>
           </TabsContent>
         )}
       </Tabs>

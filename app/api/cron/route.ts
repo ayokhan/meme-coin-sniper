@@ -46,6 +46,7 @@ export async function GET(request: Request) {
     perpAlerts?: { ok: boolean; triggered?: number; message?: string };
     blofinEarlyBreakout?: { ok: boolean; triggered?: number; skipped?: string; message?: string };
     novaScalper?: { ok: boolean; processed?: number; skipped?: boolean; message?: string };
+    novaForexScalper?: { ok: boolean; processed?: number; skipped?: boolean; message?: string };
     memeLeaderboard?: { ok: boolean; refreshed?: number; totalWallets?: number; skipped?: boolean; message?: string };
   } = {};
 
@@ -255,6 +256,23 @@ export async function GET(request: Request) {
     };
   } catch (e) {
     results.novaScalper = { ok: false, message: e instanceof Error ? e.message : 'NovaScalper cron failed' };
+  }
+
+  try {
+    const authNfs = request.headers.get('authorization');
+    const nfsRes = await fetch(`${base}/api/cron/nova-forex-scalper`, {
+      cache: 'no-store',
+      headers: authNfs ? { Authorization: authNfs } : {},
+    });
+    const nfsData = await nfsRes.json().catch(() => ({}));
+    results.novaForexScalper = {
+      ok: nfsData.success === true,
+      processed: typeof nfsData.processed === 'number' ? nfsData.processed : undefined,
+      skipped: nfsData.skipped === true,
+      message: nfsData.reason ?? nfsData.error,
+    };
+  } catch (e) {
+    results.novaForexScalper = { ok: false, message: e instanceof Error ? e.message : 'Nova Forex Scalper cron failed' };
   }
 
   try {

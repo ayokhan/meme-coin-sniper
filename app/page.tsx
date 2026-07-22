@@ -1055,6 +1055,8 @@ export default function Dashboard() {
     novaForexAgent: boolean;
     novaForexFib: boolean;
     novaForexScalpAgent: boolean;
+    novaForexBot: boolean;
+    novaForexScalpBot: boolean;
   } | null>(null);
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
   const [showMemeLeaderboard, setShowMemeLeaderboard] = useState(false);
@@ -1082,6 +1084,8 @@ export default function Dashboard() {
           novaForexAgent: !!d.novaForexAgent,
           novaForexFib: !!d.novaForexFib,
           novaForexScalpAgent: !!d.novaForexScalpAgent,
+          novaForexBot: !!d.novaForexBot,
+          novaForexScalpBot: !!d.novaForexScalpBot,
         });
       })
       .catch(() => {
@@ -1099,6 +1103,8 @@ export default function Dashboard() {
             novaForexAgent: false,
             novaForexFib: false,
             novaForexScalpAgent: false,
+            novaForexBot: false,
+            novaForexScalpBot: false,
           });
         }
       });
@@ -8205,6 +8211,8 @@ export default function Dashboard() {
                   isVip={isVip || isOwner}
                   novaForexFib={!!vipFuturesAddons?.novaForexFib}
                   novaForexScalp={!!vipFuturesAddons?.novaForexScalpAgent}
+                  novaForexBot={!!vipFuturesAddons?.novaForexBot}
+                  novaForexScalpBot={!!vipFuturesAddons?.novaForexScalpBot}
                 />
               </div>
             ) : activeTab === "nova-plus" ? (

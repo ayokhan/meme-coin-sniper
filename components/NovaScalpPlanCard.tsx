@@ -45,6 +45,7 @@ import {
 import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 import { scalpPlanFeedbackApi } from "@/lib/scalp-plan-market";
 import { NOVA_SCALPER_HANDOFF_URL, writeNovaScalperPrefill } from "@/lib/nova-scalper-prefill";
+import { NOVA_FOREX_SCALPER_HANDOFF_URL, writeNovaForexScalperPrefill } from "@/lib/nova-forex-scalper-prefill";
 import { novaQHandoffUrl, writeNovaQPrefill } from "@/lib/nova-q-prefill";
 import { useScalpHandoffNav } from "@/components/useScalpHandoffNav";
 
@@ -413,7 +414,6 @@ export function NovaScalpPlanCard({
   };
 
   const canScalpTrade =
-    showBlofin &&
     (result.side === "long" || result.side === "short") &&
     result.entryPrice != null &&
     Number.isFinite(result.entryPrice) &&
@@ -422,6 +422,28 @@ export function NovaScalpPlanCard({
 
   const scalpThisTrade = () => {
     if (!canScalpTrade || (result.side !== "long" && result.side !== "short")) return;
+
+    if (market === "forex") {
+      // Heuristic: 1 standard lot ≈ 100k units of base currency notional.
+      const lotSize = Math.max(0.01, Math.round((result.amountUsd / 100_000) * 100) / 100);
+      const forexPrefill = {
+        symbol: result.symbol,
+        side: result.side as "long" | "short",
+        entryPrice: result.entryPrice as number,
+        exitPrice: result.exitPrice as number,
+        stopLossPrice: result.recommendedStopPrice ?? result.stopLossPrice ?? null,
+        lotSize,
+        source: "Nova Forex Scalp Agent",
+        createdAt: new Date().toISOString(),
+      };
+      requestHandoff({
+        label: "Nova Forex Scalper",
+        url: NOVA_FOREX_SCALPER_HANDOFF_URL,
+        prepare: () => writeNovaForexScalperPrefill(forexPrefill),
+      });
+      return;
+    }
+
     const prefill = {
       symbol: result.symbol,
       side: result.side as "long" | "short",
@@ -489,7 +511,11 @@ export function NovaScalpPlanCard({
                 size="sm"
                 className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white"
                 onClick={scalpThisTrade}
-                title="Send these levels to NovaScalper (Crypto Futures) to place the trade"
+                title={
+                  market === "forex"
+                    ? "Send these levels to Nova Forex Scalper to place the trade on your MT4/MT5 account"
+                    : "Send these levels to NovaScalper (Crypto Futures) to place the trade"
+                }
               >
                 <Zap className="h-3.5 w-3.5 mr-1" />
                 Scalp this trade
