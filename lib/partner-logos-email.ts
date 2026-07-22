@@ -1,6 +1,6 @@
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
 
-export type PartnerBrandEmail = "blofin" | "vantage" | "tiomarkets";
+export type PartnerBrandEmail = "blofin" | "vantage" | "tiomarkets" | "assexmarkets";
 
 function partnerEmailImg(partner: PartnerBrandEmail): { src: string; alt: string; width: number } {
   if (partner === "vantage") {
@@ -8,6 +8,9 @@ function partnerEmailImg(partner: PartnerBrandEmail): { src: string; alt: string
   }
   if (partner === "tiomarkets") {
     return { src: `${APP_ORIGIN}/partners/tiomarkets-logo.png`, alt: "TIOmarkets", width: 140 };
+  }
+  if (partner === "assexmarkets") {
+    return { src: `${APP_ORIGIN}/partners/assexmarkets-logo.png`, alt: "Assexmarkets", width: 48 };
   }
   return { src: `${APP_ORIGIN}/partners/blofin-logo-dark.png`, alt: "Blofin", width: 140 };
 }

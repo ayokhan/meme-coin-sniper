@@ -29,6 +29,7 @@ export type ForexBrokerPartnerPromoAdmin = ForexBrokerPartnerPromoConfig & {
 const BROKER_LABEL: Record<ForexPartnerBrokerId, string> = {
   vantage: FOREX_BROKER_LABELS.vantage,
   tiomarkets: FOREX_BROKER_LABELS.tiomarkets,
+  assexmarkets: FOREX_BROKER_LABELS.assexmarkets,
 };
 
 /** Placeholder affiliate URLs — edit in Admin → Banners → Forex Broker Partners before enabling. */
@@ -57,9 +58,21 @@ export const DEFAULT_FOREX_BROKER_PARTNER_PROMO: Record<ForexPartnerBrokerId, Fo
     includeLogosInEmail: true,
     includeLogosInBroadcast: true,
   },
+  assexmarkets: {
+    enabled: false,
+    registerUrl: "https://www.assexmarkets.com/",
+    headline: "Trade Forex & CFDs on Assexmarkets with NovaStaris",
+    bodyText:
+      "Register with Assexmarkets through NovaStaris and connect your MT4/MT5 account to run Nova Forex Bot and Nova Forex Scalper on your own trades.",
+    promoLabel: "NovaStaris partner offer",
+    ctaLabel: "Register on Assexmarkets",
+    showLogosInBanner: true,
+    includeLogosInEmail: true,
+    includeLogosInBroadcast: true,
+  },
 };
 
-/** Site announcement presets for forex broker partnership launches (Admin → Banners). Fill in registerUrl before enabling. */
+/** Site announcement presets for forex broker partnership launches (Admin → Banners). */
 export const FOREX_BROKER_LAUNCH_BANNER: Record<ForexPartnerBrokerId, SiteAnnouncementBannerConfig> = {
   vantage: {
     enabled: true,
@@ -79,9 +92,18 @@ export const FOREX_BROKER_LAUNCH_BANNER: Record<ForexPartnerBrokerId, SiteAnnoun
     showPartnerLogos: true,
     partnerBrand: "tiomarkets",
   },
+  assexmarkets: {
+    enabled: true,
+    title: "NovaStaris × Assexmarkets — forex trading is here",
+    body: "Register on Assexmarkets through NovaStaris and connect your MT4/MT5 account to trade with Nova Forex Bot and Nova Forex Scalper.",
+    ctaLabel: "Open Nova Forex Bots",
+    ctaHref: "/?tab=nova-forex-bot",
+    showPartnerLogos: true,
+    partnerBrand: "assexmarkets",
+  },
 };
 
-/** Suggested customer email copy per broker (Admin → Banners → Email). Fill in the referral link before sending. */
+/** Suggested customer email copy per broker (Admin → Banners → Email). */
 export const FOREX_PARTNERSHIP_EMAIL: Record<ForexPartnerBrokerId, { subject: string; body: string }> = {
   vantage: {
     subject: "NovaStaris × Vantage Markets — trade forex with your MT4/MT5 account",
@@ -94,8 +116,8 @@ Register through our partner link, then link your MT4/MT5 login in NovaStaris to
 Your referral link: [add Vantage affiliate link]
 
 How to get started:
-1. Sign in to NovaStaris → open Nova Forex.
-2. Tap "Register on Vantage" in the partnership banner—or use the link above.
+1. Sign in to NovaStaris → Focus → Bots → Nova Forex Bots.
+2. Tap "Register on Vantage Markets" in the partnership banner—or use the link above.
 3. After your Vantage account is ready, connect your MT4/MT5 login in NovaStaris and start trading.
 
 Questions? Reply to this email or use Need Help in the app.
@@ -114,9 +136,29 @@ Register through our partner link, then link your MT4/MT5 login in NovaStaris to
 Your referral link: [add TIOmarkets affiliate link]
 
 How to get started:
-1. Sign in to NovaStaris → open Nova Forex.
+1. Sign in to NovaStaris → Focus → Bots → Nova Forex Bots.
 2. Tap "Register on TIOmarkets" in the partnership banner—or use the link above.
 3. After your TIOmarkets account is ready, connect your MT4/MT5 login in NovaStaris and start trading.
+
+Questions? Reply to this email or use Need Help in the app.
+
+— The NovaStaris team
+https://novastaris.ai`,
+  },
+  assexmarkets: {
+    subject: "NovaStaris × Assexmarkets — trade forex with your MT4/MT5 account",
+    body: `Hi there,
+
+We partnered with Assexmarkets so NovaStaris members can trade forex, metals, and indices — and connect MT4/MT5 directly to our Nova Forex Bot and Nova Forex Scalper.
+
+Register through our partner link, then link your MT4/MT5 login in NovaStaris to start trading with AI on your account.
+
+Your referral link: https://www.assexmarkets.com/
+
+How to get started:
+1. Sign in to NovaStaris → Focus → Bots → Nova Forex Bots.
+2. Tap "Register on Assexmarkets" in the partnership banner—or use the link above.
+3. After your Assexmarkets account is ready, connect your MT4/MT5 login in NovaStaris and start trading.
 
 Questions? Reply to this email or use Need Help in the app.
 

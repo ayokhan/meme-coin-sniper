@@ -317,11 +317,11 @@ model UserBlofinConfig {
 }
 
 // Per-user forex broker (MT4/MT5) login for Nova Forex bots — encrypted at rest.
-// One row per user per broker (vantage | tiomarkets); metaApiAccountId set once provisioned on MetaAPI cloud.
+// One row per user per broker (vantage | tiomarkets | assexmarkets); metaApiAccountId set once provisioned on MetaAPI cloud.
 model UserForexBrokerConfig {
   id                String   @id @default(cuid())
   userId            String
-  broker            String   // vantage | tiomarkets
+  broker            String   // vantage | tiomarkets | assexmarkets
   platform          String   @default("mt5") // mt4 | mt5
   encryptedLogin    String
   encryptedPassword String
@@ -427,7 +427,7 @@ model SiteAnnouncementBanner {
   ctaLabel         String   @default("")
   ctaHref          String   @default("")
   showPartnerLogos Boolean  @default(false)
-  /** When showPartnerLogos: blofin | vantage | tiomarkets (which logo sits next to NovaStaris). */
+  /** When showPartnerLogos: blofin | vantage | tiomarkets | assexmarkets (which logo sits next to NovaStaris). */
   partnerBrand     String   @default("blofin")
   updatedAt        DateTime @updatedAt
 }
@@ -458,9 +458,9 @@ model BlofinPartnerLinkClick {
   @@index([clickedAt])
 }
 
-/** Per-broker forex partner promo config (Admin → Banners → Forex Broker Partners). id = broker ("vantage" | "tiomarkets"). */
+/** Per-broker forex partner promo config (Admin → Banners → Forex Broker Partners). id = broker ("vantage" | "tiomarkets" | "assexmarkets"). */
 model ForexBrokerPartnerPromo {
-  id                      String   @id // vantage | tiomarkets
+  id                      String   @id // vantage | tiomarkets | assexmarkets
   enabled                 Boolean  @default(false)
   registerUrl             String   @default("")
   headline                String   @default("")
@@ -476,7 +476,7 @@ model ForexBrokerPartnerPromo {
 /** Tracked clicks on NovaStaris forex broker affiliate register links (not confirmed broker signups). */
 model ForexBrokerPartnerLinkClick {
   id        String   @id @default(cuid())
-  broker    String   // vantage | tiomarkets
+  broker    String   // vantage | tiomarkets | assexmarkets
   userId    String?
   guestHash String?
   clickedAt DateTime @default(now())
@@ -1012,7 +1012,7 @@ model NovaForexBotConfig {
   /** When true (set by owner in Admin), user cannot turn Nova Forex Bot back on until owner clears it. */
   ownerForceOff  Boolean   @default(false)
   mode           String    @default("demo") // demo | live
-  broker         String    @default("vantage") // vantage | tiomarkets
+  broker         String    @default("vantage") // vantage | tiomarkets | assexmarkets
   symbol         String    @default("EURUSD")
   timeframe      String    @default("15m")
   lotSize        Float     @default(0.01)
@@ -1041,7 +1041,7 @@ model NovaForexScalperConfig {
   enabled         Boolean   @default(false)
   ownerForceOff   Boolean   @default(false)
   mode            String    @default("demo") // demo | live
-  broker          String    @default("vantage") // vantage | tiomarkets
+  broker          String    @default("vantage") // vantage | tiomarkets | assexmarkets
   symbol          String    @default("EURUSD")
   side            String    @default("long") // long | short
   /** cross_down | cross_up — long dip = cross_down (price crosses down through entry); long breakout = cross_up */

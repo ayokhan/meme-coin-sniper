@@ -11,19 +11,19 @@ const IV_LEN = 16;
 const AUTH_TAG_LEN = 16;
 
 /** Brokers users can connect for Nova Forex Bot / Scalper (any MT4/MT5 broker MetaAPI can reach). */
-export type ForexBrokerId = "vantage" | "tiomarkets" | "myaccessmarkets";
+export type ForexBrokerId = "vantage" | "tiomarkets" | "assexmarkets";
 
-/** Affiliate / partner promo brokers only (Admin → Banners). */
-export type ForexPartnerBrokerId = "vantage" | "tiomarkets";
+/** Affiliate / partner promo brokers (Admin → Banners). Includes Assexmarkets (default OFF). */
+export type ForexPartnerBrokerId = "vantage" | "tiomarkets" | "assexmarkets";
 
-export const FOREX_BROKER_IDS: ForexBrokerId[] = ["vantage", "tiomarkets", "myaccessmarkets"];
+export const FOREX_BROKER_IDS: ForexBrokerId[] = ["vantage", "tiomarkets", "assexmarkets"];
 
-export const FOREX_PARTNER_BROKER_IDS: ForexPartnerBrokerId[] = ["vantage", "tiomarkets"];
+export const FOREX_PARTNER_BROKER_IDS: ForexPartnerBrokerId[] = ["vantage", "tiomarkets", "assexmarkets"];
 
 export const FOREX_BROKER_LABELS: Record<ForexBrokerId, string> = {
   vantage: "Vantage Markets",
   tiomarkets: "TIOmarkets",
-  myaccessmarkets: "MyAccessMarkets",
+  assexmarkets: "Assexmarkets",
 };
 
 export function parseForexBrokerId(raw: unknown): ForexBrokerId | null {
@@ -33,12 +33,20 @@ export function parseForexBrokerId(raw: unknown): ForexBrokerId | null {
     .replace(/\s+/g, "");
   if (s === "vantage" || s === "vantagemarkets") return "vantage";
   if (s === "tiomarkets" || s === "tio") return "tiomarkets";
-  if (s === "myaccessmarkets" || s === "myaccess" || s === "accessmarkets") return "myaccessmarkets";
+  if (
+    s === "assexmarkets" ||
+    s === "assex" ||
+    s === "myaccessmarkets" ||
+    s === "myaccess" ||
+    s === "accessmarkets"
+  ) {
+    return "assexmarkets";
+  }
   return null;
 }
 
 export function isForexPartnerBrokerId(v: unknown): v is ForexPartnerBrokerId {
-  return v === "vantage" || v === "tiomarkets";
+  return v === "vantage" || v === "tiomarkets" || v === "assexmarkets";
 }
 
 export type ForexBrokerPlatform = "mt4" | "mt5";

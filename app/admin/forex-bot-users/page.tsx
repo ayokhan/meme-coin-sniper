@@ -91,7 +91,7 @@ export default function AdminForexBotUsersPage() {
             Forex bot users
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Users who connected a Vantage Markets, TIOmarkets, or MyAccessMarkets MT4/MT5 account for Nova Forex Bot /
+            Users who connected a Vantage Markets, TIOmarkets, or Assexmarkets MT4/MT5 account for Nova Forex Bot /
             Scalper.
           </p>
         </div>
@@ -122,7 +122,7 @@ export default function AdminForexBotUsersPage() {
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No users have connected a Vantage Markets, TIOmarkets, or MyAccessMarkets account yet.
+              No users have connected a Vantage Markets, TIOmarkets, or Assexmarkets account yet.
             </p>
           ) : (
             <div className="overflow-x-auto">

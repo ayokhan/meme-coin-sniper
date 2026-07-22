@@ -149,7 +149,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     body: "",
     audience: "newsletter" as "newsletter" | "all",
     includePartnerLogos: false,
-    partnerBrand: "blofin" as "blofin" | "vantage" | "tiomarkets",
+    partnerBrand: "blofin" as "blofin" | "vantage" | "tiomarkets" | "assexmarkets",
   });
   const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
   const [emailAddInput, setEmailAddInput] = useState("");
@@ -1271,6 +1271,18 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
           })
         }
       />
+      <ForexBrokerPartnerSection
+        broker="assexmarkets"
+        onLoadEmailTemplate={(subject, body, includeLogos) =>
+          setEmailDraft({
+            subject,
+            body,
+            audience: "all",
+            includePartnerLogos: includeLogos,
+            partnerBrand: "assexmarkets",
+          })
+        }
+      />
 
       <Card className="border-zinc-200 dark:border-zinc-800">
         <CardHeader>
@@ -1436,13 +1448,14 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                 onChange={(e) =>
                   setEmailDraft((d) => ({
                     ...d,
-                    partnerBrand: e.target.value as "blofin" | "vantage" | "tiomarkets",
+                    partnerBrand: e.target.value as "blofin" | "vantage" | "tiomarkets" | "assexmarkets",
                   }))
                 }
               >
                 <option value="blofin">Blofin</option>
                 <option value="vantage">Vantage Markets</option>
                 <option value="tiomarkets">TIOmarkets</option>
+                <option value="assexmarkets">Assexmarkets</option>
               </select>
             </label>
           )}
@@ -1652,7 +1665,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
   );
 }
 
-/** Compact Vantage / TIOmarkets partner promo section — mirrors the Blofin card above. */
+/** Compact forex broker partner promo section — mirrors the Blofin card above. */
 function ForexBrokerPartnerSection({
   broker,
   onLoadEmailTemplate,

@@ -85,7 +85,7 @@ export async function sendAnnouncementEmails(args: {
   recipients?: string[];
   includePartnerLogos?: boolean;
   /** When includePartnerLogos: which logo (default Blofin). */
-  partnerBrand?: "blofin" | "vantage" | "tiomarkets";
+  partnerBrand?: "blofin" | "vantage" | "tiomarkets" | "assexmarkets";
 }): Promise<{ sent: number; failed: number; total: number; errors: string[] }> {
   const subject = args.subject.trim();
   const body = args.body.trim();

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       recipients?: string[];
       confirm?: boolean;
       includePartnerLogos?: boolean;
-      partnerBrand?: "blofin" | "vantage" | "tiomarkets";
+      partnerBrand?: "blofin" | "vantage" | "tiomarkets" | "assexmarkets";
     };
     if (!body.confirm) {
       return NextResponse.json({ success: false, error: "Set confirm: true to send." }, { status: 400 });

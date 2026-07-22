@@ -16,11 +16,13 @@ const PARTNER_ALT: Record<PartnerBrand, string> = {
   blofin: "Blofin",
   vantage: "Vantage",
   tiomarkets: "TIOmarkets",
+  assexmarkets: "Assexmarkets",
 };
 
 function partnerSrc(partner: PartnerBrand, onLightBackground: boolean): string {
   if (partner === "vantage") return "/partners/vantage-logo.png";
   if (partner === "tiomarkets") return "/partners/tiomarkets-logo.png";
+  if (partner === "assexmarkets") return "/partners/assexmarkets-logo.png";
   return onLightBackground ? "/partners/blofin-logo-dark.png" : "/partners/blofin-logo-light.png";
 }
 
@@ -69,7 +71,7 @@ export function PartnerLogosStrip({
         <Image
           src={partnerImage}
           alt={PARTNER_ALT[partner]}
-          width={partner === "vantage" ? 160 : 140}
+          width={partner === "vantage" ? 160 : partner === "assexmarkets" ? 48 : 140}
           height={40}
           className={`${h} w-auto object-contain`}
           priority

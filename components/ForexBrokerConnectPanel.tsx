@@ -181,7 +181,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
         <CardTitle className="text-base font-semibold">Forex broker connection (MT4/MT5)</CardTitle>
         {!compact && (
           <p className="text-xs text-muted-foreground">
-            Connect your Vantage Markets, TIOmarkets, or MyAccessMarkets MT4/MT5 login so Nova Forex bots can trade on
+            Connect your Vantage Markets, TIOmarkets, or Assexmarkets MT4/MT5 login so Nova Forex bots can trade on
             your account via MetaAPI. Credentials are encrypted at rest.
             Credentials are encrypted at rest.
           </p>
