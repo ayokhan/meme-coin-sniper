@@ -46,6 +46,7 @@ import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 import { scalpPlanFeedbackApi } from "@/lib/scalp-plan-market";
 import { NOVA_SCALPER_HANDOFF_URL, writeNovaScalperPrefill } from "@/lib/nova-scalper-prefill";
 import { NOVA_FOREX_SCALPER_HANDOFF_URL, writeNovaForexScalperPrefill } from "@/lib/nova-forex-scalper-prefill";
+import { estimateForexLotsFromMargin } from "@/lib/forex-lot-size";
 import { novaQHandoffUrl, writeNovaQPrefill } from "@/lib/nova-q-prefill";
 import { useScalpHandoffNav } from "@/components/useScalpHandoffNav";
 
@@ -424,8 +425,14 @@ export function NovaScalpPlanCard({
     if (!canScalpTrade || (result.side !== "long" && result.side !== "short")) return;
 
     if (market === "forex") {
-      // Heuristic: 1 standard lot ≈ 100k units of base currency notional.
-      const lotSize = Math.max(0.01, Math.round((result.amountUsd / 100_000) * 100) / 100);
+      const marginUsd = Math.max(1, Number(result.amountUsd) || 10);
+      const leverage = Math.max(1, Number(result.leverage) || 20);
+      const lotSize = estimateForexLotsFromMargin({
+        symbol: result.symbol,
+        entryPrice: result.entryPrice as number,
+        marginUsd,
+        leverage,
+      });
       const forexPrefill = {
         symbol: result.symbol,
         side: result.side as "long" | "short",
@@ -433,6 +440,8 @@ export function NovaScalpPlanCard({
         exitPrice: result.exitPrice as number,
         stopLossPrice: result.recommendedStopPrice ?? result.stopLossPrice ?? null,
         lotSize,
+        marginUsd,
+        leverage,
         source: "Nova Forex Scalp Agent",
         createdAt: new Date().toISOString(),
       };
@@ -677,7 +686,8 @@ export function NovaScalpPlanCard({
               </p>
               {result.estimatedLiqDistancePct != null && (
                 <p className="text-[11px] text-muted-foreground">
-                  ~{result.estimatedLiqDistancePct}% from entry · confirm on Blofin
+                  ~{result.estimatedLiqDistancePct}% from entry · confirm on{" "}
+                  {market === "forex" ? "MT5" : "Blofin"}
                 </p>
               )}
               {showPlanMonitor && livePrice != null && (
@@ -694,7 +704,7 @@ export function NovaScalpPlanCard({
           )}
           {result.stopBeyondEstimatedLiq && result.side !== "no_entry" && (
             <div className="col-span-2 sm:col-span-3 rounded-md border border-rose-400/40 bg-rose-500/10 px-2.5 py-1.5 text-[11px] text-rose-800 dark:text-rose-200">
-              Structural stop is beyond estimated liq — Blofin may liquidate before your stop fills.
+              Structural stop is beyond estimated liq — your broker may liquidate before your stop fills.
               Prefer the suggested/risk stop, or lower leverage / size.
             </div>
           )}

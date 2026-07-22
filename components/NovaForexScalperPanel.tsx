@@ -11,6 +11,7 @@ import {
   forexScalperEntryTriggerFor,
   readNovaForexScalperPrefill,
 } from "@/lib/nova-forex-scalper-prefill";
+import { estimateForexLotsFromMargin } from "@/lib/forex-lot-size";
 import ForexBrokerConnectPanel from "@/components/ForexBrokerConnectPanel";
 
 type ForexScalperConfig = {
@@ -49,6 +50,9 @@ export default function NovaForexScalperPanel() {
   const [success, setSuccess] = useState<string | null>(null);
   const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
   const prefillAppliedRef = useRef(false);
+  /** Plan sizing from Scalp Agent (UI only — trade still uses lotSize). */
+  const [planMarginUsd, setPlanMarginUsd] = useState(10);
+  const [planLeverage, setPlanLeverage] = useState(20);
   const [autoSec, setAutoSec] = useState<0 | 15 | 30 | 60>(0);
   const [connections, setConnections] = useState<{ broker: ForexBrokerId; connected: boolean }[]>([]);
   const [enabledBrokers, setEnabledBrokers] = useState<ForexBrokerId[]>([...FOREX_BROKER_IDS]);
@@ -110,6 +114,25 @@ export default function NovaForexScalperPanel() {
     const prefill = readNovaForexScalperPrefill();
     if (!prefill) return;
     prefillAppliedRef.current = true;
+    const marginUsd =
+      prefill.marginUsd != null && Number.isFinite(prefill.marginUsd) && prefill.marginUsd > 0
+        ? prefill.marginUsd
+        : 10;
+    const leverage =
+      prefill.leverage != null && Number.isFinite(prefill.leverage) && prefill.leverage > 0
+        ? prefill.leverage
+        : 20;
+    setPlanMarginUsd(marginUsd);
+    setPlanLeverage(leverage);
+    const lotFromPlan =
+      Number.isFinite(prefill.lotSize) && prefill.lotSize > 0
+        ? prefill.lotSize
+        : estimateForexLotsFromMargin({
+            symbol: prefill.symbol,
+            entryPrice: prefill.entryPrice,
+            marginUsd,
+            leverage,
+          });
     setConfigs((list) =>
       list.map((c) =>
         c.id === activeConfigId
@@ -122,13 +145,13 @@ export default function NovaForexScalperPanel() {
               exitPrice: prefill.exitPrice,
               stopLossPrice:
                 prefill.stopLossPrice != null && Number.isFinite(prefill.stopLossPrice) ? prefill.stopLossPrice : null,
-              lotSize: Number.isFinite(prefill.lotSize) && prefill.lotSize > 0 ? prefill.lotSize : c.lotSize,
+              lotSize: lotFromPlan,
             }
           : c
       )
     );
     setPrefillNotice(
-      `Loaded ${prefill.side.toUpperCase()} ${prefill.symbol} from ${prefill.source}. Review the levels below, then Save. Nothing is placed until you Save and run a tick.`
+      `Loaded ${prefill.side.toUpperCase()} ${prefill.symbol} from ${prefill.source} · $${marginUsd} margin · ${leverage}x → ~${lotFromPlan} lots. Review below, then Save.`
     );
     clearNovaForexScalperPrefill();
   }, [loading, activeConfigId, configs.length]);
@@ -538,6 +561,63 @@ export default function NovaForexScalperPanel() {
               className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Amount (USD margin)
+              </label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={planMarginUsd}
+                onChange={(e) => {
+                  const marginUsd = Math.max(1, parseFloat(e.target.value) || 1);
+                  setPlanMarginUsd(marginUsd);
+                  setField(
+                    "lotSize",
+                    estimateForexLotsFromMargin({
+                      symbol: config.symbol,
+                      entryPrice: config.entryPrice,
+                      marginUsd,
+                      leverage: planLeverage,
+                    })
+                  );
+                }}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Leverage (plan)
+              </label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={planLeverage}
+                onChange={(e) => {
+                  const leverage = Math.max(1, parseInt(e.target.value, 10) || 1);
+                  setPlanLeverage(leverage);
+                  setField(
+                    "lotSize",
+                    estimateForexLotsFromMargin({
+                      symbol: config.symbol,
+                      entryPrice: config.entryPrice,
+                      marginUsd: planMarginUsd,
+                      leverage,
+                    })
+                  );
+                }}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground -mt-2">
+            From your Scalp plan. Changing margin or leverage re-estimates <strong className="text-foreground">lot size</strong>{" "}
+            below. Actual account leverage is set in MT5 — this is for sizing only.
+          </p>
 
           <div className="grid grid-cols-2 gap-3">
             <div>

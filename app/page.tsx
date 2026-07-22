@@ -4591,7 +4591,7 @@ export default function Dashboard() {
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
                   {activeTab === "nova-forecast" && "NovaForecast Agent: multi-timeframe crypto perp structure—high/low zones, NovaQ, NovaRadar, and more. VIP only."}
                   {activeTab === "nova-forex" && "Nova Forex Agent: Market Watch for gold, FX, and indices—NovaQ Forex with S/R touches, Smart Analysis, Fib, Radar, and Scalp. VIP only."}
-                  {activeTab === "nova-forex-bot" && "Nova Forex Bots: trade on your Vantage Markets or TIOmarkets MT4/MT5 account. VIP only — Off / Owner only / All VIP flags."}
+                  {activeTab === "nova-forex-bot" && "Nova Forex Bots: trade on your Vantage Markets or TIOmarkets MT4/MT5 account."}
                   {activeTab === "nova-plus" && "Nova+ provides risk-managed trade analysis with a recommended stop loss, take-profit target, and position sizing guidance. VIP only."}
                   {activeTab === "nova-investment" && "Nova Investment Agent builds leverage strategies from your amount, risk preset, and duration (support/resistance + direction, leverage, stop loss, entry/exit). VIP only."}
                   {activeTab === "nova-connect" && "NovaConnect: the first social platform for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}

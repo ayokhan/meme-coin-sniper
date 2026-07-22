@@ -43,8 +43,7 @@ export default function NovaForexBotsPanel({ novaForexBot, novaForexScalpBot }: 
         <Flame className="mx-auto h-8 w-8 text-amber-600 dark:text-amber-400 mb-3" aria-hidden />
         <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">Nova Forex Bots</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          These bots are not available on your account yet. They are VIP-only and controlled by the owner (Off / Owner only /
-          All VIP). Contact support if you need access.
+          These bots are not available on your account yet. Contact support if you need access.
         </p>
       </div>
     );
@@ -60,7 +59,7 @@ export default function NovaForexBotsPanel({ novaForexBot, novaForexScalpBot }: 
         <p className="text-sm text-muted-foreground mt-1">
           Trade forex, metals, and indices on your own <strong className="text-foreground">Vantage Markets</strong>,{" "}
           <strong className="text-foreground">TIOmarkets</strong>, or <strong className="text-foreground">Assexmarkets</strong>{" "}
-          MT4/MT5 account. VIP only — same Off / Owner only / All VIP flags as in Admin → Feature flags.
+          MT4/MT5 account.
         </p>
       </div>
 

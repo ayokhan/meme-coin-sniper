@@ -468,8 +468,7 @@ export default function NovaForexAgentPanel({
           <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
               <Flame className="inline-block h-3.5 w-3.5 mr-1 text-emerald-500 -mt-0.5" aria-hidden />
-              Ready to trade? Open <strong className="text-foreground">Nova Forex Bots</strong> under Focus → Bots
-              (same Off / Owner only / All VIP flags).
+              Ready to trade? Open <strong className="text-foreground">Nova Forex Bots</strong> under Focus → Bots.
             </p>
             <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white">
               <Link href={novaForexScalpBot ? "/?tab=nova-forex-bot&forex=scalp-bot" : "/?tab=nova-forex-bot&forex=forex-bot"}>

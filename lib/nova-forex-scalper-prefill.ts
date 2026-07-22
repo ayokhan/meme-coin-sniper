@@ -24,6 +24,10 @@ export type NovaForexScalperPrefill = {
   stopLossPrice: number | null;
   /** MT4/MT5 lot size to open with. */
   lotSize: number;
+  /** Plan margin from Nova Forex Scalp Agent (USD) — shown on the bot for context / re-size. */
+  marginUsd?: number;
+  /** Plan leverage from Nova Forex Scalp Agent — display / re-size only (MT leverage is account-level). */
+  leverage?: number;
   /** Human-readable origin, e.g. "Nova Forex Agent" or "Nova Forex Fib". */
   source: string;
   createdAt: string;
