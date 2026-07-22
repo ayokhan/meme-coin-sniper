@@ -17,7 +17,7 @@ import type { SiteAnnouncementBannerAdmin } from "@/lib/site-announcement-banner
 import type { BlofinPartnerPromoAdmin, BlofinPartnerLinkClickRow } from "@/lib/blofin-partner-promo";
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import type { ForexBrokerPartnerPromoAdmin, ForexBrokerPartnerLinkClickRow } from "@/lib/forex-broker-partner-promo";
-import { FOREX_PARTNERSHIP_EMAIL, forexBrokerLabel } from "@/lib/forex-broker-partner-promo";
+import { FOREX_PARTNERSHIP_EMAIL, NOVA_FOREX_BOTS_LAUNCH_EMAIL, forexBrokerLabel } from "@/lib/forex-broker-partner-promo";
 import type { ForexPartnerBrokerId } from "@/lib/forex-broker-user-config";
 import { formatPromoDrawDate } from "@/lib/promo-banner";
 import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
@@ -1517,6 +1517,24 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
               className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
             />
           </label>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setEmailDraft((d) => ({
+                  ...d,
+                  subject: NOVA_FOREX_BOTS_LAUNCH_EMAIL.subject,
+                  body: NOVA_FOREX_BOTS_LAUNCH_EMAIL.body,
+                  audience: "newsletter",
+                  includePartnerLogos: false,
+                }))
+              }
+            >
+              Load Nova Forex Bots launch email
+            </Button>
+          </div>
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
             Message
             <textarea

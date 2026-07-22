@@ -167,6 +167,42 @@ https://novastaris.ai`,
   },
 };
 
+/** Customer announcement: Nova Forex Bot + Scalper launch (Admin → Banners → Email). */
+export const NOVA_FOREX_BOTS_LAUNCH_EMAIL = {
+  subject: "NovaStaris Forex Bots are here — trade on your own MT4/MT5 account",
+  body: `Hi there,
+
+Nova Forex Bots are live on NovaStaris.
+
+You can now run AI-assisted trades in forex, metals, and indices on your own MT4/MT5 account — not signals only.
+
+What's new
+• Nova Forex Bot — MA crossover strategy on your connected account
+• Nova Forex Scalper — entry → exit scalps, with "Scalp this trade" from Nova Forex Scalp Agent
+
+Supported brokers (when enabled for your account)
+• Vantage Markets
+• TIOmarkets
+• Assexmarkets (when turned on)
+
+How to get started
+1. Sign in to NovaStaris → Focus → Bots → Nova Forex Bots
+2. Connect your MT4/MT5 login (use the exact server name from your terminal)
+3. Choose Nova Forex Bot or Nova Forex Scalper, set your symbol and size, then Save
+4. From Nova Forex Agent → Scalp, use "Scalp this trade" to hand levels to the Scalper
+
+Tips
+• Covers FX pairs, metals (e.g. XAUUSD), and indices — whatever your broker lists
+• Leverage is set in MT5 / your broker — NovaStaris shows it and uses it for sizing
+• Use the exact symbol name your broker lists
+• Start in demo mode if you want to test first
+
+Questions? Reply to this email or use Need Help in the app.
+
+— The NovaStaris team
+https://novastaris.ai`,
+};
+
 /** ForexBrokerPartnerPromo.id IS the broker id ("vantage" | "tiomarkets") — same pattern as BlofinPartnerPromo.id = "default". */
 type Row = ForexBrokerPartnerPromoConfig & { id?: string; updatedAt?: Date };
 
