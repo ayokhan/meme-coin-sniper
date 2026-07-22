@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getForexTicker, validateForexScalpSymbol } from "@/lib/forex-market";
+import { validateForexScalpSymbol } from "@/lib/forex-market";
+import { resolveForexLivePrice } from "@/lib/forex-live-price";
 import { getNovaForexScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
@@ -24,13 +25,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: validated.error }, { status: 400 });
     }
     const symbol = validated.symbol;
-    const ticker = await getForexTicker(symbol);
-    const price = ticker?.last ? Number(ticker.last) : null;
+    const live = await resolveForexLivePrice({
+      symbol,
+      userId: session?.user?.id ?? null,
+    });
 
     return NextResponse.json({
       success: true,
       symbol,
-      price: price != null && Number.isFinite(price) ? price : null,
+      price: live?.price ?? null,
+      source: live?.source ?? null,
+      bid: live?.bid ?? null,
+      ask: live?.ask ?? null,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Price fetch failed";

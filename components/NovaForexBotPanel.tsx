@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { normalizeForexSymbol, FOREX_MARKET_WATCH } from "@/lib/forex-market";
 import { FOREX_BROKER_IDS, FOREX_BROKER_LABELS, type ForexBrokerId } from "@/lib/forex-broker-user-config";
+import { estimateForexLotsFromMargin } from "@/lib/forex-lot-size";
 import ForexBrokerConnectPanel from "@/components/ForexBrokerConnectPanel";
 
 const TIMEFRAMES = [
@@ -47,6 +48,9 @@ export default function NovaForexBotPanel() {
   const [ticking, setTicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [planMarginUsd, setPlanMarginUsd] = useState(10);
+  const [accountLeverage, setAccountLeverage] = useState<number | null>(null);
+  const [leverageLoading, setLeverageLoading] = useState(false);
 
   const loadConnections = useCallback(async () => {
     try {
@@ -98,6 +102,62 @@ export default function NovaForexBotPanel() {
     setConfig((c) => (c && c.broker !== next ? { ...c, broker: next } : c));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- connectedBrokersKey tracks list
   }, [config?.broker, connectedBrokersKey]);
+
+  const sizingLeverage = accountLeverage && accountLeverage > 0 ? accountLeverage : 20;
+
+  useEffect(() => {
+    if (!config?.broker) {
+      setAccountLeverage(null);
+      return;
+    }
+    const connected = connections.some((c) => c.broker === config.broker && c.connected);
+    if (!connected) {
+      setAccountLeverage(null);
+      return;
+    }
+    let cancelled = false;
+    setLeverageLoading(true);
+    fetch(`/api/user/forex-broker-config/account?broker=${config.broker}&period=1d&wait=1`, {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const lev = data?.account?.leverage;
+        setAccountLeverage(typeof lev === "number" && lev > 0 ? lev : null);
+      })
+      .catch(() => {
+        if (!cancelled) setAccountLeverage(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLeverageLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [config?.broker, connectedBrokersKey]);
+
+  useEffect(() => {
+    if (!config || !accountLeverage || accountLeverage <= 0) return;
+    const sym = config.symbol.toUpperCase();
+    const priceHint = sym.includes("XAU")
+      ? 4000
+      : sym.includes("XAG")
+        ? 50
+        : sym.includes("NAS") || sym.includes("US30") || sym.includes("SPX")
+          ? 20000
+          : 1.1;
+    const lots = estimateForexLotsFromMargin({
+      symbol: config.symbol,
+      entryPrice: priceHint,
+      marginUsd: planMarginUsd,
+      leverage: accountLeverage,
+    });
+    if (Math.abs(lots - config.lotSize) < 0.001) return;
+    setConfig((c) => (c ? { ...c, lotSize: lots } : c));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountLeverage, planMarginUsd, config?.symbol]);
 
   const setField = <K extends keyof BotConfig>(key: K, value: BotConfig[K]) => {
     setConfig((c) => (c ? { ...c, [key]: value } : c));
@@ -285,6 +345,58 @@ export default function NovaForexBotPanel() {
               </select>
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Amount (USD margin)
+              </label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={planMarginUsd}
+                onChange={(e) => {
+                  const marginUsd = Math.max(1, parseFloat(e.target.value) || 1);
+                  setPlanMarginUsd(marginUsd);
+                  const sym = config.symbol.toUpperCase();
+                  const priceHint = sym.includes("XAU")
+                    ? 4000
+                    : sym.includes("XAG")
+                      ? 50
+                      : sym.includes("NAS") || sym.includes("US30") || sym.includes("SPX")
+                        ? 20000
+                        : 1.1;
+                  setField(
+                    "lotSize",
+                    estimateForexLotsFromMargin({
+                      symbol: config.symbol,
+                      entryPrice: priceHint,
+                      marginUsd,
+                      leverage: sizingLeverage,
+                    })
+                  );
+                }}
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Account leverage
+              </label>
+              <div className="w-full rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2 py-1.5 text-sm font-mono">
+                {leverageLoading
+                  ? "…"
+                  : accountLeverage
+                    ? `1:${accountLeverage}`
+                    : "— (connect broker above)"}
+              </div>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground -mt-1">
+            Margin re-estimates <strong className="text-foreground">lot size</strong>. Leverage is from your MT5 account
+            (read-only).
+          </p>
 
           <div className="grid grid-cols-3 gap-3">
             <div>

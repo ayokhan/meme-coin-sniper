@@ -19,8 +19,8 @@ export type ForexSymbolEntry = {
 
 /** Curated list — expandable; user can also type any symbol we can map. */
 export const FOREX_MARKET_WATCH: ForexSymbolEntry[] = [
-  { symbol: "XAUUSD", label: "Gold vs US Dollar", category: "metal", yahoo: "GC=F", venueNote: "Spot XAUUSD (Swissquote mid, TradingView/FOREX.com–style). OHLC shape from Yahoo GC=F, level-adjusted to live spot." },
-  { symbol: "XAGUSD", label: "Silver vs US Dollar", category: "metal", yahoo: "SI=F", venueNote: "Spot XAGUSD (Swissquote mid). OHLC shape from Yahoo SI=F, level-adjusted to live spot." },
+  { symbol: "XAUUSD", label: "Gold vs US Dollar", category: "metal", yahoo: "GC=F", venueNote: "Live mid prefers your connected MT broker when linked; else Swissquote spot mid. OHLC shape from Yahoo GC=F, level-shifted to that mid. TradingView may differ if you chart another broker." },
+  { symbol: "XAGUSD", label: "Silver vs US Dollar", category: "metal", yahoo: "SI=F", venueNote: "Live mid prefers your connected MT broker when linked; else Swissquote spot mid. OHLC shape from Yahoo SI=F, level-shifted to that mid." },
   { symbol: "EURUSD", label: "Euro vs US Dollar", category: "forex", yahoo: "EURUSD=X", venueNote: "Major FX pair." },
   { symbol: "GBPUSD", label: "British Pound vs USD", category: "forex", yahoo: "GBPUSD=X", venueNote: "Major FX pair." },
   { symbol: "USDJPY", label: "US Dollar vs Yen", category: "forex", yahoo: "USDJPY=X", venueNote: "Major FX pair." },
@@ -189,7 +189,9 @@ export async function getForexCandles(
   symbol: string,
   hlInterval: string,
   limit: number,
-  rangeOverride?: string
+  rangeOverride?: string,
+  /** When set (e.g. broker mid), calibrate metal OHLC to this instead of Swissquote alone. */
+  spotMidOverride?: number | null
 ): Promise<Candle[]> {
   const key = normalizeForexSymbol(symbol);
   const yahoo = resolveYahooTicker(key);
@@ -231,7 +233,10 @@ export async function getForexCandles(
   let out = rows.slice(0, Math.max(1, limit));
 
   if (usesSpotCalibration(key)) {
-    const spotMid = await getForexSpotMid(key);
+    const spotMid =
+      spotMidOverride != null && Number.isFinite(spotMidOverride) && spotMidOverride > 0
+        ? spotMidOverride
+        : await getForexSpotMid(key);
     if (spotMid != null) out = calibrateCandlesToSpotMid(out, spotMid);
   }
 

@@ -427,7 +427,10 @@ export default function NovaForexAgentPanel({
       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
         <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Nova Forex Agent</h2>
         <p className="text-xs text-muted-foreground mb-3">
-          Forex, indices, and equities from a Market Watch catalog (XAUUSD, EURUSD, NAS100, TSLA, etc.). Gold/silver use **spot-calibrated** prices (Swissquote mid, TradingView/FOREX.com–style); other symbols via Yahoo Finance.
+          Forex, indices, and equities from a Market Watch catalog (XAUUSD, EURUSD, NAS100, TSLA, etc.). When your MT
+          account is connected, live gold/silver quotes prefer your <strong className="text-foreground">broker mid</strong>{" "}
+          (same book the bots trade). Otherwise we use a spot mid — TradingView may still differ if you chart a different
+          broker feed.
         </p>
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className="text-xs text-muted-foreground">Symbol:</span>

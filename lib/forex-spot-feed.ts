@@ -10,7 +10,7 @@ export const SPOT_CALIBRATED_METAL_SYMBOLS = new Set(["XAUUSD", "XAGUSD"]);
 
 type SpotCache = { mid: number; at: number };
 const spotMidCache = new Map<string, SpotCache>();
-const SPOT_CACHE_MS = 45_000;
+const SPOT_CACHE_MS = 8_000;
 
 function normalizeMetalKey(symbol: string): string {
   const upper = String(symbol ?? "")
@@ -49,9 +49,24 @@ export async function getForexSpotMid(symbol: string): Promise<number | null> {
     });
     if (!res.ok) return cached?.mid ?? null;
     const json = (await res.json()) as Array<{
-      spreadProfilePrices?: Array<{ bid?: number; ask?: number }>;
+      spreadProfilePrices?: Array<{ bid?: number; ask?: number; spreadProfile?: string }>;
     }>;
-    const row = json[0]?.spreadProfilePrices?.[0];
+    const profiles = json[0]?.spreadProfilePrices ?? [];
+    // Prefer tighter / prime-style profiles when present (closer to institutional CFD quotes).
+    const ranked = [...profiles].sort((a, b) => {
+      const score = (p: { bid?: number; ask?: number; spreadProfile?: string }) => {
+        const name = String(p.spreadProfile ?? "").toLowerCase();
+        if (name.includes("prime")) return 0;
+        if (name.includes("premium")) return 1;
+        if (name.includes("standard")) return 2;
+        const bid = Number(p.bid);
+        const ask = Number(p.ask);
+        if (!Number.isFinite(bid) || !Number.isFinite(ask)) return 99;
+        return 3 + (ask - bid);
+      };
+      return score(a) - score(b);
+    });
+    const row = ranked[0] ?? profiles[0];
     const bid = row?.bid;
     const ask = row?.ask;
     if (bid == null || ask == null || !Number.isFinite(bid) || !Number.isFinite(ask)) {

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getForexCandles, getForexTicker, normalizeForexSymbol, validateForexScalpSymbol } from "@/lib/forex-market";
+import { getForexCandles, validateForexScalpSymbol } from "@/lib/forex-market";
+import { resolveForexLivePrice } from "@/lib/forex-live-price";
 import { analyzeScalpSetup, scalpTimeframeConfig } from "@/lib/nova-scalp-agent";
 import { getNovaForexScalpAgentAccess } from "@/lib/vip-futures-addon-access";
 
@@ -34,12 +35,13 @@ export async function POST(request: Request) {
     const leverage = Math.min(125, Math.max(1, Number(body.leverage) || 10));
     const maxLossPctOnMargin = Math.min(100, Math.max(0.5, Number(body.maxLossPctOnMargin) || 5));
 
-    const [candles, ticker] = await Promise.all([
-      getForexCandles(symbol, tf.interval, tf.limit),
-      getForexTicker(symbol),
-    ]);
+    const live = await resolveForexLivePrice({
+      symbol,
+      userId: session?.user?.id ?? null,
+    });
+    const currentPrice = live?.price ?? null;
+    const candles = await getForexCandles(symbol, tf.interval, tf.limit, undefined, currentPrice);
 
-    const currentPrice = ticker?.last ? Number(ticker.last) : null;
     const analysis = analyzeScalpSetup({
       symbol,
       timeframeId: tf.id,
@@ -50,7 +52,11 @@ export async function POST(request: Request) {
       currentPrice,
     });
 
-    return NextResponse.json({ success: true, analysis });
+    return NextResponse.json({
+      success: true,
+      analysis,
+      priceSource: live?.source ?? null,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Nova Forex Scalp failed";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
