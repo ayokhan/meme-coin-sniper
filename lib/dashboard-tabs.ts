@@ -15,6 +15,7 @@ export type DashboardTabId =
   | "trading-bot"
   | "polymarket-bot"
   | "prop-firm-bot"
+  | "nova-forex-bot"
   | "nova-ultimate"
   | "coach-calls"
   | "nova-forecast"
@@ -44,6 +45,7 @@ export const DASHBOARD_TAB_ORDER: DashboardTabId[] = [
   "trading-bot",
   "polymarket-bot",
   "prop-firm-bot",
+  "nova-forex-bot",
   "nova-ultimate",
   "ct",
   "wallets",
@@ -78,6 +80,7 @@ export const TAB_SHORT_LABELS: Record<DashboardTabId, string> = {
   "trading-bot": "Bots",
   "polymarket-bot": "Polymarket",
   "prop-firm-bot": "Prop Firm",
+  "nova-forex-bot": "FX Bots",
   "nova-ultimate": "Ultimate",
   "coach-calls": "Coach",
   "nova-forecast": "Forecast",

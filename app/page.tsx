@@ -111,6 +111,7 @@ import { clearNovaQPrefill, readNovaQPrefill } from "@/lib/nova-q-prefill";
 import { formatQuotePriceUsd } from "@/lib/format-quote-price";
 import { NOVA_FORECAST_RANGES } from "@/lib/nova-timeframes";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
+import NovaForexBotsPanel from "@/components/NovaForexBotsPanel";
 import TradingUniversityPanel from "@/components/TradingUniversityPanel";
 import TradingUniversityInviteBanner, {
   dismissTradingUniversityBannerStorage,
@@ -215,6 +216,7 @@ type TabId =
   | "trading-bot"
   | "polymarket-bot"
   | "prop-firm-bot"
+  | "nova-forex-bot"
   | "nova-ultimate"
   | "coach-calls"
   | "nova-forecast"
@@ -231,9 +233,9 @@ type TabId =
   | "chris-clayton"
   | "trading-university";
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
-const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-connect"];
+const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-forex-bot", "nova-plus", "nova-connect"];
 /** Platform: surge, transactions, ai-analysis, futures. VIP-only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-forex-bot", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
 /** Main dashboard top nav — flex-none overrides default TabsTrigger flex-1 so wrapped tabs do not overlap. */
 const DASHBOARD_TOP_TABS_LIST_CLASS =
   "!flex !h-auto !min-h-0 w-full flex-wrap content-start items-start gap-x-2 gap-y-2 p-3 sm:p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-gradient-to-br from-zinc-50/95 via-white/90 to-zinc-100/80 dark:from-zinc-900/95 dark:via-zinc-800/90 dark:to-zinc-900/80 shadow-inner [&_[role=tab]]:!h-auto [&_[role=tab]]:flex-none [&_[role=tab]]:grow-0 [&_[role=tab]]:shrink-0 [&_[role=tab]]:inline-flex [&_[role=tab]]:items-center [&_[role=tab]]:gap-1.5 [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:leading-normal [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab][data-state=active]]:shadow-md";
@@ -252,6 +254,8 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   "trading-bot": "page_tab_trading_bot",
   "polymarket-bot": "page_tab_trading_bot",
   "prop-firm-bot": "page_tab_prop_firm_bot",
+  /** Visibility is overridden by Nova Forex Bot / Scalper feature flags (Off / Owner only / All VIP). */
+  "nova-forex-bot": "page_tab_nova_forex",
   "nova-ultimate": "page_tab_nova_ultimate",
   ct: "page_tab_ct",
   wallets: "page_tab_wallets",
@@ -283,6 +287,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "trading-bot",
   "polymarket-bot",
   "prop-firm-bot",
+  "nova-forex-bot",
   "nova-ultimate",
   "ct",
   "wallets",
@@ -466,6 +471,10 @@ export default function Dashboard() {
   };
 
   const isTabVisibleInGui = (tab: TabId) => {
+    /** Same Off / Owner only / All VIP flags as Admin → Feature flags → Nova Forex Bots. */
+    if (tab === "nova-forex-bot") {
+      return !!(vipFuturesAddons?.novaForexBot || vipFuturesAddons?.novaForexScalpBot);
+    }
     if (tab === "nova-connect") return novaConnectEnabled && isTabPageEnabled(tab);
     if (tab === "chris-clayton") return isOwner && isTabPageEnabled(tab);
     return isTabPageEnabled(tab);
@@ -476,7 +485,7 @@ export default function Dashboard() {
     const coreTabs: TabId[] = ["new", "trending", "bsc", "watchlist", "nova-connect", "trading-university"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
     const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence", "chris-clayton"];
-    const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-ultimate"];
+    const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-forex-bot", "nova-ultimate"];
     if (topTabFilter === "core") return coreTabs.includes(tab);
     if (topTabFilter === "pro") return proTabs.includes(tab);
     if (topTabFilter === "vip") return vipTabs.includes(tab);
@@ -2105,7 +2114,7 @@ export default function Dashboard() {
       if (status === "authenticated") fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
+    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -3159,7 +3168,7 @@ export default function Dashboard() {
 
   // Auto-refresh: Go Hunting / Trending / Surge share VIP daily limit; auto off unless admin enables.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
@@ -4459,6 +4468,9 @@ export default function Dashboard() {
                 {isTabVisibleInGui("prop-firm-bot") && matchesTopTabFilter("prop-firm-bot") && (
                   <TabsTrigger value="prop-firm-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Prop Firm Challenge</TabsTrigger>
                 )}
+                {isTabVisibleInGui("nova-forex-bot") && matchesTopTabFilter("nova-forex-bot") && (
+                  <TabsTrigger value="nova-forex-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-700"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Forex Bots</TabsTrigger>
+                )}
                 {isTabVisibleInGui("nova-ultimate") && matchesTopTabFilter("nova-ultimate") && (
                   <TabsTrigger value="nova-ultimate" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Ultimate</TabsTrigger>
                 )}
@@ -4579,6 +4591,7 @@ export default function Dashboard() {
                   {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
                   {activeTab === "nova-forecast" && "NovaForecast Agent: multi-timeframe crypto perp structure—high/low zones, NovaQ, NovaRadar, and more. VIP only."}
                   {activeTab === "nova-forex" && "Nova Forex Agent: Market Watch for gold, FX, and indices—NovaQ Forex with S/R touches, Smart Analysis, Fib, Radar, and Scalp. VIP only."}
+                  {activeTab === "nova-forex-bot" && "Nova Forex Bots: trade on your Vantage Markets or TIOmarkets MT4/MT5 account. VIP only — Off / Owner only / All VIP flags."}
                   {activeTab === "nova-plus" && "Nova+ provides risk-managed trade analysis with a recommended stop loss, take-profit target, and position sizing guidance. VIP only."}
                   {activeTab === "nova-investment" && "Nova Investment Agent builds leverage strategies from your amount, risk preset, and duration (support/resistance + direction, leverage, stop loss, entry/exit). VIP only."}
                   {activeTab === "nova-connect" && "NovaConnect: the first social platform for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}
@@ -4802,7 +4815,7 @@ export default function Dashboard() {
                   config={memeTableHintBanner}
                 />
               )}
-            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-ultimate" && tokensForDisplay.length === 0 ? (
+            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-forex-bot" && activeTab !== "nova-ultimate" && tokensForDisplay.length === 0 ? (
               <div className="mx-3 sm:mx-6 overflow-x-auto px-2 py-8 sm:py-10">
                 <Table>
                   <TableHeader>
@@ -7738,6 +7751,13 @@ export default function Dashboard() {
                   ctaLabel: "Contact for access",
                 });
               })()
+            ) : activeTab === "nova-forex-bot" ? (
+              <div className="mx-3 sm:mx-6 mb-6 sm:mb-8">
+                <NovaForexBotsPanel
+                  novaForexBot={!!vipFuturesAddons?.novaForexBot}
+                  novaForexScalpBot={!!vipFuturesAddons?.novaForexScalpBot}
+                />
+              </div>
             ) : activeTab === "nova-ultimate" ? (
               (() => {
                 const novaUltimateOnDemand = !!(session?.user as { novaUltimateOnDemand?: boolean } | undefined)?.novaUltimateOnDemand;

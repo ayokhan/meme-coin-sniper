@@ -12,7 +12,7 @@ import {
 export const NOVA_FOREX_SCALPER_PREFILL_KEY = "novastaris_nova_forex_scalper_prefill";
 export const NOVA_FOREX_SCALPER_PREFILL_EVENT = "novastaris-nova-forex-scalper-prefill";
 
-export const NOVA_FOREX_SCALPER_HANDOFF_URL = "/?tab=nova-forex&forex=scalp-bot";
+export const NOVA_FOREX_SCALPER_HANDOFF_URL = "/?tab=nova-forex-bot&forex=scalp-bot";
 
 export type NovaForexScalperPrefill = {
   /** Forex/CFD symbol as shown in Nova Forex (e.g. "EURUSD", "XAUUSD", "NAS100"). */

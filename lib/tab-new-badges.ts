@@ -31,6 +31,7 @@ export const TAB_NEW_BADGE_OPTIONS: { id: string; label: string }[] = [
   { id: "trading-bot", label: "NovaStaris AI Trading Bots" },
   { id: "polymarket-bot", label: "Nova Polymarket" },
   { id: "prop-firm-bot", label: "Nova Prop Firm Challenge" },
+  { id: "nova-forex-bot", label: "Nova Forex Bots" },
   { id: "nova-ultimate", label: "Nova Ultimate" },
   { id: "ct", label: "CT Scan" },
   { id: "wallets", label: "Wallet Tracker" },

@@ -29,11 +29,11 @@ import { clearNovaQPrefill, readNovaQPrefill } from "@/lib/nova-q-prefill";
 import NovaForexRadarPanel from "@/components/NovaForexRadarPanel";
 import NovaQTimeframeTable from "@/components/NovaQTimeframeTable";
 import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
-import NovaForexBotPanel from "@/components/NovaForexBotPanel";
-import NovaForexScalperPanel from "@/components/NovaForexScalperPanel";
 import { NOVA_FORECAST_RANGES, NOVA_FOREX_Q_TIMEFRAMES } from "@/lib/nova-forex-timeframes";
 import { hasNovaForexScalperPrefill } from "@/lib/nova-forex-scalper-prefill";
 import type { NovaQAlignment, NovaQTradePlan } from "@/lib/nova-q-trade-plan";
+import Link from "next/link";
+import { Flame } from "lucide-react";
 
 const Q_TF = NOVA_FOREX_Q_TIMEFRAMES.map((t) => t.id);
 const FORECAST_RANGES = NOVA_FORECAST_RANGES.map((r) => ({ id: r.id, label: r.label }));
@@ -84,7 +84,7 @@ export default function NovaForexAgentPanel({
   novaForexScalpBot = false,
 }: Props) {
   const [subTab, setSubTab] = useState<
-    "forecast" | "nova-q" | "nova-smart" | "nova-q-fib" | "nova-radar" | "nova-scalp" | "forex-bot" | "scalp-bot"
+    "forecast" | "nova-q" | "nova-smart" | "nova-q-fib" | "nova-radar" | "nova-scalp"
   >("forecast");
   const [catalog, setCatalog] = useState<ForexSymbolEntry[]>([]);
   const [symbol, setSymbol] = useState("XAUUSD");
@@ -131,18 +131,27 @@ export default function NovaForexAgentPanel({
     if (params.get("tab") === "nova-forex" && params.get("forex") === "nova-q") {
       setSubTab("nova-q");
     }
-    if (params.get("tab") === "nova-forex" && params.get("forex") === "forex-bot") {
-      setSubTab("forex-bot");
-    }
-    if (params.get("tab") === "nova-forex" && params.get("forex") === "scalp-bot") {
-      setSubTab("scalp-bot");
+    /** Legacy deep links → Focus → Bots → Nova Forex Bots */
+    const forex = params.get("forex");
+    if (
+      params.get("tab") === "nova-forex" &&
+      (forex === "forex-bot" || forex === "scalp-bot" || hasNovaForexScalperPrefill())
+    ) {
+      const target =
+        forex === "forex-bot"
+          ? "/?tab=nova-forex-bot&forex=forex-bot"
+          : "/?tab=nova-forex-bot&forex=scalp-bot";
+      window.location.replace(target);
     }
   }, []);
 
   useEffect(() => {
-    if (!novaForexScalpBot) return;
-    if (hasNovaForexScalperPrefill()) setSubTab("scalp-bot");
-  }, [novaForexScalpBot]);
+    if (typeof window === "undefined") return;
+    if (!novaForexScalpBot && !novaForexBot) return;
+    if (hasNovaForexScalperPrefill()) {
+      window.location.replace("/?tab=nova-forex-bot&forex=scalp-bot");
+    }
+  }, [novaForexScalpBot, novaForexBot]);
 
   useEffect(() => {
     const prefill = readNovaQPrefill();
@@ -453,9 +462,22 @@ export default function NovaForexAgentPanel({
           {novaForexFib && <TabsTrigger value="nova-q-fib">NovaForex Fib</TabsTrigger>}
           <TabsTrigger value="nova-radar">NovaForex Radar</TabsTrigger>
           {novaForexScalp && <TabsTrigger value="nova-scalp">Nova Forex Scalp</TabsTrigger>}
-          {novaForexBot && <TabsTrigger value="forex-bot">Nova Forex Bot</TabsTrigger>}
-          {novaForexScalpBot && <TabsTrigger value="scalp-bot">Nova Forex Scalp Bot</TabsTrigger>}
         </TabsList>
+
+        {(novaForexBot || novaForexScalpBot) && (
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              <Flame className="inline-block h-3.5 w-3.5 mr-1 text-emerald-500 -mt-0.5" aria-hidden />
+              Ready to trade? Open <strong className="text-foreground">Nova Forex Bots</strong> under Focus → Bots
+              (same Off / Owner only / All VIP flags).
+            </p>
+            <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white">
+              <Link href={novaForexScalpBot ? "/?tab=nova-forex-bot&forex=scalp-bot" : "/?tab=nova-forex-bot&forex=forex-bot"}>
+                Open Forex Bots
+              </Link>
+            </Button>
+          </div>
+        )}
 
         <TabsContent value="forecast" className="mt-0">
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
@@ -792,21 +814,6 @@ export default function NovaForexAgentPanel({
           </TabsContent>
         )}
 
-        {novaForexBot && (
-          <TabsContent value="forex-bot" className="mt-0">
-            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-              <NovaForexBotPanel />
-            </div>
-          </TabsContent>
-        )}
-
-        {novaForexScalpBot && (
-          <TabsContent value="scalp-bot" className="mt-0">
-            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-              <NovaForexScalperPanel />
-            </div>
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );

@@ -175,6 +175,7 @@ export const URL_TAB_IDS = new Set([
   "trading-bot",
   "polymarket-bot",
   "prop-firm-bot",
+  "nova-forex-bot",
   "nova-ultimate",
   "coach-calls",
   "nova-forecast",

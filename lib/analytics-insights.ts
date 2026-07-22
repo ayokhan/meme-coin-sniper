@@ -52,6 +52,7 @@ const TAB_LABELS: Record<string, string> = {
   'trading-bot': 'NovaStaris AI Trading Bots',
   'polymarket-bot': 'Nova Polymarket',
   'prop-firm-bot': 'Nova Prop Firm Challenge',
+  'nova-forex-bot': 'Nova Forex Bots',
   'nova-ultimate': 'Nova Ultimate',
   ct: 'CT Scan',
   wallets: 'Wallet Tracker',
