@@ -34,6 +34,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import AccountNavMenu from "@/components/AccountNavMenu";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useI18n } from "@/components/I18nProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -356,6 +358,7 @@ function NovaConnectFeedAuthorAvatar({
 }
 
 export default function Dashboard() {
+  const { t } = useI18n();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -3905,62 +3908,63 @@ export default function Dashboard() {
                 </span>
                 <span className="hidden sm:flex items-center gap-1.5 text-xs sm:text-sm font-semibold mt-0.5 tracking-wide bg-gradient-to-r from-amber-400 via-yellow-300 to-cyan-400 bg-clip-text text-transparent dark:from-amber-300 dark:via-yellow-200 dark:to-cyan-300">
                   <Zap className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0 animate-[nova-zap-pulse_2s_ease-in-out_infinite]" aria-hidden />
-                  Your Advanced AI Lightning Crypto Sniper, Futures and Prediction Market Intelligence
+                  {t("brand.tagline")}
                 </span>
                 <span className="sm:hidden text-[10px] font-semibold mt-0.5 text-zinc-600 dark:text-zinc-300 truncate">
-                  AI Crypto Sniper for Meme Coins, Futures &amp; Prediction Markets.
+                  {t("brand.taglineShort")}
                 </span>
               </h1>
             </div>
             <div className="flex items-center gap-2 shrink-0 md:hidden">
-              <Button variant="outline" size="icon" className="h-11 w-11 border-zinc-200 dark:border-zinc-700" onClick={() => setMobileMenuOpen((v) => !v)} aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}>
+              <Button variant="outline" size="icon" className="h-11 w-11 border-zinc-200 dark:border-zinc-700" onClick={() => setMobileMenuOpen((v) => !v)} aria-label={mobileMenuOpen ? t("nav.closeMenu") : t("nav.openMenu")}>
                 {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
             </div>
             <div className="hidden md:flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2" role="group" aria-label="Theme">
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 shrink-0">Theme</span>
+            <div className="flex items-center gap-2" role="group" aria-label={t("nav.theme")}>
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 shrink-0">{t("nav.theme")}</span>
               <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 p-0.5">
-                {(["light", "dark", "system"] as const).map((t) => (
+                {(["light", "dark", "system"] as const).map((themeOpt) => (
                   <button
-                    key={t}
+                    key={themeOpt}
                     type="button"
-                    onClick={() => setTheme(t)}
+                    onClick={() => setTheme(themeOpt)}
                     className={`rounded px-2.5 py-1.5 text-xs font-medium transition-all ${
-                      !mounted ? "text-zinc-500 dark:text-zinc-400" : theme === t
+                      !mounted ? "text-zinc-500 dark:text-zinc-400" : theme === themeOpt
                         ? "bg-cyan-500 text-white dark:bg-cyan-600 shadow-sm"
                         : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
                     }`}
                   >
-                    {t === "light" ? "Light" : t === "dark" ? "Dark" : "System"}
+                    {themeOpt === "light" ? t("nav.light") : themeOpt === "dark" ? t("nav.dark") : t("nav.system")}
                   </button>
                 ))}
               </div>
             </div>
+            <LanguageSwitcher compact />
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              <Link href="/qr"><QrCode className="h-3.5 w-3.5 mr-1.5 inline" />QR code</Link>
+              <Link href="/qr"><QrCode className="h-3.5 w-3.5 mr-1.5 inline" />{t("nav.qr")}</Link>
             </Button>
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              <Link href="/about">About</Link>
+              <Link href="/about">{t("nav.about")}</Link>
             </Button>
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              <Link href="/chat">Chat</Link>
+              <Link href="/chat">{t("nav.chat")}</Link>
             </Button>
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              <Link href="/support">Support</Link>
+              <Link href="/support">{t("nav.support")}</Link>
             </Button>
             {isOwner && (
               <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-                <Link href="/status">Status</Link>
+                <Link href="/status">{t("nav.status")}</Link>
               </Button>
             )}
             {status !== "authenticated" && (
               <>
                 <Button size="sm" asChild className="bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500 font-medium">
-                  <Link href="/register">Sign up free</Link>
+                  <Link href="/register">{t("nav.signUp")}</Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-                  <Link href="/signin">Sign in</Link>
+                  <Link href="/signin">{t("nav.signIn")}</Link>
                 </Button>
               </>
             )}
@@ -3969,22 +3973,22 @@ export default function Dashboard() {
             )}
             {status === "authenticated" && !isPaid && (
               <Button size="sm" asChild className="bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
-                <Link href="/subscribe">Upgrade to VIP</Link>
+                <Link href="/subscribe">{t("nav.upgradeVip")}</Link>
               </Button>
             )}
             {status === "authenticated" && isPaid && (
-              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">{isCoachUser && !isOwner ? "Coach" : "VIP"}</span>
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50">{isCoachUser && !isOwner ? t("nav.coach") : t("nav.vip")}</span>
             )}
             {status === "authenticated" && isOwner && (
               <>
                 {presencePingOk === true && (
                   <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/50" title="Visitors will see &quot;Live agent available&quot;">
-                    Live: online
+                    {t("nav.liveOnline")}
                   </span>
                 )}
                 {presencePingOk === false && (
                   <span className="text-xs font-medium text-amber-600 dark:text-amber-400 px-2 py-1 rounded bg-amber-50 dark:bg-amber-950/50" title="Set OWNER_EMAIL in Vercel to your sign-in email and redeploy.">
-                    Live: not marked
+                    {t("nav.liveNotMarked")}
                   </span>
                 )}
                 <div className="relative" ref={adminMenuRef}>
@@ -3994,7 +3998,7 @@ export default function Dashboard() {
                     onClick={(e) => { e.stopPropagation(); setAdminMenuOpen((v) => !v); }}
                     className="border-zinc-200 dark:border-zinc-700 inline-flex items-center gap-1"
                   >
-                    Nova Admin
+                    {t("nav.novaAdmin")}
                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${adminMenuOpen ? "rotate-180" : ""}`} />
                   </Button>
                   {adminMenuOpen && (
@@ -4017,7 +4021,7 @@ export default function Dashboard() {
             {status === "authenticated" && delegatedAdminNavItems.length > 0 && (
               delegatedAdminNavItems.length === 1 ? (
                 <Button variant="outline" size="sm" asChild className="border-zinc-200 dark:border-zinc-700">
-                  <Link href={delegatedAdminNavItems[0].href}>Admin</Link>
+                  <Link href={delegatedAdminNavItems[0].href}>{t("nav.admin")}</Link>
                 </Button>
               ) : (
                 <div className="relative" ref={adminMenuRef}>
@@ -4027,7 +4031,7 @@ export default function Dashboard() {
                     onClick={(e) => { e.stopPropagation(); setAdminMenuOpen((v) => !v); }}
                     className="border-zinc-200 dark:border-zinc-700 inline-flex items-center gap-1"
                   >
-                    Admin
+                    {t("nav.admin")}
                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${adminMenuOpen ? "rotate-180" : ""}`} />
                   </Button>
                   {adminMenuOpen && (
@@ -4060,7 +4064,7 @@ export default function Dashboard() {
                 }}
                 className="border-zinc-200 dark:border-zinc-700"
               >
-                Log out
+                {t("nav.logOut")}
               </Button>
             )}
             <Button
@@ -4070,7 +4074,7 @@ export default function Dashboard() {
               disabled={loading}
               className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
             >
-              Refresh
+              {t("nav.refresh")}
             </Button>
             <Button
               size="sm"
@@ -4093,69 +4097,72 @@ export default function Dashboard() {
           </div>
           {mobileMenuOpen && (
             <div className="md:hidden mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-1 max-h-[70vh] overflow-y-auto">
-              <div className="flex items-center gap-2 py-2 min-h-[44px]" role="group" aria-label="Theme">
-                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400 shrink-0">Theme</span>
+              <div className="flex items-center gap-2 py-2 min-h-[44px]" role="group" aria-label={t("nav.theme")}>
+                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400 shrink-0">{t("nav.theme")}</span>
                 <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 p-0.5">
-                  {(["light", "dark", "system"] as const).map((t) => (
-                    <button key={t} type="button" onClick={() => setTheme(t)} className={`rounded px-3 py-2 text-sm font-medium transition-all min-h-[40px] ${!mounted ? "text-zinc-500" : theme === t ? "bg-cyan-500 text-white dark:bg-cyan-600" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"}`}>
-                      {t === "light" ? "Light" : t === "dark" ? "Dark" : "System"}
+                  {(["light", "dark", "system"] as const).map((themeOpt) => (
+                    <button key={themeOpt} type="button" onClick={() => setTheme(themeOpt)} className={`rounded px-3 py-2 text-sm font-medium transition-all min-h-[40px] ${!mounted ? "text-zinc-500" : theme === themeOpt ? "bg-cyan-500 text-white dark:bg-cyan-600" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"}`}>
+                      {themeOpt === "light" ? t("nav.light") : themeOpt === "dark" ? t("nav.dark") : t("nav.system")}
                     </button>
                   ))}
                 </div>
               </div>
+              <div className="py-2">
+                <LanguageSwitcher compact={false} />
+              </div>
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                <Link href="/qr" onClick={() => setMobileMenuOpen(false)}><QrCode className="h-4 w-4 mr-2 inline" />QR code</Link>
+                <Link href="/qr" onClick={() => setMobileMenuOpen(false)}><QrCode className="h-4 w-4 mr-2 inline" />{t("nav.qr")}</Link>
               </Button>
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                <Link href="/about" onClick={() => setMobileMenuOpen(false)}>About</Link>
+                <Link href="/about" onClick={() => setMobileMenuOpen(false)}>{t("nav.about")}</Link>
               </Button>
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                <Link href="/chat" onClick={() => setMobileMenuOpen(false)}>Chat</Link>
+                <Link href="/chat" onClick={() => setMobileMenuOpen(false)}>{t("nav.chat")}</Link>
               </Button>
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                <Link href="/support" onClick={() => setMobileMenuOpen(false)}>Support</Link>
+                <Link href="/support" onClick={() => setMobileMenuOpen(false)}>{t("nav.support")}</Link>
               </Button>
               {isOwner && (
                 <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                  <Link href="/status" onClick={() => setMobileMenuOpen(false)}>Status</Link>
+                  <Link href="/status" onClick={() => setMobileMenuOpen(false)}>{t("nav.status")}</Link>
                 </Button>
               )}
               {status !== "authenticated" && (
                 <>
                   <Button size="sm" asChild className="justify-start h-12 bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500 font-medium">
-                    <Link href="/register" onClick={() => setMobileMenuOpen(false)}>Sign up free</Link>
+                    <Link href="/register" onClick={() => setMobileMenuOpen(false)}>{t("nav.signUp")}</Link>
                   </Button>
                   <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                    <Link href="/signin" onClick={() => setMobileMenuOpen(false)}>Sign in</Link>
+                    <Link href="/signin" onClick={() => setMobileMenuOpen(false)}>{t("nav.signIn")}</Link>
                   </Button>
                 </>
               )}
               {status === "authenticated" && (
                 <>
                   <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                    <Link href="/account" onClick={() => setMobileMenuOpen(false)}>Account</Link>
+                    <Link href="/account" onClick={() => setMobileMenuOpen(false)}>{t("nav.account")}</Link>
                   </Button>
                   <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                    <Link href="/affiliate" onClick={() => setMobileMenuOpen(false)}>Affiliate program</Link>
+                    <Link href="/affiliate" onClick={() => setMobileMenuOpen(false)}>{t("nav.affiliate")}</Link>
                   </Button>
                 </>
               )}
               {status === "authenticated" && !isPaid && (
                 <Button size="sm" asChild className="justify-start h-12 bg-amber-500 hover:bg-amber-600 text-white">
-                  <Link href="/subscribe" onClick={() => setMobileMenuOpen(false)}>Upgrade to VIP</Link>
+                  <Link href="/subscribe" onClick={() => setMobileMenuOpen(false)}>{t("nav.upgradeVip")}</Link>
                 </Button>
               )}
               {status === "authenticated" && isPaid && (
-                <div className="py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">{isCoachUser && !isOwner ? "Coach" : "VIP"}</div>
+                <div className="py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">{isCoachUser && !isOwner ? t("nav.coach") : t("nav.vip")}</div>
               )}
               {status === "authenticated" && isOwner && (
                 <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                  <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>Nova Admin</Link>
+                  <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>{t("nav.novaAdmin")}</Link>
                 </Button>
               )}
               {status === "authenticated" && delegatedAdminNavItems.length === 1 && (
                 <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                  <Link href={delegatedAdminNavItems[0].href} onClick={() => setMobileMenuOpen(false)}>Admin</Link>
+                  <Link href={delegatedAdminNavItems[0].href} onClick={() => setMobileMenuOpen(false)}>{t("nav.admin")}</Link>
                 </Button>
               )}
               {status === "authenticated" && delegatedAdminNavItems.length > 1 && delegatedAdminNavItems.map((item) => (
@@ -4165,11 +4172,11 @@ export default function Dashboard() {
               ))}
               {status === "authenticated" && (
                 <Button variant="outline" size="sm" className="justify-start h-12 border-zinc-200 dark:border-zinc-700" onClick={() => { setMobileMenuOpen(false); if (canPingLivePresence) fetch("/api/chat/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offline: true }) }).finally(() => signOut()); else signOut(); }}>
-                  Log out
+                  {t("nav.logOut")}
                 </Button>
               )}
               <Button variant="outline" size="sm" className="justify-start h-12 border-zinc-200 dark:border-zinc-700" onClick={() => { setMobileMenuOpen(false); fetchTokens(activeTab, true, true); }}>
-                Refresh
+                {t("nav.refresh")}
               </Button>
               <Button size="sm" className="justify-start h-12 bg-gradient-to-r from-cyan-500 via-violet-500 to-blue-600 text-white" onClick={() => { setMobileMenuOpen(false); runScan("scan"); }} disabled={scanning !== "idle"}>
                 {scanning === "scan" ? "Scanning…" : "Scan new pairs"}
@@ -4360,24 +4367,24 @@ export default function Dashboard() {
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white dark:bg-zinc-900 shadow-lg dark:shadow-none dark:shadow-[0_0_0_1px_rgba(34,211,238,0.06)] overflow-hidden">
           <CardHeader className="pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80">
             <CardTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-              Multi-Market AI Trading Workspace
+              {t("workspace.title")}
             </CardTitle>
             <p className="mt-2 max-w-5xl text-sm sm:text-[15px] leading-relaxed text-zinc-600 dark:text-zinc-300 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden sm:[display:block]">
-              NovaStaris unifies meme discovery, futures decision support, wallet intelligence, prediction market insights, and VIP agent workflows in one trading workspace.
+              {t("workspace.blurb")}
               <Link href="/how-it-works" className="ml-1 inline-flex items-center font-semibold text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 hover:underline underline-offset-2">
-                See how it works
+                {t("workspace.howItWorks")}
               </Link>
               .
             </p>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mt-4 gap-3">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mr-1">Focus</span>
+                <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mr-1">{t("focus.label")}</span>
                 {([
-                  { id: "all", label: "All" },
-                  { id: "core", label: "Core" },
-                  { id: "pro", label: "Markets" },
-                  { id: "vip", label: "VIP" },
-                  { id: "bots", label: "Bots" },
+                  { id: "all", label: t("focus.all") },
+                  { id: "core", label: t("focus.core") },
+                  { id: "pro", label: t("focus.markets") },
+                  { id: "vip", label: t("focus.vip") },
+                  { id: "bots", label: t("focus.bots") },
                 ] as const).map((f) => (
                   <button
                     key={f.id}
@@ -4398,120 +4405,120 @@ export default function Dashboard() {
                     onClick={() => setPathPickerOpen(true)}
                     className="ml-auto text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline"
                   >
-                    Path: {pathDisplayLabel(dashboardPath)}
+                    {t("focus.path")}: {pathDisplayLabel(dashboardPath)}
                   </button>
                 )}
               </div>
               <div className="-mx-1 sm:mx-0 flex flex-col gap-3 w-full overflow-x-visible overflow-y-visible pb-1">
               <TabsList className={DASHBOARD_TOP_TABS_LIST_CLASS}>
                 {showTopTab("new") && (
-                  <TabsTrigger value="new" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Go Hunting</TabsTrigger>
+                  <TabsTrigger value="new" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">{t("tabs.new")}</TabsTrigger>
                 )}
                 {showTopTab("trending") && (
-                  <TabsTrigger value="trending" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Trending</TabsTrigger>
+                  <TabsTrigger value="trending" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">{t("tabs.trending")}</TabsTrigger>
                 )}
                 {showTopTab("surge") && (
-                  <TabsTrigger value="surge" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Surge</TabsTrigger>
+                  <TabsTrigger value="surge" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">{t("tabs.surge")}</TabsTrigger>
                 )}
                 {showTopTab("transactions") && (
-                  <TabsTrigger value="transactions" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Transactions</TabsTrigger>
+                  <TabsTrigger value="transactions" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">{t("tabs.transactions")}</TabsTrigger>
                 )}
                 {showTopTab("ai-analysis") && (
-                  <TabsTrigger value="ai-analysis" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />NovaStaris AI Agent</TabsTrigger>
+                  <TabsTrigger value="ai-analysis" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.ai-analysis")}</TabsTrigger>
                 )}
                 {showTopTab("futures") && (
-                  <TabsTrigger value="futures" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Crypto Futures</TabsTrigger>
+                  <TabsTrigger value="futures" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.futures")}</TabsTrigger>
                 )}
                 {showTopTab("nova-futures-narratives") && vipFuturesAddons?.novaFuturesNarratives && (
                   <TabsTrigger value="nova-futures-narratives" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />
-                    Nova Futures Narratives
+                    {t("tabs.nova-futures-narratives")}
                     <TopTabNewPill show={isNewTopTab("nova-futures-narratives")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("nova-eagle") && vipFuturesAddons?.novaEagle && (
                   <TabsTrigger value="nova-eagle" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />
-                    Nova Eagle
+                    {t("tabs.nova-eagle")}
                     <TopTabNewPill show={isNewTopTab("nova-eagle")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("crypto-buddie") && vipFuturesAddons?.cryptoBuddie && (
                   <TabsTrigger value="crypto-buddie" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />
-                    Crypto Buddie
+                    {t("tabs.crypto-buddie")}
                     <TopTabNewPill show={isNewTopTab("crypto-buddie")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("meme-intelligence") && vipFuturesAddons?.novaMemeIntelligence && (
                   <TabsTrigger value="meme-intelligence" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-fuchsia-500 data-[state=active]:text-white dark:data-[state=active]:bg-fuchsia-600">
                     <Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />
-                    Nova Meme Intelligence
+                    {t("tabs.meme-intelligence")}
                     <TopTabNewPill show={isNewTopTab("meme-intelligence")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("trending-perps") && (
-                  <TabsTrigger value="trending-perps" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Trending perps</TabsTrigger>
+                  <TabsTrigger value="trending-perps" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.trending-perps")}</TabsTrigger>
                 )}
                 {showTopTab("perp-radar") && (
-                  <TabsTrigger value="perp-radar" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Perp Radar</TabsTrigger>
+                  <TabsTrigger value="perp-radar" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.perp-radar")}</TabsTrigger>
                 )}
                 {showTopTab("narratives") && (
-                  <TabsTrigger value="narratives" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">Narratives</TabsTrigger>
+                  <TabsTrigger value="narratives" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">{t("tabs.narratives")}</TabsTrigger>
                 )}
                 {isTabVisibleInGui("trading-bot") && matchesTopTabFilter("trading-bot") && (
-                  <TabsTrigger value="trading-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />NovaStaris AI Trading Bots</TabsTrigger>
+                  <TabsTrigger value="trading-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.trading-bot")}</TabsTrigger>
                 )}
                 {isTabVisibleInGui("trading-bot") && matchesTopTabFilter("polymarket-bot") && (
-                  <TabsTrigger value="polymarket-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Polymarket</TabsTrigger>
+                  <TabsTrigger value="polymarket-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.polymarket-bot")}</TabsTrigger>
                 )}
                 {isTabVisibleInGui("prop-firm-bot") && matchesTopTabFilter("prop-firm-bot") && (
-                  <TabsTrigger value="prop-firm-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Prop Firm Challenge</TabsTrigger>
+                  <TabsTrigger value="prop-firm-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.prop-firm-bot")}</TabsTrigger>
                 )}
                 {isTabVisibleInGui("nova-forex-bot") && matchesTopTabFilter("nova-forex-bot") && (
-                  <TabsTrigger value="nova-forex-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-700"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Forex Bots</TabsTrigger>
+                  <TabsTrigger value="nova-forex-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-700"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.nova-forex-bot")}</TabsTrigger>
                 )}
                 {isTabVisibleInGui("nova-ultimate") && matchesTopTabFilter("nova-ultimate") && (
-                  <TabsTrigger value="nova-ultimate" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Nova Ultimate</TabsTrigger>
+                  <TabsTrigger value="nova-ultimate" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.nova-ultimate")}</TabsTrigger>
                 )}
                 {showTopTab("ct") && (
-                  <TabsTrigger value="ct" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">CT Scan</TabsTrigger>
+                  <TabsTrigger value="ct" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">{t("tabs.ct")}</TabsTrigger>
                 )}
                 {showTopTab("wallets") && (
-                  <TabsTrigger value="wallets" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Wallet Tracker</TabsTrigger>
+                  <TabsTrigger value="wallets" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.wallets")}</TabsTrigger>
                 )}
                 {showTopTab("coach-calls") && (
-                  <TabsTrigger value="coach-calls" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />Coach Calls + Telegram Signals</TabsTrigger>
+                  <TabsTrigger value="coach-calls" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.coach-calls")}</TabsTrigger>
                 )}
                 {showTopTab("nova-forecast") && (
                   <TabsTrigger value="nova-forecast" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600`}>
                     <Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />
-                    <span>NovaForecast Agent</span>
+                    <span>{t("tabs.nova-forecast")}</span>
                     <TopTabNewPill show={isNewTopTab("nova-forecast")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("nova-forex") && (
                   <TabsTrigger value="nova-forex" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-700`}>
-                    <span>Nova Forex Agent</span>
+                    <span>{t("tabs.nova-forex")}</span>
                     <TopTabNewPill show={isNewTopTab("nova-forex")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("nova-plus") && (
                   <TabsTrigger value="nova-plus" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600`}>
                     <Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />
-                    <span>Nova+</span>
+                    <span>{t("tabs.nova-plus")}</span>
                     <TopTabNewPill show={isNewTopTab("nova-plus")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("nova-investment") && (
                   <TabsTrigger value="nova-investment" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600`}>
-                    <span>Nova Investment Agent</span>
+                    <span>{t("tabs.nova-investment")}</span>
                     <TopTabNewPill show={isNewTopTab("nova-investment")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("nova-connect") && (
                   <TabsTrigger value="nova-connect" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600 gap-1`}>
-                    <span>Community</span>
+                    <span>{t("tabs.nova-connect")}</span>
                     {novaConnectHasUnreadDm && (
                       <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 dark:bg-emerald-300" aria-hidden />
                     )}
@@ -4521,21 +4528,21 @@ export default function Dashboard() {
               {(showTopTab("bsc") || showTopTab("watchlist") || showTopTab("chris-clayton") || showTopTab("trading-university")) && (
                 <div className="w-full shrink-0 border-t border-zinc-200/80 dark:border-zinc-700/80 pt-3">
                   <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                    More
+                    {t("more")}
                   </p>
                   <TabsList className={DASHBOARD_TOP_TABS_LIST_CLASS}>
                     {showTopTab("trading-university") && (
                       <TabsTrigger value="trading-university" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-amber-600 data-[state=active]:text-white dark:data-[state=active]:bg-amber-700 gap-1.5`}>
-                        <span>NovaStaris Trading University</span>
+                        <span>{t("tabs.trading-university")}</span>
                         <TopTabNewPill show={isNewTopTab("trading-university")} />
                       </TabsTrigger>
                     )}
                     {showTopTab("bsc") && (
-                      <TabsTrigger value="bsc" className={DASHBOARD_TOP_TAB_TRIGGER_CLASS}>BSC</TabsTrigger>
+                      <TabsTrigger value="bsc" className={DASHBOARD_TOP_TAB_TRIGGER_CLASS}>{t("tabs.bsc")}</TabsTrigger>
                     )}
                     {showTopTab("watchlist") && (
                       <TabsTrigger value="watchlist" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} gap-1.5`}>
-                        <span>Watchlist</span>
+                        <span>{t("tabs.watchlist")}</span>
                         {watchlist.length > 0 ? (
                           <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-black/10 dark:bg-white/15 px-1 text-[11px] font-semibold">
                             {watchlist.length}
@@ -4545,7 +4552,7 @@ export default function Dashboard() {
                     )}
                     {showTopTab("chris-clayton") && (
                       <TabsTrigger value="chris-clayton" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600`}>
-                        Online Boss Strategy
+                        {t("tabs.chris-clayton")}
                       </TabsTrigger>
                     )}
                   </TabsList>
@@ -4559,14 +4566,14 @@ export default function Dashboard() {
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
                   {isAiAgentGuestLocked
-                    ? "Sign in to use NovaStaris AI Agent"
+                    ? t("lock.signInAi")
                     : isGuest
-                    ? "Create a free account to preview"
+                    ? t("lock.createAccount")
                     : onDemandLocked
-                      ? "On-demand access required"
+                      ? t("lock.onDemand")
                       : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner
-                        ? "VIP required"
-                        : "Subscribe for access"}
+                        ? t("lock.vipRequired")
+                        : t("lock.subscribe")}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground max-w-md">
                   {activeTab === "surge" && "Surge shows tokens with high volume in 5m–24h windows."}
@@ -4955,14 +4962,14 @@ export default function Dashboard() {
                     return (
                       <p className="mb-4 text-sm text-muted-foreground">
                         Free plan: {usageParts.join(" · ")}.{" "}
-                        <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">Upgrade to VIP</Link> for unlimited.
+                        <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">{t("nav.upgradeVip")}</Link> for unlimited.
                       </p>
                     );
                   }
                   return (
                     <p className="mb-4 text-sm text-muted-foreground">
                       Free plan: {usageParts.join(" · ")} — Solana and BSC share the same limits.{" "}
-                      <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">Upgrade to VIP</Link> for unlimited.
+                      <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">{t("nav.upgradeVip")}</Link> for unlimited.
                     </p>
                   );
                 })()}
@@ -8742,14 +8749,14 @@ export default function Dashboard() {
                     ) : walletTradesError ? (
                       <div className="text-sm py-4 space-y-1">
                         <p className="font-medium text-amber-700 dark:text-amber-400">{walletTradesError}</p>
-                        <p className="text-xs text-muted-foreground">Live trades need: feature flag ON (Nova Admin → Feature flags), VIP subscription, and at least one of Moralis/Helius/Birdeye API keys set on the server.</p>
+                        <p className="text-xs text-muted-foreground">Live trades need: feature flag ON ({t("nav.novaAdmin")} → Feature flags), VIP subscription, and at least one of Moralis/Helius/Birdeye API keys set on the server.</p>
                       </div>
                     ) : walletTradesLoading && walletTrades.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4">Loading trades…</p>
                     ) : walletTrades.length === 0 ? (
                       <div className="text-sm text-muted-foreground py-4 space-y-1">
                         <p>No recent swaps from tracked wallets. Try again later or refresh.</p>
-                        <p className="text-xs">Live trades use Moralis/Helius/Birdeye; ensure &quot;Live trades (Wallet Tracker)&quot; is ON in Nova Admin → Feature flags. Requires VIP.</p>
+                        <p className="text-xs">Live trades use Moralis/Helius/Birdeye; ensure &quot;Live trades (Wallet Tracker)&quot; is ON in {t("nav.novaAdmin")} → Feature flags. Requires VIP.</p>
                       </div>
                     ) : (
                       <ul className="space-y-2 max-h-[380px] overflow-y-auto">
@@ -8920,7 +8927,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground mb-3">
-                      Notify in-app and Telegram the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token. Rules: Nova Admin → Wallet Tracker.
+                      Notify in-app and Telegram the first time a tracked wallet buys a coin. No repeat alerts for same wallet+token. Rules: {t("nav.novaAdmin")} → Wallet Tracker.
                     </p>
                     {firstBuyEnabled && firstBuyAlerts.length > 0 && (
                       <div className="overflow-x-auto">

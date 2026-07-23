@@ -14,10 +14,12 @@ import NovaScalpActiveTradeBar from "@/components/NovaScalpActiveTradeBar";
 import ReferralCapture from "@/components/ReferralCapture";
 import ReferralClaimOnAuth from "@/components/ReferralClaimOnAuth";
 import { DashboardScreenProvider } from "@/components/DashboardScreenContext";
+import { I18nProvider } from "@/components/I18nProvider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <I18nProvider>
       <SessionProvider>
         <DashboardScreenProvider>
           <CapacitorAuthBridge />
@@ -35,6 +37,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <NovaScalpWatchBanner />
         </DashboardScreenProvider>
       </SessionProvider>
+      </I18nProvider>
     </ThemeProvider>
   );
 }
