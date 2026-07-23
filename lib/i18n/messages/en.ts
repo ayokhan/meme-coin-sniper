@@ -351,6 +351,80 @@ export const en = {
     cheatFailed: "Could not download cheat sheet.",
     markAllModules: "Mark all {total} modules complete to unlock the exam ({done}/{total}).",
     backToUniversity: "Back to Trading University",
+    workedExamples: "Worked examples",
+    workedExamplesHint: "Hypothetical teaching scenarios — not live signals or financial advice.",
+    exampleNotSignal: "Example · not a signal",
+    takeaway: "Takeaway: {text}",
+    commonMistakes: "Common mistakes",
+    keyTerms: "Key terms",
+    tryNext: "Try next on NovaStaris",
+    chapterCheck: "Chapter check (required)",
+    chapterCheckBlurb:
+      "Score at least {pass}/3 to unlock Mark module complete. Untimed — does not count toward the final exam.",
+    chapterCheckDone: "Chapter check completed for this module.",
+    chapterCheckPassed:
+      "Chapter check passed: {correct}/{total}. You can now mark the module complete.",
+    chapterCheckNeed: "Need {pass}/{total} correct. Review the module and try again.",
+    chapterCheckRetryNeed:
+      "{correct}/{total} correct — need {pass} to pass. Review and retry.",
+    chapterCheckNeedMark:
+      "Need at least {pass}/{total} correct on the chapter check.",
+    checkAnswers: "Check answers",
+    retryChapterCheck: "Retry chapter check",
+    closeChapterCheck: "Close chapter check",
+    backToSyllabus: "Back to syllabus",
+    leaveExamScreen: "Leave screen",
+    leaveExamConfirm:
+      "Leave the exam screen? The {min}-minute timer keeps running. Closing or switching tabs may end your attempt.",
+    timeLeft: "Time left {clock}",
+    questionOf: "Question {n} / {total}",
+    tabLeaves: " · Tab leaves {count}/{max}",
+    prev: "Prev",
+    next: "Next",
+    congratulations: "Congratulations{name}!",
+    congratulationsName: ", {name}",
+    passedLine: "Congratulations{name} — you {course}{score}.",
+    youScoredEarned: "You scored {correct}/{total} ({pct}%) and earned your ",
+    timedOutScore:
+      "The {min}-minute limit ended. You scored {correct}/{total} ({pct}%). Timed-out attempts do not pass.",
+    tabLeaveScore:
+      "The exam ended after too many tab/window leaves. You scored {correct}/{total} ({pct}%).",
+    failedScore:
+      "You scored {correct}/{total} ({pct}%). Pass mark is {pass}/{quizSize} ({passPct}%).",
+    reviewTryTomorrow: "Review the modules and try again tomorrow (one attempt per UTC day).",
+    nextAttemptAfter: "Next attempt after {when}",
+    reviewModules: "Review these modules",
+    reviewModulesHint: "Based on questions you missed on this attempt.",
+    commonMistakePrefix: "Common mistake: {text}",
+    donateThanks: "Thank you — your donation helps keep Trading University free for others.",
+    donateCanceled: "Donation checkout was canceled. You can support anytime from this page.",
+    enrollTrackProgress: "Create a free account to enroll and track course progress.",
+    speechUnsupported: "Read aloud is not supported in this browser. Try Chrome, Edge, or Safari.",
+    completeModulesBeforeExam: "Complete every module (mark as complete) before the final exam.",
+    proctorStay: "Stay on this exam tab. Leaving may end your attempt.",
+    examIntro:
+      "After you finish learning, take a timed {quizSize}-question final exam ({examMinutes} min). You need {passCorrect} correct answers ({passPct}%) to pass. One attempt per day if you do not pass.",
+    examPassedBanner:
+      "Congratulations{name} — you passed the final exam. Download or share your certificate below.",
+    dailyAttemptUsed: "Daily attempt used. Next attempt after {when}",
+    lockedModuleBody:
+      "This module is part of the full course. Create a free account to enroll and continue.",
+    freePreviewBanner: "Free preview module — enroll to unlock the rest of the course.",
+    timedExamStart:
+      "Timed exam: {min} minutes. Stay on this tab — leaving repeatedly will end the attempt.",
+    proctorLeaves:
+      "Stay on this exam tab. Leaves: {count}/{max}. Another browser or tab can end your attempt.",
+    chapterBeforeMark:
+      "Complete this module’s chapter check (need {pass}/3 correct) before marking it complete.",
+    flashPrev: "Previous",
+    flashNext: "Next",
+    readyForExamTitle: "Ready for the final exam?",
+    courseSyllabusNav: "Course syllabus",
+    passedWithScore: " with {pct}%",
+    flashCardOf: "Card {n} / {total}",
+    tapReveal: "Tap to reveal definition",
+    noGlossary: "No glossary terms yet.",
+    fromLesson: "From: {title}",
   },
 } as const;
 

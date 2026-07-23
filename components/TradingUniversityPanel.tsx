@@ -31,7 +31,6 @@ import {
   type CertificatePayload,
 } from "@/lib/trading-university/certificate";
 import { downloadTrackCheatSheet } from "@/lib/trading-university/cheat-sheets";
-import { getCommonMistakes } from "@/lib/trading-university/common-mistakes";
 import {
   UniversityAdvancedTrioDiagram,
   UniversityBacktestDiagram,
@@ -75,13 +74,16 @@ import {
 import UniversityDonationCard from "@/components/UniversityDonationCard";
 import { useI18n } from "@/components/I18nProvider";
 import {
-  buildGlossary,
   getLessonTrack,
   TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT,
   TRADING_UNIVERSITY_MAX_TAB_LEAVES,
   type CourseTrack,
   type UniversityLesson,
 } from "@/lib/trading-university/content";
+import {
+  getLocalizedMistakes,
+  localizeLessons,
+} from "@/lib/trading-university/localize";
 
 type Progress = {
   completedLessons: string[];
@@ -190,7 +192,7 @@ export default function TradingUniversityPanel({
   onOpenToolHref,
   isToolHrefAvailable,
 }: TradingUniversityPanelProps = {}) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { status } = useSession();
   const authenticated = status === "authenticated";
 
@@ -221,7 +223,11 @@ export default function TradingUniversityPanel({
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lessons, setLessons] = useState<CatalogLesson[]>([]);
+  const [lessonsRaw, setLessons] = useState<CatalogLesson[]>([]);
+  const lessons = useMemo(
+    () => localizeLessons(lessonsRaw, locale) as CatalogLesson[],
+    [lessonsRaw, locale]
+  );
   const [passPct, setPassPct] = useState(75);
   const [passCorrect, setPassCorrect] = useState(45);
   const [quizSize, setQuizSize] = useState(60);
@@ -303,7 +309,21 @@ export default function TradingUniversityPanel({
 
   const activeLesson = lessons.find((l) => l.id === activeLessonId) ?? null;
 
-  const flashCards = useMemo(() => buildGlossary(), []);
+  const flashCards = useMemo(() => {
+    const out: { term: string; definition: string; lessonId: string; lessonTitle: string }[] = [];
+    for (const lesson of lessons) {
+      if (lesson.locked) continue;
+      for (const kt of lesson.keyTerms) {
+        out.push({
+          term: kt.term,
+          definition: kt.definition,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+        });
+      }
+    }
+    return out.sort((a, b) => a.term.localeCompare(b.term));
+  }, [lessons]);
 
   useEffect(() => {
     setSpeechSupported(
@@ -314,9 +334,9 @@ export default function TradingUniversityPanel({
       const params = new URLSearchParams(window.location.search);
       const donation = params.get("donation");
       if (donation === "success") {
-        setDonationNote("Thank you — your donation helps keep Trading University free for others.");
+        setDonationNote(t("uni.donateThanks"));
       } else if (donation === "canceled") {
-        setDonationNote("Donation checkout was canceled. You can support anytime from this page.");
+        setDonationNote(t("uni.donateCanceled"));
       }
       if (donation) {
         params.delete("donation");
@@ -326,7 +346,7 @@ export default function TradingUniversityPanel({
       }
     }
     return () => stopSpeech();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     stopSpeech();
@@ -363,7 +383,7 @@ export default function TradingUniversityPanel({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const syncLessonsToServer = useCallback(
     async (ids: string[]) => {
@@ -403,7 +423,7 @@ export default function TradingUniversityPanel({
   }, []);
 
   const glossary = useMemo(() => {
-    const all = buildGlossary();
+    const all = flashCards;
     const q = glossaryQuery.trim().toLowerCase();
     if (!q) return all.slice(0, 24);
     return all.filter(
@@ -412,7 +432,7 @@ export default function TradingUniversityPanel({
         e.definition.toLowerCase().includes(q) ||
         e.lessonTitle.toLowerCase().includes(q)
     );
-  }, [glossaryQuery]);
+  }, [glossaryQuery, flashCards]);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -423,13 +443,11 @@ export default function TradingUniversityPanel({
 
   const markLearned = async (lessonId: string) => {
     if (!authenticated) {
-      setError("Create a free account to enroll and track course progress.");
+      setError(t("uni.enrollTrackProgress"));
       return;
     }
     if (!chapterQuizDone.includes(lessonId) && !practiceResult) {
-      setError(
-        `Complete this module’s chapter check (need ${TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT}/3 correct) before marking it complete.`
-      );
+      setError(t("uni.chapterBeforeMark", { pass: TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT }));
       setProctorWarning(null);
       // start chapter check
       setPracticeLoading(true);
@@ -453,7 +471,10 @@ export default function TradingUniversityPanel({
     if (!chapterQuizDone.includes(lessonId) && practiceResult) {
       if (practiceResult.correct < TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT) {
         setError(
-          `Need at least ${TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT}/${practiceResult.total} correct on the chapter check.`
+          t("uni.chapterCheckNeedMark", {
+            pass: TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT,
+            total: practiceResult.total,
+          })
         );
         return;
       }
@@ -480,7 +501,7 @@ export default function TradingUniversityPanel({
 
   const playLessonAudio = (lesson: CatalogLesson) => {
     if (!speechSupported) {
-      setError("Read aloud is not supported in this browser. Try Chrome, Edge, or Safari.");
+      setError(t("uni.speechUnsupported"));
       return;
     }
     stopSpeech();
@@ -494,7 +515,9 @@ export default function TradingUniversityPanel({
         ...ex.steps,
         ex.takeaway,
       ]),
-      ...getCommonMistakes(lesson.id).map((m) => `Common mistake: ${m}`),
+      ...getLocalizedMistakes(lesson.id, locale).map((m) =>
+        t("uni.commonMistakePrefix", { text: m })
+      ),
     ];
     const text = parts.join(". ");
     const utter = new SpeechSynthesisUtterance(text);
@@ -528,7 +551,7 @@ export default function TradingUniversityPanel({
       return;
     }
     if (!allComplete) {
-      setError("Complete every module (mark as complete) before the final exam.");
+      setError(t("uni.completeModulesBeforeExam"));
       return;
     }
     setSubmitting(true);
@@ -554,7 +577,7 @@ export default function TradingUniversityPanel({
       setProctorWarning(
         data.resumed
           ? t("uni.examResumed")
-          : `Timed exam: ${examMinutes} minutes. Stay on this tab — leaving repeatedly will end the attempt.`
+          : t("uni.timedExamStart", { min: examMinutes })
       );
       setView("quiz");
     } catch {
@@ -647,12 +670,15 @@ export default function TradingUniversityPanel({
             void submitQuiz({ reason: "tab_leaves" });
           } else {
             setProctorWarning(
-              `Stay on this exam tab. Leaves: ${n}/${TRADING_UNIVERSITY_MAX_TAB_LEAVES}. Another browser or tab can end your attempt.`
+              t("uni.proctorLeaves", {
+                count: n,
+                max: TRADING_UNIVERSITY_MAX_TAB_LEAVES,
+              })
             );
           }
         })
         .catch(() => {
-          setProctorWarning("Stay on this exam tab. Leaving may end your attempt.");
+          setProctorWarning(t("uni.proctorStay"));
         });
     };
 
@@ -1102,23 +1128,31 @@ export default function TradingUniversityPanel({
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-amber-500" />
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                Ready for the final exam?
+                {t("uni.readyForExamTitle")}
               </h2>
             </div>
             <p className="text-sm text-muted-foreground max-w-2xl">
-              After you finish learning, take a timed {quizSize}-question final exam ({examMinutes}{" "}
-              minutes). You
-              need {passCorrect} correct answers ({passPct}%) to pass. One attempt per day if you do
-              not pass. Stay on the exam tab — switching away repeatedly ends the attempt. Graduates
-              receive a personalized, downloadable certificate.
+              {t("uni.examIntro", {
+                quizSize,
+                examMinutes,
+                passCorrect,
+                passPct,
+              })}
             </p>
 
             {progress?.quizPassed ? (
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-3 text-center sm:text-left">
                 <p className="text-emerald-800 dark:text-emerald-200 font-medium">
-                  Congratulations{progress.displayName ? `, ${progress.displayName}` : ""} — you
-                  {t("uni.completedCourse")}
-                  {progress.quizBestScorePct != null ? ` with ${progress.quizBestScorePct}%` : ""}.
+                  {t("uni.passedLine", {
+                    name: progress.displayName
+                      ? t("uni.congratulationsName", { name: progress.displayName })
+                      : "",
+                    course: t("uni.completedCourse"),
+                    score:
+                      progress.quizBestScorePct != null
+                        ? t("uni.passedWithScore", { pct: progress.quizBestScorePct })
+                        : "",
+                  })}
                 </p>
                 {certPayload() && shareButtons(certPayload()!)}
               </div>
@@ -1143,8 +1177,9 @@ export default function TradingUniversityPanel({
                   </p>
                 ) : progress && !progress.canAttemptQuiz && progress.nextAttemptAt ? (
                   <p className="text-sm text-amber-700 dark:text-amber-300">
-                    Daily attempt used. Next attempt after{" "}
-                    {new Date(progress.nextAttemptAt).toLocaleString()} (UTC day reset).
+                    {t("uni.dailyAttemptUsed", {
+                      when: `${new Date(progress.nextAttemptAt).toLocaleString()} (UTC)`,
+                    })}
                   </p>
                 ) : (
                   <Button type="button" disabled={submitting} onClick={() => void startQuiz()}>
@@ -1171,7 +1206,7 @@ export default function TradingUniversityPanel({
             onClick={() => setView("home")}
           >
             <ChevronLeft className="h-4 w-4" />
-            Course syllabus
+            {t("uni.courseSyllabusNav")}
           </Button>
 
           {activeLesson.locked ? (
@@ -1181,10 +1216,7 @@ export default function TradingUniversityPanel({
                 {activeLesson.title}
               </h2>
               <p className="text-sm text-muted-foreground">{activeLesson.subtitle}</p>
-              <p className="text-sm text-muted-foreground">
-                This module is part of the full course. Create a free account to enroll and continue
-                learning.
-              </p>
+              <p className="text-sm text-muted-foreground">{t("uni.lockedModuleBody")}</p>
               <div className="flex justify-center gap-2">
                 <Button asChild>
                   <Link href="/register">{t("uni.enrollFree")}</Link>
@@ -1207,7 +1239,7 @@ export default function TradingUniversityPanel({
                 <p className="mt-1 text-sm text-muted-foreground">{activeLesson.subtitle}</p>
                 {!fullAccess && (
                   <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                    Free preview module — enroll to unlock the rest of the course.
+                    {t("uni.freePreviewBanner")}
                   </p>
                 )}
                 {speechSupported && !activeLesson.locked && activeLesson.sections.length > 0 && (
@@ -1333,10 +1365,10 @@ export default function TradingUniversityPanel({
               {(activeLesson.workedExamples?.length ?? 0) > 0 && (
                 <section className="space-y-3">
                   <h3 className="text-sm font-semibold text-violet-700 dark:text-violet-300">
-                    Worked examples
+                    {t("uni.workedExamples")}
                   </h3>
                   <p className="text-[11px] text-muted-foreground -mt-1">
-                    Hypothetical teaching scenarios — not live signals or financial advice.
+                    {t("uni.workedExamplesHint")}
                   </p>
                   {activeLesson.workedExamples!.map((ex) => (
                     <div
@@ -1345,7 +1377,7 @@ export default function TradingUniversityPanel({
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-md bg-violet-600 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5">
-                          Example · not a signal
+                          {t("uni.exampleNotSignal")}
                         </span>
                         <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                           {ex.title}
@@ -1362,26 +1394,26 @@ export default function TradingUniversityPanel({
                         ))}
                       </ol>
                       <p className="text-xs font-medium text-violet-800 dark:text-violet-200 border-t border-violet-400/20 pt-2">
-                        Takeaway: {ex.takeaway}
+                        {t("uni.takeaway", { text: ex.takeaway })}
                       </p>
                     </div>
                   ))}
                 </section>
               )}
-              {getCommonMistakes(activeLesson.id).length > 0 && (
+              {getLocalizedMistakes(activeLesson.id, locale).length > 0 && (
                 <section className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 space-y-2">
                   <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-                    Common mistakes
+                    {t("uni.commonMistakes")}
                   </h3>
                   <ul className="space-y-1.5 text-sm text-zinc-700 dark:text-zinc-300 list-disc pl-5">
-                    {getCommonMistakes(activeLesson.id).map((m) => (
+                    {getLocalizedMistakes(activeLesson.id, locale).map((m) => (
                       <li key={m}>{m}</li>
                     ))}
                   </ul>
                 </section>
               )}
               <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-2">
-                <h3 className="text-sm font-semibold">Key terms</h3>
+                <h3 className="text-sm font-semibold">{t("uni.keyTerms")}</h3>
                 <dl className="space-y-2">
                   {activeLesson.keyTerms.map((t) => (
                     <div key={t.term}>
@@ -1400,7 +1432,7 @@ export default function TradingUniversityPanel({
                 if (tools.length === 0) return null;
                 return (
                   <section className="space-y-2">
-                    <h3 className="text-sm font-semibold">Try next on NovaStaris</h3>
+                    <h3 className="text-sm font-semibold">{t("uni.tryNext")}</h3>
                     <div className="flex flex-wrap gap-2">
                       {tools.map((t) => (
                         <Button
@@ -1425,14 +1457,13 @@ export default function TradingUniversityPanel({
               })()}
               {fullAccess && (
                 <section className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
-                  <h3 className="text-sm font-semibold">Chapter check (required)</h3>
+                  <h3 className="text-sm font-semibold">{t("uni.chapterCheck")}</h3>
                   <p className="text-xs text-muted-foreground">
-                    Score at least {TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT}/3 to unlock Mark module
-                    complete. Untimed — does not count toward the final exam.
+                    {t("uni.chapterCheckBlurb", { pass: TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT })}
                   </p>
                   {chapterQuizDone.includes(activeLesson.id) && (
                     <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                      Chapter check completed for this module.
+                      {t("uni.chapterCheckDone")}
                     </p>
                   )}
                   {!practiceQs ? (
@@ -1504,25 +1535,33 @@ export default function TradingUniversityPanel({
                                     setError(null);
                                   } else {
                                     setError(
-                                      `Need ${TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT}/${data.total} correct. Review the module and try again.`
+                                      t("uni.chapterCheckNeed", {
+                                        pass: TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT,
+                                        total: data.total,
+                                      })
                                     );
                                   }
                                 }
                               });
                           }}
                         >
-                          Check answers
+                          {t("uni.checkAnswers")}
                         </Button>
                       ) : practiceResult.correct >= TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT ? (
                         <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                          Chapter check passed: {practiceResult.correct}/{practiceResult.total}. You
-                          can now mark the module complete.
+                          {t("uni.chapterCheckPassed", {
+                            correct: practiceResult.correct,
+                            total: practiceResult.total,
+                          })}
                         </p>
                       ) : (
                         <div className="space-y-2">
                           <p className="text-sm text-amber-700 dark:text-amber-300">
-                            {practiceResult.correct}/{practiceResult.total} correct — need{" "}
-                            {TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT} to pass. Review and retry.
+                            {t("uni.chapterCheckRetryNeed", {
+                              correct: practiceResult.correct,
+                              total: practiceResult.total,
+                              pass: TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT,
+                            })}
                           </p>
                           <Button
                             type="button"
@@ -1535,7 +1574,7 @@ export default function TradingUniversityPanel({
                               setError(null);
                             }}
                           >
-                            Retry chapter check
+                            {t("uni.retryChapterCheck")}
                           </Button>
                         </div>
                       )}
@@ -1551,7 +1590,7 @@ export default function TradingUniversityPanel({
                               setPracticeAnswers({});
                             }}
                           >
-                            Close chapter check
+                            {t("uni.closeChapterCheck")}
                           </Button>
                         )}
                       {!practiceResult && (
@@ -1565,7 +1604,7 @@ export default function TradingUniversityPanel({
                             setPracticeAnswers({});
                           }}
                         >
-                          Close chapter check
+                          {t("uni.closeChapterCheck")}
                         </Button>
                       )}
                     </div>
@@ -1600,7 +1639,7 @@ export default function TradingUniversityPanel({
                   </Button>
                 )}
                 <Button type="button" variant="ghost" onClick={() => setView("home")}>
-                  Back to syllabus
+                  {t("uni.backToSyllabus")}
                 </Button>
               </div>
             </>
@@ -1617,15 +1656,13 @@ export default function TradingUniversityPanel({
               size="sm"
               onClick={() => {
                 if (
-                  window.confirm(
-                    `Leave the exam screen? The ${examMinutes}-minute timer keeps running. Closing or switching tabs may end your attempt.`
-                  )
+                  window.confirm(t("uni.leaveExamConfirm", { min: examMinutes }))
                 ) {
                   setView("home");
                 }
               }}
             >
-              Leave screen
+              {t("uni.leaveExamScreen")}
             </Button>
             <div className="text-right">
               <p
@@ -1635,12 +1672,15 @@ export default function TradingUniversityPanel({
                     : "text-zinc-800 dark:text-zinc-100"
                 }`}
               >
-                Time left {formatExamClock(examSecondsLeft)}
+                {t("uni.timeLeft", { clock: formatExamClock(examSecondsLeft) })}
               </p>
               <p className="text-xs font-mono text-muted-foreground">
-                Question {quizIndex + 1} / {questions.length}
+                {t("uni.questionOf", { n: quizIndex + 1, total: questions.length })}
                 {tabLeaveCount > 0
-                  ? ` · Tab leaves ${tabLeaveCount}/${TRADING_UNIVERSITY_MAX_TAB_LEAVES}`
+                  ? t("uni.tabLeaves", {
+                      count: tabLeaveCount,
+                      max: TRADING_UNIVERSITY_MAX_TAB_LEAVES,
+                    })
                   : ""}
               </p>
             </div>
@@ -1692,7 +1732,7 @@ export default function TradingUniversityPanel({
                     onClick={() => setQuizIndex((i) => Math.max(0, i - 1))}
                     className="gap-1"
                   >
-                    <ChevronLeft className="h-4 w-4" /> Prev
+                    <ChevronLeft className="h-4 w-4" /> {t("uni.prev")}
                   </Button>
                   {quizIndex < questions.length - 1 ? (
                     <Button
@@ -1702,7 +1742,7 @@ export default function TradingUniversityPanel({
                       onClick={() => setQuizIndex((i) => i + 1)}
                       className="gap-1"
                     >
-                      Next <ChevronRight className="h-4 w-4" />
+                      {t("uni.next")} <ChevronRight className="h-4 w-4" />
                     </Button>
                   ) : (
                     <Button
@@ -1729,10 +1769,18 @@ export default function TradingUniversityPanel({
                 <GraduationCap className="h-8 w-8" />
               </div>
               <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-                Congratulations{progress?.displayName ? `, ${progress.displayName}` : ""}!
+                {t("uni.congratulations", {
+                  name: progress?.displayName
+                    ? t("uni.congratulationsName", { name: progress.displayName })
+                    : "",
+                })}
               </h2>
               <p className="text-sm text-muted-foreground">
-                You scored {result.correct}/{result.total} ({result.scorePct}%) and earned your
+                {t("uni.youScoredEarned", {
+                  correct: result.correct,
+                  total: result.total,
+                  pct: result.scorePct,
+                })}
                 {t("uni.certificate")}
               </p>
               {donationsEnabled && <UniversityDonationCard variant="full" />}
@@ -1749,24 +1797,42 @@ export default function TradingUniversityPanel({
               </h2>
               <p className="text-sm text-muted-foreground">
                 {result.timedOut
-                  ? `The ${examMinutes}-minute limit ended. You scored ${result.correct}/${result.total} (${result.scorePct}%). Timed-out attempts do not pass.`
+                  ? t("uni.timedOutScore", {
+                      min: examMinutes,
+                      correct: result.correct,
+                      total: result.total,
+                      pct: result.scorePct,
+                    })
                   : result.tabLeaveFail
-                    ? `The exam ended after too many tab/window leaves. You scored ${result.correct}/${result.total} (${result.scorePct}%).`
-                    : `You scored ${result.correct}/${result.total} (${result.scorePct}%). Pass mark is ${passCorrect}/${quizSize} (${passPct}%).`}{" "}
-                Review the modules and try again tomorrow (one attempt per UTC day).
+                    ? t("uni.tabLeaveScore", {
+                        correct: result.correct,
+                        total: result.total,
+                        pct: result.scorePct,
+                      })
+                    : t("uni.failedScore", {
+                        correct: result.correct,
+                        total: result.total,
+                        pct: result.scorePct,
+                        pass: passCorrect,
+                        quizSize,
+                        passPct,
+                      })}{" "}
+                {t("uni.reviewTryTomorrow")}
               </p>
               {progress?.nextAttemptAt && (
                 <p className="text-xs text-amber-700 dark:text-amber-300">
-                  Next attempt after {new Date(progress.nextAttemptAt).toLocaleString()}
+                  {t("uni.nextAttemptAfter", {
+                    when: new Date(progress.nextAttemptAt).toLocaleString(),
+                  })}
                 </p>
               )}
               {result.missedLessonIds && result.missedLessonIds.length > 0 && (
                 <div className="text-left rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
                   <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 text-center">
-                    Review these modules
+                    {t("uni.reviewModules")}
                   </h3>
                   <p className="text-xs text-muted-foreground text-center">
-                    Based on questions you missed on this attempt.
+                    {t("uni.reviewModulesHint")}
                   </p>
                   <div className="flex flex-wrap justify-center gap-2">
                     {result.missedLessonIds.map((id) => {
@@ -1799,15 +1865,15 @@ export default function TradingUniversityPanel({
         <div className="max-w-lg mx-auto space-y-4 py-4">
           <Button type="button" variant="ghost" size="sm" className="gap-1 -ml-2" onClick={() => setView("home")}>
             <ChevronLeft className="h-4 w-4" />
-            Back to syllabus
+            {t("uni.backToSyllabus")}
           </Button>
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("uni.glossaryFlashcards")}</h2>
           {flashCards.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No glossary terms yet.</p>
+            <p className="text-sm text-muted-foreground">{t("uni.noGlossary")}</p>
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                Card {flashIndex + 1} / {flashCards.length}
+                {t("uni.flashCardOf", { n: flashIndex + 1, total: flashCards.length })}
               </p>
               <button
                 type="button"
@@ -1821,11 +1887,11 @@ export default function TradingUniversityPanel({
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     {flashCards[flashIndex]?.definition}
                     <span className="block mt-2 text-[11px] text-zinc-500">
-                      From: {flashCards[flashIndex]?.lessonTitle}
+                      {t("uni.fromLesson", { title: flashCards[flashIndex]?.lessonTitle ?? "" })}
                     </span>
                   </p>
                 ) : (
-                  <p className="text-xs text-cyan-700 dark:text-cyan-300">Tap to reveal definition</p>
+                  <p className="text-xs text-cyan-700 dark:text-cyan-300">{t("uni.tapReveal")}</p>
                 )}
               </button>
               <div className="flex justify-between gap-2">
@@ -1839,7 +1905,7 @@ export default function TradingUniversityPanel({
                     setFlashRevealed(false);
                   }}
                 >
-                  Previous
+                  {t("uni.flashPrev")}
                 </Button>
                 <Button
                   type="button"
@@ -1850,7 +1916,7 @@ export default function TradingUniversityPanel({
                     setFlashRevealed(false);
                   }}
                 >
-                  Next
+                  {t("uni.flashNext")}
                 </Button>
               </div>
             </>

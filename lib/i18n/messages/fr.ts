@@ -183,6 +183,89 @@ export const fr: DeepPartialMessages = {
     startExamSized: "Démarrer l'examen final de {count} questions ({min} min)",
     markAllModules: "Marquez les {total} modules comme terminés pour débloquer l'examen ({done}/{total}).",
     backToUniversity: "Retour à l'Université de trading",
+    workedExamples: "Exemples corrigés",
+    workedExamplesHint:
+      "Scénarios pédagogiques hypothétiques — pas de signaux en direct ni de conseil financier.",
+    exampleNotSignal: "Exemple · pas un signal",
+    takeaway: "À retenir : {text}",
+    commonMistakes: "Erreurs fréquentes",
+    keyTerms: "Termes clés",
+    tryNext: "Essayer ensuite sur NovaStaris",
+    chapterCheck: "Contrôle de chapitre (obligatoire)",
+    chapterCheckBlurb:
+      "Obtenez au moins {pass}/3 pour débloquer « Marquer le module terminé ». Sans chrono — ne compte pas pour l'examen final.",
+    chapterCheckDone: "Contrôle de chapitre terminé pour ce module.",
+    chapterCheckPassed:
+      "Contrôle réussi : {correct}/{total}. Vous pouvez maintenant marquer le module terminé.",
+    chapterCheckNeed: "Il faut {pass}/{total} bonnes réponses. Relisez le module et réessayez.",
+    chapterCheckRetryNeed:
+      "{correct}/{total} correct(s) — il en faut {pass} pour réussir. Relisez et réessayez.",
+    chapterCheckNeedMark:
+      "Il faut au moins {pass}/{total} bonnes réponses au contrôle de chapitre.",
+    checkAnswers: "Vérifier les réponses",
+    retryChapterCheck: "Recommencer le contrôle",
+    closeChapterCheck: "Fermer le contrôle",
+    backToSyllabus: "Retour au programme",
+    leaveExamScreen: "Quitter l'écran",
+    leaveExamConfirm:
+      "Quitter l'écran d'examen ? Le chronomètre de {min} minutes continue. Fermer ou changer d'onglet peut terminer votre tentative.",
+    timeLeft: "Temps restant {clock}",
+    questionOf: "Question {n} / {total}",
+    tabLeaves: " · Sorties d'onglet {count}/{max}",
+    prev: "Préc.",
+    next: "Suiv.",
+    congratulations: "Félicitations{name} !",
+    congratulationsName: ", {name}",
+    passedLine: "Félicitations{name} — vous {course}{score}.",
+    youScoredEarned: "Vous avez obtenu {correct}/{total} ({pct} %) et gagné votre ",
+    timedOutScore:
+      "La limite de {min} minutes est écoulée. Score : {correct}/{total} ({pct} %). Les tentatives hors délai ne réussissent pas.",
+    tabLeaveScore:
+      "L'examen s'est terminé après trop de sorties d'onglet/fenêtre. Score : {correct}/{total} ({pct} %).",
+    failedScore:
+      "Score : {correct}/{total} ({pct} %). Seuil de réussite : {pass}/{quizSize} ({passPct} %).",
+    reviewTryTomorrow:
+      "Relisez les modules et réessayez demain (une tentative par jour UTC).",
+    nextAttemptAfter: "Prochaine tentative après {when}",
+    reviewModules: "Revoir ces modules",
+    reviewModulesHint: "D'après les questions manquées à cette tentative.",
+    commonMistakePrefix: "Erreur fréquente : {text}",
+    donateThanks:
+      "Merci — votre don aide à garder l'Université de trading gratuite pour les autres.",
+    donateCanceled:
+      "Le paiement du don a été annulé. Vous pouvez soutenir à tout moment depuis cette page.",
+    enrollTrackProgress:
+      "Créez un compte gratuit pour vous inscrire et suivre la progression du cours.",
+    speechUnsupported:
+      "La lecture à voix haute n'est pas prise en charge dans ce navigateur. Essayez Chrome, Edge ou Safari.",
+    completeModulesBeforeExam:
+      "Terminez chaque module (marquer comme terminé) avant l'examen final.",
+    proctorStay: "Restez sur cet onglet d'examen. Le quitter peut terminer votre tentative.",
+    examIntro:
+      "Après avoir appris, passez un examen final chronométré de {quizSize} questions ({examMinutes} min). Il faut {passCorrect} bonnes réponses ({passPct} %) pour réussir. Une tentative par jour en cas d'échec.",
+    examPassedBanner:
+      "Félicitations{name} — vous avez réussi l'examen final. Téléchargez ou partagez votre certificat ci-dessous.",
+    dailyAttemptUsed: "Tentative quotidienne utilisée. Prochaine tentative après {when}",
+    lockedModuleBody:
+      "Ce module fait partie du cours complet. Créez un compte gratuit pour vous inscrire et continuer.",
+    freePreviewBanner:
+      "Module d'aperçu gratuit — inscrivez-vous pour débloquer le reste du cours.",
+    timedExamStart:
+      "Examen chronométré : {min} minutes. Restez sur cet onglet — le quitter plusieurs fois termine la tentative.",
+    proctorLeaves:
+      "Restez sur cet onglet d'examen. Sorties : {count}/{max}. Un autre navigateur ou onglet peut terminer votre tentative.",
+    chapterBeforeMark:
+      "Terminez le contrôle de chapitre de ce module (il faut {pass}/3) avant de le marquer terminé.",
+    flashPrev: "Précédent",
+    flashNext: "Suivant",
+    readyForExamTitle: "Prêt pour l'examen final ?",
+    courseSyllabusNav: "Programme du cours",
+    completedCourse: "a terminé l'Université de trading NovaStaris",
+    passedWithScore: " avec {pct} %",
+    flashCardOf: "Carte {n} / {total}",
+    tapReveal: "Appuyez pour révéler la définition",
+    noGlossary: "Pas encore de termes dans le glossaire.",
+    fromLesson: "Issu de : {title}",
   },
   ui: {
   "volumeWindow": "Fenêtre de volume :",

@@ -1,0 +1,2247 @@
+[
+  {
+    "id": "intro-crypto",
+    "title": "Introduction à la crypto-monnaie",
+    "subtitle": "Qu'est-ce que la crypto, les altcoins, DeFi, spot vs perps et CEX vs DEX.",
+    "sections": [
+      {
+        "heading": "Qu’est-ce que la cryptomonnaie ?",
+        "body": [
+          "La crypto-monnaie est de l'argent numérique sécurisé par cryptographie et enregistré sur une blockchain – un registre partagé que de nombreux ordinateurs tiennent, de sorte qu'aucune banque ne doit approuver chaque transfert.",
+          "Bitcoin (BTC) est le premier et le plus grand exemple : un actif de règlement numérique rare, souvent appelé « or numérique ». Ether (ETH) alimente les contrats intelligents Ethereum. Le SOL de Solana, le BNB sur la chaîne BNB et des milliers d'autres jetons remplissent différents rôles.",
+          "Actifs de cotation et de règlement courants que vous verrez partout : USDT (Tether) et USDC (USD Coin) – des pièces stables indexées sur le dollar utilisées pour évaluer les paires, garer la valeur entre les transactions et déplacer des fonds entre les plateformes.",
+          "Vous détenez généralement des cryptomonnaies dans un portefeuille (application ou périphérique matériel) contrôlé par des clés cryptographiques. Perdez les clés/phrases de départ et vous perdez généralement l’accès pour toujours."
+        ]
+      },
+      {
+        "heading": "Altcoins, stablecoins et jetons",
+        "body": [
+          "Altcoin désigne généralement toute crypto autre que Bitcoin (ETH, SOL, jetons meme, etc.).",
+          "Les Stablecoins (USDT, USDC et autres) visent à suivre une monnaie fiduciaire comme le dollar américain – utile pour garer la valeur et coter les prix sur les bourses. Ils ne sont pas sans risque : des événements liés aux émetteurs, aux banques et aux depeg se sont produits historiquement.",
+          "Attention au dépeg : en période de tension, un stablecoin peut s'échanger en dessous de 1 $ sur les marchés secondaires même si l'émetteur rétablit ultérieurement le rattachement – ​​traitez les soldes stables importants comme présentant un risque de crédit et de liquidité, et non comme des « liquidités sous le matelas ».",
+          "Un token est une unité émise sur une blockchain (pièces fongibles, tokens de gouvernance, meme tickers). Vérifiez toujours le bon contrat/monnaie – faux noms et logos de clones."
+        ]
+      },
+      {
+        "heading": "Qu’est-ce que DeFi ?",
+        "body": [
+          "DeFi (finance décentralisée) désigne des services financiers gérés par des contrats intelligents au lieu d'intermédiaires traditionnels : échange sur un DEX, pools de prêts/emprunts, fourniture de liquidités, etc.",
+          "DeFi est puissant et risqué : les bugs des contrats intelligents, les échecs d’Oracle, les pertes éphémères et les escroqueries sont réels. Commencez petit et comprenez ce que vous signez."
+        ]
+      },
+      {
+        "heading": "Trading au comptant vs contrats à terme perpétuels (perps)",
+        "body": [
+          "Spot : vous achetez ou vendez l’actif lui-même. Si vous achetez 1 spot ETH, vous possédez 1 ETH (moins les frais). Aucun effet de levier, sauf si vous empruntez séparément. Exemple : acheter du BTC ou du SOL avec de l'USDT sur un marché spot.",
+          "Perps (perpetual futures) : vous négociez un contrat qui suit le prix, souvent avec effet de levier, sans posséder la pièce. Vous pouvez être long ou court. Les paiements de financement et le risque de liquidation s’appliquent. Exemple : un BTC-USDT perpétuel sur Blofin ou un autre site de contrats à terme.",
+          "Règle de base : apprenez d'abord les mécanismes du spot et le risque ; traitez l’effet de levier comme un outil avancé et non comme un raccourci."
+        ]
+      },
+      {
+        "heading": "Plateformes centralisées ou décentralisées",
+        "body": [
+          "Échanges centralisés (CEX) – par ex. Binance, Blofin, Bybit, Coinbase, OKX – des fonds de garde pour vous, proposent des rampes d'accès fiduciaires, des carnets de commandes et souvent des contrats à terme. Vous faites confiance à l'entreprise en matière de KYC et de risque de garde (piratage des changes, gels, insolvabilité).",
+          "Échanges décentralisés (DEX) – par ex. Jupiter (Solana), Uniswap (Ethereum), PancakeSwap (BSC), Raydium — vous permettent d'échanger depuis votre propre portefeuille via des contrats intelligents. Vous gardez la garde, mais vous gérez l'essence/les frais, les dérapages, le phishing et les taxes irréversibles.",
+          "Portefeuilles que vous rencontrerez tôt : Phantom et Solflare (Solana), MetaMask (EVM/BSC/ETH). Cartographie et découverte : outils de chasse Dexscreener, Birdeye et NovaStaris.",
+          "De nombreux traders utilisent les deux : CEX pour les fiat et les criminels, DEX pour la découverte de mèmes en chaîne et l'auto-garde."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Blockchain",
+        "definition": "Grand livre distribué qui enregistre les transferts et l'état du contrat intelligent."
+      },
+      {
+        "term": "Bitcoin (BTC)",
+        "definition": "La première cryptomonnaie majeure ; souvent traité comme un règlement numérique/une réserve de valeur."
+      },
+      {
+        "term": "USDT / USDC",
+        "definition": "Pièces stables indexées sur le dollar, largement utilisées pour coter et transférer de la valeur."
+      },
+      {
+        "term": "Altcoin",
+        "definition": "Crypto-monnaie autre que Bitcoin."
+      },
+      {
+        "term": "Stablecoin",
+        "definition": "Jeton conçu pour suivre une monnaie fiduciaire (souvent USD)."
+      },
+      {
+        "term": "DeFi",
+        "definition": "Applications financières construites sur des contrats intelligents (swaps, prêts, etc.)."
+      },
+      {
+        "term": "CEX / DEX",
+        "definition": "Échange centralisé vs échange décentralisé (basé sur un portefeuille)."
+      }
+    ],
+    "workedExamples": [],
+    "relatedTools": [
+      {
+        "label": "Aller à la chasse",
+        "href": "/?tab=new"
+      },
+      {
+        "label": "Marchés à terme sur cryptomonnaies",
+        "href": "/?tab=futures"
+      }
+    ],
+    "mistakes": [
+      "Traiter chaque jeton comme Bitcoin – la plupart des alts et des mèmes présentent des risques différents.",
+      "Confondre la garde CEX avec l'auto-garde sur un DEX.",
+      "Ignorant que l'USDT/USDC est utile mais pas sans risque."
+    ]
+  },
+  {
+    "id": "wallets-security",
+    "title": "Portefeuilles et sécurité",
+    "subtitle": "Portefeuilles chauds ou froids, phrases de départ, approbations et escroqueries courantes.",
+    "sections": [
+      {
+        "heading": "Portefeuilles chauds vs portefeuilles froids",
+        "body": [
+          "Hot wallet : logiciel connecté à internet (Phantom, MetaMask, applications d'échange). Pratique pour le trading ; surface d'attaque plus élevée.",
+          "Portefeuille froid : stockage matériel ou hors ligne pour les avoirs à long terme. Utilisez un portefeuille chaud pour la taille dégénérée uniquement."
+        ]
+      },
+      {
+        "heading": "Phrases et clés de départ",
+        "body": [
+          "Votre phrase de départ (phrase de récupération) est la sauvegarde principale. Ne le saisissez jamais sur un site Web, un robot Telegram ou un « agent d'assistance ». NovaStaris ne le demandera jamais.",
+          "Toute personne possédant la graine ou la clé privée contrôle les fonds. Les captures d'écran dans les photos cloud sont une voie de fuite courante."
+        ]
+      },
+      {
+        "heading": "Approbations, phishing et hygiène",
+        "body": [
+          "Sur les chaînes EVM, des approbations illimitées de jetons peuvent permettre à un contrat malveillant de drainer les soldes – révoquer périodiquement les approbations inutilisées.",
+          "Modèle de phishing : faux DM de « support » → portefeuille cloné/site CEX → demande une graine ou une « vérification » de votre clé privée. Les vraies applications et NovaStaris n'ont jamais besoin de votre graine.",
+          "Les faux sites de largage, les DM Discord et les extensions de portefeuille clonées sont des voies d'attaque standard. Ajoutez de vraies URL à vos favoris ; vérifier les extensions.",
+          "Portefeuilles séparés : un pour les expériences, un pour l'épargne. Ne mélangez jamais les économies de vie avec les robots tireurs d’élite."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Seed phrase",
+        "definition": "Sauvegarde lisible par l'homme qui recrée les clés du portefeuille."
+      },
+      {
+        "term": "Hot wallet",
+        "definition": "Portefeuille connecté à Internet utilisé pour le trading actif."
+      },
+      {
+        "term": "Approval",
+        "definition": "Autorisation d'un contrat pour déplacer vos jetons (EVM)."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Un faux support demande votre graine",
+        "setup": [
+          "Vous avez acheté un mème ; Telegram affiche un DM « administrateur d'assistance »",
+          "Ils envoient un lien qui ressemble à la page de récupération de votre portefeuille",
+          "Le formulaire vous demande votre graine de 12/24 mots pour « débloquer les jetons bloqués »"
+        ],
+        "steps": [
+          "Arrêt. Aucun support légitime, flux CEX ou NovaStaris n'a jamais besoin de votre phrase de départ.",
+          "Fermez l'onglet ; ne collez pas de mots nulle part. Signaler/bloquer le DM.",
+          "Si vous avez déjà tapé la graine : considérez le portefeuille comme compromis : déplacez les fonds restants d'un nouveau portefeuille uniquement si vous les contrôlez toujours, puis abandonnez l'ancien."
+        ],
+        "takeaway": "Quiconque demande une graine est un attaquant. Ajoutez de vraies URL à vos favoris ; ne récupérez jamais un portefeuille à partir d’un lien DM."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Suivi du portefeuille",
+        "href": "/?tab=wallets"
+      }
+    ],
+    "mistakes": [
+      "Saisir une phrase de départ dans un site Web, un bot ou une discussion « d'assistance ».",
+      "Conserver vos économies sur le même portefeuille chaud que celui utilisé pour les transactions degen.",
+      "Ignorer les approbations illimitées de jetons sur les chaînes EVM."
+    ]
+  },
+  {
+    "id": "risk-fundamentals",
+    "title": "Fondamentaux de la gestion des risques",
+    "subtitle": "Dimensionnement des positions, risque par transaction et psychologie qui fait exploser les comptes.",
+    "sections": [
+      {
+        "heading": "Le risque d’abord, puis l’entrée",
+        "body": [
+          "Décidez combien vous pouvez perdre sur une transaction avant de décider combien vous voulez gagner. Taille professionnelle à partir de la distance d'arrêt ; taille amateurs de FOMO.",
+          "Une ligne directrice courante consiste à risquer un petit pourcentage fixe de capital commercial par idée (par exemple 0,5 à 2 %). Les transactions mèmes et à fort effet de levier méritent souvent le bas de gamme – ou moins."
+        ]
+      },
+      {
+        "heading": "Attente et processus",
+        "body": [
+          "Une victoire ne constitue pas un avantage ; une perte ne prouve pas que vous êtes brisé. Suivez les configurations, les règles suivies et les résultats de nombreuses transactions.",
+          "Si vous ne pouvez pas énoncer l’invalidation en une seule phrase, vous n’avez pas de métier – vous avez un espoir."
+        ]
+      },
+      {
+        "heading": "R-multiples et chaleur quotidienne",
+        "body": [
+          "R est votre risque prévu sur une transaction (par exemple, stop de 100 $ = 1R). Une victoire +2R signifie que vous avez pris environ le double du risque prévu – et non « Je me sentais fort ».",
+          "Suivez les victoires/pertes en R sur une semaine. Edge s'affiche sous forme de R moyen après coûts – et non comme un téléscripteur chanceux.",
+          "Chaleur quotidienne : somme des risques ouverts sur toutes les positions. Deux idées à 1 % à la fois représentent une chaleur d'environ 2 % si les deux arrêts peuvent atteindre. Les positions longues corrélées (par exemple BTC + alts à bêta élevé) échouent souvent ensemble – traitez-les comme des chaleurs liées."
+        ]
+      },
+      {
+        "heading": "Pièges comportementaux",
+        "body": [
+          "Le trading de vengeance après une perte, le surdimensionnement après une victoire et le déplacement des arrêts plus loin de l'entrée pour « lui donner de la place » détruisent les comptes plus rapidement qu'un mauvais téléscripteur.",
+          "Le sommeil, la sobriété et les règles pré-écrites battent l'adrénaline. Éloignez-vous après une limite de perte quotidienne."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Risk per trade",
+        "definition": "Max $ (ou %) que vous acceptez de perdre si le stop est atteint."
+      },
+      {
+        "term": "Invalidation",
+        "definition": "Condition qui prouve que l’idée est fausse : quittez."
+      },
+      {
+        "term": "Revenge trade",
+        "definition": "Forcer une transaction à « reconquérir » une perte – généralement émotionnelle."
+      },
+      {
+        "term": "R-multiple",
+        "definition": "Résultat mesuré en unités de votre risque prévu (par exemple +2R = deux fois les dollars que vous avez risqués)."
+      },
+      {
+        "term": "Daily heat",
+        "definition": "Risque ouvert combiné sur toutes les positions – surveillez la corrélation."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Taille à partir d'un stop $ (spot)",
+        "setup": [
+          "Capital commercial : 10 000 $",
+          "Risque par idée : 1 % = 100 $",
+          "Longue idée ; l'invalidation est de 2 $ en dessous de l'entrée"
+        ],
+        "steps": [
+          "Perte maximale en cas d'arrêt = 100 $.",
+          "Risque par unité = 2 $ → taille maximale ≈ 100 $ ÷ 2 $ = 50 unités.",
+          "Si le prix est de 50 $/unité, le notionnel ≈ 2 500 $ — il ne reste toujours qu'un risque d'environ 100 $ si le stop est atteint (avant frais/dérapage)."
+        ],
+        "takeaway": "La taille de la position est un résultat du risque en dollars et de la distance d'arrêt – et non une indication de votre sentiment d'optimisme."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Agent NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "Cuir chevelu Nova",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      }
+    ],
+    "mistakes": [
+      "Dimensionnement à partir de FOMO au lieu de la distance d'arrêt.",
+      "Le déplacement s'arrête plus loin après l'entrée sans nouvelle thèse.",
+      "Sauter une limite de perte quotidienne et faire du trading de vengeance."
+    ]
+  },
+  {
+    "id": "chart-basics",
+    "title": "Graphiques et chandeliers",
+    "subtitle": "Chandeliers OHLC, timeframes, trend lines, Fib et figures classiques.",
+    "sections": [
+      {
+        "heading": "Pourquoi les graphiques comptent",
+        "body": [
+          "Les graphiques de prix permettent aux traders de visualiser l’historique et de planifier entrées, stops et objectifs. NovaForecast, Nova Scalp, Chart Analysis et les outils Forex partent du principe que vous savez lire un chandelier basique.",
+          "Un timeframe (1m, 5m, 15m, 1h, 4h, 1d, 1w) est la durée de chaque bougie. Les timeframes bas sont plus bruités et meilleurs pour des entrées précises ; les timeframes hauts montrent la tendance plus large et les niveaux clés.",
+          "Habitude multi-timeframe : décidez du biais sur un timeframe supérieur (ex. 4h/1d), puis timez l’entrée sur un inférieur (ex. 5m/15m) sans contredire le tableau d’ensemble."
+        ]
+      },
+      {
+        "heading": "Anatomie d’un chandelier (OHLC)",
+        "body": [
+          "Chaque bougie montre l’Open, le High, le Low et le Close de la période.",
+          "Le corps est la distance entre l’ouverture et la clôture. Les mèches (ombres) montrent les extrêmes haut et bas au-delà du corps.",
+          "Bougie haussière : close au-dessus de l’open (souvent verte). Bougie baissière : close en dessous de l’open (souvent rouge). La couleur est une convention — lisez toujours l’OHLC, pas la couleur seule.",
+          "Longue mèche haute = les vendeurs ont rejeté des prix plus élevés. Longue mèche basse = les acheteurs ont rejeté des prix plus bas. Le contexte (tendance vs range) décide si cela compte."
+        ]
+      },
+      {
+        "heading": "Types de bougies haussières (bases)",
+        "body": [
+          "Engulfing haussier : un corps vert qui couvre entièrement le corps rouge précédent — plus fort près d’un support ou après une baisse, plus faible en plein chop.",
+          "Hammer : petit corps près du haut avec une longue mèche basse — les acheteurs ont défendu après une pression vendeuse (cherchez une confirmation sur la bougie suivante).",
+          "Inverted hammer : petit corps près du bas avec une longue mèche haute après une baisse — rejet haussier possible ; attendez un suivi.",
+          "Morning star (idée en 3 bougies) : mouvement baissier, petite bougie d’indécision, puis forte clôture haussière — séquence de possible creux.",
+          "Marubozu (haussier) : long corps avec peu/pas de mèches — clôture directionnelle forte ; le contexte de structure reste nécessaire."
+        ]
+      },
+      {
+        "heading": "Types de bougies baissières (bases)",
+        "body": [
+          "Engulfing baissier : un corps rouge qui couvre entièrement le corps vert précédent — plus fort près d’une résistance ou après un rallye.",
+          "Shooting star : petit corps près du bas avec une longue mèche haute après une hausse — les vendeurs ont rejeté les sommets.",
+          "Hanging man : ressemble à un hammer mais apparaît après une avance — signal d’affaiblissement s’il est confirmé.",
+          "Evening star (idée en 3 bougies) : mouvement haussier, petite indécision, puis forte clôture baissière — séquence de possible sommet.",
+          "Marubozu (baissier) : long corps rouge, peu/pas de mèches — clôture vendeuse forte ; ce n’est toujours pas un signal isolé."
+        ]
+      },
+      {
+        "heading": "Famille des doji (indécision)",
+        "body": [
+          "Doji standard : open ≈ close — indécision ; le sens dépend de l’endroit où il apparaît (épuisement de tendance vs bruit en milieu de range).",
+          "Long-legged doji : longues mèches des deux côtés — large indécision / volatilité sans vainqueur clair sur la période.",
+          "Dragonfly doji : longue mèche basse, open/close près du haut — souvent un rejet haussier des bas.",
+          "Gravestone doji : longue mèche haute, open/close près du bas — souvent un rejet baissier des hauts.",
+          "Ne tradez jamais un doji seul. Combinez-le avec niveau, structure et confirmation de la bougie suivante."
+        ]
+      },
+      {
+        "heading": "Lignes de tendance et canaux",
+        "body": [
+          "Une ligne de tendance haussière relie des swing lows croissants ; une ligne baissière relie des swing highs décroissants. Préférez des swings clairs plutôt que de forcer une ligne dans le bruit.",
+          "Un canal ajoute une parallèle de l’autre côté du prix — utile pour les objectifs et le mean-reversion à l’intérieur du canal.",
+          "La cassure d’une trend line bien respectée peut signaler une accélération ou un changement de régime — planifiez quand même l’invalidation ; les fausses cassures sont fréquentes."
+        ]
+      },
+      {
+        "heading": "Retracements de Fibonacci (lite)",
+        "body": [
+          "Après un swing fort (impulsion), les outils de retracement Fib marquent des zones de pullback courantes que les traders surveillent — surtout 38,2 %, 50 % et 61,8 %.",
+          "Les niveaux Fib sont des outils de confluence, pas de magie : ils comptent davantage quand ils se chevauchent avec une structure antérieure, une trend line ou un nombre rond.",
+          "Les extensions (ex. 127,2 % / 161,8 %) servent parfois d’objectifs de take-profit après que le pullback reprend la tendance.",
+          "NovaForecast / les outils liés au Fib sur NovaStaris partent du principe que vous comprenez déjà que le Fib est une carte d’attention, pas une garantie."
+        ]
+      },
+      {
+        "heading": "Figures chartistes classiques (lite)",
+        "body": [
+          "Double top / double bottom : deux tests échoués d’un haut ou d’un bas — retournement potentiel si la neckline casse avec suivi.",
+          "Head and shoulders / inverse : trois swings avec un extrême au milieu — la cassure de la neckline est le déclencheur habituel ; le measured move n’est qu’un objectif approximatif.",
+          "Triangles (ascending/descending/symmetrical) : compression des hauts/bas — la direction de breakout + le retest comptent souvent plus que le label du triangle.",
+          "Flags / pennants : brève consolidation après une impulsion — souvent continuation si la tendance précédente reprend ; échec = piège.",
+          "Définissez toujours l’invalidation avant l’entrée. Les figures échouent — votre stop est le plan quand elles le font."
+        ]
+      },
+      {
+        "heading": "Indicateurs comme confluence (lite)",
+        "body": [
+          "Moyennes mobiles (ex. 20/50/200) : filtres de tendance dynamiques — prix au-dessus d’une MA croissante penche haussier, en dessous d’une MA décroissante penche baissier. Elles sont en retard ; traitez-les comme du contexte, pas comme des boutons d’entrée.",
+          "RSI / oscillateurs de momentum : des lectures extrêmes peuvent signaler des conditions étirées, mais un « oversold » en tendance baissière peut rester oversold. Préférez divergence + structure à l’oscillateur seul.",
+          "Volume (quand disponible) : volume qui monte sur les breakouts et qui s’assèche en chop sont des indices utiles — toujours secondaires à la structure et à l’invalidation.",
+          "Règle : les indicateurs confirment un plan bâti sur structure et risque. Ils ne remplacent pas un stop."
+        ]
+      },
+      {
+        "heading": "Support, résistance et structure",
+        "body": [
+          "Le support est une zone où l’achat est déjà apparu ; la résistance où la vente est apparue. Les zones valent mieux que des lignes exactes.",
+          "Uptrend : higher highs et higher lows. Downtrend : lower highs et lower lows. Range : prix qui oscille entre des bornes.",
+          "Les breakouts peuvent continuer ou fake out — attendez une confirmation ou planifiez l’invalidation avant d’entrer."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "OHLC",
+        "definition": "Open, High, Low, Close — les quatre prix d’une bougie."
+      },
+      {
+        "term": "Wick / shadow",
+        "definition": "La fine ligne qui montre le haut ou le bas de la période au-delà du corps."
+      },
+      {
+        "term": "Timeframe",
+        "definition": "Durée représentée par chaque bougie (ex. 5 minutes, 1 heure)."
+      },
+      {
+        "term": "Doji",
+        "definition": "Bougie avec open ≈ close — indécision ; sous-types : dragonfly et gravestone."
+      },
+      {
+        "term": "Trend line",
+        "definition": "Ligne le long des swing lows (uptrend) ou des swing highs (downtrend)."
+      },
+      {
+        "term": "Fibonacci retracement",
+        "definition": "Niveaux de pullback (ex. 38,2 %, 50 %, 61,8 %) tracés sur un swing d’impulsion."
+      },
+      {
+        "term": "Support / resistance",
+        "definition": "Zones où le prix a précédemment rebondi ou calé."
+      },
+      {
+        "term": "Confluence",
+        "definition": "Plusieurs raisons indépendantes pour la même idée (structure + niveau + indicateur)."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Lecture multi-timeframe (hypothétique)",
+        "setup": [
+          "Graphique 4h : higher highs / higher lows → biais haussier",
+          "Graphique 15m : pullback dans un swing low antérieur + Fib 50 % de la dernière impulsion",
+          "Invalidation : cassure nette et clôture sous ce swing low"
+        ],
+        "steps": [
+          "Le biais vient du 4h — vous ne cherchez pas de shorts contre cette structure pour cette idée.",
+          "Le timing d’entrée vient du 15m : attendez la zone de pullback au lieu de chase la bougie de breakout 4h.",
+          "Le stop va au-delà de l’invalidation 15m ; le premier objectif peut être le swing high 15m précédent ou un measured move — pas un nombre rond aléatoire seul."
+        ],
+        "takeaway": "Timeframe supérieur = l’histoire ; timeframe inférieur = le timing. Contredire l’histoire, c’est ainsi que des entrées « parfaites » perdent quand même."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Agent NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "Agent Nova Forex",
+        "href": "/?tab=nova-forex"
+      },
+      {
+        "label": "Analyse de graphique",
+        "href": "/?tab=ai-analysis&agent=chart"
+      }
+    ],
+    "mistakes": [
+      "Trader une seule figure de bougie sans structure ni invalidation.",
+      "Utiliser un stop en 1m sur une idée journalière (décalage de timeframe).",
+      "Traiter les niveaux Fib comme des garanties au lieu de zones de confluence.",
+      "Forcer des trend lines dans le bruit et trader chaque toucher."
+    ]
+  },
+  {
+    "id": "orders-execution",
+    "title": "Ordres et exécution",
+    "subtitle": "Market vs limit vs stop, stop-loss, take-profit et gestion des ordres ouverts.",
+    "sections": [
+      {
+        "heading": "Le plan de trade avant le clic",
+        "body": [
+          "Avant d’entrer : direction (long/short), type d’entrée, stop-loss (invalidation), objectif(s) de take-profit, et risque $ max si stoppé.",
+          "Si vous ne pouvez pas écrire ça en une ligne, vous jouez — vous n’exécutez pas un trade."
+        ]
+      },
+      {
+        "heading": "Ordres market, limit et stop",
+        "body": [
+          "Market order : exécution maintenant au meilleur prix disponible. Rapide, mais vous acceptez le slippage (moins bon fill sur marché fin ou rapide).",
+          "Limit order : fill uniquement à votre prix ou mieux. Vous contrôlez le prix ; vous pouvez ne pas être exécuté si le prix n’y trade jamais.",
+          "Stop order (stop-market) : devient un market order quand un prix déclencheur est touché — utilisé pour des entrées en breakout ou des sorties protectrices.",
+          "Stop-limit : quand le stop se déclenche, place une limit au lieu d’un market — plus de contrôle du prix, risque de non-fill en gap/spike."
+        ]
+      },
+      {
+        "heading": "Stop-loss et take-profit",
+        "body": [
+          "Stop-loss (SL) : le prix qui prouve que votre idée est fausse — sortez sans débat. Placez-le au-delà de l’invalidation, pas sur le nombre rond évident que tout le monde utilise si c’est l’aimant à liquidité.",
+          "Take-profit (TP) : sortie planifiée côté gagnant. Des TP partiels (scale out) sécurisent une partie du profit tout en laissant un runner si la structure le permet.",
+          "Le risk:reward n’est pas une religion, mais si votre TP est plus proche que votre SL sans edge, l’espérance souffre en général.",
+          "Trailing stop : suit le prix dans votre sens. Utile en tendance ; peut vous sortir en chop dans un range."
+        ]
+      },
+      {
+        "heading": "Ordres ouverts et carnet",
+        "body": [
+          "Ordres ouverts / working : limits et stops non exécutés encore sur l’exchange. Annulez ou modifiez-les quand la thèse change.",
+          "OCO (one-cancels-the-other) sur certaines plateformes : TP et SL liés pour qu’un fill annule l’autre.",
+          "Reduce-only (futures) : garantit que l’ordre ne peut que réduire ou fermer une position — évite les flips accidentels.",
+          "Post-only / maker : tente de reposer comme liquidité (souvent frais plus bas) ; peut s’annuler s’il prendrait immédiatement."
+        ]
+      },
+      {
+        "heading": "Entrer vs gérer",
+        "body": [
+          "Entrée : comment vous entrez (market, limit en pullback, stop en breakout). Gestion : comment vous ajustez SL/TP ou la taille après le fill.",
+          "Processus courant : entrer → confirmer le fill → poser SL/TP immédiatement → journaliser la thèse. Ne laissez jamais une position nue « une seconde ».",
+          "Éloigner un stop de l’entrée pour « lui laisser de la place » après avoir eu tort, c’est généralement de la vengeance — pas de la gestion.",
+          "Nova Scalp et les outils Futures partent du principe que vous connaissez déjà ces bases d’ordres avant de dimensionner du risque levier."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Market order",
+        "definition": "Exécution immédiate au prix disponible — vitesse avant contrôle du prix."
+      },
+      {
+        "term": "Limit order",
+        "definition": "Fill uniquement à votre prix ou mieux — peut ne pas s’exécuter."
+      },
+      {
+        "term": "Stop-loss",
+        "definition": "Sortie protectrice à l’invalidation — définit la perte max planifiée."
+      },
+      {
+        "term": "Take-profit",
+        "definition": "Sortie pré-réglée pour sécuriser des gains à un objectif."
+      },
+      {
+        "term": "Open / working order",
+        "definition": "Ordre non exécuté encore actif sur l’exchange."
+      },
+      {
+        "term": "Slippage",
+        "definition": "Écart entre le prix attendu et le prix de fill réel."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Limit en pullback vs chase au market",
+        "setup": [
+          "Vous voulez long après un breakout ; le prix est étendu",
+          "Plan : acheter un pullback à 1,0820, SL 1,0790, TP 1,0880",
+          "Le prix actuel est déjà à 1,0855 et accélère"
+        ],
+        "steps": [
+          "Acheter au market maintenant = chase : moins bonne entrée, R:R restant plus serré vers le même TP, et vous avez toujours besoin de la même distance de SL ou vous acceptez plus de risque $.",
+          "Placez une limit à 1,0820 (ou restez à l’écart). Si elle ne fill jamais, vous avez manqué le trade — c’est autorisé.",
+          "Au fill : posez SL/TP immédiatement. Si la thèse meurt (ex. cassure de structure), annulez les working orders restantes."
+        ],
+        "takeaway": "Une limit manquée coûte moins cher qu’un market FOMO rempli sans plan."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Futures crypto",
+        "href": "/?tab=futures"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      },
+      {
+        "label": "Agent Nova Forex",
+        "href": "/?tab=nova-forex"
+      }
+    ],
+    "mistakes": [
+      "Entrer sans stop-loss déjà planifié.",
+      "Utiliser un market order sur un carnet fin et blâmer la « manipulation » pour le slippage.",
+      "Laisser des limits working actives après un changement de thèse.",
+      "Éloigner un stop de l’entrée alors que vous avez déjà tort."
+    ]
+  },
+  {
+    "id": "psychology-journaling",
+    "title": "Psychologie et journal de trading",
+    "subtitle": "Revenge trading, limites de perte journalières et un journal simple pour construire un edge.",
+    "sections": [
+      {
+        "heading": "Pourquoi la psychologie est une taille de position",
+        "body": [
+          "La plupart des explosions de compte ne sont pas d’étranges échecs de graphique — ce sont des revenge trades surdimensionnés, des entrées FOMO, et des stops déplacés après que le plan a cassé.",
+          "Traitez l’état émotionnel comme de l’effet de levier : si vous êtes tilté, votre risque effectif est plus élevé que le chiffre à l’écran."
+        ]
+      },
+      {
+        "heading": "Revenge trading et FOMO",
+        "body": [
+          "Revenge trading : forcer un nouveau trade pour « récupérer » une perte. En général, timing pire et taille plus grande.",
+          "FOMO : chase un mouvement après que l’entrée claire est passée. Les entrées tardives demandent une taille plus petite ou aucun trade — pas une taille plus grande.",
+          "Règle empirique : après un stop-out complet, sautez une bougie (ou un cooldown fixe) avant la prochaine idée."
+        ]
+      },
+      {
+        "heading": "Limite de perte journalière",
+        "body": [
+          "Fixez une perte journalière max en $ ou en % du capital de trading (ex. 1–3 %). Une fois atteinte → plateforme fermée pour la journée. Pas d’exception pour « encore un setup ».",
+          "Un plafond hebdomadaire soft aide à éviter la mort par mille petites violations.",
+          "Écrivez la limite avant la session. Les décisions prises en plein drawdown sont généralement pires."
+        ]
+      },
+      {
+        "heading": "Un journal de trade simple",
+        "body": [
+          "Ne loggez que ce que vous allez vraiment revoir : date, marché, direction, thèse en une phrase, invalidation, taille/risque $, résultat, et une leçon.",
+          "Taggez le process : plan suivi / plan cassé. L’edge apparaît davantage dans les tags de process que dans les captures de P&L.",
+          "Revue hebdomadaire : quels setups ont payé, quelles ruptures de règles ont coûté, et si le sizing matchait la conviction."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Revenge trade",
+        "definition": "Forcer un trade pour récupérer une perte — généralement émotionnel et surdimensionné."
+      },
+      {
+        "term": "Daily loss limit",
+        "definition": "Stop dur sur le risque de session ; une fois atteint, vous arrêtez de trader pour la journée."
+      },
+      {
+        "term": "Trade journal",
+        "definition": "Court journal écrit de la thèse, du risque, du résultat et du respect du process."
+      },
+      {
+        "term": "Cooldown",
+        "definition": "Pause obligatoire après un stop-out ou un pic émotionnel avant la prochaine entrée."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Limite journalière atteinte — séquence de tilt",
+        "setup": [
+          "Limite de perte journalière : 150 $ (écrite avant la session)",
+          "Vous venez de prendre un stop complet : −140 $ sur un trade qui suivait le plan",
+          "Un setup « parfait » de revenge apparaît 2 minutes plus tard"
+        ],
+        "steps": [
+          "Vérifiez le ledger : 140 $ sur 150 $ sont utilisés — une autre idée à risque plein peut casser la limite du jour.",
+          "Règle : limite journalière atteinte/proche → plateforme fermée. Pas de « encore un » même si le R:R a l’air superbe.",
+          "Journal : thèse, invalidation, plan suivi O, résultat −R, leçon = cooldown ; rouvrir demain."
+        ],
+        "takeaway": "Le trade coûteux après un stop est en général de la taille émotionnelle, pas de l’edge. Les limites journalières existent pour protéger le compte de demain."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Agent NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      }
+    ],
+    "mistakes": [
+      "Forcer un trade pour « récupérer » une perte dans la même session.",
+      "Augmenter la taille après un gain parce que vous vous sentez invincible.",
+      "Journaliser uniquement des captures de P&L sans notes de process."
+    ]
+  },
+  {
+    "id": "trading-styles",
+    "title": "Styles de trading et horizons temporels",
+    "subtitle": "Scalp, day, swing et position — alignez style, timeframe, taille et mode de vie.",
+    "sections": [
+      {
+        "heading": "Le style est un système de risque, pas un quiz de personnalité",
+        "body": [
+          "Un style de trading définit combien de temps vous comptez tenir, sur quel timeframe vous gérez, et comment vous sizez. Mélanger les styles en cours de trade (ex. un scalp 5m qui devient un « hope hold » de plusieurs jours) est une façon de tuer un compte.",
+          "Choisissez un style principal par session. Structure et liquidité (module suivant) s’appliquent à tous les styles — seuls l’horloge et la largeur du stop changent."
+        ]
+      },
+      {
+        "heading": "Scalping",
+        "body": [
+          "Hold : secondes à ~30 minutes. Graphiques : 1m–5m (biais parfois depuis le 15m). Objectif : beaucoup de petits edges ; frais et slippage comptent beaucoup.",
+          "Besoins : exécution rapide, invalidation serrée, limites de perte journalières strictes. Mauvais fit si vous ne pouvez pas regarder le carnet.",
+          "Sur NovaStaris : Nova Scalp est conçu pour cet horizon — niveaux et fenêtres de hold supposent une durée courte, pas une thèse overnight."
+        ]
+      },
+      {
+        "heading": "Day trading",
+        "body": [
+          "Hold : minutes à heures ; flat en fin de session (pas d’overnight volontaire). Graphiques : exécution 5m–15m, biais sur 1h.",
+          "Besoins : plans de session, conscience des événements (CPI/NFP/FOMC pour le FX ; unlocks/news crypto majeurs), et un stop dur sur la chaleur journalière.",
+          "Funding et swaps overnight sont surtout évités par design — c’est une feature du style."
+        ]
+      },
+      {
+        "heading": "Swing trading",
+        "body": [
+          "Hold : ~1–10+ jours. Graphiques : exécution 1h–4h, biais sur 1d. Les stops sont plus larges en $ ; la taille doit diminuer pour que 1R corresponde encore à votre risque $.",
+          "Besoins : patience, tolérance au bruit contre vous, et conscience du funding (perps), des swaps (FX) et des gaps de week-end quand c’est pertinent.",
+          "Ne gérez pas un swing avec un stop de scalp — ni un scalp avec l’excuse d’un journal de swing."
+        ]
+      },
+      {
+        "heading": "Position / holds de style investissement",
+        "body": [
+          "Hold : semaines à mois+. Graphiques : daily/weekly. La thèse est fondamentale ou macro plus structure hebdo — pas une seule bougie.",
+          "La taille est petite vs le compte ; l’invalidation peut être une rupture de thèse (narratif/niveau échoué), pas une mèche 15m.",
+          "Les memes et les perps à fort levier sont en général un mauvais fit pour un vrai style position."
+        ]
+      },
+      {
+        "heading": "Aligner style → timeframe → taille",
+        "body": [
+          "Style plus court → stops plus serrés → notionnel plus petit pour le même risque $. Style plus long → stops plus larges → taille encore plus petite.",
+          "Si votre emploi du temps ne peut pas supporter le style (ex. job à plein temps + scalping pur), changez le style — pas les règles de risque."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Scalping",
+        "definition": "Holds très courts ; volume de trades élevé ; sensible aux frais."
+      },
+      {
+        "term": "Day trading",
+        "definition": "Holds intraday ; typiquement flat en fin de session."
+      },
+      {
+        "term": "Swing trading",
+        "definition": "Holds multi-jours gérés sur des timeframes plus hauts."
+      },
+      {
+        "term": "Position trading",
+        "definition": "Holds de semaines à mois portés par une thèse plus large et la structure hebdo."
+      },
+      {
+        "term": "Timeframe match",
+        "definition": "Le stop et le TF de gestion correspondent à la durée de hold prévue."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Même risque $, largeurs de style différentes",
+        "setup": [
+          "Budget de risque : 100 $ (1R)",
+          "Idée scalp : stop à 0,20 $ → taille = 500 unités",
+          "Idée swing : stop à 2,00 $ → taille = 50 unités"
+        ],
+        "steps": [
+          "Les deux idées risquent ~100 $ si stoppées — même R.",
+          "Le swing doit utiliser 1/10e de la taille parce que le stop est 10× plus large.",
+          "Utiliser la taille scalp sur un stop swing ≈ désastre 10R si la large invalidation touche."
+        ],
+        "takeaway": "Le style change la distance du stop — la taille est le bouton qui garde le R constant."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      },
+      {
+        "label": "Agent NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "NovaScalper",
+        "href": "/?tab=trading-bot"
+      }
+    ],
+    "mistakes": [
+      "Transformer un scalp raté en hope hold de plusieurs jours.",
+      "Utiliser une taille scalp avec un stop large de swing (risque silencieux 5–10R).",
+      "Choisir un style que vous ne pouvez pas réellement surveiller avec votre emploi du temps."
+    ]
+  },
+  {
+    "id": "market-structure",
+    "title": "Liquidité et structure de marché",
+    "subtitle": "Régimes, BOS/CHOCH, liquidity grabs et comment les flux plus larges chassent les stops.",
+    "sections": [
+      {
+        "heading": "La structure avant les signaux",
+        "body": [
+          "Les bougies sont du bruit sans structure. Demandez d’abord : le prix fait-il des higher highs et higher lows (uptrend), des lower highs et lower lows (downtrend), ou oscille-t-il dans un range ?",
+          "Tradez avec la structure active sur votre timeframe d’exécution, et respectez le biais du timeframe supérieur quand ils sont en conflit."
+        ]
+      },
+      {
+        "heading": "Régimes haussier, baissier et range",
+        "body": [
+          "Régime haussier (structure) : HH + HL sur votre timeframe de biais. Préférez longs / dips ; les shorts sont contre-tendance et demandent une taille plus petite ou des pièges de liquidité clairs.",
+          "Régime baissier : LH + LL. Préférez shorts / rips ; un long « catch-a-knife » demande une reclaim définie et une invalidation serrée.",
+          "Range / chop : hauts et bas clairs avec échecs répétés. Les meilleurs edges sont des fades près des extrêmes — le milieu de range est là où le retail overtrade le plus.",
+          "Un régime n’est pas une étiquette permanente de « bull market » — c’est la structure de swing active jusqu’à ce qu’elle casse. Mettez-la à jour quand BOS/CHOCH prouve que vous avez tort."
+        ]
+      },
+      {
+        "heading": "Break of structure (BOS) — lite",
+        "body": [
+          "En uptrend, un break of structure signifie souvent que le prix prend un swing high antérieur et continue — la tendance reste intacte.",
+          "En downtrend, le BOS signifie souvent qu’un swing low antérieur cède. Utilisez le BOS comme contexte, pas comme un bouton « buy/sell » isolé."
+        ]
+      },
+      {
+        "heading": "Change of character (CHOCH) — lite",
+        "body": [
+          "Le CHOCH est un premier indice que la tendance précédente peut basculer — ex. en uptrend, une cassure nette d’un swing low significatif.",
+          "Un CHOCH n’égale pas une nouvelle tendance. Attendez un suivi (nouvelle structure) ou planifiez une invalidation serrée."
+        ]
+      },
+      {
+        "heading": "Liquidity grabs (retail vs flux plus large)",
+        "body": [
+          "Les stops se regroupent au-dessus des hauts évidents et sous les bas évidents. Les plus gros acteurs et algos ont souvent besoin de cette liquidité pour filler de la taille — donc le prix spike à travers l’aimant (grab), puis reverse.",
+          "Pas besoin de théorie du complot : les stops bondés sont du carburant visible. Quand vous voyez une mèche à travers un niveau et une reclaim rapide, demandez si la liquidité a été prise plutôt qu’un breakout propre.",
+          "Lecture de style institutionnel (pratique) : combinez extrêmes d’open interest / funding (perps), pools de stops évidents, et reclaim vs hold — pas des logos « smart money » sur Twitter.",
+          "Votre stop appartient toujours à la vraie invalidation — pas exactement là où la foule s’est garée si c’est l’aimant."
+        ]
+      },
+      {
+        "heading": "Biais HTF → entrée LTF",
+        "body": [
+          "Le timeframe supérieur (4h/1d) répond : haussier, baissier ou range ? Le timeframe inférieur (5m–1h) répond : où est le pullback ou la reclaim pour mon style ?",
+          "Si le LTF crie long alors que le HTF est clairement baissier, vous fadez le régime plus large — réduisez la taille ou passez.",
+          "Lien avec les styles : les scalps respectent quand même le biais HTF ; les swings s’y appuient encore plus."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Market structure",
+        "definition": "Le motif de swing highs/lows qui définit tendance vs range."
+      },
+      {
+        "term": "Regime",
+        "definition": "Comportement haussier / baissier / ranging actif jusqu’à ce que la structure prouve le contraire."
+      },
+      {
+        "term": "BOS",
+        "definition": "Break of structure — le prix prend un swing clé dans le sens de la tendance."
+      },
+      {
+        "term": "CHOCH",
+        "definition": "Change of character — signe précoce que la tendance précédente peut se retourner."
+      },
+      {
+        "term": "Liquidity grab",
+        "definition": "Spike au-delà des hauts/bas évidents qui chasse les stops, souvent avant un reverse."
+      },
+      {
+        "term": "HTF / LTF",
+        "definition": "Higher / lower timeframe — biais vs timing."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Mèche à travers les hauts, puis reclaim",
+        "setup": [
+          "Haut de la veille clair à 1,00 $ avec des stops empilés juste au-dessus",
+          "Bougie 5m spike à 1,012 $ puis close de retour à 0,995 $",
+          "Les acheteurs de breakout sont entrés sur le spike ; le prix reclaim sous le niveau"
+        ],
+        "steps": [
+          "Étiquetez le spike comme un possible liquidity grab (stops run), pas une confirmation automatique d’un nouvel uptrend.",
+          "Si vous étiez long sur le breakout sans plan de reclaim, la reclaim sous 1,00 $ est souvent l’invalidation — sortez.",
+          "Si vous chassez un fade : attendez reclaim + structure (ex. lower high), et placez l’invalidation au-dessus de l’extrême de la mèche — jamais au milieu de la mèche."
+        ],
+        "takeaway": "Mèche à travers + reclaim rapide = demandez « les stops de qui ? » avant de traiter ça comme un breakout propre."
+      },
+      {
+        "title": "HTF haussier, attendre le dip LTF",
+        "setup": [
+          "4h : HH/HL encore intacts (régime haussier)",
+          "15m : pullback net dans un HL antérieur + milieu de range",
+          "Style : day trade — vouloir flat en fin de session"
+        ],
+        "steps": [
+          "Biais : long-only ou rester à l’écart — pas de shorts gratuits contre la structure 4h pour cette idée.",
+          "Attendez une reclaim 15m ou une mèche de rejet sur la zone de dip ; marquez l’invalidation sous le HL.",
+          "Taillez depuis la largeur du stop 15m pour que 1R rentre dans le risque journalier — n’utilisez pas une taille scalp sur un stop gras."
+        ],
+        "takeaway": "Régime depuis le HTF, timing depuis le LTF, taille depuis la distance du stop."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Agent NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "Agent IA NovaStaris",
+        "href": "/?tab=ai-analysis&agent=chart"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      }
+    ],
+    "mistakes": [
+      "Chasser chaque breakout à travers des hauts/bas évidents (liquidity grabs).",
+      "Appeler un CHOCH un changement de tendance complet après une seule bougie.",
+      "Combattre la structure du timeframe supérieur sur un scalp de timeframe inférieur.",
+      "Appeler du chop de milieu de range un « régime » bull ou bear et l’overtrader."
+    ]
+  },
+  {
+    "id": "volume-vwap",
+    "title": "Volume, VWAP et profil (lite)",
+    "subtitle": "Lire la participation — VWAP comme référence institutionnelle, volume comme confirmation.",
+    "sections": [
+      {
+        "heading": "Pourquoi le volume / la participation comptent",
+        "body": [
+          "Un prix sans participation est plus facile à manipuler. Un volume qui monte sur une cassure qui tient est un contexte plus solide qu'un spike silencieux immédiatement repris.",
+          "En crypto, la qualité du « volume » reporté varie selon les plateformes (risque de wash trading). Préférez les majors/perps liquides et traitez les petits prints meme avec scepticisme."
+        ]
+      },
+      {
+        "heading": "VWAP (prix moyen pondéré par le volume)",
+        "body": [
+          "Le VWAP est le prix moyen échangé jusqu'ici dans la session, pondéré par le volume — une référence institutionnelle courante pour un prix intraday « juste ».",
+          "Un prix qui tient au-dessus du VWAP de session penche souvent haussier pour les day traders ; en dessous, baissier. Le retour moyen vers le VWAP est fréquent en range ; les jours de tendance peuvent s'éloigner longtemps du VWAP.",
+          "VWAP ancré : on démarre la moyenne depuis un événement choisi (swing low, listing, bougie CPI) au lieu de l'ouverture de session — utile pour le swing.",
+          "Le VWAP n'est pas une entrée magique. Couplez-le à la structure et à l'invalidation."
+        ]
+      },
+      {
+        "heading": "Profil de volume (lite)",
+        "body": [
+          "Le profil de volume montre combien de volume a été échangé à chaque prix (histogramme sur le côté), pas seulement dans le temps.",
+          "High-volume nodes (HVN) : prix acceptés par le marché — souvent des zones d'équilibre / aimants. Low-volume nodes (LVN) : acceptation fine — le prix peut les traverser vite.",
+          "Point of control (POC) : prix avec le plus de volume dans la fenêtre du profil — souvent un aimant de fair value jusqu'à ce qu'il migre.",
+          "Utilisez le profil pour demander où la liquidité a été acceptée, puis placez les stops au-delà de la vraie structure — pas exactement sur le POC s'il est encombré."
+        ]
+      },
+      {
+        "heading": "Comment l'utiliser avec les styles NovaStaris",
+        "body": [
+          "Scalps / day trades : VWAP de session + volume sur breakouts / reclaims.",
+          "Swings : VWAP ancré depuis le début de l'impulsion + structure daily ; ignorez le volume bruyant en 1m.",
+          "Si le graphique n'a pas de volume fiable (certains flux CFD/FX), appuyez-vous davantage sur la structure et la liquidité de session plutôt que sur de fausses barres de volume."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "VWAP",
+        "definition": "Prix moyen pondéré par le volume — moyenne de session (ou ancrée) payée par le marché."
+      },
+      {
+        "term": "Volume profile",
+        "definition": "Volume échangé à chaque niveau de prix sur une fenêtre choisie."
+      },
+      {
+        "term": "POC",
+        "definition": "Point of control — prix avec le plus haut volume dans le profil."
+      },
+      {
+        "term": "HVN / LVN",
+        "definition": "Nœuds haut / bas volume — zones de prix acceptées vs fines."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Cassure au-dessus du VWAP avec volume",
+        "setup": [
+          "Intraday : le prix reclaim et tient au-dessus du VWAP de session",
+          "Le volume s'étend sur la bougie de reclaim vs l'heure précédente",
+          "La structure HTF reste haussière"
+        ],
+        "steps": [
+          "Le contexte dit que les acheteurs ont payé au-dessus de la moyenne de session avec de la participation.",
+          "Invalidation : perdre le VWAP et le swing de reclaim — pas un tick aléatoire sous un HVN.",
+          "Si le move était une mèche silencieuse sans volume, traitez-le comme plus faible — peut-être un grab, pas une acceptation."
+        ],
+        "takeaway": "VWAP + volume répond à « a-t-il été accepté ? » La structure répond à « où ai-je tort ? »"
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "NovaForecast Agent",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "Chart Analysis",
+        "href": "/?tab=ai-analysis&agent=chart"
+      }
+    ],
+    "mistakes": [
+      "Traiter le VWAP comme un bouton de rebond garanti.",
+      "Faire confiance au « volume » des tiny-caps sans penser au wash trading.",
+      "Ignorer que certains flux FX/CFD ont des barres de volume peu fiables."
+    ]
+  },
+  {
+    "id": "meme-coins",
+    "title": "Meme coins",
+    "subtitle": "Ce qu'elles sont, pourquoi elles bougent, et comment la culture devient du prix.",
+    "sections": [
+      {
+        "heading": "Définition",
+        "body": [
+          "Une meme coin est une cryptomonnaie dont le principal moteur de valeur est la communauté, la culture, l'humour et l'attention — pas un cash-flow issu d'un produit. Pensez Dogecoin, PEPE, ou des milliers de tokens plus récents nés sur Solana et BSC.",
+          "Cela ne veut pas dire que chaque meme coin est une blague pour les traders. La liquidité, les holders, la force du narrative et les listings sur exchanges comptent encore. Cela veut dire que les fondamentaux sont différents : la vélocité sociale mène souvent le prix plus que les modèles de revenus."
+        ]
+      },
+      {
+        "heading": "Pourquoi les meme coins bougent si vite",
+        "body": [
+          "L'offre est souvent large et le float peut être concentré dans les wallets early. Quelques gros vendeurs peuvent écraser le prix ; un achat coordonné ou l'attention d'un influenceur peut déclencher des moves paraboliques.",
+          "L'information circule sur X (Twitter), Telegram, Discord et TikTok en quelques minutes. Les outils NovaStaris (Go Hunting, CT Scan, Wallet Tracker) existent parce que le timing et le flow comptent plus ici que la valorisation traditionnelle.",
+          "La plupart des meme coins échouent ou vont vers zéro. Les survivants gardent en général une communauté collante, une liquidité crédible et des cycles de narrative répétés."
+        ]
+      },
+      {
+        "heading": "Réalité du risque",
+        "body": [
+          "Rugs, honeypots, fausse liquidité et wash trading sont courants. Vérifiez toujours le risque contrat, la concentration des holders, et si vous pouvez réellement vendre.",
+          "Traitez la taille comme du capital « divertissement » que vous pouvez perdre à 100 % — jamais de l'argent de loyer ou des factures pour un trade meme."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Float",
+        "definition": "Tokens librement disponibles à l'échange (non locked / vested)."
+      },
+      {
+        "term": "Narrative",
+        "definition": "L'histoire qui attire l'attention (meme animal, politique, mashup IA, etc.)."
+      },
+      {
+        "term": "Rug",
+        "definition": "Les développeurs ou gros holders dumpent la liquidité / abandonnent le projet."
+      }
+    ],
+    "workedExamples": [],
+    "relatedTools": [
+      {
+        "label": "NovaStaris AI Agent",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Go Hunting",
+        "href": "/?tab=new"
+      }
+    ],
+    "mistakes": [
+      "Sizer les memes comme des holdings blue-chip.",
+      "Acheter le narrative sans vérifier liquidité et holders.",
+      "Assumer qu'un ticker drôle égale due diligence."
+    ]
+  },
+  {
+    "id": "meme-trading",
+    "title": "Trader les meme coins",
+    "subtitle": "Entrées, sorties, frais, tips/bribes, sizing et process.",
+    "sections": [
+      {
+        "heading": "Trader vs hold",
+        "body": [
+          "Trader signifie un plan : zone d'entrée, invalidation (stop), target(s) et time stop. Hold une bag sans plan, c'est de la spéculation sans contrôle du risque.",
+          "Les charts meme sont bruyants. Favorisez des catalyseurs clairs (migration, rumeur de listing avec confirmation, accumulation whale) plutôt que des bougies vertes aléatoires."
+        ]
+      },
+      {
+        "heading": "Frais de transaction, tips et bribes",
+        "body": [
+          "Chaque buy/sell on-chain paie un frais de réseau (gas sur EVM ; frais SOL sur Solana). En congestion, les frais de base montent et les txs lentes ou failed deviennent courantes.",
+          "Priority fees / tips : paiement optionnel en plus pour faire lander votre transaction plus vite quand le réseau est chargé. Snipers et bots tipent régulièrement plus haut pour concurrencer les fills early.",
+          "Sur Solana, les traders parlent souvent de Jito tips / « bribes » — du SOL en plus payé pour que les block engines priorisent votre transaction sur les lancements compétitifs. Payer plus ne garantit pas le profit ; ça améliore seulement les chances d'inclusion et peut anéantir une petite taille si on en abuse.",
+          "Le trading DEX inclut aussi l'impact de prix et le slippage (votre fill pire que le mid coté). Les aggregators tentent de mieux router, mais les pools meme fins font encore mal aux gros ordres.",
+          "Les listings meme CEX ajoutent des frais maker/taker au lieu du gas — ça soustrait quand même de l'edge. Comptez toujours le coût all-in : fee + tip + slippage + spread."
+        ]
+      },
+      {
+        "heading": "Processus de base",
+        "body": [
+          "1) Screen : nouvelles paires, surge de volume, achats smart-wallet, buzz CT.",
+          "2) Vet : liquidité, checks tax/honeypot, top holders, âge, authenticité sociale.",
+          "3) Size : petit % du portfolio ; scale in seulement si la thèse se renforce. Gardez le budget fee/tip proportionnel à la taille.",
+          "4) Manage : prenez des profits partiels dans la force ; ne déplacez jamais un stop plus loin de l'entrée pour « lui laisser de la room » sans nouvelle thèse.",
+          "5) Review : journalisez ce qui a marché — les boucles de feedback NovaStaris existent pour ça."
+        ]
+      },
+      {
+        "heading": "Erreurs courantes",
+        "body": [
+          "FOMO chase après un 5–10x déjà imprimé.",
+          "Averaging down des bags sans fin sans invalidation.",
+          "Ignorer la liquidité de sortie — si vous ne pouvez pas vendre la size, vous n'avez pas une vraie position.",
+          "Surpayer tips/bribes sur une tiny size au point que les frais dominent le PnL.",
+          "Overtrader chaque nouveau ticker ; l'edge vient de la sélectivité."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Invalidation",
+        "definition": "Prix ou condition qui prouve que votre idée de trade est fausse — sortie."
+      },
+      {
+        "term": "Slippage",
+        "definition": "Écart entre le fill attendu et le fill réel sur des marchés fins."
+      },
+      {
+        "term": "Priority fee / tip",
+        "definition": "Frais extra payé pour lander une transaction plus vite en congestion."
+      },
+      {
+        "term": "Bribe (Jito tip)",
+        "definition": "Tip compétitif (souvent en SOL) pour prioriser l'inclusion sur les hot launches."
+      },
+      {
+        "term": "Time stop",
+        "definition": "Sortie si la thèse ne s'est pas jouée dans une fenêtre définie."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Budget tip vs taille de trade",
+        "setup": [
+          "Taille d'achat prévue : 40 $ notionnel",
+          "Vous mettez un Jito tip / priority fee d'environ 8 $ pour « gagner » le launch",
+          "Edge attendu si vous avez raison : peut-être +30 % sur la bag avant frais de vente"
+        ],
+        "steps": [
+          "Coût all-in à l'entrée ≈ tip + base fee + slippage. 8 $ de tip sur 40 $, c'est ~20 % de la size avant même que le trade fonctionne.",
+          "Si la bag fait +30 % puis vous vendez avec encore des frais/slippage, le tip peut effacer l'essentiel du win — ou le transformer en perte.",
+          "Règle : gardez le budget tip/fee à un petit % de la size (ou skippez le launch). N'augmentez la size que si le budget frais tient encore dans vos règles de risque — ne tippez jamais plus par FOMO."
+        ],
+        "takeaway": "Les tips achètent des chances d'inclusion, pas du profit. Sur tiny size, over-tipper, c'est tout le trade."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "NovaStaris AI Agent",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Go Hunting",
+        "href": "/?tab=new"
+      }
+    ],
+    "mistakes": [
+      "Surpayer tips/bribes sur une tiny size au point que les frais dominent le PnL.",
+      "Averaging down sans invalidation.",
+      "FOMO chase après un multi-x déjà imprimé."
+    ]
+  },
+  {
+    "id": "solana",
+    "title": "Solana",
+    "subtitle": "La chaîne qui alimente la plupart des lancements meme modernes.",
+    "sections": [
+      {
+        "heading": "Ce qu'est Solana",
+        "body": [
+          "Solana est une blockchain Layer-1 à haut débit conçue pour des transactions rapides et à bas frais. Cette vitesse explique pourquoi les launchpads meme et les snipers y prospèrent.",
+          "SOL est le token natif utilisé pour les frais et le staking. Congestion et spikes de frais arrivent encore pendant les manias — planifiez en conséquence."
+        ]
+      },
+      {
+        "heading": "Pièces d'écosystème qui intéressent les traders",
+        "body": [
+          "Wallets (Phantom, Solflare, etc.), DEX/aggregators (Jupiter), launchpads (Pump.fun et successeurs), et indexers/APIs utilisés par des outils comme NovaStaris.",
+          "Les coins migrés passent souvent de launches type bonding curve à une liquidité DEX pleine — un événement de cycle de vie clé pour les hunters."
+        ]
+      },
+      {
+        "heading": "Conseils pratiques",
+        "body": [
+          "Gardez un hot wallet dédié aux trades degen ; ne stockez jamais vos économies de vie sur un wallet de trading.",
+          "Vérifiez les adresses mint. Les scammers clonent tickers et logos en permanence.",
+          "Révoquez périodiquement les approvals de tokens inutilisés si vous utilisez beaucoup de dApps (surtout en bridging vers EVM)."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "L1",
+        "definition": "Blockchain de base (Solana, Ethereum, BSC) qui settle les transactions."
+      },
+      {
+        "term": "Mint",
+        "definition": "L'adresse unique du contrat token sur Solana."
+      },
+      {
+        "term": "Migration",
+        "definition": "Passage de la courbe du launchpad à la liquidité de marché ouvert."
+      }
+    ],
+    "workedExamples": [],
+    "relatedTools": [
+      {
+        "label": "NovaStaris AI Agent",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Go Hunting",
+        "href": "/?tab=new"
+      }
+    ],
+    "mistakes": [
+      "Faire confiance aux clones ticker/logo sans vérifier le mint.",
+      "Mélanger économies et wallet sniper/trading.",
+      "Ignorer la congestion et le coût des tips pendant une mania."
+    ]
+  },
+  {
+    "id": "solana-memes",
+    "title": "Meme coins Solana",
+    "subtitle": "Culture de lancement, bonding curves et comportement des memes Sol.",
+    "sections": [
+      {
+        "heading": "Pourquoi Solana domine les lancements meme",
+        "body": [
+          "Txs bon marché + finalité rapide = des milliers d'expériences par jour. La plupart meurent ; quelques-unes attrapent le feu narrative et printent des multi-baggers.",
+          "La vitesse récompense scanners et wallet trackers. Les humains seuls ne peuvent pas surveiller chaque mint."
+        ]
+      },
+      {
+        "heading": "Cycle de vie (simplifié)",
+        "body": [
+          "Create → early bonding / découverte → ignition sociale → liquidité qui s'approfondit ou migrate → rumeurs de listing / chatter CEX → distribution et decay — ou second legs si la culture tient.",
+          "Bonding curve (lite) : les launchpads pré-migrate font en général monter le prix à mesure que plus d'offre est achetée le long de la courbe — les fills early sont moins chers et plus risqués ; près de la migrate, le prix est plus haut et la LP s'approfondit souvent.",
+          "Early = upside max et risque de rug max. Mid = structure de chart plus claire mais entrée pire. Late = souvent de la liquidité de sortie pour les holders early."
+        ]
+      },
+      {
+        "heading": "Edge sur les memes Sol",
+        "body": [
+          "Suivez les wallets de qualité, pas chaque shill de KOL.",
+          "Préférez les coins avec un graphe social organique plutôt que du spam de commentaires bots.",
+          "Utilisez les vues NovaStaris Go Hunting (new pairs, final stretch, migrated) comme une carte — puis appliquez vos propres règles de risque."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Bonding curve",
+        "definition": "Mécanisme de pricing où le prix monte à mesure que plus de tokens sont achetés pré-DEX."
+      },
+      {
+        "term": "KOL",
+        "definition": "Key opinion leader — influenceur dont les posts peuvent bouger des marchés fins."
+      },
+      {
+        "term": "Bundle",
+        "definition": "Wallets coordonnés qui achètent au launch pour contrôler l'offre (souvent un red flag)."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Risque early curve vs post-migrate",
+        "setup": [
+          "Coin A : encore sur bonding curve, social minuscule, vous pouvez acheter 25 $",
+          "Coin B : vient de migrer vers le DEX avec une LP plus profonde ; l'entrée est ~3× le prix early curve",
+          "Même hype narrative sur CT pour les deux"
+        ],
+        "steps": [
+          "Coin A : upside max si la culture prend — aussi risque rug / abandon max ; sizez comme des tickets de loterie seulement.",
+          "Coin B : meilleure liquidité de sortie et chart plus clair, mais les holders early peuvent distribuer dans votre buy — exigez une invalidation et ne FOMO pas la size.",
+          "Choisissez un profil de risque par session. Mélanger une size « ape early » sur un coin migré (ou une size qui change la vie sur une courbe newborn) est comment les comptes meurent."
+        ],
+        "takeaway": "Early = optionnalité + risque de rug. Migrated = liquidité + risque de distribution. Alignez la size au stage."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "NovaStaris AI Agent",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Go Hunting",
+        "href": "/?tab=new"
+      }
+    ],
+    "mistakes": [
+      "Traiter chaque launch bonding-curve comme de l'argent gratuit.",
+      "Ignorer les bundles / wallets de launch coordonnés.",
+      "Entrer en late distribution comme si c'était de l'early discovery."
+    ]
+  },
+  {
+    "id": "bsc-memes",
+    "title": "Meme coins BSC",
+    "subtitle": "Les memes sur Binance Smart Chain — même jeu, rails différents.",
+    "sections": [
+      {
+        "heading": "Qu’est-ce que BSC",
+        "body": [
+          "BNB Smart Chain (BSC) est une chaîne compatible EVM, avec des frais bas et une large base d’utilisateurs retail, surtout en Asie et sur les marchés émergents.",
+          "Les tokens utilisent des adresses de contrat 0x. Les outils, explorers (BscScan) et DEX (PancakeSwap et autres) diffèrent de l’UX Solana."
+        ]
+      },
+      {
+        "heading": "En quoi les memes BSC diffèrent",
+        "body": [
+          "Souvent des lancements BEP-20 plus « classiques » avec LP locks, taxes et communautés centrées sur Telegram.",
+          "Les honeypots et les taxes de vente élevées sont historiquement fréquents — simulez toujours une vente avant d’augmenter la taille.",
+          "Le gas (payé en BNB) est en général bon marché face à Ethereum, mais les txs échouées et le phishing d’approvals coûtent encore de l’argent et de la sécurité."
+        ]
+      },
+      {
+        "heading": "Notes de trading",
+        "body": [
+          "L’onglet BSC de NovaStaris reprend les patterns de chasse Sol — utilisez des liens spécifiques à la chaîne (Dexscreener BSC) et ne mélangez jamais les adresses entre chaînes.",
+          "Surveillez les taxes de transfert/vente intégrées à certains contrats — elles agissent comme des frais sur chaque trade."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "BEP-20",
+        "definition": "Standard de token sur BSC (rôle similaire à l’ERC-20 sur Ethereum)."
+      },
+      {
+        "term": "Honeypot",
+        "definition": "Contrat que vous pouvez acheter mais pas vendre (ou seulement avec une taxe extrême)."
+      },
+      {
+        "term": "LP lock",
+        "definition": "Liquidité verrouillée pour une période afin que les devs ne puissent pas la retirer instantanément."
+      },
+      {
+        "term": "Token tax",
+        "definition": "Pourcentage imposé par le contrat sur les achats/ventes/transferts."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Test-vente honeypot avant de dimensionner",
+        "setup": [
+          "Le meme BEP-20 paraît liquide sur le graphique ; Telegram est bruyant",
+          "Vous pouvez acheter 15 $ sur PancakeSwap sans erreur",
+          "Vous n’avez pas encore tenté de vendre"
+        ],
+        "steps": [
+          "Achetez d’abord une taille poussière. Tentez immédiatement une petite vente (ou utilisez un checker honeypot réputé) avant d’ajouter de la taille.",
+          "Si la vente échoue, revert, ou montre une taxe extrême — traitez comme honeypot / piège ; n’avguez pas.",
+          "Seulement si une vraie vente passe avec une taxe raisonnable : appliquez alors la taille de risque normale, les checks LP/holders, et une invalidation."
+        ],
+        "takeaway": "Un achat qui passe ne prouve rien. Sur BSC, une vente test fait partie de la due diligence."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Agent IA NovaStaris",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Onglet BSC",
+        "href": "/?tab=bsc"
+      }
+    ],
+    "mistakes": [
+      "Sauter les checks honeypot/taxe sur les contrats BEP-20.",
+      "Supposer que le LP est verrouillé parce qu’un site l’a dit.",
+      "Copier un CA depuis les réseaux sans vérifier sur BscScan."
+    ]
+  },
+  {
+    "id": "ethereum-l2s",
+    "title": "Ethereum et Layer 2",
+    "subtitle": "Les rails ETH au-delà de Solana et BSC — gas, L2, bridges et surface d’arnaques.",
+    "sections": [
+      {
+        "heading": "Pourquoi Ethereum compte encore pour les traders",
+        "body": [
+          "Ethereum héberge une DeFi profonde, des stables majeures, l’histoire des NFT blue-chip et de nombreux tokens réputés — même si les memes se lancent souvent sur Solana/BSC pour la vitesse et les frais.",
+          "Le gas ETH (frais de transaction) monte avec la demande. En manie, une tx échouée ou saturée peut coûter cher — dimensionnez les checks poussière avec soin."
+        ]
+      },
+      {
+        "heading": "Layer 2 (L2)",
+        "body": [
+          "Les L2 (ex. Arbitrum, Optimism, Base et autres) règlent moins cher/plus vite tout en ancrant périodiquement la sécurité sur Ethereum.",
+          "Le même ticker de token peut exister sur plusieurs réseaux avec des adresses de contrat différentes — vérifiez toujours chaîne + CA.",
+          "Le bridging déplace de la valeur entre L1 et L2 (ou entre L2). Les bridges ajoutent un risque de smart contract et de délai ; les bridges officiels et agrégateurs réputés battent les DM « support » au hasard."
+        ]
+      },
+      {
+        "heading": "Différences de trading et de risque vs memes Solana/BSC",
+        "body": [
+          "Les memes et microcaps ETH/L2 rug encore — honeypots, taxes et arnaques d’approval existent. Les approvals ERC-20 illimitées restent un vecteur de drain classique.",
+          "La liquidité peut siéger sur Uniswap (et forks) avec différents fee tiers — vérifiez la profondeur du pool et la chaîne avant de dimensionner.",
+          "Pour les majors ETH sérieuses, la structure et le macro comptent souvent plus que les tip wars — mais l’hygiène sécurité bat encore le skill chart si vous signez un permit malveillant."
+        ]
+      },
+      {
+        "heading": "Checklist pratique",
+        "body": [
+          "Confirmez le réseau dans le wallet avant chaque swap.",
+          "Vérifiez le contrat sur Etherscan / explorer L2 — pas une capture Telegram.",
+          "Révoquez périodiquement les approvals périmées ; gardez un wallet burn/trading séparé de l’épargne."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "L1 / L2",
+        "definition": "Chaîne de base (ex. Ethereum) vs couche de scaling qui publie vers elle."
+      },
+      {
+        "term": "Gas",
+        "definition": "Frais payés pour exécuter une transaction Ethereum (ou EVM)."
+      },
+      {
+        "term": "Bridge",
+        "definition": "Mécanisme pour déplacer des actifs entre chaînes — ajoute un risque de contrat et de délai."
+      },
+      {
+        "term": "ERC-20 approval",
+        "definition": "Permission pour un contrat de déplacer vos tokens — peut être abusée si illimitée."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Même ticker, mauvaise chaîne",
+        "setup": [
+          "Twitter pousse un CA de « nouveau meme ETH »",
+          "Votre wallet est encore sur Base depuis hier",
+          "Vous collez le CA et swap"
+        ],
+        "steps": [
+          "Si le CA est uniquement Ethereum mainnet, un swap Base peut acheter un clone sans valeur ou échouer — dans les deux cas vous risquez des fonds.",
+          "Correction : changez de réseau volontairement, ouvrez l’explorer de cette chaîne, vérifiez le contrat vérifié et le pool de liquidité.",
+          "Puis testez en taille poussière ; seulement ensuite appliquez la taille de risque."
+        ],
+        "takeaway": "Chaîne + CA font partie de l’instrument. Le texte du ticker, non."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Agent IA NovaStaris",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Module portefeuilles & sécurité",
+        "href": "/?tab=trading-university"
+      }
+    ],
+    "mistakes": [
+      "Swapper un CA sur le mauvais réseau parce que le ticker correspondait.",
+      "Laisser des approvals illimitées sur des routers au hasard pour toujours.",
+      "Utiliser des bridges aléatoires issus de DM au lieu de routes connues."
+    ]
+  },
+  {
+    "id": "crypto-futures",
+    "title": "Futures crypto et perps",
+    "subtitle": "Perpétuels, levier, marge, funding, liquidation, et long vs short.",
+    "sections": [
+      {
+        "heading": "Spot vs futures",
+        "body": [
+          "Spot : vous possédez l’actif. Futures/perps : vous tradez un contrat qui suit le prix, souvent avec levier, sans posséder la pièce.",
+          "Les perpetual swaps (« perps ») n’ont pas d’échéance. Les funding rates paient périodiquement les longs ou les shorts pour garder le contrat près du spot.",
+          "Les futures datés expirent à une date fixe et peuvent converger vers le spot jusqu’à la livraison/règlement — la plupart du trading retail crypto aujourd’hui, ce sont les perps."
+        ]
+      },
+      {
+        "heading": "Long vs short",
+        "body": [
+          "Long : vous gagnez si le prix monte ; vous perdez s’il baisse. Short : vous gagnez si le prix baisse ; vous perdez s’il monte.",
+          "Les perps rendent le short aussi facile que le long — cela signifie aussi que les squeezes (couverture forcée des shorts) et les cascades (liquidations forcées des longs) sont courants en crypto.",
+          "La direction n’est que la moitié du plan. L’autre moitié : invalidation, taille, et combien de temps vous tiendrez à travers les paiements de funding."
+        ]
+      },
+      {
+        "heading": "Levier et marge",
+        "body": [
+          "Le levier multiplie l’exposition. 10x signifie qu’un mouvement adverse d’environ 10 % peut effacer la position (avant frais) selon le mode de marge.",
+          "La marge initiale est le collatéral pour ouvrir. La marge de maintenance est le minimum pour garder la position. Tomber en dessous → liquidation.",
+          "Notionnel ≈ marge × levier (approximativement). Pensez en risque notionnel et distance de stop en dollars, pas seulement « j’ai mis 50 $ »."
+        ]
+      },
+      {
+        "heading": "Marge isolée vs cross",
+        "body": [
+          "Marge isolée : seul le collatéral assigné à cette position est exposé à la liquidation pour ce trade. Plus propre pour apprendre.",
+          "Marge cross : le solde partagé du wallet soutient plusieurs positions. Meilleure efficacité du capital, mais un mauvais book peut contagionner le reste.",
+          "Règle amateur : apprenez en isolé. Passez en cross seulement quand vous pouvez expliquer la perte max sur tout le compte."
+        ]
+      },
+      {
+        "heading": "Funding rates",
+        "body": [
+          "Quand le funding est positif, les longs paient en général les shorts ; quand il est négatif, les shorts paient en général les longs. Les paiements se règlent selon un calendrier (ex. toutes les 8 h — vérifiez votre plateforme).",
+          "Un funding extrême signifie souvent un côté saturé. C’est de l’information sur le positionnement — pas un signal de retournement garanti.",
+          "Tenir à travers beaucoup d’intervalles de funding peut effacer l’edge même si le prix bouge à peine. Intégrez le funding dans les holds multi-heures et multi-jours."
+        ]
+      },
+      {
+        "heading": "Liquidation et mark price",
+        "body": [
+          "La liquidation, c’est l’exchange qui vous ferme de force quand la marge est insuffisante. Dans le chaos, les fills peuvent être pires que le prix théorique.",
+          "Beaucoup de plateformes utilisent le mark price (prix index/fair) pour le calcul de liquidation — pas toujours le dernier print que vous voyez sur le graphique.",
+          "Nova Scalp et les outils Crypto Futures sur NovaStaris supposent que vous comprenez déjà que le levier est un multiplicateur de risque, pas un raccourci vers le skill.",
+          "Sachez toujours : entrée, stop (invalidation), cible, perte max $ sur la marge, et durée de hold estimée avant de cliquer buy/sell."
+        ]
+      },
+      {
+        "heading": "Futures datés vs perps (basis)",
+        "body": [
+          "Les futures datés (calendrier) expirent à une date fixe et se règlent sur un prix de référence. Les perps n’expirent pas — le funding les maintient près du spot à la place.",
+          "Basis ≈ prix futures − spot (ou l’inverse selon la plateforme). Contango : futures au-dessus du spot (courant en marchés calmes). Backwardation : futures sous le spot (souvent stress / demande short).",
+          "Certains traders expriment des vues via le basis (style cash-and-carry) — c’est un skill différent des scalps directionnels sur perps. Sachez quel instrument vous tenez avant de dimensionner.",
+          "Sur NovaStaris, la plupart des outils futures crypto ciblent les perps USDT (Blofin). Si vous tradez des contrats datés ailleurs, gérez échéance, roll et marge séparément."
+        ]
+      },
+      {
+        "heading": "Open interest et trades saturés",
+        "body": [
+          "L’open interest (OI) est la taille de contrats encore ouverts. Un OI qui monte avec une tendance signifie souvent une nouvelle participation ; un OI qui baisse dans un spike peut signifier couverture/fermeture.",
+          "Longs saturés + funding positif élevé + liquidité fine = recette classique de liquidations long sur un dump violent — et l’image miroir pour les shorts.",
+          "Utilisez OI et funding comme contexte à côté de la structure — pas comme entrées autonomes."
+        ]
+      },
+      {
+        "heading": "Types d’ordres (essentiels)",
+        "body": [
+          "Market : fill immédiat, plus de slippage. Limit : votre prix ou mieux. Stop / stop-limit : se déclenche quand le prix atteint un niveau — pour protection ou entrées breakout.",
+          "Les flags reduce-only et post-only aident à éviter les flips accidentels ou les frais taker quand vous voulez seulement sortir ou fournir de la liquidité.",
+          "Posez SL/TP juste après le fill. Attendre « que ça se calme » est comment les positions levérées nues deviennent des liquidations."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Perp",
+        "definition": "Contrat futures perpétuel sans date d’expiration."
+      },
+      {
+        "term": "Funding",
+        "definition": "Paiement périodique entre longs et shorts pour ancrer le prix du perp au spot."
+      },
+      {
+        "term": "Liquidation",
+        "definition": "Fermeture forcée quand la marge tombe sous les exigences de maintenance."
+      },
+      {
+        "term": "Notional",
+        "definition": "Valeur totale de la position (marge × levier, approximativement)."
+      },
+      {
+        "term": "Isolated margin",
+        "definition": "Risque de collatéral limité à la marge assignée à cette position."
+      },
+      {
+        "term": "Cross margin",
+        "definition": "Solde partagé qui soutient plusieurs positions — risque de contagion."
+      },
+      {
+        "term": "Mark price",
+        "definition": "Prix fair/index que beaucoup de plateformes utilisent pour le PnL et le calcul de liquidation."
+      },
+      {
+        "term": "Open interest",
+        "definition": "Total des contrats futures/perp encore ouverts."
+      },
+      {
+        "term": "Basis",
+        "definition": "Écart entre le prix futures/daté et le spot — contango ou backwardation."
+      },
+      {
+        "term": "Dated futures",
+        "definition": "Futures avec une échéance / date de règlement fixe (vs perpétuel)."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Long 10× — ce qui risque vraiment 100 $",
+        "setup": [
+          "Marge isolée : 100 $",
+          "Levier : 10× → ~1 000 $ notionnel",
+          "Entrée BTC à 50 000 $ ; zone d’effacement approximative près d’un mouvement adverse ~10 % (avant frais)"
+        ],
+        "steps": [
+          "Vous ne « risquez pas seulement 100 $ de conviction » au sens spot — 100 $ est du collatéral ; l’exchange peut liquider tout le chemin notionnel quand la marge échoue.",
+          "Si votre invalidation prévue est à 2 %, dimensionnez pour qu’un stop là perde ~votre risque $ prévu — n’attendez pas que la liquidation soit le stop.",
+          "Préférez isolé + SL dur pour apprendre. Cross + levier élevé transforme une mauvaise pièce en événement de compte."
+        ],
+        "takeaway": "La liquidation est un mode de panne, pas une stratégie. Votre stop doit frapper en premier."
+      },
+      {
+        "title": "Le funding mange un trade flat",
+        "setup": [
+          "Long perp, funding +0,05 % par intervalle de 8 h (illustratif)",
+          "Vous tenez ~24 h (3 intervalles) et le prix est flat",
+          "Notionnel 2 000 $"
+        ],
+        "steps": [
+          "Funding approximatif payé ≈ 0,05 % × 3 × 2 000 $ ≈ 3 $ — petit ici, mais ça scale avec la taille et les taux extrêmes.",
+          "Si le funding est à +0,2 % par intervalle en manie, le même hold peut coûter des dizaines de dollars sans edge de prix.",
+          "Avant les holds multi-intervalles : vérifiez le funding, la durée de votre thèse, et si rester à l’écart est moins cher."
+        ],
+        "takeaway": "Prix flat + funding cher = saignée lente. Le temps dans un perp a un coût."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Crypto Futures",
+        "href": "/?tab=futures"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      },
+      {
+        "label": "Perp Radar",
+        "href": "/?tab=perp-radar"
+      }
+    ],
+    "mistakes": [
+      "Utiliser le levier max parce que « ce n’est qu’un petit mouvement ».",
+      "Ignorer le funding et la distance de liquidation.",
+      "Tout passer en cross-margin sans comprendre le risque de contagion."
+    ]
+  },
+  {
+    "id": "predictions",
+    "title": "Marchés de prédiction",
+    "subtitle": "Trader des probabilités sur des événements du monde réel.",
+    "sections": [
+      {
+        "heading": "Ce que c’est",
+        "body": [
+          "Les marchés de prédiction vous laissent acheter/vendre des parts qui paient selon qu’un événement se produit (élection, décision Fed, sport, jalons crypto).",
+          "Des plateformes comme Polymarket cotent des prix qui ressemblent à des probabilités (ex. 0,42 ≈ 42 % de chance implicite), avant frais et règles de résolution."
+        ]
+      },
+      {
+        "heading": "Comment pensent les traders",
+        "body": [
+          "L’edge = votre estimation de probabilité vs le prix du marché, après frais et risque de résolution.",
+          "Liquidité, temps jusqu’à la résolution et chocs d’actualité comptent. Un côté « bon marché » peut rester bon marché si l’info est déjà pricée.",
+          "Les outils Nova Polymarket sur NovaStaris aident à suivre le flow et les elites — faites quand même votre propre recherche d’événement."
+        ]
+      },
+      {
+        "heading": "Risques propres aux prédictions",
+        "body": [
+          "Critères de résolution ambigus, outcomes retardés ou contestés, et books fins près de l’échéance.",
+          "Corrélation : beaucoup de marchés bougent ensemble sur le même headline macro."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Implied probability",
+        "definition": "Prix du marché interprété comme la chance que l’événement se résolve Yes."
+      },
+      {
+        "term": "Resolution",
+        "definition": "Détermination officielle de l’outcome qui règle le marché."
+      },
+      {
+        "term": "Binary market",
+        "definition": "Structure de payoff Yes/No (forme la plus courante)."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Prob implicite vs votre estimation",
+        "setup": [
+          "Marché : « Événement X avant la date Y » trade Yes à 0,28 $ (≈28 % implicite)",
+          "Après recherche, votre estimation honnête est ~45 %",
+          "Frais + ambiguïté de résolution existent encore"
+        ],
+        "steps": [
+          "Candidat d’edge ≈ vos 45 % vs marché 28 % — mais seulement si votre recherche est indépendante et que les règles de résolution correspondent à ce que vous croyez que « Yes » signifie.",
+          "Dimensionnez depuis le risque d’avoir tort (perte totale du stake sur Yes s’il se résout No), pas depuis le volume du CT.",
+          "Si vous ne pouvez pas expliquer pourquoi le marché a « tort », il n’y a pas de trade — bon marché ≠ mal pricé."
+        ],
+        "takeaway": "Prix ≈ probabilité implicite. Tradez l’écart seulement après frais, règles et votre propre estimation — pas au feeling."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Nova Polymarket",
+        "href": "/?tab=polymarket-bot"
+      }
+    ],
+    "mistakes": [
+      "Acheter Yes parce que l’histoire fait du bien, pas parce que le prix est faux.",
+      "Ignorer les critères de résolution et le risque de litige.",
+      "Dimensionner dans des books fins près de l’échéance."
+    ]
+  },
+  {
+    "id": "forex",
+    "title": "Trading forex",
+    "subtitle": "Paires FX, pips, levier, sessions, ordres et swaps.",
+    "sections": [
+      {
+        "heading": "Qu’est-ce que le forex",
+        "body": [
+          "Le change (forex/FX) consiste à trader une devise contre une autre (ex. EUR/USD). C’est le plus grand marché financier du monde, ouvert 24 h en semaine à travers les sessions.",
+          "Vous spéculez sur le renforcement ou l’affaiblissement de la devise de base vs la devise de cotation — long ou short sur la paire."
+        ]
+      },
+      {
+        "heading": "Majors, minors et exotiques",
+        "body": [
+          "Majors : paires avec USD et d’autres devises liquides (EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, USDCAD, NZDUSD) — en général les spreads les plus serrés.",
+          "Minors (crosses) : paires liquides sans USD (ex. EURGBP, EURJPY). Exotiques : une major plus une devise de marché émergent — spreads plus larges et gaps plus violents.",
+          "Choisissez une liquidité adaptée à votre taille. Les paires fines punissent les market orders."
+        ]
+      },
+      {
+        "heading": "Pips, lots et cotations",
+        "body": [
+          "Un pip est le plus petit mouvement de prix standard pour la plupart des paires (0,0001 pour EURUSD ; 0,01 pour beaucoup de paires JPY). Les pipettes sont des fractions de pip.",
+          "La taille de lot scale le risque : un lot standard fait typiquement 100 000 unités de devise de base ; mini (0,1) et micro (0,01) sont plus petits. Convertissez toujours le risque en $ avant d’entrer.",
+          "Le bid est où vous pouvez vendre ; l’ask où vous pouvez acheter. Spread = ask − bid (votre coût immédiat pour un round-trip au marché)."
+        ]
+      },
+      {
+        "heading": "Ordres et gestion de trade",
+        "body": [
+          "Market order : fill maintenant au prix disponible. Limit : fill seulement à votre prix ou mieux. Stop order : se déclenche quand le prix atteint un niveau (entrée breakout ou stop-loss).",
+          "Un stop-loss définit l’invalidation en prix. Un take-profit verrouille une cible. Les trailing stops suivent le prix mais peuvent fouetter en chop.",
+          "Lisez la bougie/timeframe sur laquelle vous gérez — un stop de scalp 5m n’est pas un stop de swing daily."
+        ]
+      },
+      {
+        "heading": "Levier, marge et swaps",
+        "body": [
+          "Les brokers et plateformes CFD/FX offrent du levier. Plus de levier = distance plus courte jusqu’au margin call / fermeture forcée.",
+          "Dimensionner par % de risque par trade bat le trading d’ego au « levier max ». Nova Forex Agent suppose une invalidation disciplinée, pas du gambling.",
+          "Swap / rollover : crédit ou débit de financement overnight pour tenir passé l’heure de rollover du broker. Intégrez-le dans les holds multi-jours."
+        ]
+      },
+      {
+        "heading": "Sessions et catalyseurs",
+        "body": [
+          "Les sessions Tokyo, Londres et New York portent le volume. Le chevauchement Londres–New York a souvent la meilleure liquidité pour les majors.",
+          "Décisions de banques centrales, CPI, NFP et géopolitique créent des spikes — élargissez les stops ou restez à l’écart si vous n’avez pas de plan événement.",
+          "Utilisez un calendrier économique. Trader à l’aveugle dans des news à fort impact, c’est comme ça que les comptes meurent."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Pip",
+        "definition": "Unité standard de mouvement de prix FX pour une paire."
+      },
+      {
+        "term": "Spread",
+        "definition": "Différence entre les prix bid et ask."
+      },
+      {
+        "term": "Base / quote",
+        "definition": "Dans EUR/USD, EUR est la base, USD la quote — prix = USD pour 1 EUR."
+      },
+      {
+        "term": "Major / exotic",
+        "definition": "Paires USD les plus liquides vs crosses de marchés émergents plus fines."
+      },
+      {
+        "term": "Swap / rollover",
+        "definition": "Financement overnight payé ou gagné pour tenir une position."
+      },
+      {
+        "term": "Session",
+        "definition": "Horaires régionaux de trading (Tokyo, Londres, New York) qui affectent le volume."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Long EUR/USD — des pips aux dollars",
+        "setup": [
+          "Paire : EUR/USD à 1,0850",
+          "Budget de risque du compte : 20 $ sur cette idée",
+          "Invalidation : 20 pips sous l’entrée (1,0830)",
+          "Session : chevauchement Londres–New York ; pas de release à fort impact dans l’heure"
+        ],
+        "steps": [
+          "Sur EUR/USD, ~1 $ par pip pour 0,10 lot (mini) est une règle empirique courante.",
+          "Stop 20 pips × 1 $/pip ≈ 20 $ → taille ≈ 0,10 lot correspond au budget de 20 $ (avant spread).",
+          "Le spread compte : si bid/ask coûte ~0,8 pip en round-trip, votre risque effectif est un peu pire — resserrez la taille ou acceptez un risque $ légèrement plus large.",
+          "Si le NFP est dans 10 minutes et vous n’avez pas de plan événement : restez à l’écart. La liquidité de session n’annule pas le risque calendrier."
+        ],
+        "takeaway": "Distance en pips × valeur du pip = risque $. Choisissez la taille de lot en dernier — après stop et budget."
+      },
+      {
+        "title": "Pourquoi le diagramme des sessions compte",
+        "setup": [
+          "Même idée EUR/USD, même distance de stop",
+          "Scénario A : pause déjeuner Tokyo, book fin",
+          "Scénario B : chevauchement Londres–NY"
+        ],
+        "steps": [
+          "Aux heures fines, les spreads s’élargissent et les spikes peuvent taguer des stops qui ne printraient pas dans le chevauchement.",
+          "Le chevauchement signifie en général des spreads plus serrés et un follow-through plus propre sur les majors — ce n’est toujours pas un signal à lui seul.",
+          "Adaptez la stratégie à la liquidité : les entrées style scalp préfèrent le chevauchement ; les holds swing patients se soucient plus de la thèse daily que de l’heure exacte."
+        ],
+        "takeaway": "Tradez la paire et l’horloge. La liquidité fait partie du setup."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Nova Forex Agent",
+        "href": "/?tab=nova-forex"
+      }
+    ],
+    "mistakes": [
+      "Trader des exotiques avec une taille prévue pour les majors.",
+      "Trader à l’aveugle dans NFP/CPI avec un stop de scalp.",
+      "Oublier les coûts de swap sur les holds multi-jours."
+    ]
+  },
+  {
+    "id": "trading-metals",
+    "title": "Trader l’or et l’argent (XAU / XAG)",
+    "subtitle": "Forex XAU/USD vs perps XAU/USDT, règles de pip sur l’or, sessions et sizing.",
+    "sections": [
+      {
+        "heading": "Pourquoi les métaux comptent sur NovaStaris",
+        "body": [
+          "L’or (XAU) et l’argent (XAG) sont parmi les instruments de marchés traditionnels les plus tradés. Nova Forex Agent et Nova Scalp supportent les métaux pour analyser la structure et prendre des plans sans quitter le produit.",
+          "Ne traitez pas l’or comme l’EUR/USD. Liquidité, conventions de cotation et unités de risque diffèrent — et le produit que vous tradez (CFD FX vs perp crypto) change ce que « un mouvement » coûte."
+        ]
+      },
+      {
+        "heading": "Deux rails courants : XAU/USD vs XAU/USDT",
+        "body": [
+          "XAU/USD (style forex / CFD) : or coté en dollars US sur une plateforme FX ou CFD. Vous tradez des lots ou unités de contrat sous règles FX du broker — spreads, swaps/rollover si tenu overnight, et souvent un langage éducatif basé sur les pips.",
+          "XAU/USDT (perpétuel crypto) : un contrat futures perpétuel réglé en USDT qui suit l’or. Mêmes idées de levier / marge / funding / liquidation que les autres perps crypto (voir Futures crypto et perps) — mark vs last, funding à chaque intervalle, marge isolée ou cross.",
+          "Même métal, plomberie différente. Un plan Nova Scalp sur Blofin XAUUSDT utilise tickSize et PnL en USDT. Un chart XAUUSD de desk forex peut parler en pips et tailles de lot. Dimensionnez toujours depuis le risque $ sur la venue où vous cliquez vraiment."
+        ]
+      },
+      {
+        "heading": "Les pips sur l’or ne sont pas des pips EUR/USD",
+        "body": [
+          "Sur EUR/USD, les traders traitent couramment 1 pip comme 0,0001 en prix (la 4e décimale).",
+          "Sur XAU/USD, la plupart des desks traitent 1 pip comme 0,01 (un centime) — donc un print de 4050,00 à 4050,01 est souvent décrit comme 1 pip, et un mouvement de 1 $ ≈ 100 pips. Les brokers peuvent différer ; confirmez pip et valeur de pip sur votre plateforme.",
+          "Les perps crypto XAU/USDT n’utilisent en général pas du tout les « pips ». Le risque est la distance en mark-price en $ × taille de contrat × levier — même modèle mental que BTCUSDT, pas une calculatrice de pip FX à 4 décimales.",
+          "Astuce pratique : quand un chat dit « l’or a bougé de 50 pips », demandez quelle cotation ils veulent dire. Sur de l’or à pip 0,01, 50 pips ≈ 0,50 $. S’ils parlaient d’un mouvement de 50 $, c’est une autre conversation."
+        ]
+      },
+      {
+        "heading": "Sessions, USD et argent",
+        "body": [
+          "L’or et l’argent se réveillent souvent avec Londres et surtout le chevauchement Londres–New York — des books plus fins vers midi Asie fouettent encore les stops.",
+          "La force du USD presse en général l’or (corrélation inverse courante, pas une loi). Les événements de risque (CPI, FOMC, géopolitique) peuvent dominer la session.",
+          "XAG est typiquement plus volatil que XAU pour un même style notionnel — taille plus petite jusqu’à ce que vous connaissiez le bruit de l’argent relatif à votre stop."
+        ]
+      },
+      {
+        "heading": "Processus sur NovaStaris",
+        "body": [
+          "Utilisez Nova Forex Agent pour le watch métaux, le contexte S/R et de session style NovaQ, et Nova Scalp quand vous voulez un plan court horizon sur les rails métaux Blofin.",
+          "Écrivez l’invalidation en prix ($), convertissez en risque $, puis choisissez la taille. Ne copiez pas une calculatrice de lot EUR/USD sur l’or en espérant."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "XAU / XAG",
+        "definition": "Codes de marché pour l’or et l’argent (métaux précieux)."
+      },
+      {
+        "term": "XAU/USD",
+        "definition": "Or coté vs USD sur rails FX/CFD — souvent discuté en lots et pips."
+      },
+      {
+        "term": "XAU/USDT",
+        "definition": "Perpétuel USDT lié à l’or — funding, marge et liquidation comme les autres perps crypto."
+      },
+      {
+        "term": "Gold pip (common)",
+        "definition": "Sur beaucoup de desks XAU/USD, 1 pip ≈ 0,01 en prix — pas 0,0001 comme EUR/USD."
+      },
+      {
+        "term": "Tick size",
+        "definition": "Plus petit incrément de prix sur une cotation perp/CFD (ex. Blofin XAUUSDT) — utilisez-le pour des entrées/stops légales sur l’exchange."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Même mouvement d’or de 1 $ — deux traductions",
+        "setup": [
+          "Or spot / index ≈ 4 050 $",
+          "Le prix monte de 1,00 $ à ≈ 4 051 $",
+          "Cas A : desk FX qui parle en pips XAU/USD (0,01 = 1 pip)",
+          "Cas B : trader de perp crypto XAU/USDT"
+        ],
+        "steps": [
+          "Langage FX : 1,00 $ ≈ 100 pips si 1 pip = 0,01. La valeur du pip dépend encore de la taille de lot/contrat — convertissez pips × valeur de pip = PnL $.",
+          "Langage perp : ignorez les « pips ». Votre PnL ≈ variation de prix × exposition du contrat (après règles de levier/marge). Un long 50× perd vite si l’or traverse votre stop.",
+          "Ne collez pas un stop de 20 pips EUR/USD sur l’or en assumant le même risque $. Sur l’or, 20 pips style FX peuvent n’être que 0,20 $ de prix — du bruit, pas un vrai stop de scalp."
+        ],
+        "takeaway": "Traduisez chaque idée métaux en risque $ sur votre venue. Les labels de pip sont optionnels ; le risque dollar est obligatoire."
+      },
+      {
+        "title": "Choisir le rail avant l’entrée",
+        "setup": [
+          "Thèse : or soft vers NY ; vous voulez un fade court horizon",
+          "Dispo : outils métaux Nova Forex + scalp Blofin XAUUSDT"
+        ],
+        "steps": [
+          "Décidez le rail d’abord : FX/CFD XAUUSD (swap, lots, pip broker) vs perp XAUUSDT (funding, liq).",
+          "Tirez S/R et contexte de session sur le chart de ce rail — ne mélangez pas un print forex avec un carnet de ticks perp.",
+          "Dimensionnez depuis la distance de stop en $ sur ce rail, puis placez l’ordre là où vous tradez vraiment."
+        ],
+        "takeaway": "Même thèse, contrat différent → largeur de stop et coûts différents. Alignez outil → marché → taille."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Nova Forex Agent",
+        "href": "/?tab=nova-forex"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      },
+      {
+        "label": "Crypto Futures",
+        "href": "/?tab=futures"
+      }
+    ],
+    "mistakes": [
+      "Traiter les pips or comme EUR/USD (0,0001) — la plupart des desks XAU/USD utilisent ~0,01.",
+      "Mélanger charts forex XAU/USD et risque perp XAU/USDT sans convertir en $.",
+      "Appliquer des stops style pip FX sur un perp métaux crypto (utilisez ticks et distance $)."
+    ]
+  },
+  {
+    "id": "options-volatility",
+    "title": "Options et volatilité lite",
+    "subtitle": "Calls, puts, prime, et pourquoi le levier des options diffère des perps.",
+    "sections": [
+      {
+        "heading": "Qu’est-ce qu’une option",
+        "body": [
+          "Un call donne le droit (pas l’obligation) d’acheter à un strike avant l’échéance. Un put donne le droit de vendre à un strike avant l’échéance.",
+          "Vous payez une prime pour ce droit. La perte max des acheteurs est en général la prime payée (plus frais) ; les vendeurs peuvent faire face à un risque bien plus large selon la structure.",
+          "Des options crypto existent sur plusieurs venues et en produits on-chain exotiques — lisez toujours l’actif de règlement (coin-margined vs USDT) et les règles d’échéance."
+        ]
+      },
+      {
+        "heading": "La volatilité est le carburant",
+        "body": [
+          "La volatilité implicite (IV) est l’incertitude pricée par le marché. IV plus haute → primes plus riches (les options coûtent plus).",
+          "IV crush : après de gros événements, l’IV tombe souvent et le long premium peut perdre même si la direction était vaguement juste.",
+          "La volatilité réalisée, c’est ce qui a vraiment printé. Trader des options sans vue de vol, c’est gambler sur plus que la direction."
+        ]
+      },
+      {
+        "heading": "Différences vs futures/perps",
+        "body": [
+          "Perps : mark-to-market, funding, liquidation sur marge. Options : décroissance de prime (theta), distance au strike (delta), et échéance.",
+          "Les options longues peuvent expirer sans valeur. Les perps longs restent ouverts jusqu’à clôture ou liquidation — horloges différentes, formes de risque différentes.",
+          "Commencez par comprendre les diagrammes de payoff avant les spreads multi-jambes. Les produits structurés héritent de tous les mêmes risques plus de la complexité."
+        ]
+      },
+      {
+        "heading": "Règles de risque pour débutants",
+        "body": [
+          "Préférez le long premium à risque défini pendant l’apprentissage — dimensionnez pour qu’une perte totale de prime soit un 1R acceptable.",
+          "Ne vendez pas de calls/puts nues sur crypto volatile sans contrôles de risque professionnels.",
+          "Les outils principaux NovaStaris mettent l’accent sur spot, perps et marchés de prédiction — traitez les options comme un curriculum avancé, pas un workflow d’onglet par défaut."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Call / put",
+        "definition": "Option d’acheter / vendre le sous-jacent à un strike avant l’échéance."
+      },
+      {
+        "term": "Premium",
+        "definition": "Prix payé pour l’option — perte max typique de l’acheteur sur un simple long."
+      },
+      {
+        "term": "Implied volatility",
+        "definition": "Vol pricée dans l’option — pilote la richesse de la prime."
+      },
+      {
+        "term": "Theta",
+        "definition": "Décroissance temporelle — les options perdent de la valeur à l’approche de l’échéance si les autres facteurs sont statiques."
+      },
+      {
+        "term": "Expiry",
+        "definition": "Date/heure où l’option cesse d’exister — après quoi le long premium peut aller à zéro."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Bonne direction, perdre quand même la prime",
+        "setup": [
+          "Call BTC acheté avant un événement : prime 200 $",
+          "BTC monte légèrement après l’événement",
+          "L’IV s’effondre et le call est encore out-of-the-money près de l’échéance"
+        ],
+        "steps": [
+          "La direction était légèrement juste, mais optionnalité + IV crush + décroissance temporelle ont réduit la valeur.",
+          "Un long perp avec stop aurait pu scratcher ou gagner un peu ; le call peut quand même finir près de zéro.",
+          "Leçon : les options ont besoin d’un plan vol + path, pas seulement « je pense up »."
+        ],
+        "takeaway": "Les options pricent le mouvement et l’incertitude. La direction seule ne suffit pas."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Crypto Futures (contexte perps)",
+        "href": "/?tab=futures"
+      },
+      {
+        "label": "Module styles de trading",
+        "href": "/?tab=trading-university"
+      }
+    ],
+    "mistakes": [
+      "Acheter des calls seulement parce que « le chart a l’air haussier » sans plan vol/échéance.",
+      "Vendre des options crypto nues sans risque défini.",
+      "Confondre liquidations de perp et décroissance de prime d’option."
+    ]
+  },
+  {
+    "id": "novastaris-workflow",
+    "title": "Workflow NovaStaris de bout en bout",
+    "subtitle": "Enchaîner Go Hunting, Agent IA, wallets et outils forecast sans FOMO.",
+    "sections": [
+      {
+        "heading": "Un job par outil",
+        "body": [
+          "NovaStaris est une boîte à outils, pas un signal à dimensionner à l’aveugle. Chaque onglet répond à une question différente : découverte, scoring, flow, niveaux de chart, ou contexte d’exécution.",
+          "Le workflow bat le tab-hopping : décidez le marché (meme / perp / FX), puis choisissez le chemin correspondant ci-dessous."
+        ]
+      },
+      {
+        "heading": "Chemin meme (exemple)",
+        "body": [
+          "1) Go Hunting / BSC — trouvez des candidats par stage (new, final stretch, migrated).",
+          "2) Agent IA NovaStaris (meme) — scorez le CA, vérifiez les notes de risque, taille vs liquidité.",
+          "3) Wallet Tracker / contexte CT — qui achète, le social est-il réel ou du spam de bots ?",
+          "4) Seulement alors dimensionnez avec vos règles de risque. Si vous ne pouvez pas énoncer l’invalidation, passez."
+        ]
+      },
+      {
+        "heading": "Chemin perps / FX (exemple)",
+        "body": [
+          "1) Futures / Trending perps ou Nova Forex — biais et contexte de session.",
+          "2) NovaForecast / Nova Scalp — niveaux, plan, fenêtre de hold.",
+          "3) Chart Analysis dans l’Agent IA quand vous voulez une seconde lecture de structure.",
+          "4) Exécutez seulement avec un risque prédéfini ; journalisez le trade après."
+        ]
+      },
+      {
+        "heading": "Règles qui gardent la stack utile",
+        "body": [
+          "Ne laissez jamais un score vert écraser une thèse cassée ou une invalidation manquante.",
+          "Si les outils sont en désaccord, réduisez la taille ou restez à l’écart — le désaccord est de l’information.",
+          "Terminez par une ligne de journal : quel onglet a ajouté de l’edge, et lequel était du bruit."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Workflow",
+        "definition": "Un ordre répétable d’outils et de checks avant de risquer du capital."
+      },
+      {
+        "term": "Discovery",
+        "definition": "Trouver des candidats (Go Hunting) avant l’analyse profonde."
+      },
+      {
+        "term": "Invalidation",
+        "definition": "La condition qui prouve que l’idée a tort — sortie sans débat."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Chemin meme sans taille FOMO",
+        "setup": [
+          "Go Hunting flag un meme Sol migrated avec volume en hausse",
+          "Le score Agent IA a l’air correct ; Wallet Tracker montre qu’un wallet de qualité a acheté",
+          "Vous ne pouvez toujours pas énoncer l’invalidation en une phrase"
+        ],
+        "steps": [
+          "Chemin : Hunting → Agent IA (CA/risque) → authenticité wallets/CT → seulement alors taille.",
+          "Parce que l’invalidation manque, passez ou paper l’idée — un score vert n’est pas un niveau de stop.",
+          "Si vous définissez plus tard l’invalidation (ex. fail de reclaim sous un swing), dimensionnez depuis le risque $ — pas depuis le chiffre du score."
+        ],
+        "takeaway": "L’ordre du workflow compte. Les outils de découverte trouvent des candidats ; les règles de risque décident si vous tradez."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Go Hunting",
+        "href": "/?tab=new"
+      },
+      {
+        "label": "Agent IA NovaStaris",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "NovaForecast Agent",
+        "href": "/?tab=nova-forecast"
+      }
+    ],
+    "mistakes": [
+      "Laisser un score IA vert écraser une invalidation manquante.",
+      "Tab-hopping sans chemin de marché (meme vs perps vs FX).",
+      "Doubler la taille quand les outils sont en désaccord."
+    ]
+  },
+  {
+    "id": "backtesting-expectancy",
+    "title": "Backtesting et expectancy",
+    "subtitle": "Prouver le process avec des données — expectancy, taille d’échantillon et pièges d’overfitting.",
+    "sections": [
+      {
+        "heading": "Expectancy en clair",
+        "body": [
+          "Expectancy ≈ (% wins × gain moyen) − (% losses × perte moyenne), de préférence en multiples R après frais.",
+          "Un système qui gagne 40 % mais paie +2R quand il a raison et −1R quand il a tort peut battre un gagnant à 70 % qui ne fait que +0,3R et perd −1R.",
+          "Les tags de journal (type de setup, plan suivi O/N) sont comment vous estimez ces inputs en trading live."
+        ]
+      },
+      {
+        "heading": "Bases du backtesting",
+        "body": [
+          "Backtest : appliquer des règles fixes sur données historiques et enregistrer les trades. Forward test / paper : mêmes règles sur données live sans (ou avec tout petit) capital.",
+          "Écrivez les règles pour qu’un inconnu puisse les exécuter : entrée, stop, cible, time stop, marchés autorisés.",
+          "Incluez frais, slippage et funding quand le style tient des perps overnight — sinon vous inventez un faux edge."
+        ]
+      },
+      {
+        "heading": "Overfitting et taille d’échantillon",
+        "body": [
+          "Curve-fitting : règles si spécifiques qu’elles n’ont marché que sur un seul chemin passé. Si le système a besoin de 12 paramètres pour « avoir l’air parfait », soyez suspicieux.",
+          "Les petits échantillons mentent. Préférez des dizaines à des centaines de trades à travers des régimes (trend et chop) avant de croire les equity curves.",
+          "Out-of-sample / walk-forward : gardez une période held-out sur laquelle vous ne tunez pas. Si ça s’effondre là, vous avez optimisé du bruit."
+        ]
+      },
+      {
+        "heading": "Du test au live",
+        "body": [
+          "Passez live plus petit que le backtest ne l’implique. La réalité d’exécution (latence, gaps, émotion) mange le R théorique.",
+          "Si l’expectancy live diverge fortement sur un échantillon fixe, arrêtez et revue — n’« agrandissez pas la taille pour avoir de la chance ».",
+          "Le journaling NovaStaris + la discipline des chapitres battent un mashup d’indicateurs non testé."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Expectancy",
+        "definition": "Moyenne $ ou R attendue par trade après wins et losses."
+      },
+      {
+        "term": "Backtest",
+        "definition": "Performance historique simulée sous règles fixes."
+      },
+      {
+        "term": "Forward test",
+        "definition": "Exécuter les règles sur données live/paper non vues avant pleine taille."
+      },
+      {
+        "term": "Overfitting",
+        "definition": "Règles tunées sur le bruit du passé qui échouent au régime suivant."
+      },
+      {
+        "term": "Sample size",
+        "definition": "Nombre de trades — trop peu rend les stats sans sens."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Belle equity curve, mauvais live",
+        "setup": [
+          "Win rate backtest 78 % sur un seul mois bull de BTC 5m",
+          "Les règles utilisent 9 indicateurs avec des seuils « optimisés »",
+          "Semaine de chop live : −8R"
+        ],
+        "steps": [
+          "Suspectez overfitting et mismatch de régime — échantillon bull seulement.",
+          "Simplifiez à structure + une confirmation ; retestez sur des mois bull et range.",
+          "Réduisez la taille jusqu’à ce qu’un nouvel échantillon forward montre une expectancy stable."
+        ],
+        "takeaway": "Si ça ne marche que sur le mois que vous avez optimisé, ce n’est pas un edge — c’est un journal du passé."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Psychologie et journaling",
+        "href": "/?tab=trading-university"
+      },
+      {
+        "label": "Fondamentaux du risque",
+        "href": "/?tab=trading-university"
+      }
+    ],
+    "mistakes": [
+      "Optimiser 10 indicateurs sur un mois bull et appeler ça un edge.",
+      "Ignorer frais/funding dans le backtest.",
+      "Passer en pleine taille après 12 trades paper chanceux."
+    ]
+  },
+  {
+    "id": "advanced-markets",
+    "title": "Sujets de marché avancés",
+    "subtitle": "Funding et OI, red flags tokenomics, et bases des règles prop firm.",
+    "sections": [
+      {
+        "heading": "Funding rates et open interest (perps)",
+        "body": [
+          "Le funding est un paiement périodique entre longs et shorts qui garde le prix du perp près du spot. Un funding positif signifie en général que les longs paient les shorts ; négatif que les shorts paient les longs (détails spécifiques à la plateforme).",
+          "Côté saturé + funding extrême peut signifier que le move est tardif — les squeezes arrivent quand la majorité est forcée dehors.",
+          "L’open interest (OI) est le nombre de contrats perp encore ouverts. Un OI qui monte avec une tendance peut confirmer la participation ; un OI qui baisse dans un spike peut signifier short-covering ou liquidation long plutôt qu’une conviction fraîche."
+        ]
+      },
+      {
+        "heading": "Red flags tokenomics (memes et alts)",
+        "body": [
+          "Vérifiez : qui détient le supply, cliffs d’unlock/vesting, mint authority, taxe, LP lock, et si la liquidité peut être retirée.",
+          "Red flags : float minuscule contrôlé par quelques wallets, mint caché, taxe de vente honeypot, LP burn fake, ou wallets « team » qui dumpent sur la première bougie verte.",
+          "Un ticker drôle n’est pas de la due diligence. Checks contrat et holders avant le FOMO narratif."
+        ]
+      },
+      {
+        "heading": "Règles prop firm (bases)",
+        "body": [
+          "Les challenges prop imposent souvent une perte daily max, un drawdown total max, un minimum de jours de trading, et des stratégies interdites (ex. gambling news ou copy trading — lisez les règles de votre firme).",
+          "Passer un challenge n’est pas la même chose que garder un compte funded — la consistence et le respect des règles comptent plus qu’un jour chanceux.",
+          "Si vous utilisez les outils Prop Firm NovaStaris, traitez les règles écrites de la firme comme le boss — l’edge plateforme n’écrase pas leur risk desk."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Funding rate",
+        "definition": "Paiement périodique long/short qui ancre les perps près du spot."
+      },
+      {
+        "term": "Open interest (OI)",
+        "definition": "Nombre de contrats perpétuels encore ouverts."
+      },
+      {
+        "term": "Tokenomics",
+        "definition": "Design du supply, unlocks, authority et distribution d’un token."
+      },
+      {
+        "term": "Prop firm drawdown",
+        "definition": "Limite de perte max (daily/total) qui fait échouer un challenge ou un compte funded."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Red flag tokenomics avant le narratif",
+        "setup": [
+          "Le ticker meme est viral ; le chart est vert",
+          "Le top 5 des wallets détient ~70 % du float ; l’unlock LP est dans quelques jours",
+          "La mint authority est encore activée dans les notes du contrat"
+        ],
+        "steps": [
+          "Pausez le FOMO. Concentration + unlock + mint authority sont des rails classiques de distribution / rug.",
+          "Soit passez, soit dimensionnez comme poussière de divertissement avec un time stop dur — ne le traitez pas comme une major liquide.",
+          "Journalisez les red flags que vous avez checkés ; un « ticker drôle » seul ne passe jamais la due diligence."
+        ],
+        "takeaway": "Les checks tokenomics battent le narratif. Si le supply peut être printé ou dumpé par quelques wallets, l’histoire est optionnelle."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Crypto Futures",
+        "href": "/?tab=futures"
+      },
+      {
+        "label": "Agent IA NovaStaris",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Prop Firm Bot",
+        "href": "/?tab=prop-firm-bot"
+      }
+    ],
+    "mistakes": [
+      "Fader un funding extrême sans plan pour les squeezes.",
+      "Sauter les red flags unlock/holders sur les memes.",
+      "Casser les règles de perte daily prop firm pour « se refaire »."
+    ]
+  }
+]

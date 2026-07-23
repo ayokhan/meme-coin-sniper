@@ -38,6 +38,7 @@ export async function GET() {
         locked: !unlocked,
         sections: unlocked ? l.sections : [],
         keyTerms: unlocked ? l.keyTerms : [],
+        workedExamples: unlocked ? l.workedExamples ?? [] : [],
         relatedTools: l.relatedTools ?? [],
         diagram: unlocked ? l.diagram ?? null : null,
         track: l.track ?? undefined,

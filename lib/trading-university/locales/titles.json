@@ -1,0 +1,660 @@
+{
+  "fr": {
+    "intro-crypto": {
+      "title": "Introduction à la crypto-monnaie",
+      "subtitle": "Qu'est-ce que la crypto, les altcoins, DeFi, spot vs perps et CEX vs DEX."
+    },
+    "wallets-security": {
+      "title": "Portefeuilles et sécurité",
+      "subtitle": "Portefeuilles chauds ou froids, phrases de départ, approbations et escroqueries courantes."
+    },
+    "risk-fundamentals": {
+      "title": "Fondamentaux de la gestion des risques",
+      "subtitle": "Dimensionnement des positions, risque par transaction et psychologie qui fait exploser les comptes."
+    },
+    "chart-basics": {
+      "title": "Graphiques et chandeliers",
+      "subtitle": "Chandeliers OHLC, timeframes, trend lines, Fib et figures classiques."
+    },
+    "orders-execution": {
+      "title": "Ordres et exécution",
+      "subtitle": "Market vs limit vs stop, stop-loss, take-profit et gestion des ordres ouverts."
+    },
+    "psychology-journaling": {
+      "title": "Psychologie et journal de trading",
+      "subtitle": "Revenge trading, limites de perte journalières et un journal simple pour construire un edge."
+    },
+    "trading-styles": {
+      "title": "Styles de trading et horizons temporels",
+      "subtitle": "Scalp, day, swing et position — alignez style, timeframe, taille et mode de vie."
+    },
+    "market-structure": {
+      "title": "Liquidité et structure de marché",
+      "subtitle": "Régimes, BOS/CHOCH, liquidity grabs et comment les flux plus larges chassent les stops."
+    },
+    "volume-vwap": {
+      "title": "Volume, VWAP et profil (lite)",
+      "subtitle": "Lire la participation — VWAP comme référence institutionnelle, volume comme confirmation."
+    },
+    "meme-coins": {
+      "title": "Meme coins",
+      "subtitle": "Ce qu'elles sont, pourquoi elles bougent, et comment la culture devient du prix."
+    },
+    "meme-trading": {
+      "title": "Trader les meme coins",
+      "subtitle": "Entrées, sorties, frais, tips/bribes, sizing et process."
+    },
+    "solana": {
+      "title": "Solana",
+      "subtitle": "La chaîne qui alimente la plupart des lancements meme modernes."
+    },
+    "solana-memes": {
+      "title": "Meme coins Solana",
+      "subtitle": "Culture de lancement, bonding curves et comportement des memes Sol."
+    },
+    "bsc-memes": {
+      "title": "Meme coins BSC",
+      "subtitle": "Les memes sur Binance Smart Chain — même jeu, rails différents."
+    },
+    "ethereum-l2s": {
+      "title": "Ethereum et Layer 2",
+      "subtitle": "Les rails ETH au-delà de Solana et BSC — gas, L2, bridges et surface d’arnaques."
+    },
+    "crypto-futures": {
+      "title": "Futures crypto et perps",
+      "subtitle": "Perpétuels, levier, marge, funding, liquidation, et long vs short."
+    },
+    "predictions": {
+      "title": "Marchés de prédiction",
+      "subtitle": "Trader des probabilités sur des événements du monde réel."
+    },
+    "forex": {
+      "title": "Trading forex",
+      "subtitle": "Paires FX, pips, levier, sessions, ordres et swaps."
+    },
+    "trading-metals": {
+      "title": "Trader l’or et l’argent (XAU / XAG)",
+      "subtitle": "Forex XAU/USD vs perps XAU/USDT, règles de pip sur l’or, sessions et sizing."
+    },
+    "options-volatility": {
+      "title": "Options et volatilité lite",
+      "subtitle": "Calls, puts, prime, et pourquoi le levier des options diffère des perps."
+    },
+    "novastaris-workflow": {
+      "title": "Workflow NovaStaris de bout en bout",
+      "subtitle": "Enchaîner Go Hunting, Agent IA, wallets et outils forecast sans FOMO."
+    },
+    "backtesting-expectancy": {
+      "title": "Backtesting et expectancy",
+      "subtitle": "Prouver le process avec des données — expectancy, taille d’échantillon et pièges d’overfitting."
+    },
+    "advanced-markets": {
+      "title": "Sujets de marché avancés",
+      "subtitle": "Funding et OI, red flags tokenomics, et bases des règles prop firm."
+    }
+  },
+  "es": {
+    "intro-crypto": {
+      "title": "Introducción a las criptomonedas",
+      "subtitle": "Qué es la cripto, altcoins, DeFi, spot vs perps y CEX vs DEX."
+    },
+    "wallets-security": {
+      "title": "Wallets y seguridad",
+      "subtitle": "Wallets hot vs cold, seed phrases, approvals y estafas comunes."
+    },
+    "risk-fundamentals": {
+      "title": "Fundamentos de gestión de riesgo",
+      "subtitle": "Tamaño de posición, riesgo por trade y la psicología que quema cuentas."
+    },
+    "chart-basics": {
+      "title": "Gráficos y velas",
+      "subtitle": "Velas OHLC, timeframes, trend lines, Fib y patrones clásicos."
+    },
+    "orders-execution": {
+      "title": "Órdenes y ejecución",
+      "subtitle": "Market vs limit vs stop, stop-loss, take-profit y gestión de órdenes abiertas."
+    },
+    "psychology-journaling": {
+      "title": "Psicología y diario de trading",
+      "subtitle": "Revenge trading, límites de pérdida diarios y un diario simple que construye edge."
+    },
+    "trading-styles": {
+      "title": "Estilos de trading y horizontes temporales",
+      "subtitle": "Scalp, day, swing y position — alinea estilo, timeframe, tamaño y estilo de vida."
+    },
+    "market-structure": {
+      "title": "Liquidez y estructura de mercado",
+      "subtitle": "Regímenes, BOS/CHOCH, liquidity grabs y cómo el flujo grande caza stops."
+    },
+    "volume-vwap": {
+      "title": "Volumen, VWAP y perfil (lite)",
+      "subtitle": "Leer participación — VWAP como referencia institucional, volumen como confirmación."
+    },
+    "meme-coins": {
+      "title": "Meme coins",
+      "subtitle": "Qué son, por qué se mueven y cómo la cultura se vuelve precio."
+    },
+    "meme-trading": {
+      "title": "Trading de meme coins",
+      "subtitle": "Entradas, salidas, fees, tips/bribes, sizing y proceso."
+    },
+    "solana": {
+      "title": "Solana",
+      "subtitle": "La cadena que impulsa la mayoría de lanzamientos meme modernos."
+    },
+    "solana-memes": {
+      "title": "Meme coins de Solana",
+      "subtitle": "Cultura de lanzamiento, bonding curves y cómo se comportan los memes Sol."
+    },
+    "bsc-memes": {
+      "title": "Meme coins de BSC",
+      "subtitle": "Memes en Binance Smart Chain — mismo juego, rieles distintos."
+    },
+    "ethereum-l2s": {
+      "title": "Ethereum y Layer 2",
+      "subtitle": "Rieles ETH más allá de Solana y BSC — gas, L2, puentes y superficie de estafa."
+    },
+    "crypto-futures": {
+      "title": "Futuros y perps cripto",
+      "subtitle": "Perpetuos, apalancamiento, margen, funding, liquidación, long vs short."
+    },
+    "predictions": {
+      "title": "Mercados de predicción",
+      "subtitle": "Operar probabilidades sobre eventos del mundo real."
+    },
+    "forex": {
+      "title": "Trading forex",
+      "subtitle": "Pares FX, pips, apalancamiento, sesiones, órdenes y swaps."
+    },
+    "trading-metals": {
+      "title": "Operar oro y plata (XAU / XAG)",
+      "subtitle": "XAU/USD forex vs XAU/USDT perps, reglas de pip del oro, sesiones y sizing."
+    },
+    "options-volatility": {
+      "title": "Opciones y volatilidad (lite)",
+      "subtitle": "Calls, puts, prima y por qué el apalancamiento de opciones difiere de los perps."
+    },
+    "novastaris-workflow": {
+      "title": "Flujo NovaStaris de extremo a extremo",
+      "subtitle": "Encadenar Go Hunting, AI Agent, wallets y forecast sin FOMO."
+    },
+    "backtesting-expectancy": {
+      "title": "Backtesting y expectativa",
+      "subtitle": "Probar el proceso con datos — expectativa, tamaño de muestra y sobreajuste."
+    },
+    "advanced-markets": {
+      "title": "Temas avanzados de mercado",
+      "subtitle": "Funding y OI, red flags de tokenomics y reglas básicas de prop firm."
+    }
+  },
+  "de": {
+    "intro-crypto": {
+      "title": "Einführung in Kryptowährungen",
+      "subtitle": "Was Krypto ist, Altcoins, DeFi, Spot vs. Perps und CEX vs. DEX."
+    },
+    "wallets-security": {
+      "title": "Wallets & Sicherheit",
+      "subtitle": "Hot- vs. Cold-Wallets, Seed-Phrasen, Approvals und häufige Scams."
+    },
+    "risk-fundamentals": {
+      "title": "Grundlagen des Risikomanagements",
+      "subtitle": "Positionsgröße, Risiko pro Trade und die Psychologie, die Konten sprengt."
+    },
+    "chart-basics": {
+      "title": "Charts & Kerzen",
+      "subtitle": "OHLC-Kerzen, Timeframes, Trendlinien, Fib und klassische Chartmuster."
+    },
+    "orders-execution": {
+      "title": "Orders & Ausführung",
+      "subtitle": "Market vs. Limit vs. Stop, Stop-Loss, Take-Profit und offene Orders verwalten."
+    },
+    "psychology-journaling": {
+      "title": "Psychologie & Trade-Journal",
+      "subtitle": "Revenge Trading, Tagesverlustlimits und ein einfaches Log für Edge."
+    },
+    "trading-styles": {
+      "title": "Handelsstile & Zeithorizonte",
+      "subtitle": "Scalp, Day, Swing und Position — Stil, Timeframe, Größe und Lebensstil abstimmen."
+    },
+    "market-structure": {
+      "title": "Liquidität & Marktstruktur",
+      "subtitle": "Regime, BOS/CHOCH, Liquidity Grabs und wie großer Flow Stops jagt."
+    },
+    "volume-vwap": {
+      "title": "Volumen, VWAP & Profil (Lite)",
+      "subtitle": "Partizipation lesen — VWAP als institutionelle Benchmark, Volumen als Bestätigung."
+    },
+    "meme-coins": {
+      "title": "Meme Coins",
+      "subtitle": "Was sie sind, warum sie sich bewegen und wie Kultur zu Kurs wird."
+    },
+    "meme-trading": {
+      "title": "Meme-Coin-Trading",
+      "subtitle": "Entries, Exits, Fees, Tips/Bribes, Sizing und Prozess."
+    },
+    "solana": {
+      "title": "Solana",
+      "subtitle": "Die Chain, die die meisten modernen Meme-Launches antreibt."
+    },
+    "solana-memes": {
+      "title": "Solana-Meme-Coins",
+      "subtitle": "Launch-Kultur, Bonding Curves und Verhalten von Sol-Memes."
+    },
+    "bsc-memes": {
+      "title": "BSC-Meme-Coins",
+      "subtitle": "Binance-Smart-Chain-Memes — gleiches Spiel, andere Rails."
+    },
+    "ethereum-l2s": {
+      "title": "Ethereum & Layer 2s",
+      "subtitle": "ETH-Rails jenseits von Solana und BSC — Gas, L2s, Bridges und Scam-Oberfläche."
+    },
+    "crypto-futures": {
+      "title": "Krypto-Futures & Perps",
+      "subtitle": "Perpetuals, Hebel, Margin, Funding, Liquidation, Long vs. Short."
+    },
+    "predictions": {
+      "title": "Prediction Markets",
+      "subtitle": "Wahrscheinlichkeiten auf reale Ereignisse handeln."
+    },
+    "forex": {
+      "title": "Forex-Trading",
+      "subtitle": "FX-Paare, Pips, Hebel, Sessions, Orders und Swaps."
+    },
+    "trading-metals": {
+      "title": "Gold & Silber handeln (XAU / XAG)",
+      "subtitle": "XAU/USD Forex vs. XAU/USDT Perps, Gold-Pip-Regeln, Sessions und Sizing."
+    },
+    "options-volatility": {
+      "title": "Optionen & Volatilität (Lite)",
+      "subtitle": "Calls, Puts, Prämie und warum Optionshebel sich von Perps unterscheidet."
+    },
+    "novastaris-workflow": {
+      "title": "NovaStaris End-to-End-Workflow",
+      "subtitle": "Go Hunting, AI Agent, Wallets und Forecast ohne FOMO verketten."
+    },
+    "backtesting-expectancy": {
+      "title": "Backtesting & Erwartungswert",
+      "subtitle": "Prozess mit Daten beweisen — Expectancy, Sample Size und Overfitting."
+    },
+    "advanced-markets": {
+      "title": "Fortgeschrittene Marktthemen",
+      "subtitle": "Funding & OI, Tokenomics-Red-Flags und Prop-Firm-Grundregeln."
+    }
+  },
+  "zh": {
+    "intro-crypto": {
+      "title": "加密货币入门",
+      "subtitle": "什么是加密货币、山寨币、DeFi、现货与永续，以及 CEX 与 DEX。"
+    },
+    "wallets-security": {
+      "title": "钱包与安全",
+      "subtitle": "热钱包与冷钱包、助记词、授权与常见骗局。"
+    },
+    "risk-fundamentals": {
+      "title": "风险管理基础",
+      "subtitle": "仓位大小、单笔风险，以及爆仓背后的心理。"
+    },
+    "chart-basics": {
+      "title": "图表与K线",
+      "subtitle": "OHLC K线、周期、趋势线、斐波那契与经典形态。"
+    },
+    "orders-execution": {
+      "title": "订单与成交",
+      "subtitle": "市价、限价、止损单，止盈止损与挂单管理。"
+    },
+    "psychology-journaling": {
+      "title": "心理与交易日志",
+      "subtitle": "报复性交易、日亏损上限，以及能积累优势的简单日志。"
+    },
+    "trading-styles": {
+      "title": "交易风格与时间框架",
+      "subtitle": "剥头皮、日内、波段与长线——匹配风格、周期、仓位与生活。"
+    },
+    "market-structure": {
+      "title": "流动性与市场结构",
+      "subtitle": "市场状态、BOS/CHOCH、流动性猎杀，以及大资金如何扫止损。"
+    },
+    "volume-vwap": {
+      "title": "成交量、VWAP 与简易剖面",
+      "subtitle": "读懂参与度——VWAP 作机构基准，成交量作确认。"
+    },
+    "meme-coins": {
+      "title": "迷因币",
+      "subtitle": "它们是什么、为何波动，以及文化如何变成价格。"
+    },
+    "meme-trading": {
+      "title": "迷因币交易",
+      "subtitle": "进出场、费用、小费/贿赂、仓位与流程。"
+    },
+    "solana": {
+      "title": "Solana",
+      "subtitle": "支撑多数现代迷因币发行的公链。"
+    },
+    "solana-memes": {
+      "title": "Solana 迷因币",
+      "subtitle": "发行文化、联合曲线，以及 Sol 迷因币的表现。"
+    },
+    "bsc-memes": {
+      "title": "BSC 迷因币",
+      "subtitle": "币安智能链上的迷因——玩法相似，轨道不同。"
+    },
+    "ethereum-l2s": {
+      "title": "以太坊与 Layer 2",
+      "subtitle": "Solana 与 BSC 之外的 ETH 轨道——Gas、L2、跨链桥与骗局面。"
+    },
+    "crypto-futures": {
+      "title": "加密期货与永续",
+      "subtitle": "永续合约、杠杆、保证金、资金费率、强平，多空。"
+    },
+    "predictions": {
+      "title": "预测市场",
+      "subtitle": "对现实世界事件的概率进行交易。"
+    },
+    "forex": {
+      "title": "外汇交易",
+      "subtitle": "外汇货币对、点值、杠杆、交易时段、订单与隔夜利息。"
+    },
+    "trading-metals": {
+      "title": "交易黄金与白银（XAU / XAG）",
+      "subtitle": "XAU/USD 外汇 vs XAU/USDT 永续、黄金点值、时段与仓位。"
+    },
+    "options-volatility": {
+      "title": "期权与波动率入门",
+      "subtitle": "看涨/看跌、权利金，以及期权杠杆为何不同于永续。"
+    },
+    "novastaris-workflow": {
+      "title": "NovaStaris 端到端工作流",
+      "subtitle": "如何串联 Go Hunting、AI Agent、钱包与预测工具，避免 FOMO。"
+    },
+    "backtesting-expectancy": {
+      "title": "回测与期望值",
+      "subtitle": "用数据验证流程——期望值、样本量与过拟合陷阱。"
+    },
+    "advanced-markets": {
+      "title": "进阶市场专题",
+      "subtitle": "资金费率与持仓量、代币经济红旗，以及自营盘规则基础。"
+    }
+  },
+  "ar": {
+    "intro-crypto": {
+      "title": "مقدمة في العملات المشفرة",
+      "subtitle": "ما هي الكريبتو والعملات البديلة وDeFi والسبوت مقابل العقود الدائمة وCEX مقابل DEX."
+    },
+    "wallets-security": {
+      "title": "المحافظ والأمان",
+      "subtitle": "المحافظ الساخنة والباردة وعبارات البذور والموافقات والاحتيالات الشائعة."
+    },
+    "risk-fundamentals": {
+      "title": "أساسيات إدارة المخاطر",
+      "subtitle": "حجم الصفقة والمخاطرة لكل صفقة وعلم النفس الذي يدمّر الحسابات."
+    },
+    "chart-basics": {
+      "title": "الرسوم والشموع",
+      "subtitle": "شموع OHLC والأطر الزمنية وخطوط الاتجاه وفيبوناتشي والأنماط الكلاسيكية."
+    },
+    "orders-execution": {
+      "title": "الأوامر والتنفيذ",
+      "subtitle": "أوامر السوق والحد والإيقاف ووقف الخسارة وجني الأرباح وإدارة الأوامر المفتوحة."
+    },
+    "psychology-journaling": {
+      "title": "علم النفس ويوميات التداول",
+      "subtitle": "تداول الانتقام وحدود الخسارة اليومية وسجل بسيط يبني ميزة."
+    },
+    "trading-styles": {
+      "title": "أساليب التداول والآفاق الزمنية",
+      "subtitle": "سكالبينغ ويومي وسوينغ ومركزي — طابق الأسلوب والإطار والحجم ونمط الحياة."
+    },
+    "market-structure": {
+      "title": "السيولة وهيكل السوق",
+      "subtitle": "الأنظمة وBOS/CHOCH واصطياد السيولة وكيف يطارد التدفق الكبير الستوبات."
+    },
+    "volume-vwap": {
+      "title": "الحجم وVWAP والبروفايل المبسط",
+      "subtitle": "اقرأ المشاركة — VWAP كمرجع مؤسسي والحجم كتأكيد."
+    },
+    "meme-coins": {
+      "title": "عملات الميم",
+      "subtitle": "ما هي ولماذا تتحرك وكيف تصبح الثقافة سعراً."
+    },
+    "meme-trading": {
+      "title": "تداول عملات الميم",
+      "subtitle": "الدخول والخروج والرسوم والإكراميات والحجم والعملية."
+    },
+    "solana": {
+      "title": "سولانا",
+      "subtitle": "السلسلة التي تشغّل معظم إطلاقات الميم الحديثة."
+    },
+    "solana-memes": {
+      "title": "ميمات سولانا",
+      "subtitle": "ثقافة الإطلاق ومنحنيات الربط وسلوك ميمات Sol."
+    },
+    "bsc-memes": {
+      "title": "ميمات BSC",
+      "subtitle": "ميمات سلسلة بينانس الذكية — نفس اللعبة ومسارات مختلفة."
+    },
+    "ethereum-l2s": {
+      "title": "إيثيريوم والطبقة الثانية",
+      "subtitle": "مسارات ETH خارج سولانا وBSC — الغاز والـL2 والجسور وسطح الاحتيال."
+    },
+    "crypto-futures": {
+      "title": "عقود ومستقبليات الكريبتو الدائمة",
+      "subtitle": "العقود الدائمة والرافعة والهامش والتمويل والتصفية والطويل مقابل القصير."
+    },
+    "predictions": {
+      "title": "أسواق التنبؤ",
+      "subtitle": "تداول احتمالات أحداث العالم الحقيقي."
+    },
+    "forex": {
+      "title": "تداول الفوركس",
+      "subtitle": "أزواج العملات والنقاط والرافعة والجلسات والأوامر والمبادلات."
+    },
+    "trading-metals": {
+      "title": "تداول الذهب والفضة (XAU / XAG)",
+      "subtitle": "XAU/USD فوركس مقابل XAU/USDT دائم وقواعد نقاط الذهب والجلسات والحجم."
+    },
+    "options-volatility": {
+      "title": "الخيارات والتقلب (مبسّط)",
+      "subtitle": "الكول والبوت والعلاوة ولماذا تختلف رافعة الخيارات عن العقود الدائمة."
+    },
+    "novastaris-workflow": {
+      "title": "سير عمل NovaStaris من البداية للنهاية",
+      "subtitle": "ربط Go Hunting وAI Agent والمحافظ وأدوات التوقعات دون FOMO."
+    },
+    "backtesting-expectancy": {
+      "title": "الاختبار الرجعي والتوقع",
+      "subtitle": "أثبت العملية بالبيانات — التوقع وحجم العينة ومصائد الإفراط في الملاءمة."
+    },
+    "advanced-markets": {
+      "title": "مواضيع سوق متقدمة",
+      "subtitle": "التمويل والـOI وإشارات تحذير التوكنوميكس وأساسيات قواعد الشركات الممولة."
+    }
+  },
+  "hi": {
+    "intro-crypto": {
+      "title": "क्रिप्टोकरेंसी का परिचय",
+      "subtitle": "क्रिप्टो क्या है, ऑल्टकॉइन, DeFi, स्पॉट बनाम परप्स, और CEX बनाम DEX।"
+    },
+    "wallets-security": {
+      "title": "वॉलेट और सुरक्षा",
+      "subtitle": "हॉट बनाम कोल्ड वॉलेट, सीड फ्रेज़, अप्रूवल और आम घोटाले।"
+    },
+    "risk-fundamentals": {
+      "title": "जोखिम प्रबंधन की बुनियाद",
+      "subtitle": "पोजीशन साइज़िंग, प्रति ट्रेड जोखिम, और वह मनोविज्ञान जो अकाउंट उड़ा देता है।"
+    },
+    "chart-basics": {
+      "title": "चार्ट और कैंडलस्टिक",
+      "subtitle": "OHLC कैंडल, टाइमफ़्रेम, ट्रेंड लाइन, Fib और क्लासिक पैटर्न।"
+    },
+    "orders-execution": {
+      "title": "ऑर्डर और निष्पादन",
+      "subtitle": "मार्केट बनाम लिमिट बनाम स्टॉप, स्टॉप-लॉस, टेक-प्रॉफिट और खुले ऑर्डर।"
+    },
+    "psychology-journaling": {
+      "title": "मनोविज्ञान और ट्रेड जर्नल",
+      "subtitle": "रिवेंज ट्रेडिंग, दैनिक हानि सीमा, और एज बनाने वाला सरल लॉग।"
+    },
+    "trading-styles": {
+      "title": "ट्रेडिंग शैलियाँ और समय क्षितिज",
+      "subtitle": "स्कैलप, डे, स्विंग और पोजीशन — स्टाइल, टाइमफ़्रेम, साइज़ और जीवनशैली मिलाएँ।"
+    },
+    "market-structure": {
+      "title": "लिक्विडिटी और मार्केट स्ट्रक्चर",
+      "subtitle": "रेजीम, BOS/CHOCH, लिक्विडिटी ग्रैब, और बड़ा फ्लो स्टॉप कैसे खोजता है।"
+    },
+    "volume-vwap": {
+      "title": "वॉल्यूम, VWAP और प्रोफ़ाइल लाइट",
+      "subtitle": "भागीदारी पढ़ें — VWAP संस्थागत बेंचमार्क, वॉल्यूम पुष्टि।"
+    },
+    "meme-coins": {
+      "title": "मीम कॉइन",
+      "subtitle": "ये क्या हैं, क्यों चलते हैं, और संस्कृति कैसे कीमत बनती है।"
+    },
+    "meme-trading": {
+      "title": "मीम कॉइन ट्रेडिंग",
+      "subtitle": "एंट्री, एग्ज़िट, फीस, टिप/ब्राइब, साइज़िंग और प्रक्रिया।"
+    },
+    "solana": {
+      "title": "Solana",
+      "subtitle": "वह चेन जो अधिकांश आधुनिक मीम लॉन्च चलाती है।"
+    },
+    "solana-memes": {
+      "title": "Solana मीम कॉइन",
+      "subtitle": "लॉन्च संस्कृति, बॉन्डिंग कर्व, और Sol मीम का व्यवहार।"
+    },
+    "bsc-memes": {
+      "title": "BSC मीम कॉइन",
+      "subtitle": "Binance Smart Chain मीम — वही खेल, अलग रेल।"
+    },
+    "ethereum-l2s": {
+      "title": "Ethereum और Layer 2",
+      "subtitle": "Solana और BSC से परे ETH रेल — गैस, L2, ब्रिज और स्कैम सतह।"
+    },
+    "crypto-futures": {
+      "title": "क्रिप्टो फ्यूचर्स और परप्स",
+      "subtitle": "परपेचुअल, लीवरेज, मार्जिन, फंडिंग, लिक्विडेशन, लॉन्ग बनाम शॉर्ट।"
+    },
+    "predictions": {
+      "title": "प्रेडिक्शन मार्केट",
+      "subtitle": "वास्तविक घटनाओं पर संभावनाओं का ट्रेड।"
+    },
+    "forex": {
+      "title": "फॉरेक्स ट्रेडिंग",
+      "subtitle": "FX जोड़े, पिप्स, लीवरेज, सेशन, ऑर्डर और स्वैप।"
+    },
+    "trading-metals": {
+      "title": "सोना और चाँदी ट्रेडिंग (XAU / XAG)",
+      "subtitle": "XAU/USD फॉरेक्स बनाम XAU/USDT परप्स, गोल्ड पिप नियम, सेशन और साइज़िंग।"
+    },
+    "options-volatility": {
+      "title": "ऑप्शन और वोलेटिलिटी लाइट",
+      "subtitle": "कॉल, पुट, प्रीमियम, और ऑप्शन लीवरेज परप्स से क्यों अलग है।"
+    },
+    "novastaris-workflow": {
+      "title": "NovaStaris एंड-टू-एंड वर्कफ़्लो",
+      "subtitle": "Go Hunting, AI Agent, वॉलेट और फोरकास्ट को FOMO के बिना जोड़ें।"
+    },
+    "backtesting-expectancy": {
+      "title": "बैकटेस्टिंग और एक्सपेक्टेंसी",
+      "subtitle": "डेटा से प्रक्रिया सिद्ध करें — एक्सपेक्टेंसी, सैंपल साइज़ और ओवरफिट।"
+    },
+    "advanced-markets": {
+      "title": "उन्नत बाज़ार विषय",
+      "subtitle": "फंडिंग और OI, टोकनॉमिक्स रेड फ्लैग, और प्रॉप-फर्म नियम।"
+    }
+  },
+  "sw": {
+    "intro-crypto": {
+      "title": "Utangulizi wa Cryptocurrency",
+      "subtitle": "Crypto ni nini, altcoins, DeFi, spot dhidi ya perps, na CEX dhidi ya DEX."
+    },
+    "wallets-security": {
+      "title": "Pochi na usalama",
+      "subtitle": "Pochi moto dhidi ya baridi, seed phrases, idhini, na udanganyifu wa kawaida."
+    },
+    "risk-fundamentals": {
+      "title": "Misingi ya usimamizi wa hatari",
+      "subtitle": "Ukubwa wa nafasi, hatari kwa biashara, na saikolojia inayoharibu akaunti."
+    },
+    "chart-basics": {
+      "title": "Chati na mishumaa",
+      "subtitle": "Mishumaa OHLC, muda, mistari ya mwelekeo, Fib, na ruwaza za kawaida."
+    },
+    "orders-execution": {
+      "title": "Maagizo na utekelezaji",
+      "subtitle": "Market dhidi ya limit dhidi ya stop, stop-loss, take-profit, na maagizo yaliyo wazi."
+    },
+    "psychology-journaling": {
+      "title": "Saikolojia na jarida la biashara",
+      "subtitle": "Revenge trading, mipaka ya hasara ya kila siku, na kumbukumbu rahisi ya kujenga edge."
+    },
+    "trading-styles": {
+      "title": "Mitindo ya biashara na muda",
+      "subtitle": "Scalp, day, swing, na position — linganisha mtindo, muda, ukubwa, na maisha."
+    },
+    "market-structure": {
+      "title": "Ukwasi na muundo wa soko",
+      "subtitle": "Hali za soko, BOS/CHOCH, liquidity grabs, na jinsi mtiririko mkubwa unavyowinda stop."
+    },
+    "volume-vwap": {
+      "title": "Kiasi, VWAP na wasifu (lite)",
+      "subtitle": "Soma ushiriki — VWAP kama kipimo cha taasisi, kiasi kama uthibitisho."
+    },
+    "meme-coins": {
+      "title": "Sarafu za meme",
+      "subtitle": "Ni nini, kwa nini zinahama, na jinsi utamaduni unavyokuwa bei."
+    },
+    "meme-trading": {
+      "title": "Biashara ya meme coins",
+      "subtitle": "Kuingia, kutoka, ada, tips/bribes, sizing, na mchakato."
+    },
+    "solana": {
+      "title": "Solana",
+      "subtitle": "Mnyororo unaoendesha uzinduzi mwingi wa meme wa kisasa."
+    },
+    "solana-memes": {
+      "title": "Meme coins za Solana",
+      "subtitle": "Utamaduni wa uzinduzi, bonding curves, na tabia ya meme za Sol."
+    },
+    "bsc-memes": {
+      "title": "Meme coins za BSC",
+      "subtitle": "Meme za Binance Smart Chain — mchezo sawa, njia tofauti."
+    },
+    "ethereum-l2s": {
+      "title": "Ethereum na Layer 2",
+      "subtitle": "Njia za ETH nje ya Solana na BSC — gesi, L2, madaraja, na uso wa udanganyifu."
+    },
+    "crypto-futures": {
+      "title": "Futures na perps za crypto",
+      "subtitle": "Perpetuals, leverage, margin, funding, liquidation, long dhidi ya short."
+    },
+    "predictions": {
+      "title": "Masoko ya utabiri",
+      "subtitle": "Kufanya biashara ya uwezekano kwenye matukio halisi."
+    },
+    "forex": {
+      "title": "Biashara ya forex",
+      "subtitle": "Jozi za FX, pips, leverage, vikao, maagizo, na swaps."
+    },
+    "trading-metals": {
+      "title": "Biashara ya dhahabu na fedha (XAU / XAG)",
+      "subtitle": "XAU/USD forex dhidi ya XAU/USDT perps, sheria za pip za dhahabu, vikao, na sizing."
+    },
+    "options-volatility": {
+      "title": "Chaguo na tetezi (lite)",
+      "subtitle": "Calls, puts, premium, na kwa nini leverage ya options hutofautiana na perps."
+    },
+    "novastaris-workflow": {
+      "title": "Mtiririko wa NovaStaris mwisho hadi mwisho",
+      "subtitle": "Unganisha Go Hunting, AI Agent, pochi, na zana za utabiri bila FOMO."
+    },
+    "backtesting-expectancy": {
+      "title": "Backtesting na matarajio",
+      "subtitle": "Thibitisha mchakato kwa data — expectancy, saizi ya sampuli, na overfitting."
+    },
+    "advanced-markets": {
+      "title": "Mada za soko za hali ya juu",
+      "subtitle": "Funding na OI, bendera nyekundu za tokenomics, na sheria za msingi za prop firm."
+    }
+  }
+}
