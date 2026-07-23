@@ -76,7 +76,6 @@ import UniversityDonationCard from "@/components/UniversityDonationCard";
 import { useI18n } from "@/components/I18nProvider";
 import {
   buildGlossary,
-  COURSE_TRACK_META,
   getLessonTrack,
   TRADING_UNIVERSITY_CHAPTER_PASS_CORRECT,
   TRADING_UNIVERSITY_MAX_TAB_LEAVES,
@@ -194,6 +193,31 @@ export default function TradingUniversityPanel({
   const { t } = useI18n();
   const { status } = useSession();
   const authenticated = status === "authenticated";
+
+  const trackUi = useCallback(
+    (track: CourseTrack) => {
+      if (track === "foundations") {
+        return {
+          label: t("uni.trackFoundations"),
+          level: t("uni.trackFoundationsLevel"),
+          blurb: t("uni.trackFoundationsBlurb"),
+        };
+      }
+      if (track === "markets") {
+        return {
+          label: t("uni.trackMarkets"),
+          level: t("uni.trackMarketsLevel"),
+          blurb: t("uni.trackMarketsBlurb"),
+        };
+      }
+      return {
+        label: t("uni.trackApplied"),
+        level: t("uni.trackAppliedLevel"),
+        blurb: t("uni.trackAppliedBlurb"),
+      };
+    },
+    [t]
+  );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -774,11 +798,10 @@ export default function TradingUniversityPanel({
               NovaStaris
             </p>
             <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white">
-              Trading University
+              {t("uni.heroTitle")}
             </h1>
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              A free course covering meme coins, Solana &amp; BSC, crypto futures &amp; perps,
-              prediction markets, forex, and metals — then a final exam to earn your certificate.
+              {t("uni.heroBlurb")}
             </p>
           </div>
           <div className="rounded-xl border border-white/15 bg-slate-900 px-4 py-3 text-sm">
@@ -787,16 +810,14 @@ export default function TradingUniversityPanel({
             </p>
             <p className="mt-1 font-mono text-lg text-cyan-200">
               {fullAccess ? (
-                <>
-                  {completedCount}/{lessons.length} modules
-                </>
+                <>{t("uni.modulesDone", { done: completedCount, total: lessons.length })}</>
               ) : (
-                <>{lessons.length} modules</>
+                <>{t("uni.modulesTotal", { total: lessons.length })}</>
               )}
             </p>
             {progress?.quizPassed ? (
               <p className="mt-1 text-emerald-300 text-xs flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Course completed
+                <CheckCircle2 className="h-3.5 w-3.5" /> {t("uni.courseCompletedBadge")}
               </p>
             ) : (
               <p className="mt-1 text-slate-400 text-xs">
@@ -811,11 +832,10 @@ export default function TradingUniversityPanel({
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Preview mode — enroll free to take the full course
+              {t("uni.previewModeTitle")}
             </p>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Browse the syllabus and open the free sample module. Register to unlock all modules,
-              track progress, sit the final exam, and download your certificate.
+              {t("uni.previewModeBody")}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -823,7 +843,7 @@ export default function TradingUniversityPanel({
               <Link href="/register">{t("uni.enrollFree")}</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/signin">Sign in</Link>
+              <Link href="/signin">{t("uni.signIn")}</Link>
             </Button>
           </div>
         </div>
@@ -841,16 +861,16 @@ export default function TradingUniversityPanel({
             </p>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               {completedCount === 0
-                ? `Open ${lessons[0].title} to begin the course and unlock progress tracking.`
+                ? t("uni.openToBegin", { title: lessons[0].title })
                 : allComplete
-                  ? "Scroll to the final exam section below, or review any module from the syllabus."
-                  : `Next up: ${resumeLesson?.title ?? lessons[0].title}.`}
+                  ? t("uni.scrollToExam")
+                  : t("uni.nextUp", { title: resumeLesson?.title ?? lessons[0].title })}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {completedCount === 0 ? (
               <Button type="button" size="sm" onClick={() => openLesson(lessons[0]!)} className="gap-1">
-                Start course
+                {t("uni.startCourse")}
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             ) : allComplete ? (
@@ -862,7 +882,7 @@ export default function TradingUniversityPanel({
                   document.getElementById("tu-final-exam")?.scrollIntoView({ behavior: "smooth" });
                 }}
               >
-                Go to final exam
+                {t("uni.goToFinalExam")}
               </Button>
             ) : (
               <Button
@@ -871,7 +891,7 @@ export default function TradingUniversityPanel({
                 onClick={() => openLesson(resumeLesson ?? lessons[0]!)}
                 className="gap-1"
               >
-                Continue
+                {t("uni.continue")}
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             )}
@@ -900,15 +920,15 @@ export default function TradingUniversityPanel({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                    Progress {progressPct}%
+                    {t("uni.progressPct", { pct: progressPct })}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {completedCount}/{lessons.length} modules
+                    {t("uni.modulesDone", { done: completedCount, total: lessons.length })}
                     {minutesRemaining > 0
-                      ? ` · ~${minutesRemaining} min remaining`
+                      ? t("uni.minRemaining", { min: minutesRemaining })
                       : progress?.quizPassed
-                        ? " · Course complete"
-                        : " · Ready for the final exam"}
+                        ? t("uni.courseCompleteShort")
+                        : t("uni.readyForExam")}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -919,7 +939,7 @@ export default function TradingUniversityPanel({
                       onClick={() => openLesson(resumeLesson)}
                       className="gap-1"
                     >
-                      Continue: {resumeLesson.title}
+                      {t("uni.continueNamed", { title: resumeLesson.title })}
                       <ChevronRight className="h-3.5 w-3.5" />
                     </Button>
                   )}
@@ -963,7 +983,7 @@ export default function TradingUniversityPanel({
                     }}
                   >
                     <Download className="h-3.5 w-3.5 mr-1" />
-                    {COURSE_TRACK_META[track].label}
+                    {trackUi(track).label}
                   </Button>
                 ))}
               </div>
@@ -972,12 +992,12 @@ export default function TradingUniversityPanel({
 
           <div className="space-y-8">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-              Course syllabus
+              {t("uni.syllabus")}
             </h2>
             {(["foundations", "markets", "applied"] as CourseTrack[]).map((track) => {
               const trackLessons = lessons.filter((l) => getLessonTrack(l) === track);
               if (trackLessons.length === 0) return null;
-              const meta = COURSE_TRACK_META[track];
+              const meta = trackUi(track);
               return (
                 <div key={track}>
                   <div className="mb-3">
@@ -1003,7 +1023,7 @@ export default function TradingUniversityPanel({
                         >
                           <div className="flex items-start justify-between gap-2">
                             <span className="text-[11px] font-mono text-zinc-500">
-                              Module {String(i + 1).padStart(2, "0")}
+                              {t("uni.moduleN", { n: String(i + 1).padStart(2, "0") })}
                             </span>
                             {locked ? (
                               <Lock className="h-4 w-4 text-zinc-400 shrink-0" />
@@ -1021,7 +1041,7 @@ export default function TradingUniversityPanel({
                           </p>
                           <p className="mt-3 text-[11px] text-zinc-500">
                             {locked ? t("uni.enrollUnlock") : t("uni.minutes", { min: lesson.estimatedMinutes })}
-                            {!locked && !fullAccess ? " · Free preview" : ""}
+                            {!locked && !fullAccess ? t("uni.freePreview") : ""}
                           </p>
                         </button>
                       );
@@ -1114,13 +1134,12 @@ export default function TradingUniversityPanel({
                       <Link href="/register">{t("uni.enrollFree")}</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href="/signin">Sign in</Link>
+                      <Link href="/signin">{t("uni.signIn")}</Link>
                     </Button>
                   </div>
                 ) : !allComplete ? (
                   <p className="text-sm text-muted-foreground">
-                    Mark all {lessons.length} modules complete to unlock the exam ({completedCount}/
-                    {lessons.length}).
+                    {t("uni.markAllModules", { total: lessons.length, done: completedCount })}
                   </p>
                 ) : progress && !progress.canAttemptQuiz && progress.nextAttemptAt ? (
                   <p className="text-sm text-amber-700 dark:text-amber-300">
@@ -1133,7 +1152,7 @@ export default function TradingUniversityPanel({
                       ? t("uni.starting")
                       : progress?.examInProgress
                         ? t("uni.resumeExam")
-                        : `Start ${quizSize}-question final exam (${examMinutes} min)`}
+                        : t("uni.startExamSized", { count: quizSize, min: examMinutes })}
                   </Button>
                 )}
               </div>
@@ -1171,7 +1190,7 @@ export default function TradingUniversityPanel({
                   <Link href="/register">{t("uni.enrollFree")}</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href="/signin">Sign in</Link>
+                  <Link href="/signin">{t("uni.signIn")}</Link>
                 </Button>
               </div>
             </div>
@@ -1179,8 +1198,8 @@ export default function TradingUniversityPanel({
             <>
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wide text-cyan-700 dark:text-cyan-300 mb-1">
-                  {COURSE_TRACK_META[getLessonTrack(activeLesson)].label} ·{" "}
-                  {COURSE_TRACK_META[getLessonTrack(activeLesson)].level}
+                  {trackUi(getLessonTrack(activeLesson)).label} ·{" "}
+                  {trackUi(getLessonTrack(activeLesson)).level}
                 </p>
                 <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
                   {activeLesson.title}
@@ -1771,7 +1790,7 @@ export default function TradingUniversityPanel({
             </>
           )}
           <Button type="button" variant="outline" onClick={() => setView("home")}>
-            Back to Trading University
+            {t("uni.backToUniversity")}
           </Button>
         </div>
       )}
