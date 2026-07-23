@@ -8,6 +8,7 @@ import {
   GraduationCap,
   Headphones,
   KeyRound,
+  Languages,
   Lightbulb,
   Megaphone,
   MessageCircle,
@@ -89,6 +90,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/leverage-wallet-tracker", label: "Leverage wallets", icon: Wallet, group: "trackers" },
   { href: "/admin/polymarket-tracker", label: "Polymarket", icon: Wallet, group: "trackers" },
   { href: "/admin/feature-flags", label: "Feature flags", icon: Flag, group: "product" },
+  {
+    href: "/admin/languages",
+    label: "Languages",
+    description: "Enable or disable site languages",
+    icon: Languages,
+    group: "product",
+    ownerOnly: true,
+  },
   {
     href: "/admin/banners",
     label: "Banners",

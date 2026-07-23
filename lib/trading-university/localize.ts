@@ -3,6 +3,7 @@ import type { UniversityLesson } from "@/lib/trading-university/content";
 import { COMMON_MISTAKES_BY_LESSON } from "@/lib/trading-university/common-mistakes";
 import titlesJson from "@/lib/trading-university/locales/titles.json";
 import frLessons from "@/lib/trading-university/locales/fr.json";
+import yoLessons from "@/lib/trading-university/locales/yo.json";
 
 export type LessonOverlay = {
   id: string;
@@ -25,6 +26,7 @@ type TitlesPack = Record<string, Record<string, { title: string; subtitle: strin
 const TITLES = titlesJson as TitlesPack;
 const FULL_LESSON_PACKS: Partial<Record<AppLocale, LessonOverlay[]>> = {
   fr: frLessons as LessonOverlay[],
+  yo: yoLessons as LessonOverlay[],
 };
 
 function overlayById(pack: LessonOverlay[] | undefined): Map<string, LessonOverlay> {

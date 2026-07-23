@@ -656,5 +656,99 @@
       "title": "Mada za soko za hali ya juu",
       "subtitle": "Funding na OI, bendera nyekundu za tokenomics, na sheria za msingi za prop firm."
     }
+  },
+  "yo": {
+    "intro-crypto": {
+      "title": "Ìfihàn sí Cryptocurrency",
+      "subtitle": "Kí ni crypto, altcoins, DeFi, spot vs perps, àti CEX vs DEX."
+    },
+    "wallets-security": {
+      "title": "Wallets & Ààbò",
+      "subtitle": "Hot vs cold wallets, seed phrases, approvals, àti scams tó wọ́pọ̀."
+    },
+    "risk-fundamentals": {
+      "title": "Àwọn Ìpìlẹ̀ Ìṣàkóso Ewu",
+      "subtitle": "Position sizing, ewu nínú trade kọ̀ọ̀kan, àti psychology tó ń bú àwọn accounts."
+    },
+    "chart-basics": {
+      "title": "Charts & Candlesticks",
+      "subtitle": "Àwọn candles OHLC, timeframes, trend lines, Fib, àti àwọn patterns chart ìbílẹ̀."
+    },
+    "orders-execution": {
+      "title": "Orders & Ìṣe Trade",
+      "subtitle": "Market vs limit vs stop, stop-loss, take-profit, àti ìṣàkóso àwọn orders tí ó ṣí."
+    },
+    "psychology-journaling": {
+      "title": "Psychology & Journaling Trade",
+      "subtitle": "Revenge trading, àwọn ààlà ìpàdánù ojoojúmọ́, àti àkọọ́lẹ̀ rọrùn tó ń kọ́ edge."
+    },
+    "trading-styles": {
+      "title": "Àwọn Styles Ìṣòwò & Àwọn Ìwoye Àkókò",
+      "subtitle": "Scalp, day, swing, àti position — so style mọ́ timeframe, size, àti ìgbésí ayé."
+    },
+    "market-structure": {
+      "title": "Liquidity & Structure Ọjà",
+      "subtitle": "Àwọn regimes, BOS/CHOCH, liquidity grabs, àti bí flow ńlá ṣe ń wá stops."
+    },
+    "volume-vwap": {
+      "title": "Volume, VWAP àti Profile Lite",
+      "subtitle": "Ka ìkópa — VWAP gẹ́gẹ́ bí àmì ìdíwọ̀n àwọn ilé-iṣẹ́ ńlá, volume gẹ́gẹ́ bí ìmúdájú."
+    },
+    "meme-coins": {
+      "title": "Meme Coins",
+      "subtitle": "Kí ni wọ́n jẹ́, kí nìdí tí wọ́n ṣe ń yípadà, àti bí àṣà ṣe di iṣẹ́ iye."
+    },
+    "meme-trading": {
+      "title": "Iṣòwò Meme Coin",
+      "subtitle": "Ìwọlé, ìjáde, fees, bribes/tips, sizing, àti ìlànà."
+    },
+    "solana": {
+      "title": "Solana",
+      "subtitle": "Chain tó ń gbé ọ̀pọ̀ launches meme òde òní."
+    },
+    "solana-memes": {
+      "title": "Meme Coins Solana",
+      "subtitle": "Àṣà launch, bonding curves, àti bí Sol memes ṣe ń hùwà."
+    },
+    "bsc-memes": {
+      "title": "Meme Coins BSC",
+      "subtitle": "Memes Binance Smart Chain — eré kannáà, rails mìíràn."
+    },
+    "ethereum-l2s": {
+      "title": "Ethereum àti Layer 2s",
+      "subtitle": "Rails ETH lẹ́yìn Solana àti BSC — gas, L2s, bridges, àti ààyè jìbìtì."
+    },
+    "crypto-futures": {
+      "title": "Crypto Futures & Perps",
+      "subtitle": "Perpetuals, leverage, margin, funding, liquidation, àti long vs short."
+    },
+    "predictions": {
+      "title": "Àwọn Ọjà Àsọtẹ́lẹ̀",
+      "subtitle": "Ìṣòwò ìṣeéṣe lórí àwọn ìṣẹ̀lẹ̀ ayé gidi."
+    },
+    "forex": {
+      "title": "Ìṣòwò Forex",
+      "subtitle": "Àwọn pair FX, pips, leverage, sessions, orders, àti swaps."
+    },
+    "trading-metals": {
+      "title": "Ìṣòwò Wúrà & Fàdákà (XAU / XAG)",
+      "subtitle": "Forex XAU/USD níṣàlò sí perps XAU/USDT, òfin pip wúrà, sessions, àti sizing."
+    },
+    "options-volatility": {
+      "title": "Options & Volatility Lite",
+      "subtitle": "Calls, puts, premium, àti ìdí tí leverage options fi yàtọ̀ sí perps."
+    },
+    "novastaris-workflow": {
+      "title": "Workflow NovaStaris Láti Ìbẹ̀rẹ̀ Dé Òpin",
+      "subtitle": "Bí a ṣe ń so Go Hunting, AI Agent, wallets, àti irinṣẹ́ forecast papọ̀ láìsí FOMO."
+    },
+    "backtesting-expectancy": {
+      "title": "Backtesting & Expectancy",
+      "subtitle": "Fi data ṣe àfihàn process — expectancy, sample size, àti àwọn ìkẹ́kùn overfitting."
+    },
+    "advanced-markets": {
+      "title": "Àwọn Kókó Ọjà Advanced",
+      "subtitle": "Funding & OI, àwọn red flag tokenomics, àti ìpìlẹ̀ òfin prop-firm."
+    }
   }
 }

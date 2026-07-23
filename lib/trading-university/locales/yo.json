@@ -1,0 +1,2247 @@
+[
+  {
+    "id": "intro-crypto",
+    "title": "Ìfihàn sí Cryptocurrency",
+    "subtitle": "Kí ni crypto, altcoins, DeFi, spot vs perps, àti CEX vs DEX.",
+    "sections": [
+      {
+        "heading": "Kí ni cryptocurrency?",
+        "body": [
+          "Cryptocurrency jẹ́ owó oní-ẹ̀rọ tí cryptography ń dáàbò bò, tí a sì ń kọ sí blockchain — ìwé àkọọ́lẹ̀ tí ọ̀pọ̀ kọ̀mpútà ń tọ́jú papọ̀, kí banki kan má ṣe gbọ́dọ̀ fọwọ́ sí gbogbo ìfiránṣẹ́.",
+          "Bitcoin (BTC) ni àpẹẹrẹ àkọ́kọ́ àti tó tóbi jù: ohun-ìní ìdíwọ̀n oní-ẹ̀rọ tí a sábà ń pe ní 'digital gold.' Ether (ETH) ni agbára smart contracts Ethereum. SOL ti Solana, BNB lórí BNB Chain, àti ẹgbẹẹgbẹ̀rún token mìíràn ń ṣe iṣẹ́ tó yàtọ̀.",
+          "Àwọn ohun-ìní ìdíwọ̀n àti ìdíwọ̀n tí o máa rí nígbà gbogbo: USDT (Tether) àti USDC (USD Coin) — stablecoins tó so mọ́ dọ́là, tí a ń lo láti ṣe iye àwọn pairs, pa iye mọ́ láàárín ìṣòwò, àti gbé owó kọjá àwọn platforms.",
+          "O sábà máa tọ́jú crypto nínú wallet (app tàbí ẹ̀rọ hardware) tí cryptographic keys ń ṣàkóso. Tí o bá pàdánù keys/seed phrase, o sábà máa pàdánù ìráàyè títí láé."
+        ]
+      },
+      {
+        "heading": "Altcoins, stablecoins, àti tokens",
+        "body": [
+          "Altcoin nígbà gbogbo túmọ̀ sí crypto èyíkéyìí yàtọ̀ sí Bitcoin (ETH, SOL, meme tokens, àti bẹ́ẹ̀ lọ).",
+          "Stablecoins (USDT, USDC, àti mìíràn) ń gbìyànjú láti tẹ̀lé owó fiat bí dọ́là Amẹ́ríkà — ó wúlò fún pípa iye mọ́ àti ṣíṣe iye lórí exchanges. Wọn kì í ṣe aláìsí-ewu: ìṣẹ̀lẹ̀ issuer, banking, àti depeg ti ṣẹlẹ̀ rí nínú ìtàn.",
+          "Ìkìlọ̀ depeg: nígbà ìnira, stablecoin lè ta ní ìsàlẹ̀ $1 lórí secondary markets bí ó tilẹ̀ jẹ́ pé issuer padà mú peg náà dájú — ka àwọn ìwọ̀n stable ńlá sí ewu credit àti liquidity, kì í ṣe “owó lábẹ́ mattress.”",
+          "Token jẹ́ ẹyọ kan tí a jáde lórí blockchain (coins fungible, governance tokens, meme tickers). Máa ṣàyẹ̀wò contract/mint tó tọ́ nígbà gbogbo — àwọn èké ń ṣe àdàkọ orúkọ àti logos."
+        ]
+      },
+      {
+        "heading": "Kí ni DeFi?",
+        "body": [
+          "DeFi (decentralized finance) túmọ̀ sí àwọn iṣẹ́ owó tí smart contracts ń ṣàkóso dípò àwọn alágbàtà ìbílẹ̀: swapping lórí DEX, àwọn pools lending/borrowing, liquidity providing, àti sìẹ̀.",
+          "DeFi lágbára ó sì léwu: àṣìṣe smart-contract, oracle tí ó kùnà, impermanent loss, àti scams jẹ́ òótọ́. Bẹ̀rẹ̀ kékeré kí o sì mọ ohun tí o ń fọwọ́ sí."
+        ]
+      },
+      {
+        "heading": "Spot trading vs perpetual futures (perps)",
+        "body": [
+          "Spot: o ra tàbí ta ohun-ìní fúnrarẹ̀. Tí o bá ra 1 ETH spot, o ní 1 ETH (yàtọ̀ sí fees). Kò sí leverage àfi tí o bá yá owó lọ́tọ̀. Àpẹẹrẹ: rírà BTC tàbí SOL pẹ̀lú USDT lórí spot market.",
+          "Perps (perpetual futures): o ń ṣòwò contract tó ń tẹ̀lé iye, sábà pẹ̀lú leverage, láìsí níní coin náà. O lè lọ long tàbí short. Funding payments àti ewu liquidation wà. Àpẹẹrẹ: BTC-USDT perpetual lórí Blofin tàbí ibòmíràn futures.",
+          "Òfin ọwọ́: kọ́ mechanics spot àti ewu ní àkọ́kọ́; ka leverage sí irinṣẹ́ tó jinlẹ̀, kì í ṣe ọ̀nà àbúró."
+        ]
+      },
+      {
+        "heading": "Àwọn platforms centralized vs decentralized",
+        "body": [
+          "Centralized exchanges (CEXs) — bíi Binance, Blofin, Bybit, Coinbase, OKX — ń tọ́jú owó fún ọ, wọ́n ní fiat on-ramps, order books, àti sábà futures. O gbẹ́kẹ̀lé ilé-iṣẹ́ pẹ̀lú KYC àti ewu custody (hacks exchange, freezes, insolvency).",
+          "Decentralized exchanges (DEXs) — bíi Jupiter (Solana), Uniswap (Ethereum), PancakeSwap (BSC), Raydium — jẹ́ kí o ṣòwò láti wallet tirẹ̀ nípasẹ̀ smart contracts. O tọ́jú custody, ṣùgbọ́n o ń ṣàkóso gas/fees, slippage, phishing, àti txs tí kò ṣe é yípadà.",
+          "Àwọn wallets tí o máa pàdé ní ìbẹ̀rẹ̀: Phantom àti Solflare (Solana), MetaMask (EVM/BSC/ETH). Charting àti discovery: Dexscreener, Birdeye, àti àwọn irinṣẹ́ hunting NovaStaris.",
+          "Ọ̀pọ̀ traders ń lo méjèèjì: CEX fún fiat àti perps, DEX fún ìwárí meme on-chain àti self-custody."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Blockchain",
+        "definition": "Ìwé àkọọ́lẹ̀ tí a pín káàkiri tí ó ń kọ àwọn ìfiránṣẹ́ àti ipò smart-contract."
+      },
+      {
+        "term": "Bitcoin (BTC)",
+        "definition": "Cryptocurrency ńlá àkọ́kọ́; a sábà ka á sí ìdíwọ̀n / ibi-ìpamọ́ iye oní-ẹ̀rọ."
+      },
+      {
+        "term": "USDT / USDC",
+        "definition": "Stablecoins tó so mọ́ dọ́là, tí a ń lo lọ́pọ̀lọpọ̀ fún ṣíṣe iye àti gígbé iye."
+      },
+      {
+        "term": "Altcoin",
+        "definition": "Cryptocurrency yàtọ̀ sí Bitcoin."
+      },
+      {
+        "term": "Stablecoin",
+        "definition": "Token tí a ṣe láti tẹ̀lé owó fiat (sábà USD)."
+      },
+      {
+        "term": "DeFi",
+        "definition": "Àwọn apps owó tí a kọ́ lórí smart contracts (swaps, lending, àti bẹ́ẹ̀ lọ)."
+      },
+      {
+        "term": "CEX / DEX",
+        "definition": "Exchange centralized vs exchange decentralized (tó da lórí wallet)."
+      }
+    ],
+    "workedExamples": [],
+    "relatedTools": [
+      {
+        "label": "Lọ Hunting",
+        "href": "/?tab=new"
+      },
+      {
+        "label": "Crypto Futures",
+        "href": "/?tab=futures"
+      }
+    ],
+    "mistakes": [
+      "Kíkà gbogbo token bí Bitcoin — ọ̀pọ̀ alts àti memes ní ewu tó yàtọ̀.",
+      "Dídà custody CEX pọ̀ mọ́ self-custody lórí DEX.",
+      "Kíkọjá pé USDT/USDC wúlò ṣùgbọ́n kì í ṣe aláìsí-ewu."
+    ]
+  },
+  {
+    "id": "wallets-security",
+    "title": "Wallets & Ààbò",
+    "subtitle": "Hot vs cold wallets, seed phrases, approvals, àti scams tó wọ́pọ̀.",
+    "sections": [
+      {
+        "heading": "Hot wallets vs cold wallets",
+        "body": [
+          "Hot wallet: software tó so mọ́ internet (Phantom, MetaMask, apps exchange). Ó rọrùn fún ìṣòwò; ó ní ààyè ìkọlù tó ga.",
+          "Cold wallet: hardware tàbí ìpamọ́ offline fún ohun-ìní ìgbà pípẹ́. Lo hot wallet fún ìwọ̀n degen nìkan."
+        ]
+      },
+      {
+        "heading": "Seed phrases & keys",
+        "body": [
+          "Seed phrase rẹ (recovery phrase) ni àfikún olórí. Má ṣe tẹ ẹ́ sí website, Telegram bot, tàbí 'aṣojú support.' NovaStaris kì yóò béèrè rẹ̀ láéláé.",
+          "Ẹnikẹ́ni tó ní seed tàbí private key ń ṣàkóso owó náà. Screenshots nínú cloud photos jẹ́ ọ̀nà ìtújáde tó wọ́pọ̀."
+        ]
+      },
+      {
+        "heading": "Approvals, phishing, àti ìmọ́tótó",
+        "body": [
+          "Lórí àwọn chains EVM, unlimited token approvals lè jẹ́ kí contract búburú fa balances já — revoke àwọn approvals tí o kò lo mọ́ nígbà gbogbo.",
+          "Àpẹẹrẹ phishing: DM “support” èké → site wallet/CEX tí a ṣe àdàkọ → ó béèrè seed tàbí “verification” private key rẹ. Àwọn apps gidi àti NovaStaris kò nílò seed rẹ.",
+          "Àwọn sites airdrop èké, Discord DMs, àti extensions wallet tí a ṣe àdàkọ jẹ́ ọ̀nà ìkọlù tó wọ́pọ̀. Bookmark àwọn URLs gidi; ṣàyẹ̀wò extensions.",
+          "Pín wallets: ọ̀kan fún àwọn ìdánwò, ọ̀kan fún ìpamọ́. Má ṣe dapọ̀ ìpamọ́ ayé pẹ̀lú sniper bots."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Seed phrase",
+        "definition": "Àfikún tí ènìyàn lè kà tí ó ń ṣẹ̀dá keys wallet padà."
+      },
+      {
+        "term": "Hot wallet",
+        "definition": "Wallet tó so mọ́ internet, tí a ń lo fún ìṣòwò tó ń ṣiṣẹ́."
+      },
+      {
+        "term": "Approval",
+        "definition": "Ìyọ̀nda fún contract láti gbé tokens rẹ (EVM)."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Support èké béèrè seed rẹ",
+        "setup": [
+          "O ra meme; Telegram fi DM “support admin” hàn",
+          "Wọ́n fi link ránṣẹ́ tó dà bí ojú-ìwé recovery wallet rẹ",
+          "Fọ́ọ̀mù náà béèrè seed ọ̀rọ̀ 12/24 rẹ láti “tú tokens tí ó dì”"
+        ],
+        "steps": [
+          "Dúró. Kò sí support, CEX, tàbí ọ̀nà NovaStaris gidi tó nílò seed phrase rẹ.",
+          "Pa tab; má ṣe paste ọ̀rọ̀ sí ibikíbi. Report/block DM náà.",
+          "Tí o ti tẹ seed: ka wallet sí èyí tí a ti bàjẹ́ — gbé owó tó kù láti wallet tuntun nìkan tí o bá ṣì ń ṣàkóso wọn, lẹ́yìn náà fi èyí atijọ́ sílẹ̀."
+        ],
+        "takeaway": "Ẹnikẹ́ni tó béèrè seed jẹ́ olùkọlù. Bookmark àwọn URLs gidi; má ṣe recover wallet láti link DM."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Wallet Tracker",
+        "href": "/?tab=wallets"
+      }
+    ],
+    "mistakes": [
+      "Títẹ seed phrase sí website, bot, tàbí chat 'support.'",
+      "Pípa ìpamọ́ ayé mọ́ hot wallet kan náà tí a ń lo fún degen trades.",
+      "Kíkọjá unlimited token approvals lórí àwọn chains EVM."
+    ]
+  },
+  {
+    "id": "risk-fundamentals",
+    "title": "Àwọn Ìpìlẹ̀ Ìṣàkóso Ewu",
+    "subtitle": "Position sizing, ewu nínú trade kọ̀ọ̀kan, àti psychology tó ń bú àwọn accounts.",
+    "sections": [
+      {
+        "heading": "Ewu ní àkọ́kọ́, entry lẹ́yìn",
+        "body": [
+          "Pinnu iye tí o lè pàdánù lórí trade kí o tó pinnu iye tí o fẹ́ jèrè. Àwọn ọjọ́gbọ́n ń ṣe size láti ìjìnnà stop; àwọn amàtẹ́ẹ̀rẹ́ ń ṣe size láti FOMO.",
+          "Ìtọ́sọ́nà tó wọ́pọ̀ ni lílo % kékeré tí ó dúró ṣinṣin ti trading capital fún èrò kọ̀ọ̀kan (bíi 0.5–2%). Àwọn trades meme àti high-leverage sábà yẹ kí ó wà ní ìsàlẹ̀ — tàbí kéré sí i."
+        ]
+      },
+      {
+        "heading": "Expectancy àti ìlànà",
+        "body": [
+          "Ìṣẹ́gun kan kò fi edge hàn; ìpàdánù kan kò fi hàn pé o ti bàjẹ́. Tọpinpin setups, àwọn òfin tí o tẹ̀lé, àti àbájáde lórí ọ̀pọ̀ trades.",
+          "Tí o kò bá lè sọ invalidation nínú gbólóhùn kan, o kò ní trade — o ní ìrètí."
+        ]
+      },
+      {
+        "heading": "R-multiples àti daily heat",
+        "body": [
+          "R ni ewu tí o gbéèrò lórí trade (bíi stop $100 = 1R). Ìṣẹ́gun +2R túmọ̀ sí pé o jèrè nǹkan bí ìlọ́po méjì ewu yẹn — kì í ṣe 'mo rò pé mo lágbára.'",
+          "Tọpinpin ìṣẹ́gun/ìpàdánù ní R lórí ọ̀sẹ̀. Edge hàn gẹ́gẹ́ bí àpapọ̀ R lẹ́yìn costs — kì í ṣe ticker oríire kan.",
+          "Daily heat: àpapọ̀ ewu tí ó ṣí sílẹ̀ lórí àwọn positions. Àwọn èrò 1% méjì nígbà kan jẹ́ ~2% heat tí àwọn stops méjèèjì bá lè kọlu. Àwọn longs tí ó so mọ́ra (bíi BTC + high-beta alts) sábà máa kùnà papọ̀ — ka wọ́n sí heat tó jọra."
+        ]
+      },
+      {
+        "heading": "Àwọn pàkúté ìwà",
+        "body": [
+          "Revenge trading lẹ́yìn ìpàdánù, oversized lẹ́yìn ìṣẹ́gun, àti gígbé stops jìnnà sí entry láti 'fún un ní ààyè' ń pa accounts kíákíá ju ticker búburú lọ.",
+          "Orun, àìmutí, àti àwọn òfin tí a kọ tẹ́lẹ̀ borí adrenaline. Jáwọ́ lẹ́yìn daily loss limit."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Risk per trade",
+        "definition": "Max $ (tàbí %) tí o gba láti pàdánù tí stop bá kọlu."
+      },
+      {
+        "term": "Invalidation",
+        "definition": "Ipò tó fi hàn pé èrò náà jẹ́ àṣìṣe — jáde."
+      },
+      {
+        "term": "Revenge trade",
+        "definition": "Fífi ipá ṣe trade láti 'gba ìpàdánù padà' — sábà jẹ́ ìmọ̀lára."
+      },
+      {
+        "term": "R-multiple",
+        "definition": "Àbájáde tí a wọn ní ẹyọ ewu tí o gbéèrò (bíi +2R = ìlọ́po méjì dọ́là tí o fi léwu)."
+      },
+      {
+        "term": "Daily heat",
+        "definition": "Ewu tí ó ṣí sílẹ̀ lórí àwọn positions papọ̀ — ṣọ́ correlation."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Ṣe size láti stop $ (spot)",
+        "setup": [
+          "Trading capital: $10,000",
+          "Ewu fún èrò: 1% = $100",
+          "Èrò long; invalidation jẹ́ $2 ní ìsàlẹ̀ entry"
+        ],
+        "steps": [
+          "Max ìpàdánù tí a bá stop = $100.",
+          "Ewu fún ẹyọ = $2 → max size ≈ $100 ÷ $2 = 50 units.",
+          "Tí iye bá jẹ́ $50/unit, notional ≈ $2,500 — ṣì jẹ́ ~$100 nìkan tó wà nínú ewu tí stop bá kọlu (ṣáájú fees/slippage)."
+        ],
+        "takeaway": "Position size jẹ́ àbájáde ti ewu $ àti ìjìnnà stop — kì í ṣe ìmọ̀lára bí o ṣe bullish tó."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Aṣojú NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      }
+    ],
+    "mistakes": [
+      "Ṣíṣe size láti FOMO dípò ìjìnnà stop.",
+      "Gígbé stops jìnnà lẹ́yìn entry láìsí thesis tuntun.",
+      "Kíkọjá daily loss limit àti revenge trading."
+    ]
+  },
+  {
+    "id": "chart-basics",
+    "title": "Charts & Candlesticks",
+    "subtitle": "Àwọn candles OHLC, timeframes, trend lines, Fib, àti àwọn patterns chart ìbílẹ̀.",
+    "sections": [
+      {
+        "heading": "Kí nìdí tí charts ṣe ṣe pàtàkì",
+        "body": [
+          "Àwọn charts iye ni bí traders ṣe ń wo ìtàn àti ṣètò entries, stops, àti targets. NovaForecast, Nova Scalp, Chart Analysis, àti àwọn irinṣẹ́ Forex gbogbo wọn ro pé o lè ka chart candle ìpìlẹ̀.",
+          "Timeframe (1m, 5m, 15m, 1h, 4h, 1d, 1w) ni gígùn candle kọ̀ọ̀kan. Àwọn timeframes kékeré ní ariwo ju, ó sì dára fún entries tó pẹ́ẹ́rẹ́; àwọn timeframes tó ga ju fi trend ńlá àti àwọn levels pàtàkì hàn.",
+          "Àṣà multi-timeframe: pinnu bias lórí timeframe tó ga ju (bíi 4h/1d), lẹ́yìn náà ṣètò àsìkò entry lórí èyí tó kéré (bíi 5m/15m) láì ja àwòrán ńlá."
+        ]
+      },
+      {
+        "heading": "Ara candlestick (OHLC)",
+        "body": [
+          "Candle kọ̀ọ̀kan fi Open, High, Low, àti Close hàn fún àsìkò yẹn.",
+          "Ara (body) ni ìjìnnà láàárín open àti close. Àwọn wicks (shadows) fi high àti low tó ga/kéré ju ara lọ hàn.",
+          "Candle bullish: close lókè open (sábà green). Candle bearish: close ní ìsàlẹ̀ open (sábà red). Àwọ̀ jẹ́ àṣà — máa ka OHLC nígbà gbogbo, kì í ṣe àwọ̀ nìkan.",
+          "Upper wick gígùn = àwọn olùtà kọ àwọn iye tó ga. Lower wick gígùn = àwọn olùrà kọ àwọn iye tó kéré. Context (trend vs range) ni ó pinnu bóyá ó ṣe pàtàkì."
+        ]
+      },
+      {
+        "heading": "Àwọn irú candle bullish (ìpìlẹ̀)",
+        "body": [
+          "Bullish engulfing: ara green tó bò ara red tó ṣáájú tán — ó lágbára sí i nítòsí support tàbí lẹ́yìn selloff, ó lẹ́wẹ̀ nínú mid-chop.",
+          "Hammer: ara kékeré nítòsí high pẹ̀lú lower wick gígùn — àwọn olùrà dáàbò bò lẹ́yìn ìtitẹ̀ títà (wá confirmation lórí candle tó tẹ̀lé).",
+          "Inverted hammer: ara kékeré nítòsí low pẹ̀lú upper wick gígùn lẹ́yìn ìṣubú — ó ṣe é ṣe kí ó jẹ́ ìkọ̀sílẹ̀ bullish; dúró de follow-through.",
+          "Morning star (èrò candle mẹ́ta): ìṣíṣe sílẹ̀, candle ìdánilójú kékeré, lẹ́yìn náà close sókè tó lágbára — ìtẹ̀lé ìdílé tó ṣe é ṣe.",
+          "Marubozu (bullish): ara gígùn pẹ̀lú wicks díẹ̀/kò sí — close ìtọ́sọ́nà tó lágbára; ó ṣì nílò context structure."
+        ]
+      },
+      {
+        "heading": "Àwọn irú candle bearish (ìpìlẹ̀)",
+        "body": [
+          "Bearish engulfing: ara red tó bò ara green tó ṣáájú tán — ó lágbára sí i nítòsí resistance tàbí lẹ́yìn rally.",
+          "Shooting star: ara kékeré nítòsí low pẹ̀lú upper wick gígùn lẹ́yìn ìgbéra — àwọn olùtà kọ àwọn highs.",
+          "Hanging man: ó dà bí hammer ṣùgbọ́n ó hàn lẹ́yìn ìgbéra — ìkìlọ̀ àìlera tí a bá confirm.",
+          "Evening star (èrò candle mẹ́ta): ìgbéra, ìdánilójú kékeré, lẹ́yìn náà close sílẹ̀ tó lágbára — ìtẹ̀lé ìdí orí tó ṣe é ṣe.",
+          "Marubozu (bearish): ara red gígùn, wicks díẹ̀/kò sí — close títà tó lágbára; kì í ṣe àmì ẹyọ kan."
+        ]
+      },
+      {
+        "heading": "Ìdílé doji (ìdánilójú)",
+        "body": [
+          "Doji ìbílẹ̀: open ≈ close — ìdánilójú; ìtumọ̀ da lórí ibi tí ó ti print (trend exhaustion vs ariwo mid-range).",
+          "Long-legged doji: wicks gígùn ní ẹ̀gbẹ́ méjèèjì — ìdánilójú / volatility tó fẹ̀ láìsí olùṣẹ́gun tó dájú nínú àsìkò yẹn.",
+          "Dragonfly doji: lower wick gígùn, open/close nítòsí high — sábà jẹ́ ìkọ̀sílẹ̀ lows tó tẹ̀ sí bullish.",
+          "Gravestone doji: upper wick gígùn, open/close nítòsí low — sábà jẹ́ ìkọ̀sílẹ̀ highs tó tẹ̀ sí bearish.",
+          "Má ṣe ṣòwò doji nìkan. Fi pọ̀ mọ́ level, structure, àti confirmation candle tó tẹ̀lé."
+        ]
+      },
+      {
+        "heading": "Trend lines & channels",
+        "body": [
+          "Uptrend line so àwọn swing lows tó ń ga; downtrend line so àwọn swing highs tó ń kéré. Fẹ́ àwọn swings tó ṣe kedere ju fífi ipá fa line kọjá ariwo lọ.",
+          "Channel ń fi line parallel kún ní ẹ̀gbẹ́ kejì iye — ó wúlò fún targets àti mean-reversion nínú channel.",
+          "Break ti trend line tí a bọ̀wọ̀ fún lè jẹ́ àmì acceleration tàbí ìyípadà regime — ṣì ṣètò invalidation; false breaks wọ́pọ̀."
+        ]
+      },
+      {
+        "heading": "Fibonacci retracements (lite)",
+        "body": [
+          "Lẹ́yìn swing tó lágbára (impulse), àwọn irinṣẹ́ Fib retracement ń sàmì àwọn àgbègbè pullback tí traders ń ṣọ́ — pàtàkì 38.2%, 50%, àti 61.8%.",
+          "Àwọn levels Fib jẹ́ irinṣẹ́ confluence, kì í ṣe idán: wọ́n ṣe pàtàkì sí i nígbà tí wọ́n bá pàdé structure tó ṣáájú, trend line, tàbí round number.",
+          "Extensions (bíi 127.2% / 161.8%) ni a máa ń lo nígbà mìíràn fún àwọn targets take-profit lẹ́yìn tí pullback bá padà sí trend.",
+          "NovaForecast / àwọn irinṣẹ́ tó ní í ṣe pẹ̀lú Fib lórí NovaStaris ro pé o ti mọ̀ pé Fib jẹ́ máàpù àfiyèsí, kì í ṣe ìdánilójú."
+        ]
+      },
+      {
+        "heading": "Àwọn patterns chart ìbílẹ̀ (lite)",
+        "body": [
+          "Double top / double bottom: ìdánwò high tàbí low méjì tó kùnà — reversal tó ṣe é ṣe tí neckline bá break pẹ̀lú follow-through.",
+          "Head and shoulders / inverse: swings mẹ́ta pẹ̀lú ìpínlá àárín — break neckline ni trigger tó wọ́pọ̀; measured move jẹ́ target àfojúsùn nìkan.",
+          "Triangles (ascending/descending/symmetrical): ìfúnpọ̀ highs/lows — ìtọ́sọ́nà breakout + retest sábà ṣe pàtàkì ju orúkọ triangle lọ.",
+          "Flags / pennants: consolidation kúkúrú lẹ́yìn impulse — sábà jẹ́ continuation tí trend tó ṣáájú bá tẹ̀síwájú; failure = trap.",
+          "Máa ṣàlàyé invalidation ṣáájú entry. Àwọn patterns ń kùnà — stop rẹ ni ètò nígbà tí wọ́n bá kùnà."
+        ]
+      },
+      {
+        "heading": "Indicators gẹ́gẹ́ bí confluence (lite)",
+        "body": [
+          "Moving averages (bíi 20/50/200): àwọn filters trend oníṣe — iye lókè MA tó ń ga tẹ̀ sí bias bullish, ní ìsàlẹ̀ MA tó ń kéré tẹ̀ sí bearish. Wọ́n ń pẹ́; ka wọ́n sí context, kì í ṣe bọtínì entry.",
+          "RSI / momentum oscillators: àwọn kíkà tó ga ju lè sàmì àwọn ipò tó na, ṣùgbọ́n 'oversold' nínú downtrend lè dúró oversold. Fẹ́ divergence + structure ju oscillator nìkan lọ.",
+          "Volume (níbi tí ó bá wà): volume tó ń ga lórí breakouts àti volume tó ń gbẹ lórí chop jẹ́ àwọn àmì tó wúlò — ṣì jẹ́ kejì sí structure àti invalidation.",
+          "Òfin: indicators ń fi ètò tí a kọ́ láti structure àti ewu lójú. Wọn kì í rọ́pò stop."
+        ]
+      },
+      {
+        "heading": "Support, resistance, àti structure",
+        "body": [
+          "Support jẹ́ àgbègbè níbi tí rírà ti hàn rí; resistance níbi tí títà ti hàn. Àwọn zones borí lines tó pẹ́ẹ́rẹ́.",
+          "Uptrend: higher highs àti higher lows. Downtrend: lower highs àti lower lows. Range: iye tó ń yípo láàárín ààlà.",
+          "Breakouts lè tẹ̀síwájú tàbí fake out — dúró de confirmation tàbí ṣètò invalidation kí o tó wọlé."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "OHLC",
+        "definition": "Open, High, Low, Close — àwọn iye mẹ́rin nínú candle."
+      },
+      {
+        "term": "Wick / shadow",
+        "definition": "Ilà tínrín tó fi high tàbí low àsìkò hàn ní ìta ara."
+      },
+      {
+        "term": "Timeframe",
+        "definition": "Àkókò tí candle kọ̀ọ̀kan ń dúró fún (bíi ìṣẹ́jú 5, wákàtí 1)."
+      },
+      {
+        "term": "Doji",
+        "definition": "Candle pẹ̀lú open ≈ close — ìdánilójú; àwọn subtypes ní dragonfly àti gravestone."
+      },
+      {
+        "term": "Trend line",
+        "definition": "Ilà lẹ́gbẹ̀ẹ́ swing lows (uptrend) tàbí swing highs (downtrend)."
+      },
+      {
+        "term": "Fibonacci retracement",
+        "definition": "Àwọn levels pullback (bíi 38.2%, 50%, 61.8%) tí a fa lórí swing impulse."
+      },
+      {
+        "term": "Support / resistance",
+        "definition": "Àwọn àgbègbè níbi tí iye ti bounce tàbí dúró rí."
+      },
+      {
+        "term": "Confluence",
+        "definition": "Ọ̀pọ̀ ìdí òmìnira fún èrò kan náà (structure + level + indicator)."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Kíkà multi-timeframe (hypothetical)",
+        "setup": [
+          "Chart 4h: higher highs / higher lows → bias bullish",
+          "Chart 15m: pullback sí swing low tó ṣáájú + 50% Fib ti impulse tó kẹyìn",
+          "Invalidation: break tó mọ́ àti close ní ìsàlẹ̀ swing low yẹn"
+        ],
+        "steps": [
+          "Bias wá láti 4h — o kò ń wá shorts tí ó tako structure yẹn fún èrò yìí.",
+          "Àsìkò entry wá láti 15m: dúró de àgbègbè pullback dípò lépa candle breakout 4h.",
+          "Stop lọ ní ìkọjá invalidation 15m; target àkọ́kọ́ lè jẹ́ swing high 15m tó ṣáájú tàbí measured move — kì í ṣe round number àìrótẹ́lẹ̀ nìkan."
+        ],
+        "takeaway": "Timeframe tó ga ju = ìtàn; timeframe tó kéré = àsìkò. Jíja ìtàn ni bí àwọn entries 'tó péye' ṣe ń pàdánù."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Aṣojú NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "Aṣojú Nova Forex",
+        "href": "/?tab=nova-forex"
+      },
+      {
+        "label": "Ìtúpalẹ̀ Chart",
+        "href": "/?tab=ai-analysis&agent=chart"
+      }
+    ],
+    "mistakes": [
+      "Ṣíṣòwò pattern candle kan láìsí structure tàbí invalidation.",
+      "Lílo stop 1m lórí èrò ojoojúmọ́ (timeframe mismatch).",
+      "Kíkà àwọn levels Fib sí ìdánilójú dípò àgbègbè confluence.",
+      "Fífi ipá fa trend lines kọjá ariwo àti ṣíṣòwò gbogbo ìfọwọ́kan."
+    ]
+  },
+  {
+    "id": "orders-execution",
+    "title": "Orders & Ìṣe Trade",
+    "subtitle": "Market vs limit vs stop, stop-loss, take-profit, àti ìṣàkóso àwọn orders tí ó ṣí.",
+    "sections": [
+      {
+        "heading": "Ètò trade ṣáájú click",
+        "body": [
+          "Ṣáájú kí o wọlé: ìtọ́sọ́nà (long/short), irú entry, stop-loss (invalidation), target(s) take-profit, àti max ewu $ tí a bá stop.",
+          "Tí o kò bá lè kọ̀wé wọn nínú ilà kan, o ń ṣe gambling — kì í ṣe ṣíṣe trade."
+        ]
+      },
+      {
+        "heading": "Àwọn orders market, limit, àti stop",
+        "body": [
+          "Market order: fill nísinsinyìí ní iye tó dára jù tí ó wà. Ó yára, ṣùgbọ́n o gba slippage (fill tó burú sí i nínú markets tínrín tàbí tó yára).",
+          "Limit order: fill nìkan ní iye rẹ tàbí èyí tó dára ju. O ń ṣàkóso iye; o lè má rí fill tí iye kò bá ta níbẹ̀.",
+          "Stop order (stop-market): di market order nígbà tí iye trigger bá kọlu — a ń lo fún entries breakout tàbí exits ààbò.",
+          "Stop-limit: nígbà tí stop bá trigger, ó gbé limit sílẹ̀ dípò market — ìṣàkóso iye tó pọ̀ sí i, ewu àìsí fill nínú gap/spike."
+        ]
+      },
+      {
+        "heading": "Stop-loss àti take-profit",
+        "body": [
+          "Stop-loss (SL): iye tó fi hàn pé èrò rẹ jẹ́ àṣìṣe — jáde láìsí àríyànjiyàn. Gbé e sí ìkọjá invalidation, kì í ṣe ní round number kedere tí gbogbo ènìyàn ń lo tí ó bá jẹ́ magnet liquidity.",
+          "Take-profit (TP): exit tí a gbéèrò fún ẹ̀gbẹ́ ìṣẹ́gun. Àwọn TP díẹ̀díẹ̀ (scale out) ń pa ànfàní díẹ̀ mọ́ nígbà tí ó ń fi runner sílẹ̀ tí structure bá gba.",
+          "Risk:reward kì í ṣe ẹ̀sìn, ṣùgbọ́n tí TP rẹ bá súnmọ́ ju SL rẹ lọ láìsí edge, expectancy sábà máa jìyà.",
+          "Trailing stop: ń tẹ̀lé iye ní ọ̀nà rẹ. Ó wúlò nínú trends; ó lè gé ọ jáde nínú ranges."
+        ]
+      },
+      {
+        "heading": "Àwọn orders tí ó ṣí & ṣíṣiṣẹ́ book",
+        "body": [
+          "Open / working orders: àwọn limits àti stops tí kò tíì fill tí ó ṣì wà lórí exchange. Cancel tàbí ṣàtúnṣe wọn nígbà tí thesis bá yípadà.",
+          "OCO (one-cancels-the-other) lórí àwọn platforms kan: TP àti SL so mọ́ra kí fill ọ̀kan lè cancel èkejì.",
+          "Reduce-only (futures): fi dájú pé order lè dínkù tàbí pa position mọ́ nìkan — ó ń dín accidental flips kù.",
+          "Post-only / maker: ń gbìyànjú láti dúró gẹ́gẹ́ bí liquidity (sábà fees tó kéré); ó lè cancel tí ó bá fẹ́ take lẹ́sẹ̀kẹsẹ̀."
+        ]
+      },
+      {
+        "heading": "Wíwọlé vs ìṣàkóso",
+        "body": [
+          "Entry: bí o ṣe ń wọlé (market, limit pullback, stop breakout). Management: bí o ṣe ń ṣàtúnṣe SL/TP tàbí size lẹ́yìn fill.",
+          "Ìlànà tó wọ́pọ̀: wọlé → confirm fill → gbé SL/TP sílẹ̀ lẹ́sẹ̀kẹsẹ̀ → journal thesis. Má ṣe fi position ìhóhó sílẹ̀ 'fún ìṣẹ́jú kan.'",
+          "Gígbé stop jìnnà sí entry láti 'fún un ní ààyè' lẹ́yìn tí o ti ṣìṣe sábà jẹ́ revenge — kì í ṣe management.",
+          "Nova Scalp àti àwọn irinṣẹ́ Futures ro pé o ti mọ àwọn ìpìlẹ̀ order wọ̀nyí ṣáájú kí o tó ṣe size ewu leveraged."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Market order",
+        "definition": "Fill lẹ́sẹ̀kẹsẹ̀ ní iye tí ó wà — iyara ju ìṣàkóso iye lọ."
+      },
+      {
+        "term": "Limit order",
+        "definition": "Fill nìkan ní iye rẹ tàbí èyí tó dára ju — ó lè má fill."
+      },
+      {
+        "term": "Stop-loss",
+        "definition": "Exit ààbò ní invalidation — ó ṣàlàyé max ìpàdánù tí a gbéèrò."
+      },
+      {
+        "term": "Take-profit",
+        "definition": "Exit tí a ṣètò tẹ́lẹ̀ láti pa ànfàní mọ́ ní target."
+      },
+      {
+        "term": "Open / working order",
+        "definition": "Order tí kò tíì fill tí ó ṣì wà lórí exchange."
+      },
+      {
+        "term": "Slippage",
+        "definition": "Ìyàtọ̀ láàárín iye tí a retí àti iye fill gidi."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Limit pullback vs market chase",
+        "setup": [
+          "O fẹ́ long lẹ́yìn breakout; iye ti na",
+          "Ètò: ra pullback ní 1.0820, SL 1.0790, TP 1.0880",
+          "Iye lọ́wọ́lọ́wọ́ ti jẹ́ 1.0855 ó sì ń yára"
+        ],
+        "steps": [
+          "Market buy nísinsinyìí = chase: entry tó burú sí i, R:R tó kù sí TP kan náà tó tẹ́ẹ́, o sì ṣì nílò ìjìnnà SL kan náà tàbí o gba ewu $ tó pọ̀ sí i.",
+          "Gbé limit sí 1.0820 (tàbí dúró sí ẹ̀gbẹ́). Tí kò bá fill, o pàdánù trade — ó gba.",
+          "Lórí fill: gbé SL/TP sílẹ̀ lẹ́sẹ̀kẹsẹ̀. Tí thesis bá kú (bíi structure break), cancel àwọn working orders tó kù."
+        ],
+        "takeaway": "Limit tí a pàdánù dín lówó ju market order FOMO tí a fill láìsí ètò lọ."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Crypto Futures",
+        "href": "/?tab=futures"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      },
+      {
+        "label": "Aṣojú Nova Forex",
+        "href": "/?tab=nova-forex"
+      }
+    ],
+    "mistakes": [
+      "Wíwọlé láìsí stop-loss tí a ti gbéèrò.",
+      "Lílo market order nínú book tínrín àti kíki 'manipulation' lé ewu slippage.",
+      "Fifí àwọn limits working sílẹ̀ lẹ́yìn tí thesis ti yípadà.",
+      "Gígbé stop jìnnà sí entry lẹ́yìn tí o ti ṣìṣe."
+    ]
+  },
+  {
+    "id": "psychology-journaling",
+    "title": "Psychology & Journaling Trade",
+    "subtitle": "Revenge trading, àwọn ààlà ìpàdánù ojoojúmọ́, àti àkọọ́lẹ̀ rọrùn tó ń kọ́ edge.",
+    "sections": [
+      {
+        "heading": "Kí nìdí tí psychology ṣe jẹ́ position size",
+        "body": [
+          "Ọ̀pọ̀ ìbú kì í ṣe ìkùnà chart àìrótẹ́lẹ̀ — wọ́n jẹ́ revenge trades oversized, entries FOMO, àti gígbé stops lẹ́yìn tí ètò ti fọ́.",
+          "Ka ipò ìmọ̀lára bí leverage: tí o bá tilted, ewu rẹ gidi ga ju nọ́mbà lórí screen lọ."
+        ]
+      },
+      {
+        "heading": "Revenge trading & FOMO",
+        "body": [
+          "Revenge trading: fífi ipá ṣe trade tuntun láti 'gba ìpàdánù padà.' Sábà jẹ́ àsìkò tó burú sí i àti size tó tóbi sí i.",
+          "FOMO: lépa ìṣíṣe lẹ́yìn tí entry kedere ti kọjá. Àwọn entries pẹ́ nílò size tó kéré tàbí kò sí trade — kì í ṣe size tó tóbi.",
+          "Òfin ọwọ́: lẹ́yìn stop-out tán, jókòó jade candle kan (tàbí cooldown tí ó dúró) ṣáájú èrò tó tẹ̀lé."
+        ]
+      },
+      {
+        "heading": "Daily loss limit",
+        "body": [
+          "Ṣètò max ìpàdánù ojoojúmọ́ ní $ tàbí % ti trading capital (bíi 1–3%). Tí o bá kọlu → pa platform mọ́ fún ọjọ́ náà. Kò sí ìmúkúrò fún 'setup kan sí i.'",
+          "Soft cap ọ̀sọ̀ọ̀sẹ̀ ń ṣèrànwọ́ láti dènà ikú-nípasẹ̀-ẹgbẹẹgbẹ̀rún-àìtẹ̀lé-kékeré.",
+          "Kọ ààlà náà ṣáájú session. Àwọn ìpinnu nínú mid-drawdown sábà burú sí i."
+        ]
+      },
+      {
+        "heading": "Trade journal rọrùn",
+        "body": [
+          "Kọ nìkan ohun tí o máa ṣàyẹ̀wò gidi: ọjọ́, ọjà, ìtọ́sọ́nà, thesis nínú gbólóhùn kan, invalidation, size/ewu $, àbájáde, àti ẹ̀kọ́ kan.",
+          "Tag ìlànà: tẹ̀lé ètò / fọ́ ètò. Edge hàn nínú àwọn tags ìlànà ju screenshots P&L lọ.",
+          "Ṣàyẹ̀wò lọ́sọ̀ọ̀sẹ̀: àwọn setups wo ni ó san, àwọn ìfọ́-òfin wo ni ó ná ọ, àti bóyá sizing bá conviction mu."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Revenge trade",
+        "definition": "Fífi ipá ṣe trade láti gba ìpàdánù padà — sábà jẹ́ ìmọ̀lára àti oversized."
+      },
+      {
+        "term": "Daily loss limit",
+        "definition": "Stop líle lórí ewu session; tí o bá kọlu, o dúró ṣòwò fún ọjọ́ náà."
+      },
+      {
+        "term": "Trade journal",
+        "definition": "Àkọọ́lẹ̀ kúkúrú ti thesis, ewu, àbájáde, àti ìtẹ̀lé ìlànà."
+      },
+      {
+        "term": "Cooldown",
+        "definition": "Ìsinmi dandan lẹ́yìn stop-out tàbí spike ìmọ̀lára ṣáájú entry tó tẹ̀lé."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Daily loss kọlu — ìtẹ̀lé tilt",
+        "setup": [
+          "Daily loss limit: $150 (tí a kọ ṣáájú session)",
+          "O ṣẹ̀ṣẹ̀ gba stop tán: −$140 lórí trade tó tẹ̀lé ètò",
+          "Setup revenge “tó péye” hàn ní ìṣẹ́jú méjì lẹ́yìn"
+        ],
+        "steps": [
+          "Ṣàyẹ̀wò ledger: $140 nínú $150 ti lò — èrò ewu tán kan sí i lè fọ́ ààlà ọjọ́.",
+          "Òfin: kọlu/súnmọ́ daily loss → pa platform mọ́. Kò sí “ọ̀kan sí i” bí ó tilẹ̀ jẹ́ pé R:R dàbí ẹni tó dára.",
+          "Journal: thesis, invalidation, tẹ̀lé ètò Bẹ́ẹ̀ni, àbájáde −R, ẹ̀kọ́ = cooldown; ṣí sílẹ̀ ọ̀la."
+        ],
+        "takeaway": "Trade tó náni jù lẹ́yìn stop sábà jẹ́ size ìmọ̀lára, kì í ṣe edge. Àwọn daily loss limits wà láti dáàbò bò account ọ̀la."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Aṣojú NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      }
+    ],
+    "mistakes": [
+      "Fífi ipá ṣe trade láti 'gba ìpàdánù padà' nínú session kan náà.",
+      "Gígé size sókè lẹ́yìn ìṣẹ́gun nítorí pé o rò pé o ṣẹ́gun ayé.",
+      "Journaling screenshots P&L nìkan láìsí àkọsílẹ̀ ìlànà."
+    ]
+  },
+  {
+    "id": "trading-styles",
+    "title": "Àwọn Styles Ìṣòwò & Àwọn Ìwoye Àkókò",
+    "subtitle": "Scalp, day, swing, àti position — so style mọ́ timeframe, size, àti ìgbésí ayé.",
+    "sections": [
+      {
+        "heading": "Style jẹ́ ètò ewu, kì í ṣe ìdánwò ìwà",
+        "body": [
+          "Style ìṣòwò ni bí o ṣe retí láti mú, timeframe wo ni o ń ṣàkóso lórí, àti bí o ṣe ń ṣe size. Dídapọ̀ styles nínú mid-trade (bíi scalp 5m tó di 'hope hold' ọjọ́ púpọ̀) ni bí accounts ṣe ń kú.",
+          "Yan style olórí kan fún session kọ̀ọ̀kan. Structure àti liquidity (module tó tẹ̀lé) wà fún gbogbo style — aago àti ìbúba stop nìkan ni ó yípadà."
+        ]
+      },
+      {
+        "heading": "Scalping",
+        "body": [
+          "Mímú: ìṣẹ́jú-aaya sí ~ìṣẹ́jú 30. Charts: 1m–5m (bias nígbà mìíràn láti 15m). Èrò: ọ̀pọ̀ edges kékeré; fees àti slippage ṣe pàtàkì gan-an.",
+          "Ó nílò: execution tó yára, invalidation tó tẹ́ẹ́, àwọn daily loss limits líle. Kò dára tí o kò bá lè wo book.",
+          "Lórí NovaStaris: Nova Scalp jẹ́ fún ìwoye yìí — àwọn levels àti windows mímú ro àkókò kúkúrú, kì í ṣe thesis overnight."
+        ]
+      },
+      {
+        "heading": "Day trading",
+        "body": [
+          "Mímú: ìṣẹ́jú sí wákàtí; flat ní òpin session (kò sí overnight lọ́nà èrò). Charts: 5m–15m ṣe, 1h fún bias.",
+          "Ó nílò: àwọn ètò session, ìmọ̀ ìṣẹ̀lẹ̀ (CPI/NFP/FOMC fún FX; àwọn unlocks/news crypto ńlá), àti stop líle lórí daily heat.",
+          "Funding àti overnight swaps ni a sábà yẹra fún nítorí ìṣe style — ìyẹn jẹ́ ànfàní style náà."
+        ]
+      },
+      {
+        "heading": "Swing trading",
+        "body": [
+          "Mímú: ~ọjọ́ 1–10+. Charts: 1h–4h ṣe, 1d fún bias. Àwọn stops fẹ̀ sí i ní $; size gbọ́dọ̀ dínkù kí 1R ṣì bá ewu $ rẹ mu.",
+          "Ó nílò: sùúrù, ìfaradà ariwo tó tako ọ́, àti ìmọ̀ funding (perps), swaps (FX), àti àwọn gaps ìparí ọ̀sẹ̀ níbi tí ó bá wúlò.",
+          "Má ṣe ṣàkóso swing pẹ̀lú stop scalp — tàbí scalp pẹ̀lú ẹ̀yìn ìdílé swing."
+        ]
+      },
+      {
+        "heading": "Position / àwọn holds oníṣòwò-ìdílé",
+        "body": [
+          "Mímú: ọ̀sẹ̀ sí oṣù+. Charts: ojoojúmọ́/ọ̀sọ̀ọ̀sẹ̀. Thesis jẹ́ fundamental tàbí macro pẹ̀lú structure ọ̀sọ̀ọ̀sẹ̀ — kì í ṣe candle kan.",
+          "Size kéré sí account; invalidation lè jẹ́ break thesis (narrative/level tó kùnà), kì í ṣe wick 15m.",
+          "Memes àti high-leverage perps sábà kò dára fún style position gidi."
+        ]
+      },
+      {
+        "heading": "So style → timeframe → size",
+        "body": [
+          "Style tó kúrú → stops tó tẹ́ẹ́ → notional tó kéré fún ewu $ kan náà. Style tó gùn → stops tó fẹ̀ → size ṣì kéré.",
+          "Tí ètò ayé rẹ kò bá lè gbé style (bíi iṣẹ́ full-time + scalping nìkan), yí style padà — kì í ṣe àwọn òfin ewu."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Scalping",
+        "definition": "Mímú kúkúrú gan-an; iye trade tó ga; ó ṣọ́ fees."
+      },
+      {
+        "term": "Day trading",
+        "definition": "Àwọn holds intraday; sábà flat ní òpin session."
+      },
+      {
+        "term": "Swing trading",
+        "definition": "Àwọn holds ọjọ́ púpọ̀ tí a ń ṣàkóso lórí timeframes tó ga."
+      },
+      {
+        "term": "Position trading",
+        "definition": "Àwọn holds ọ̀sẹ̀–oṣù tí thesis ńlá àti structure ọ̀sọ̀ọ̀sẹ̀ ń darí."
+      },
+      {
+        "term": "Timeframe match",
+        "definition": "Stop àti TF ìṣàkóso bá gígùn mímú tí a pinnu mu."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Ewu $ kan náà, ìbúba style tó yàtọ̀",
+        "setup": [
+          "Budget ewu: $100 (1R)",
+          "Èrò scalp: stop $0.20 jìnnà → size = 500 units",
+          "Èrò swing: stop $2.00 jìnnà → size = 50 units"
+        ],
+        "steps": [
+          "Àwọn èrò méjèèjì fi ~$100 léwu tí a bá stop — R kan náà.",
+          "Swing gbọ́dọ̀ lo size 1/10 nítorí pé stop fẹ̀ 10×.",
+          "Lílo size scalp lórí stop swing ≈ àjálù 10R tí invalidation tó fẹ̀ bá kọlu."
+        ],
+        "takeaway": "Style ń yí ìjìnnà stop padà — size ni dial tó mú kí R dúró."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      },
+      {
+        "label": "Aṣojú NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "NovaScalper",
+        "href": "/?tab=trading-bot"
+      }
+    ],
+    "mistakes": [
+      "Yíyí scalp tó kùnà padà sí hope hold ọjọ́ púpọ̀.",
+      "Lílo size scalp pẹ̀lú stop tó fẹ̀ bí swing (ewu 5–10R àìrírí).",
+      "Yíyan style tí o kò lè ṣọ́ gidi pẹ̀lú ètò ayé rẹ."
+    ]
+  },
+  {
+    "id": "market-structure",
+    "title": "Liquidity & Structure Ọjà",
+    "subtitle": "Àwọn regimes, BOS/CHOCH, liquidity grabs, àti bí flow ńlá ṣe ń wá stops.",
+    "sections": [
+      {
+        "heading": "Structure ṣáájú àwọn àmì",
+        "body": [
+          "Àwọn candles jẹ́ ariwo láìsí structure. Kọ́kọ́ béèrè: Ǹjẹ́ iye ń ṣe higher highs àti higher lows (uptrend), lower highs àti lower lows (downtrend), tàbí yípo nínú range?",
+          "Ṣòwò pẹ̀lú structure tó ń ṣiṣẹ́ lórí timeframe execution rẹ, kí o sì bọ̀wọ̀ fún bias higher-timeframe nígbà tí wọ́n bá tako ara wọn."
+        ]
+      },
+      {
+        "heading": "Àwọn regimes bullish vs bearish vs range",
+        "body": [
+          "Regime bullish (structure): HH + HL lórí timeframe bias rẹ. Fẹ́ longs / dips; shorts jẹ́ counter-trend ó sì nílò size tó kéré tàbí àwọn traps liquidity tó ṣe kedere.",
+          "Regime bearish: LH + LL. Fẹ́ shorts / rips; long catch-a-knife nílò reclaim tó ṣàlàyé àti invalidation tó tẹ́ẹ́.",
+          "Range / chop: highs àti lows kedere pẹ̀lú ìkùnà lọ́pọ̀lọpọ̀. Àwọn edges tó dára jù ni fades nítòsí àwọn ìpínlá — mid-range ni ibi tí ọ̀pọ̀ retail ń overtrade.",
+          "Regime kì í ṣe ààmì 'bull market' títí láé — ó jẹ́ structure swing tó ń ṣiṣẹ́ títí tí ó fi break. Ṣàtúnṣe rẹ̀ nígbà tí BOS/CHOCH bá fi hàn pé o ṣìṣe."
+        ]
+      },
+      {
+        "heading": "Break of structure (BOS) — lite",
+        "body": [
+          "Nínú uptrend, break of structure sábà túmọ̀ sí pé iye gba swing high tó ṣáájú ó sì tẹ̀síwájú — trend ṣì wà.",
+          "Nínú downtrend, BOS sábà túmọ̀ sí pé swing low tó ṣáájú já. Lo BOS gẹ́gẹ́ bí context, kì í ṣe bọtínì 'ra/ta' ẹyọ kan."
+        ]
+      },
+      {
+        "heading": "Change of character (CHOCH) — lite",
+        "body": [
+          "CHOCH jẹ́ àmì ìbẹ̀rẹ̀ pé trend tó ṣáájú lè ń yípadà — bíi nínú uptrend, break kedere ti swing low tó ṣe pàtàkì.",
+          "CHOCH kan kò dùn mó trend tuntun. Dúró de follow-through (structure tuntun) tàbí ṣètò invalidation tó tẹ́ẹ́."
+        ]
+      },
+      {
+        "heading": "Liquidity grabs (retail vs flow ńlá)",
+        "body": [
+          "Àwọn stops ń kó jọ lókè highs kedere àti ní ìsàlẹ̀ lows kedere. Àwọn olùṣòwò ńlá àti algos sábà nílò liquidity yẹn láti fill size — nítorí náà iye ń spike kọjá magnet (grab), lẹ́yìn náà yípadà.",
+          "O kò nílò ìtàn ìmọ̀ràn: àwọn stops tó kún jẹ́ epo tí a rí. Nígbà tí o bá rí wick kọjá level àti reclaim tó yára, béèrè bóyá a ti gba liquidity dípò breakout tó mọ́.",
+          "Kíkà ọ̀nà institutional (tó ṣe é lo): so open interest / funding extremes (perps), àwọn stop pools kedere, àti reclaim vs hold — kì í ṣe logos 'smart money' lórí Twitter.",
+          "Stop rẹ ṣì yẹ kí ó wà ní invalidation gidi — kì í ṣe níbi tí ọ̀pọ̀ ènìyàn ti pa mọ́ tí ó bá jẹ́ magnet."
+        ]
+      },
+      {
+        "heading": "Bias HTF → entry LTF",
+        "body": [
+          "Higher timeframe (4h/1d) dáhùn: bullish, bearish, tàbí range? Lower timeframe (5m–1h) dáhùn: níbo ni pullback tàbí reclaim fún style mi wà?",
+          "Tí LTF bá kígbe long nígbà tí HTF jẹ́ bearish kedere, o ń fade regime ńlá — dín size kù tàbí fo.",
+          "So mọ́ styles: àwọn scalps ṣì bọ̀wọ̀ fún bias HTF; àwọn swings tẹ̀ lé e ju."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Market structure",
+        "definition": "Àpẹẹrẹ swing highs/lows tó ṣàlàyé trend vs range."
+      },
+      {
+        "term": "Regime",
+        "definition": "Ìwà bullish / bearish / ranging tó ń ṣiṣẹ́ títí structure fi fi ohun mìíràn hàn."
+      },
+      {
+        "term": "BOS",
+        "definition": "Break of structure — iye gba swing pàtàkì ní ìtọ́sọ́nà trend."
+      },
+      {
+        "term": "CHOCH",
+        "definition": "Change of character — àmì ìbẹ̀rẹ̀ pé trend tó ṣáájú lè ń yípadà."
+      },
+      {
+        "term": "Liquidity grab",
+        "definition": "Spike kọjá highs/lows kedere tó ń ṣiṣẹ́ stops, sábà ṣáájú yíyípadà."
+      },
+      {
+        "term": "HTF / LTF",
+        "definition": "Higher / lower timeframe — bias vs àsìkò."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Wick kọjá highs, lẹ́yìn náà reclaim",
+        "setup": [
+          "High ọjọ́ tó ṣáájú kedere ní $1.00 pẹ̀lú stops tí a kó jọ ní òkè díẹ̀",
+          "Candle 5m spike sí $1.012 lẹ́yìn náà close padà ní $0.995",
+          "Àwọn olùrà breakout wọlé lórí spike; iye reclaim ní ìsàlẹ̀ level"
+        ],
+        "steps": [
+          "Sàmì spike gẹ́gẹ́ bí liquidity grab tó ṣe é ṣe (stops run), kì í ṣe confirmation airotẹlẹ ti uptrend tuntun.",
+          "Tí o bá long breakout láìsí ètò reclaim, reclaim ní ìsàlẹ̀ $1.00 sábà jẹ́ invalidation — jáde.",
+          "Tí o bá ń wá fade: dúró de reclaim + structure (bíi lower high), kí o sì gbé invalidation lókè ìpínlá wick — má ṣe mid-wick."
+        ],
+        "takeaway": "Wick kọjá + reclaim tó yára = béèrè “stops ta ni?” ṣáájú kí o ka á sí breakout tó mọ́."
+      },
+      {
+        "title": "HTF bullish, dúró de dip LTF",
+        "setup": [
+          "4h: HH/HL ṣì wà (regime bullish)",
+          "15m: pullback mímú sí HL tó ṣáájú + àárín range",
+          "Style: day trade — fẹ́ flat ní òpin session"
+        ],
+        "steps": [
+          "Bias: long nìkan tàbí dúró sí ẹ̀gbẹ́ — kò sí shorts ọ̀fẹ́ tí ó tako structure 4h fún èrò yìí.",
+          "Dúró de reclaim 15m tàbí wick ìkọ̀sílẹ̀ ní àgbègbè dip; sàmì invalidation lábẹ́ HL.",
+          "Ṣe size láti ìbúba stop 15m kí 1R bá ewu ojoojúmọ́ mu — má ṣe lo size scalp lórí stop tó sanra."
+        ],
+        "takeaway": "Regime láti HTF, àsìkò láti LTF, size láti ìjìnnà stop."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Aṣojú NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "Aṣojú AI NovaStaris",
+        "href": "/?tab=ai-analysis&agent=chart"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      }
+    ],
+    "mistakes": [
+      "Lépa gbogbo breakout kọjá highs/lows kedere (liquidity grabs).",
+      "Pípe CHOCH ní ìyípadà trend tán lẹ́yìn candle kan.",
+      "Jíja structure higher-timeframe lórí scalp lower timeframe.",
+      "Pípe mid-range chop ní 'regime' bull tàbí bear àti overtrading rẹ̀."
+    ]
+  },
+  {
+    "id": "volume-vwap",
+    "title": "Volume, VWAP àti Profile Lite",
+    "subtitle": "Ka ìkópa — VWAP gẹ́gẹ́ bí àmì ìdíwọ̀n àwọn ilé-iṣẹ́ ńlá, volume gẹ́gẹ́ bí ìmúdájú.",
+    "sections": [
+      {
+        "heading": "Kí nìdí tí volume / ìkópa ṣe ṣe pàtàkì",
+        "body": [
+          "Iye owó tí kò ní ìkópa rọrùn láti ṣe àgàbàgebè. Volume tó ń ga nígbà tí break kan bá dúró jẹ́ ọ̀rọ̀ tó lágbára ju spike tí ó dakẹ́ tí ó sì tètè padà lọ.",
+          "Nínú crypto, didára 'volume' tí wọ́n ń ròyìn yàtọ̀ sí ibi tí o ti ń ṣòwò (ewu wash trading). Yan àwọn major/perps tí ó ní liquidity, kí o sì fi ìyẹ̀méwù wo àwọn print meme kékeré."
+        ]
+      },
+      {
+        "heading": "VWAP (volume-weighted average price)",
+        "body": [
+          "VWAP jẹ́ iye àpapọ̀ tí a ti ta nínú session náà títí di àsìkò yìí, tí a fi volume ṣe àdìpọn — òun ni àmì ìdíwọ̀n àwọn ilé-iṣẹ́ ńlá fún iye 'tó tọ́' nínú ọjọ́ kan.",
+          "Tí iye bá dúró lókè session VWAP, ó sábà máa tẹ̀ sí bullish fún day traders; ní ìsàlẹ̀ ó tẹ̀ sí bearish. Mean-reversion sí VWAP wọ́pọ̀ nínú range; ọjọ́ trend lè máa jìnnà sí VWAP.",
+          "Anchored VWAP: bẹ̀rẹ̀ àpapọ̀ láti ìṣẹ̀lẹ̀ tí o yàn (swing low, listing, candle CPI) dípò ìbẹ̀rẹ̀ session — ó wúlò fún swings.",
+          "VWAP kì í ṣe ìjáde ẹ̀dá. Pa á mọ́ structure àti invalidation."
+        ]
+      },
+      {
+        "heading": "Volume profile (lite)",
+        "body": [
+          "Volume profile fi hàn bí volume tí a ta ní iye kọ̀ọ̀kan (histogram ní ẹ̀gbẹ́), kì í ṣe ní àkókò nìkan.",
+          "High-volume nodes (HVN): iye tí ọjà gba — sábà jẹ́ ibi ìwọ̀ntúnwọ̀nsì / magnet. Low-volume nodes (LVN): ìgbàwọlé tó tẹ́ẹ́ — iye lè já ko jáya.",
+          "Point of control (POC): iye tí ó ní volume tó pọ̀ jù nínú window profile — sábà jẹ́ magnet fair-value títí tí ó fi yípadà.",
+          "Lo profile láti béèrè níbo ni liquidity ti gba, lẹ́yìn náà ṣètò stops lẹ́yìn structure gidi — má ṣe gbé e gan-an lórí POC tí ó bá kún."
+        ]
+      },
+      {
+        "heading": "Bí o ṣe lè lo èyí pẹ̀lú àwọn ọ̀nà NovaStaris",
+        "body": [
+          "Scalps/day trades: session VWAP + volume lórí breakouts/reclaims.",
+          "Swings: anchored VWAP láti ìbẹ̀rẹ̀ impulse + structure ojoojúmọ́; má ṣe kàsí volume 1m tó ń dún.",
+          "Tí chart kò bá ní volume tó ṣe é gbẹ́kẹ̀lé (àwọn CFD/FX feeds kan), tẹ̀ sí structure àti liquidity session dípò àwọn volume bar èké."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "VWAP",
+        "definition": "Volume-weighted average price — àpapọ̀ session (tàbí anchored) tí ọjà san."
+      },
+      {
+        "term": "Volume profile",
+        "definition": "Volume tí a ta ní iye kọ̀ọ̀kan nínú window tí a yàn."
+      },
+      {
+        "term": "POC",
+        "definition": "Point of control — iye tí ó ní volume tó ga jù nínú profile."
+      },
+      {
+        "term": "HVN / LVN",
+        "definition": "High- / low-volume nodes — àgbègbè iye tí a gba vs èyí tó tẹ́ẹ́."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Break lókè VWAP pẹ̀lú volume",
+        "setup": [
+          "Intraday: iye reclaim kí ó sì dúró lókè session VWAP",
+          "Volume fẹ̀ sí i sórí reclaim candle ní àfiwéra sí wákàtí tó kọjá",
+          "Structure HTF ṣì jẹ́ bullish"
+        ],
+        "steps": [
+          "Àyíká sọ pé àwọn olùrà san owó lókè àpapọ̀ session pẹ̀lú ìkópa.",
+          "Invalidation: pàdánù VWAP àti reclaim swing — kì í ṣe tick aláìlóríkan ní ìsàlẹ̀ HVN.",
+          "Tí ìṣípayá náà jẹ́ wick tí ó dakẹ́ láìsí volume, ka á sí èyí tó kéré — bóyá grab, kì í ṣe acceptance."
+        ],
+        "takeaway": "VWAP + volume dáhùn 'Ǹjẹ́ wọ́n gba á?' Structure dáhùn 'Níbo ni mo ṣì?'"
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Aṣojú NovaForecast",
+        "href": "/?tab=nova-forecast"
+      },
+      {
+        "label": "Ìtúpalẹ̀ Chart",
+        "href": "/?tab=ai-analysis&agent=chart"
+      }
+    ],
+    "mistakes": [
+      "Fífi VWAP ṣe bọ́tìnì bounce tó dájú.",
+      "Gbígba 'volume' tiny-cap gbọ́ láì ronú nípa wash trading.",
+      "Pípàṣẹ́ pé àwọn FX/CFD feeds kan ní volume bars tí kò ṣe é gbẹ́kẹ̀lé."
+    ]
+  },
+  {
+    "id": "meme-coins",
+    "title": "Meme Coins",
+    "subtitle": "Kí ni wọ́n jẹ́, kí nìdí tí wọ́n ṣe ń yípadà, àti bí àṣà ṣe di iṣẹ́ iye.",
+    "sections": [
+      {
+        "heading": "Ìtumọ̀",
+        "body": [
+          "Meme coin jẹ́ cryptocurrency tí ohun tó ń gbé iye rẹ̀ jùlọ jẹ́ àwùjọ, àṣà, ẹ̀rín, àti àkíyèsí — kì í ṣe owó-wọlé láti ọ̀dọ̀ ọjà. Ronú nípa Dogecoin, PEPE, tàbí ẹgbẹẹgbẹ̀rún tokens tuntun tí a bí lórí Solana àti BSC.",
+          "Èyí kò túmọ̀ sí pé meme coin gbogbo jẹ́ ẹ̀rín fún àwọn traders. Liquidity, àwọn holders, agbára narrative, àti listings exchange ṣì ṣe pàtàkì. Ó túmọ̀ sí pé fundamentals dàbí òmíràn: social velocity sábà máa ṣáájú iye ju àwọn àpẹẹrẹ owó-wọlé lọ."
+        ]
+      },
+      {
+        "heading": "Kí nìdí tí meme coins ṣe ń yípadà kánkán",
+        "body": [
+          "Supply sábà pọ̀, float sì lè kóra jọ nínú wallets ìbẹ̀rẹ̀. Àwọn olùtà ńlá díẹ̀ lè fọ́ iye; ìrà àjọṣe tàbí àkíyèsí influencer lè dá ìṣípayá parabolic sílẹ̀.",
+          "Ìròyìn ń tàn ká lórí X (Twitter), Telegram, Discord, àti TikTok ní ìṣẹ́jú. Àwọn irinṣẹ́ NovaStaris (Go Hunting, CT Scan, Wallet Tracker) wà nítorí pé àsìkò àti flow ṣe pàtàkì ju ìdíwọ̀n ìbílẹ̀ lọ níbí.",
+          "Ọ̀pọ̀ meme coins máa kuna tàbí súnmọ́ odò. Àwọn tó yè sábà ní àwùjọ tó dúró, liquidity tó gbẹ́kẹ̀lé, àti àwọn ìgbà narrative tó ń padà."
+        ]
+      },
+      {
+        "heading": "Òtítọ́ ewu",
+        "body": [
+          "Rugs, honeypots, liquidity èké, àti wash trading wọ́pọ̀. Máa ṣàyẹ̀wò ewu contract, ìkórajọ holders, àti bóyá o lè tà gangan.",
+          "Ka size sí owó eré tí o lè pàdánù 100% — má ṣe lo owó yíyá tàbí owó bíìlì fún iṣòwò meme."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Float",
+        "definition": "Tokens tí ó wà fún iṣòwò ọ̀fẹ́ (kì í ṣe locked/vested)."
+      },
+      {
+        "term": "Narrative",
+        "definition": "Ìtàn tó ń gbé àkíyèsí (animal meme, òṣèlú, AI mashup, àti bẹ́ẹ̀ lọ)."
+      },
+      {
+        "term": "Rug",
+        "definition": "Àwọn olùgbéjáde tàbí holders ńlá ta liquidity / kọ iṣẹ́ náà sílẹ̀."
+      }
+    ],
+    "workedExamples": [],
+    "relatedTools": [
+      {
+        "label": "Aṣojú AI NovaStaris",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Lọ Hunting",
+        "href": "/?tab=new"
+      }
+    ],
+    "mistakes": [
+      "Fífi size sí memes bíi blue-chip holds.",
+      "Rírà narrative láì ṣàyẹ̀wò liquidity àti holders.",
+      "Rírò pé ticker tó dùn jẹ́ due diligence."
+    ]
+  },
+  {
+    "id": "meme-trading",
+    "title": "Iṣòwò Meme Coin",
+    "subtitle": "Ìwọlé, ìjáde, fees, bribes/tips, sizing, àti ìlànà.",
+    "sections": [
+      {
+        "heading": "Iṣòwò vs holding",
+        "body": [
+          "Iṣòwò túmọ̀ sí ètò: àgbègbè ìjáde, invalidation (stop), target(s), àti time stop. Holding bag láìsí ètò jẹ́ speculation láìsí ìṣàkóso ewu.",
+          "Charts meme ń dún. Fẹ́ràn catalysts tó hàn gbangba (migration, rumor listing pẹ̀lú ìmúdájú, whale accumulation) ju candles alawọ̀ ewé aláìlóríkan lọ."
+        ]
+      },
+      {
+        "heading": "Transaction fees, tips, àti bribes",
+        "body": [
+          "Gbogbo rà/tà on-chain san network transaction fee (gas lórí EVM; fees SOL lórí Solana). Nígbà congestion, base fees ga, txs tó lọ́ra tàbí tí ó kuna sì di wọ́pọ̀.",
+          "Priority fees / tips: owó àfikún ìyàn láti jẹ́ kí transaction rẹ dé kánkán nígbà tí network bá nṣiṣẹ́ lágbára. Àwọn snipers àti bots sábà tip ga sí i láti díje fún fills ìbẹ̀rẹ̀.",
+          "Lórí Solana, àwọn traders sábà gbọ́ nípa Jito tips / 'bribes' — SOL àfikún tí a san kí block engines fi priority fún transaction rẹ nínú launches tó ní ìdíje. Sísan ju i kò dájú èrè; ó ń mú odds inclusion dára nìkan, ó sì lè pa size kékeré run tí a bá lo ju.",
+          "Iṣòwò DEX tún ní price impact àti slippage (fill rẹ burú ju mid tí a sọ lọ). Aggregators gbìyànjú láti route dáradára, ṣùgbọ́n pools meme tó tẹ́ẹ́ ṣì ń pa àwọn àṣẹ ńlá lára.",
+          "Listings meme CEX fi maker/taker fees kun dípò gas — ṣì yọ kúrò nínú edge. Máa ka gbogbo iye owó papọ̀: fee + tip + slippage + spread."
+        ]
+      },
+      {
+        "heading": "Ìlànà pàtàkì",
+        "body": [
+          "1) Screen: pairs tuntun, volume surge, rà smart-wallet, buzz CT.",
+          "2) Vet: liquidity, àyẹ̀wò tax/honeypot, top holders, ọjọ́ orí, òtítọ́ social.",
+          "3) Size: % kékeré ti portfolio; scale in nìkan tí thesis bá ń lágbára. Jẹ́ kí budget fee/tip bá size mu.",
+          "4) Manage: gba partial profits nígbà agbára; má ṣe gbé stop jìnnà sí ìjáde láti 'fún un ní ààyè' láìsí thesis tuntun.",
+          "5) Review: kọ́ journaling ohun tó ṣiṣẹ́ — àwọn feedback loops NovaStaris wà nítorí èyí."
+        ]
+      },
+      {
+        "heading": "Àṣìṣe tó wọ́pọ̀",
+        "body": [
+          "FOMO chasing lẹ́yìn tí 5–10x ti jáde.",
+          "Averaging down bags aláìlópin láìsí invalidation.",
+          "Pípàṣẹ́ exit liquidity — tí o kò bá lè tà size, o kò ní position gidi.",
+          "Sísan tips/bribes ju i lórí size kékeré tó fi jẹ́ pé fees ń ṣàkóso PnL.",
+          "Overtrading gbogbo ticker tuntun; edge wá láti inú yíyan."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Invalidation",
+        "definition": "Iye tàbí ipò tí ó jẹ́rìí pé èrò iṣòwò rẹ jẹ́ àṣìṣe — jáde."
+      },
+      {
+        "term": "Slippage",
+        "definition": "Ìyàtọ̀ láàrin fill tí a retí àti fill gidi nínú ọjà tó tẹ́ẹ́."
+      },
+      {
+        "term": "Priority fee / tip",
+        "definition": "Fee àfikún tí a san láti jẹ́ kí transaction dé kánkán nígbà congestion."
+      },
+      {
+        "term": "Bribe (Jito tip)",
+        "definition": "Tip ìdíje (sábà SOL) láti fi priority fún inclusion nínú launches tó gbóná."
+      },
+      {
+        "term": "Time stop",
+        "definition": "Jáde tí thesis kò bá ṣẹlẹ̀ láàrin àkókò tí a gbé kalẹ̀."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Budget tip vs size iṣòwò",
+        "setup": [
+          "Size rà tí a gbé kalẹ̀: $40 notional",
+          "O gbé Jito tip / priority fee sí ~$8 láti “borí” launch",
+          "Edge tí a retí tí ó bá tọ́: bóyá +30% lórí bag ṣáájú fees tà"
+        ],
+        "steps": [
+          "Gbogbo iye owó ní ìjáde ≈ tip + base fee + slippage. Tip $8 lórí $40 jẹ́ ~20% ti size ṣáájú kí iṣòwò tilẹ̀ ṣiṣẹ́.",
+          "Tí bag bá ṣe +30% lẹ́yìn náà o tà pẹ̀lú fees/slippage sí i, tip lè pa ọ̀pọ̀ èrè run — tàbí yí i padà sí àdánù.",
+          "Òfin: jẹ́ kí budget tip/fee jẹ́ % kékeré ti size (tàbí fo launch). Gbé size ga nìkan tí budget fee ṣì bá òfin ewu mu — má ṣe tip ju i nítorí FOMO."
+        ],
+        "takeaway": "Tips ra odds inclusion, kì í ṣe èrè. Lórí size kékeré, over-tipping jẹ́ gbogbo iṣòwò náà."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Aṣojú AI NovaStaris",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Lọ Hunting",
+        "href": "/?tab=new"
+      }
+    ],
+    "mistakes": [
+      "Sísan tips/bribes ju i lórí size kékeré tó fi jẹ́ pé fees ń ṣàkóso PnL.",
+      "Averaging down láìsí invalidation.",
+      "FOMO chasing lẹ́yìn tí multi-x ti jáde."
+    ]
+  },
+  {
+    "id": "solana",
+    "title": "Solana",
+    "subtitle": "Chain tó ń gbé ọ̀pọ̀ launches meme òde òní.",
+    "sections": [
+      {
+        "heading": "Kí ni Solana jẹ́",
+        "body": [
+          "Solana jẹ́ blockchain Layer-1 tó ní throughput gíga, tí a ṣe fún transactions tó yára, fee kékeré. Ìyára yẹn ni ìdí tí launchpads meme àti snipers fi ń gbilẹ̀ níbí.",
+          "SOL ni token abẹ́nú tí a lo fún fees àti staking. Congestion àti fee spikes ṣì ń ṣẹlẹ̀ nígbà mania — ṣètò fún èyí."
+        ]
+      },
+      {
+        "heading": "Àwọn ẹyọ ecosystem tí traders bìkítà nípa",
+        "body": [
+          "Wallets (Phantom, Solflare, àti bẹ́ẹ̀ lọ), DEXs/aggregators (Jupiter), launchpads (Pump.fun àti àwọn tó tẹ̀lé), àti indexers/APIs tí irinṣẹ́ bíi NovaStaris ń lo.",
+          "Coins tí a migrate sábà ń kúrò nínú launches bonding-curve lọ sí liquidity DEX kíkún — ìṣẹ̀lẹ̀ ìgbésí ayé pàtàkì fún hunters."
+        ]
+      },
+      {
+        "heading": "Àwọn ìmọ̀ràn tó wúlò",
+        "body": [
+          "Ní hot wallet pàtó fún iṣòwò degen; má ṣe fi owó ìgbésí ayé pamọ́ sínú wallet iṣòwò.",
+          "Jẹ́rìí mint addresses. Àwọn oníjẹ̀jẹ̀ ń ṣe àfarawé tickers àti logos nígbà gbogbo.",
+          "Revoke token approvals tí o kò lo nígbà díẹ̀díẹ̀ tí o bá lo ọ̀pọ̀ dApps (pàtàpàtà nígbà bridging sí EVM)."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "L1",
+        "definition": "Blockchain ìpìlẹ̀ (Solana, Ethereum, BSC) tí ó ń settle transactions."
+      },
+      {
+        "term": "Mint",
+        "definition": "Àdírẹ́sì contract token tó jẹ́ ọ̀kan ṣoṣo lórí Solana."
+      },
+      {
+        "term": "Migration",
+        "definition": "Ìrìnàjá láti curve launchpad sí liquidity ọjà ṣíṣí."
+      }
+    ],
+    "workedExamples": [],
+    "relatedTools": [
+      {
+        "label": "Aṣojú AI NovaStaris",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Lọ Hunting",
+        "href": "/?tab=new"
+      }
+    ],
+    "mistakes": [
+      "Gbígbẹ́kẹ̀lé àfarawé ticker/logo láì jẹ́rìí mint.",
+      "Dídapọ̀ owó ìpamọ́ pẹ̀lú wallet sniper/iṣòwò.",
+      "Pípàṣẹ́ congestion àti iye tip nígbà mania."
+    ]
+  },
+  {
+    "id": "solana-memes",
+    "title": "Meme Coins Solana",
+    "subtitle": "Àṣà launch, bonding curves, àti bí Sol memes ṣe ń hùwà.",
+    "sections": [
+      {
+        "heading": "Kí nìdí tí Solana ṣe ń ṣàkóso launches meme",
+        "body": [
+          "Txs olówó pọ́ọ̀kú + finality tó yára = ẹgbẹẹgbẹ̀rún àdánwò lójúmọ́. Ọ̀pọ̀ kú; díẹ̀ mú iná narrative, wọ́n sì ń print multi-baggers.",
+          "Ìyára ń sanwọ́ fún scanners àti wallet trackers. Ènìyàn nìkan kò lè wo gbogbo mint."
+        ]
+      },
+      {
+        "heading": "Ìgbésí ayé (tí a rọrùn)",
+        "body": [
+          "Ṣẹ̀dá → bonding / discovery ìbẹ̀rẹ̀ → ìmútan social → liquidity jinlẹ̀ tàbí migrate → rumors listing / ọ̀rọ̀ CEX → distribution àti ìdinku — tàbí ẹsẹ̀ kejì tí àṣà bá dúró.",
+          "Bonding curve (lite): launchpads pre-migrate sábà gbé iye ga bí a ṣe ń ra supply sí i lórí curve — fills ìbẹ̀rẹ̀ pọ́ọ̀kú, ewu sì ga; nítòsí migrate, iye ga ju, LP sì sábà jinlẹ̀.",
+          "Ìbẹ̀rẹ̀ = upside tó ga jù àti ewu rug tó ga jù. Àárín = structure chart tó hàn ṣùgbọ́n ìjáde tó burú. Ìgbẹ̀yìn = sábà jẹ́ exit liquidity fún holders ìbẹ̀rẹ̀."
+        ]
+      },
+      {
+        "heading": "Edge lórí Sol memes",
+        "body": [
+          "Tẹ̀lé wallets didara, kì í ṣe shill gbogbo KOL.",
+          "Fẹ́ràn coins tí ó ní graph social organic ju bot comment spam lọ.",
+          "Lo àwọn ìwoye NovaStaris Go Hunting (pairs tuntun, final stretch, migrated) gẹ́gẹ́ bí máàpù — lẹ́yìn náà lo òfin ewu tirẹ̀."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Bonding curve",
+        "definition": "Ẹ̀rọ ìdíwọ̀n níbi tí iye ti ń ga bí a ṣe ń ra tokens sí i ṣáájú DEX."
+      },
+      {
+        "term": "KOL",
+        "definition": "Key opinion leader — influencer tí àwọn posts rẹ̀ lè gbé ọjà tó tẹ́ẹ́."
+      },
+      {
+        "term": "Bundle",
+        "definition": "Wallets àjọṣe tó ń ra ní launch láti ṣàkóso supply (sábà jẹ́ red flag)."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Ewu curve ìbẹ̀rẹ̀ vs lẹ́yìn migrate",
+        "setup": [
+          "Coin A: ṣì wà lórí bonding curve, social kékeré, o lè ra $25",
+          "Coin B: ṣẹ̀ṣẹ̀ migrate sí DEX pẹ̀lú LP tó jinlẹ̀; ìjáde jẹ́ ~3× iye curve ìbẹ̀rẹ̀",
+          "Hype narrative CT kannáà fún méjèèjì"
+        ],
+        "steps": [
+          "Coin A: upside tó ga jù tí àṣà bá mú — ewu rug / abandon tó ga jù pẹ̀lú; fi size ṣe lottery tickets nìkan.",
+          "Coin B: exit liquidity dára ju, chart sì hàn, ṣùgbọ́n holders ìbẹ̀rẹ̀ lè distribute sínú rà rẹ — béèrè invalidation, má ṣe FOMO size.",
+          "Yan ẹ̀yà ewu kan fún session kan. Dídapọ̀ size “ape early” lórí coin tí a ti migrate (tàbí size tó lè yí ayé padà lórí curve tuntun) ni ọ̀nà tí accounts fi ń kú."
+        ],
+        "takeaway": "Ìbẹ̀rẹ̀ = optionality + ewu rug. Migrated = liquidity + ewu distribution. Fi size bá ìpele mu."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Aṣojú AI NovaStaris",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Lọ Hunting",
+        "href": "/?tab=new"
+      }
+    ],
+    "mistakes": [
+      "Fífi gbogbo launch bonding-curve ṣe owó ọ̀fẹ́.",
+      "Pípàṣẹ́ bundles / wallets launch àjọṣe.",
+      "Wíwọlé sí distribution ìgbẹ̀yìn bíi ẹni tí ó wà ní discovery ìbẹ̀rẹ̀."
+    ]
+  },
+  {
+    "id": "bsc-memes",
+    "title": "Meme Coins BSC",
+    "subtitle": "Memes Binance Smart Chain — eré kannáà, rails mìíràn.",
+    "sections": [
+      {
+        "heading": "Kí ni BSC jẹ́",
+        "body": [
+          "BNB Smart Chain (BSC) jẹ́ chain tó bá EVM mu, fee kékeré, àti ọ̀pọ̀ àwọn olùmúlò retail, pàtàpàtà ní Asia àti àwọn ọjà tó ń yọjáde.",
+          "Tokens lo àdírẹ́sì contract 0x. Irinṣẹ́, explorers (BscScan), àti DEXs (PancakeSwap àti àwọn mìíràn) yàtọ̀ sí UX Solana."
+        ]
+      },
+      {
+        "heading": "Bí BSC memes ṣe yàtọ̀",
+        "body": [
+          "Sábà jẹ́ launches BEP-20 'classic' pẹ̀lú LP locks, taxes, àti àwùjọ tó dá lórí Telegram.",
+          "Honeypots àti sell taxes gíga ti wọ́pọ̀ nínú ìtàn — máa simulate tà ṣáájú kí o gbé size ga.",
+          "Gas (tí a san ní BNB) sábà pọ́ọ̀kú ju Ethereum lọ, ṣùgbọ́n txs tí ó kuna àti approval phishing ṣì ń ná owó àti ààbò."
+        ]
+      },
+      {
+        "heading": "Àkọsílẹ̀ iṣòwò",
+        "body": [
+          "Tab BSC NovaStaris ń ṣe àfarawé àwọn ìlànà hunting Sol — lo ìjápọ̀ chain-specific (Dexscreener BSC), má sì ṣe dàpọ̀ àdírẹ́sì across chains.",
+          "Ṣọ́ra fún transfer/sell taxes tí a fi sínú contracts kan — wọ́n ń ṣiṣẹ́ bí fee lórí gbogbo iṣòwò."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "BEP-20",
+        "definition": "Token standard lórí BSC (ipò tó jọ ERC-20 lórí Ethereum)."
+      },
+      {
+        "term": "Honeypot",
+        "definition": "Contract tí o lè rà ṣùgbọ́n tí o kò lè tà (tàbí tà nìkan pẹ̀lú tax tó burú jù)."
+      },
+      {
+        "term": "LP lock",
+        "definition": "Liquidity tí a ti lock fún àkókò kan kí àwọn devs má ba lè yọ ọ́ lẹ́sẹ̀kẹsẹ̀."
+      },
+      {
+        "term": "Token tax",
+        "definition": "% tí contract fi mú lórí buys/sells/transfers."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Test-sell honeypot ṣáájú sizing",
+        "setup": [
+          "Meme BEP-20 dàbí ẹni tí ó ní liquidity lórí chart; Telegram ń pariwo",
+          "O lè ra $15 lórí PancakeSwap láìsí àṣìṣe",
+          "O kò ì tíì gbìyànjú tà"
+        ],
+        "steps": [
+          "Ra dust size kọ́kọ́. Lẹ́sẹ̀kẹsẹ̀ gbìyànjú tà kékeré (tàbí lo honeypot checker tó gbẹ́kẹ̀lé) ṣáájú kí o fi size kun.",
+          "Tí tà bá kuna, revert, tàbí fi tax tó burú hàn — ka á sí honeypot / trap; má ṣe average in.",
+          "Nígbà tí tà gidi bá ṣiṣẹ́ pẹ̀lú tax tó tọ́: lẹ́yìn náà lo size ewu deede, àyẹ̀wò LP/holders, àti invalidation."
+        ],
+        "takeaway": "Rà tó ṣiṣẹ́ kò jẹ́rìí ohunkóhun. Lórí BSC, test sell jẹ́ apá due diligence."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Aṣojú AI NovaStaris",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Tab BSC",
+        "href": "/?tab=bsc"
+      }
+    ],
+    "mistakes": [
+      "Fífo àyẹ̀wò honeypot/tax lórí contracts BEP-20.",
+      "Rírò pé LP ti lock nítorí site kan sọ bẹ́ẹ̀.",
+      "Dídàáṣẹ CA láti social láì jẹ́rìí lórí BscScan."
+    ]
+  },
+  {
+    "id": "ethereum-l2s",
+    "title": "Ethereum àti Layer 2s",
+    "subtitle": "Rails ETH lẹ́yìn Solana àti BSC — gas, L2s, bridges, àti ààyè jìbìtì.",
+    "sections": [
+      {
+        "heading": "Kí nìdí tí Ethereum ṣì ṣe pàtàkì fún traders",
+        "body": [
+          "Ethereum ní DeFi tó jinlẹ̀, stables ńlá, ìtàn NFT blue-chip, àti ọ̀pọ̀ tokens tó gbẹ́kẹ̀lé — bó tilẹ̀ jẹ́ pé memes sábà ń launch lórí Solana/BSC nítorí ìyára àti fees.",
+          "Gas ETH (transaction fees) ń ga pẹ̀lú ìbéèrè. Ní mania, tx tó kuna tàbí tó kún lè ná owó gidi — ṣọ́ra pẹ̀lú dust checks."
+        ]
+      },
+      {
+        "heading": "Layer 2s (L2s)",
+        "body": [
+          "L2s (àpẹẹrẹ Arbitrum, Optimism, Base, àti àwọn mìíràn) ń settle pọ́ọ̀kú/yára nígbà tí wọ́n ń so ààbò mọ́ Ethereum nígbà díẹ̀díẹ̀.",
+          "Ticker token kannáà lè wà lórí ọ̀pọ̀ networks pẹ̀lú àdírẹ́sì contract yàtọ̀ — máa jẹ́rìí chain + CA.",
+          "Bridging ń gbé iye láàrin L1 àti L2 (tàbí across L2s). Bridges fi ewu smart-contract àti ìdádúró kun; bridges àṣẹ àti aggregators tó gbẹ́kẹ̀lé ju DMs 'support' aláìlóríkan lọ."
+        ]
+      },
+      {
+        "heading": "Ìyàtọ̀ iṣòwò & ewu vs memes Solana/BSC",
+        "body": [
+          "Memes ETH/L2 àti microcaps ṣì ń rug — honeypots, taxes, àti approval scams wà. Unlimited ERC-20 approvals ṣì jẹ́ ọ̀nà drain classic.",
+          "Liquidity lè jókòó lórí Uniswap (àti forks) pẹ̀lú fee tiers yàtọ̀ — ṣàyẹ̀wò ìjinlẹ̀ pool àti chain tí o wà ṣáájú sizing.",
+          "Fún ETH majors tó ṣe pàtàkì, structure àti macro sábà ṣe pàtàkì ju ogun tip lọ — ṣùgbọ́n ìmọ́tótó ààbò ṣì ju chart skill lọ tí o bá fọwọ́ sí permit ìkà."
+        ]
+      },
+      {
+        "heading": "Checklist tó wúlò",
+        "body": [
+          "Jẹ́rìí network nínú wallet ṣáájú gbogbo swap.",
+          "Jẹ́rìí contract lórí Etherscan / L2 explorer — kì í ṣe screenshot Telegram.",
+          "Revoke approvals àtijọ́ nígbà díẹ̀díẹ̀; pa wallet burn/iṣòwò mọ́ yàtọ̀ sí ìpamọ́."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "L1 / L2",
+        "definition": "Chain ìpìlẹ̀ (àpẹẹrẹ Ethereum) vs layer scaling tí ó ń post padà sí i."
+      },
+      {
+        "term": "Gas",
+        "definition": "Fee tí a san láti ṣe transaction Ethereum (tàbí EVM)."
+      },
+      {
+        "term": "Bridge",
+        "definition": "Ẹ̀rọ láti gbé assets across chains — fi ewu contract àti ìdádúró kun."
+      },
+      {
+        "term": "ERC-20 approval",
+        "definition": "Ìfàyègba fún contract láti gbé tokens rẹ — a lè lo ó níkà tí ó bá jẹ́ unlimited."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Ticker kannáà, chain tí kò tọ́",
+        "setup": [
+          "Twitter ń tì 'meme ETH tuntun' CA",
+          "Wallet rẹ ṣì wà lórí Base láti àná",
+          "O paste CA kí o sì swap"
+        ],
+        "steps": [
+          "Tí CA bá jẹ́ Ethereum mainnet nìkan, swap Base lè ra clone aláìlóríye tàbí kuna — ní ẹ̀yàkẹ́yà o fi owó sí ewu.",
+          "Ìtúnṣe: yí network pẹ̀lú èrò, ṣí explorer fún chain yẹn, jẹ́rìí contract tó verified àti liquidity pool.",
+          "Lẹ́yìn náà dust-size test; nígbà náà ni o tó lo size ewu."
+        ],
+        "takeaway": "Chain + CA jẹ́ apá instrument. Ọ̀rọ̀ ticker kì í ṣe."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Aṣojú AI NovaStaris",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Module wallets & ààbò",
+        "href": "/?tab=trading-university"
+      }
+    ],
+    "mistakes": [
+      "Ṣíṣe swap CA lórí network tí kò tọ́ nítorí ticker bá a mu.",
+      "Fífi unlimited approvals sílẹ̀ lórí routers aláìlóríkan títí láéláé.",
+      "Lílo bridges aláìlóríkan láti DMs dípò ọ̀nà tí a mọ̀."
+    ]
+  },
+  {
+    "id": "crypto-futures",
+    "title": "Crypto Futures & Perps",
+    "subtitle": "Perpetuals, leverage, margin, funding, liquidation, àti long vs short.",
+    "sections": [
+      {
+        "heading": "Spot vs futures",
+        "body": [
+          "Spot: o ní asset náà. Futures/perps: o ń ta contract tó ń tẹ̀lé iye, sábà pẹ̀lú leverage, láì ní coin.",
+          "Perpetual swaps ('perps') kò ní ọjọ́ ìparí. Funding rates ń san fún longs tàbí shorts nígbà díẹ̀díẹ̀ láti jẹ́ kí contract súnmọ́ spot.",
+          "Dated futures máa parí ní ọjọ́ tí a gbé kalẹ̀, wọ́n sì lè converge sí spot sí delivery/settlement — ọ̀pọ̀ iṣòwò crypto retail lónìí jẹ́ perps."
+        ]
+      },
+      {
+        "heading": "Long vs short",
+        "body": [
+          "Long: o ní èrè tí iye bá ga; o pàdánù tí ó bá dínkù. Short: o ní èrè tí iye bá dínkù; o pàdánù tí ó bá ga.",
+          "Perps mú shorting rọrùn bí longing — èyí tún túmọ̀ sí pé squeezes (short covering fípá) àti cascades (long liquidations fípá) wọ́pọ̀ nínú crypto.",
+          "Ìtọ́sọ́nà jẹ́ ìdajì ètò nìkan. Ìdajì kejì ni invalidation, size, àti bí o ṣe máa hold nípasẹ̀ funding payments."
+        ]
+      },
+      {
+        "heading": "Leverage & margin",
+        "body": [
+          "Leverage ń sọ exposure di ọ̀pọ̀lọpọ̀. 10x túmọ̀ sí pé ìyípadà ~10% tó ń tako lè pa position (ṣáájú fees) gẹ́gẹ́ bí margin mode.",
+          "Initial margin ni collateral láti ṣí. Maintenance margin ni ìdíwọ̀n kékeré láti pa position mọ́. Tí o bá ṣubú sí ìsàlẹ̀ rẹ̀ → liquidation.",
+          "Notional ≈ margin × leverage (ní àpẹẹrẹ). Ronú nípa ewu notional àti ìjìnnà stop ní dọ́là, kì í ṣe 'mo fi $50 sí i nìkan' nìkan."
+        ]
+      },
+      {
+        "heading": "Isolated vs cross margin",
+        "body": [
+          "Isolated margin: collateral tí a yàn fún position yẹn nìkan ló wà nínú ewu liquidation fún iṣòwò yẹn. Ó mọ́ dáradára fún akẹ́kọ̀ọ́.",
+          "Cross margin: ìwọ̀ntúnwọ̀nsì wallet àjọṣe ń ṣe àtìlẹ́yìn ọ̀pọ̀ positions. Capital efficiency ga ju, ṣùgbọ́n ìwé kan tó burú lè tàn sí àwọn ìyókù.",
+          "Òfin hobbyist: kọ́ lórí isolated. Yí sí cross nìkan nígbà tí o bá lè ṣàlàyé max loss across gbogbo account."
+        ]
+      },
+      {
+        "heading": "Funding rates",
+        "body": [
+          "Nígbà tí funding jẹ́ positive, longs sábà san fún shorts; nígbà tí ó jẹ́ negative, shorts sábà san fún longs. Payments settle lórí ìtòlẹ́sẹẹsẹ (àpẹẹrẹ gbogbo wákàtí 8 — ṣàyẹ̀wò venue rẹ).",
+          "Funding tó ga jù sábà túmọ̀ sí ẹ̀gbẹ́ tó kún. Èyí jẹ́ ìròyìn nípa positioning — kì í ṣe àmì reversal tó dájú.",
+          "Holding nípasẹ̀ ọ̀pọ̀ funding intervals lè pa edge run bó tilẹ̀ jẹ́ pé iye kò fẹ́rẹ̀ yípadà. Fi funding sínú holds tó gba ọ̀pọ̀ wákàtí àti ọ̀pọ̀ ọjọ́."
+        ]
+      },
+      {
+        "heading": "Liquidation & mark price",
+        "body": [
+          "Liquidation ni nígbà tí exchange fi tipá pa ẹ́ nígbà tí margin kò tó. Nínú rúúdùú, fills lè burú ju iye theory lọ.",
+          "Ọ̀pọ̀ venues lo mark price (iye index/fair) fún ìṣirò liquidation — kì í ṣe last traded print tí o rí lórí chart nígbà gbogbo.",
+          "Nova Scalp àti irinṣẹ́ Crypto Futures lórí NovaStaris retí pé o ti mọ̀ pé leverage jẹ́ ìsọdiọ̀pọ̀ ewu, kì í ṣe ọ̀nà kúkurú sí ìmọ̀.",
+          "Máa mọ̀ nígbà gbogbo: ìjáde, stop (invalidation), target, max $ àdánù lórí margin, àti àkókò hold tí a retí ṣáájú kí o tẹ buy/sell."
+        ]
+      },
+      {
+        "heading": "Dated futures vs perps (basis)",
+        "body": [
+          "Dated (calendar) futures parí ní ọjọ́ tó dúró, wọ́n sì settle sí iye ìtọ́kasí. Perps kò parí — funding ni ó ń jẹ́ kí wọ́n súnmọ́ spot.",
+          "Basis ≈ iye futures − spot (tàbí ìtọ́kasí òdì gẹ́gẹ́ bí venue). Contango: futures lókè spot (wọ́pọ̀ nínú ọjà tó balẹ̀). Backwardation: futures ní ìsàlẹ̀ spot (sábà stress / ìbéèrè short).",
+          "Àwọn traders nígbà míì ń fi basis ṣàfihàn èrò (ọ̀nà cash-and-carry) — èyí jẹ́ ìmọ̀ mìíràn ju directional perp scalps lọ. Mọ instrument tí o ní ṣáájú sizing.",
+          "Lórí NovaStaris, ọ̀pọ̀ irinṣẹ́ crypto futures dá lórí USDT perps (Blofin). Tí o bá ta dated contracts níbi mìíràn, ṣàkóso expiry, roll, àti margin lọ́tọ̀."
+        ]
+      },
+      {
+        "heading": "Open interest & iṣòwò tó kún",
+        "body": [
+          "Open interest (OI) ni size contract tó ṣì ṣí. OI tó ń ga pẹ̀lú trend sábà túmọ̀ sí ìkópa tuntun; OI tó ń dínkù sínú spike lè túmọ̀ sí covering/closing.",
+          "Longs tó kún + funding positive gíga + liquidity tó tẹ́ẹ́ jẹ́ ìlànà classic fún long liquidations lórí dump tó le — àti àwòrán ìdúróṣinṣin fún shorts.",
+          "Lo OI àti funding gẹ́gẹ́ bí àyíká lẹ́gbẹ̀ẹ́ structure — kì í ṣe ìjáde ìdáṣe nìkan."
+        ]
+      },
+      {
+        "heading": "Àwọn oríṣi àṣẹ (àwọn pàtàkì)",
+        "body": [
+          "Market: fill lẹ́sẹ̀kẹsẹ̀, slippage ju. Limit: iye rẹ tàbí èyí tó dára ju. Stop / stop-limit: ó ṣiṣẹ́ nígbà tí iye bá dé ìpele — a lo ó fún ààbò tàbí ìjáde breakout.",
+          "Àwọn àsíá reduce-only àti post-only ń ṣèrànwọ́ láti yẹra fún flips àìrotẹ́lẹ̀ tàbí taker fees nígbà tí o fẹ́ jáde tàbí ṣe liquidity nìkan.",
+          "Gbé SL/TP kalẹ̀ lẹ́yìn fill. Dídúró 'títí kí ó balẹ̀' ni ọ̀nà tí leveraged positions òníhóòhó fi di liquidations."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Perp",
+        "definition": "Contract futures perpetual tí kò ní ọjọ́ ìparí."
+      },
+      {
+        "term": "Funding",
+        "definition": "Ìsanwó ìgbàdíẹ̀ láàrin longs àti shorts láti so iye perp mọ́ spot."
+      },
+      {
+        "term": "Liquidation",
+        "definition": "Ìpamọ́ fípá nígbà tí margin ṣubú sí ìsàlẹ̀ àìní maintenance."
+      },
+      {
+        "term": "Notional",
+        "definition": "Iye position papọ̀ (margin × leverage, ní àpẹẹrẹ)."
+      },
+      {
+        "term": "Isolated margin",
+        "definition": "Ewu collateral tí ó ní ìdíwọ̀n sí margin tí a yàn fún position yẹn."
+      },
+      {
+        "term": "Cross margin",
+        "definition": "Ìwọ̀ntúnwọ̀nsì àjọṣe ń ṣe àtìlẹ́yìn ọ̀pọ̀ positions — ewu contagion."
+      },
+      {
+        "term": "Mark price",
+        "definition": "Iye fair/index tí ọ̀pọ̀ venues lo fún PnL àti ìṣirò liquidation."
+      },
+      {
+        "term": "Open interest",
+        "definition": "Gbogbo contracts futures/perp tó ṣì ṣí."
+      },
+      {
+        "term": "Basis",
+        "definition": "Ààyè láàrin iye futures/dated àti spot — contango tàbí backwardation."
+      },
+      {
+        "term": "Dated futures",
+        "definition": "Futures tí ó ní ọjọ́ ìparí / settlement tó dúró (vs perpetual)."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Long 10× — kí ni ó fi $100 sí ewu gangan",
+        "setup": [
+          "Isolated margin: $100",
+          "Leverage: 10× → ~$1,000 notional",
+          "Ìjáde $50,000 BTC; àgbègbè wipe ní nítòsí ìyípadà ~10% tó ń tako (ṣáájú fees)"
+        ],
+        "steps": [
+          "O kò 'fi $100 ìgbàgbọ́ nìkan sí ewu' ní ọ̀nà spot — $100 ni collateral; exchange lè liquidate gbogbo ọ̀nà notional nígbà tí margin kuna.",
+          "Tí invalidation rẹ bá jẹ́ 2% jìnnà, ṣe size kí stop níbẹ̀ pàdánù ~$ ewu tí o pinnu — má ṣe dúró kí liquidation jẹ́ stop.",
+          "Fẹ́ràn isolated + SL líle fún ẹ̀kọ́. Cross + leverage gíga yí coin kan tó burú padà sí ìṣẹ̀lẹ̀ account."
+        ],
+        "takeaway": "Liquidation jẹ́ ìṣẹ̀lẹ̀ àìṣeéṣe, kì í ṣe ìlànà. Stop rẹ gbọ́dọ̀ kọ́kọ́ dé."
+      },
+      {
+        "title": "Funding ń jẹ iṣòwò tó dúró sílẹ̀",
+        "setup": [
+          "Long perp, funding +0.05% fún interval 8h kọ̀ọ̀kan (àpẹẹrẹ)",
+          "O hold ~24h (intervals 3) àti iye dúró sílẹ̀",
+          "Notional $2,000"
+        ],
+        "steps": [
+          "Funding tí a san ≈ 0.05% × 3 × $2,000 ≈ $3 — kékeré níbí, ṣùgbọ́n ó ń ga pẹ̀lú size àti rates tó ga.",
+          "Tí funding bá jẹ́ +0.2% fún interval kọ̀ọ̀kan nínú mania, hold kannáà lè ná ọ̀pọ̀ dọ́là láìsí edge iye.",
+          "Ṣáájú holds multi-interval: ṣàyẹ̀wò funding, ìgbà thesis rẹ, àti bóyá dúró sílẹ̀ pọ́ọ̀kú ju."
+        ],
+        "takeaway": "Iye tó dúró + funding olówó = ẹ̀jẹ̀ tó lọ́ra. Àkókò nínú perp jẹ́ iye owó."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Crypto Futures",
+        "href": "/?tab=futures"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      },
+      {
+        "label": "Perp Radar",
+        "href": "/?tab=perp-radar"
+      }
+    ],
+    "mistakes": [
+      "Lílo max leverage nítorí 'ó jẹ́ ìyípadà kékeré nìkan.'",
+      "Pípàṣẹ́ funding àti ìjìnnà liquidation.",
+      "Cross-margining ohun gbogbo láì mọ̀ ewu contagion."
+    ]
+  },
+  {
+    "id": "predictions",
+    "title": "Àwọn Ọjà Àsọtẹ́lẹ̀",
+    "subtitle": "Ìṣòwò ìṣeéṣe lórí àwọn ìṣẹ̀lẹ̀ ayé gidi.",
+    "sections": [
+      {
+        "heading": "Kí ni wọ́n jẹ́",
+        "body": [
+          "Àwọn ọjà àsọtẹ́lẹ̀ jẹ́ kí o ra/tà àwọn share tí wọ́n máa san owó padà bóyá ìṣẹ̀lẹ̀ kan ṣẹlẹ̀ (ìdìbò, ìpinnu Fed, eré ìdárayá, àwọn ààmì crypto).",
+          "Àwọn platform bíi Polymarket máa ń fi owo sílẹ̀ tí ó dàbí ìṣeéṣe (bí àpẹẹrẹ 0.42 ≈ ìṣeéṣe 42%), ṣáájú fees àti àwọn òfin resolution."
+        ]
+      },
+      {
+        "heading": "Bí àwọn trader ṣe ń rò",
+        "body": [
+          "Edge = ìṣiro ìṣeéṣe rẹ níṣàlò sí owo ọjà, lẹ́yìn fees àti ewu resolution.",
+          "Liquidity, àkókò sí resolution, àti ìróyìn ìjàndù ṣe pàtàkì. Ẹ̀gbẹ́ tó ‘pọ̀’ lè máa pọ̀ síi bí ìròyìn bá ti wà nínú owo náà.",
+          "Àwọn irinṣẹ́ Nova Polymarket lórí NovaStaris ń ràn ọ́ lọ́wọ́ láti tẹ̀lé flow àti elites — ṣùgbọ́n ṣe ìwádìí ìṣẹ̀lẹ̀ tìrẹ."
+        ]
+      },
+      {
+        "heading": "Àwọn ewu pàtàkì sí àsọtẹ́lẹ̀",
+        "body": [
+          "Àwọn òfin resolution tí kò ṣe kedere, ìgbéjàde tí ó pẹ́ tàbí tí wọ́n ń jiyan lórí rẹ̀, àti books tó ṣúkù nítòsí expiry.",
+          "Correlation: ọ̀pọ̀ ọjà máa ń yí papọ̀ lórí ìróyìn macro kan náà."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Implied probability",
+        "definition": "Owo ọjà tí a túmọ̀ sí ìṣeéṣe pé ìṣẹ̀lẹ̀ náà yóò resolve sí Yes."
+      },
+      {
+        "term": "Resolution",
+        "definition": "Ìpinnu òṣèlú/òfin tí ó pinnu àbájáde tí ó sì settle ọjà náà."
+      },
+      {
+        "term": "Binary market",
+        "definition": "Ẹ̀rọ Yes/No fún payoff (ọ̀nà tí ó wọ́pọ̀ jùlọ)."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Implied prob níṣàlò sí ìṣiro rẹ",
+        "setup": [
+          "Ọjà: “Ìṣẹ̀lẹ̀ X nígbà ọjọ́ Y” ń ta Yes ní $0.28 (≈28% implied)",
+          "Lẹ́yìn ìwádìí, ìṣiro òtítọ́ rẹ jẹ́ ~45%",
+          "Fees + ambiguity resolution ṣì wà"
+        ],
+        "steps": [
+          "Edge candidate ≈ 45% tìrẹ níṣàlò sí 28% ọjà — ṣùgbọ́n bí ìwádìí rẹ bá jẹ́ òmìnira àti pé òfin resolution bá ohun tí o rò pé “Yes” túmọ̀ sí.",
+          "Ṣe size láti ewu pé o lè ṣì (ìpadànú gbogbo stake lórí Yes bí ó bá resolve sí No), kì í ṣe bí CT ṣe ń pariwo.",
+          "Bí o kò bá lè ṣàlàyé ìdí tí ọjà fi “ṣì,” kò sí trade — cheap kì í ṣe kan náà pẹ̀lú mispriced."
+        ],
+        "takeaway": "Owo ≈ implied probability. Ṣòwò gap nìkan lẹ́yìn fees, òfin, àti ìṣiro tìrẹ — kì í ṣe vibes."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Nova Polymarket",
+        "href": "/?tab=polymarket-bot"
+      }
+    ],
+    "mistakes": [
+      "Ríra Yes nítorí ìtàn náà dùn, kì í ṣe nítorí owo ti ṣì.",
+      "Fífi òfin resolution àti ewu ìjiyàn sílẹ̀.",
+      "Ṣíṣe size sínú books tó ṣúkù nítòsí expiry."
+    ]
+  },
+  {
+    "id": "forex",
+    "title": "Ìṣòwò Forex",
+    "subtitle": "Àwọn pair FX, pips, leverage, sessions, orders, àti swaps.",
+    "sections": [
+      {
+        "heading": "Kí ni forex jẹ́",
+        "body": [
+          "Foreign exchange (forex/FX) ni ìṣòwò owó kan sí òmíràn (bíi EUR/USD). Ó jẹ́ ọjà owó tó tóbi jùlọ lágbàáyé, ó ṣí sílẹ̀ fún 24h ní ọjọ́ iṣẹ́ kọjá àwọn session.",
+          "O ń sọtẹ́lẹ̀ bóyá base currency yóò le síi tàbí rẹ̀ sílẹ̀ níṣàlò sí quote currency — long tàbí short pair náà."
+        ]
+      },
+      {
+        "heading": "Majors, minors, àti exotics",
+        "body": [
+          "Majors: àwọn pair pẹ̀lú USD àti owó míìrán tó liquid (EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, USDCAD, NZDUSD) — spreads wọn sábàá ń wà ní kedere jùlọ.",
+          "Minors (crosses): àwọn pair tó liquid láìsí USD (bíi EURGBP, EURJPY). Exotics: major kan pẹ̀lú owó emerging-market — spreads tó fẹ́ẹ̀ẹ́ àti gaps tó le.",
+          "Yan liquidity tó bá size rẹ mu. Àwọn pair tó ṣúkù ń jẹ market orders níyà."
+        ]
+      },
+      {
+        "heading": "Pips, lots, àti quotes",
+        "body": [
+          "Pip jẹ́ ìyípadà owo tó kéré jùlọ tí a máa ń lo fún ọ̀pọ̀ pair (0.0001 fún EURUSD; 0.01 fún ọ̀pọ̀ pair JPY). Pipettes jẹ́ pips díẹ̀díẹ̀.",
+          "Lot size ń gbé ewu ga: standard lot sábàá jẹ́ 100,000 units ti base currency; mini (0.1) àti micro (0.01) lots kéré. Máa yí ewu padà sí $ ṣáájú kí o wọlé.",
+          "Bid ni ibi tí o lè tà; ask ni ibi tí o lè ra. Spread = ask − bid (iye tí o ń san láti lọ àti padà ní market)."
+        ]
+      },
+      {
+        "heading": "Orders & ìṣàkóso trade",
+        "body": [
+          "Market order: fill nísinsinyí ní owo tó wà. Limit: fill nìkan ní owo rẹ tàbí dáradára jù. Stop order: ó ń trigger nígbà tí owo bá dé level (breakout entry tàbí stop-loss).",
+          "Stop-loss ń ṣàlàyé invalidation ní owo. Take-profit ń dímú target. Trailing stops ń tẹ̀lé owo ṣùgbọ́n wọ́n lè whip nínú chop.",
+          "Ka candle/timeframe tí o ń ṣàkóso — stop scalp 5m kì í ṣe kan náà pẹ̀lú stop swing ojoojúmọ́."
+        ]
+      },
+      {
+        "heading": "Leverage, margin, àti swaps",
+        "body": [
+          "Àwọn broker àti platform CFD/fx ń funni ní leverage. Leverage tó ga ń dín ìjìnnà sí margin call / ìpadé fífúni kù.",
+          "Position sizing nípasẹ̀ % ewu fún trade kan ṣẹ́gun ‘max leverage’ ego trading. Nova Forex Agent nígbàgbọ́ pé invalidation tó ní ìṣàkóso, kì í ṣe gambling.",
+          "Swap / rollover: owó financing overnight tí a san tàbí gbà fún mímú position kọjá àsìkò rollover broker. Fi sí àkọsílẹ̀ fún àwọn hold ọjọ́ púpọ̀."
+        ]
+      },
+      {
+        "heading": "Sessions & catalysts",
+        "body": [
+          "Àwọn session Tokyo, London, àti New York ń gbé volume. Overlap London–New York sábàá ní liquidity tó dára jùlọ fún majors.",
+          "Àwọn ìpinnu central bank, CPI, NFP, àti geopolitics ń dá spikes — fa stops gbooro tàbí dúró lẹ́gbẹ̀ẹ́ bí o kò bá ní ètò ìṣẹ̀lẹ̀.",
+          "Lo calendar ọ̀rọ̀-ajé. Ìṣòwò afọ́jú sínú ìróyìn impact tó ga ni bí account ṣe ń kú."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Pip",
+        "definition": "Ẹyọ ìṣiro ìyípadà owo FX fún pair kan."
+      },
+      {
+        "term": "Spread",
+        "definition": "Ìyàtọ̀ láàárín owo bid àti ask."
+      },
+      {
+        "term": "Base / quote",
+        "definition": "Nínú EUR/USD, EUR ni base, USD ni quote — owo = USD fún 1 EUR."
+      },
+      {
+        "term": "Major / exotic",
+        "definition": "Àwọn pair USD tó liquid jùlọ níṣàlò sí àwọn cross emerging-market tó ṣúkù."
+      },
+      {
+        "term": "Swap / rollover",
+        "definition": "Owó financing overnight tí a san tàbí gbà fún mímú position."
+      },
+      {
+        "term": "Session",
+        "definition": "Àkókò ìṣòwò agbègbè (Tokyo, London, New York) tí ó nípa lórí volume."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "EUR/USD long — pips sí dollars",
+        "setup": [
+          "Pair: EUR/USD ní 1.0850",
+          "Budget ewu account: $20 lórí èrò yìí",
+          "Invalidation: 20 pips lábẹ́ entry (1.0830)",
+          "Session: overlap London–New York; kò sí release impact tó ga nínú wákàtí tó ń bọ̀"
+        ],
+        "steps": [
+          "Lórí EUR/USD, ~$1 fún pip kọ̀ọ̀kan fún 0.10 (mini) lot jẹ́ òfin àkànṣe tó wọ́pọ̀.",
+          "Stop 20-pip × $1/pip ≈ $20 → size ≈ 0.10 lot bá budget $20 mu (ṣáájú spread).",
+          "Spread ṣe pàtàkì: bí bid/ask bá jẹ iye ~0.8 pip round-trip, ewu rẹ díẹ̀ burú — dín size kù tàbí gba ewu $ tó fẹ́ẹ̀ẹ́.",
+          "Bí NFP bá ń bọ̀ ní ìṣẹ́jú 10 àti pé o kò ní ètò ìṣẹ̀lẹ̀: dúró lẹ́gbẹ̀ẹ́. Liquidity session kì í pa ewu calendar run."
+        ],
+        "takeaway": "Ìjìnnà pip × iye pip = ewu $. Yan lot size níkẹyìn — lẹ́yìn stop àti budget."
+      },
+      {
+        "title": "Ìdí tí àwòrán session fi ṣe pàtàkì",
+        "setup": [
+          "Èrò EUR/USD kan náà, ìjìnnà stop kan náà",
+          "Scenario A: oúnjẹ ọ̀sán Tokyo, book tó ṣúkù",
+          "Scenario B: overlap London–NY"
+        ],
+        "steps": [
+          "Nínú àkókò tó ṣúkù, spreads ń fẹ́ẹ̀ẹ́ àti spikes lè tẹ stops tí kò ní print nínú overlap.",
+          "Overlap sábàá túmọ̀ sí spreads tó kedere àti follow-through tó mọ́ fún majors — ṣì kì í ṣe signal nìkan.",
+          "Fi strategy bá liquidity mu: àwọn entry scalp-style fẹ́ overlap; swing holds tó ní sùúrù ń bìkítà ju nípa thesis ojoojúmọ́ ju wákàtí pàtó lọ."
+        ],
+        "takeaway": "Ṣòwò pair àti aago. Liquidity jẹ́ apá kan ti setup."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Nova Forex Agent",
+        "href": "/?tab=nova-forex"
+      }
+    ],
+    "mistakes": [
+      "Ṣíṣòwò exotics pẹ̀lú size tí a ṣe fún majors.",
+      "Ìṣòwò afọ́jú sínú NFP/CPI pẹ̀lú stop scalp.",
+      "Gbàgbé iye swap lórí hold ọjọ́ púpọ̀."
+    ]
+  },
+  {
+    "id": "trading-metals",
+    "title": "Ìṣòwò Wúrà & Fàdákà (XAU / XAG)",
+    "subtitle": "Forex XAU/USD níṣàlò sí perps XAU/USDT, òfin pip wúrà, sessions, àti sizing.",
+    "sections": [
+      {
+        "heading": "Ìdí tí metals ṣe pàtàkì lórí NovaStaris",
+        "body": [
+          "Wúrà (XAU) àti fàdákà (XAG) jẹ́ lára àwọn irinṣẹ́ ọjà àtọwọ́dọ́wọ́ tí a ń tà jùlọ. Nova Forex Agent àti Nova Scalp ń ṣe àtìlẹ́yìn metals kí o lè ṣàtúpalẹ̀ structure àti gba plans láì kúrò nínú product.",
+          "Má ṣe mú wúrà bí EUR/USD. Liquidity, ìṣe quote, àti ẹyọ ewu yàtọ̀ — àti product tí o ń tà (FX CFD vs crypto perp) ń yí ohun tí ‘ìyípadà’ náà ń san padà."
+        ]
+      },
+      {
+        "heading": "Ọ̀nà méjì tó wọ́pọ̀: XAU/USD vs XAU/USDT",
+        "body": [
+          "XAU/USD (forex / CFD style): wúrà ní owo dollars US lórí venue FX tàbí CFD. O ń tà lots tàbí contract units lábẹ́ òfin FX broker — spreads, swaps/rollover bí a bá mú overnight, àti èdè ẹ̀kọ́ pip-based.",
+          "XAU/USDT (crypto perpetual): contract perpetual futures tí USDT settle tí ó ń tẹ̀lé wúrà. Àwọn èrò leverage / margin / funding / liquidation kan náà bí àwọn crypto perps mìíràn (wo Crypto Futures & Perps) — mark vs last, funding nígbà kọ̀ọ̀kan, isolated tàbí cross margin.",
+          "Metal kan náà, plumbing yàtọ̀. Plan Nova Scalp lórí Blofin XAUUSDT ń lo tickSize àti USDT PnL. Chart forex-desk XAUUSD lè sọ̀rọ̀ ní pips àti lot sizes. Máa size láti ewu $ lórí venue tí o kàn click gangan."
+        ]
+      },
+      {
+        "heading": "Pips lórí wúrà kì í ṣe pips EUR/USD",
+        "body": [
+          "Lórí EUR/USD, àwọn trader sábàá mú 1 pip bí 0.0001 nínú owo (decimal kẹrin).",
+          "Lórí XAU/USD, ọ̀pọ̀ desks ń mú 1 pip bí 0.01 (cent kan) — nítorí náà print láti 4050.00 sí 4050.01 sábàá jẹ́ 1 pip, àti ìyípadà $1 jẹ́ ~100 pips. Àwọn broker lè yàtọ̀; jẹ́rìí pip àti pip-value lórí platform rẹ.",
+          "Àwọn crypto XAU/USDT perps sábàá kì í lo ‘pips’ rárá. Ewu jẹ́ ìjìnnà mark-price ní $ × contract size × leverage — àwòrán ọpọlọ kan náà bí BTCUSDT, kì í ṣe calculator pip FX 4-decimal.",
+          "Ìmọ̀ràn: nígbà tí chat bá sọ ‘wúrà yí 50 pips,’ béèrè quote wo. Lórí gold 0.01-pip, 50 pips ≈ $0.50. Bí wọ́n bá túmọ̀ sí ìyípadà $50, ìjíròrò yàtọ̀ pátápátá."
+        ]
+      },
+      {
+        "heading": "Sessions, USD, àti fàdákà",
+        "body": [
+          "Wúrà àti fàdákà sábàá ń jí pẹ̀lú London àti pàtàkì overlap London–New York — books tó ṣúkù ní ọ̀sán Asia ṣì ń whip stops.",
+          "Agbára USD sábàá ń tẹ wúrà (inverse correlation wọ́pọ̀, kì í ṣe òfin). Àwọn ìṣẹ̀lẹ̀ ewu (CPI, FOMC, geopolitics) lè jẹ́ olórí session.",
+          "XAG sábàá ń yí díẹ̀ ju XAU lọ fún notional style kan náà — size kéré títí o fi mọ noise fàdákà níṣàlò sí stop rẹ."
+        ]
+      },
+      {
+        "heading": "Ìlànà lórí NovaStaris",
+        "body": [
+          "Lo Nova Forex Agent fún metals watch, S/R NovaQ-style àti context session, àti Nova Scalp nígbà tí o bá fẹ́ plan short-horizon lórí Blofin metals rails.",
+          "Kọ invalidation ní owo ($), yí padà sí ewu $, lẹ́yìn náà yan size. Má ṣe da calculator lot EUR/USD sí wúrà kí o sì retí."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "XAU / XAG",
+        "definition": "Àwọn kóòdù ọjà fún wúrà àti fàdákà (precious metals)."
+      },
+      {
+        "term": "XAU/USD",
+        "definition": "Wúrà tí a quote sí USD lórí rails FX/CFD — sábàá a ń sọ̀rọ̀ ní lots àti pips."
+      },
+      {
+        "term": "XAU/USDT",
+        "definition": "Perpetual USDT tí ó so mọ́ wúrà — funding, margin, àti liquidation bí àwọn crypto perps mìíràn."
+      },
+      {
+        "term": "Gold pip (common)",
+        "definition": "Lórí ọ̀pọ̀ desks XAU/USD, 1 pip ≈ 0.01 nínú owo — kì í ṣe 0.0001 bí EUR/USD."
+      },
+      {
+        "term": "Tick size",
+        "definition": "Ìyípadà owo tó kéré jùlọ lórí quote perp/CFD (bíi Blofin XAUUSDT) — lo èyí fún entries/stops tó bá òfin exchange."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Ìyípadà wúrà $1 kan náà — ìtumọ̀ méjì",
+        "setup": [
+          "Spot / index gold ≈ $4,050",
+          "Owo gòkè ní $1.00 sí ≈ $4,051",
+          "Case A: FX desk tí ń sọ̀rọ̀ ní pips XAU/USD (0.01 = 1 pip)",
+          "Case B: Trader crypto XAU/USDT perp"
+        ],
+        "steps": [
+          "Èdè FX: $1.00 ≈ 100 pips bí 1 pip = 0.01. Pip value ṣì dá lórí lot/contract size — yí pips × pip value = $ PnL.",
+          "Èdè perp: má ṣe bìkítà nípa ‘pips.’ PnL rẹ ≈ ìyípadà owo × contract exposure (lẹ́yìn òfin leverage/margin). Long 50× ń pàdánù kíákíá bí wúrà bá já kọjá stop rẹ.",
+          "Má ṣe da stop 20-pip EUR/USD sí wúrà pẹ̀lú ìgbàgbọ́ pé ewu $ kan náà. Lórí wúrà, 20 pips FX-style lè jẹ́ $0.20 nìkan — noise, kì í ṣe stop scalp gidi."
+        ],
+        "takeaway": "Yí gbogbo èrò metal padà sí ewu $ lórí venue rẹ. Àwọn ààmì pip jẹ́ àṣàyàn; ewu dollar jẹ́ dandan."
+      },
+      {
+        "title": "Yíyan rail ṣáájú entry",
+        "setup": [
+          "Thesis: wúrà ń rọ̀ sínú NY; o fẹ́ fade short-horizon",
+          "Tó wà: irinṣẹ́ metals Nova Forex + scalp Blofin XAUUSDT"
+        ],
+        "steps": [
+          "Pinnu rail kọ́kọ́: FX/CFD XAUUSD (swap, lots, pip broker) vs XAUUSDT perp (funding, liq).",
+          "Fa S/R àti context session lórí chart rail yẹn — má ṣe da print forex pọ̀ mọ́ tick book perp.",
+          "Size láti ìjìnnà stop ní $ lórí rail yẹn, lẹ́yìn náà fi order sílẹ̀ níbi tí o ń tà gangan."
+        ],
+        "takeaway": "Thesis kan náà, contract yàtọ̀ → ìbú stop àti costs yàtọ̀. Fi irinṣẹ́ → ọjà → size bá ara wọn mu."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Nova Forex Agent",
+        "href": "/?tab=nova-forex"
+      },
+      {
+        "label": "Nova Scalp",
+        "href": "/?tab=nova-forecast&forecast=nova-scalp"
+      },
+      {
+        "label": "Crypto Futures",
+        "href": "/?tab=futures"
+      }
+    ],
+    "mistakes": [
+      "Mímú pips wúrà bí EUR/USD (0.0001) — ọ̀pọ̀ desks XAU/USD ń lo ~0.01.",
+      "Dídà charts forex XAU/USD pọ̀ mọ́ ewu perp XAU/USDT láì yí padà sí $.",
+      "Ṣíṣe stops pip FX-style lórí crypto metal perp (lo ticks àti ìjìnnà $)."
+    ]
+  },
+  {
+    "id": "options-volatility",
+    "title": "Options & Volatility Lite",
+    "subtitle": "Calls, puts, premium, àti ìdí tí leverage options fi yàtọ̀ sí perps.",
+    "sections": [
+      {
+        "heading": "Kí ni option jẹ́",
+        "body": [
+          "Call ń fúnni ní ẹ̀tọ́ (kì í ṣe ìdíwọ̀n) láti ra ní strike nígbà expiry. Put ń fúnni ní ẹ̀tọ́ láti tà ní strike nígbà expiry.",
+          "O ń san premium fún ẹ̀tọ́ yẹn. Ìpadànú tó tóbi jùlọ fún buyers sábàá jẹ́ premium tí wọ́n san (pẹ̀lú fees); sellers lè dojú kọ ewu tó tóbi ju ẹ̀yà structure lọ.",
+          "Àwọn crypto options wà lórí ọ̀pọ̀ venues àti gẹ́gẹ́ bí products on-chain exotic — máa ka settlement asset (coin-margined vs USDT) àti òfin expiry."
+        ]
+      },
+      {
+        "heading": "Volatility ni epo",
+        "body": [
+          "Implied volatility (IV) ni àìdánilójú tí ọjà ti fi owo sílẹ̀. IV tó ga → premiums tó sanra (options ń náni síi).",
+          "IV crush: lẹ́yìn ìṣẹ̀lẹ̀ ńlá, IV sábàá ń já sílẹ̀ àti long premium lè pàdánù bí direction bá tilẹ̀ jẹ́ kedere díẹ̀.",
+          "Realized volatility ni ohun tó print gangan. Ṣíṣòwò options láìsí àwòrán vol jẹ́ gambling ju direction lọ."
+        ]
+      },
+      {
+        "heading": "Bí èyí ṣe yàtọ̀ sí futures/perps",
+        "body": [
+          "Perps: mark-to-market, funding, liquidation láti margin. Options: premium decay (theta), ìjìnnà strike (delta), àti expiry.",
+          "Long options lè expire láìsí iye. Long perps ń ṣí sílẹ̀ títí o fi close tàbí liquidate — aago yàtọ̀, àwòrán ewu yàtọ̀.",
+          "Bẹ̀rẹ̀ pẹ̀lú òye àwọn àwòrán payoff ṣáájú multi-leg spreads. Àwọn structured products ń jogún gbogbo ewu kan náà pẹ̀lú complexity."
+        ]
+      },
+      {
+        "heading": "Àwọn òfin ewu fún beginners",
+        "body": [
+          "Fẹ́ long premium defined-risk nígbà tí o ń kọ́ — size kí ìpadànú premium gbogbo jẹ́ 1R tó ṣeé gba.",
+          "Má tà naked calls/puts lórí crypto tó volatile láìsí ìṣàkóso ewu alamọ́dajú.",
+          "Àwọn irinṣẹ́ àkọ́kọ́ NovaStaris ń tẹnumọ́ spot, perps, àti ọjà àsọtẹ́lẹ̀ — mú options bí ẹ̀kọ́ advanced, kì í ṣe workflow tab àìyẹ̀wò."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Call / put",
+        "definition": "Option láti ra / tà underlying ní strike nígbà expiry."
+      },
+      {
+        "term": "Premium",
+        "definition": "Owo tí a san fún option — ìpadànú tó tóbi jùlọ tí buyer sábàá ní lórí long tó rọrùn."
+      },
+      {
+        "term": "Implied volatility",
+        "definition": "Vol tí a fi sílẹ̀ nínú option — ó ń gbé ọrọ̀ premium."
+      },
+      {
+        "term": "Theta",
+        "definition": "Time decay — options ń pàdánù iye bí expiry ṣe ń súnmọ́ bí àwọn nǹkan mìíràn bá dúró."
+      },
+      {
+        "term": "Expiry",
+        "definition": "Ọjọ́/àkókò tí option ń dẹ́kun — lẹ́yìn èyí long premium lè lọ sí zero."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Direction tó tọ́, ṣì pàdánù premium",
+        "setup": [
+          "BTC call tí a rà ṣáájú ìṣẹ̀lẹ̀: premium $200",
+          "BTC gòkè díẹ̀ lẹ́yìn ìṣẹ̀lẹ̀",
+          "IV já sílẹ̀ àti call ṣì wà out-of-the-money nítòsí expiry"
+        ],
+        "steps": [
+          "Direction jẹ́ kedere díẹ̀, ṣùgbọ́n optionality + IV crush + time decay dín iye kù.",
+          "Perp long pẹ̀lú stop lè ti scratch tàbí win kékeré; call ṣì lè parí nítòsí zero.",
+          "Ẹ̀kọ́: options nílò ètò vol + path, kì í ṣe ‘mo rò pe yóò gòkè’ nìkan."
+        ],
+        "takeaway": "Options ń fi owo sí ìyípadà àti àìdánilójú. Direction nìkan kò tó."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Crypto Futures (context perps)",
+        "href": "/?tab=futures"
+      },
+      {
+        "label": "Module àwọn styles ìṣòwò",
+        "href": "/?tab=trading-university"
+      }
+    ],
+    "mistakes": [
+      "Ríra calls nìkan nítorí ‘chart dàbí bullish’ láìsí ètò vol/expiry.",
+      "Títa naked crypto options láìsí ewu defined.",
+      "Dídà liquidations perp pọ̀ mọ́ premium decay option."
+    ]
+  },
+  {
+    "id": "novastaris-workflow",
+    "title": "Workflow NovaStaris Láti Ìbẹ̀rẹ̀ Dé Òpin",
+    "subtitle": "Bí a ṣe ń so Go Hunting, AI Agent, wallets, àti irinṣẹ́ forecast papọ̀ láìsí FOMO.",
+    "sections": [
+      {
+        "heading": "Iṣẹ́ kan fún irinṣẹ́ kan",
+        "body": [
+          "NovaStaris jẹ́ toolkit, kì í ṣe signal láti size afọ́jú. Tab kọ̀ọ̀kan ń dahun ìbéèrè yàtọ̀: discovery, scoring, flow, chart levels, tàbí context execution.",
+          "Workflow ṣẹ́gun tab-hopping: pinnu ọjà (meme / perp / FX), lẹ́yìn náà yan ọ̀nà tó bá a mu ní ìsàlẹ̀."
+        ]
+      },
+      {
+        "heading": "Ọ̀nà meme (àpẹẹrẹ)",
+        "body": [
+          "1) Go Hunting / BSC — wá candidates nípasẹ̀ stage (new, final stretch, migrated).",
+          "2) NovaStaris AI Agent (meme) — score CA, ṣàyẹ̀wò àkọsílẹ̀ ewu, size níṣàlò sí liquidity.",
+          "3) Wallet Tracker / CT context — ta ni ó ń ra, ṣé social jẹ́ gidi tàbí bot spam?",
+          "4) Nígbà náà nìkan ni kí o size pẹ̀lú òfin ewu rẹ. Bí o kò bá lè sọ invalidation, kọjá."
+        ]
+      },
+      {
+        "heading": "Ọ̀nà perps / FX (àpẹẹrẹ)",
+        "body": [
+          "1) Futures / Trending perps tàbí Nova Forex — bias àti context session.",
+          "2) NovaForecast / Nova Scalp — levels, plan, hold window.",
+          "3) Chart Analysis nínú AI Agent nígbà tí o bá fẹ́ ìkàwé kejì lórí structure.",
+          "4) Execute nìkan pẹ̀lú ewu tí a ti pinnu; journal trade lẹ́yìn."
+        ]
+      },
+      {
+        "heading": "Àwọn òfin tí ń jẹ́ kí stack wúlò",
+        "body": [
+          "Má jẹ́ kí score alawọ̀ ewé ṣẹ́gun thesis tó bàjẹ́ tàbí invalidation tí kò sí.",
+          "Bí irinṣẹ́ bá ń tako ara wọn, dín size kù tàbí dúró lẹ́gbẹ̀ẹ́ — ìtakora jẹ́ ìròyìn.",
+          "Parí pẹ̀lú ìlà journal: tab wo ni ó fi edge kún, èwo sì ni noise."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Workflow",
+        "definition": "Ìtòlẹ́sẹẹsẹ irinṣẹ́ àti àyẹ̀wò tí a lè ṣe léraléra ṣáájú kí o fi capital sí ewu."
+      },
+      {
+        "term": "Discovery",
+        "definition": "Wíwá candidates (Go Hunting) ṣáájú ìtúpalẹ̀ jíjinlẹ̀."
+      },
+      {
+        "term": "Invalidation",
+        "definition": "Ipò tí ó ṣe àfihàn pé èrò náà ti ṣì — jáde láìsí ìjiyàn."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Ọ̀nà meme láìsí size FOMO",
+        "setup": [
+          "Go Hunting ń fi Sol meme migrated han pẹ̀lú volume tó ń gòkè",
+          "Score AI Agent dàbí ó dára; Wallet Tracker fi hàn pé wallet quality ra",
+          "O ṣì kò lè sọ invalidation ní gbólóhùn kan"
+        ],
+        "steps": [
+          "Ọ̀nà: Hunting → AI Agent (CA/ewu) → authenticity wallets/CT → nígbà náà nìkan size.",
+          "Nítorí invalidation kò sí, kọjá tàbí paper èrò náà — score alawọ̀ ewé kì í ṣe stop level.",
+          "Bí o bá pinnu invalidation lẹ́yìn (bíi reclaim fail lábẹ́ swing), size láti ewu $ — kì í ṣe láti nọ́mbà score."
+        ],
+        "takeaway": "Ìtòlẹ́sẹẹsẹ workflow ṣe pàtàkì. Àwọn irinṣẹ́ discovery ń wá candidates; òfin ewu ń pinnu bóyá o ṣòwò."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Go Hunting",
+        "href": "/?tab=new"
+      },
+      {
+        "label": "NovaStaris AI Agent",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "NovaForecast Agent",
+        "href": "/?tab=nova-forecast"
+      }
+    ],
+    "mistakes": [
+      "Jíjẹ́ kí score AI alawọ̀ ewé ṣẹ́gun invalidation tí kò sí.",
+      "Tab-hopping láìsí ọ̀nà ọjà (meme vs perps vs FX).",
+      "Ìlọ́po size nígbà tí irinṣẹ́ ń tako ara wọn."
+    ]
+  },
+  {
+    "id": "backtesting-expectancy",
+    "title": "Backtesting & Expectancy",
+    "subtitle": "Fi data ṣe àfihàn process — expectancy, sample size, àti àwọn ìkẹ́kùn overfitting.",
+    "sections": [
+      {
+        "heading": "Expectancy ní èdè tó rọrùn",
+        "body": [
+          "Expectancy ≈ (Win% × Average win) − (Loss% × Average loss), ó dára jùlọ ní R-multiples lẹ́yìn fees.",
+          "System tí ó ń win 40% ṣùgbọ́n ó ń san +2R nígbà tó tọ́ àti −1R nígbà tó ṣì lè ṣẹ́gun winner 70% tí ó ń ṣe +0.3R nìkan tí ó sì ń pàdánù −1R.",
+          "Àwọn tag journal (iru setup, followed plan Y/N) ni bí o ṣe ń ṣiro àwọn input wọ̀nyí nínú ìṣòwò live."
+        ]
+      },
+      {
+        "heading": "Àwọn ìpìlẹ̀ backtesting",
+        "body": [
+          "Backtest: lo òfin tí ó dúró lórí data ìtàn kí o sì kọ àwọn trades. Forward test / paper: òfin kan náà lórí data live láìsí (tàbí pẹ̀lú) capital kékeré.",
+          "Kọ òfin kí àlejò lè ṣe wọ́n: entry, stop, target, time stop, àwọn ọjà tí a fàyè gba.",
+          "Fi fees, slippage, àti funding sílẹ̀ nígbà tí style bá ń mú perps overnight — bí bẹ́ẹ̀ kọ́ o ń ṣẹ́dá edge èké."
+        ]
+      },
+      {
+        "heading": "Overfitting & sample size",
+        "body": [
+          "Curve-fitting: òfin tó pàtó tó bẹ́ẹ̀ tí wọ́n ṣiṣẹ́ lórí ọ̀nà ìtàn kan nìkan. Bí system bá nílò parameters 12 láti ‘dàbí pipe,’ ṣàyẹ̀wò.",
+          "Àwọn sample kékeré ń parọ́. Fẹ́ àwọn trades tó pọ̀ sí ọgọ́rùn kọjá regimes (trend àti chop) ṣáájú kí o gbàgbọ́ equity curves.",
+          "Out-of-sample / walk-forward: pa àsìkò kan mọ́ tí o kò tune lórí rẹ̀. Bí ó bá ṣubú níbẹ̀, o ti optimize noise."
+        ]
+      },
+      {
+        "heading": "Láti test sí live",
+        "body": [
+          "Lọ live ní kékeré ju ohun tí backtest ń sọ. Òtítọ́ execution (latency, gaps, ìmọ̀lára) ń jẹ theoretical R.",
+          "Bí expectancy live bá yà jìnnà fún sample tí ó dúró, dúró kí o sì ṣàyẹ̀wò — má ‘gbé size ga láti ní oríire.’",
+          "Journaling NovaStaris + ìṣàkóso chapter ṣẹ́gun indicator mashup tí a kò dánwò."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Expectancy",
+        "definition": "Àpapọ̀ $ tàbí R tí o retí fún trade kan lẹ́yìn wins àti losses."
+      },
+      {
+        "term": "Backtest",
+        "definition": "Ìṣeéṣe performance ìtàn lábẹ́ òfin tí ó dúró."
+      },
+      {
+        "term": "Forward test",
+        "definition": "Ṣíṣe òfin lórí data live/paper tí a kò rí ṣáájú size pipe."
+      },
+      {
+        "term": "Overfitting",
+        "definition": "Òfin tí a tune sí noise ìtàn tí ó ń kùnà ní regime tó ń bọ̀."
+      },
+      {
+        "term": "Sample size",
+        "definition": "Nọ́mbà àwọn trades — tó kéré jù ń jẹ́ kí stats má sí ìtumọ̀."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Equity curve tó dára, live tó burú",
+        "setup": [
+          "Backtest win rate 78% lórí oṣù bull kan ṣoṣo ti BTC 5m",
+          "Òfin ń lo indicators 9 pẹ̀lú thresholds ‘optimized’",
+          "Ọ̀sẹ̀ chop live: −8R"
+        ],
+        "steps": [
+          "Fura fún overfitting àti regime mismatch — sample bull nìkan.",
+          "Rọrùn sí structure + confirmation kan; retest kọjá oṣù bull àti range.",
+          "Dín size kù títí sample forward tuntun fi hàn expectancy tó dúró."
+        ],
+        "takeaway": "Bí ó bá ṣiṣẹ́ nìkan lórí oṣù tí o optimize, kì í ṣe edge — ó jẹ́ ìwé ìrántí ìtàn."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Psychology & journaling",
+        "href": "/?tab=trading-university"
+      },
+      {
+        "label": "Àwọn ìpìlẹ̀ ewu",
+        "href": "/?tab=trading-university"
+      }
+    ],
+    "mistakes": [
+      "Ṣíṣe optimize indicators 10 lórí oṣù bull kan kí a sì pe é ní edge.",
+      "Fífi fees/funding sílẹ̀ nínú backtest.",
+      "Lílọ size pipe lẹ́yìn paper trades 12 tí oríire."
+    ]
+  },
+  {
+    "id": "advanced-markets",
+    "title": "Àwọn Kókó Ọjà Advanced",
+    "subtitle": "Funding & OI, àwọn red flag tokenomics, àti ìpìlẹ̀ òfin prop-firm.",
+    "sections": [
+      {
+        "heading": "Funding rates & open interest (perps)",
+        "body": [
+          "Funding jẹ́ ìsanwó ìgbàdíẹ̀ láàárín longs àti shorts tí ó ń jẹ́ kí owo perp súnmọ́ spot. Funding positive sábàá túmọ̀ sí pé longs ń san fún shorts; negative túmọ̀ sí pé shorts ń san fún longs (àwọn ẹ̀kúnrẹ́rẹ́ platform yàtọ̀).",
+          "Ẹ̀gbẹ́ tó kún + funding tó le lè túmọ̀ sí pé ìyípadà ti pẹ́ — squeezes ń ṣẹlẹ̀ nígbà tí ọ̀pọ̀ jùlọ bá ní láti jáde.",
+          "Open interest (OI) ni àwọn contract perp tí ṣì ṣí. OI tó ń gòkè pẹ̀lú trend lè jẹ́rìí participation; OI tó ń já sílẹ̀ sínú spike lè túmọ̀ sí short-covering tàbí long liquidation ju conviction tuntun lọ."
+        ]
+      },
+      {
+        "heading": "Àwọn red flag tokenomics (memes & alts)",
+        "body": [
+          "Ṣàyẹ̀wò: ta ni ó ní supply, unlock/vesting cliffs, mint authority, tax, LP lock, àti bóyá a lè fa liquidity.",
+          "Red flags: float kékeré tí wallets díẹ̀ ń ṣàkóso, mint tí a pamọ́, honeypot sell tax, LP burned èké, tàbí wallets ‘team’ tí ń dump lórí candle alawọ̀ ewé àkọ́kọ́.",
+          "Ticker tó dùn kì í ṣe due diligence. Àyẹ̀wò contract àti holders ń ṣáájú narrative FOMO."
+        ]
+      },
+      {
+        "heading": "Àwọn òfin prop-firm (ìpìlẹ̀)",
+        "body": [
+          "Àwọn prop challenges sábàá ń fi òfin sí max daily loss, max total drawdown, min trading days, àti strategies tí a fòfin de (bíi news gambling tàbí copy trading — ka òfin firm rẹ).",
+          "Pípàṣẹ challenge kì í ṣe kan náà pẹ̀lú mímú funded account — consistency àti ìmúṣẹ òfin ṣe pàtàkì ju ọjọ́ oríire kan lọ.",
+          "Bí o bá ń lo àwọn irinṣẹ́ NovaStaris Prop Firm, mú òfin kíkọ firm bí olórí — edge platform kì í ṣẹ́gun risk desk wọn."
+        ]
+      }
+    ],
+    "keyTerms": [
+      {
+        "term": "Funding rate",
+        "definition": "Ìsanwó ìgbàdíẹ̀ long/short tí ó ń so perps mọ́ spot."
+      },
+      {
+        "term": "Open interest (OI)",
+        "definition": "Nọ́mbà àwọn contract perpetual tí ṣì ṣí."
+      },
+      {
+        "term": "Tokenomics",
+        "definition": "Ètò supply, unlocks, authority, àti ìpín token."
+      },
+      {
+        "term": "Prop firm drawdown",
+        "definition": "Ìdíwọ̀n ìpadànú tó tóbi jùlọ (daily/total) tí ó ń pa challenge tàbí funded account run."
+      }
+    ],
+    "workedExamples": [
+      {
+        "title": "Red flag tokenomics ṣáájú narrative",
+        "setup": [
+          "Ticker meme ń viral; chart alawọ̀ ewé",
+          "Àwọn wallets 5 òkè ń ní ~70% float; LP unlock ń bọ̀ ní ọjọ́ díẹ̀",
+          "Mint authority ṣì ṣí lórí àkọsílẹ̀ contract"
+        ],
+        "steps": [
+          "Dá FOMO dúró. Concentration + unlock + mint authority jẹ́ rails distribution / rug tó wọ́pọ̀.",
+          "Kọjá, tàbí size bí dust eré pẹ̀lú time stop tó le — má ṣe mú un bí major tó liquid.",
+          "Journal àwọn red flags tí o ṣàyẹ̀wò; “ticker tó dùn” nìkan kò ní clear due diligence láéláé."
+        ],
+        "takeaway": "Àyẹ̀wò tokenomics ṣẹ́gun narrative. Bí wallets díẹ̀ bá lè print tàbí dump supply, ìtàn jẹ́ àṣàyàn."
+      }
+    ],
+    "relatedTools": [
+      {
+        "label": "Crypto Futures",
+        "href": "/?tab=futures"
+      },
+      {
+        "label": "NovaStaris AI Agent",
+        "href": "/?tab=ai-analysis&agent=meme"
+      },
+      {
+        "label": "Prop Firm Bot",
+        "href": "/?tab=prop-firm-bot"
+      }
+    ],
+    "mistakes": [
+      "Fífí extreme funding sílẹ̀ láìsí ètò fún squeezes.",
+      "Fífi àwọn red flag unlock/holder sílẹ̀ lórí memes.",
+      "Bíbú òfin daily loss prop-firm láti ‘gba padà.’"
+    ]
+  }
+]

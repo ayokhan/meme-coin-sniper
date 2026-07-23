@@ -743,6 +743,15 @@ model PromoBanner {
   updatedAt       DateTime  @updatedAt
 }
 
+// Owner-managed UI languages. Single row id "default".
+// enabledLocales: JSON string array of AppLocale codes (English always forced on).
+model LocaleConfig {
+  id             String   @id @default("default")
+  enabledLocales Json     // e.g. ["en","fr","yo"]
+  defaultLocale  String   @default("en")
+  updatedAt      DateTime @updatedAt
+}
+
 // Pinned tokens for AI re-analysis every ~3 min (Solana or BSC)
 model PinnedToken {
   id              String    @id @default(cuid())
