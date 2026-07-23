@@ -5,6 +5,7 @@ import {
   DEFAULT_LOCALE,
   LOCALE_HTML_LANG,
   LOCALE_STORAGE_KEY,
+  RTL_LOCALES,
   parseAppLocale,
   type AppLocale,
 } from "@/lib/i18n/locales";
@@ -38,6 +39,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     document.documentElement.lang = LOCALE_HTML_LANG[locale];
+    document.documentElement.dir = RTL_LOCALES.has(locale) ? "rtl" : "ltr";
     try {
       localStorage.setItem(LOCALE_STORAGE_KEY, locale);
     } catch {

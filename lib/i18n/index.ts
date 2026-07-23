@@ -9,11 +9,20 @@ import { ig } from "./messages/ig";
 import { de } from "./messages/de";
 import { es } from "./messages/es";
 import { pcm } from "./messages/pcm";
+import { ar } from "./messages/ar";
+import { bn } from "./messages/bn";
+import { sv } from "./messages/sv";
+import { ha } from "./messages/ha";
+import { bin } from "./messages/bin";
+import { ish } from "./messages/ish";
+import { ak } from "./messages/ak";
+import { sw } from "./messages/sw";
+import { fa } from "./messages/fa";
 
 const enDict = en as unknown as MessageDict;
 
 function mergeMessages(base: MessageDict, patch: DeepPartialMessages): MessageDict {
-  const out: MessageDict = {
+  return {
     brand: { ...base.brand, ...(patch.brand ?? {}) },
     nav: { ...base.nav, ...(patch.nav ?? {}) },
     workspace: { ...base.workspace, ...(patch.workspace ?? {}) },
@@ -23,8 +32,9 @@ function mergeMessages(base: MessageDict, patch: DeepPartialMessages): MessageDi
     tabs: { ...base.tabs, ...(patch.tabs ?? {}) },
     lock: { ...base.lock, ...(patch.lock ?? {}) },
     forex: { ...base.forex, ...(patch.forex ?? {}) },
+    lockDesc: { ...base.lockDesc, ...(patch.lockDesc ?? {}) },
+    uni: { ...base.uni, ...(patch.uni ?? {}) },
   };
-  return out;
 }
 
 const CATALOG: Record<AppLocale, MessageDict> = {
@@ -37,6 +47,15 @@ const CATALOG: Record<AppLocale, MessageDict> = {
   de: mergeMessages(enDict, de),
   es: mergeMessages(enDict, es),
   pcm: mergeMessages(enDict, pcm),
+  ar: mergeMessages(enDict, ar),
+  bn: mergeMessages(enDict, bn),
+  sv: mergeMessages(enDict, sv),
+  ha: mergeMessages(enDict, ha),
+  bin: mergeMessages(enDict, bin),
+  ish: mergeMessages(enDict, ish),
+  ak: mergeMessages(enDict, ak),
+  sw: mergeMessages(enDict, sw),
+  fa: mergeMessages(enDict, fa),
 };
 
 export type MessageKey =
@@ -48,6 +67,8 @@ export type MessageKey =
   | `tabs.${keyof MessageDict["tabs"]}`
   | `lock.${keyof MessageDict["lock"]}`
   | `forex.${keyof MessageDict["forex"]}`
+  | `lockDesc.${keyof MessageDict["lockDesc"]}`
+  | `uni.${keyof MessageDict["uni"]}`
   | "more";
 
 function lookup(dict: MessageDict, key: string): string | undefined {

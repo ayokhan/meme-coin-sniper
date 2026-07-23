@@ -4576,41 +4576,39 @@ export default function Dashboard() {
                         : t("lock.subscribe")}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground max-w-md">
-                  {activeTab === "surge" && "Surge shows tokens with high volume in 5m–24h windows."}
-                  {activeTab === "transactions" && "Transactions shows buys vs sells (24h) and activity."}
-                  {activeTab === "ai-analysis" && "Meme Coins Agent scores Solana tokens 0–100. Chart Analysis reads your uploaded chart for futures levels. Free registered users get 2 uses per day each; VIP is unlimited."}
-                  {activeTab === "futures" && "Institutional workflow, top altcoins, hot perps, and liquidation map for futures trading."}
-                  {activeTab === "nova-futures-narratives" && "Nova Futures Narratives combines headline noise with CFTC institutional positioning. VIP only."}
-                  {activeTab === "nova-eagle" && "Nova Eagle surfaces sampled large perp positions and skew heuristics. VIP only."}
-                  {activeTab === "crypto-buddie" && "Crypto Buddie gives ranked short-horizon perp reads plus optional monitor workflow. VIP only."}
-                  {activeTab === "meme-intelligence" && "Nova Meme Intelligence gives meme-focused NovaQ and Nova Smart analysis plus Top Meme coins screening for safer scalp/swing setups. VIP only."}
-                  {activeTab === "trending-perps" && "See the biggest perp movers in one place—5m, 15m, 30m, 1h, and 24h—so you can spot what’s moving fast."}
-                  {activeTab === "perp-radar" && "Spot the biggest perp movers across exchanges—before they peak."}
-                  {activeTab === "narratives" && "Narratives: global trends, US trends, trending memes and meme coins—sources and checklist to spot narrative-driven plays."}
+                  {activeTab === "surge" && t("lockDesc.surge")}
+                  {activeTab === "transactions" && t("lockDesc.transactions")}
+                  {activeTab === "ai-analysis" && t("lockDesc.ai-analysis")}
+                  {activeTab === "futures" && t("lockDesc.futures")}
+                  {activeTab === "nova-futures-narratives" && t("lockDesc.nova-futures-narratives")}
+                  {activeTab === "nova-eagle" && t("lockDesc.nova-eagle")}
+                  {activeTab === "crypto-buddie" && t("lockDesc.crypto-buddie")}
+                  {activeTab === "meme-intelligence" && t("lockDesc.meme-intelligence")}
+                  {activeTab === "trending-perps" && t("lockDesc.trending-perps")}
+                  {activeTab === "perp-radar" && t("lockDesc.perp-radar")}
+                  {activeTab === "narratives" && t("lockDesc.narratives")}
                   {activeTab === "ct" &&
-                    (canAccessCtScanEffective
-                      ? "CT Scan (Twitter tracker) surfaces coins when smart money and influencers are talking about them."
-                      : "CT Scan is VIP on-demand. Request access and an admin will enable it for your account.")}
+                    (canAccessCtScanEffective ? t("lockDesc.ct") : t("lockDesc.ctOnDemand"))}
                   {activeTab === "wallets" &&
                     (walletTrackerView === "meme" && !canAccessMemeCoinsTraderEffective
-                      ? "Mem Coins Traders (Wallet Tracker → Meme) is VIP on-demand. Request access and an admin will enable it for your account."
-                      : "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets.")}
-                  {activeTab === "coach-calls" && "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only."}
-                  {activeTab === "nova-forecast" && "NovaForecast Agent: multi-timeframe crypto perp structure—high/low zones, NovaQ, NovaRadar, and more. VIP only."}
-                  {activeTab === "nova-forex" && "Nova Forex Agent: Market Watch for gold, FX, and indices—NovaQ Forex with S/R touches, Smart Analysis, Fib, Radar, and Scalp. VIP only."}
-                  {activeTab === "nova-forex-bot" && "Nova Forex Bots: trade on your Vantage Markets or TIOmarkets MT4/MT5 account."}
-                  {activeTab === "nova-plus" && "Nova+ provides risk-managed trade analysis with a recommended stop loss, take-profit target, and position sizing guidance. VIP only."}
-                  {activeTab === "nova-investment" && "Nova Investment Agent builds leverage strategies from your amount, risk preset, and duration (support/resistance + direction, leverage, stop loss, entry/exit). VIP only."}
-                  {activeTab === "nova-connect" && "NovaConnect: the first social platform for crypto traders. See community rules, your NovaConnect status, and community feed and chat."}
+                      ? t("lockDesc.walletsMemeOnDemand")
+                      : t("lockDesc.wallets"))}
+                  {activeTab === "coach-calls" && t("lockDesc.coach-calls")}
+                  {activeTab === "nova-forecast" && t("lockDesc.nova-forecast")}
+                  {activeTab === "nova-forex" && t("lockDesc.nova-forex")}
+                  {activeTab === "nova-forex-bot" && t("lockDesc.nova-forex-bot")}
+                  {activeTab === "nova-plus" && t("lockDesc.nova-plus")}
+                  {activeTab === "nova-investment" && t("lockDesc.nova-investment")}
+                  {activeTab === "nova-connect" && t("lockDesc.nova-connect")}
                   {!isGuest && " "}
                   {!isGuest &&
                     (onDemandLocked
-                      ? "Contact support to request access (enabled manually by admin)."
+                      ? t("lockDesc.contactSupport")
                       : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner
-                        ? "Upgrade to VIP to use this feature."
+                        ? t("lockDesc.upgradeVip")
                         : activeTab === "nova-connect"
-                          ? "Upgrade to VIP, or ask an admin to allow NovaConnect for you."
-                          : "Upgrade to VIP to use this feature.")}
+                          ? t("lockDesc.novaConnectAllow")
+                          : t("lockDesc.upgradeVip"))}
                   {isGuest && (
                     <>
                       {" "}

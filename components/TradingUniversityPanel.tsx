@@ -73,6 +73,7 @@ import {
   UniversityWorkflowDiagram,
 } from "@/components/UniversityConceptDiagrams";
 import UniversityDonationCard from "@/components/UniversityDonationCard";
+import { useI18n } from "@/components/I18nProvider";
 import {
   buildGlossary,
   COURSE_TRACK_META,
@@ -190,6 +191,7 @@ export default function TradingUniversityPanel({
   onOpenToolHref,
   isToolHrefAvailable,
 }: TradingUniversityPanelProps = {}) {
+  const { t } = useI18n();
   const { status } = useSession();
   const authenticated = status === "authenticated";
 
@@ -314,7 +316,7 @@ export default function TradingUniversityPanel({
       const res = await fetch("/api/trading-university", { credentials: "include" });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error || "Could not load Trading University.");
+        setError(data.error || t("uni.loadFailed"));
         return;
       }
       setLessons(data.catalog?.lessons ?? []);
@@ -333,7 +335,7 @@ export default function TradingUniversityPanel({
         setChapterQuizDone([]);
       }
     } catch {
-      setError("Network error loading Trading University.");
+      setError(t("uni.networkError"));
     } finally {
       setLoading(false);
     }
@@ -416,9 +418,9 @@ export default function TradingUniversityPanel({
         );
         const data = await res.json();
         if (data.success) setPracticeQs(data.questions ?? []);
-        else setError(data.error || "Could not load chapter check.");
+        else setError(data.error || t("uni.chapterCheckFailed"));
       } catch {
-        setError("Could not load chapter check.");
+        setError(t("uni.chapterCheckFailed"));
       } finally {
         setPracticeLoading(false);
       }
@@ -498,7 +500,7 @@ export default function TradingUniversityPanel({
   const startQuiz = async () => {
     setError(null);
     if (!authenticated) {
-      setError("Register and sign in to take the final exam.");
+      setError(t("uni.examSignIn"));
       return;
     }
     if (!allComplete) {
@@ -511,7 +513,7 @@ export default function TradingUniversityPanel({
       const res = await fetch("/api/trading-university/quiz", { credentials: "include" });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error || "Could not start the exam.");
+        setError(data.error || t("uni.examStartFailed"));
         if (data.nextAttemptAt) {
           setProgress((p) =>
             p ? { ...p, canAttemptQuiz: false, nextAttemptAt: data.nextAttemptAt } : p
@@ -527,12 +529,12 @@ export default function TradingUniversityPanel({
       setTabLeaveCount(data.examTabLeaveCount ?? 0);
       setProctorWarning(
         data.resumed
-          ? "Resumed your timed exam — the clock did not reset."
+          ? t("uni.examResumed")
           : `Timed exam: ${examMinutes} minutes. Stay on this tab — leaving repeatedly will end the attempt.`
       );
       setView("quiz");
     } catch {
-      setError("Network error starting the exam.");
+      setError(t("uni.examNetwork"));
     } finally {
       setSubmitting(false);
     }
@@ -558,7 +560,7 @@ export default function TradingUniversityPanel({
         });
         const data = await res.json();
         if (!res.ok || !data.success) {
-          setError(data.error || "Could not grade the exam.");
+          setError(data.error || t("uni.examGradeFailed"));
           return;
         }
         if (data.progress) setProgress(data.progress);
@@ -575,7 +577,7 @@ export default function TradingUniversityPanel({
         });
         setView("result");
       } catch {
-        setError("Network error submitting the exam.");
+        setError(t("uni.examSubmitNetwork"));
       } finally {
         submittingRef.current = false;
         setSubmitting(false);
@@ -617,7 +619,7 @@ export default function TradingUniversityPanel({
           const n = data.examTabLeaveCount ?? 0;
           setTabLeaveCount(n);
           if (n >= TRADING_UNIVERSITY_MAX_TAB_LEAVES) {
-            setProctorWarning("Too many tab leaves — submitting your exam.");
+            setProctorWarning(t("uni.proctorSubmit"));
             void submitQuiz({ reason: "tab_leaves" });
           } else {
             setProctorWarning(
@@ -653,7 +655,7 @@ export default function TradingUniversityPanel({
   const certPayload = (): CertificatePayload | null => {
     if (!progress?.quizPassed || !progress.certificateCode || !progress.quizPassedAt) return null;
     return {
-      graduateName: progress.displayName || "Graduate",
+      graduateName: progress.displayName || t("uni.graduate"),
       scorePct: progress.quizBestScorePct ?? result?.scorePct ?? 0,
       certificateCode: progress.certificateCode,
       passedAtIso: progress.quizPassedAt,
@@ -666,7 +668,7 @@ export default function TradingUniversityPanel({
     try {
       await downloadTradingUniversityCertificate(payload);
     } catch {
-      setError("Could not download certificate.");
+      setError(t("uni.certDownloadFailed"));
     }
   };
 
@@ -683,7 +685,7 @@ export default function TradingUniversityPanel({
       const ok = await nativeShareCertificate(payload, blob);
       if (!ok) await downloadTradingUniversityCertificate(payload);
     } catch {
-      setError("Could not share certificate.");
+      setError(t("uni.certShareFailed"));
     } finally {
       setShareBusy(false);
     }
@@ -697,7 +699,7 @@ export default function TradingUniversityPanel({
       setShareCopied(true);
       window.setTimeout(() => setShareCopied(false), 2000);
     } catch {
-      setError("Could not copy share text.");
+      setError(t("uni.copyFailed"));
     }
   };
 
@@ -734,7 +736,7 @@ export default function TradingUniversityPanel({
             WhatsApp
           </Button>
           <Button type="button" size="sm" variant="outline" onClick={() => void onCopyShare()}>
-            {shareCopied ? "Copied" : "Copy text"}
+            {shareCopied ? t("uni.copied") : t("uni.copyText")}
           </Button>
         </div>
         <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
@@ -748,7 +750,7 @@ export default function TradingUniversityPanel({
   if (loading) {
     return (
       <div className="px-3 sm:px-6 py-12 text-center text-sm text-muted-foreground">
-        Loading NovaStaris Trading University…
+        {t("uni.loading")}
       </div>
     );
   }
@@ -781,7 +783,7 @@ export default function TradingUniversityPanel({
           </div>
           <div className="rounded-xl border border-white/15 bg-slate-900 px-4 py-3 text-sm">
             <p className="text-slate-400 text-xs uppercase tracking-wide">
-              {fullAccess ? "Course progress" : "Preview"}
+              {fullAccess ? t("uni.courseProgress") : t("uni.preview")}
             </p>
             <p className="mt-1 font-mono text-lg text-cyan-200">
               {fullAccess ? (
@@ -798,7 +800,7 @@ export default function TradingUniversityPanel({
               </p>
             ) : (
               <p className="mt-1 text-slate-400 text-xs">
-                Final exam: {passCorrect}/{quizSize} to pass ({passPct}%)
+                {t("uni.finalExamLine", { pass: passCorrect, total: quizSize, pct: passPct })}
               </p>
             )}
           </div>
@@ -818,7 +820,7 @@ export default function TradingUniversityPanel({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button asChild size="sm">
-              <Link href="/register">Enroll free</Link>
+              <Link href="/register">{t("uni.enrollFree")}</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
               <Link href="/signin">Sign in</Link>
@@ -832,10 +834,10 @@ export default function TradingUniversityPanel({
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               {completedCount === 0
-                ? "You’re enrolled — start with Module 01"
+                ? t("uni.startModule01")
                 : allComplete
-                  ? "Modules complete — take the final exam when ready"
-                  : "Continue where you left off"}
+                  ? t("uni.modulesComplete")
+                  : t("uni.continueLeftOff")}
             </p>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               {completedCount === 0
@@ -931,7 +933,7 @@ export default function TradingUniversityPanel({
                       setView("flashcards");
                     }}
                   >
-                    Glossary flashcards
+                    {t("uni.glossaryFlashcards")}
                   </Button>
                 </div>
               </div>
@@ -943,7 +945,7 @@ export default function TradingUniversityPanel({
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
                 <p className="text-xs text-muted-foreground w-full sm:w-auto sm:mr-2 self-center">
-                  Cheat sheets
+                  {t("uni.cheatSheets")}
                 </p>
                 {(["foundations", "markets", "applied"] as CourseTrack[]).map((track) => (
                   <Button
@@ -956,7 +958,7 @@ export default function TradingUniversityPanel({
                       try {
                         downloadTrackCheatSheet(track, lessons);
                       } catch {
-                        setError("Could not download cheat sheet.");
+                        setError(t("uni.cheatFailed"));
                       }
                     }}
                   >
@@ -1018,7 +1020,7 @@ export default function TradingUniversityPanel({
                             {lesson.subtitle}
                           </p>
                           <p className="mt-3 text-[11px] text-zinc-500">
-                            {locked ? "Enroll to unlock" : `~${lesson.estimatedMinutes} min`}
+                            {locked ? t("uni.enrollUnlock") : t("uni.minutes", { min: lesson.estimatedMinutes })}
                             {!locked && !fullAccess ? " · Free preview" : ""}
                           </p>
                         </button>
@@ -1031,12 +1033,12 @@ export default function TradingUniversityPanel({
           </div>
 
           <section className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-4 sm:p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Glossary</h2>
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{t("uni.glossary")}</h2>
             <div className="flex flex-wrap gap-2">
               <input
               value={glossaryQuery}
               onChange={(e) => setGlossaryQuery(e.target.value)}
-              placeholder="Search terms (pip, liquidation, USDT…)"
+              placeholder={t("uni.searchTerms")}
               className="flex-1 min-w-[12rem] rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm"
             />
               <Button
@@ -1049,7 +1051,7 @@ export default function TradingUniversityPanel({
                   setView("flashcards");
                 }}
               >
-                Flashcards
+                {t("uni.flashcards")}
               </Button>
             </div>
             <ul className="grid sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto">
@@ -1095,7 +1097,7 @@ export default function TradingUniversityPanel({
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-3 text-center sm:text-left">
                 <p className="text-emerald-800 dark:text-emerald-200 font-medium">
                   Congratulations{progress.displayName ? `, ${progress.displayName}` : ""} — you
-                  completed NovaStaris Trading University
+                  {t("uni.completedCourse")}
                   {progress.quizBestScorePct != null ? ` with ${progress.quizBestScorePct}%` : ""}.
                 </p>
                 {certPayload() && shareButtons(certPayload()!)}
@@ -1106,10 +1108,10 @@ export default function TradingUniversityPanel({
                   <div className="flex flex-wrap items-center gap-2">
                     <Lock className="h-4 w-4 text-zinc-500" />
                     <span className="text-sm text-muted-foreground">
-                      Enroll free to unlock the course and exam.
+                      {t("uni.enrollUnlockCourse")}
                     </span>
                     <Button asChild size="sm">
-                      <Link href="/register">Enroll free</Link>
+                      <Link href="/register">{t("uni.enrollFree")}</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
                       <Link href="/signin">Sign in</Link>
@@ -1128,9 +1130,9 @@ export default function TradingUniversityPanel({
                 ) : (
                   <Button type="button" disabled={submitting} onClick={() => void startQuiz()}>
                     {submitting
-                      ? "Starting…"
+                      ? t("uni.starting")
                       : progress?.examInProgress
-                        ? "Resume timed final exam"
+                        ? t("uni.resumeExam")
                         : `Start ${quizSize}-question final exam (${examMinutes} min)`}
                   </Button>
                 )}
@@ -1166,7 +1168,7 @@ export default function TradingUniversityPanel({
               </p>
               <div className="flex justify-center gap-2">
                 <Button asChild>
-                  <Link href="/register">Enroll free</Link>
+                  <Link href="/register">{t("uni.enrollFree")}</Link>
                 </Button>
                 <Button asChild variant="outline">
                   <Link href="/signin">Sign in</Link>
@@ -1203,7 +1205,7 @@ export default function TradingUniversityPanel({
                       ) : (
                         <Play className="h-3.5 w-3.5" />
                       )}
-                      {speechPlaying ? "Pause audio" : "Play lesson audio"}
+                      {speechPlaying ? t("uni.pauseAudio") : t("uni.playAudio")}
                     </Button>
                     {speechPlaying && (
                       <Button
@@ -1432,13 +1434,13 @@ export default function TradingUniversityPanel({
                           .then((r) => r.json())
                           .then((data) => {
                             if (data.success) setPracticeQs(data.questions ?? []);
-                            else setError(data.error || "Could not load chapter check.");
+                            else setError(data.error || t("uni.chapterCheckFailed"));
                           })
-                          .catch(() => setError("Could not load chapter check."))
+                          .catch(() => setError(t("uni.chapterCheckFailed")))
                           .finally(() => setPracticeLoading(false));
                       }}
                     >
-                      {practiceLoading ? "Loading…" : "Start chapter check"}
+                      {practiceLoading ? t("common.loading") : t("uni.startChapterCheck")}
                     </Button>
                   ) : (
                     <div className="space-y-4">
@@ -1565,16 +1567,16 @@ export default function TradingUniversityPanel({
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     {completedSet.has(activeLesson.id)
-                      ? "Marked complete"
+                      ? t("uni.markedComplete")
                       : chapterQuizDone.includes(activeLesson.id)
-                        ? "Mark module complete"
-                        : "Finish chapter check first"}
+                        ? t("uni.markComplete")
+                        : t("uni.finishChapterFirst")}
                   </Button>
                 ) : (
                   <Button asChild className="gap-2">
                     <Link href="/register">
                       <Lock className="h-4 w-4" />
-                      Enroll free to continue
+                      {t("uni.enrollContinue")}
                     </Link>
                   </Button>
                 )}
@@ -1690,7 +1692,7 @@ export default function TradingUniversityPanel({
                       disabled={submitting || questions.some((qq) => answers[qq.id] == null)}
                       onClick={() => void submitQuiz({ reason: "submit" })}
                     >
-                      {submitting ? "Grading…" : "Submit exam"}
+                      {submitting ? t("uni.grading") : t("uni.submitExam")}
                     </Button>
                   )}
                 </div>
@@ -1712,7 +1714,7 @@ export default function TradingUniversityPanel({
               </h2>
               <p className="text-sm text-muted-foreground">
                 You scored {result.correct}/{result.total} ({result.scorePct}%) and earned your
-                NovaStaris Trading University certificate.
+                {t("uni.certificate")}
               </p>
               {donationsEnabled && <UniversityDonationCard variant="full" />}
               {certPayload() && shareButtons(certPayload()!)}
@@ -1721,10 +1723,10 @@ export default function TradingUniversityPanel({
             <>
               <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
                 {result.timedOut
-                  ? "Time’s up"
+                  ? t("uni.timesUp")
                   : result.tabLeaveFail
-                    ? "Attempt ended"
-                    : "Not quite yet"}
+                    ? t("uni.attemptEnded")
+                    : t("uni.notQuite")}
               </h2>
               <p className="text-sm text-muted-foreground">
                 {result.timedOut
@@ -1780,7 +1782,7 @@ export default function TradingUniversityPanel({
             <ChevronLeft className="h-4 w-4" />
             Back to syllabus
           </Button>
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Glossary flashcards</h2>
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("uni.glossaryFlashcards")}</h2>
           {flashCards.length === 0 ? (
             <p className="text-sm text-muted-foreground">No glossary terms yet.</p>
           ) : (
