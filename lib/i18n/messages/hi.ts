@@ -1,6 +1,6 @@
-import type { MessageDict } from "./en";
+import type { DeepPartialMessages } from "./en";
 
-export const hi: MessageDict = {
+export const hi: DeepPartialMessages = {
   brand: {
     tagline: "आपका उन्नत AI लाइटनिंग क्रिप्टो स्नाइपर, फ्यूचर्स और प्रेडिक्शन मार्केट इंटेलिजेंस",
     taglineShort: "मीम कॉइन, फ्यूचर्स और प्रेडिक्शन मार्केट के लिए AI क्रिप्टो स्नाइपर।",
@@ -92,4 +92,5 @@ export const hi: MessageDict = {
     vipRequired: "VIP आवश्यक",
     subscribe: "एक्सेस के लिए सदस्यता लें",
   },
+  forex: {},
 };

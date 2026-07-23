@@ -1,19 +1,42 @@
 import type { AppLocale } from "./locales";
 import { DEFAULT_LOCALE } from "./locales";
-import { en, type MessageDict } from "./messages/en";
+import { en, type DeepPartialMessages, type MessageDict } from "./messages/en";
 import { fr } from "./messages/fr";
 import { zh } from "./messages/zh";
 import { hi } from "./messages/hi";
 import { yo } from "./messages/yo";
 import { ig } from "./messages/ig";
+import { de } from "./messages/de";
+import { es } from "./messages/es";
+import { pcm } from "./messages/pcm";
+
+const enDict = en as unknown as MessageDict;
+
+function mergeMessages(base: MessageDict, patch: DeepPartialMessages): MessageDict {
+  const out: MessageDict = {
+    brand: { ...base.brand, ...(patch.brand ?? {}) },
+    nav: { ...base.nav, ...(patch.nav ?? {}) },
+    workspace: { ...base.workspace, ...(patch.workspace ?? {}) },
+    focus: { ...base.focus, ...(patch.focus ?? {}) },
+    more: typeof patch.more === "string" ? patch.more : base.more,
+    common: { ...base.common, ...(patch.common ?? {}) },
+    tabs: { ...base.tabs, ...(patch.tabs ?? {}) },
+    lock: { ...base.lock, ...(patch.lock ?? {}) },
+    forex: { ...base.forex, ...(patch.forex ?? {}) },
+  };
+  return out;
+}
 
 const CATALOG: Record<AppLocale, MessageDict> = {
-  en: en as unknown as MessageDict,
-  fr,
-  zh,
-  hi,
-  yo,
-  ig,
+  en: enDict,
+  fr: mergeMessages(enDict, fr),
+  zh: mergeMessages(enDict, zh),
+  hi: mergeMessages(enDict, hi),
+  yo: mergeMessages(enDict, yo),
+  ig: mergeMessages(enDict, ig),
+  de: mergeMessages(enDict, de),
+  es: mergeMessages(enDict, es),
+  pcm: mergeMessages(enDict, pcm),
 };
 
 export type MessageKey =
@@ -24,6 +47,7 @@ export type MessageKey =
   | `common.${keyof MessageDict["common"]}`
   | `tabs.${keyof MessageDict["tabs"]}`
   | `lock.${keyof MessageDict["lock"]}`
+  | `forex.${keyof MessageDict["forex"]}`
   | "more";
 
 function lookup(dict: MessageDict, key: string): string | undefined {
@@ -48,4 +72,4 @@ export function translate(locale: AppLocale, key: MessageKey | string, vars?: Re
 }
 
 export { en };
-export type { MessageDict };
+export type { MessageDict, DeepPartialMessages };

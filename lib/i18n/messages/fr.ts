@@ -1,6 +1,6 @@
-import type { MessageDict } from "./en";
+import type { DeepPartialMessages } from "./en";
 
-export const fr: MessageDict = {
+export const fr: DeepPartialMessages = {
   brand: {
     tagline: "Votre sniper crypto IA éclair avancé — futures et intelligence des marchés de prédiction",
     taglineShort: "Sniper crypto IA pour meme coins, futures et marchés de prédiction.",
@@ -91,5 +91,22 @@ export const fr: MessageDict = {
     onDemand: "Accès à la demande requis",
     vipRequired: "VIP requis",
     subscribe: "Abonnez-vous pour accéder",
+  },
+  forex: {
+    title: "Connexion courtier forex (MT4/MT5)",
+    blurb:
+      "Connectez votre login MT4/MT5 pour que les bots Nova Forex puissent trader sur votre compte. Identifiants chiffrés au repos.",
+    connectBroker: "Connecter {broker}",
+    retryBroker: "Réessayer {broker}",
+    disconnectClear: "Déconnecter / effacer",
+    refreshBalance: "Actualiser le solde",
+    accountTitle: "Compte {broker}",
+    openCount: "Ouvertes ({count})",
+    pendingCount: "En attente ({count})",
+    closedCount: "Clôturées ({count})",
+    rememberLogin: "Mémoriser login et mot de passe sur cet appareil",
+    noPositions: "Aucune position ouverte.",
+    noOrders: "Aucun ordre en attente.",
+    noClosed: "Aucun trade clôturé sur cette période.",
   },
 };

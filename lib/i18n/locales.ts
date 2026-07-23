@@ -1,5 +1,5 @@
 /** Supported UI languages for NovaStaris. */
-export const APP_LOCALES = ["en", "fr", "zh", "hi", "yo", "ig"] as const;
+export const APP_LOCALES = ["en", "fr", "zh", "hi", "yo", "ig", "de", "es", "pcm"] as const;
 
 export type AppLocale = (typeof APP_LOCALES)[number];
 
@@ -14,6 +14,9 @@ export const LOCALE_LABELS: Record<AppLocale, string> = {
   hi: "हिन्दी",
   yo: "Yorùbá",
   ig: "Igbo",
+  de: "Deutsch",
+  es: "Español",
+  pcm: "Pidgin",
 };
 
 /** BCP 47 tags for <html lang> and number/date formatting. */
@@ -24,6 +27,9 @@ export const LOCALE_HTML_LANG: Record<AppLocale, string> = {
   hi: "hi",
   yo: "yo",
   ig: "ig",
+  de: "de",
+  es: "es",
+  pcm: "pcm",
 };
 
 export function parseAppLocale(raw: unknown): AppLocale | null {
@@ -35,5 +41,8 @@ export function parseAppLocale(raw: unknown): AppLocale | null {
   if (s === "fr-fr" || s === "french") return "fr";
   if (s === "hi-in" || s === "hindi") return "hi";
   if (s === "yoruba") return "yo";
+  if (s === "de-de" || s === "german" || s === "deutsch") return "de";
+  if (s === "es-es" || s === "es-mx" || s === "spanish" || s === "español" || s === "espanol") return "es";
+  if (s === "pidgin" || s === "naija" || s === "ng-pidgin") return "pcm";
   return null;
 }

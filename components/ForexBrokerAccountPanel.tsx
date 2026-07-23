@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FOREX_BROKER_LABELS, type ForexBrokerId } from "@/lib/forex-broker-user-config";
 import { drawClosedTradeShareCard, drawOpenPositionShareCard } from "@/lib/closed-pnl-share-image";
 import PnlShareButtons from "@/components/PnlShareButtons";
+import { useI18n } from "@/components/I18nProvider";
 
 type AccountInfo = {
   balance: number;
@@ -82,6 +83,7 @@ function roiFromProfit(profit: number | null, marginHint: number | null): number
 }
 
 export default function ForexBrokerAccountPanel({ broker, connected, demoMode, className = "" }: Props) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [account, setAccount] = useState<AccountInfo | null>(null);
@@ -104,7 +106,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
       );
       const data = await res.json().catch(() => ({}));
       if (!data.success) {
-        setError(data.error ?? "Failed to load account.");
+        setError(data.error ?? t("forex.accountLoadFailed"));
         setAccount(null);
         setPositions([]);
         setOrders([]);
@@ -117,14 +119,14 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
       setClosedTrades(Array.isArray(data.closedTrades) ? data.closedTrades : []);
       if (data.accountError) setError(String(data.accountError));
       if (data.metaApi && !data.metaApi.ready && !data.account) {
-        setMetaHint("Broker link is still starting. Balance appears once the connection finishes — tap Refresh.");
+        setMetaHint(t("forex.metaStarting"));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load account.");
+      setError(e instanceof Error ? e.message : t("forex.accountLoadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [broker, connected, period]);
+  }, [broker, connected, period, t]);
 
   useEffect(() => {
     void load();
@@ -132,7 +134,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
 
   if (!connected) return null;
 
-  const modeLabel = demoMode ? "Demo" : "Live";
+  const modeLabel = demoMode ? t("common.demo") : t("common.live");
   const currency = account?.currency || "USD";
 
   return (
@@ -140,15 +142,14 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-base font-semibold">
-            {FOREX_BROKER_LABELS[broker]} account
+            {t("forex.accountTitle", { broker: FOREX_BROKER_LABELS[broker] })}
           </CardTitle>
           <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}>
-            {loading ? "Refreshing…" : "Refresh"}
+            {loading ? t("common.refreshing") : t("nav.refresh")}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Live account view — balance, leverage (from your MT4/MT5 account), open positions, pending orders, and closed
-          records. Share PNL cards work the same way as on Blofin.
+          {t("forex.accountBlurb")}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -157,47 +158,46 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Balance</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("common.balance")}</p>
             <p className="font-mono font-semibold text-sm">
               {account ? `${fmt(account.balance)} ${currency}` : loading ? "…" : "—"}
             </p>
           </div>
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Equity</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("common.equity")}</p>
             <p className="font-mono font-semibold text-sm">
               {account ? `${fmt(account.equity)} ${currency}` : loading ? "…" : "—"}
             </p>
           </div>
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Free margin</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("common.freeMargin")}</p>
             <p className="font-mono font-semibold text-sm">
               {account ? `${fmt(account.freeMargin)} ${currency}` : loading ? "…" : "—"}
             </p>
           </div>
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Leverage</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("common.leverage")}</p>
             <p className="font-mono font-semibold text-sm">
               {account?.leverage ? `1:${account.leverage}` : loading ? "…" : "—"}
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
-              Set in MT5 (or your broker portal) — NovaStaris cannot change it
+              {t("forex.leverageReadonly")}
             </p>
           </div>
         </div>
 
         <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 px-3 py-2 text-[11px] text-muted-foreground">
-          <strong className="text-foreground">Leverage:</strong> change it in MetaTrader (account settings / broker
-          website), then tap Refresh here. We only display what your MT account reports.
+          {t("forex.leverageNote")}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 w-fit">
             {(
               [
-                ["positions", `Open (${positions.length})`],
-                ["orders", `Pending (${orders.length})`],
-                ["closed", `Closed (${closedTrades.length})`],
-              ] as const
+                ["positions", t("forex.openCount", { count: positions.length })],
+                ["orders", t("forex.pendingCount", { count: orders.length })],
+                ["closed", t("forex.closedCount", { count: closedTrades.length })],
+              ] as [typeof tab, string][]
             ).map(([id, label]) => (
               <button
                 key={id}
@@ -236,7 +236,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
         {tab === "positions" && (
           <div className="space-y-2">
             {positions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No open positions.</p>
+              <p className="text-sm text-muted-foreground">{t("forex.noPositions")}</p>
             ) : (
               positions.map((p) => {
                 const profit = p.profit ?? 0;
@@ -260,7 +260,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                         >
                           {p.side.toUpperCase()}
                         </span>{" "}
-                        <span className="text-xs text-muted-foreground font-normal">{p.volume} lots</span>
+                        <span className="text-xs text-muted-foreground font-normal">{p.volume} {t("common.lots")}</span>
                       </p>
                       <p
                         className={`font-mono text-sm font-semibold ${
@@ -306,7 +306,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
         {tab === "orders" && (
           <div className="space-y-2">
             {orders.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pending (limit/stop) orders.</p>
+              <p className="text-sm text-muted-foreground">{t("forex.noOrders")}</p>
             ) : (
               orders.map((o) => (
                 <div
@@ -331,60 +331,60 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
         {tab === "closed" && (
           <div className="space-y-2">
             {closedTrades.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No closed trades in this period.</p>
+              <p className="text-sm text-muted-foreground">{t("forex.noClosed")}</p>
             ) : (
-              closedTrades.map((t) => {
+              closedTrades.map((trade) => {
                 const roi =
-                  t.openPrice > 0
-                    ? ((t.closePrice - t.openPrice) / t.openPrice) * 100 * (t.side === "short" ? -1 : 1)
+                  trade.openPrice > 0
+                    ? ((trade.closePrice - trade.openPrice) / trade.openPrice) * 100 * (trade.side === "short" ? -1 : 1)
                     : 0;
                 return (
                   <div
-                    key={`${t.id}-${t.closedAt}`}
+                    key={`${trade.id}-${trade.closedAt}`}
                     className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-950/40 p-3 space-y-1"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-semibold">
-                        <span className="font-mono">{t.symbol}</span>{" "}
+                        <span className="font-mono">{trade.symbol}</span>{" "}
                         <span
                           className={
-                            t.side === "long"
+                            trade.side === "long"
                               ? "text-emerald-600 dark:text-emerald-400"
                               : "text-rose-600 dark:text-rose-400"
                           }
                         >
-                          {t.side.toUpperCase()}
+                          {trade.side.toUpperCase()}
                         </span>
                       </p>
                       <p
                         className={`font-mono text-sm font-semibold ${
-                          t.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                          trade.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                         }`}
                       >
-                        {t.profit >= 0 ? "+" : ""}
-                        {fmt(t.profit)} {currency}
+                        {trade.profit >= 0 ? "+" : ""}
+                        {fmt(trade.profit)} {currency}
                       </p>
                     </div>
                     <p className="text-xs text-muted-foreground font-mono">
-                      {fmt(t.openPrice, 5)} → {fmt(t.closePrice, 5)} · {t.volume} lots ·{" "}
-                      {new Date(t.closedAt).toLocaleString()}
+                      {fmt(trade.openPrice, 5)} → {fmt(trade.closePrice, 5)} · {trade.volume} {t("common.lots")} ·{" "}
+                      {new Date(trade.closedAt).toLocaleString()}
                     </p>
                     <PnlShareButtons
                       compact
                       kind="closed"
-                      symbol={t.symbol}
+                      symbol={trade.symbol}
                       roiPct={roi}
-                      pnlUsdt={t.profit}
-                      filename={`novastaris-${t.symbol}-${t.side}-closed.jpg`}
+                      pnlUsdt={trade.profit}
+                      filename={`novastaris-${trade.symbol}-${trade.side}-closed.jpg`}
                       getBlob={async () =>
                         drawClosedTradeShareCard({
-                          displaySymbol: t.symbol,
-                          direction: t.side,
-                          openPrice: t.openPrice,
-                          closePrice: t.closePrice,
+                          displaySymbol: trade.symbol,
+                          direction: trade.side,
+                          openPrice: trade.openPrice,
+                          closePrice: trade.closePrice,
                           roiPct: roi,
-                          realizedPnlUsdt: t.profit,
-                          closedAt: t.closedAt,
+                          realizedPnlUsdt: trade.profit,
+                          closedAt: trade.closedAt,
                           modeLabel: modeLabel as "Live" | "Demo",
                           leverage: account?.leverage ?? null,
                         })

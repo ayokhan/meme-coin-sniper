@@ -13,6 +13,7 @@ import {
 import { suggestedServersForBroker } from "@/lib/forex-broker-servers";
 import { ForexBrokerPartnerPromoBanner } from "@/components/ForexBrokerPartnerPromoBanner";
 import ForexBrokerAccountPanel from "@/components/ForexBrokerAccountPanel";
+import { useI18n } from "@/components/I18nProvider";
 
 type Connection = {
   broker: ForexBrokerId;
@@ -121,6 +122,7 @@ function pickActiveBroker(
 }
 
 export default function ForexBrokerConnectPanel({ onChange, compact = false }: Props) {
+  const { t } = useI18n();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [enabledBrokers, setEnabledBrokers] = useState<ForexBrokerId[]>([...FOREX_BROKER_IDS]);
   const [metaApiConfigured, setMetaApiConfigured] = useState<boolean | null>(null);
@@ -165,13 +167,13 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
           writeLastActiveBroker(next);
           return next;
         });
-      } else setError(data.error ?? "Failed to load broker connections.");
+      } else setError(data.error ?? t("forex.loadFailed"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load broker connections.");
+      setError(e instanceof Error ? e.message : t("forex.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -269,15 +271,15 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
   const connect = async (opts?: { reuseSavedPassword?: boolean }) => {
     const reuse = opts?.reuseSavedPassword === true || (needsReconnect && !form.password.trim());
     if (!form.server.trim()) {
-      setError("Server is required. Use the exact name from your MT4/MT5 terminal.");
+      setError(t("forex.serverRequired"));
       return;
     }
     if (!reuse && (!form.login.trim() || !form.password.trim())) {
-      setError("Login, password, and server are required.");
+      setError(t("forex.credentialsRequired"));
       return;
     }
     if (reuse && !form.login.trim() && !activeConnection?.login) {
-      setError("Login is required.");
+      setError(t("forex.loginRequired"));
       return;
     }
     setSaving(true);
@@ -316,19 +318,19 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
         }
         if (Array.isArray(data.suggestedServers)) setSuggestedServers(data.suggestedServers);
         if (data.provisionFailed || data.warning) {
-          setError(data.warning ?? "Saved, but could not link the broker yet. Fix the server name and retry.");
+          setError(data.warning ?? t("forex.provisionWarning"));
           setSuccess(null);
         } else {
-          setSuccess(`${FOREX_BROKER_LABELS[activeBroker]} connected.`);
+          setSuccess(t("forex.connectedSuccess", { broker: FOREX_BROKER_LABELS[activeBroker] }));
         }
         writeLastActiveBroker(activeBroker);
         // Keep password in the form when remembering so Disconnect → reconnect stays filled
         setForm((f) => ({ ...f, password: rememberLogin ? f.password : "" }));
         await load();
         onChange?.();
-      } else setError(data.error ?? "Connect failed.");
+      } else setError(data.error ?? t("forex.connectFailed"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Connect failed.");
+      setError(e instanceof Error ? e.message : t("forex.connectFailed"));
     } finally {
       setSaving(false);
     }
@@ -336,7 +338,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
 
   const disconnect = async () => {
     if (!activeConnection) return;
-    if (!window.confirm(`Disconnect ${FOREX_BROKER_LABELS[activeBroker]}? Bots using this broker will stop trading.`)) return;
+    if (!window.confirm(t("forex.disconnectConfirm", { broker: FOREX_BROKER_LABELS[activeBroker] }))) return;
     setRemoving(true);
     setError(null);
     setSuccess(null);
@@ -347,12 +349,12 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess(`${FOREX_BROKER_LABELS[activeBroker]} disconnected.`);
+        setSuccess(t("forex.disconnectedSuccess", { broker: FOREX_BROKER_LABELS[activeBroker] }));
         await load();
         onChange?.();
-      } else setError(data.error ?? "Disconnect failed.");
+      } else setError(data.error ?? t("forex.disconnectFailed"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Disconnect failed.");
+      setError(e instanceof Error ? e.message : t("forex.disconnectFailed"));
     } finally {
       setRemoving(false);
     }
@@ -385,16 +387,14 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {needsReconnect && (
         <div className="sm:col-span-2 rounded-md border border-amber-300/70 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
-          <p className="font-medium">Saved, but not linked to your broker yet</p>
+          <p className="font-medium">{t("forex.reconnectTitle")}</p>
           <p>
-            We need the <span className="font-semibold">exact</span> server name from your MT4/MT5 terminal (e.g.{" "}
-            <span className="font-mono">TIOMarkets-Live1</span>). Fix the server below and retry — leave password blank to
-            reuse your saved password.
+            {t("forex.reconnectBody")}
           </p>
         </div>
       )}
       <div>
-        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Platform</label>
+        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">{t("common.platform")}</label>
         <select
           value={form.platform}
           onChange={(e) => setForm((f) => ({ ...f, platform: e.target.value as ForexBrokerPlatform }))}
@@ -412,11 +412,11 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
           onChange={(e) => setForm((f) => ({ ...f, demoMode: e.target.checked }))}
         />
         <label htmlFor={`forex-broker-demo-${activeBroker}`} className="text-sm">
-          Demo mode
+          {t("common.demoMode")}
         </label>
       </div>
       <div>
-        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Login (account number)</label>
+        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">{t("common.login")}</label>
         <input
           value={form.login}
           onChange={(e) => setForm((f) => ({ ...f, login: e.target.value }))}
@@ -427,19 +427,19 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       </div>
       <div>
         <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-          Password{needsReconnect ? " (optional — reuse saved)" : ""}
+          {needsReconnect ? t("forex.passwordOptional") : t("common.password")}
         </label>
         <input
           type="password"
           value={form.password}
           onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-          placeholder={needsReconnect ? "Leave blank to reuse saved" : "••••••••"}
+          placeholder={needsReconnect ? t("forex.passwordReusePlaceholder") : "••••••••"}
           autoComplete="current-password"
           className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
         />
       </div>
       <div className="sm:col-span-2">
-        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Server</label>
+        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">{t("common.server")}</label>
         <input
           list={`forex-broker-servers-${activeBroker}`}
           value={form.server}
@@ -469,8 +469,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
           ))}
         </div>
         <p className="text-[11px] text-muted-foreground mt-1.5">
-          Tip: In MT5 open your account in Navigator — the server name must match character-for-character (including{" "}
-          <span className="font-mono">Live1</span> vs <span className="font-mono">Live</span>).
+          {t("forex.serverTip")}
         </p>
       </div>
       <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
@@ -494,25 +493,25 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
               }
             }}
           />
-          Remember login and password on this device
+          {t("forex.rememberLogin")}
         </label>
         {rememberLogin && (
           <p className="text-[11px] text-muted-foreground w-full">
-            Stored only in this browser. Uncheck to clear. Prefer a dedicated trading password if the device is shared.
+            {t("forex.rememberHint")}
           </p>
         )}
       </div>
       <div className="sm:col-span-2 flex flex-wrap gap-2">
         <Button size="sm" disabled={saving} onClick={() => void connect({ reuseSavedPassword: needsReconnect })}>
           {saving
-            ? "Connecting…"
+            ? t("common.connecting")
             : needsReconnect
-              ? `Retry ${FOREX_BROKER_LABELS[activeBroker]}`
-              : `Connect ${FOREX_BROKER_LABELS[activeBroker]}`}
+              ? t("forex.retryBroker", { broker: FOREX_BROKER_LABELS[activeBroker] })
+              : t("forex.connectBroker", { broker: FOREX_BROKER_LABELS[activeBroker] })}
         </Button>
         {needsReconnect && (
           <Button size="sm" variant="outline" disabled={removing} onClick={() => void disconnect()}>
-            {removing ? "Disconnecting…" : "Disconnect / clear"}
+            {removing ? t("common.disconnecting") : t("forex.disconnectClear")}
           </Button>
         )}
       </div>
@@ -522,11 +521,10 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
   return (
     <Card className="border-zinc-200/80 dark:border-zinc-700/80">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold">Forex broker connection (MT4/MT5)</CardTitle>
+        <CardTitle className="text-base font-semibold">{t("forex.title")}</CardTitle>
         {!compact && (
           <p className="text-xs text-muted-foreground">
-            Connect your broker MT4/MT5 login so Nova Forex bots can trade on your account. Credentials are encrypted at
-            rest. Available brokers are controlled by the site admin.
+            {t("forex.blurb")}
           </p>
         )}
       </CardHeader>
@@ -535,7 +533,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
 
         {brokerTabs.length === 0 ? (
           <p className="text-sm text-amber-700 dark:text-amber-300">
-            No forex brokers are enabled right now. Ask the site owner to turn one on in Admin → Feature flags.
+            {t("forex.noBrokers")}
           </p>
         ) : (
           <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-600/80 w-fit">
@@ -562,15 +560,14 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
 
         {metaApiConfigured === false && (
           <p className="text-xs text-amber-700 dark:text-amber-300">
-            Broker trading is temporarily unavailable on the server. You can still save your login, but bots cannot trade
-            until support restores it.
+            {t("forex.tradingUnavailable")}
           </p>
         )}
         {success && <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>}
         {error && <p className="text-sm text-rose-600 dark:text-rose-400 whitespace-pre-wrap">{error}</p>}
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
         ) : brokerTabs.length === 0 ? null : showForm ? (
           formFields
         ) : (
@@ -582,26 +579,25 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
                 <span className="font-mono">{activeConnection!.server}</span> ({activeConnection!.platform.toUpperCase()})
               </p>
               {balanceLoading[activeBroker] ? (
-                <p className="text-xs text-muted-foreground">Loading balance (waiting for broker link)…</p>
+                <p className="text-xs text-muted-foreground">{t("forex.loadingBalance")}</p>
               ) : balance ? (
                 <p className="text-sm">
-                  Balance{" "}
+                  {t("common.balance")}{" "}
                   <span className="font-mono font-semibold">
                     {balance.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} {balance.currency}
                   </span>{" "}
-                  · Equity{" "}
+                  · {t("common.equity")}{" "}
                   <span className="font-mono">{balance.equity.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   {balance.leverage ? (
                     <>
                       {" "}
-                      · Leverage <span className="font-mono">1:{balance.leverage}</span>
+                      · {t("common.leverage")} <span className="font-mono">1:{balance.leverage}</span>
                     </>
                   ) : null}
                 </p>
               ) : (
                 <p className="text-xs text-amber-700 dark:text-amber-300">
-                  {balanceError[activeBroker] ?? "Balance unavailable right now."} Tap Refresh balance — the first
-                  connect often needs 20–30 seconds.
+                  {balanceError[activeBroker] ?? t("forex.balanceUnavailable")}
                 </p>
               )}
               <label className="flex items-center gap-2 text-xs pt-1">
@@ -610,15 +606,15 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
                   checked={activeConnection!.demoMode}
                   onChange={(e) => void toggleDemo(e.target.checked)}
                 />
-                Demo mode
+                {t("common.demoMode")}
               </label>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" disabled={removing} onClick={() => void disconnect()}>
-                {removing ? "Disconnecting…" : "Disconnect"}
+                {removing ? t("common.disconnecting") : t("common.disconnect")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => void fetchBalance(activeBroker)}>
-                Refresh balance
+                {t("forex.refreshBalance")}
               </Button>
             </div>
             {activeConnection.connected && (

@@ -1,6 +1,6 @@
-import type { MessageDict } from "./en";
+import type { DeepPartialMessages } from "./en";
 
-export const zh: MessageDict = {
+export const zh: DeepPartialMessages = {
   brand: {
     tagline: "您的高级 AI 闪电加密狙击、合约与预测市场情报",
     taglineShort: "面向 meme 币、合约与预测市场的 AI 加密狙击。",
@@ -91,5 +91,21 @@ export const zh: MessageDict = {
     onDemand: "需要按需访问权限",
     vipRequired: "需要 VIP",
     subscribe: "订阅以获取访问权限",
+  },
+  forex: {
+    title: "外汇经纪商连接（MT4/MT5）",
+    blurb: "连接您的经纪商 MT4/MT5 登录，以便 Nova 外汇机器人在您的账户上交易。凭据加密存储。",
+    connectBroker: "连接 {broker}",
+    retryBroker: "重试 {broker}",
+    disconnectClear: "断开 / 清除",
+    refreshBalance: "刷新余额",
+    accountTitle: "{broker} 账户",
+    openCount: "持仓 ({count})",
+    pendingCount: "挂单 ({count})",
+    closedCount: "已平仓 ({count})",
+    rememberLogin: "在此设备记住登录名和密码",
+    noPositions: "暂无持仓。",
+    noOrders: "暂无挂单。",
+    noClosed: "该时段暂无已平仓交易。",
   },
 };

@@ -1,6 +1,6 @@
-import type { MessageDict } from "./en";
+import type { DeepPartialMessages } from "./en";
 
-export const yo: MessageDict = {
+export const yo: DeepPartialMessages = {
   brand: {
     tagline: "AI Lightning Crypto Sniper tó ga jù, Futures àti ìmọ̀ ọjà Prediction",
     taglineShort: "AI Crypto Sniper fún meme coins, futures àti prediction markets.",
@@ -92,4 +92,5 @@ export const yo: MessageDict = {
     vipRequired: "VIP nílo",
     subscribe: "Forúkọsílẹ̀ láti wọlé",
   },
+  forex: {},
 };
