@@ -4082,7 +4082,7 @@ export default function Dashboard() {
               disabled={scanning !== "idle"}
               className="bg-gradient-to-r from-cyan-500 via-violet-500 to-blue-600 text-white border-0 hover:opacity-95 hover:shadow-lg hover:shadow-cyan-500/25 dark:shadow-cyan-500/15 transition-all"
             >
-              {scanning === "scan" ? "Scanning…" : "Scan new pairs"}
+              {scanning === "scan" ? t("common.scanning") : t("common.scanNewPairs")}
             </Button>
             <Button
               variant="secondary"
@@ -4091,7 +4091,7 @@ export default function Dashboard() {
               disabled={scanning !== "idle" || !canAccessCtScanEffective}
               className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700"
             >
-              {scanning === "twitter" ? "Scanning CT…" : "Scan Twitter"}
+              {scanning === "twitter" ? t("common.scanningCt") : t("common.scanTwitter")}
             </Button>
             </div>
           </div>
@@ -4179,10 +4179,10 @@ export default function Dashboard() {
                 {t("nav.refresh")}
               </Button>
               <Button size="sm" className="justify-start h-12 bg-gradient-to-r from-cyan-500 via-violet-500 to-blue-600 text-white" onClick={() => { setMobileMenuOpen(false); runScan("scan"); }} disabled={scanning !== "idle"}>
-                {scanning === "scan" ? "Scanning…" : "Scan new pairs"}
+                {scanning === "scan" ? t("common.scanning") : t("common.scanNewPairs")}
               </Button>
               <Button variant="secondary" size="sm" className="justify-start h-12 bg-zinc-100 dark:bg-zinc-800" onClick={() => { setMobileMenuOpen(false); runScan("twitter"); }} disabled={scanning !== "idle" || !canAccessCtScanEffective}>
-                {scanning === "twitter" ? "Scanning CT…" : "Scan Twitter"}
+                {scanning === "twitter" ? t("common.scanningCt") : t("common.scanTwitter")}
               </Button>
             </div>
           )}
@@ -4679,7 +4679,7 @@ export default function Dashboard() {
               <details className="mx-3 sm:mx-6 mb-8 sm:mb-10 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50" open>
                 <summary className="cursor-pointer px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between gap-2">
                   <span>
-                    Live tweets from tracked accounts
+                    {t("ui.liveTweets")}
                     {ctTweets.length > 0 && <span className="ml-2 text-xs font-normal text-muted-foreground">({ctTweets.length} in last 2h)</span>}
                   </span>
                   <Button
@@ -4690,32 +4690,32 @@ export default function Dashboard() {
                     disabled={ctTweetsLoading}
                     className="shrink-0 border-zinc-200 dark:border-zinc-700"
                   >
-                    {ctTweetsLoading ? "Loading…" : "Refresh"}
+                    {ctTweetsLoading ? t("common.loading") : t("nav.refresh")}
                   </Button>
                 </summary>
                 <div className="px-4 pb-4 pt-1">
                   {ctTweetsLoading ? (
-                    <p className="text-sm text-muted-foreground py-4">Loading tweets…</p>
+                    <p className="text-sm text-muted-foreground py-4">{t("ui.loadingTweets")}</p>
                   ) : ctTweetsError ? (
                     <p className="text-sm text-amber-600 dark:text-amber-400 py-4">{ctTweetsError}</p>
                   ) : ctTweets.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">No recent tweets. Run &quot;Scan Twitter&quot; to refresh, or tweets may be delayed.</p>
+                    <p className="text-sm text-muted-foreground py-4">{t("ui.noTweets")}</p>
                   ) : (
                     <ul className="space-y-3 max-h-[420px] overflow-y-auto">
-                      {ctTweets.slice(0, 50).map((t) => (
-                        <li key={t.id || t.url + t.created_at} className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-900/80 p-3 text-left">
+                      {ctTweets.slice(0, 50).map((tweet) => (
+                        <li key={tweet.id || tweet.url + tweet.created_at} className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-900/80 p-3 text-left">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <a href={t.url} target="_blank" rel="noopener noreferrer" className="font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
-                                @{t.author.username}
+                              <a href={tweet.url} target="_blank" rel="noopener noreferrer" className="font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
+                                @{tweet.author.username}
                               </a>
-                              <span className="text-xs text-muted-foreground ml-2">· {t.author.followers.toLocaleString()} followers</span>
-                              <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300 break-words line-clamp-3">{t.text}</p>
+                              <span className="text-xs text-muted-foreground ml-2">· {tweet.author.followers.toLocaleString()} {t("ui.followers")}</span>
+                              <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300 break-words line-clamp-3">{tweet.text}</p>
                               <p className="mt-1 text-xs text-muted-foreground">
-                                {new Date(t.created_at).toLocaleString()} · ♥ {t.metrics?.likes ?? 0} · 🔁 {t.metrics?.retweets ?? 0}
+                                {new Date(tweet.created_at).toLocaleString()} · ♥ {tweet.metrics?.likes ?? 0} · 🔁 {tweet.metrics?.retweets ?? 0}
                               </p>
                             </div>
-                            <a href={t.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">View</a>
+                            <a href={tweet.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">{t("common.viewLink")}</a>
                           </div>
                         </li>
                       ))}
@@ -4726,7 +4726,7 @@ export default function Dashboard() {
             )}
             {activeTab === "surge" && (
               <div className="mx-3 sm:mx-6 mb-8 sm:mb-10 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4">
-                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Volume window:</span>
+                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("ui.volumeWindow")}</span>
                 {(["5m", "15m", "30m", "1h", "6h", "24h"] as const).map((w) => (
                   <button
                     key={w}
@@ -4741,13 +4741,13 @@ export default function Dashboard() {
                     {w}
                   </button>
                 ))}
-                <span className="text-xs text-muted-foreground ml-1">5m/15m/30m estimated from 1h. Up to 80 coins.</span>
+                <span className="text-xs text-muted-foreground ml-1">{t("ui.surgeHint")}</span>
               </div>
             )}
             {activeTab === "new" && (
               <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">View:</span>
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("common.view")}</span>
                   <div className="flex flex-wrap items-center gap-2">
                     {(["new_pairs", "final_stretch", "migrated"] as const).map((v) => (
                       <button
@@ -4760,15 +4760,15 @@ export default function Dashboard() {
                             : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
                         }`}
                       >
-                        {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : "Migrated"}
+                        {v === "new_pairs" ? t("ui.newPairs") : v === "final_stretch" ? t("ui.finalStretch") : t("ui.migrated")}
                       </button>
                     ))}
                   </div>
                 </div>
                 <span className="mt-2 block text-xs text-muted-foreground">
-                  {goHuntingView === "new_pairs" && "All new pairs (pump + migrated) — last ~4h. Click column headers to sort."}
-                  {goHuntingView === "final_stretch" && "Pump.fun / pumpswap still on bonding curve (not yet on Raydium)."}
-                  {goHuntingView === "migrated" && "Graduated to Raydium, Orca, or Meteora (or pumpswap past ~$69k MC)."}
+                  {goHuntingView === "new_pairs" && t("ui.huntingNewHint")}
+                  {goHuntingView === "final_stretch" && t("ui.huntingFinalHint")}
+                  {goHuntingView === "migrated" && t("ui.huntingMigratedHint")}
                 </span>
                 {goHuntingView === "new_pairs" && tokensForDisplay.length > 0 && tokensForDisplay.length <= 5 && (
                   <p className="mt-2 text-xs text-slate-600 dark:text-slate-300/90">
@@ -4783,7 +4783,7 @@ export default function Dashboard() {
             {activeTab === "bsc" && (
               <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">View:</span>
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("common.view")}</span>
                   <div className="flex flex-wrap items-center gap-2">
                     {(["new_pairs", "final_stretch", "migrated", "trending"] as const).map((v) => (
                       <button
@@ -4796,15 +4796,15 @@ export default function Dashboard() {
                             : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
                         }`}
                       >
-                        {v === "new_pairs" ? "New pairs" : v === "final_stretch" ? "Final Stretch" : v === "migrated" ? "Migrated" : "Trending"}
+                        {v === "new_pairs" ? t("ui.newPairs") : v === "final_stretch" ? t("ui.finalStretch") : v === "migrated" ? t("ui.migrated") : t("tabs.trending")}
                       </button>
                     ))}
                   </div>
                 </div>
                 <span className="mt-2 block text-xs text-muted-foreground">
-                  {bscGoHuntingView === "new_pairs" && "All new BSC pairs (Four.meme + PancakeSwap etc.). Click headers to sort."}
-                  {bscGoHuntingView === "final_stretch" && "Four.meme tokens still on bonding curve (pre-migration)."}
-                  {bscGoHuntingView === "migrated" && "Graduated to PancakeSwap and other BSC AMMs."}
+                  {bscGoHuntingView === "new_pairs" && t("ui.bscNewHint")}
+                  {bscGoHuntingView === "final_stretch" && t("ui.bscFinalHint")}
+                  {bscGoHuntingView === "migrated" && t("ui.bscMigratedHint")}
                   {bscGoHuntingView === "trending" && "Trending BSC meme coins by volume and price change."}
                 </span>
               </div>
@@ -4825,17 +4825,17 @@ export default function Dashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
-                      <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Symbol</TableHead>
-                      <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">Name</TableHead>
-                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Score</TableHead>
+                      <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colSymbol")}</TableHead>
+                      <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colName")}</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colScore")}</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">5m</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">1h</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">6h</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">24h</TableHead>
-                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Age</TableHead>
-                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
-                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
-                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colAge")}</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLiquidity")}</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colPrice")}</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLinks")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -5490,7 +5490,7 @@ export default function Dashboard() {
                     <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Perp Radar</h2>
                   </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground">View:</span>
+                      <span className="text-xs text-muted-foreground">{t("common.view")}</span>
                       <button
                         type="button"
                         onClick={() => { setPerpRadarView("all"); fetchPerpRadar("all"); }}
@@ -5584,10 +5584,10 @@ export default function Dashboard() {
                         className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpTablesAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
                         title="Refresh perp tables every 60s (Blofin Perp Radar: 120s). Saved in this browser."
                       >
-                        {perpTablesAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
+                        {perpTablesAutoRefresh ? t("common.autoRefreshOn") : t("common.autoRefreshOff")}
                       </button>
                       <Button variant="outline" size="sm" onClick={() => fetchPerpRadar()} disabled={perpRadarLoading}>
-                        {perpRadarLoading ? "Loading…" : "Refresh"}
+                        {perpRadarLoading ? t("common.loading") : t("nav.refresh")}
                       </Button>
                     </div>
                   <p className="text-xs text-muted-foreground mb-3">
@@ -5744,19 +5744,19 @@ export default function Dashboard() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="text-xs">Symbol</TableHead>
+                            <TableHead className="text-xs">{t("ui.colSymbol")}</TableHead>
                             <TableHead className="text-right text-xs">5m %</TableHead>
                             <TableHead className="text-right text-xs">15m %</TableHead>
                             <TableHead className="text-right text-xs">30m %</TableHead>
                             <TableHead className="text-right text-xs">1h %</TableHead>
                             <TableHead className="text-right text-xs">4h %</TableHead>
                             <TableHead className="text-right text-xs">24h %</TableHead>
-                            <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">Trend</TableHead>
-                            <TableHead className="text-center text-xs" title="Direction bias from short-window momentum + 24h trend">Direction</TableHead>
-                            <TableHead className="text-right text-xs">Price</TableHead>
+                            <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">{t("ui.colTrend")}</TableHead>
+                            <TableHead className="text-center text-xs" title="Direction bias from short-window momentum + 24h trend">{t("ui.colDirection")}</TableHead>
+                            <TableHead className="text-right text-xs">{t("ui.colPrice")}</TableHead>
                             <TableHead className="text-right text-xs" title="24h quote volume">24h Vol</TableHead>
                             <TableHead className="text-center text-xs w-20" title="On-demand NovaStaris AI signal (subscribers)">AI Signal</TableHead>
-                            <TableHead className="text-right text-xs w-16">Trade</TableHead>
+                            <TableHead className="text-right text-xs w-16">{t("ui.colTrade")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -6006,10 +6006,10 @@ export default function Dashboard() {
                         className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpTablesAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
                         title="Refresh every 60s. Saved in this browser."
                       >
-                        {perpTablesAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
+                        {perpTablesAutoRefresh ? t("common.autoRefreshOn") : t("common.autoRefreshOff")}
                       </button>
                       <Button variant="outline" size="sm" onClick={() => fetchTrendingPerps(undefined, true)} disabled={trendingPerpsLoading}>
-                        {trendingPerpsLoading ? "Loading…" : "Refresh"}
+                        {trendingPerpsLoading ? t("common.loading") : t("nav.refresh")}
                       </Button>
                     </div>
                   </div>
@@ -6061,20 +6061,20 @@ export default function Dashboard() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="text-xs">Symbol</TableHead>
+                            <TableHead className="text-xs">{t("ui.colSymbol")}</TableHead>
                             <TableHead className="text-right text-xs">5m %</TableHead>
                             <TableHead className="text-right text-xs">15m %</TableHead>
                             <TableHead className="text-right text-xs">30m %</TableHead>
                             <TableHead className="text-right text-xs">1h %</TableHead>
                             <TableHead className="text-right text-xs">4h %</TableHead>
                             <TableHead className="text-right text-xs">24h %</TableHead>
-                            <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">Trend</TableHead>
-                            <TableHead className="text-center text-xs" title="Direction (blended when available, else 24h move): Long = price up, Short = price down.">Direction <span className="text-muted-foreground/70" title="Blended trend+structure when available; fallback uses 24h move.">ⓘ</span></TableHead>
-                            <TableHead className="text-right text-xs" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">Funding <span className="text-muted-foreground/70" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">ⓘ</span></TableHead>
-                            <TableHead className="text-right text-xs">Price</TableHead>
+                            <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">{t("ui.colTrend")}</TableHead>
+                            <TableHead className="text-center text-xs" title="Direction (blended when available, else 24h move): Long = price up, Short = price down.">{t("ui.colDirection")} <span className="text-muted-foreground/70" title="Blended trend+structure when available; fallback uses 24h move.">ⓘ</span></TableHead>
+                            <TableHead className="text-right text-xs" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">{t("ui.colFunding")} <span className="text-muted-foreground/70" title="Positive = longs pay shorts (long-heavy). Negative = shorts pay longs (short-heavy).">ⓘ</span></TableHead>
+                            <TableHead className="text-right text-xs">{t("ui.colPrice")}</TableHead>
                             <TableHead className="text-right text-xs" title="Total notional volume (buys + sells) over 24h">24h Vol <span className="text-muted-foreground/70" title="Total notional volume (buys + sells)">ⓘ</span></TableHead>
                             <TableHead className="text-center text-xs w-20" title="On-demand NovaStaris AI signal (subscribers)">AI Signal</TableHead>
-                            <TableHead className="text-right text-xs w-16">Trade</TableHead>
+                            <TableHead className="text-right text-xs w-16">{t("ui.colTrade")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -6394,10 +6394,10 @@ export default function Dashboard() {
                           className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpTablesAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
                           title="Refresh every 60s. Saved in this browser."
                         >
-                          {perpTablesAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
+                          {perpTablesAutoRefresh ? t("common.autoRefreshOn") : t("common.autoRefreshOff")}
                         </button>
                         <Button variant="outline" size="sm" onClick={fetchTopAltcoins} disabled={topAltcoinsLoading}>
-                          {topAltcoinsLoading ? "Loading…" : "Refresh"}
+                          {topAltcoinsLoading ? t("common.loading") : t("nav.refresh")}
                         </Button>
                       </div>
                     </div>
@@ -6411,20 +6411,20 @@ export default function Dashboard() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="text-xs">Symbol</TableHead>
+                              <TableHead className="text-xs">{t("ui.colSymbol")}</TableHead>
                               <TableHead className="text-right text-xs">5m %</TableHead>
                               <TableHead className="text-right text-xs">15m %</TableHead>
                               <TableHead className="text-right text-xs">30m %</TableHead>
                               <TableHead className="text-right text-xs">1h %</TableHead>
                               <TableHead className="text-right text-xs">4h %</TableHead>
                               <TableHead className="text-right text-xs">24h %</TableHead>
-                              <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">Trend</TableHead>
-                              <TableHead className="text-center text-xs" title="Direction (blended when available, else 24h move).">Direction</TableHead>
-                              <TableHead className="text-right text-xs" title="Positive = long-heavy, negative = short-heavy.">Funding</TableHead>
-                              <TableHead className="text-right text-xs">Price</TableHead>
+                              <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">{t("ui.colTrend")}</TableHead>
+                              <TableHead className="text-center text-xs" title="Direction (blended when available, else 24h move).">{t("ui.colDirection")}</TableHead>
+                              <TableHead className="text-right text-xs" title="Positive = long-heavy, negative = short-heavy.">{t("ui.colFunding")}</TableHead>
+                              <TableHead className="text-right text-xs">{t("ui.colPrice")}</TableHead>
                               <TableHead className="text-right text-xs" title="Total notional volume (buys + sells)">24h Vol</TableHead>
                               <TableHead className="text-center text-xs w-20" title="On-demand NovaStaris AI signal (subscribers)">AI Signal</TableHead>
-                              <TableHead className="text-right text-xs w-16">Trade</TableHead>
+                              <TableHead className="text-right text-xs w-16">{t("ui.colTrade")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -6577,10 +6577,10 @@ export default function Dashboard() {
                           className={`px-3 py-1.5 rounded-md text-sm font-medium ${perpTablesAutoRefresh ? "bg-violet-600 text-white" : "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-500"}`}
                           title="Refresh every 60s. Saved in this browser."
                         >
-                          {perpTablesAutoRefresh ? "Auto-refresh: On" : "Auto-refresh: Off"}
+                          {perpTablesAutoRefresh ? t("common.autoRefreshOn") : t("common.autoRefreshOff")}
                         </button>
                         <Button variant="outline" size="sm" onClick={fetchHotPerps} disabled={hotPerpsLoading}>
-                          {hotPerpsLoading ? "Loading…" : "Refresh"}
+                          {hotPerpsLoading ? t("common.loading") : t("nav.refresh")}
                         </Button>
                       </div>
                     </div>
@@ -6599,20 +6599,20 @@ export default function Dashboard() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="text-xs">Symbol</TableHead>
+                              <TableHead className="text-xs">{t("ui.colSymbol")}</TableHead>
                               <TableHead className="text-right text-xs">5m %</TableHead>
                               <TableHead className="text-right text-xs">15m %</TableHead>
                               <TableHead className="text-right text-xs">30m %</TableHead>
                               <TableHead className="text-right text-xs">1h %</TableHead>
                               <TableHead className="text-right text-xs">4h %</TableHead>
                               <TableHead className="text-right text-xs">24h %</TableHead>
-                              <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">Trend</TableHead>
-                              <TableHead className="text-center text-xs" title="Direction (blended when available, else 24h move).">Direction</TableHead>
-                              <TableHead className="text-right text-xs" title="Positive = long-heavy, negative = short-heavy.">Funding</TableHead>
-                              <TableHead className="text-right text-xs">Price</TableHead>
+                              <TableHead className="text-center text-xs" title="Regression trendline + structure blend from recent 15m candles">{t("ui.colTrend")}</TableHead>
+                              <TableHead className="text-center text-xs" title="Direction (blended when available, else 24h move).">{t("ui.colDirection")}</TableHead>
+                              <TableHead className="text-right text-xs" title="Positive = long-heavy, negative = short-heavy.">{t("ui.colFunding")}</TableHead>
+                              <TableHead className="text-right text-xs">{t("ui.colPrice")}</TableHead>
                               <TableHead className="text-right text-xs" title="Total notional volume (buys + sells)">24h Vol</TableHead>
                               <TableHead className="text-center text-xs w-20" title="On-demand NovaStaris AI signal (subscribers)">AI Signal</TableHead>
-                              <TableHead className="text-right text-xs w-16">Trade</TableHead>
+                              <TableHead className="text-right text-xs w-16">{t("ui.colTrade")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -7913,12 +7913,12 @@ export default function Dashboard() {
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead className="text-xs">Symbol</TableHead>
+                                <TableHead className="text-xs">{t("ui.colSymbol")}</TableHead>
                                 <TableHead className="text-right text-xs">High ({novaForecastRangeLabel})</TableHead>
                                 <TableHead className="text-right text-xs">Low ({novaForecastRangeLabel})</TableHead>
                                 <TableHead className="text-right text-xs">Short entry</TableHead>
                                 <TableHead className="text-right text-xs">Long entry</TableHead>
-                                <TableHead className="text-right text-xs">Price</TableHead>
+                                <TableHead className="text-right text-xs">{t("ui.colPrice")}</TableHead>
                                 <TableHead className="text-left text-xs">Insight</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -8735,7 +8735,7 @@ export default function Dashboard() {
                       disabled={walletTradesLoading}
                       className="shrink-0 border-zinc-200 dark:border-zinc-700"
                     >
-                      {walletTradesLoading ? "Loading…" : "Refresh"}
+                      {walletTradesLoading ? t("common.loading") : t("nav.refresh")}
                     </Button>
                   </summary>
                   <div className="px-4 pb-4 pt-1">
@@ -8934,9 +8934,9 @@ export default function Dashboard() {
                             <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
                               <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Wallet</TableHead>
                               <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Coin</TableHead>
-                              <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
+                              <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLiquidity")}</TableHead>
                               <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Alerted</TableHead>
-                              <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                              <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLinks")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -8982,11 +8982,11 @@ export default function Dashboard() {
                     <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
                       <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Coin</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Buyers</TableHead>
-                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
-                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLiquidity")}</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colPrice")}</TableHead>
                       <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Who bought</TableHead>
                       <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Bought</TableHead>
-                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                      <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLinks")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -9092,7 +9092,7 @@ export default function Dashboard() {
                       </details>
                     )}
                     <Button variant="outline" size="sm" onClick={fetchTopTraders} disabled={topTradersLoading}>
-                      {topTradersLoading ? "Loading…" : "Refresh"}
+                      {topTradersLoading ? t("common.loading") : t("nav.refresh")}
                     </Button>
                     {topTradersError && <p className="text-sm text-rose-600 dark:text-rose-400">{topTradersError}</p>}
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
@@ -9140,9 +9140,9 @@ export default function Dashboard() {
                                 <TableRow>
                                   <TableHead className="text-xs">Time</TableHead>
                                   <TableHead className="text-xs">Asset</TableHead>
-                                  <TableHead className="text-xs">Direction</TableHead>
+                                  <TableHead className="text-xs">{t("ui.colDirection")}</TableHead>
                                   <TableHead className="text-right text-xs" title="Quantity of the asset (contracts). Negative = short, positive = long.">Size</TableHead>
-                                  <TableHead className="text-right text-xs">Price</TableHead>
+                                  <TableHead className="text-right text-xs">{t("ui.colPrice")}</TableHead>
                                   <TableHead className="text-right text-xs" title="Time from open/add to this close fill.">Duration</TableHead>
                                   <TableHead className="text-right text-xs" title="Realized PnL when closing or reducing (— for opens).">Closed PnL</TableHead>
                                 </TableRow>
@@ -9341,10 +9341,10 @@ export default function Dashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
-                        <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Symbol</TableHead>
+                        <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colSymbol")}</TableHead>
                         <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Contract</TableHead>
                         <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Chain</TableHead>
-                        <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                        <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLinks")}</TableHead>
                         <TableHead className="w-10" />
                       </TableRow>
                     </TableHeader>
@@ -9407,7 +9407,7 @@ export default function Dashboard() {
                 </p>
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
                   <Button onClick={() => fetchTokens(activeTab, true, true)} disabled={loading} variant="outline" size="sm" className="border-zinc-300 dark:border-zinc-600">
-                    {loading ? "Loading…" : "Refresh"}
+                    {loading ? t("common.loading") : t("nav.refresh")}
                   </Button>
                   {activeTab === "ct" && (
                     <Button
@@ -9426,15 +9426,15 @@ export default function Dashboard() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
-                    <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Symbol</TableHead>
-                    <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">Name</TableHead>
-                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Age</TableHead>
-                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Liquidity</TableHead>
+                    <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colSymbol")}</TableHead>
+                    <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colName")}</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colAge")}</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLiquidity")}</TableHead>
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol 24h</TableHead>
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Buys</TableHead>
                     <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Sells</TableHead>
-                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Price</TableHead>
-                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colPrice")}</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLinks")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -9468,8 +9468,8 @@ export default function Dashboard() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
-                    <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Symbol</TableHead>
-                    <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">Name</TableHead>
+                    <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colSymbol")}</TableHead>
+                    <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colName")}</TableHead>
                     {renderMemeSortHead("score", "Score")}
                     {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol ({surgeWindow})</TableHead>}
                     {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">TXNS</TableHead>}
@@ -9480,7 +9480,7 @@ export default function Dashboard() {
                     {renderMemeSortHead("age", "Age")}
                     {renderMemeSortHead("liquidity", "Liq")}
                     {renderMemeSortHead("price", "Price")}
-                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Links</TableHead>
+                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLinks")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

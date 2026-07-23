@@ -29,6 +29,7 @@ function mergeMessages(base: MessageDict, patch: DeepPartialMessages): MessageDi
     focus: { ...base.focus, ...(patch.focus ?? {}) },
     more: typeof patch.more === "string" ? patch.more : base.more,
     common: { ...base.common, ...(patch.common ?? {}) },
+    ui: { ...base.ui, ...(patch.ui ?? {}) },
     tabs: { ...base.tabs, ...(patch.tabs ?? {}) },
     lock: { ...base.lock, ...(patch.lock ?? {}) },
     forex: { ...base.forex, ...(patch.forex ?? {}) },
@@ -64,6 +65,7 @@ export type MessageKey =
   | `workspace.${keyof MessageDict["workspace"]}`
   | `focus.${keyof MessageDict["focus"]}`
   | `common.${keyof MessageDict["common"]}`
+  | `ui.${keyof MessageDict["ui"]}`
   | `tabs.${keyof MessageDict["tabs"]}`
   | `lock.${keyof MessageDict["lock"]}`
   | `forex.${keyof MessageDict["forex"]}`
