@@ -175,6 +175,7 @@ export const en = {
     "nova-investment": "Nova Investment Agent",
     "nova-connect": "Community",
     "trading-university": "NovaStaris Trading University",
+    "nova-job-agent": "Nova Job Agent",
     bsc: "BSC",
     watchlist: "Watchlist",
     "chris-clayton": "Online Boss Strategy",

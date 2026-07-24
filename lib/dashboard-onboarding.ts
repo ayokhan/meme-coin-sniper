@@ -191,6 +191,7 @@ export const URL_TAB_IDS = new Set([
   "nova-connect",
   "chris-clayton",
   "trading-university",
+  "nova-job-agent",
 ]);
 
 export const URL_FUTURES_VIEWS = new Set(["ai", "workflow", "altcoins", "hot-perps", "liquidation-map"]);

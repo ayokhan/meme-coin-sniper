@@ -208,8 +208,65 @@ model User {
   billingInvoices            BillingInvoice[]
   tradingUniversityProgress  TradingUniversityProgress?
   loginEvents                LoginEvent[]
+  jobAgentProfile            JobAgentProfile?
+  jobAgentResumes            JobAgentResume[]
+  jobAgentApplications       JobAgentApplication[]
 
   @@index([referredByUserId])
+}
+
+/** Owner Nova Job Agent — search prefs + auto-apply settings (one row per user). */
+model JobAgentProfile {
+  id                       String   @id @default(cuid())
+  userId                   String   @unique
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobTitles                Json     // string[] e.g. ["Project Manager"]
+  city                     String?
+  country                  String?
+  region                   String?
+  remoteOk                 Boolean  @default(true)
+  workTypes                Json     // string[] full_time | part_time | contract | internship
+  autoApplyEnabled         Boolean  @default(false)
+  targetApplicationsPerDay Int      @default(10)
+  notes                    String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model JobAgentResume {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName    String?
+  fileUrl     String?
+  contentText String
+  version     Int      @default(1)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  @@index([userId])
+}
+
+model JobAgentApplication {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobTitle        String
+  company         String
+  location        String?
+  workType        String?
+  jobUrl          String?
+  source          String?   // remotive | manual
+  externalId      String?
+  status          String    @default("queued") // queued | prepared | applied | skipped | failed
+  coverLetter     String?
+  resumeSnapshot  String?
+  notes           String?
+  appliedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@index([userId, createdAt])
+  @@index([userId, status])
+  @@unique([userId, externalId])
 }
 
 // Per-user usage counts for current month (AI analyses; alerts are counted from UserMemeCoinAlert + LeverageAlert)

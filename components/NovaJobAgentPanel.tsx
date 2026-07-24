@@ -1,0 +1,644 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Briefcase, FileText, Loader2, RefreshCw, Rocket, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+type Profile = {
+  jobTitles: string[];
+  city: string | null;
+  country: string | null;
+  region: string | null;
+  remoteOk: boolean;
+  workTypes: string[];
+  autoApplyEnabled: boolean;
+  targetApplicationsPerDay: number;
+  notes: string | null;
+};
+
+type Resume = {
+  id: string;
+  fileName: string | null;
+  fileUrl: string | null;
+  contentText: string;
+  version: number;
+  createdAt: string;
+};
+
+type Dashboard = {
+  total: number;
+  applied: number;
+  prepared: number;
+  queued: number;
+  failed: number;
+  skipped: number;
+  recent: Array<{
+    id: string;
+    jobTitle: string;
+    company: string;
+    location: string | null;
+    workType: string | null;
+    jobUrl: string | null;
+    status: string;
+    appliedAt: string | null;
+    createdAt: string;
+  }>;
+};
+
+type MatchedJob = {
+  externalId: string;
+  title: string;
+  company: string;
+  location: string;
+  workType: string;
+  url: string;
+  descriptionSnippet: string;
+};
+
+const WORK_TYPE_OPTIONS = [
+  { id: "full_time", label: "Full-time" },
+  { id: "part_time", label: "Part-time" },
+  { id: "contract", label: "Contract" },
+  { id: "internship", label: "Internship" },
+] as const;
+
+const emptyProfile: Profile = {
+  jobTitles: [],
+  city: "",
+  country: "",
+  region: "",
+  remoteOk: true,
+  workTypes: ["full_time"],
+  autoApplyEnabled: false,
+  targetApplicationsPerDay: 10,
+  notes: "",
+};
+
+export default function NovaJobAgentPanel() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Profile>(emptyProfile);
+  const [titlesInput, setTitlesInput] = useState("");
+  const [resume, setResume] = useState<Resume | null>(null);
+  const [resumeDraft, setResumeDraft] = useState("");
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [jobs, setJobs] = useState<MatchedJob[]>([]);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/nova-job-agent", { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Could not load Nova Job Agent.");
+        return;
+      }
+      const p = data.profile as Profile;
+      setProfile({
+        ...emptyProfile,
+        ...p,
+        city: p.city ?? "",
+        country: p.country ?? "",
+        region: p.region ?? "",
+        notes: p.notes ?? "",
+      });
+      setTitlesInput((p.jobTitles ?? []).join(", "));
+      setResume(data.resume);
+      setResumeDraft(data.resume?.contentText ?? "");
+      setDashboard(data.dashboard);
+    } catch {
+      setError("Network error loading Nova Job Agent.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const savePrefs = async () => {
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const jobTitles = titlesInput
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const res = await fetch("/api/nova-job-agent", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobTitles,
+          city: profile.city || null,
+          country: profile.country || null,
+          region: profile.region || null,
+          remoteOk: profile.remoteOk,
+          workTypes: profile.workTypes,
+          autoApplyEnabled: profile.autoApplyEnabled,
+          targetApplicationsPerDay: profile.targetApplicationsPerDay,
+          notes: profile.notes || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Could not save preferences.");
+        return;
+      }
+      setNotice("Preferences saved.");
+      setProfile((prev) => ({ ...prev, ...data.profile, city: data.profile.city ?? "", country: data.profile.country ?? "", region: data.profile.region ?? "", notes: data.profile.notes ?? "" }));
+      setTitlesInput((data.profile.jobTitles ?? []).join(", "));
+    } catch {
+      setError("Network error saving preferences.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveResume = async (improve: boolean) => {
+    setBusy(improve ? "improve" : "resume");
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/nova-job-agent/resume", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentText: resumeDraft, improve }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Could not save resume.");
+        return;
+      }
+      setResume(data.resume);
+      setResumeDraft(data.resume.contentText);
+      setNotice(improve ? `Resume improved (v${data.resume.version}).` : `Resume saved (v${data.resume.version}).`);
+    } catch {
+      setError("Network error saving resume.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onFile = async (file: File | null) => {
+    if (!file) return;
+    setBusy("upload");
+    setError(null);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      if (resumeDraft.trim()) form.set("contentText", resumeDraft);
+      const res = await fetch("/api/nova-job-agent/resume", {
+        method: "POST",
+        credentials: "include",
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        // If binary-only upload without text, ask user to paste
+        if (/\.txt|\.md/i.test(file.name)) {
+          const text = await file.text();
+          setResumeDraft(text);
+          setNotice("Loaded text from file — click Save resume.");
+        } else {
+          setError(data.error || "Upload failed. Paste resume text for AI features.");
+        }
+        return;
+      }
+      setResume(data.resume);
+      setResumeDraft(data.resume.contentText);
+      setNotice(`Resume uploaded (v${data.resume.version}).`);
+    } catch {
+      setError("Upload failed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const searchJobs = async () => {
+    setBusy("search");
+    setError(null);
+    try {
+      const res = await fetch("/api/nova-job-agent/search", { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Search failed.");
+        return;
+      }
+      setJobs(data.jobs ?? []);
+      setNotice(`Found ${(data.jobs ?? []).length} matching roles.`);
+    } catch {
+      setError("Search network error.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const prepareJob = async (job: MatchedJob) => {
+    setBusy(`prep-${job.externalId}`);
+    setError(null);
+    try {
+      const res = await fetch("/api/nova-job-agent/applications", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobTitle: job.title,
+          company: job.company,
+          location: job.location,
+          workType: job.workType,
+          jobUrl: job.url,
+          source: "remotive",
+          externalId: job.externalId,
+          jobDescription: job.descriptionSnippet,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Could not prepare application.");
+        return;
+      }
+      setCoverPreview(data.application.coverLetter);
+      setNotice(`Cover letter ready for ${job.company}.`);
+      await load();
+    } catch {
+      setError("Prepare failed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runAutoApply = async () => {
+    setBusy("auto");
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/nova-job-agent/auto-apply", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Auto-apply failed.");
+        return;
+      }
+      setNotice(data.message || `Prepared ${data.created?.length ?? 0} applications.`);
+      await load();
+    } catch {
+      setError("Auto-apply network error.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const setStatus = async (applicationId: string, status: string) => {
+    setBusy(`status-${applicationId}`);
+    try {
+      await fetch("/api/nova-job-agent/applications", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId, status }),
+      });
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleWorkType = (id: string) => {
+    setProfile((p) => {
+      const has = p.workTypes.includes(id);
+      const workTypes = has ? p.workTypes.filter((x) => x !== id) : [...p.workTypes, id];
+      return { ...p, workTypes: workTypes.length ? workTypes : ["full_time"] };
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground py-10">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading Nova Job Agent…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-5xl">
+      <div>
+        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+          <Briefcase className="h-5 w-5 text-cyan-600" /> Nova Job Agent
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Owner-only. Upload a resume, set target roles and locations, generate cover letters, and track applications.
+          Auto-apply prepares materials and logs applications; open each job URL to complete board submission.
+        </p>
+      </div>
+
+      {error && (
+        <p className="text-sm text-rose-600 dark:text-rose-400 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="text-sm text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+          {notice}
+        </p>
+      )}
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: "Applied", value: dashboard?.applied ?? 0 },
+          { label: "Prepared", value: dashboard?.prepared ?? 0 },
+          { label: "Queued", value: dashboard?.queued ?? 0 },
+          { label: "Total tracked", value: dashboard?.total ?? 0 },
+        ].map((s) => (
+          <Card key={s.label} className="border-zinc-200 dark:border-zinc-800">
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{s.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Job preferences</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Job titles (comma-separated)</label>
+            <input
+              className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+              placeholder="Project Manager, Product Manager"
+              value={titlesInput}
+              onChange={(e) => setTitlesInput(e.target.value)}
+            />
+          </div>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-medium">City</label>
+              <input
+                className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+                value={profile.city ?? ""}
+                onChange={(e) => setProfile((p) => ({ ...p, city: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Country</label>
+              <input
+                className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+                value={profile.country ?? ""}
+                onChange={(e) => setProfile((p) => ({ ...p, country: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Region</label>
+              <input
+                className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+                value={profile.region ?? ""}
+                onChange={(e) => setProfile((p) => ({ ...p, region: e.target.value }))}
+                placeholder="e.g. North America"
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={profile.remoteOk}
+              onChange={(e) => setProfile((p) => ({ ...p, remoteOk: e.target.checked }))}
+            />
+            Include remote / worldwide roles
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {WORK_TYPE_OPTIONS.map((w) => (
+              <label key={w.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={profile.workTypes.includes(w.id)}
+                  onChange={() => toggleWorkType(w.id)}
+                />
+                {w.label}
+              </label>
+            ))}
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium">Applications per day (target)</label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+                value={profile.targetApplicationsPerDay}
+                onChange={(e) =>
+                  setProfile((p) => ({
+                    ...p,
+                    targetApplicationsPerDay: Number(e.target.value) || 10,
+                  }))
+                }
+              />
+            </div>
+            <label className="flex items-end gap-2 text-sm pb-2">
+              <input
+                type="checkbox"
+                checked={profile.autoApplyEnabled}
+                onChange={(e) => setProfile((p) => ({ ...p, autoApplyEnabled: e.target.checked }))}
+              />
+              Auto-mark as applied after preparing cover letter
+            </label>
+          </div>
+          <div>
+            <label className="text-xs font-medium">Notes for AI (optional)</label>
+            <textarea
+              className="mt-1 w-full min-h-[70px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm"
+              value={profile.notes ?? ""}
+              onChange={(e) => setProfile((p) => ({ ...p, notes: e.target.value }))}
+              placeholder="Emphasize PMP, agile delivery, stakeholder management…"
+            />
+          </div>
+          <Button type="button" onClick={() => void savePrefs()} disabled={saving}>
+            {saving ? "Saving…" : "Save preferences"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Resume
+            {resume ? <span className="text-xs font-normal text-muted-foreground">v{resume.version}</span> : null}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2 items-center">
+            <label className="inline-flex items-center gap-2 text-sm cursor-pointer rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-2">
+              <Upload className="h-4 w-4" />
+              Upload .txt / .md
+              <input
+                type="file"
+                accept=".txt,.md,text/plain"
+                className="hidden"
+                onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            {resume?.fileUrl && (
+              <a href={resume.fileUrl} target="_blank" rel="noreferrer" className="text-xs text-cyan-600 underline">
+                Stored file
+              </a>
+            )}
+          </div>
+          <textarea
+            className="w-full min-h-[220px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm font-mono"
+            value={resumeDraft}
+            onChange={(e) => setResumeDraft(e.target.value)}
+            placeholder="Paste resume text here…"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={() => void saveResume(false)} disabled={!!busy || !resumeDraft.trim()}>
+              {busy === "resume" ? "Saving…" : "Save resume"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void saveResume(true)}
+              disabled={!!busy || !resumeDraft.trim()}
+            >
+              {busy === "improve" ? "Improving…" : "AI adjust / update resume"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-base">Find & apply</CardTitle>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => void searchJobs()} disabled={!!busy}>
+              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              {busy === "search" ? "Searching…" : "Search jobs"}
+            </Button>
+            <Button type="button" size="sm" onClick={() => void runAutoApply()} disabled={!!busy}>
+              <Rocket className="h-3.5 w-3.5 mr-1" />
+              {busy === "auto" ? "Running…" : "Auto-apply batch"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {jobs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Save preferences + resume, then search remote roles (Remotive) or run an auto-apply batch.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {jobs.map((j) => (
+                <li
+                  key={j.externalId}
+                  className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{j.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {j.company} · {j.location} · {j.workType}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                  <a
+                    href={j.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-8 items-center rounded-md border border-zinc-200 dark:border-zinc-700 px-3 text-xs font-medium"
+                  >
+                    Open
+                  </a>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={!!busy}
+                      onClick={() => void prepareJob(j)}
+                    >
+                      {busy === `prep-${j.externalId}` ? "…" : "Cover letter"}
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {coverPreview && (
+            <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3">
+              <p className="text-xs font-semibold text-cyan-800 dark:text-cyan-200 mb-2">Latest cover letter</p>
+              <pre className="text-xs whitespace-pre-wrap text-zinc-800 dark:text-zinc-200 font-sans">{coverPreview}</pre>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Application dashboard</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!dashboard?.recent?.length ? (
+            <p className="text-sm text-muted-foreground">No applications yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground border-b border-zinc-200 dark:border-zinc-700">
+                    <th className="py-2 pr-2">Role</th>
+                    <th className="py-2 pr-2">Company</th>
+                    <th className="py-2 pr-2">Status</th>
+                    <th className="py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboard.recent.map((a) => (
+                    <tr key={a.id} className="border-b border-zinc-100 dark:border-zinc-800">
+                      <td className="py-2 pr-2">{a.jobTitle}</td>
+                      <td className="py-2 pr-2">{a.company}</td>
+                      <td className="py-2 pr-2 capitalize">{a.status}</td>
+                      <td className="py-2 space-x-2 whitespace-nowrap">
+                        {a.jobUrl && (
+                          <a href={a.jobUrl} target="_blank" rel="noreferrer" className="text-cyan-600 underline text-xs">
+                            Job
+                          </a>
+                        )}
+                        {a.status !== "applied" && (
+                          <button
+                            type="button"
+                            className="text-xs text-emerald-700 dark:text-emerald-300 underline"
+                            onClick={() => void setStatus(a.id, "applied")}
+                          >
+                            Mark applied
+                          </button>
+                        )}
+                        {a.status !== "skipped" && (
+                          <button
+                            type="button"
+                            className="text-xs text-zinc-500 underline"
+                            onClick={() => void setStatus(a.id, "skipped")}
+                          >
+                            Skip
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

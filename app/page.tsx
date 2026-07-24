@@ -115,6 +115,7 @@ import { NOVA_FORECAST_RANGES } from "@/lib/nova-timeframes";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import NovaForexBotsPanel from "@/components/NovaForexBotsPanel";
 import TradingUniversityPanel from "@/components/TradingUniversityPanel";
+import NovaJobAgentPanel from "@/components/NovaJobAgentPanel";
 import TradingUniversityInviteBanner, {
   dismissTradingUniversityBannerStorage,
   readTradingUniversityBannerDismissed,
@@ -233,7 +234,8 @@ type TabId =
   | "meme-intelligence"
   | "nova-connect"
   | "chris-clayton"
-  | "trading-university";
+  | "trading-university"
+  | "nova-job-agent";
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
 const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-forex-bot", "nova-plus", "nova-connect"];
 /** Platform: surge, transactions, ai-analysis, futures. VIP-only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
@@ -275,6 +277,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   "nova-connect": "page_tab_nova_connect",
   "chris-clayton": "page_tab_chris_clayton",
   "trading-university": "page_tab_trading_university",
+  "nova-job-agent": "page_tab_nova_job_agent",
 };
 const TAB_VISIBILITY_ORDER: TabId[] = [
   "new",
@@ -307,6 +310,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "nova-connect",
   "chris-clayton",
   "trading-university",
+  "nova-job-agent",
 ];
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
 type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc"; symbol?: string; name?: string };
@@ -480,6 +484,7 @@ export default function Dashboard() {
     }
     if (tab === "nova-connect") return novaConnectEnabled && isTabPageEnabled(tab);
     if (tab === "chris-clayton") return isOwner && isTabPageEnabled(tab);
+    if (tab === "nova-job-agent") return isOwner && isTabPageEnabled(tab);
     return isTabPageEnabled(tab);
   };
 
@@ -487,7 +492,7 @@ export default function Dashboard() {
     if (topTabFilter === "all") return true;
     const coreTabs: TabId[] = ["new", "trending", "bsc", "watchlist", "nova-connect", "trading-university"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
-    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence", "chris-clayton"];
+    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence", "chris-clayton", "nova-job-agent"];
     const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-forex-bot", "nova-ultimate"];
     if (topTabFilter === "core") return coreTabs.includes(tab);
     if (topTabFilter === "pro") return proTabs.includes(tab);
@@ -2117,7 +2122,7 @@ export default function Dashboard() {
       if (status === "authenticated") fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
+    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-job-agent" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -3171,7 +3176,7 @@ export default function Dashboard() {
 
   // Auto-refresh: Go Hunting / Trending / Surge share VIP daily limit; auto off unless admin enables.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
@@ -4525,7 +4530,7 @@ export default function Dashboard() {
                   </TabsTrigger>
                 )}
               </TabsList>
-              {(showTopTab("bsc") || showTopTab("watchlist") || showTopTab("chris-clayton") || showTopTab("trading-university")) && (
+              {(showTopTab("bsc") || showTopTab("watchlist") || showTopTab("chris-clayton") || showTopTab("trading-university") || showTopTab("nova-job-agent")) && (
                 <div className="w-full shrink-0 border-t border-zinc-200/80 dark:border-zinc-700/80 pt-3">
                   <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     {t("more")}
@@ -4535,6 +4540,11 @@ export default function Dashboard() {
                       <TabsTrigger value="trading-university" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-amber-600 data-[state=active]:text-white dark:data-[state=active]:bg-amber-700 gap-1.5`}>
                         <span>{t("tabs.trading-university")}</span>
                         <TopTabNewPill show={isNewTopTab("trading-university")} />
+                      </TabsTrigger>
+                    )}
+                    {showTopTab("nova-job-agent") && (
+                      <TabsTrigger value="nova-job-agent" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-indigo-600 data-[state=active]:text-white dark:data-[state=active]:bg-indigo-700 gap-1.5`}>
+                        <span>{t("tabs.nova-job-agent")}</span>
                       </TabsTrigger>
                     )}
                     {showTopTab("bsc") && (
@@ -8616,6 +8626,17 @@ export default function Dashboard() {
                 onOpenToolHref={openDashboardToolHref}
                 isToolHrefAvailable={isDashboardToolHrefAvailable}
               />
+            ) : activeTab === "nova-job-agent" ? (
+              !isOwner ? (
+                <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                  <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Owner only</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Nova Job Agent is available only to the owner.</p>
+                </div>
+              ) : (
+                <div className="mx-3 sm:mx-6 py-6 sm:py-8">
+                  <NovaJobAgentPanel />
+                </div>
+              )
             ) : activeTab === "coach-calls" ? (
               <CoachCallsPanel isOwner={isOwner} isCoachUser={isCoachUser} isVip={isVip} />
             ) : activeTab === "wallets" ? (

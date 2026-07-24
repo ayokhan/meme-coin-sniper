@@ -357,6 +357,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "Show/hide the NovaStaris Trading University tab (free course + final exam + certificate). Guests see a preview; full course requires sign-in. Static content — no AI API cost. Default ON.",
   },
+  page_tab_nova_job_agent: {
+    label: "Tab: Nova Job Agent (owner only)",
+    description:
+      "Show/hide the Nova Job Agent tab for the owner session only (resume, job prefs, cover letters, application dashboard). Default ON.",
+  },
   trading_university_donations: {
     label: "Trading University donations",
     description:
