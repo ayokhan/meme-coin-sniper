@@ -1,6 +1,7 @@
 import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
 import { asStringArray, requireJobAgentAccess } from "@/lib/nova-job-agent/access";
 import { normalizeBoardIds, DEFAULT_ENABLED_BOARDS } from "@/lib/nova-job-agent/boards";
+import { normalizeContactEmail } from "@/lib/nova-job-agent/contact";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,9 @@ function serializeProfile(row: {
   enabledBoards?: unknown;
   autoApplyEnabled: boolean;
   targetApplicationsPerDay: number;
+  contactEmail?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
   notes: string | null;
   updatedAt: Date;
 }) {
@@ -29,6 +33,9 @@ function serializeProfile(row: {
     enabledBoards: normalizeBoardIds(row.enabledBoards),
     autoApplyEnabled: row.autoApplyEnabled,
     targetApplicationsPerDay: row.targetApplicationsPerDay,
+    contactEmail: row.contactEmail ?? null,
+    contactName: row.contactName ?? null,
+    contactPhone: row.contactPhone ?? null,
     notes: row.notes,
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -78,6 +85,9 @@ export async function GET() {
           enabledBoards: [...DEFAULT_ENABLED_BOARDS],
           autoApplyEnabled: false,
           targetApplicationsPerDay: 10,
+          contactEmail: null,
+          contactName: null,
+          contactPhone: null,
           notes: null,
           updatedAt: null,
         },
@@ -146,6 +156,20 @@ export async function PATCH(request: Request) {
   }
   if (typeof body.notes === "string" || body.notes === null)
     data.notes = body.notes === null ? null : String(body.notes).slice(0, 4000);
+  if (body.contactEmail !== undefined) {
+    if (body.contactEmail === null || body.contactEmail === "") data.contactEmail = null;
+    else {
+      const email = normalizeContactEmail(body.contactEmail);
+      if (!email) {
+        return Response.json({ success: false, error: "Enter a valid contact email." }, { status: 400 });
+      }
+      data.contactEmail = email;
+    }
+  }
+  if (typeof body.contactName === "string" || body.contactName === null)
+    data.contactName = body.contactName === null ? null : String(body.contactName).trim().slice(0, 120) || null;
+  if (typeof body.contactPhone === "string" || body.contactPhone === null)
+    data.contactPhone = body.contactPhone === null ? null : String(body.contactPhone).trim().slice(0, 40) || null;
 
   const existing = await prisma.jobAgentProfile.findUnique({ where: { userId: gate.userId } });
   const row = existing
@@ -162,6 +186,9 @@ export async function PATCH(request: Request) {
           remoteOk: (data.remoteOk as boolean) ?? true,
           autoApplyEnabled: (data.autoApplyEnabled as boolean) ?? false,
           targetApplicationsPerDay: (data.targetApplicationsPerDay as number) ?? 10,
+          contactEmail: (data.contactEmail as string | null) ?? null,
+          contactName: (data.contactName as string | null) ?? null,
+          contactPhone: (data.contactPhone as string | null) ?? null,
           notes: (data.notes as string | null) ?? null,
         },
       });

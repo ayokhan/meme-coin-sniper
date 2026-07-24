@@ -3,6 +3,8 @@ import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
 import { asStringArray, requireJobAgentAccess } from "@/lib/nova-job-agent/access";
 import { generateCoverLetter, tuneResumeForJob } from "@/lib/nova-job-agent/ai";
 import { searchJobsAcrossBoards, type MatchedJob } from "@/lib/nova-job-agent/search";
+import { resolveApplicantEmail } from "@/lib/nova-job-agent/contact";
+import { prisma as basePrisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -35,17 +37,31 @@ export async function POST(request: Request) {
     body = {};
   }
 
-  const profile = await prisma.jobAgentProfile.findUnique({ where: { userId: gate.userId } });
-  const resume = await prisma.jobAgentResume.findFirst({
-    where: { userId: gate.userId, isActive: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const [profile, resume, account] = await Promise.all([
+    prisma.jobAgentProfile.findUnique({ where: { userId: gate.userId } }),
+    prisma.jobAgentResume.findFirst({
+      where: { userId: gate.userId, isActive: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    basePrisma.user.findUnique({
+      where: { id: gate.userId },
+      select: { email: true, name: true },
+    }),
+  ]);
   if (!profile || asStringArray(profile.jobTitles).length === 0) {
     return NextResponse.json({ success: false, error: "Save job titles in preferences first." }, { status: 400 });
   }
   if (!resume?.contentText) {
     return NextResponse.json({ success: false, error: "Upload an active resume first." }, { status: 400 });
   }
+
+  const contactEmail = resolveApplicantEmail({
+    contactEmail: profile.contactEmail,
+    resumeText: resume.contentText,
+    accountEmail: account?.email,
+  });
+  const contactName = (profile.contactName || account?.name || "").trim() || null;
+  const contactPhone = (profile.contactPhone || "").trim() || null;
 
   const startOfDay = new Date();
   startOfDay.setUTCHours(0, 0, 0, 0);
@@ -138,6 +154,9 @@ export async function POST(request: Request) {
         company: job.company,
         jobDescription: job.descriptionSnippet,
         notes: profile.notes ?? undefined,
+        contactEmail,
+        contactName,
+        contactPhone,
       });
       const coverLetter = await generateCoverLetter({
         resumeText: tunedResume,
@@ -145,6 +164,9 @@ export async function POST(request: Request) {
         company: job.company,
         location: job.location,
         jobDescription: job.descriptionSnippet,
+        contactEmail,
+        contactName,
+        contactPhone,
       });
       const status = profile.autoApplyEnabled ? "applied" : "prepared";
       app = await prisma.jobAgentApplication.update({
@@ -184,6 +206,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     success: true,
     created,
+    contactEmail,
     message:
       created.length === 0
         ? "No selected/new matching jobs to prepare (or all already tracked)."

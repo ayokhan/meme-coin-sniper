@@ -20,6 +20,9 @@ type Profile = {
   enabledBoards: string[];
   autoApplyEnabled: boolean;
   targetApplicationsPerDay: number;
+  contactEmail: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
   notes: string | null;
 };
 
@@ -81,6 +84,9 @@ const emptyProfile: Profile = {
   enabledBoards: [...DEFAULT_ENABLED_BOARDS],
   autoApplyEnabled: false,
   targetApplicationsPerDay: 10,
+  contactEmail: "",
+  contactName: "",
+  contactPhone: "",
   notes: "",
 };
 
@@ -130,6 +136,9 @@ export default function NovaJobAgentPanel() {
         country: p.country ?? "",
         region: p.region ?? "",
         notes: p.notes ?? "",
+        contactEmail: p.contactEmail ?? "",
+        contactName: p.contactName ?? "",
+        contactPhone: p.contactPhone ?? "",
         enabledBoards: Array.isArray(p.enabledBoards) && p.enabledBoards.length
           ? p.enabledBoards
           : [...DEFAULT_ENABLED_BOARDS],
@@ -172,6 +181,9 @@ export default function NovaJobAgentPanel() {
           enabledBoards: profile.enabledBoards,
           autoApplyEnabled: profile.autoApplyEnabled,
           targetApplicationsPerDay: profile.targetApplicationsPerDay,
+          contactEmail: profile.contactEmail || null,
+          contactName: profile.contactName || null,
+          contactPhone: profile.contactPhone || null,
           notes: profile.notes || null,
         }),
       });
@@ -188,6 +200,9 @@ export default function NovaJobAgentPanel() {
         country: data.profile.country ?? "",
         region: data.profile.region ?? "",
         notes: data.profile.notes ?? "",
+        contactEmail: data.profile.contactEmail ?? "",
+        contactName: data.profile.contactName ?? "",
+        contactPhone: data.profile.contactPhone ?? "",
         enabledBoards:
           Array.isArray(data.profile.enabledBoards) && data.profile.enabledBoards.length
             ? data.profile.enabledBoards
@@ -246,7 +261,17 @@ export default function NovaJobAgentPanel() {
       }
       setResume(data.resume);
       setResumeDraft(data.resume.contentText);
-      setNotice(`Resume uploaded from ${file.name} (v${data.resume.version}).`);
+      const found = String(data.resume.contentText || "").match(
+        /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/
+      );
+      if (found?.[0] && !(profile.contactEmail || "").trim()) {
+        setProfile((p) => ({ ...p, contactEmail: found[0].toLowerCase() }));
+        setNotice(
+          `Resume uploaded from ${file.name} (v${data.resume.version}). Detected email ${found[0]} — save preferences to keep it.`
+        );
+      } else {
+        setNotice(`Resume uploaded from ${file.name} (v${data.resume.version}).`);
+      }
     } catch {
       setError("Upload failed.");
     } finally {
@@ -485,6 +510,45 @@ export default function NovaJobAgentPanel() {
                 onChange={(e) => setProfile((p) => ({ ...p, region: e.target.value }))}
                 placeholder="e.g. North America"
               />
+            </div>
+          </div>
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">Contact for employers</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                This email is put on tuned resumes and cover letters. Employers do not see your NovaStaris login unless
+                you use the same address here. Priority: this field → email found in resume → account email.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-medium">Full name</label>
+                <input
+                  className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+                  value={profile.contactName ?? ""}
+                  onChange={(e) => setProfile((p) => ({ ...p, contactName: e.target.value }))}
+                  placeholder="Jane Doe"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium">Email employers should see</label>
+                <input
+                  type="email"
+                  className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+                  value={profile.contactEmail ?? ""}
+                  onChange={(e) => setProfile((p) => ({ ...p, contactEmail: e.target.value }))}
+                  placeholder="you@email.com"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium">Phone (optional)</label>
+                <input
+                  className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+                  value={profile.contactPhone ?? ""}
+                  onChange={(e) => setProfile((p) => ({ ...p, contactPhone: e.target.value }))}
+                  placeholder="+1 …"
+                />
+              </div>
             </div>
           </div>
           <label className="flex items-center gap-2 text-sm">

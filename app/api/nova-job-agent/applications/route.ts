@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
 import { requireJobAgentAccess } from "@/lib/nova-job-agent/access";
 import { generateCoverLetter, tuneResumeForJob } from "@/lib/nova-job-agent/ai";
+import { resolveApplicantEmail } from "@/lib/nova-job-agent/contact";
+import { prisma as basePrisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 90;
@@ -29,13 +31,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Invalid JSON." }, { status: 400 });
   }
 
-  const resume = await prisma.jobAgentResume.findFirst({
-    where: { userId: gate.userId, isActive: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const [resume, profile, account] = await Promise.all([
+    prisma.jobAgentResume.findFirst({
+      where: { userId: gate.userId, isActive: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.jobAgentProfile.findUnique({ where: { userId: gate.userId } }),
+    basePrisma.user.findUnique({
+      where: { id: gate.userId },
+      select: { email: true, name: true },
+    }),
+  ]);
   if (!resume?.contentText) {
     return NextResponse.json({ success: false, error: "Upload an active resume first." }, { status: 400 });
   }
+
+  const contactEmail = resolveApplicantEmail({
+    contactEmail: profile?.contactEmail,
+    resumeText: resume.contentText,
+    accountEmail: account?.email,
+  });
+  const contactName = (profile?.contactName || account?.name || "").trim() || null;
+  const contactPhone = (profile?.contactPhone || "").trim() || null;
 
   let app = body.applicationId
     ? await prisma.jobAgentApplication.findFirst({
@@ -86,6 +103,9 @@ export async function POST(request: Request) {
       jobTitle: app.jobTitle,
       company: app.company,
       jobDescription,
+      contactEmail,
+      contactName,
+      contactPhone,
     });
     const coverLetter = await generateCoverLetter({
       resumeText: tunedResume,
@@ -93,6 +113,9 @@ export async function POST(request: Request) {
       company: app.company,
       location: app.location,
       jobDescription,
+      contactEmail,
+      contactName,
+      contactPhone,
     });
     const markApplied = body.markApplied === true;
     const updated = await prisma.jobAgentApplication.update({
@@ -116,6 +139,7 @@ export async function POST(request: Request) {
         resumeSnapshot: updated.resumeSnapshot,
         jobUrl: updated.jobUrl,
         appliedAt: updated.appliedAt?.toISOString() ?? null,
+        contactEmail,
       },
     });
   } catch (e) {

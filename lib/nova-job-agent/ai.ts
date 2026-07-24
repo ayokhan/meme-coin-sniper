@@ -11,12 +11,24 @@ export async function improveResumeText(args: {
   jobDescription?: string | null;
   jobTitle?: string | null;
   company?: string | null;
+  contactEmail?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
 }): Promise<string> {
   if (!process.env.ANTHROPIC_API_KEY?.trim()) {
     throw new Error("ANTHROPIC_API_KEY is not configured.");
   }
   const titles = args.jobTitles.length ? args.jobTitles.join(", ") : "general professional roles";
   const jd = (args.jobDescription || "").trim();
+  const contactBits = [
+    args.contactName?.trim() ? `Name: ${args.contactName.trim()}` : null,
+    args.contactEmail?.trim() ? `Email: ${args.contactEmail.trim()}` : null,
+    args.contactPhone?.trim() ? `Phone: ${args.contactPhone.trim()}` : null,
+  ].filter(Boolean);
+  const contactBlock = contactBits.length
+    ? `Use this contact block in the resume header (do not invent other emails):\n${contactBits.join("\n")}\n`
+    : "";
+
   const targetBlock = jd
     ? `Tailor this resume specifically for the following role. Emphasize matching skills and keywords from the job description without inventing experience.
 Job title: ${args.jobTitle || "n/a"}
@@ -35,7 +47,7 @@ ${jd.slice(0, 8000)}
         content: `You are an expert resume editor. ${targetBlock}
 Keep facts truthful — do not invent employers, degrees, or metrics.
 Use clear bullet points, strong action verbs, and ATS-friendly plain text (no markdown tables).
-${args.notes?.trim() ? `Extra guidance: ${args.notes.trim()}\n` : ""}
+${contactBlock}${args.notes?.trim() ? `Extra guidance: ${args.notes.trim()}\n` : ""}
 Return ONLY the improved resume text.
 
 RESUME:
@@ -56,6 +68,9 @@ export async function tuneResumeForJob(args: {
   company: string;
   jobDescription?: string | null;
   notes?: string;
+  contactEmail?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
 }): Promise<string> {
   return improveResumeText({
     resumeText: args.resumeText,
@@ -64,6 +79,9 @@ export async function tuneResumeForJob(args: {
     company: args.company,
     jobDescription: args.jobDescription,
     notes: args.notes,
+    contactEmail: args.contactEmail,
+    contactName: args.contactName,
+    contactPhone: args.contactPhone,
   });
 }
 
@@ -73,10 +91,22 @@ export async function generateCoverLetter(args: {
   company: string;
   location?: string | null;
   jobDescription?: string | null;
+  contactEmail?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
 }): Promise<string> {
   if (!process.env.ANTHROPIC_API_KEY?.trim()) {
     throw new Error("ANTHROPIC_API_KEY is not configured.");
   }
+  const contactBits = [
+    args.contactName?.trim() ? `Name: ${args.contactName.trim()}` : null,
+    args.contactEmail?.trim() ? `Email: ${args.contactEmail.trim()}` : null,
+    args.contactPhone?.trim() ? `Phone: ${args.contactPhone.trim()}` : null,
+  ].filter(Boolean);
+  const contactBlock = contactBits.length
+    ? `Sign with this contact info (use exactly this email — do not invent another):\n${contactBits.join("\n")}\n`
+    : "If an email appears in the resume, use that in the signature; otherwise omit email.\n";
+
   const msg = await anthropic.messages.create({
     model: CLAUDE_SONNET_MODEL,
     max_tokens: 1800,
@@ -88,7 +118,7 @@ Tone: confident, specific, no fluff. Plain text only.
 Job title: ${args.jobTitle}
 Company: ${args.company}
 Location: ${args.location || "n/a"}
-${args.jobDescription ? `Job notes/description:\n${args.jobDescription.slice(0, 4000)}\n` : ""}
+${contactBlock}${args.jobDescription ? `Job notes/description:\n${args.jobDescription.slice(0, 4000)}\n` : ""}
 Candidate resume:
 ${args.resumeText.slice(0, 18000)}`,
       },

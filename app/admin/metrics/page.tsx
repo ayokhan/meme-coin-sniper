@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays, TrendingUp, X, Radio } from "lucide-react";
+import { Zap, BarChart3, Sparkles, Bell, Users, CalendarDays, TrendingUp, X, Radio, Briefcase } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -93,6 +93,25 @@ type UserPageDrill = {
   }>;
 };
 
+type JobsAgentMetrics = {
+  totals: {
+    all: number;
+    applied: number;
+    prepared: number;
+    queued: number;
+    failed: number;
+    skipped: number;
+  };
+  applied: { today: number; last7Days: number; thisMonth: number };
+  activeUsers: number;
+  topUsers: Array<{
+    userId: string;
+    email: string | null;
+    name: string | null;
+    applications: number;
+  }>;
+};
+
 function formatActivityDateTime(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
     month: "short",
@@ -157,6 +176,35 @@ export default function AdminMetricsPage() {
   const [activeUsersLoading, setActiveUsersLoading] = useState(false);
   const [activeUsersError, setActiveUsersError] = useState("");
   const [liveActivityDisabled, setLiveActivityDisabled] = useState(false);
+  const [jobsMetrics, setJobsMetrics] = useState<JobsAgentMetrics | null>(null);
+  const [jobsMetricsLoading, setJobsMetricsLoading] = useState(false);
+  const [jobsMetricsError, setJobsMetricsError] = useState("");
+
+  const loadJobsMetrics = useCallback(() => {
+    if (status !== "authenticated" || !isOwner) return;
+    setJobsMetricsLoading(true);
+    fetch("/api/admin/metrics/nova-jobs-agent")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          setJobsMetrics({
+            totals: data.totals,
+            applied: data.applied,
+            activeUsers: data.activeUsers,
+            topUsers: data.topUsers ?? [],
+          });
+          setJobsMetricsError("");
+        } else {
+          setJobsMetrics(null);
+          setJobsMetricsError(data.error ?? "Failed to load Jobs Agent metrics.");
+        }
+      })
+      .catch(() => {
+        setJobsMetrics(null);
+        setJobsMetricsError("Failed to load Jobs Agent metrics.");
+      })
+      .finally(() => setJobsMetricsLoading(false));
+  }, [status, isOwner]);
 
   const loadActiveUsers = useCallback(() => {
     if (status !== "authenticated" || !isOwner || liveActivityDisabled) return;
@@ -232,6 +280,11 @@ export default function AdminMetricsPage() {
     loadFunnel();
     loadReport();
   }, [status, loadFunnel, loadReport]);
+
+  useEffect(() => {
+    if (!isOwner || status !== "authenticated") return;
+    loadJobsMetrics();
+  }, [isOwner, status, loadJobsMetrics]);
 
   useEffect(() => {
     if (!isOwner || status !== "authenticated" || liveActivityDisabled) return;
@@ -506,6 +559,96 @@ export default function AdminMetricsPage() {
               <Button asChild variant="outline" size="sm">
                 <Link href="/admin/stripe-test">Open Stripe billing tests</Link>
               </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {isOwner && (
+          <Card className="border-indigo-200 dark:border-indigo-800 mb-6">
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="h-5 w-5 text-indigo-500" />
+                  <div>
+                    <CardTitle>Nova Jobs Agent</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Applications prepared or marked applied across all users. Owner only.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={jobsMetricsLoading}
+                  onClick={loadJobsMetrics}
+                >
+                  {jobsMetricsLoading ? "Refreshing…" : "Refresh"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {jobsMetricsError && (
+                <p className="text-sm text-rose-600 dark:text-rose-400">{jobsMetricsError}</p>
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: "Applied (all time)", value: jobsMetrics?.totals.applied ?? 0 },
+                  { label: "Prepared", value: jobsMetrics?.totals.prepared ?? 0 },
+                  { label: "Applied today", value: jobsMetrics?.applied.today ?? 0 },
+                  { label: "Users with apps", value: jobsMetrics?.activeUsers ?? 0 },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/40 px-3 py-2"
+                  >
+                    <p className="text-xs text-muted-foreground">{s.label}</p>
+                    <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
+                <span>
+                  Applied last 7 days: <strong className="text-zinc-800 dark:text-zinc-200">{jobsMetrics?.applied.last7Days ?? 0}</strong>
+                </span>
+                <span>
+                  Applied this month: <strong className="text-zinc-800 dark:text-zinc-200">{jobsMetrics?.applied.thisMonth ?? 0}</strong>
+                </span>
+                <span>
+                  Total tracked: <strong className="text-zinc-800 dark:text-zinc-200">{jobsMetrics?.totals.all ?? 0}</strong>
+                </span>
+              </div>
+              {jobsMetrics && jobsMetrics.topUsers.length > 0 ? (
+                <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead className="text-right">Prepared + applied</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {jobsMetrics.topUsers.map((u) => (
+                        <TableRow key={u.userId}>
+                          <TableCell>
+                            <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                              {u.name || u.email || u.userId.slice(0, 8)}
+                            </div>
+                            {u.email && u.name ? (
+                              <div className="text-xs text-muted-foreground">{u.email}</div>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">{u.applications}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                !jobsMetricsLoading && (
+                  <p className="text-sm text-muted-foreground">No Jobs Agent applications yet.</p>
+                )
+              )}
             </CardContent>
           </Card>
         )}

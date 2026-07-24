@@ -231,6 +231,10 @@ model JobAgentProfile {
   enabledBoards            Json     @default("[\"remotive\",\"remoteok\",\"arbeitnow\"]")
   autoApplyEnabled         Boolean  @default(false)
   targetApplicationsPerDay Int      @default(10)
+  /** Email employers should see on resume/cover letter (user-set; not NovaStaris account by default). */
+  contactEmail             String?
+  contactName              String?
+  contactPhone             String?
   notes                    String?
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
