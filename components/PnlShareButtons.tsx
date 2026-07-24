@@ -20,6 +20,8 @@ type PnlShareButtonsProps = {
   showUsdt?: boolean;
   investedUsdt?: number | null;
   showAmountInvested?: boolean;
+  heldFor?: string | null;
+  showHoldDuration?: boolean;
   kind?: "open" | "closed";
   /** Override caption (e.g. analysis share). */
   caption?: string;
@@ -37,6 +39,8 @@ export default function PnlShareButtons({
   showUsdt = true,
   investedUsdt = null,
   showAmountInvested = false,
+  heldFor = null,
+  showHoldDuration = false,
   kind = "closed",
   caption: captionOverride,
   disabled,
@@ -55,6 +59,8 @@ export default function PnlShareButtons({
       kind,
       investedUsdt,
       showAmountInvested,
+      heldFor,
+      showHoldDuration,
     });
   const h = compact ? "h-6 text-[10px] px-1.5" : "h-7 text-xs";
 

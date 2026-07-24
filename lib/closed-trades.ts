@@ -152,6 +152,8 @@ export type ClosedTrade = {
   /** ROE % (price move × leverage), aligned with Blofin-style display. */
   roiPct: number;
   leverage: number;
+  /** Open fill/order timestamp (ms or string), when known. */
+  openedAt: string | null;
   closedAt: string | null;
   source: "fills" | "orders";
 };
@@ -173,6 +175,26 @@ export function estimateInvestedMarginUsdt(
   const margin = (realizedPnlUsdt * 100) / roiPct;
   if (!Number.isFinite(margin) || margin <= 0) return null;
   return Math.round(margin * 100) / 100;
+}
+
+/** Human hold duration between open and close timestamps. */
+export function formatHeldForDuration(
+  openedAt: string | number | null | undefined,
+  closedAt: string | number | null | undefined
+): string | null {
+  const openMs = normalizeUnixMs(openedAt);
+  const closeMs = normalizeUnixMs(closedAt);
+  if (openMs == null || closeMs == null || closeMs < openMs) return null;
+  const sec = Math.floor((closeMs - openMs) / 1000);
+  if (sec < 60) return `${Math.max(1, sec)}s`;
+  const mins = Math.floor(sec / 60);
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  const remM = mins % 60;
+  if (hours < 48) return remM > 0 ? `${hours}h ${remM}m` : `${hours}h`;
+  const days = Math.floor(hours / 24);
+  const remH = hours % 24;
+  return remH > 0 ? `${days}d ${remH}h` : `${days}d`;
 }
 
 function num(s: string | undefined | null): number | null {
@@ -240,13 +262,23 @@ function pickRepresentativeClosingFill(group: BlofinFillRow[]): BlofinFillRow {
   });
 }
 
-function findOpenPriceBeforeFill(sorted: BlofinFillRow[], fillIndex: number): number | null {
+function findOpenFillBeforeClose(
+  sorted: BlofinFillRow[],
+  fillIndex: number
+): { price: number; openedAt: string | null } | null {
   const f = sorted[fillIndex];
   for (let j = fillIndex - 1; j >= 0; j--) {
     const prev = sorted[j];
     if (prev.instId !== f.instId) continue;
     const prevPnl = num(prev.fillPnl) ?? 0;
-    if (Math.abs(prevPnl) < 1e-10) return num(prev.fillPrice);
+    if (Math.abs(prevPnl) < 1e-10) {
+      const price = num(prev.fillPrice);
+      if (price == null || price <= 0) return null;
+      return {
+        price,
+        openedAt: prev.ts != null ? String(normalizeUnixMs(prev.ts) ?? prev.ts) : null,
+      };
+    }
   }
   return null;
 }
@@ -271,8 +303,8 @@ export function closedTradesFromFills(
     const closePrice = num(f.fillPrice);
     if (closePrice == null || closePrice <= 0) continue;
 
-    const openPrice = findOpenPriceBeforeFill(sorted, fillIndex);
-    if (openPrice == null || openPrice <= 0) continue;
+    const open = findOpenFillBeforeClose(sorted, fillIndex);
+    if (!open) continue;
 
     const direction = inferDirectionFromCloseSide(f.side, f.positionSide);
     const ordLev = f.orderId ? leverageByOrderId?.get(f.orderId) : undefined;
@@ -283,11 +315,12 @@ export function closedTradesFromFills(
       instId: f.instId,
       displaySymbol: formatInstDisplay(f.instId),
       direction,
-      openPrice,
+      openPrice: open.price,
       closePrice,
       realizedPnlUsdt: pnl,
-      roiPct: roiFromPrices(direction, openPrice, closePrice, lev),
+      roiPct: roiFromPrices(direction, open.price, closePrice, lev),
       leverage: lev,
+      openedAt: open.openedAt,
       closedAt: f.ts != null ? String(normalizeUnixMs(f.ts) ?? f.ts) : null,
       source: "fills",
     });
@@ -315,12 +348,15 @@ export function closedTradesFromOrders(orders: BlofinOrderRow[], defaultLeverage
     const lev = num(o.leverage) ?? defaultLeverage;
     const direction = inferDirectionFromCloseSide(o.side);
     let openPrice: number | null = null;
+    let openedAt: string | null = null;
     for (let j = i - 1; j >= 0; j--) {
       const prev = filled[j];
       if (prev.instId !== o.instId) continue;
       const prevPnl = num(prev.pnl) ?? 0;
       if (Math.abs(prevPnl) < 1e-10) {
         openPrice = num(prev.averagePrice) ?? num(prev.fillPrice) ?? num(prev.price);
+        openedAt =
+          prev.createdAt != null ? String(normalizeUnixMs(prev.createdAt) ?? prev.createdAt) : null;
         break;
       }
     }
@@ -336,6 +372,7 @@ export function closedTradesFromOrders(orders: BlofinOrderRow[], defaultLeverage
       realizedPnlUsdt: pnl,
       roiPct: roiFromPrices(direction, openPrice, closePrice, lev),
       leverage: lev,
+      openedAt,
       closedAt: o.createdAt != null ? String(normalizeUnixMs(o.createdAt) ?? o.createdAt) : null,
       source: "orders",
     });
@@ -356,10 +393,12 @@ export function closedTradeLooseDedupeKey(t: ClosedTrade): string {
 
 function enrichFillWithOrderLeverage(fillsTrade: ClosedTrade, orderTrade: ClosedTrade): ClosedTrade {
   const lev = orderTrade.leverage > 0 ? orderTrade.leverage : fillsTrade.leverage;
-  if (lev === fillsTrade.leverage) return fillsTrade;
+  const openedAt = fillsTrade.openedAt || orderTrade.openedAt;
+  if (lev === fillsTrade.leverage && openedAt === fillsTrade.openedAt) return fillsTrade;
   return {
     ...fillsTrade,
     leverage: lev,
+    openedAt,
     roiPct: roiFromPrices(fillsTrade.direction, fillsTrade.openPrice, fillsTrade.closePrice, lev),
   };
 }

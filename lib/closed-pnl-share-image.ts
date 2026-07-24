@@ -13,10 +13,13 @@ export type ClosedTradeShareInput = {
   roiPct: number;
   realizedPnlUsdt: number;
   closedAt?: string | null;
+  openedAt?: string | null;
   modeLabel?: "Live" | "Demo";
   leverage?: number | null;
   /** Margin / amount put into the trade (USDT). */
   investedUsdt?: number | null;
+  /** Preformatted hold duration, e.g. "2h 14m". */
+  heldFor?: string | null;
 };
 
 export type OpenPositionShareInput = {
@@ -29,12 +32,17 @@ export type OpenPositionShareInput = {
   modeLabel?: "Live" | "Demo";
   leverage?: number | null;
   investedUsdt?: number | null;
+  heldFor?: string | null;
 };
 
 export type ClosedTradeShareOptions = {
   showRealizedUsdt?: boolean;
   /** When true, show margin/amount invested on the card. */
   showAmountInvested?: boolean;
+  /** When true, show hold duration. */
+  showHoldDuration?: boolean;
+  /** When false, hide leverage badge. Default true. */
+  showLeverage?: boolean;
 };
 
 type PremiumCardParams = {
@@ -53,7 +61,10 @@ type PremiumCardParams = {
   sharedDate?: string;
   showUsdt?: boolean;
   showAmountInvested?: boolean;
+  showHoldDuration?: boolean;
+  showLeverage?: boolean;
   investedUsdt?: number | null;
+  heldFor?: string | null;
 };
 
 const W = 1080;
@@ -134,6 +145,7 @@ function drawBadge(
 
 function drawPremiumPnlShareCard(params: PremiumCardParams): Promise<Blob> {
   const showUsdt = params.showUsdt !== false;
+  const showLeverage = params.showLeverage !== false;
   const profit = params.roiPct >= 0;
   const accent = profit ? GREEN : RED;
   const sharedDate =
@@ -198,7 +210,7 @@ function drawPremiumPnlShareCard(params: PremiumCardParams): Promise<Blob> {
   ctx.fillStyle = params.direction === "long" ? GREEN : RED;
   ctx.fillText(params.direction.toUpperCase(), subX, symY + 52);
   subX += ctx.measureText(params.direction.toUpperCase()).width + 12;
-  if (params.leverage != null && params.leverage > 0) {
+  if (showLeverage && params.leverage != null && params.leverage > 0) {
     subX += drawBadge(ctx, `${Math.round(params.leverage)}X`, subX, symY + 48, "rgba(148,163,184,0.18)", "#94a3b8");
   }
 
@@ -214,31 +226,37 @@ function drawPremiumPnlShareCard(params: PremiumCardParams): Promise<Blob> {
   ctx.fillText(`${params.roiPct >= 0 ? "+" : ""}${params.roiPct.toFixed(2)}%`, pad, roiY + 28);
   ctx.shadowBlur = 0;
 
-  let priceY = roiY + 120;
+  // Detail stack order: Invested → Realized → Held for
   let infoY = roiY + 140;
-  if (showUsdt) {
-    ctx.font = "600 22px system-ui, sans-serif";
-    ctx.fillStyle = "#94a3b8";
-    const usdtStr = `${params.pnlUsdt >= 0 ? "+" : ""}${params.pnlUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${params.pnlUsdtLabel}`;
-    ctx.fillText(usdtStr, pad, infoY);
-    infoY += 36;
-    priceY = roiY + 200;
-  }
+  const detailLines: string[] = [];
   if (
     params.showAmountInvested &&
     params.investedUsdt != null &&
     Number.isFinite(params.investedUsdt) &&
     params.investedUsdt > 0
   ) {
-    ctx.font = "600 20px system-ui, sans-serif";
-    ctx.fillStyle = "#94a3b8";
-    ctx.fillText(
-      `Invested ${params.investedUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`,
-      pad,
-      infoY
+    detailLines.push(
+      `Invested: ${params.investedUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`
     );
-    priceY = Math.max(priceY, infoY + 56);
   }
+  if (showUsdt) {
+    const pnlLabel = params.statusBadge === "OPEN" ? "Unrealized" : "Realized";
+    detailLines.push(
+      `${pnlLabel}: ${params.pnlUsdt >= 0 ? "+" : ""}${params.pnlUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`
+    );
+  }
+  if (params.showHoldDuration && params.heldFor) {
+    detailLines.push(`Held for: ${params.heldFor}`);
+  }
+
+  ctx.font = "600 22px system-ui, sans-serif";
+  ctx.fillStyle = "#94a3b8";
+  for (const line of detailLines) {
+    ctx.fillText(line, pad, infoY);
+    infoY += 34;
+  }
+
+  const priceY = Math.max(roiY + 120, infoY + 24);
 
   const colW = 220;
   ctx.font = "500 14px system-ui, sans-serif";
@@ -293,7 +311,10 @@ export function drawClosedTradeShareCard(
     sharedDate,
     showUsdt: options?.showRealizedUsdt,
     showAmountInvested: options?.showAmountInvested,
+    showHoldDuration: options?.showHoldDuration,
+    showLeverage: options?.showLeverage,
     investedUsdt: input.investedUsdt,
+    heldFor: input.heldFor,
   });
 }
 
@@ -316,7 +337,10 @@ export function drawOpenPositionShareCard(
     modeLabel: input.modeLabel,
     showUsdt: options?.showRealizedUsdt,
     showAmountInvested: options?.showAmountInvested,
+    showHoldDuration: options?.showHoldDuration,
+    showLeverage: options?.showLeverage,
     investedUsdt: input.investedUsdt,
+    heldFor: input.heldFor,
   });
 }
 

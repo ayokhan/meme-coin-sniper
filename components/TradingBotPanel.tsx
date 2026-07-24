@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { ClosedTradesPeriod } from "@/lib/closed-trades";
-import { analyzeClosedTrades, CLOSED_TRADES_PERIOD_OPTIONS, estimateInvestedMarginUsdt, formatInstDisplay } from "@/lib/closed-trades";
+import { analyzeClosedTrades, CLOSED_TRADES_PERIOD_OPTIONS, estimateInvestedMarginUsdt, formatHeldForDuration, formatInstDisplay } from "@/lib/closed-trades";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -58,6 +58,7 @@ type ClosedTradeRow = {
   realizedPnlUsdt: number;
   roiPct: number;
   leverage: number;
+  openedAt: string | null;
   closedAt: string | null;
   source: "fills" | "orders";
 };
@@ -78,9 +79,11 @@ function closedTradeToShareInput(t: ClosedTradeRow, mode: "demo" | "live"): Clos
     roiPct: t.roiPct,
     realizedPnlUsdt: t.realizedPnlUsdt,
     closedAt: t.closedAt,
+    openedAt: t.openedAt,
     modeLabel: mode === "demo" ? "Demo" : "Live",
     leverage: t.leverage,
     investedUsdt: estimateInvestedMarginUsdt(t.realizedPnlUsdt, t.roiPct),
+    heldFor: formatHeldForDuration(t.openedAt, t.closedAt),
   };
 }
 
@@ -284,6 +287,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [closedTradesPeriodLabel, setClosedTradesPeriodLabel] = useState("Last 7 days");
   const [shareShowRealizedUsdt, setShareShowRealizedUsdt] = useState(true);
   const [shareShowAmountInvested, setShareShowAmountInvested] = useState(false);
+  const [shareShowHoldDuration, setShareShowHoldDuration] = useState(false);
+  const [shareShowLeverage, setShareShowLeverage] = useState(true);
   const [showClosedAnalysis, setShowClosedAnalysis] = useState(false);
   /** Analysis share card: stats-only vs stats + total PNL / avg win / avg loss. */
   const [shareAnalysisShowPnlDetails, setShareAnalysisShowPnlDetails] = useState(false);
@@ -3123,7 +3128,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                     onChange={(e) => setShareShowRealizedUsdt(e.target.checked)}
                     className="rounded"
                   />
-                  Show USDT on share cards (ROI % always shown)
+                  Show Realized USDT (ROI % always shown)
                 </label>
                 <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
                   <input
@@ -3132,7 +3137,25 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                     onChange={(e) => setShareShowAmountInvested(e.target.checked)}
                     className="rounded"
                   />
-                  Show amount invested (margin)
+                  Show Invested
+                </label>
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareShowHoldDuration}
+                    onChange={(e) => setShareShowHoldDuration(e.target.checked)}
+                    className="rounded"
+                  />
+                  Show Held for
+                </label>
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareShowLeverage}
+                    onChange={(e) => setShareShowLeverage(e.target.checked)}
+                    className="rounded"
+                  />
+                  Show leverage
                 </label>
               </div>
               {activeTab === "open_orders" && (
@@ -3189,7 +3212,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                             <span className="text-zinc-600 dark:text-zinc-400 font-medium">{p.instId}</span>
                             <span className={p.posSide === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{p.posSide.toUpperCase()}</span>
-                            {p.leverage != null && p.leverage > 0 && (
+                            {shareShowLeverage && p.leverage != null && p.leverage > 0 && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300">{Math.round(p.leverage)}X</span>
                             )}
                             {p.marginMode && (
@@ -3275,6 +3298,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                 {
                                   showRealizedUsdt: shareShowRealizedUsdt,
                                   showAmountInvested: shareShowAmountInvested,
+                                  showHoldDuration: false,
+                                  showLeverage: shareShowLeverage,
                                 }
                               )
                             }
@@ -3332,6 +3357,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                         {closedTrades.map((t) => {
                           const profit = t.realizedPnlUsdt >= 0;
                           const invested = estimateInvestedMarginUsdt(t.realizedPnlUsdt, t.roiPct);
+                          const heldFor = formatHeldForDuration(t.openedAt, t.closedAt);
                           return (
                             <div
                               key={t.id}
@@ -3343,7 +3369,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                   <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold ${t.direction === "long" ? "bg-emerald-500/15 text-emerald-700 dark:text-[#0ecb81]" : "bg-rose-500/15 text-rose-700 dark:text-[#f6465d]"}`}>
                                     {t.direction.toUpperCase()}
                                   </span>
-                                  {t.leverage > 0 && (
+                                  {shareShowLeverage && t.leverage > 0 && (
                                     <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300">{Math.round(t.leverage)}X</span>
                                   )}
                                   <p className="text-muted-foreground mt-1 tabular-nums">
@@ -3352,15 +3378,22 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                   {t.closedAt && (
                                     <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(Number(t.closedAt)).toLocaleString()}</p>
                                   )}
-                                  {shareShowAmountInvested && invested != null && (
-                                    <p className="text-[11px] text-zinc-600 dark:text-zinc-300 mt-1 tabular-nums">
-                                      Invested {invested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
-                                      <span className="text-muted-foreground"> → </span>
-                                      <span className={profit ? "text-emerald-600 dark:text-[#0ecb81]" : "text-rose-600 dark:text-[#f6465d]"}>
-                                        {t.realizedPnlUsdt >= 0 ? "+" : ""}
-                                        {t.realizedPnlUsdt.toFixed(2)} USDT
-                                      </span>
-                                    </p>
+                                  {(shareShowAmountInvested || shareShowRealizedUsdt || shareShowHoldDuration) && (
+                                    <div className="mt-1.5 space-y-0.5 text-[11px] tabular-nums text-zinc-600 dark:text-zinc-300">
+                                      {shareShowAmountInvested && invested != null && (
+                                        <p>Invested: {invested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</p>
+                                      )}
+                                      {shareShowRealizedUsdt && (
+                                        <p>
+                                          Realized:{" "}
+                                          <span className={profit ? "text-emerald-600 dark:text-[#0ecb81]" : "text-rose-600 dark:text-[#f6465d]"}>
+                                            {t.realizedPnlUsdt >= 0 ? "+" : ""}
+                                            {t.realizedPnlUsdt.toFixed(2)} USDT
+                                          </span>
+                                        </p>
+                                      )}
+                                      {shareShowHoldDuration && heldFor && <p>Held for: {heldFor}</p>}
+                                    </div>
                                   )}
                                 </div>
                                 <div className="text-right">
@@ -3378,6 +3411,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                 showUsdt={shareShowRealizedUsdt}
                                 showAmountInvested={shareShowAmountInvested}
                                 investedUsdt={invested}
+                                heldFor={heldFor}
+                                showHoldDuration={shareShowHoldDuration}
                                 symbol={t.displaySymbol}
                                 roiPct={t.roiPct}
                                 pnlUsdt={t.realizedPnlUsdt}
@@ -3386,6 +3421,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                   drawClosedTradeShareCard(closedTradeToShareInput(t, config?.mode ?? "live"), {
                                     showRealizedUsdt: shareShowRealizedUsdt,
                                     showAmountInvested: shareShowAmountInvested,
+                                    showHoldDuration: shareShowHoldDuration,
+                                    showLeverage: shareShowLeverage,
                                   })
                                 }
                               />
@@ -3577,6 +3614,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                               closedTrades[0].realizedPnlUsdt,
                               closedTrades[0].roiPct
                             )}
+                            heldFor={formatHeldForDuration(closedTrades[0].openedAt, closedTrades[0].closedAt)}
+                            showHoldDuration={shareShowHoldDuration}
                             symbol={closedTrades[0].displaySymbol}
                             roiPct={closedTrades[0].roiPct}
                             pnlUsdt={closedTrades[0].realizedPnlUsdt}
@@ -3586,6 +3625,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                               drawClosedTradeShareCard(closedTradeToShareInput(closedTrades[0], config?.mode ?? "live"), {
                                 showRealizedUsdt: shareShowRealizedUsdt,
                                 showAmountInvested: shareShowAmountInvested,
+                                showHoldDuration: shareShowHoldDuration,
+                                showLeverage: shareShowLeverage,
                               })
                             }
                           />
@@ -3610,6 +3651,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                               {
                                 showRealizedUsdt: shareShowRealizedUsdt,
                                 showAmountInvested: shareShowAmountInvested,
+                                showHoldDuration: shareShowHoldDuration,
+                                showLeverage: shareShowLeverage,
                                 periodLabel: closedTradesPeriodLabel,
                               }
                             );
