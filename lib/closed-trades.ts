@@ -160,6 +160,21 @@ export function formatInstDisplay(instId: string): string {
   return (instId || "").replace(/-/g, "").toUpperCase();
 }
 
+/**
+ * Estimate margin (amount invested) from realized PnL and ROE %.
+ * ROE% ≈ (pnl / margin) × 100 → margin = pnl × 100 / roiPct.
+ */
+export function estimateInvestedMarginUsdt(
+  realizedPnlUsdt: number,
+  roiPct: number
+): number | null {
+  if (!Number.isFinite(realizedPnlUsdt) || !Number.isFinite(roiPct)) return null;
+  if (Math.abs(roiPct) < 1e-6) return null;
+  const margin = (realizedPnlUsdt * 100) / roiPct;
+  if (!Number.isFinite(margin) || margin <= 0) return null;
+  return Math.round(margin * 100) / 100;
+}
+
 function num(s: string | undefined | null): number | null {
   if (s == null || s === "") return null;
   const n = parseFloat(s);

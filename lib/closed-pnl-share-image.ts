@@ -15,6 +15,8 @@ export type ClosedTradeShareInput = {
   closedAt?: string | null;
   modeLabel?: "Live" | "Demo";
   leverage?: number | null;
+  /** Margin / amount put into the trade (USDT). */
+  investedUsdt?: number | null;
 };
 
 export type OpenPositionShareInput = {
@@ -26,10 +28,13 @@ export type OpenPositionShareInput = {
   unrealizedPnlUsdt: number;
   modeLabel?: "Live" | "Demo";
   leverage?: number | null;
+  investedUsdt?: number | null;
 };
 
 export type ClosedTradeShareOptions = {
   showRealizedUsdt?: boolean;
+  /** When true, show margin/amount invested on the card. */
+  showAmountInvested?: boolean;
 };
 
 type PremiumCardParams = {
@@ -47,6 +52,8 @@ type PremiumCardParams = {
   modeLabel?: "Live" | "Demo";
   sharedDate?: string;
   showUsdt?: boolean;
+  showAmountInvested?: boolean;
+  investedUsdt?: number | null;
 };
 
 const W = 1080;
@@ -208,12 +215,29 @@ function drawPremiumPnlShareCard(params: PremiumCardParams): Promise<Blob> {
   ctx.shadowBlur = 0;
 
   let priceY = roiY + 120;
+  let infoY = roiY + 140;
   if (showUsdt) {
     ctx.font = "600 22px system-ui, sans-serif";
     ctx.fillStyle = "#94a3b8";
     const usdtStr = `${params.pnlUsdt >= 0 ? "+" : ""}${params.pnlUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${params.pnlUsdtLabel}`;
-    ctx.fillText(usdtStr, pad, roiY + 140);
+    ctx.fillText(usdtStr, pad, infoY);
+    infoY += 36;
     priceY = roiY + 200;
+  }
+  if (
+    params.showAmountInvested &&
+    params.investedUsdt != null &&
+    Number.isFinite(params.investedUsdt) &&
+    params.investedUsdt > 0
+  ) {
+    ctx.font = "600 20px system-ui, sans-serif";
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillText(
+      `Invested ${params.investedUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`,
+      pad,
+      infoY
+    );
+    priceY = Math.max(priceY, infoY + 56);
   }
 
   const colW = 220;
@@ -268,6 +292,8 @@ export function drawClosedTradeShareCard(
     modeLabel: input.modeLabel,
     sharedDate,
     showUsdt: options?.showRealizedUsdt,
+    showAmountInvested: options?.showAmountInvested,
+    investedUsdt: input.investedUsdt,
   });
 }
 
@@ -289,6 +315,8 @@ export function drawOpenPositionShareCard(
     leverage: input.leverage,
     modeLabel: input.modeLabel,
     showUsdt: options?.showRealizedUsdt,
+    showAmountInvested: options?.showAmountInvested,
+    investedUsdt: input.investedUsdt,
   });
 }
 

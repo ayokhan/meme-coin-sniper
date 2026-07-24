@@ -18,6 +18,8 @@ type PnlShareButtonsProps = {
   roiPct?: number;
   pnlUsdt?: number;
   showUsdt?: boolean;
+  investedUsdt?: number | null;
+  showAmountInvested?: boolean;
   kind?: "open" | "closed";
   /** Override caption (e.g. analysis share). */
   caption?: string;
@@ -33,6 +35,8 @@ export default function PnlShareButtons({
   roiPct = 0,
   pnlUsdt = 0,
   showUsdt = true,
+  investedUsdt = null,
+  showAmountInvested = false,
   kind = "closed",
   caption: captionOverride,
   disabled,
@@ -43,7 +47,15 @@ export default function PnlShareButtons({
 
   const caption =
     captionOverride ??
-    buildPnlShareCaption({ symbol, roiPct, pnlUsdt, showUsdt, kind });
+    buildPnlShareCaption({
+      symbol,
+      roiPct,
+      pnlUsdt,
+      showUsdt,
+      kind,
+      investedUsdt,
+      showAmountInvested,
+    });
   const h = compact ? "h-6 text-[10px] px-1.5" : "h-7 text-xs";
 
   const run = async (key: string, fn: () => Promise<void>) => {

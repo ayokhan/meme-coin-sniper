@@ -30,14 +30,23 @@ export function buildPnlShareCaption(parts: {
   pnlUsdt?: number;
   showUsdt: boolean;
   kind: "open" | "closed";
+  investedUsdt?: number | null;
+  showAmountInvested?: boolean;
 }): string {
   const roi = `${parts.roiPct >= 0 ? "+" : ""}${parts.roiPct.toFixed(2)}%`;
   const usdt =
     parts.showUsdt && parts.pnlUsdt != null
       ? ` · ${parts.pnlUsdt >= 0 ? "+" : ""}${parts.pnlUsdt.toFixed(2)} USDT`
       : "";
+  const invested =
+    parts.showAmountInvested &&
+    parts.investedUsdt != null &&
+    Number.isFinite(parts.investedUsdt) &&
+    parts.investedUsdt > 0
+      ? ` · invested ${parts.investedUsdt.toFixed(2)} USDT`
+      : "";
   const label = parts.kind === "open" ? "open position" : "closed trade";
-  return `${parts.symbol} ${label} ${roi}${usdt} on NovaStaris AI\n\nhttps://novastaris.ai`;
+  return `${parts.symbol} ${label} ${roi}${usdt}${invested} on NovaStaris AI\n\nhttps://novastaris.ai`;
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
