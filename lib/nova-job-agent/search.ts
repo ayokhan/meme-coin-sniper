@@ -16,21 +16,44 @@ function normalize(s: string) {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function scoreJob(
-  title: string,
+/** Significant words from a title query (skip tiny connectors). */
+function significantWords(needle: string): string[] {
+  return needle
+    .split(" ")
+    .map((w) => w.trim())
+    .filter((w) => w.length >= 3 && !["and", "the", "for", "with"].includes(w));
+}
+
+/**
+ * Title must meaningfully match when the user specified job titles.
+ * Location alone must not surface unrelated roles (e.g. Concept Artist for "product owner").
+ */
+function titleMatchScore(jobTitle: string, titleNeedles: string[]): number {
+  if (titleNeedles.length === 0) return 1;
+  const t = normalize(jobTitle);
+  let best = 0;
+  for (const n of titleNeedles) {
+    if (!n) continue;
+    if (t.includes(n)) {
+      best = Math.max(best, 10);
+      continue;
+    }
+    const words = significantWords(n);
+    if (words.length === 0) continue;
+    const hits = words.filter((w) => t.includes(w)).length;
+    // Require every significant word (e.g. both "product" and "owner")
+    if (hits === words.length) best = Math.max(best, 8);
+  }
+  return best;
+}
+
+function locationBoost(
   location: string,
-  titleNeedles: string[],
   locNeedles: string[],
   remoteOk: boolean
 ): number {
-  const t = normalize(title);
   const loc = normalize(location);
   let score = 0;
-  if (titleNeedles.length === 0) score += 1;
-  for (const n of titleNeedles) {
-    if (t.includes(n) || n.split(" ").every((w) => w.length < 3 || t.includes(w))) score += 5;
-    else if (n.split(" ").some((w) => w.length > 3 && t.includes(w))) score += 2;
-  }
   if (locNeedles.length === 0 || remoteOk) {
     if (/worldwide|anywhere|remote|global/i.test(location || "")) score += 1;
   }
@@ -40,13 +63,30 @@ function scoreJob(
   return score;
 }
 
+function scoreJob(
+  title: string,
+  location: string,
+  titleNeedles: string[],
+  locNeedles: string[],
+  remoteOk: boolean
+): number {
+  const titleScore = titleMatchScore(title, titleNeedles);
+  // When titles are set, reject jobs that only match location/remote
+  if (titleNeedles.length > 0 && titleScore <= 0) return 0;
+  return titleScore + locationBoost(location, locNeedles, remoteOk);
+}
+
 async function searchRemotive(args: {
   titleNeedles: string[];
   locNeedles: string[];
   remoteOk: boolean;
   limit: number;
 }): Promise<MatchedJob[]> {
-  const res = await fetch("https://remotive.com/api/remote-jobs", { next: { revalidate: 0 } });
+  const q = args.titleNeedles[0] || "";
+  const url = q
+    ? `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(q)}`
+    : "https://remotive.com/api/remote-jobs";
+  const res = await fetch(url, { next: { revalidate: 0 } });
   if (!res.ok) return [];
   const data = (await res.json()) as {
     jobs?: Array<{

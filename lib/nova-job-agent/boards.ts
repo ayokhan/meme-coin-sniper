@@ -4,6 +4,7 @@ export type JobBoardId =
   | "arbeitnow"
   | "linkedin"
   | "indeed"
+  | "monster"
   | "wellfound"
   | "glassdoor";
 
@@ -44,6 +45,12 @@ export const JOB_BOARDS: JobBoardMeta[] = [
     id: "indeed",
     label: "Indeed",
     blurb: "Coming soon — open job URL to apply manually.",
+    live: false,
+  },
+  {
+    id: "monster",
+    label: "Monster",
+    blurb: "Coming soon — no public free job API (manual apply).",
     live: false,
   },
   {

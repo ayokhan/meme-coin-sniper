@@ -636,7 +636,7 @@ export default function NovaJobAgentPanel() {
         <CardContent className="space-y-3">
           {jobs.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Save preferences + resume, then search remote roles (Remotive) or run an auto-apply batch.
+              Save preferences + resume, then search. Results must match your job title(s) on the selected live boards.
             </p>
           ) : (
             <ul className="space-y-2">
