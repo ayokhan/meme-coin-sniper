@@ -147,6 +147,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
       k.startsWith("nova_forex_bot") || k.startsWith("nova_forex_scalp_bot") || k.startsWith("forex_broker_"),
   },
   {
+    id: "nova-jobs-agent",
+    title: "Nova Jobs Agent",
+    match: (k) => k === "page_tab_nova_job_agent" || k === "nova_job_agent_owner_only",
+  },
+  {
     id: "wallet-subs",
     title: "Wallet Tracker subtabs",
     match: (k) =>
@@ -156,7 +161,7 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
       k === "nova_meme_leaderboard" ||
       k === "nova_deep_meme_agent",
   },
-  { id: "tabs", title: "Dashboard tabs", match: (k) => k.startsWith("page_tab_") },
+  { id: "tabs", title: "Dashboard tabs", match: (k) => k.startsWith("page_tab_") && k !== "page_tab_nova_job_agent" },
   {
     id: "account",
     title: "Account & billing",
@@ -358,9 +363,14 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
       "Show/hide the NovaStaris Trading University tab (free course + final exam + certificate). Guests see a preview; full course requires sign-in. Static content — no AI API cost. Default ON.",
   },
   page_tab_nova_job_agent: {
-    label: "Tab: Nova Jobs Agent",
+    label: "Nova Jobs Agent (master)",
     description:
-      "Show/hide the Nova Jobs Agent tab for the owner and admin-granted customers (resume, job prefs, cover letters, application dashboard). Default ON.",
+      "Master switch for Nova Jobs Agent. Master ON + Owner-only ON = owner testing (+ admin-granted customers). Master ON + Owner-only OFF = all VIP users. Master OFF = disabled for everyone. Default ON.",
+  },
+  nova_job_agent_owner_only: {
+    label: "Nova Jobs Agent — owner only",
+    description:
+      "Restricts Nova Jobs Agent to the owner (and admin on-demand grants) even when the master flag is ON. Turn OFF to roll it out to all VIP users. Has no effect while the master flag is OFF.",
   },
   trading_university_donations: {
     label: "Trading University donations",
@@ -1245,7 +1255,71 @@ export default function AdminFeatureFlagsPage() {
                       {group.title}
                       <span className="text-xs font-normal text-muted-foreground">{group.entries.length} flags</span>
                     </summary>
-                    {group.id === "nova-forex-bots" ? (
+                    {group.id === "nova-jobs-agent" ? (
+                      <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                        <p className="text-xs text-muted-foreground">
+                          Nova Jobs Agent will be <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong> when
+                          rolled out. Use <strong className="text-zinc-800 dark:text-zinc-200">Owner only</strong> while
+                          testing, then <strong className="text-zinc-800 dark:text-zinc-200">All VIP</strong> when ready.
+                          You can still grant individual customers via Admin → Customers.
+                        </p>
+                        {(() => {
+                          const audience = forexAudienceFromFlags(
+                            "page_tab_nova_job_agent",
+                            "nova_job_agent_owner_only"
+                          );
+                          const busy = toggling === "page_tab_nova_job_agent";
+                          return (
+                            <div className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3 space-y-3">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">Nova Jobs Agent</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Resume upload, JD-tuned resume + cover letters, multi-board search, application tracker.
+                                  </p>
+                                </div>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    audience === "off"
+                                      ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                      : audience === "owner"
+                                        ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  }`}
+                                >
+                                  {audience === "off" ? "OFF" : audience === "owner" ? "OWNER ONLY" : "ALL VIP"}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(
+                                  [
+                                    { id: "off" as const, label: "Off" },
+                                    { id: "owner" as const, label: "Owner only (test)" },
+                                    { id: "vip" as const, label: "All VIP" },
+                                  ] as const
+                                ).map((opt) => (
+                                  <Button
+                                    key={opt.id}
+                                    size="sm"
+                                    variant={audience === opt.id ? "default" : "outline"}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void setForexAudience(
+                                        "page_tab_nova_job_agent",
+                                        "nova_job_agent_owner_only",
+                                        opt.id
+                                      )
+                                    }
+                                  >
+                                    {busy && audience !== opt.id ? "…" : opt.label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : group.id === "nova-forex-bots" ? (
                       <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
                         <p className="text-xs text-muted-foreground">
                           Forex bots are <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong>. Use{" "}

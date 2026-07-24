@@ -155,8 +155,10 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_TRADING_UNIVERSITY: 'page_tab_trading_university',
   /** Post-pass voluntary donation prompt (Stripe card checkout). Default ON. */
   TRADING_UNIVERSITY_DONATIONS: 'trading_university_donations',
-  /** Nova Jobs Agent tab (owner + admin-granted customers). Default ON. */
+  /** Nova Jobs Agent tab. Master switch. Default ON. Pair with NOVA_JOB_AGENT_OWNER_ONLY for Off / Owner / All VIP. */
   PAGE_TAB_NOVA_JOB_AGENT: 'page_tab_nova_job_agent',
+  /** When master ON: restrict Nova Jobs Agent to owner (+ admin on-demand grants). Default ON (owner testing). Turn OFF for All VIP. */
+  NOVA_JOB_AGENT_OWNER_ONLY: 'nova_job_agent_owner_only',
 
   /** Master switch: Vercel scheduled /api/cron (daily scan, wallet notify, trading bot, perp jobs). When OFF, cron returns immediately — saves CPU. Default ON. */
   VERCEL_CRON_ENABLED: 'vercel_cron_enabled',

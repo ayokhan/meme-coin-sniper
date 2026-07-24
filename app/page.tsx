@@ -402,6 +402,7 @@ export default function Dashboard() {
   const canAccessCtScan = isOwner || (isVip && (((session?.user as { ctScanOnDemand?: boolean } | undefined)?.ctScanOnDemand) ?? false) && (!ctExpiresAt || ctExpiresAt > Date.now()));
   const canAccessMemeCoinsTrader = isOwner || (isVip && (((session?.user as { memeCoinsTraderOnDemand?: boolean } | undefined)?.memeCoinsTraderOnDemand) ?? false) && (!memeExpiresAt || memeExpiresAt > Date.now()));
   const novaJobAgentOnDemand = !!((session?.user as { novaJobAgentOnDemand?: boolean } | undefined)?.novaJobAgentOnDemand);
+  // Initial: owner / admin grant. VIP "All VIP" mode is applied via /api/user/on-demand-access.
   const canAccessNovaJobsAgent = isOwner || novaJobAgentOnDemand;
   const [ctAccessState, setCtAccessState] = useState<boolean | null>(null);
   const [memeCoinsTraderAccessState, setMemeCoinsTraderAccessState] = useState<boolean | null>(null);
@@ -8635,7 +8636,9 @@ export default function Dashboard() {
               !canAccessNovaJobsAgentEffective ? (
                 <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                   <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Access required</p>
-                  <p className="mt-2 text-sm text-muted-foreground">Ask an admin to enable Nova Jobs Agent.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Nova Jobs Agent is VIP-only when rolled out. Ask an admin to enable access, or upgrade to VIP.
+                  </p>
                 </div>
               ) : (
                 <div className="mx-3 sm:mx-6 py-6 sm:py-8">

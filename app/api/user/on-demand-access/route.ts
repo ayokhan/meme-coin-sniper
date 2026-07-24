@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { isOwnerEmail, isOwnerWallet } from "@/lib/auth";
+import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 
 function parseExpiresAt(raw: unknown): number | null {
   if (!raw) return null;
@@ -38,9 +39,14 @@ export async function GET() {
   const ctScanAllowed = owner || (Boolean(user.ctScanOnDemand) && (!ctExp || ctExp > now) && isVip);
   const memeCoinsTraderAllowed =
     owner || (Boolean(user.memeCoinsTraderOnDemand) && (!memeExp || memeExp > now) && isVip);
-  const novaJobsAgentAllowed = owner || Boolean(user.novaJobAgentOnDemand);
 
-  // Owners are handled by separate server-side auth gates; dashboard uses tier+flags for on-demand tabs.
+  const jobsMasterOn = await getFeatureFlag(FEATURE_FLAG_KEYS.PAGE_TAB_NOVA_JOB_AGENT);
+  const jobsOwnerOnly = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_JOB_AGENT_OWNER_ONLY);
+  const novaJobsAgentAllowed =
+    jobsMasterOn &&
+    (owner ||
+      Boolean(user.novaJobAgentOnDemand) ||
+      (isVip && !jobsOwnerOnly));
 
   return NextResponse.json({
     success: true,

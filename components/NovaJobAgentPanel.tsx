@@ -108,7 +108,9 @@ export default function NovaJobAgentPanel() {
   const [resumeDraft, setResumeDraft] = useState("");
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [jobs, setJobs] = useState<MatchedJob[]>([]);
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [tunedResumePreview, setTunedResumePreview] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -232,7 +234,6 @@ export default function NovaJobAgentPanel() {
     try {
       const form = new FormData();
       form.set("file", file);
-      if (resumeDraft.trim()) form.set("contentText", resumeDraft);
       const res = await fetch("/api/nova-job-agent/resume", {
         method: "POST",
         credentials: "include",
@@ -240,19 +241,12 @@ export default function NovaJobAgentPanel() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        // If binary-only upload without text, ask user to paste
-        if (/\.txt|\.md/i.test(file.name)) {
-          const text = await file.text();
-          setResumeDraft(text);
-          setNotice("Loaded text from file — click Save resume.");
-        } else {
-          setError(data.error || "Upload failed. Paste resume text for AI features.");
-        }
+        setError(data.error || "Upload failed.");
         return;
       }
       setResume(data.resume);
       setResumeDraft(data.resume.contentText);
-      setNotice(`Resume uploaded (v${data.resume.version}).`);
+      setNotice(`Resume uploaded from ${file.name} (v${data.resume.version}).`);
     } catch {
       setError("Upload failed.");
     } finally {
@@ -270,8 +264,10 @@ export default function NovaJobAgentPanel() {
         setError(data.error || "Search failed.");
         return;
       }
-      setJobs(data.jobs ?? []);
-      setNotice(`Found ${(data.jobs ?? []).length} matching roles.`);
+      const list = (data.jobs ?? []) as MatchedJob[];
+      setJobs(list);
+      setSelectedJobIds(new Set(list.map((j) => j.externalId)));
+      setNotice(`Found ${list.length} matching roles. Uncheck any you don’t want, then auto-apply.`);
     } catch {
       setError("Search network error.");
     } finally {
@@ -304,7 +300,8 @@ export default function NovaJobAgentPanel() {
         return;
       }
       setCoverPreview(data.application.coverLetter);
-      setNotice(`Cover letter ready for ${job.company}.`);
+      setTunedResumePreview(data.application.resumeSnapshot || null);
+      setNotice(`JD-tuned resume + cover letter ready for ${job.company}.`);
       await load();
     } catch {
       setError("Prepare failed.");
@@ -314,6 +311,11 @@ export default function NovaJobAgentPanel() {
   };
 
   const runAutoApply = async () => {
+    const selected = jobs.filter((j) => selectedJobIds.has(j.externalId));
+    if (jobs.length > 0 && selected.length === 0) {
+      setError("Select at least one job to apply for, or search again.");
+      return;
+    }
     setBusy("auto");
     setError(null);
     setNotice(null);
@@ -321,6 +323,19 @@ export default function NovaJobAgentPanel() {
       const res = await fetch("/api/nova-job-agent/auto-apply", {
         method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobs: selected.map((j) => ({
+            externalId: j.externalId,
+            title: j.title,
+            company: j.company,
+            location: j.location,
+            workType: j.workType,
+            url: j.url,
+            source: j.source,
+            descriptionSnippet: j.descriptionSnippet,
+          })),
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -335,6 +350,18 @@ export default function NovaJobAgentPanel() {
       setBusy(null);
     }
   };
+
+  const toggleJobSelected = (id: string) => {
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllJobs = () => setSelectedJobIds(new Set(jobs.map((j) => j.externalId)));
+  const deselectAllJobs = () => setSelectedJobIds(new Set());
 
   const setStatus = async (applicationId: string, status: string) => {
     setBusy(`status-${applicationId}`);
@@ -387,8 +414,8 @@ export default function NovaJobAgentPanel() {
           <Briefcase className="h-5 w-5 text-cyan-600" /> Nova Jobs Agent
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Owner-only. Upload a resume, set target roles and locations, generate cover letters, and track applications.
-          Auto-apply prepares materials and logs applications; open each job URL to complete board submission.
+          Upload a resume (PDF, Word, or text), set target roles, then search. Preparing an application tunes your
+          resume to that job description and drafts a cover letter. Uncheck roles you don’t want before auto-apply.
         </p>
       </div>
 
@@ -569,20 +596,24 @@ export default function NovaJobAgentPanel() {
           <div className="flex flex-wrap gap-2 items-center">
             <label className="inline-flex items-center gap-2 text-sm cursor-pointer rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-2">
               <Upload className="h-4 w-4" />
-              Upload .txt / .md
+              Upload PDF / Word / text
               <input
                 type="file"
-                accept=".txt,.md,text/plain"
+                accept=".txt,.md,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 className="hidden"
                 onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
               />
             </label>
             {resume?.fileUrl && (
               <a href={resume.fileUrl} target="_blank" rel="noreferrer" className="text-xs text-cyan-600 underline">
-                Stored file
+                Original file
               </a>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Base resume is saved here. When you prepare or auto-apply a job, AI rewrites a copy against that job’s
+            description (stored per application — your base resume stays unchanged).
+          </p>
           <textarea
             className="w-full min-h-[220px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm font-mono"
             value={resumeDraft}
@@ -629,7 +660,9 @@ export default function NovaJobAgentPanel() {
             </Button>
             <Button type="button" size="sm" onClick={() => void runAutoApply()} disabled={!!busy}>
               <Rocket className="h-3.5 w-3.5 mr-1" />
-              {busy === "auto" ? "Running…" : "Auto-apply batch"}
+              {busy === "auto"
+                ? "Running…"
+                : `Auto-apply selected${selectedJobIds.size ? ` (${selectedJobIds.size})` : ""}`}
             </Button>
           </div>
         </CardHeader>
@@ -639,42 +672,82 @@ export default function NovaJobAgentPanel() {
               Save preferences + resume, then search. Results must match your job title(s) on the selected live boards.
             </p>
           ) : (
-            <ul className="space-y-2">
-              {jobs.map((j) => (
-                <li
-                  key={j.externalId}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{j.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {j.company} · {j.location} · {j.workType}
-                    </p>
-                    <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                      {boardLabel(j.source)}
-                    </span>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                  <a
-                    href={j.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-8 items-center rounded-md border border-zinc-200 dark:border-zinc-700 px-3 text-xs font-medium"
+            <>
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <span className="text-muted-foreground">
+                  {selectedJobIds.size} of {jobs.length} selected
+                </span>
+                <button type="button" className="underline text-cyan-700 dark:text-cyan-300" onClick={selectAllJobs}>
+                  Select all
+                </button>
+                <button type="button" className="underline text-cyan-700 dark:text-cyan-300" onClick={deselectAllJobs}>
+                  Deselect all
+                </button>
+              </div>
+              <ul className="space-y-2">
+                {jobs.map((j) => (
+                  <li
+                    key={j.externalId}
+                    className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between"
                   >
-                    Open
-                  </a>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={!!busy}
-                      onClick={() => void prepareJob(j)}
-                    >
-                      {busy === `prep-${j.externalId}` ? "…" : "Cover letter"}
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <label className="flex items-start gap-3 min-w-0 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={selectedJobIds.has(j.externalId)}
+                        onChange={() => toggleJobSelected(j.externalId)}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{j.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {j.company} · {j.location} · {j.workType}
+                        </p>
+                        <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                          {boardLabel(j.source)}
+                        </span>
+                      </div>
+                    </label>
+                    <div className="flex gap-2 shrink-0">
+                      <a
+                        href={j.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-8 items-center rounded-md border border-zinc-200 dark:border-zinc-700 px-3 text-xs font-medium"
+                      >
+                        Open
+                      </a>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={!!busy}
+                        onClick={() => void prepareJob(j)}
+                      >
+                        {busy === `prep-${j.externalId}` ? "…" : "Tune + cover"}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {tunedResumePreview && (
+            <div className="rounded-lg border border-zinc-300 dark:border-zinc-600 p-3">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">Latest JD-tuned resume</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => downloadTextFile("nova-jobs-tuned-resume.txt", tunedResumePreview)}
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" />
+                  Download tuned resume
+                </Button>
+              </div>
+              <pre className="text-xs whitespace-pre-wrap text-zinc-800 dark:text-zinc-200 font-sans max-h-48 overflow-y-auto">
+                {tunedResumePreview}
+              </pre>
+            </div>
           )}
           {coverPreview && (
             <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3">

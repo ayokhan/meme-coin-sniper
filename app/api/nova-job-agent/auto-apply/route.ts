@@ -1,24 +1,39 @@
 import { NextResponse } from "next/server";
 import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
 import { asStringArray, requireJobAgentAccess } from "@/lib/nova-job-agent/access";
-import { generateCoverLetter } from "@/lib/nova-job-agent/ai";
-import { searchJobsAcrossBoards } from "@/lib/nova-job-agent/search";
+import { generateCoverLetter, tuneResumeForJob } from "@/lib/nova-job-agent/ai";
+import { searchJobsAcrossBoards, type MatchedJob } from "@/lib/nova-job-agent/search";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
+type JobPayload = {
+  externalId?: string;
+  title?: string;
+  company?: string;
+  location?: string;
+  workType?: string;
+  url?: string;
+  source?: string;
+  descriptionSnippet?: string;
+};
+
 /**
- * Auto-apply pipeline:
- * 1) Find matching jobs on selected live boards
- * 2) Create application rows
- * 3) Generate cover letters
- * 4) Mark as prepared (or applied if autoApplyEnabled)
- *
- * LinkedIn/Indeed one-click submit is not wired yet — open jobUrl to finish board submission.
+ * Auto-apply pipeline for selected (or freshly searched) jobs:
+ * 1) Tune resume to each job description
+ * 2) Generate cover letter
+ * 3) Mark prepared (or applied if autoApplyEnabled)
  */
-export async function POST() {
+export async function POST(request: Request) {
   const gate = await requireJobAgentAccess();
   if (!gate.ok) return NextResponse.json({ success: false, error: gate.error }, { status: gate.status });
+
+  let body: { jobs?: JobPayload[]; externalIds?: string[] } = {};
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
 
   const profile = await prisma.jobAgentProfile.findUnique({ where: { userId: gate.userId } });
   const resume = await prisma.jobAgentResume.findFirst({
@@ -50,26 +65,49 @@ export async function POST() {
     });
   }
 
-  let jobs;
-  try {
-    jobs = await searchJobsAcrossBoards({
-      jobTitles: asStringArray(profile.jobTitles),
-      city: profile.city,
-      country: profile.country,
-      region: profile.region,
-      remoteOk: profile.remoteOk,
-      enabledBoards: profile.enabledBoards,
-      limit: remaining,
-    });
-  } catch (e) {
-    return NextResponse.json(
-      { success: false, error: e instanceof Error ? e.message : "Search failed." },
-      { status: 502 }
-    );
+  let jobs: MatchedJob[] = [];
+  const selectedPayloads = Array.isArray(body.jobs) ? body.jobs : [];
+  if (selectedPayloads.length > 0) {
+    jobs = selectedPayloads
+      .filter((j) => j && j.title && j.company && (j.url || j.externalId))
+      .map((j) => ({
+        externalId: String(j.externalId || `manual-${j.url || Date.now()}`),
+        title: String(j.title),
+        company: String(j.company),
+        location: String(j.location || ""),
+        workType: String(j.workType || "full_time"),
+        url: String(j.url || ""),
+        source: (j.source as MatchedJob["source"]) || "remotive",
+        descriptionSnippet: String(j.descriptionSnippet || ""),
+        score: 1,
+      }))
+      .slice(0, remaining);
+  } else {
+    try {
+      jobs = await searchJobsAcrossBoards({
+        jobTitles: asStringArray(profile.jobTitles),
+        city: profile.city,
+        country: profile.country,
+        region: profile.region,
+        remoteOk: profile.remoteOk,
+        enabledBoards: profile.enabledBoards,
+        limit: remaining,
+      });
+    } catch (e) {
+      return NextResponse.json(
+        { success: false, error: e instanceof Error ? e.message : "Search failed." },
+        { status: 502 }
+      );
+    }
   }
 
-  const created: Array<{ id: string; company: string; jobTitle: string; status: string; jobUrl: string | null }> =
-    [];
+  const created: Array<{
+    id: string;
+    company: string;
+    jobTitle: string;
+    status: string;
+    jobUrl: string | null;
+  }> = [];
 
   for (const job of jobs) {
     const existing = await prisma.jobAgentApplication.findFirst({
@@ -94,8 +132,15 @@ export async function POST() {
     });
 
     try {
-      const coverLetter = await generateCoverLetter({
+      const tunedResume = await tuneResumeForJob({
         resumeText: resume.contentText,
+        jobTitle: job.title,
+        company: job.company,
+        jobDescription: job.descriptionSnippet,
+        notes: profile.notes ?? undefined,
+      });
+      const coverLetter = await generateCoverLetter({
+        resumeText: tunedResume,
         jobTitle: job.title,
         company: job.company,
         location: job.location,
@@ -106,12 +151,13 @@ export async function POST() {
         where: { id: app.id },
         data: {
           coverLetter,
+          resumeSnapshot: tunedResume.slice(0, 20000),
           status,
           appliedAt: status === "applied" ? new Date() : null,
           notes:
             status === "applied"
-              ? "Auto-prepared + marked applied. Open job URL to confirm board submission."
-              : "Cover letter prepared. Open job URL to submit, then mark Applied.",
+              ? "JD-tuned resume + cover letter ready. Open job URL to confirm board submission."
+              : "JD-tuned resume + cover letter prepared. Open job URL to submit, then mark Applied.",
         },
       });
     } catch (e) {
@@ -119,7 +165,7 @@ export async function POST() {
         where: { id: app.id },
         data: {
           status: "failed",
-          notes: e instanceof Error ? e.message : "Cover letter failed",
+          notes: e instanceof Error ? e.message : "Prepare failed",
         },
       });
     }
@@ -140,7 +186,7 @@ export async function POST() {
     created,
     message:
       created.length === 0
-        ? "No new matching jobs found (or all already tracked)."
-        : `Prepared ${created.length} application(s).`,
+        ? "No selected/new matching jobs to prepare (or all already tracked)."
+        : `Prepared ${created.length} application(s) with JD-tuned resumes.`,
   });
 }

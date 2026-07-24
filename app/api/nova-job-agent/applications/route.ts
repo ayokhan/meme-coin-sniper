@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
 import { requireJobAgentAccess } from "@/lib/nova-job-agent/access";
-import { generateCoverLetter } from "@/lib/nova-job-agent/ai";
+import { generateCoverLetter, tuneResumeForJob } from "@/lib/nova-job-agent/ai";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 90;
 
-/** Prepare cover letter (+ optional mark prepared) for a job application. */
+/** Prepare JD-tuned resume + cover letter for a job application. */
 export async function POST(request: Request) {
   const gate = await requireJobAgentAccess();
   if (!gate.ok) return NextResponse.json({ success: false, error: gate.error }, { status: gate.status });
@@ -78,23 +78,31 @@ export async function POST(request: Request) {
     }
   }
 
+  const jobDescription = body.jobDescription ?? app.notes ?? "";
+
   try {
-    const coverLetter = await generateCoverLetter({
+    const tunedResume = await tuneResumeForJob({
       resumeText: resume.contentText,
       jobTitle: app.jobTitle,
       company: app.company,
+      jobDescription,
+    });
+    const coverLetter = await generateCoverLetter({
+      resumeText: tunedResume,
+      jobTitle: app.jobTitle,
+      company: app.company,
       location: app.location,
-      jobDescription: body.jobDescription ?? app.notes,
+      jobDescription,
     });
     const markApplied = body.markApplied === true;
     const updated = await prisma.jobAgentApplication.update({
       where: { id: app.id },
       data: {
         coverLetter,
-        resumeSnapshot: resume.contentText.slice(0, 20000),
+        resumeSnapshot: tunedResume.slice(0, 20000),
         status: markApplied ? "applied" : "prepared",
         appliedAt: markApplied ? new Date() : app.appliedAt,
-        notes: body.jobDescription?.slice(0, 2000) || app.notes,
+        notes: jobDescription.slice(0, 2000) || app.notes,
       },
     });
     return NextResponse.json({
@@ -105,6 +113,7 @@ export async function POST(request: Request) {
         company: updated.company,
         status: updated.status,
         coverLetter: updated.coverLetter,
+        resumeSnapshot: updated.resumeSnapshot,
         jobUrl: updated.jobUrl,
         appliedAt: updated.appliedAt?.toISOString() ?? null,
       },
@@ -115,7 +124,7 @@ export async function POST(request: Request) {
       data: { status: "failed", notes: e instanceof Error ? e.message : "AI failed" },
     });
     return NextResponse.json(
-      { success: false, error: e instanceof Error ? e.message : "Cover letter failed." },
+      { success: false, error: e instanceof Error ? e.message : "Prepare failed." },
       { status: 500 }
     );
   }

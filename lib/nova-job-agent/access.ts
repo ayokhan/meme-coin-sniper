@@ -19,19 +19,37 @@ export async function requireJobAgentAccess(): Promise<
   const isOwner = isOwnerEmail(session.user.email ?? null);
   if (isOwner) return { ok: true, userId: session.user.id, isOwner: true };
 
+  const ownerOnly = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_JOB_AGENT_OWNER_ONLY);
+
   const user = (await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { novaJobAgentOnDemand: true },
   })) as { novaJobAgentOnDemand?: boolean } | null;
-  if (!user?.novaJobAgentOnDemand) {
+
+  // Admin-granted early access always works (even while Owner-only testing).
+  if (user?.novaJobAgentOnDemand) {
+    return { ok: true, userId: session.user.id, isOwner: false };
+  }
+
+  if (ownerOnly) {
     return {
       ok: false,
       status: 403,
-      error: "Nova Jobs Agent access required. Ask an admin to enable it for your account.",
+      error: "Nova Jobs Agent is in owner testing mode. Ask an admin to enable it for your account.",
     };
   }
 
-  return { ok: true, userId: session.user.id, isOwner: false };
+  // All VIP mode
+  const tier = (session.user as { tier?: string }).tier;
+  if (tier === "vip") {
+    return { ok: true, userId: session.user.id, isOwner: false };
+  }
+
+  return {
+    ok: false,
+    status: 403,
+    error: "Nova Jobs Agent is available to VIP members. Upgrade or ask an admin for access.",
+  };
 }
 
 /** @deprecated use requireJobAgentAccess */

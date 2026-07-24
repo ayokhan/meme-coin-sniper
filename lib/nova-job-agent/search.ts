@@ -121,7 +121,7 @@ async function searchRemotive(args: {
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " ")
         .trim()
-        .slice(0, 600),
+        .slice(0, 2500),
       score,
     });
   }
@@ -164,7 +164,7 @@ async function searchRemoteOk(args: {
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " ")
         .trim()
-        .slice(0, 600),
+        .slice(0, 2500),
       score,
     });
   }
@@ -211,7 +211,7 @@ async function searchArbeitnow(args: {
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " ")
         .trim()
-        .slice(0, 600),
+        .slice(0, 2500),
       score,
     });
   }

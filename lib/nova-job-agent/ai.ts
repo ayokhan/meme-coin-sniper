@@ -7,18 +7,32 @@ export async function improveResumeText(args: {
   resumeText: string;
   jobTitles: string[];
   notes?: string;
+  /** When set, tailor the resume to this specific job description. */
+  jobDescription?: string | null;
+  jobTitle?: string | null;
+  company?: string | null;
 }): Promise<string> {
   if (!process.env.ANTHROPIC_API_KEY?.trim()) {
     throw new Error("ANTHROPIC_API_KEY is not configured.");
   }
   const titles = args.jobTitles.length ? args.jobTitles.join(", ") : "general professional roles";
+  const jd = (args.jobDescription || "").trim();
+  const targetBlock = jd
+    ? `Tailor this resume specifically for the following role. Emphasize matching skills and keywords from the job description without inventing experience.
+Job title: ${args.jobTitle || "n/a"}
+Company: ${args.company || "n/a"}
+Job description:
+${jd.slice(0, 8000)}
+`
+    : `Improve the resume below for roles like: ${titles}.`;
+
   const msg = await anthropic.messages.create({
     model: CLAUDE_SONNET_MODEL,
     max_tokens: 4096,
     messages: [
       {
         role: "user",
-        content: `You are an expert resume editor. Improve the resume below for roles like: ${titles}.
+        content: `You are an expert resume editor. ${targetBlock}
 Keep facts truthful — do not invent employers, degrees, or metrics.
 Use clear bullet points, strong action verbs, and ATS-friendly plain text (no markdown tables).
 ${args.notes?.trim() ? `Extra guidance: ${args.notes.trim()}\n` : ""}
@@ -33,6 +47,24 @@ ${args.resumeText.slice(0, 24000)}`,
   const text = block && block.type === "text" ? block.text.trim() : "";
   if (!text) throw new Error("Empty resume rewrite from AI.");
   return text;
+}
+
+/** Tune resume for one job using its description (alias of improveResumeText with JD). */
+export async function tuneResumeForJob(args: {
+  resumeText: string;
+  jobTitle: string;
+  company: string;
+  jobDescription?: string | null;
+  notes?: string;
+}): Promise<string> {
+  return improveResumeText({
+    resumeText: args.resumeText,
+    jobTitles: args.jobTitle ? [args.jobTitle] : [],
+    jobTitle: args.jobTitle,
+    company: args.company,
+    jobDescription: args.jobDescription,
+    notes: args.notes,
+  });
 }
 
 export async function generateCoverLetter(args: {

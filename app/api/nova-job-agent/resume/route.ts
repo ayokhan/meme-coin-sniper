@@ -4,6 +4,7 @@ import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
 import { requireJobAgentAccess } from "@/lib/nova-job-agent/access";
 import { improveResumeText } from "@/lib/nova-job-agent/ai";
 import { asStringArray } from "@/lib/nova-job-agent/access";
+import { extractResumeText } from "@/lib/nova-job-agent/parse-resume";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -29,9 +30,16 @@ export async function POST(request: Request) {
       const f = file as File;
       fileName = f.name || "resume";
       const buf = Buffer.from(await f.arrayBuffer());
-      if (f.type.startsWith("text/") || /\.(txt|md|csv)$/i.test(fileName)) {
-        contentText = buf.toString("utf8");
-      } else {
+      try {
+        contentText = await extractResumeText(buf, fileName, f.type);
+      } catch (e) {
+        return NextResponse.json(
+          { success: false, error: e instanceof Error ? e.message : "Could not read resume file." },
+          { status: 400 }
+        );
+      }
+      // Keep original PDF/DOCX in blob storage when possible
+      if (/\.(pdf|docx)$/i.test(fileName)) {
         try {
           const blob = await put(`nova-job-agent/${gate.userId}/${Date.now()}-${fileName}`, buf, {
             access: "public",
@@ -40,14 +48,7 @@ export async function POST(request: Request) {
           fileUrl = blob.url;
         } catch (e) {
           console.error("job agent resume blob:", e);
-          return NextResponse.json(
-            {
-              success: false,
-              error:
-                "Could not store file. Paste resume text, or ensure BLOB_READ_WRITE_TOKEN is set.",
-            },
-            { status: 400 }
-          );
+          // Text extract still works without blob storage
         }
       }
     }
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: "Paste or upload resume text (.txt/.md). PDF/DOCX can be stored as a file, but text is required for AI.",
+        error: "Upload a .txt, .md, .pdf, or .docx resume, or paste resume text.",
       },
       { status: 400 }
     );
