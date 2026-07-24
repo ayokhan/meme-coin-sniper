@@ -27,6 +27,7 @@ declare module 'next-auth' {
       polymarketBotOnDemand?: boolean;
       propFirmBotOnDemand?: boolean;
       novaUltimateOnDemand?: boolean;
+      novaJobAgentOnDemand?: boolean;
       ctScanOnDemand?: boolean;
       ctScanOnDemandExpiresAt?: Date | string | null;
       memeCoinsTraderOnDemand?: boolean;
@@ -163,6 +164,7 @@ export async function buildJwtTokenForUserId(userId: string): Promise<string | n
       polymarketBotOnDemand: fresh.polymarketBotOnDemand,
       propFirmBotOnDemand: fresh.propFirmBotOnDemand,
       novaUltimateOnDemand: fresh.novaUltimateOnDemand,
+      novaJobAgentOnDemand: fresh.novaJobAgentOnDemand,
       ctScanOnDemand: fresh.ctScanOnDemand,
       memeCoinsTraderOnDemand: fresh.memeCoinsTraderOnDemand,
       novaConnectCommunityRep: fresh.novaConnectCommunityRep,
@@ -195,6 +197,7 @@ async function getAuthUserStateById(userId: string) {
     polymarketBotOnDemand: !!(user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand,
     propFirmBotOnDemand: !!(user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand,
     novaUltimateOnDemand: !!(user as { novaUltimateOnDemand?: boolean }).novaUltimateOnDemand,
+    novaJobAgentOnDemand: !!(user as { novaJobAgentOnDemand?: boolean }).novaJobAgentOnDemand,
     ctScanOnDemand: !!(user as { ctScanOnDemand?: boolean }).ctScanOnDemand,
     memeCoinsTraderOnDemand: !!(user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand,
     novaConnectCommunityRep: !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep,
@@ -264,6 +267,7 @@ export const authOptions: NextAuthOptions = {
         const polymarketBotOnDemand = !!(user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand;
         const propFirmBotOnDemand = !!(user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand;
         const novaUltimateOnDemand = !!(user as { novaUltimateOnDemand?: boolean }).novaUltimateOnDemand;
+        const novaJobAgentOnDemand = !!(user as { novaJobAgentOnDemand?: boolean }).novaJobAgentOnDemand;
         const ctScanOnDemand = !!(user as { ctScanOnDemand?: boolean }).ctScanOnDemand;
         const memeCoinsTraderOnDemand = !!(user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand;
         const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
@@ -284,6 +288,7 @@ export const authOptions: NextAuthOptions = {
           polymarketBotOnDemand,
           propFirmBotOnDemand,
           novaUltimateOnDemand,
+          novaJobAgentOnDemand,
           ctScanOnDemand,
           memeCoinsTraderOnDemand,
           novaConnectCommunityRep,
@@ -323,12 +328,13 @@ export const authOptions: NextAuthOptions = {
         const polymarketBotOnDemand = !!(user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand;
         const propFirmBotOnDemand = !!(user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand;
         const novaUltimateOnDemand = !!(user as { novaUltimateOnDemand?: boolean }).novaUltimateOnDemand;
+        const novaJobAgentOnDemand = !!(user as { novaJobAgentOnDemand?: boolean }).novaJobAgentOnDemand;
         const ctScanOnDemand = !!(user as { ctScanOnDemand?: boolean }).ctScanOnDemand;
         const memeCoinsTraderOnDemand = !!(user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand;
         const novaConnectCommunityRep = !!(user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep;
         const novaConnectAllowedByAdmin = !!(user as { novaConnectAllowedByAdmin?: boolean }).novaConnectAllowedByAdmin;
         const isCoachUser = !!(user as { coachUser?: boolean }).coachUser;
-        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, isCoachUser, tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, ctScanOnDemand, memeCoinsTraderOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
+        return { id: user.id, email: user.email ?? null, name: user.name, image: user.image, walletAddress: user.walletAddress ?? credentials.walletAddress, isPaid, tier, isCoachUser, tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, novaJobAgentOnDemand, ctScanOnDemand, memeCoinsTraderOnDemand, novaConnectCommunityRep, novaConnectAllowedByAdmin };
       },
     }),
   ],
@@ -368,6 +374,7 @@ export const authOptions: NextAuthOptions = {
             token.polymarketBotOnDemand = fresh.polymarketBotOnDemand;
             token.propFirmBotOnDemand = fresh.propFirmBotOnDemand;
             token.novaUltimateOnDemand = fresh.novaUltimateOnDemand;
+            token.novaJobAgentOnDemand = fresh.novaJobAgentOnDemand;
             token.ctScanOnDemand = fresh.ctScanOnDemand;
             token.memeCoinsTraderOnDemand = fresh.memeCoinsTraderOnDemand;
             token.novaConnectCommunityRep = fresh.novaConnectCommunityRep;
@@ -397,6 +404,7 @@ export const authOptions: NextAuthOptions = {
               token.polymarketBotOnDemand = fresh.polymarketBotOnDemand;
               token.propFirmBotOnDemand = fresh.propFirmBotOnDemand;
               token.novaUltimateOnDemand = fresh.novaUltimateOnDemand;
+              token.novaJobAgentOnDemand = fresh.novaJobAgentOnDemand;
               token.ctScanOnDemand = fresh.ctScanOnDemand;
               token.memeCoinsTraderOnDemand = fresh.memeCoinsTraderOnDemand;
               token.novaConnectCommunityRep = fresh.novaConnectCommunityRep;
@@ -423,6 +431,7 @@ export const authOptions: NextAuthOptions = {
         token.polymarketBotOnDemand = (user as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand ?? false;
         token.propFirmBotOnDemand = (user as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand ?? false;
         token.novaUltimateOnDemand = (user as { novaUltimateOnDemand?: boolean }).novaUltimateOnDemand ?? false;
+        token.novaJobAgentOnDemand = (user as { novaJobAgentOnDemand?: boolean }).novaJobAgentOnDemand ?? false;
         token.ctScanOnDemand = (user as { ctScanOnDemand?: boolean }).ctScanOnDemand ?? false;
         token.memeCoinsTraderOnDemand = (user as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand ?? false;
         token.novaConnectCommunityRep = (user as { novaConnectCommunityRep?: boolean }).novaConnectCommunityRep ?? false;
@@ -444,6 +453,7 @@ export const authOptions: NextAuthOptions = {
         let polymarketBotOnDemand = (token.polymarketBotOnDemand as boolean) ?? false;
         let propFirmBotOnDemand = (token.propFirmBotOnDemand as boolean) ?? false;
         let novaUltimateOnDemand = (token.novaUltimateOnDemand as boolean) ?? false;
+        let novaJobAgentOnDemand = (token.novaJobAgentOnDemand as boolean) ?? false;
         let ctScanOnDemand = (token.ctScanOnDemand as boolean) ?? false;
         let ctScanOnDemandExpiresAt: Date | string | null | undefined =
           (token as { ctScanOnDemandExpiresAt?: Date | string | null }).ctScanOnDemandExpiresAt ?? null;
@@ -464,6 +474,7 @@ export const authOptions: NextAuthOptions = {
           polymarketBotOnDemand = true;
           propFirmBotOnDemand = true;
           novaUltimateOnDemand = true;
+          novaJobAgentOnDemand = true;
           ctScanOnDemand = true;
           ctScanOnDemandExpiresAt = null;
           memeCoinsTraderOnDemand = true;
@@ -480,6 +491,7 @@ export const authOptions: NextAuthOptions = {
                       polymarketBotOnDemand: boolean;
                       propFirmBotOnDemand: boolean;
                       novaUltimateOnDemand: boolean;
+                      novaJobAgentOnDemand: boolean;
                       ctScanOnDemand: boolean;
                       ctScanOnDemandExpiresAt: Date | null;
                       memeCoinsTraderOnDemand: boolean;
@@ -501,6 +513,7 @@ export const authOptions: NextAuthOptions = {
                   polymarketBotOnDemand: true,
                   propFirmBotOnDemand: true,
                   novaUltimateOnDemand: true,
+                  novaJobAgentOnDemand: true,
                   ctScanOnDemand: true,
                   ctScanOnDemandExpiresAt: true,
                   memeCoinsTraderOnDemand: true,
@@ -519,6 +532,7 @@ export const authOptions: NextAuthOptions = {
                 polymarketBotOnDemand = !!fresh.polymarketBotOnDemand;
                 propFirmBotOnDemand = !!fresh.propFirmBotOnDemand;
                 novaUltimateOnDemand = !!fresh.novaUltimateOnDemand;
+                novaJobAgentOnDemand = !!fresh.novaJobAgentOnDemand;
                 ctScanOnDemand = !!fresh.ctScanOnDemand;
                 ctScanOnDemandExpiresAt = fresh.ctScanOnDemandExpiresAt;
                 memeCoinsTraderOnDemand = !!fresh.memeCoinsTraderOnDemand;
@@ -554,6 +568,7 @@ export const authOptions: NextAuthOptions = {
         session.user.polymarketBotOnDemand = polymarketBotOnDemand;
         session.user.propFirmBotOnDemand = propFirmBotOnDemand;
         session.user.novaUltimateOnDemand = novaUltimateOnDemand;
+        session.user.novaJobAgentOnDemand = novaJobAgentOnDemand;
         session.user.ctScanOnDemand = ctScanOnDemand;
         session.user.ctScanOnDemandExpiresAt = ctScanOnDemandExpiresAt ?? null;
         session.user.memeCoinsTraderOnDemand = memeCoinsTraderOnDemand;

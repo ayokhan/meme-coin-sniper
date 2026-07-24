@@ -38,6 +38,7 @@ declare module '@prisma/client' {
     experienceTradingCrypto: string | null;
     referralCode?: string | null;
     referredByUserId?: string | null;
+    novaJobAgentOnDemand?: boolean;
     createdAt: Date;
     updatedAt: Date;
   }

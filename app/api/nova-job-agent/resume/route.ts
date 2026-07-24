@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
-import { requireJobAgentOwner } from "@/lib/nova-job-agent/access";
+import { requireJobAgentAccess } from "@/lib/nova-job-agent/access";
 import { improveResumeText } from "@/lib/nova-job-agent/ai";
 import { asStringArray } from "@/lib/nova-job-agent/access";
 
@@ -11,7 +11,7 @@ export const maxDuration = 60;
 const MAX_TEXT = 80_000;
 
 export async function POST(request: Request) {
-  const gate = await requireJobAgentOwner();
+  const gate = await requireJobAgentAccess();
   if (!gate.ok) return NextResponse.json({ success: false, error: gate.error }, { status: gate.status });
 
   const contentType = request.headers.get("content-type") || "";

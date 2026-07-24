@@ -113,6 +113,8 @@ model User {
   memeCoinsTraderOnDemand Boolean  @default(false)
   /** When set, Meme Coins Traders on-demand access expires at this time (null = no extra expiry beyond subscription). */
   memeCoinsTraderOnDemandExpiresAt DateTime?
+  /** Owner-only toggle: allow selected customers to use Nova Jobs Agent. */
+  novaJobAgentOnDemand     Boolean  @default(false)
   /** Opt-in at registration: receive NovaStaris newsletter / perp digest when admin enables "Send digest to newsletter subscribers". */
   newsletterOptIn       Boolean  @default(false)
   /** NovaConnect social portal: opt-in and profile fields. */
@@ -226,6 +228,7 @@ model JobAgentProfile {
   region                   String?
   remoteOk                 Boolean  @default(true)
   workTypes                Json     // string[] full_time | part_time | contract | internship
+  enabledBoards            Json     @default("[\"remotive\",\"remoteok\",\"arbeitnow\"]")
   autoApplyEnabled         Boolean  @default(false)
   targetApplicationsPerDay Int      @default(10)
   notes                    String?

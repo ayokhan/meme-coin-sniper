@@ -1,24 +1,23 @@
 import { NextResponse } from "next/server";
 import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
-import { asStringArray, requireJobAgentOwner } from "@/lib/nova-job-agent/access";
+import { asStringArray, requireJobAgentAccess } from "@/lib/nova-job-agent/access";
 import { generateCoverLetter } from "@/lib/nova-job-agent/ai";
-import { searchRemotiveJobs } from "@/lib/nova-job-agent/search";
+import { searchJobsAcrossBoards } from "@/lib/nova-job-agent/search";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 /**
- * Auto-apply pipeline (owner MVP):
- * 1) Find matching Remotive jobs
+ * Auto-apply pipeline:
+ * 1) Find matching jobs on selected live boards
  * 2) Create application rows
  * 3) Generate cover letters
  * 4) Mark as prepared (or applied if autoApplyEnabled)
  *
- * True one-click submission to LinkedIn/Indeed is not wired — materials + tracking are ready;
- * open jobUrl to submit, or mark applied from the dashboard.
+ * LinkedIn/Indeed one-click submit is not wired yet — open jobUrl to finish board submission.
  */
 export async function POST() {
-  const gate = await requireJobAgentOwner();
+  const gate = await requireJobAgentAccess();
   if (!gate.ok) return NextResponse.json({ success: false, error: gate.error }, { status: gate.status });
 
   const profile = await prisma.jobAgentProfile.findUnique({ where: { userId: gate.userId } });
@@ -53,12 +52,13 @@ export async function POST() {
 
   let jobs;
   try {
-    jobs = await searchRemotiveJobs({
+    jobs = await searchJobsAcrossBoards({
       jobTitles: asStringArray(profile.jobTitles),
       city: profile.city,
       country: profile.country,
       region: profile.region,
       remoteOk: profile.remoteOk,
+      enabledBoards: profile.enabledBoards,
       limit: remaining,
     });
   } catch (e) {

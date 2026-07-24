@@ -25,6 +25,7 @@ export async function GET() {
     ctScanOnDemandExpiresAt?: Date | string | null;
     memeCoinsTraderOnDemand?: boolean;
     memeCoinsTraderOnDemandExpiresAt?: Date | string | null;
+    novaJobAgentOnDemand?: boolean;
   };
 
   const now = Date.now();
@@ -37,6 +38,7 @@ export async function GET() {
   const ctScanAllowed = owner || (Boolean(user.ctScanOnDemand) && (!ctExp || ctExp > now) && isVip);
   const memeCoinsTraderAllowed =
     owner || (Boolean(user.memeCoinsTraderOnDemand) && (!memeExp || memeExp > now) && isVip);
+  const novaJobsAgentAllowed = owner || Boolean(user.novaJobAgentOnDemand);
 
   // Owners are handled by separate server-side auth gates; dashboard uses tier+flags for on-demand tabs.
 
@@ -44,6 +46,6 @@ export async function GET() {
     success: true,
     ctScanAllowed,
     memeCoinsTraderAllowed,
+    novaJobsAgentAllowed,
   });
 }
-

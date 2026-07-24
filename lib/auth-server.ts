@@ -20,6 +20,7 @@ export async function getSessionAndSubscription() {
           ctScanOnDemandExpiresAt?: Date | null;
           memeCoinsTraderOnDemand?: boolean;
           memeCoinsTraderOnDemandExpiresAt?: Date | null;
+          novaJobAgentOnDemand?: boolean;
           coachUser?: boolean;
         }
       | null;
@@ -28,6 +29,7 @@ export async function getSessionAndSubscription() {
     session.user.ctScanOnDemandExpiresAt = user?.ctScanOnDemandExpiresAt ?? null;
     session.user.memeCoinsTraderOnDemand = !!user?.memeCoinsTraderOnDemand;
     session.user.memeCoinsTraderOnDemandExpiresAt = user?.memeCoinsTraderOnDemandExpiresAt ?? null;
+    session.user.novaJobAgentOnDemand = !!user?.novaJobAgentOnDemand;
     isCoachUser = !!user?.coachUser;
     session.user.isCoachUser = isCoachUser;
   }

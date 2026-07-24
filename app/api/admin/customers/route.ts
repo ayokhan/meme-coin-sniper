@@ -80,6 +80,7 @@ export async function GET() {
         polymarketBotOnDemand: !!(u as { polymarketBotOnDemand?: boolean }).polymarketBotOnDemand,
         propFirmBotOnDemand: !!(u as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand,
         novaUltimateOnDemand: !!(u as { novaUltimateOnDemand?: boolean }).novaUltimateOnDemand,
+        novaJobAgentOnDemand: !!(u as { novaJobAgentOnDemand?: boolean }).novaJobAgentOnDemand,
         ctScanOnDemand: !!(u as { ctScanOnDemand?: boolean }).ctScanOnDemand,
         ctScanOnDemandExpiresAt: (u as { ctScanOnDemandExpiresAt?: Date | null }).ctScanOnDemandExpiresAt ?? null,
         memeCoinsTraderOnDemand: !!(u as { memeCoinsTraderOnDemand?: boolean }).memeCoinsTraderOnDemand,

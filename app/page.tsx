@@ -401,10 +401,14 @@ export default function Dashboard() {
 
   const canAccessCtScan = isOwner || (isVip && (((session?.user as { ctScanOnDemand?: boolean } | undefined)?.ctScanOnDemand) ?? false) && (!ctExpiresAt || ctExpiresAt > Date.now()));
   const canAccessMemeCoinsTrader = isOwner || (isVip && (((session?.user as { memeCoinsTraderOnDemand?: boolean } | undefined)?.memeCoinsTraderOnDemand) ?? false) && (!memeExpiresAt || memeExpiresAt > Date.now()));
+  const novaJobAgentOnDemand = !!((session?.user as { novaJobAgentOnDemand?: boolean } | undefined)?.novaJobAgentOnDemand);
+  const canAccessNovaJobsAgent = isOwner || novaJobAgentOnDemand;
   const [ctAccessState, setCtAccessState] = useState<boolean | null>(null);
   const [memeCoinsTraderAccessState, setMemeCoinsTraderAccessState] = useState<boolean | null>(null);
+  const [novaJobsAgentAccessState, setNovaJobsAgentAccessState] = useState<boolean | null>(null);
   const canAccessCtScanEffective = ctAccessState ?? canAccessCtScan;
   const canAccessMemeCoinsTraderEffective = memeCoinsTraderAccessState ?? canAccessMemeCoinsTrader;
+  const canAccessNovaJobsAgentEffective = novaJobsAgentAccessState ?? canAccessNovaJobsAgent;
   const [mounted, setMounted] = useState(false);
   const [presencePingOk, setPresencePingOk] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("new");
@@ -484,7 +488,7 @@ export default function Dashboard() {
     }
     if (tab === "nova-connect") return novaConnectEnabled && isTabPageEnabled(tab);
     if (tab === "chris-clayton") return isOwner && isTabPageEnabled(tab);
-    if (tab === "nova-job-agent") return isOwner && isTabPageEnabled(tab);
+    if (tab === "nova-job-agent") return (isOwner || canAccessNovaJobsAgentEffective) && isTabPageEnabled(tab);
     return isTabPageEnabled(tab);
   };
 
@@ -616,6 +620,7 @@ export default function Dashboard() {
         if (d?.success) {
           setCtAccessState(!!d.ctScanAllowed);
           setMemeCoinsTraderAccessState(!!d.memeCoinsTraderAllowed);
+          setNovaJobsAgentAccessState(!!d.novaJobsAgentAllowed);
         }
       } catch {
         // Keep session-derived access if the endpoint fails.
@@ -8627,10 +8632,10 @@ export default function Dashboard() {
                 isToolHrefAvailable={isDashboardToolHrefAvailable}
               />
             ) : activeTab === "nova-job-agent" ? (
-              !isOwner ? (
+              !canAccessNovaJobsAgentEffective ? (
                 <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                  <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Owner only</p>
-                  <p className="mt-2 text-sm text-muted-foreground">Nova Job Agent is available only to the owner.</p>
+                  <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Access required</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Ask an admin to enable Nova Jobs Agent.</p>
                 </div>
               ) : (
                 <div className="mx-3 sm:mx-6 py-6 sm:py-8">

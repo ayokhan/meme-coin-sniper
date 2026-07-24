@@ -29,6 +29,7 @@ type Customer = {
   polymarketBotOnDemand: boolean;
   propFirmBotOnDemand: boolean;
   novaUltimateOnDemand: boolean;
+  novaJobAgentOnDemand: boolean;
   ctScanOnDemand: boolean;
   ctScanOnDemandExpiresAt: string | null;
   memeCoinsTraderOnDemand: boolean;
@@ -73,6 +74,7 @@ function customerHasOnDemand(c: Customer, includePropFirm: boolean) {
     c.polymarketBotOnDemand ||
     (includePropFirm && c.propFirmBotOnDemand) ||
     c.novaUltimateOnDemand ||
+    c.novaJobAgentOnDemand ||
     c.ctScanOnDemand ||
     c.memeCoinsTraderOnDemand
   );
@@ -139,6 +141,7 @@ export default function AdminCustomersPage() {
   const [togglingPolymarketOnDemandId, setTogglingPolymarketOnDemandId] = useState<string | null>(null);
   const [togglingPropFirmOnDemandId, setTogglingPropFirmOnDemandId] = useState<string | null>(null);
   const [togglingNovaUltimateOnDemandId, setTogglingNovaUltimateOnDemandId] = useState<string | null>(null);
+  const [togglingNovaJobAgentOnDemandId, setTogglingNovaJobAgentOnDemandId] = useState<string | null>(null);
   const [togglingCtScanOnDemandId, setTogglingCtScanOnDemandId] = useState<string | null>(null);
   const [togglingMemeCoinsTraderOnDemandId, setTogglingMemeCoinsTraderOnDemandId] = useState<string | null>(null);
   const [ctOnDemandDurationById, setCtOnDemandDurationById] = useState<Record<string, string>>({});
@@ -473,6 +476,28 @@ export default function AdminCustomersPage() {
       setError("Failed to update");
     } finally {
       setTogglingNovaUltimateOnDemandId(null);
+    }
+  };
+
+  const handleNovaJobAgentOnDemand = async (id: string, value: boolean) => {
+    setTogglingNovaJobAgentOnDemandId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ novaJobAgentOnDemand: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(value ? "Nova Jobs Agent enabled." : "Nova Jobs Agent disabled.");
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else setError(data.error ?? "Failed to update");
+    } catch {
+      setError("Failed to update");
+    } finally {
+      setTogglingNovaJobAgentOnDemandId(null);
     }
   };
 
@@ -926,6 +951,7 @@ export default function AdminCustomersPage() {
     if (c.polymarketBotOnDemand) chips.push({ label: "Polymarket", className: "bg-violet-100 dark:bg-violet-900/40 text-violet-900 dark:text-violet-200" });
     if (showLegacyOnDemand && c.propFirmBotOnDemand) chips.push({ label: "Prop firm", className: "bg-orange-100 dark:bg-orange-900/40 text-orange-900 dark:text-orange-200" });
     if (c.novaUltimateOnDemand) chips.push({ label: "Ultimate", className: "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-200" });
+    if (c.novaJobAgentOnDemand) chips.push({ label: "Jobs Agent", className: "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200" });
     if (c.ctScanOnDemand) chips.push({ label: "CT Scan", className: "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200" });
     if (c.memeCoinsTraderOnDemand) chips.push({ label: "Meme wallets", className: "bg-amber-100 dark:bg-amber-900/40 text-slate-700 dark:text-slate-200" });
     return chips;
@@ -1410,6 +1436,7 @@ export default function AdminCustomersPage() {
                                     polymarket: togglingPolymarketOnDemandId === c.id,
                                     propFirm: togglingPropFirmOnDemandId === c.id,
                                     ultimate: togglingNovaUltimateOnDemandId === c.id,
+                                    jobsAgent: togglingNovaJobAgentOnDemandId === c.id,
                                     ctScan: togglingCtScanOnDemandId === c.id,
                                     memeTrader: togglingMemeCoinsTraderOnDemandId === c.id,
                                     newsletter: togglingNewsletterId === c.id,
@@ -1432,6 +1459,7 @@ export default function AdminCustomersPage() {
                                   onPolymarket={(v) => handlePolymarketBotOnDemand(c.id, v)}
                                   onPropFirm={(v) => handlePropFirmBotOnDemand(c.id, v)}
                                   onUltimate={(v) => handleNovaUltimateOnDemand(c.id, v)}
+                                  onJobsAgent={(v) => handleNovaJobAgentOnDemand(c.id, v)}
                                   onCtScan={(v) => handleCtScanOnDemand(c.id, v, c.subscriptionExpiresAt)}
                                   onMemeTrader={(v) => handleMemeCoinsTraderOnDemand(c.id, v, c.subscriptionExpiresAt)}
                                   onNewsletter={(v) => handleNewsletterToggle(c.id, v)}

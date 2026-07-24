@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
-import { asStringArray, requireJobAgentOwner } from "@/lib/nova-job-agent/access";
+import { asStringArray, requireJobAgentAccess } from "@/lib/nova-job-agent/access";
+import { normalizeBoardIds, DEFAULT_ENABLED_BOARDS } from "@/lib/nova-job-agent/boards";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,7 @@ function serializeProfile(row: {
   region: string | null;
   remoteOk: boolean;
   workTypes: unknown;
+  enabledBoards?: unknown;
   autoApplyEnabled: boolean;
   targetApplicationsPerDay: number;
   notes: string | null;
@@ -25,6 +26,7 @@ function serializeProfile(row: {
     region: row.region,
     remoteOk: row.remoteOk,
     workTypes: asStringArray(row.workTypes),
+    enabledBoards: normalizeBoardIds(row.enabledBoards),
     autoApplyEnabled: row.autoApplyEnabled,
     targetApplicationsPerDay: row.targetApplicationsPerDay,
     notes: row.notes,
@@ -33,8 +35,8 @@ function serializeProfile(row: {
 }
 
 export async function GET() {
-  const gate = await requireJobAgentOwner();
-  if (!gate.ok) return NextResponse.json({ success: false, error: gate.error }, { status: gate.status });
+  const gate = await requireJobAgentAccess();
+  if (!gate.ok) return Response.json({ success: false, error: gate.error }, { status: gate.status });
 
   const [profile, resume, apps] = await Promise.all([
     prisma.jobAgentProfile.findUnique({ where: { userId: gate.userId } }),
@@ -49,16 +51,6 @@ export async function GET() {
     }),
   ]);
 
-  const counts = {
-    total: apps.length,
-    applied: apps.filter((a) => a.status === "applied").length,
-    prepared: apps.filter((a) => a.status === "prepared").length,
-    queued: apps.filter((a) => a.status === "queued").length,
-    failed: apps.filter((a) => a.status === "failed").length,
-    skipped: apps.filter((a) => a.status === "skipped").length,
-  };
-
-  // Recount from DB for accurate totals beyond last 100
   const grouped = await prisma.jobAgentApplication.groupBy({
     by: ["status"],
     where: { userId: gate.userId },
@@ -66,12 +58,12 @@ export async function GET() {
   });
   const byStatus: Record<string, number> = {};
   let totalAll = 0;
-  for (const g of grouped) {
+  for (const g of grouped as Array<{ status: string; _count: { _all: number } }>) {
     byStatus[g.status] = g._count._all;
     totalAll += g._count._all;
   }
 
-  return NextResponse.json({
+  return Response.json({
     success: true,
     profile: profile
       ? serializeProfile(profile)
@@ -83,6 +75,7 @@ export async function GET() {
           region: null,
           remoteOk: true,
           workTypes: ["full_time"],
+          enabledBoards: [...DEFAULT_ENABLED_BOARDS],
           autoApplyEnabled: false,
           targetApplicationsPerDay: 10,
           notes: null,
@@ -105,52 +98,43 @@ export async function GET() {
       queued: byStatus.queued ?? 0,
       failed: byStatus.failed ?? 0,
       skipped: byStatus.skipped ?? 0,
-      recent: apps.slice(0, 20).map((a) => ({
+      recent: (apps as any[]).slice(0, 20).map((a) => ({
         id: a.id,
         jobTitle: a.jobTitle,
         company: a.company,
         location: a.location,
         workType: a.workType,
         jobUrl: a.jobUrl,
+        source: a.source,
         status: a.status,
         appliedAt: a.appliedAt?.toISOString() ?? null,
         createdAt: a.createdAt.toISOString(),
       })),
-      // keep small local counts for UI that only looked at recent page
-      recentWindow: counts,
     },
   });
 }
 
 export async function PATCH(request: Request) {
-  const gate = await requireJobAgentOwner();
-  if (!gate.ok) return NextResponse.json({ success: false, error: gate.error }, { status: gate.status });
+  const gate = await requireJobAgentAccess();
+  if (!gate.ok) return Response.json({ success: false, error: gate.error }, { status: gate.status });
 
   let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ success: false, error: "Invalid JSON." }, { status: 400 });
+    return Response.json({ success: false, error: "Invalid JSON." }, { status: 400 });
   }
 
   const jobTitles = body.jobTitles !== undefined ? asStringArray(body.jobTitles) : undefined;
   const workTypes = body.workTypes !== undefined ? asStringArray(body.workTypes) : undefined;
+  const enabledBoards = body.enabledBoards !== undefined ? normalizeBoardIds(body.enabledBoards) : undefined;
 
-  const data: {
-    jobTitles?: string[];
-    workTypes?: string[];
-    city?: string | null;
-    country?: string | null;
-    region?: string | null;
-    remoteOk?: boolean;
-    autoApplyEnabled?: boolean;
-    targetApplicationsPerDay?: number;
-    notes?: string | null;
-  } = {};
-
+  const data: Record<string, unknown> = {};
   if (jobTitles) data.jobTitles = jobTitles;
   if (workTypes) data.workTypes = workTypes.length ? workTypes : ["full_time"];
-  if (typeof body.city === "string" || body.city === null) data.city = body.city === null ? null : String(body.city).trim() || null;
+  if (enabledBoards) data.enabledBoards = enabledBoards;
+  if (typeof body.city === "string" || body.city === null)
+    data.city = body.city === null ? null : String(body.city).trim() || null;
   if (typeof body.country === "string" || body.country === null)
     data.country = body.country === null ? null : String(body.country).trim() || null;
   if (typeof body.region === "string" || body.region === null)
@@ -165,36 +149,22 @@ export async function PATCH(request: Request) {
 
   const existing = await prisma.jobAgentProfile.findUnique({ where: { userId: gate.userId } });
   const row = existing
-    ? await prisma.jobAgentProfile.update({
-        where: { userId: gate.userId },
-        data: {
-          ...(data.jobTitles ? { jobTitles: data.jobTitles } : {}),
-          ...(data.workTypes ? { workTypes: data.workTypes } : {}),
-          ...(data.city !== undefined ? { city: data.city } : {}),
-          ...(data.country !== undefined ? { country: data.country } : {}),
-          ...(data.region !== undefined ? { region: data.region } : {}),
-          ...(data.remoteOk !== undefined ? { remoteOk: data.remoteOk } : {}),
-          ...(data.autoApplyEnabled !== undefined ? { autoApplyEnabled: data.autoApplyEnabled } : {}),
-          ...(data.targetApplicationsPerDay !== undefined
-            ? { targetApplicationsPerDay: data.targetApplicationsPerDay }
-            : {}),
-          ...(data.notes !== undefined ? { notes: data.notes } : {}),
-        },
-      })
+    ? await prisma.jobAgentProfile.update({ where: { userId: gate.userId }, data })
     : await prisma.jobAgentProfile.create({
         data: {
           userId: gate.userId,
-          jobTitles: data.jobTitles ?? [],
-          workTypes: data.workTypes ?? ["full_time"],
-          city: data.city ?? null,
-          country: data.country ?? null,
-          region: data.region ?? null,
-          remoteOk: data.remoteOk ?? true,
-          autoApplyEnabled: data.autoApplyEnabled ?? false,
-          targetApplicationsPerDay: data.targetApplicationsPerDay ?? 10,
-          notes: data.notes ?? null,
+          jobTitles: (data.jobTitles as string[]) ?? [],
+          workTypes: (data.workTypes as string[]) ?? ["full_time"],
+          enabledBoards: (data.enabledBoards as string[]) ?? [...DEFAULT_ENABLED_BOARDS],
+          city: (data.city as string | null) ?? null,
+          country: (data.country as string | null) ?? null,
+          region: (data.region as string | null) ?? null,
+          remoteOk: (data.remoteOk as boolean) ?? true,
+          autoApplyEnabled: (data.autoApplyEnabled as boolean) ?? false,
+          targetApplicationsPerDay: (data.targetApplicationsPerDay as number) ?? 10,
+          notes: (data.notes as string | null) ?? null,
         },
       });
 
-  return NextResponse.json({ success: true, profile: serializeProfile(row) });
+  return Response.json({ success: true, profile: serializeProfile(row) });
 }

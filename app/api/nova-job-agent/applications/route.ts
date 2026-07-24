@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
-import { requireJobAgentOwner } from "@/lib/nova-job-agent/access";
+import { requireJobAgentAccess } from "@/lib/nova-job-agent/access";
 import { generateCoverLetter } from "@/lib/nova-job-agent/ai";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export const maxDuration = 60;
 
 /** Prepare cover letter (+ optional mark prepared) for a job application. */
 export async function POST(request: Request) {
-  const gate = await requireJobAgentOwner();
+  const gate = await requireJobAgentAccess();
   if (!gate.ok) return NextResponse.json({ success: false, error: gate.error }, { status: gate.status });
 
   let body: {
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const gate = await requireJobAgentOwner();
+  const gate = await requireJobAgentAccess();
   if (!gate.ok) return NextResponse.json({ success: false, error: gate.error }, { status: gate.status });
 
   let body: { applicationId?: string; status?: string; notes?: string };

@@ -1,9 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Briefcase, FileText, Loader2, RefreshCw, Rocket, Upload } from "lucide-react";
+import { Briefcase, Download, FileText, Loader2, RefreshCw, Rocket, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  JOB_BOARDS,
+  DEFAULT_ENABLED_BOARDS,
+  boardLabel,
+} from "@/lib/nova-job-agent/boards";
 
 type Profile = {
   jobTitles: string[];
@@ -12,6 +17,7 @@ type Profile = {
   region: string | null;
   remoteOk: boolean;
   workTypes: string[];
+  enabledBoards: string[];
   autoApplyEnabled: boolean;
   targetApplicationsPerDay: number;
   notes: string | null;
@@ -40,6 +46,7 @@ type Dashboard = {
     location: string | null;
     workType: string | null;
     jobUrl: string | null;
+    source: string;
     status: string;
     appliedAt: string | null;
     createdAt: string;
@@ -53,6 +60,7 @@ type MatchedJob = {
   location: string;
   workType: string;
   url: string;
+  source: string;
   descriptionSnippet: string;
 };
 
@@ -70,10 +78,23 @@ const emptyProfile: Profile = {
   region: "",
   remoteOk: true,
   workTypes: ["full_time"],
+  enabledBoards: [...DEFAULT_ENABLED_BOARDS],
   autoApplyEnabled: false,
   targetApplicationsPerDay: 10,
   notes: "",
 };
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export default function NovaJobAgentPanel() {
   const [loading, setLoading] = useState(true);
@@ -96,7 +117,7 @@ export default function NovaJobAgentPanel() {
       const res = await fetch("/api/nova-job-agent", { credentials: "include" });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error || "Could not load Nova Job Agent.");
+        setError(data.error || "Could not load Nova Jobs Agent.");
         return;
       }
       const p = data.profile as Profile;
@@ -107,13 +128,16 @@ export default function NovaJobAgentPanel() {
         country: p.country ?? "",
         region: p.region ?? "",
         notes: p.notes ?? "",
+        enabledBoards: Array.isArray(p.enabledBoards) && p.enabledBoards.length
+          ? p.enabledBoards
+          : [...DEFAULT_ENABLED_BOARDS],
       });
       setTitlesInput((p.jobTitles ?? []).join(", "));
       setResume(data.resume);
       setResumeDraft(data.resume?.contentText ?? "");
       setDashboard(data.dashboard);
     } catch {
-      setError("Network error loading Nova Job Agent.");
+      setError("Network error loading Nova Jobs Agent.");
     } finally {
       setLoading(false);
     }
@@ -143,6 +167,7 @@ export default function NovaJobAgentPanel() {
           region: profile.region || null,
           remoteOk: profile.remoteOk,
           workTypes: profile.workTypes,
+          enabledBoards: profile.enabledBoards,
           autoApplyEnabled: profile.autoApplyEnabled,
           targetApplicationsPerDay: profile.targetApplicationsPerDay,
           notes: profile.notes || null,
@@ -154,7 +179,18 @@ export default function NovaJobAgentPanel() {
         return;
       }
       setNotice("Preferences saved.");
-      setProfile((prev) => ({ ...prev, ...data.profile, city: data.profile.city ?? "", country: data.profile.country ?? "", region: data.profile.region ?? "", notes: data.profile.notes ?? "" }));
+      setProfile((prev) => ({
+        ...prev,
+        ...data.profile,
+        city: data.profile.city ?? "",
+        country: data.profile.country ?? "",
+        region: data.profile.region ?? "",
+        notes: data.profile.notes ?? "",
+        enabledBoards:
+          Array.isArray(data.profile.enabledBoards) && data.profile.enabledBoards.length
+            ? data.profile.enabledBoards
+            : [...DEFAULT_ENABLED_BOARDS],
+      }));
       setTitlesInput((data.profile.jobTitles ?? []).join(", "));
     } catch {
       setError("Network error saving preferences.");
@@ -257,7 +293,7 @@ export default function NovaJobAgentPanel() {
           location: job.location,
           workType: job.workType,
           jobUrl: job.url,
-          source: "remotive",
+          source: job.source || "remotive",
           externalId: job.externalId,
           jobDescription: job.descriptionSnippet,
         }),
@@ -323,10 +359,23 @@ export default function NovaJobAgentPanel() {
     });
   };
 
+  const toggleBoard = (id: string) => {
+    setProfile((p) => {
+      const has = p.enabledBoards.includes(id);
+      const enabledBoards = has
+        ? p.enabledBoards.filter((x) => x !== id)
+        : [...p.enabledBoards, id];
+      return {
+        ...p,
+        enabledBoards: enabledBoards.length ? enabledBoards : [...DEFAULT_ENABLED_BOARDS],
+      };
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground py-10">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading Nova Job Agent…
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading Nova Jobs Agent…
       </div>
     );
   }
@@ -335,7 +384,7 @@ export default function NovaJobAgentPanel() {
     <div className="space-y-6 max-w-5xl">
       <div>
         <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-          <Briefcase className="h-5 w-5 text-cyan-600" /> Nova Job Agent
+          <Briefcase className="h-5 w-5 text-cyan-600" /> Nova Jobs Agent
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
           Owner-only. Upload a resume, set target roles and locations, generate cover letters, and track applications.
@@ -431,6 +480,43 @@ export default function NovaJobAgentPanel() {
               </label>
             ))}
           </div>
+          <div>
+            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Job boards</label>
+            <div className="mt-2 space-y-2">
+              {JOB_BOARDS.map((b) => (
+                <label
+                  key={b.id}
+                  className={`flex items-start gap-2 text-sm ${b.live ? "" : "opacity-80"}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={profile.enabledBoards.includes(b.id)}
+                    onChange={() => toggleBoard(b.id)}
+                  />
+                  <span className="min-w-0">
+                    <span className="inline-flex items-center gap-1.5 font-medium text-zinc-900 dark:text-zinc-50">
+                      {b.label}
+                      {!b.live && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                          Soon
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className={`block text-xs ${
+                        b.live
+                          ? "text-muted-foreground"
+                          : "text-zinc-400 dark:text-zinc-500"
+                      }`}
+                    >
+                      {b.blurb}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium">Applications per day (target)</label>
@@ -515,6 +601,20 @@ export default function NovaJobAgentPanel() {
             >
               {busy === "improve" ? "Improving…" : "AI adjust / update resume"}
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!resumeDraft.trim()}
+              onClick={() =>
+                downloadTextFile(
+                  `nova-jobs-resume-v${resume?.version ?? 1}.txt`,
+                  resumeDraft
+                )
+              }
+            >
+              <Download className="h-3.5 w-3.5 mr-1" />
+              Download resume
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -550,6 +650,9 @@ export default function NovaJobAgentPanel() {
                     <p className="text-xs text-muted-foreground">
                       {j.company} · {j.location} · {j.workType}
                     </p>
+                    <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                      {boardLabel(j.source)}
+                    </span>
                   </div>
                   <div className="flex gap-2 shrink-0">
                   <a
@@ -575,7 +678,20 @@ export default function NovaJobAgentPanel() {
           )}
           {coverPreview && (
             <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3">
-              <p className="text-xs font-semibold text-cyan-800 dark:text-cyan-200 mb-2">Latest cover letter</p>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-xs font-semibold text-cyan-800 dark:text-cyan-200">Latest cover letter</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    downloadTextFile("nova-jobs-cover-letter.txt", coverPreview)
+                  }
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" />
+                  Download cover letter
+                </Button>
+              </div>
               <pre className="text-xs whitespace-pre-wrap text-zinc-800 dark:text-zinc-200 font-sans">{coverPreview}</pre>
             </div>
           )}
@@ -596,6 +712,7 @@ export default function NovaJobAgentPanel() {
                   <tr className="text-left text-xs text-muted-foreground border-b border-zinc-200 dark:border-zinc-700">
                     <th className="py-2 pr-2">Role</th>
                     <th className="py-2 pr-2">Company</th>
+                    <th className="py-2 pr-2">Source</th>
                     <th className="py-2 pr-2">Status</th>
                     <th className="py-2">Actions</th>
                   </tr>
@@ -605,6 +722,7 @@ export default function NovaJobAgentPanel() {
                     <tr key={a.id} className="border-b border-zinc-100 dark:border-zinc-800">
                       <td className="py-2 pr-2">{a.jobTitle}</td>
                       <td className="py-2 pr-2">{a.company}</td>
+                      <td className="py-2 pr-2">{boardLabel(a.source)}</td>
                       <td className="py-2 pr-2 capitalize">{a.status}</td>
                       <td className="py-2 space-x-2 whitespace-nowrap">
                         {a.jobUrl && (
