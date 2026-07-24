@@ -97,7 +97,7 @@ export async function POST(request: Request) {
         descriptionSnippet: String(j.descriptionSnippet || ""),
         score: 1,
       }))
-      .slice(0, remaining);
+      .slice(0, 1);
   } else {
     try {
       jobs = await searchJobsAcrossBoards({
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
         region: profile.region,
         remoteOk: profile.remoteOk,
         enabledBoards: profile.enabledBoards,
-        limit: remaining,
+        limit: 1,
       });
     } catch (e) {
       return NextResponse.json(
@@ -129,7 +129,19 @@ export async function POST(request: Request) {
     const existing = await prisma.jobAgentApplication.findFirst({
       where: { userId: gate.userId, externalId: job.externalId },
     });
-    if (existing) continue;
+    if (existing) {
+      return NextResponse.json({
+        success: true,
+        created: [],
+        skippedExisting: true,
+        message: `Already tracked: ${existing.jobTitle} at ${existing.company}. Open that job link from your dashboard to finish applying.`,
+        application: {
+          id: existing.id,
+          jobUrl: existing.jobUrl,
+          status: existing.status,
+        },
+      });
+    }
 
     let app = await prisma.jobAgentApplication.create({
       data: {
@@ -168,18 +180,16 @@ export async function POST(request: Request) {
         contactName,
         contactPhone,
       });
-      const status = profile.autoApplyEnabled ? "applied" : "prepared";
+      // Always "prepared" — we do not submit to LinkedIn/Indeed/etc. User must open jobUrl.
       app = await prisma.jobAgentApplication.update({
         where: { id: app.id },
         data: {
           coverLetter,
           resumeSnapshot: tunedResume.slice(0, 20000),
-          status,
-          appliedAt: status === "applied" ? new Date() : null,
+          status: "prepared",
+          appliedAt: null,
           notes:
-            status === "applied"
-              ? "JD-tuned resume + cover letter ready. Open job URL to confirm board submission."
-              : "JD-tuned resume + cover letter prepared. Open job URL to submit, then mark Applied.",
+            "Materials ready. Click Open job posting, submit on the board with your tuned resume/cover letter, then mark Applied.",
         },
       });
     } catch (e) {
@@ -209,7 +219,7 @@ export async function POST(request: Request) {
     contactEmail,
     message:
       created.length === 0
-        ? "No selected/new matching jobs to prepare (or all already tracked)."
-        : `Prepared ${created.length} application(s) with JD-tuned resumes.`,
+        ? "No new matching jobs to prepare (or all already tracked)."
+        : `Prepared ${created[0]?.jobTitle ?? "application"} — open the job posting link to submit on the board.`,
   });
 }

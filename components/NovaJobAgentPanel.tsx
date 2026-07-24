@@ -9,6 +9,12 @@ import {
   DEFAULT_ENABLED_BOARDS,
   boardLabel,
 } from "@/lib/nova-job-agent/boards";
+import {
+  JOB_REGIONS,
+  countriesForRegion,
+  citiesForCountry,
+  regionForCountry,
+} from "@/lib/nova-job-agent/locations";
 
 type Profile = {
   jobTitles: string[];
@@ -115,8 +121,10 @@ export default function NovaJobAgentPanel() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [jobs, setJobs] = useState<MatchedJob[]>([]);
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [tunedResumePreview, setTunedResumePreview] = useState<string | null>(null);
+  const [lastOpenedJobUrl, setLastOpenedJobUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,12 +137,21 @@ export default function NovaJobAgentPanel() {
         return;
       }
       const p = data.profile as Profile;
+      const countryRaw = p.country ?? "";
+      const matchedCountry =
+        countriesForRegion(null).find((c) => c.name.toLowerCase() === countryRaw.toLowerCase())?.name ||
+        countryRaw;
+      const regionRaw = p.region || regionForCountry(matchedCountry) || "";
+      const cityRaw = p.city ?? "";
+      const cities = citiesForCountry(matchedCountry);
+      const matchedCity =
+        cities.find((c) => c.toLowerCase() === cityRaw.toLowerCase()) || cityRaw;
       setProfile({
         ...emptyProfile,
         ...p,
-        city: p.city ?? "",
-        country: p.country ?? "",
-        region: p.region ?? "",
+        city: matchedCity,
+        country: matchedCountry,
+        region: regionRaw,
         notes: p.notes ?? "",
         contactEmail: p.contactEmail ?? "",
         contactName: p.contactName ?? "",
@@ -143,6 +160,9 @@ export default function NovaJobAgentPanel() {
           ? p.enabledBoards
           : [...DEFAULT_ENABLED_BOARDS],
       });
+      if ((p.jobTitles?.[0] || "").trim()) {
+        setSearchQuery((prev) => prev || String(p.jobTitles[0]));
+      }
       setTitlesInput((p.jobTitles ?? []).join(", "));
       setResume(data.resume);
       setResumeDraft(data.resume?.contentText ?? "");
@@ -283,8 +303,9 @@ export default function NovaJobAgentPanel() {
     setBusy("search");
     setError(null);
     try {
-      const res = await fetch("/api/nova-job-agent/search", { credentials: "include" });
-      const data = await res.json();
+      const qs = searchQuery.trim() ? `?q=${encodeURIComponent(searchQuery.trim())}` : "";
+      const res = await fetch(`/api/nova-job-agent/search${qs}`, { credentials: "include" });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
         setError(data.error || "Search failed.");
         return;
@@ -292,7 +313,11 @@ export default function NovaJobAgentPanel() {
       const list = (data.jobs ?? []) as MatchedJob[];
       setJobs(list);
       setSelectedJobIds(new Set(list.map((j) => j.externalId)));
-      setNotice(`Found ${list.length} matching roles. Uncheck any you don’t want, then auto-apply.`);
+      setNotice(
+        list.length
+          ? `Found ${list.length} matching roles. Uncheck any you don’t want, then Prepare selected.`
+          : "No matching roles on live boards for that search/location."
+      );
     } catch {
       setError("Search network error.");
     } finally {
@@ -319,17 +344,20 @@ export default function NovaJobAgentPanel() {
           jobDescription: job.descriptionSnippet,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
         setError(data.error || "Could not prepare application.");
         return;
       }
       setCoverPreview(data.application.coverLetter);
       setTunedResumePreview(data.application.resumeSnapshot || null);
-      setNotice(`JD-tuned resume + cover letter ready for ${job.company}.`);
+      if (data.application.jobUrl) setLastOpenedJobUrl(data.application.jobUrl);
+      setNotice(
+        `Materials ready for ${job.company}. Click “Open job posting” to submit on the board, then mark Applied.`
+      );
       await load();
     } catch {
-      setError("Prepare failed.");
+      setError("Prepare failed — try one job at a time.");
     } finally {
       setBusy(null);
     }
@@ -337,40 +365,65 @@ export default function NovaJobAgentPanel() {
 
   const runAutoApply = async () => {
     const selected = jobs.filter((j) => selectedJobIds.has(j.externalId));
-    if (jobs.length > 0 && selected.length === 0) {
-      setError("Select at least one job to apply for, or search again.");
+    if (selected.length === 0) {
+      setError("Search jobs first, then select at least one role to prepare.");
       return;
     }
     setBusy("auto");
     setError(null);
     setNotice(null);
+    let okCount = 0;
+    let lastUrl: string | null = null;
     try {
-      const res = await fetch("/api/nova-job-agent/auto-apply", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobs: selected.map((j) => ({
-            externalId: j.externalId,
-            title: j.title,
-            company: j.company,
-            location: j.location,
-            workType: j.workType,
-            url: j.url,
-            source: j.source,
-            descriptionSnippet: j.descriptionSnippet,
-          })),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.error || "Auto-apply failed.");
-        return;
+      // One job per request — avoids gateway timeouts from multi-job AI.
+      for (let i = 0; i < selected.length; i++) {
+        const j = selected[i];
+        setNotice(`Preparing ${i + 1} of ${selected.length}: ${j.title}…`);
+        const res = await fetch("/api/nova-job-agent/auto-apply", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobs: [
+              {
+                externalId: j.externalId,
+                title: j.title,
+                company: j.company,
+                location: j.location,
+                workType: j.workType,
+                url: j.url,
+                source: j.source,
+                descriptionSnippet: j.descriptionSnippet,
+              },
+            ],
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          setError(
+            data.error ||
+              `Stopped after ${okCount} prepared (server error on “${j.title}”). Open prepared jobs from the dashboard.`
+          );
+          break;
+        }
+        okCount += data.created?.length ?? 0;
+        const url = data.created?.[0]?.jobUrl || data.application?.jobUrl || j.url;
+        if (url) lastUrl = url;
       }
-      setNotice(data.message || `Prepared ${data.created?.length ?? 0} applications.`);
+      if (lastUrl) setLastOpenedJobUrl(lastUrl);
+      if (okCount > 0) {
+        setNotice(
+          `Prepared ${okCount} application(s). Open each job posting link, submit on the board, then mark Applied in the dashboard.`
+        );
+      }
       await load();
     } catch {
-      setError("Auto-apply network error.");
+      setError(
+        okCount > 0
+          ? `Prepared ${okCount} before a network timeout. Refresh — check the dashboard for Open job posting links.`
+          : "Prepare timed out. Try preparing one job at a time with “Tune + cover”."
+      );
+      await load();
     } finally {
       setBusy(null);
     }
@@ -439,8 +492,9 @@ export default function NovaJobAgentPanel() {
           <Briefcase className="h-5 w-5 text-cyan-600" /> Nova Jobs Agent
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Upload a resume (PDF, Word, or text), set target roles, then search. Preparing an application tunes your
-          resume to that job description and drafts a cover letter. Uncheck roles you don’t want before auto-apply.
+          How it works: (1) Save preferences + resume (2) Search jobs (3) Prepare materials — we tune your resume and
+          write a cover letter (4) Click <strong>Open job posting</strong> and submit on that board yourself. We do not
+          yet click Apply on LinkedIn/Indeed for you.
         </p>
       </div>
 
@@ -487,29 +541,71 @@ export default function NovaJobAgentPanel() {
           </div>
           <div className="grid sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs font-medium">City</label>
-              <input
+              <label className="text-xs font-medium">Region</label>
+              <select
                 className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
-                value={profile.city ?? ""}
-                onChange={(e) => setProfile((p) => ({ ...p, city: e.target.value }))}
-              />
+                value={profile.region || ""}
+                onChange={(e) => {
+                  const region = e.target.value;
+                  setProfile((p) => {
+                    const countries = countriesForRegion(region || null);
+                    const countryStillValid = countries.some((c) => c.name === p.country);
+                    return {
+                      ...p,
+                      region,
+                      country: countryStillValid ? p.country : "",
+                      city: countryStillValid ? p.city : "",
+                    };
+                  });
+                }}
+              >
+                <option value="">Select region</option>
+                {JOB_REGIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="text-xs font-medium">Country</label>
-              <input
+              <select
                 className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
-                value={profile.country ?? ""}
-                onChange={(e) => setProfile((p) => ({ ...p, country: e.target.value }))}
-              />
+                value={profile.country || ""}
+                onChange={(e) => {
+                  const country = e.target.value;
+                  const region = regionForCountry(country);
+                  setProfile((p) => ({
+                    ...p,
+                    country,
+                    region: region || p.region,
+                    city: "",
+                  }));
+                }}
+              >
+                <option value="">Select country</option>
+                {countriesForRegion(profile.region).map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
-              <label className="text-xs font-medium">Region</label>
-              <input
+              <label className="text-xs font-medium">City</label>
+              <select
                 className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
-                value={profile.region ?? ""}
-                onChange={(e) => setProfile((p) => ({ ...p, region: e.target.value }))}
-                placeholder="e.g. North America"
-              />
+                value={profile.city || ""}
+                onChange={(e) => setProfile((p) => ({ ...p, city: e.target.value }))}
+                disabled={!profile.country}
+              >
+                <option value="">{profile.country ? "Any / select city" : "Select country first"}</option>
+                {citiesForCountry(profile.country).map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 space-y-3">
@@ -631,7 +727,10 @@ export default function NovaJobAgentPanel() {
                 checked={profile.autoApplyEnabled}
                 onChange={(e) => setProfile((p) => ({ ...p, autoApplyEnabled: e.target.checked }))}
               />
-              Auto-mark as applied after preparing cover letter
+              <span>
+                Legacy flag (unused for board submit). Prepared apps stay <em>prepared</em> until you mark Applied after
+                submitting on the job site.
+              </span>
             </label>
           </div>
           <div>
@@ -715,25 +814,50 @@ export default function NovaJobAgentPanel() {
       </Card>
 
       <Card className="border-zinc-200 dark:border-zinc-800">
-        <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
+        <CardHeader className="pb-2">
           <CardTitle className="text-base">Find & apply</CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => void searchJobs()} disabled={!!busy}>
-              <RefreshCw className="h-3.5 w-3.5 mr-1" />
-              {busy === "search" ? "Searching…" : "Search jobs"}
-            </Button>
-            <Button type="button" size="sm" onClick={() => void runAutoApply()} disabled={!!busy}>
-              <Rocket className="h-3.5 w-3.5 mr-1" />
-              {busy === "auto"
-                ? "Running…"
-                : `Auto-apply selected${selectedJobIds.size ? ` (${selectedJobIds.size})` : ""}`}
-            </Button>
-          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Search finds roles on live boards. Prepare creates a tuned resume + cover letter. You still open the job
+            posting link to submit on Remotive / RemoteOK / etc.
+          </p>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              className="flex-1 h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+              placeholder="Search jobs… e.g. Product Manager"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void searchJobs();
+              }}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => void searchJobs()} disabled={!!busy}>
+                <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                {busy === "search" ? "Searching…" : "Search"}
+              </Button>
+              <Button type="button" size="sm" onClick={() => void runAutoApply()} disabled={!!busy}>
+                <Rocket className="h-3.5 w-3.5 mr-1" />
+                {busy === "auto"
+                  ? "Preparing…"
+                  : `Prepare selected${selectedJobIds.size ? ` (${selectedJobIds.size})` : ""}`}
+              </Button>
+            </div>
+          </div>
+          {lastOpenedJobUrl && (
+            <a
+              href={lastOpenedJobUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex text-sm font-medium text-cyan-700 dark:text-cyan-300 underline"
+            >
+              Open last prepared job posting →
+            </a>
+          )}
           {jobs.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Save preferences + resume, then search. Results must match your job title(s) on the selected live boards.
+              Type a role in the search box (or use saved job titles), set country/city, then Search.
             </p>
           ) : (
             <>
@@ -777,8 +901,9 @@ export default function NovaJobAgentPanel() {
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex h-8 items-center rounded-md border border-zinc-200 dark:border-zinc-700 px-3 text-xs font-medium"
+                        onClick={() => setLastOpenedJobUrl(j.url)}
                       >
-                        Open
+                        Open job posting
                       </a>
                       <Button
                         type="button"
@@ -863,8 +988,16 @@ export default function NovaJobAgentPanel() {
                       <td className="py-2 pr-2 capitalize">{a.status}</td>
                       <td className="py-2 space-x-2 whitespace-nowrap">
                         {a.jobUrl && (
-                          <a href={a.jobUrl} target="_blank" rel="noreferrer" className="text-cyan-600 underline text-xs">
-                            Job
+                          <a
+                            href={a.jobUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-cyan-600 underline text-xs font-medium"
+                            onClick={() => {
+                              if (a.jobUrl) setLastOpenedJobUrl(a.jobUrl);
+                            }}
+                          >
+                            Open job posting
                           </a>
                         )}
                         {a.status !== "applied" && (

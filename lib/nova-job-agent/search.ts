@@ -221,6 +221,8 @@ async function searchArbeitnow(args: {
 /** Search selected live boards and merge/dedupe by URL. */
 export async function searchJobsAcrossBoards(args: {
   jobTitles: string[];
+  /** Extra free-text search (overrides/extends titles for board APIs). */
+  query?: string | null;
   city?: string | null;
   country?: string | null;
   region?: string | null;
@@ -229,7 +231,14 @@ export async function searchJobsAcrossBoards(args: {
   limit?: number;
 }): Promise<MatchedJob[]> {
   const limit = Math.min(Math.max(args.limit ?? 25, 1), 50);
-  const titleNeedles = args.jobTitles.map(normalize).filter(Boolean);
+  const queryNeedles = String(args.query || "")
+    .split(",")
+    .map(normalize)
+    .filter(Boolean);
+  const titleNeedles = [...args.jobTitles.map(normalize).filter(Boolean), ...queryNeedles];
+  // Prefer explicit search box terms first for Remotive API
+  const remotiveNeedles = queryNeedles.length ? queryNeedles : titleNeedles;
+
   const locNeedles = [args.city, args.country, args.region]
     .map((x) => (x ? normalize(x) : ""))
     .filter(Boolean);
@@ -237,7 +246,15 @@ export async function searchJobsAcrossBoards(args: {
   const selected = normalizeBoardIds(args.enabledBoards).filter((id) =>
     (LIVE_BOARD_IDS as string[]).includes(id)
   );
-  const boards = selected.length ? selected : [...LIVE_BOARD_IDS];
+  let boards = selected.length ? selected : [...LIVE_BOARD_IDS];
+
+  // Bias boards by region/country when possible
+  const region = normalize(args.region || "");
+  const country = normalize(args.country || "");
+  if (region.includes("europe") || ["germany", "france", "netherlands", "spain", "ireland", "united kingdom", "uk"].some((c) => country.includes(c))) {
+    boards = ["arbeitnow", ...boards.filter((b) => b !== "arbeitnow")] as typeof boards;
+  }
+
   const perBoard = Math.max(8, Math.ceil(limit / boards.length) + 4);
 
   const results = await Promise.all(
@@ -245,7 +262,7 @@ export async function searchJobsAcrossBoards(args: {
       try {
         if (board === "remotive") {
           return await searchRemotive({
-            titleNeedles,
+            titleNeedles: remotiveNeedles.length ? remotiveNeedles : titleNeedles,
             locNeedles,
             remoteOk: args.remoteOk,
             limit: perBoard,
@@ -277,6 +294,12 @@ export async function searchJobsAcrossBoards(args: {
   const merged = results.flat();
   const byUrl = new Map<string, MatchedJob>();
   for (const job of merged) {
+    // When a country is set and remote is OFF, drop jobs that don't mention the country/city
+    if (!args.remoteOk && locNeedles.length > 0) {
+      const loc = normalize(job.location || "");
+      const hits = locNeedles.some((n) => loc.includes(n));
+      if (!hits) continue;
+    }
     const key = job.url || job.externalId;
     const prev = byUrl.get(key);
     if (!prev || job.score > prev.score) byUrl.set(key, job);
