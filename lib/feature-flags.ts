@@ -159,6 +159,8 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_NOVA_JOB_AGENT: 'page_tab_nova_job_agent',
   /** When master ON: restrict Nova Jobs Agent to owner (+ admin on-demand grants). Default ON (owner testing). Turn OFF for All VIP. */
   NOVA_JOB_AGENT_OWNER_ONLY: 'nova_job_agent_owner_only',
+  /** Nova Store tab — merch (tees, mugs, etc.). Visible to everyone when ON. Default OFF until admin enables. */
+  PAGE_TAB_NOVA_STORE: 'page_tab_nova_store',
 
   /** Master switch: Vercel scheduled /api/cron (daily scan, wallet notify, trading bot, perp jobs). When OFF, cron returns immediately — saves CPU. Default ON. */
   VERCEL_CRON_ENABLED: 'vercel_cron_enabled',
@@ -217,6 +219,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.AI_ANALYSIS_RAG,
   FEATURE_FLAG_KEYS.LIVE_SUPPORT_CHAT,
   FEATURE_FLAG_KEYS.ACCOUNT_BILLING_HISTORY,
+  FEATURE_FLAG_KEYS.PAGE_TAB_NOVA_STORE,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {

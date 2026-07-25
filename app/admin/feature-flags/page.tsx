@@ -362,6 +362,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "Show/hide the NovaStaris Trading University tab (free course + final exam + certificate). Guests see a preview; full course requires sign-in. Static content — no AI API cost. Default ON.",
   },
+  page_tab_nova_store: {
+    label: "Tab: Nova Store",
+    description:
+      "Show/hide the Nova Store tab (merch: tees, mugs, etc.). Visible to everyone when ON — guests can browse; Stripe card checkout requires sign-in. Free shipping from Canada. Default OFF until you enable it.",
+  },
   page_tab_nova_job_agent: {
     label: "Nova Jobs Agent (master)",
     description:

@@ -213,6 +213,7 @@ model User {
   jobAgentProfile            JobAgentProfile?
   jobAgentResumes            JobAgentResume[]
   jobAgentApplications       JobAgentApplication[]
+  storeOrders                StoreOrder[]
 
   @@index([referredByUserId])
 }
@@ -1309,4 +1310,77 @@ model TradingUniversityProgress {
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([quizPassed, quizPassedAt])
+}
+
+/** Nova Store — merchandise catalog (shirts, mugs, etc.). */
+model StoreProduct {
+  id          String               @id @default(cuid())
+  slug        String               @unique
+  name        String
+  description String               @db.Text
+  /** apparel | drinkware | accessory | other */
+  category    String               @default("apparel")
+  /** JSON string[] of image URLs (public paths or blob URLs). */
+  images      Json                 @default("[]")
+  active      Boolean              @default(true)
+  sortOrder   Int                  @default(0)
+  currency    String               @default("usd")
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  variants    StoreProductVariant[]
+
+  @@index([active, sortOrder])
+  @@index([category])
+}
+
+/** Size / option SKUs for a store product (e.g. M, XL, or Default for mugs). */
+model StoreProductVariant {
+  id         String       @id @default(cuid())
+  productId  String
+  product    StoreProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /** Display label: XS, S, M, L, XL, XXL, 3XL, or Default. */
+  label      String
+  sku        String?
+  priceCents Int
+  /** null = unlimited stock. */
+  stock      Int?
+  active     Boolean      @default(true)
+  sortOrder  Int          @default(0)
+
+  @@unique([productId, label])
+  @@index([productId, active])
+}
+
+/** Nova Store order (Stripe Checkout one-time; free shipping from Canada). */
+model StoreOrder {
+  id              String    @id @default(cuid())
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email           String
+  /** pending | paid | fulfilled | cancelled | refunded */
+  status          String    @default("pending")
+  stripeSessionId String?   @unique
+  currency        String    @default("usd")
+  subtotalCents   Int
+  shippingCents   Int       @default(0)
+  totalCents      Int
+  /** JSON line items snapshot. */
+  itemsJson       Json
+  shipName        String?
+  shipLine1       String?
+  shipLine2       String?
+  shipCity        String?
+  shipState       String?
+  shipPostal      String?
+  shipCountry     String?
+  shipPhone       String?
+  notes           String?
+  paidAt          DateTime?
+  fulfilledAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([email])
 }

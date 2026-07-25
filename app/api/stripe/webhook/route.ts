@@ -87,6 +87,79 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return NextResponse.json({ received: true, donation: true });
   }
 
+  /** Nova Store merch — mark order paid + capture shipping address. Never grant VIP. */
+  if ((session.metadata?.purpose ?? "").toString() === "nova_store_order") {
+    const orderId = (session.metadata?.orderId ?? "").toString();
+    const amountUsd =
+      session.amount_total != null
+        ? session.amount_total / 100
+        : 0;
+    const details = session.customer_details;
+    const collectedShip = session.collected_information?.shipping_details;
+    const ship = collectedShip?.address ?? null;
+    const shipName = collectedShip?.name ?? details?.name ?? null;
+
+    try {
+      const { storeDb } = await import("@/lib/nova-store/db");
+      if (orderId) {
+        await storeDb.storeOrder.updateMany({
+          where: {
+            OR: [{ id: orderId }, { stripeSessionId: session.id }],
+            status: { in: ["pending", "cancelled"] },
+          },
+          data: {
+            status: "paid",
+            stripeSessionId: session.id,
+            paidAt: new Date(),
+            email: details?.email ?? undefined,
+            shipName: shipName ?? undefined,
+            shipLine1: ship?.line1 ?? undefined,
+            shipLine2: ship?.line2 ?? undefined,
+            shipCity: ship?.city ?? undefined,
+            shipState: ship?.state ?? undefined,
+            shipPostal: ship?.postal_code ?? undefined,
+            shipCountry: ship?.country ?? undefined,
+            shipPhone: details?.phone ?? undefined,
+            totalCents: session.amount_total ?? undefined,
+          },
+        });
+      } else {
+        await storeDb.storeOrder.updateMany({
+          where: { stripeSessionId: session.id },
+          data: {
+            status: "paid",
+            paidAt: new Date(),
+            shipName: shipName ?? undefined,
+            shipLine1: ship?.line1 ?? undefined,
+            shipLine2: ship?.line2 ?? undefined,
+            shipCity: ship?.city ?? undefined,
+            shipState: ship?.state ?? undefined,
+            shipPostal: ship?.postal_code ?? undefined,
+            shipCountry: ship?.country ?? undefined,
+            shipPhone: details?.phone ?? undefined,
+          },
+        });
+      }
+
+      await recordBillingInvoiceFromCheckout({
+        userId,
+        amountUsd,
+        planId: "nova_store",
+        stripeSessionId: session.id,
+        paymentMethod: "card",
+      });
+    } catch (e) {
+      console.error("Stripe webhook: nova store order failed", e);
+    }
+    console.info("Stripe webhook: nova store order paid", {
+      userId,
+      sessionId: session.id,
+      orderId,
+      amountUsd,
+    });
+    return NextResponse.json({ received: true, novaStore: true });
+  }
+
   const planId = (session.metadata?.planId ?? session.metadata?.plan ?? "").toString();
   const amountUsd = parseInt(session.metadata?.amountUsd ?? "0", 10) || 0;
   const autoRenew = session.metadata?.autoRenew === "true" || session.mode === "subscription";
