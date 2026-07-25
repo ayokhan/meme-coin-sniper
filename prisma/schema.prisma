@@ -1384,3 +1384,23 @@ model StoreOrder {
   @@index([status, createdAt(sort: Desc)])
   @@index([email])
 }
+
+/**
+ * SickKids remittances — admin marks when NovaStaris has sent funds.
+ * Outstanding = (items sold × $2) + (VIP purchases × $5) − remitted totals.
+ */
+model StoreCharityRemittance {
+  id          String   @id @default(cuid())
+  /** sickkids_store | sickkids_vip */
+  purpose     String
+  amountCents Int
+  /** Optional units covered (items or VIP purchases) for the ledger note. */
+  unitsCovered Int?
+  notes       String?
+  /** When funds were sent to SickKids. */
+  paidAt      DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([purpose, paidAt(sort: Desc)])
+}

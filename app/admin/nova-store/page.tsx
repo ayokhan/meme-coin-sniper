@@ -11,6 +11,7 @@ import {
   NOVA_STORE_CATEGORIES,
   formatStoreMoney,
 } from "@/lib/nova-store/constants";
+import AdminNovaStoreDashboard from "@/components/admin/AdminNovaStoreDashboard";
 
 type Variant = {
   id?: string;
@@ -56,7 +57,7 @@ type Order = {
 export default function AdminNovaStorePage() {
   const { data: session, status } = useSession();
   const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
-  const [tab, setTab] = useState<"products" | "orders">("products");
+  const [tab, setTab] = useState<"dashboard" | "products" | "orders">("dashboard");
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState("");
@@ -266,10 +267,18 @@ export default function AdminNovaStorePage() {
     <div className="space-y-6 max-w-5xl">
       <AdminPageHeader
         title="Nova Store"
-        description="Upload merch, set prices/sizes, and fulfill Stripe orders. Free shipping from Canada. Toggle the tab in Feature flags → Tab: Nova Store."
+        description="Sales dashboard, SickKids remittances, catalog, and order fulfillment. Toggle the public tab in Feature flags → Tab: Nova Store."
       />
 
       <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant={tab === "dashboard" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setTab("dashboard")}
+        >
+          Dashboard
+        </Button>
         <Button
           type="button"
           variant={tab === "products" ? "default" : "outline"}
@@ -284,7 +293,7 @@ export default function AdminNovaStorePage() {
           size="sm"
           onClick={() => setTab("orders")}
         >
-          Orders ({orders.filter((o) => o.status === "paid").length} paid)
+          Orders ({orders.filter((o) => o.status === "paid" || o.status === "fulfilled").length})
         </Button>
         <Link href="/?tab=nova-store" className="text-sm text-cyan-600 underline self-center ml-2">
           Open store tab
@@ -293,6 +302,19 @@ export default function AdminNovaStorePage() {
 
       {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
       {ok && <p className="text-sm text-emerald-600 dark:text-emerald-400">{ok}</p>}
+
+      {tab === "dashboard" && (
+        <AdminNovaStoreDashboard
+          onError={(msg) => {
+            setError(msg);
+            setOk("");
+          }}
+          onOk={(msg) => {
+            setOk(msg);
+            setError("");
+          }}
+        />
+      )}
 
       {tab === "products" && (
         <div className="grid gap-6 lg:grid-cols-2">

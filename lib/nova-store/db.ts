@@ -21,6 +21,11 @@ export type StorePrisma = typeof basePrisma & {
     update: (args: unknown) => Promise<any>;
     updateMany: (args: unknown) => Promise<any>;
   };
+  storeCharityRemittance: {
+    findMany: (args?: unknown) => Promise<any[]>;
+    create: (args: unknown) => Promise<any>;
+    delete: (args: unknown) => Promise<any>;
+  };
 };
 
 export const storeDb = basePrisma as unknown as StorePrisma;
