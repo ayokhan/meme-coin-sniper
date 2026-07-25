@@ -448,16 +448,16 @@ function SubscribeContent() {
           </ul>
         </div>
 
-        <div className="rounded-lg border border-sky-300/60 dark:border-sky-700/60 bg-sky-50/70 dark:bg-sky-950/35 p-4 mb-6">
-          <p className="text-sm font-semibold text-sky-950 dark:text-sky-100">{VIP_GIVING_HEADLINE}</p>
-          <p className="mt-1.5 text-xs text-sky-900/90 dark:text-sky-100/85 leading-relaxed">{VIP_GIVING_BODY}</p>
+        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 mb-6">
+          <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">{VIP_GIVING_HEADLINE}</p>
+          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{VIP_GIVING_BODY}</p>
           <a
             href={SICKKIDS_FOUNDATION_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-block text-xs font-medium text-sky-700 dark:text-sky-300 underline underline-offset-2"
+            className="mt-1.5 inline-block text-[11px] text-muted-foreground underline underline-offset-2"
           >
-            Learn about SickKids Foundation
+            SickKids Foundation
           </a>
         </div>
 

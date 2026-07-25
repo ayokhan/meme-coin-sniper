@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { formatStoreMoney } from "@/lib/nova-store/constants";
 import {
   SICKKIDS_FOUNDATION_URL,
-  STORE_GIVING_BODY,
   STORE_GIVING_CART_NOTE,
-  STORE_GIVING_HEADLINE,
+  STORE_GIVING_FOOTER,
   STORE_GIVING_SUCCESS,
 } from "@/lib/nova-store/giving";
 
@@ -161,19 +160,6 @@ export default function NovaStorePanel() {
         </p>
       </header>
 
-      <aside className="rounded-xl border border-sky-500/25 bg-sky-50/80 dark:bg-sky-950/40 px-4 py-3.5 space-y-1.5 max-w-3xl">
-        <p className="text-sm font-semibold text-sky-900 dark:text-sky-100">{STORE_GIVING_HEADLINE}</p>
-        <p className="text-sm text-sky-900/85 dark:text-sky-100/85 leading-relaxed">{STORE_GIVING_BODY}</p>
-        <a
-          href={SICKKIDS_FOUNDATION_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block text-xs font-medium text-sky-700 dark:text-sky-300 underline underline-offset-2"
-        >
-          Learn about SickKids Foundation
-        </a>
-      </aside>
-
       {banner && (
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200">
           {banner}
@@ -279,6 +265,18 @@ export default function NovaStorePanel() {
         </div>
       )}
 
+      <p className="text-[11px] text-muted-foreground max-w-2xl leading-relaxed">
+        {STORE_GIVING_FOOTER}{" "}
+        <a
+          href={SICKKIDS_FOUNDATION_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300"
+        >
+          SickKids Foundation
+        </a>
+      </p>
+
       {cart.length > 0 && (
         <section className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 p-4 space-y-3">
           <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Cart</h3>
@@ -310,7 +308,7 @@ export default function NovaStorePanel() {
                 <span className="font-bold tabular-nums">{formatStoreMoney(cartTotal)}</span>
                 <span className="text-muted-foreground"> · Free shipping</span>
               </p>
-              <p className="text-[11px] text-sky-700 dark:text-sky-300 mt-0.5">{STORE_GIVING_CART_NOTE}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{STORE_GIVING_CART_NOTE}</p>
             </div>
             <Button type="button" onClick={() => void checkout()} disabled={checkoutBusy}>
               {checkoutBusy ? "Redirecting…" : "Checkout with Stripe"}

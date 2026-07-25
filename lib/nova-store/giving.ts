@@ -1,6 +1,7 @@
 /**
  * NovaStaris community giving — SickKids (Toronto).
  * Amounts are NovaStaris commitments funded from revenue (not an extra checkout fee).
+ * Keep store UI product-first; giving copy stays quiet and secondary.
  */
 
 export const SICKKIDS_NAME = "The Hospital for Sick Children (SickKids)";
@@ -13,18 +14,18 @@ export const STORE_DONATION_PER_ITEM_USD = 2;
 /** USD donated by NovaStaris per VIP subscription purchase. */
 export const VIP_DONATION_PER_SUBSCRIPTION_USD = 5;
 
-export const STORE_GIVING_HEADLINE = "Giving back with every purchase";
-
-export const STORE_GIVING_BODY =
-  `For every item sold in Nova Store, NovaStaris donates $${STORE_DONATION_PER_ITEM_USD} to ${SICKKIDS_NAME} in Toronto — supporting care, research, and hope for kids and families. Your order helps that mission. Shipping remains free from Canada.`;
+/** Quiet store footer — one line, no banner. */
+export const STORE_GIVING_FOOTER =
+  `A quiet note: NovaStaris sets aside $${STORE_DONATION_PER_ITEM_USD} from each store item for ${SICKKIDS_SHORT} in Toronto.`;
 
 export const STORE_GIVING_CART_NOTE =
-  `$${STORE_DONATION_PER_ITEM_USD} from every item goes to SickKids — funded by NovaStaris, not added to your total.`;
+  `Includes our $${STORE_DONATION_PER_ITEM_USD} SickKids set-aside (not added to your total).`;
 
 export const STORE_GIVING_SUCCESS =
-  `Thank you. We’ll ship your order from Canada soon — and NovaStaris will donate $${STORE_DONATION_PER_ITEM_USD} per item to SickKids on your behalf.`;
+  `Thank you — your order is confirmed. We’ll ship from Canada shortly.`;
 
-export const VIP_GIVING_HEADLINE = "VIP that gives back";
+/** Secondary VIP note — keep shorter than the plan pitch. */
+export const VIP_GIVING_HEADLINE = "A note from NovaStaris";
 
 export const VIP_GIVING_BODY =
-  `When you subscribe to VIP, NovaStaris donates $${VIP_DONATION_PER_SUBSCRIPTION_USD} to ${SICKKIDS_NAME} in Toronto. You unlock the full platform — and help kids get the care they need.`;
+  `Part of every VIP subscription includes a $${VIP_DONATION_PER_SUBSCRIPTION_USD} contribution from NovaStaris to ${SICKKIDS_NAME} in Toronto.`;
