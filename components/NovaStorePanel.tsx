@@ -10,6 +10,8 @@ import {
   STORE_GIVING_CART_NOTE,
   STORE_GIVING_FOOTER,
   STORE_GIVING_SUCCESS,
+  STORE_RETURN_POLICY,
+  STORE_RETURN_POLICY_SHORT,
 } from "@/lib/nova-store/giving";
 
 type StoreVariant = {

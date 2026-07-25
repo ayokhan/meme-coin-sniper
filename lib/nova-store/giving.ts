@@ -29,3 +29,10 @@ export const VIP_GIVING_HEADLINE = "A note from NovaStaris";
 
 export const VIP_GIVING_BODY =
   `Part of every VIP subscription includes a $${VIP_DONATION_PER_SUBSCRIPTION_USD} contribution from NovaStaris to ${SICKKIDS_NAME} in Toronto.`;
+
+/** Quiet returns copy — apparel hygiene / used items not accepted. */
+export const STORE_RETURN_POLICY =
+  "Returns: unused items in original condition with tags attached may be returned within 14 days of delivery. Worn, washed, or used items cannot be returned or exchanged.";
+
+export const STORE_RETURN_POLICY_SHORT =
+  "Returns only for unused items with tags (14 days). No returns on worn or used items.";
