@@ -151,6 +151,15 @@ export default function AdminNovaStorePage() {
     }
     try {
       if (editingId) {
+        // Top "Price (USD)" applies to every size/option so a single edit updates the whole product.
+        const variantsPayload =
+          editVariants.length > 0
+            ? editVariants.map((v, i) => ({
+                ...v,
+                priceCents,
+                sortOrder: v.sortOrder ?? (i + 1) * 10,
+              }))
+            : [{ label: "Default", priceCents, active: true, sortOrder: 10 }];
         const res = await fetch(`/api/admin/nova-store/products/${editingId}`, {
           method: "PATCH",
           credentials: "include",
@@ -160,9 +169,7 @@ export default function AdminNovaStorePage() {
             description,
             category,
             images,
-            variants: editVariants.length
-              ? editVariants
-              : [{ label: "Default", priceCents, active: true, sortOrder: 10 }],
+            variants: variantsPayload,
           }),
         });
         const data = await res.json();
@@ -170,7 +177,7 @@ export default function AdminNovaStorePage() {
           setError(data.error || "Update failed.");
           return;
         }
-        setOk("Product updated.");
+        setOk("Product updated — price applied to all sizes.");
       } else {
         const res = await fetch("/api/admin/nova-store/products", {
           method: "POST",
@@ -324,7 +331,7 @@ export default function AdminNovaStorePage() {
                 </select>
               </label>
               <label className="block text-xs text-muted-foreground">
-                Price (USD)
+                Price (USD) — applied to all sizes on save
                 <input
                   type="number"
                   min="0.50"

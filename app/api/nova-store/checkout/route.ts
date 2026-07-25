@@ -183,7 +183,7 @@ export async function POST(request: Request) {
             unit_amount: item.unitPriceCents,
             product_data: {
               name: `${item.productName} (${item.variantLabel})`,
-              description: "Nova Store · ships free from Canada",
+              description: "Nova Store · free shipping from Canada · $2 to SickKids per item (NovaStaris-funded)",
               images: item.imageUrl?.startsWith("http")
                 ? [item.imageUrl]
                 : item.imageUrl

@@ -9,6 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, CreditCard } from "lucide-react";
 import { CARD_PAYMENT_FEE_USD, getCardPriceUsd } from "@/lib/subscription";
 import VipExpiryBanner from "@/components/VipExpiryBanner";
+import {
+  SICKKIDS_FOUNDATION_URL,
+  VIP_GIVING_BODY,
+  VIP_GIVING_HEADLINE,
+} from "@/lib/nova-store/giving";
 
 type Plan = { id: string; label: string; months: number; priceUsd: number };
 
@@ -433,7 +438,7 @@ function SubscribeContent() {
             </>
           )}
         </p>
-        <div className="rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50/60 dark:bg-cyan-950/30 p-4 mb-6">
+        <div className="rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50/60 dark:bg-cyan-950/30 p-4 mb-4">
           <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">What&apos;s included in VIP</p>
           <ul className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 list-disc list-inside space-y-1">
             <li>Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect</li>
@@ -441,6 +446,19 @@ function SubscribeContent() {
             <li>NovaForecast, Nova Forex Agent, NovaQ, Nova Investment Agent, Nova+, NovaScalper</li>
             <li>On-demand: AI Trading Bot, Nova Polymarket, Nova Prop Firm Challenge, Nova Ultimate</li>
           </ul>
+        </div>
+
+        <div className="rounded-lg border border-sky-300/60 dark:border-sky-700/60 bg-sky-50/70 dark:bg-sky-950/35 p-4 mb-6">
+          <p className="text-sm font-semibold text-sky-950 dark:text-sky-100">{VIP_GIVING_HEADLINE}</p>
+          <p className="mt-1.5 text-xs text-sky-900/90 dark:text-sky-100/85 leading-relaxed">{VIP_GIVING_BODY}</p>
+          <a
+            href={SICKKIDS_FOUNDATION_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-block text-xs font-medium text-sky-700 dark:text-sky-300 underline underline-offset-2"
+          >
+            Learn about SickKids Foundation
+          </a>
         </div>
 
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
