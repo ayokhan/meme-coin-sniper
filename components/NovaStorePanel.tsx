@@ -156,7 +156,8 @@ export default function NovaStorePanel() {
           Nova Store
         </h1>
         <p className="text-sm text-muted-foreground max-w-2xl">
-          NovaStaris tees, mugs, and more. Card checkout via Stripe. Free shipping from Canada.
+          NovaStaris tees, mugs, and more. Card checkout via Stripe. Free shipping from Canada —
+          typically ships within 3–5 business days.
         </p>
       </header>
 

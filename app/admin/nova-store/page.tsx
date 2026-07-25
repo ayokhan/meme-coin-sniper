@@ -343,7 +343,12 @@ export default function AdminNovaStorePage() {
           size="sm"
           onClick={() => setTab("orders")}
         >
-          Orders ({orders.filter((o) => o.status === "paid" || o.status === "fulfilled").length})
+          Orders (
+          {orders.filter((o) => o.status === "paid" || o.status === "fulfilled").length} paid
+          {orders.some((o) => o.status === "pending")
+            ? ` · ${orders.filter((o) => o.status === "pending").length} pending`
+            : ""}
+          )
         </Button>
         <Link href="/?tab=nova-store" className="text-sm text-cyan-600 underline self-center ml-2">
           Open store tab
