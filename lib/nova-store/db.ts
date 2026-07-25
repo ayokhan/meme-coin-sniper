@@ -17,6 +17,7 @@ export type StorePrisma = typeof basePrisma & {
   };
   storeOrder: {
     findMany: (args?: unknown) => Promise<any[]>;
+    findFirst: (args?: unknown) => Promise<any>;
     create: (args: unknown) => Promise<any>;
     update: (args: unknown) => Promise<any>;
     updateMany: (args: unknown) => Promise<any>;
@@ -25,6 +26,10 @@ export type StorePrisma = typeof basePrisma & {
     findMany: (args?: unknown) => Promise<any[]>;
     create: (args: unknown) => Promise<any>;
     delete: (args: unknown) => Promise<any>;
+  };
+  storeCharitySettings: {
+    findUnique: (args: unknown) => Promise<any>;
+    upsert: (args: unknown) => Promise<any>;
   };
 };
 

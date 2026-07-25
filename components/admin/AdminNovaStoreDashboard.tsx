@@ -33,6 +33,8 @@ type SaleRow = {
   sickKidsCents: number;
   items: string[];
   shipSummary: string;
+  trackingNumber: string | null;
+  shippedEmailSentAt: string | null;
   paidAt: string | null;
   createdAt: string;
 };
@@ -51,6 +53,14 @@ type Props = {
   onOk: (msg: string) => void;
 };
 
+function toDatetimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
   const [loading, setLoading] = useState(true);
   const [store, setStore] = useState<StoreSummary | null>(null);
@@ -58,9 +68,11 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [remittances, setRemittances] = useState<Remittance[]>([]);
   const [rates, setRates] = useState({ perStoreItemUsd: 2, perVipUsd: 5 });
+  const [vipStartsLocal, setVipStartsLocal] = useState("");
   const [busy, setBusy] = useState(false);
   const [storeNotes, setStoreNotes] = useState("");
   const [vipNotes, setVipNotes] = useState("");
+  const [trackingById, setTrackingById] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,17 +88,50 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
       setSales(data.sales ?? []);
       setRemittances(data.remittances ?? []);
       if (data.rates) setRates(data.rates);
+      setVipStartsLocal(toDatetimeLocal(data.settings?.vipDonationStartsAt ?? null));
+      const track: Record<string, string> = {};
+      for (const s of data.sales ?? []) {
+        if (s.trackingNumber) track[s.id] = s.trackingNumber;
+      }
+      setTrackingById(track);
     } catch {
       onError("Could not load dashboard.");
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid reload loop from inline onError
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const saveVipStart = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/nova-store/dashboard", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vipDonationStartsAt: vipStartsLocal
+            ? new Date(vipStartsLocal).toISOString()
+            : null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        onError(data.error || "Could not save VIP start date.");
+        return;
+      }
+      onOk("VIP SickKids start date saved — only purchases on/after this date count.");
+      await load();
+    } catch {
+      onError("Could not save VIP start date.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const markSent = async (purpose: string, outstandingCents: number, notes: string) => {
     if (outstandingCents <= 0) {
@@ -147,12 +192,67 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
     }
   };
 
+  const shipOrder = async (id: string, notify: boolean) => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/nova-store/orders", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          status: "fulfilled",
+          trackingNumber: trackingById[id] ?? "",
+          notifyCustomer: notify,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        onError(data.error || "Could not update order.");
+        return;
+      }
+      if (notify) {
+        if (data.emailSent) onOk("Marked shipped and emailed the customer.");
+        else onOk(`Marked shipped. Email failed: ${data.emailError || "unknown error"}`);
+      } else {
+        onOk("Marked as shipped (no email).");
+      }
+      await load();
+    } catch {
+      onError("Could not ship order.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (loading && !store) {
     return <p className="text-sm text-muted-foreground">Loading dashboard…</p>;
   }
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardContent className="pt-5 space-y-3">
+          <h3 className="font-semibold text-sm">SickKids counting — start dates</h3>
+          <p className="text-xs text-muted-foreground">
+            VIP giving only counts subscriptions paid on or after the date you set (going forward). Historical VIP
+            purchases before this promo are excluded.
+          </p>
+          <label className="block text-xs text-muted-foreground max-w-sm">
+            VIP SickKids starts at
+            <input
+              type="datetime-local"
+              className="mt-1 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+              value={vipStartsLocal}
+              onChange={(e) => setVipStartsLocal(e.target.value)}
+            />
+          </label>
+          <Button type="button" size="sm" disabled={busy} onClick={() => void saveVipStart()}>
+            Save VIP start date
+          </Button>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="pt-4">
@@ -225,8 +325,7 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
                 )
               }
             >
-              Mark{" "}
-              {formatStoreMoney(store?.sickKidsOutstandingCents ?? 0)} as sent
+              Mark {formatStoreMoney(store?.sickKidsOutstandingCents ?? 0)} as sent
             </Button>
           </CardContent>
         </Card>
@@ -235,7 +334,7 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
           <CardContent className="pt-5 space-y-3">
             <h3 className="font-semibold text-sm">VIP → SickKids</h3>
             <p className="text-xs text-muted-foreground">
-              {vip?.purchases ?? 0} VIP purchases recorded · owed{" "}
+              {vip?.purchases ?? 0} VIP purchases since start date · owed{" "}
               {formatStoreMoney(vip?.sickKidsOwedCents ?? 0)} (${rates.perVipUsd} each) ·
               outstanding {formatStoreMoney(vip?.sickKidsOutstandingCents ?? 0)}
             </p>
@@ -276,7 +375,7 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
           <div className="space-y-2">
             {sales.map((s) => (
               <Card key={s.id}>
-                <CardContent className="pt-3 pb-3 text-sm space-y-1">
+                <CardContent className="pt-3 pb-3 text-sm space-y-2">
                   <div className="flex flex-wrap justify-between gap-2">
                     <div>
                       <p className="font-medium">
@@ -288,6 +387,9 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
                           ? new Date(s.paidAt).toLocaleString()
                           : new Date(s.createdAt).toLocaleString()}{" "}
                         · <span className="uppercase">{s.status}</span>
+                        {s.shippedEmailSentAt
+                          ? ` · emailed ${new Date(s.shippedEmailSentAt).toLocaleString()}`
+                          : ""}
                       </p>
                     </div>
                     <div className="text-right tabular-nums">
@@ -305,6 +407,40 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
                   </ul>
                   {s.shipSummary && (
                     <p className="text-xs text-muted-foreground">Ship: {s.shipSummary}</p>
+                  )}
+                  {(s.status === "paid" || s.status === "fulfilled") && (
+                    <div className="flex flex-wrap items-end gap-2 pt-1 border-t border-zinc-200 dark:border-zinc-700">
+                      <label className="text-xs text-muted-foreground grow min-w-[140px]">
+                        Tracking #
+                        <input
+                          className="mt-1 w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm"
+                          value={trackingById[s.id] ?? ""}
+                          onChange={(e) =>
+                            setTrackingById((prev) => ({ ...prev, [s.id]: e.target.value }))
+                          }
+                          placeholder="Optional"
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 text-xs"
+                        disabled={busy}
+                        onClick={() => void shipOrder(s.id, true)}
+                      >
+                        Mark shipped &amp; email
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        disabled={busy}
+                        onClick={() => void shipOrder(s.id, false)}
+                      >
+                        Ship only
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>

@@ -22,7 +22,36 @@ export const dynamic = "force-dynamic";
 
 const VIP_PLAN_IDS = new Set(VIP_PLANS.map((p) => p.id));
 
+async function getCharitySettings(): Promise<{
+  vipDonationStartsAt: Date | null;
+  storeDonationStartsAt: Date | null;
+}> {
+  const row = await storeDb.storeCharitySettings
+    .findUnique({ where: { id: "default" } })
+    .catch(() => null);
+  if (row) {
+    return {
+      vipDonationStartsAt: row.vipDonationStartsAt ? new Date(row.vipDonationStartsAt) : null,
+      storeDonationStartsAt: row.storeDonationStartsAt
+        ? new Date(row.storeDonationStartsAt)
+        : null,
+    };
+  }
+  // Fallback if migration not applied: treat VIP as starting now so history doesn't count
+  return { vipDonationStartsAt: new Date(), storeDonationStartsAt: null };
+}
+
 async function loadDashboardPayload() {
+  const settings = await getCharitySettings();
+
+  const vipWhere: Record<string, unknown> = {
+    status: "paid",
+    plan: { in: [...VIP_PLAN_IDS] },
+  };
+  if (settings.vipDonationStartsAt) {
+    vipWhere.paidAt = { gte: settings.vipDonationStartsAt };
+  }
+
   const [orders, remittances, vipInvoices] = await Promise.all([
     storeDb.storeOrder.findMany({
       orderBy: { createdAt: "desc" },
@@ -49,10 +78,7 @@ async function loadDashboardPayload() {
       };
     }).billingInvoice
       .findMany({
-        where: {
-          status: "paid",
-          plan: { in: [...VIP_PLAN_IDS] },
-        },
+        where: vipWhere,
         orderBy: { paidAt: "desc" },
         take: 500,
         select: {
@@ -75,7 +101,11 @@ async function loadDashboardPayload() {
     .filter((r: { purpose: string }) => r.purpose === CHARITY_PURPOSE_VIP)
     .reduce((s: number, r: { amountCents: number }) => s + r.amountCents, 0);
 
-  const storeSummary = summarizeStoreOrders(orders, storeRemitted);
+  const storeSummary = summarizeStoreOrders(
+    orders,
+    storeRemitted,
+    settings.storeDonationStartsAt
+  );
   const vipPurchases = Array.isArray(vipInvoices) ? vipInvoices.length : 0;
   const vipOwedCents = vipPurchases * VIP_DONATION_PER_SUB_CENTS;
   const vipOutstandingCents = Math.max(0, vipOwedCents - vipRemitted);
@@ -99,6 +129,8 @@ async function loadDashboardPayload() {
         shipSummary: [o.shipLine1, o.shipCity, o.shipState, o.shipPostal, o.shipCountry]
           .filter(Boolean)
           .join(", "),
+        trackingNumber: o.trackingNumber ?? null,
+        shippedEmailSentAt: o.shippedEmailSentAt ?? null,
         paidAt: o.paidAt,
         createdAt: o.createdAt,
       };
@@ -108,6 +140,10 @@ async function loadDashboardPayload() {
     rates: {
       perStoreItemUsd: STORE_DONATION_PER_ITEM_USD,
       perVipUsd: VIP_DONATION_PER_SUBSCRIPTION_USD,
+    },
+    settings: {
+      vipDonationStartsAt: settings.vipDonationStartsAt?.toISOString() ?? null,
+      storeDonationStartsAt: settings.storeDonationStartsAt?.toISOString() ?? null,
     },
     store: storeSummary,
     vip: {
@@ -134,6 +170,69 @@ export async function GET() {
     console.error("Nova Store dashboard GET:", e);
     return NextResponse.json({ success: false, error: "Failed to load dashboard." }, { status: 500 });
   }
+}
+
+/**
+ * PATCH — update charity start dates.
+ * Body: { vipDonationStartsAt?: string | null, storeDonationStartsAt?: string | null }
+ */
+export async function PATCH(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!isOwnerEmail(session?.user?.email ?? null)) {
+    return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const data: { vipDonationStartsAt?: Date | null; storeDonationStartsAt?: Date | null } = {};
+
+  if ("vipDonationStartsAt" in body) {
+    if (body.vipDonationStartsAt == null || body.vipDonationStartsAt === "") {
+      data.vipDonationStartsAt = null;
+    } else {
+      const d = new Date(String(body.vipDonationStartsAt));
+      if (!Number.isFinite(d.getTime())) {
+        return NextResponse.json({ success: false, error: "Invalid VIP start date." }, { status: 400 });
+      }
+      data.vipDonationStartsAt = d;
+    }
+  }
+  if ("storeDonationStartsAt" in body) {
+    if (body.storeDonationStartsAt == null || body.storeDonationStartsAt === "") {
+      data.storeDonationStartsAt = null;
+    } else {
+      const d = new Date(String(body.storeDonationStartsAt));
+      if (!Number.isFinite(d.getTime())) {
+        return NextResponse.json({ success: false, error: "Invalid store start date." }, { status: 400 });
+      }
+      data.storeDonationStartsAt = d;
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ success: false, error: "No settings to update." }, { status: 400 });
+  }
+
+  const row = await storeDb.storeCharitySettings.upsert({
+    where: { id: "default" },
+    create: {
+      id: "default",
+      vipDonationStartsAt: data.vipDonationStartsAt ?? new Date(),
+      storeDonationStartsAt: data.storeDonationStartsAt ?? null,
+    },
+    update: data,
+  });
+
+  return NextResponse.json({
+    success: true,
+    settings: {
+      vipDonationStartsAt: row.vipDonationStartsAt
+        ? new Date(row.vipDonationStartsAt).toISOString()
+        : null,
+      storeDonationStartsAt: row.storeDonationStartsAt
+        ? new Date(row.storeDonationStartsAt).toISOString()
+        : null,
+    },
+  });
 }
 
 /**

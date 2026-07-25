@@ -1375,8 +1375,12 @@ model StoreOrder {
   shipCountry     String?
   shipPhone       String?
   notes           String?
+  /** Carrier tracking number (shown in shipped email). */
+  trackingNumber  String?
   paidAt          DateTime?
   fulfilledAt     DateTime?
+  /** When the “your order shipped” email was sent. */
+  shippedEmailSentAt DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -1388,6 +1392,7 @@ model StoreOrder {
 /**
  * SickKids remittances — admin marks when NovaStaris has sent funds.
  * Outstanding = (items sold × $2) + (VIP purchases × $5) − remitted totals.
+ * Only sales on/after StoreCharitySettings.*DonationStartsAt count.
  */
 model StoreCharityRemittance {
   id          String   @id @default(cuid())
@@ -1403,4 +1408,14 @@ model StoreCharityRemittance {
   updatedAt   DateTime @updatedAt
 
   @@index([purpose, paidAt(sort: Desc)])
+}
+
+/** Single-row settings for when SickKids giving starts counting. */
+model StoreCharitySettings {
+  id                    String    @id @default("default")
+  /** VIP subscriptions paid on/after this date count toward SickKids ($5). */
+  vipDonationStartsAt   DateTime?
+  /** Store orders paid on/after this date count toward SickKids ($2/item). Null = all store orders. */
+  storeDonationStartsAt DateTime?
+  updatedAt             DateTime  @updatedAt
 }

@@ -50,6 +50,8 @@ type Order = {
   shipState?: string | null;
   shipPostal?: string | null;
   shipCountry?: string | null;
+  trackingNumber?: string | null;
+  shippedEmailSentAt?: string | null;
   paidAt?: string | null;
   createdAt: string;
 };
@@ -73,6 +75,8 @@ export default function AdminNovaStorePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editVariants, setEditVariants] = useState<Variant[]>([]);
 
+  const [orderTracking, setOrderTracking] = useState<Record<string, string>>({});
+
   const loadProducts = useCallback(async () => {
     const res = await fetch("/api/admin/nova-store/products", { credentials: "include" });
     const data = await res.json();
@@ -82,8 +86,64 @@ export default function AdminNovaStorePage() {
   const loadOrders = useCallback(async () => {
     const res = await fetch("/api/admin/nova-store/orders", { credentials: "include" });
     const data = await res.json();
-    if (res.ok && data.success) setOrders(data.orders ?? []);
+    if (res.ok && data.success) {
+      const list = (data.orders ?? []) as Order[];
+      setOrders(list);
+      const track: Record<string, string> = {};
+      for (const o of list) {
+        if (o.trackingNumber) track[o.id] = o.trackingNumber;
+      }
+      setOrderTracking(track);
+    }
   }, []);
+
+  const shipOrder = async (id: string, notify: boolean) => {
+    setBusy(true);
+    setError("");
+    setOk("");
+    try {
+      const res = await fetch("/api/admin/nova-store/orders", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          status: "fulfilled",
+          trackingNumber: orderTracking[id] ?? "",
+          notifyCustomer: notify,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Could not ship order.");
+        return;
+      }
+      if (notify) {
+        setOk(
+          data.emailSent
+            ? "Shipped and emailed the customer."
+            : `Shipped. Email failed: ${data.emailError || "unknown"}`
+        );
+      } else {
+        setOk("Marked as shipped.");
+      }
+      await loadOrders();
+    } catch {
+      setError("Could not ship order.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const setOrderStatus = async (id: string, next: string) => {
+    await fetch("/api/admin/nova-store/orders", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: next }),
+    });
+    await loadOrders();
+  };
 
   useEffect(() => {
     if (!isOwner) return;
@@ -226,16 +286,6 @@ export default function AdminNovaStorePage() {
       credentials: "include",
     });
     await loadProducts();
-  };
-
-  const setOrderStatus = async (id: string, next: string) => {
-    await fetch("/api/admin/nova-store/orders", {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status: next }),
-    });
-    await loadOrders();
   };
 
   if (status === "loading" || !session) {
@@ -536,21 +586,44 @@ export default function AdminNovaStorePage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-1">
-                        {o.status === "paid" && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => void setOrderStatus(o.id, "fulfilled")}
-                          >
-                            Mark fulfilled
-                          </Button>
+                        {(o.status === "paid" || o.status === "fulfilled") && (
+                          <>
+                            <label className="text-[10px] text-muted-foreground">
+                              Tracking
+                              <input
+                                className="ml-1 w-28 rounded border px-1 py-0.5 text-xs bg-white dark:bg-zinc-800"
+                                value={orderTracking[o.id] ?? ""}
+                                onChange={(e) =>
+                                  setOrderTracking((prev) => ({ ...prev, [o.id]: e.target.value }))
+                                }
+                              />
+                            </label>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-7 text-xs"
+                              disabled={busy}
+                              onClick={() => void shipOrder(o.id, true)}
+                            >
+                              Ship &amp; email
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              disabled={busy}
+                              onClick={() => void shipOrder(o.id, false)}
+                            >
+                              Ship only
+                            </Button>
+                          </>
                         )}
                         {o.status === "fulfilled" && (
                           <Button
                             type="button"
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
                             className="h-7 text-xs"
                             onClick={() => void setOrderStatus(o.id, "paid")}
                           >

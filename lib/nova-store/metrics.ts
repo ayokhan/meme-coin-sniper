@@ -52,14 +52,25 @@ export type StoreSalesSummary = {
 };
 
 export function summarizeStoreOrders(
-  orders: { status: string; totalCents: number; itemsJson: unknown }[],
-  remittedCents: number
+  orders: {
+    status: string;
+    totalCents: number;
+    itemsJson: unknown;
+    paidAt?: Date | string | null;
+    createdAt?: Date | string | null;
+  }[],
+  remittedCents: number,
+  storeStartsAt?: Date | null
 ): StoreSalesSummary {
   let paidOrders = 0;
   let itemsSold = 0;
   let revenueCents = 0;
   for (const o of orders) {
     if (!isPaidStoreOrder(o.status)) continue;
+    if (storeStartsAt) {
+      const t = o.paidAt ? new Date(o.paidAt) : o.createdAt ? new Date(o.createdAt) : null;
+      if (!t || Number.isNaN(t.getTime()) || t < storeStartsAt) continue;
+    }
     paidOrders += 1;
     itemsSold += countItemsInOrder(o.itemsJson);
     revenueCents += Math.max(0, o.totalCents);
