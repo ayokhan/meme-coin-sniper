@@ -279,6 +279,7 @@ export default function NovaStorePanel() {
           SickKids Foundation
         </a>
       </p>
+      <p className="text-[11px] text-muted-foreground max-w-2xl leading-relaxed">{STORE_RETURN_POLICY}</p>
 
       {cart.length > 0 && (
         <section className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 p-4 space-y-3">
@@ -312,6 +313,7 @@ export default function NovaStorePanel() {
                 <span className="text-muted-foreground"> · Free shipping</span>
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5">{STORE_GIVING_CART_NOTE}</p>
+              <p className="text-[11px] text-muted-foreground">{STORE_RETURN_POLICY_SHORT}</p>
             </div>
             <Button type="button" onClick={() => void checkout()} disabled={checkoutBusy}>
               {checkoutBusy ? "Redirecting…" : "Checkout with Stripe"}

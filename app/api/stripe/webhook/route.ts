@@ -101,8 +101,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     try {
       const { storeDb } = await import("@/lib/nova-store/db");
+      let newlyPaid = 0;
       if (orderId) {
-        await storeDb.storeOrder.updateMany({
+        const updated = await storeDb.storeOrder.updateMany({
           where: {
             OR: [{ id: orderId }, { stripeSessionId: session.id }],
             status: { in: ["pending", "cancelled"] },
@@ -123,9 +124,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             totalCents: session.amount_total ?? undefined,
           },
         });
+        newlyPaid = updated.count;
       } else {
-        await storeDb.storeOrder.updateMany({
-          where: { stripeSessionId: session.id },
+        const updated = await storeDb.storeOrder.updateMany({
+          where: {
+            stripeSessionId: session.id,
+            status: { in: ["pending", "cancelled"] },
+          },
           data: {
             status: "paid",
             paidAt: new Date(),
@@ -139,6 +144,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             shipPhone: details?.phone ?? undefined,
           },
         });
+        newlyPaid = updated.count;
       }
 
       await recordBillingInvoiceFromCheckout({
@@ -148,6 +154,22 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         stripeSessionId: session.id,
         paymentMethod: "card",
       });
+
+      /** Alert owner once per pending → paid transition (skip Stripe retries). */
+      if (newlyPaid > 0) {
+        const order = await storeDb.storeOrder.findFirst({
+          where: orderId
+            ? { OR: [{ id: orderId }, { stripeSessionId: session.id }] }
+            : { stripeSessionId: session.id },
+        });
+        if (order) {
+          const { sendStoreOrderOwnerAlert } = await import("@/lib/nova-store/owner-alert-email");
+          const alert = await sendStoreOrderOwnerAlert(order);
+          if (!alert.ok) {
+            console.warn("Stripe webhook: nova store owner alert failed", alert.error);
+          }
+        }
+      }
     } catch (e) {
       console.error("Stripe webhook: nova store order failed", e);
     }

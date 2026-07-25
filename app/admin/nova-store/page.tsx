@@ -571,6 +571,11 @@ export default function AdminNovaStorePage() {
 
       {tab === "orders" && (
         <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            <strong>Pending</strong> = checkout started in Stripe but payment not finished (price is locked at that
+            moment). <strong>Paid</strong> orders show Ship &amp; email and email you via{" "}
+            <code className="text-[11px]">OWNER_EMAIL</code>. Product price edits only apply to new checkouts.
+          </p>
           {orders.length === 0 ? (
             <p className="text-sm text-muted-foreground">No orders yet.</p>
           ) : (
@@ -582,15 +587,43 @@ export default function AdminNovaStorePage() {
                     <div className="flex flex-wrap justify-between gap-2">
                       <div>
                         <p className="font-semibold">
-                          {o.email} · <span className="uppercase text-xs">{o.status}</span>
+                          {o.email} ·{" "}
+                          <span
+                            className={`uppercase text-xs ${
+                              o.status === "pending"
+                                ? "text-amber-600 dark:text-amber-400"
+                                : o.status === "paid" || o.status === "fulfilled"
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : ""
+                            }`}
+                          >
+                            {o.status}
+                          </span>
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(o.createdAt).toLocaleString()} ·{" "}
                           {formatStoreMoney(o.totalCents, o.currency)}
                           {o.shippingCents === 0 ? " · Free shipping" : ""}
                         </p>
+                        {o.status === "pending" && (
+                          <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-1">
+                            Not paid yet — customer left Stripe before completing. No ship actions until paid.
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-1">
+                        {o.status === "pending" && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs text-rose-600"
+                            disabled={busy}
+                            onClick={() => void setOrderStatus(o.id, "cancelled")}
+                          >
+                            Cancel abandoned
+                          </Button>
+                        )}
                         {(o.status === "paid" || o.status === "fulfilled") && (
                           <>
                             <label className="text-[10px] text-muted-foreground">
