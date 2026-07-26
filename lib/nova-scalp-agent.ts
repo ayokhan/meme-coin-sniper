@@ -446,6 +446,8 @@ export function analyzeScalpSetup(input: {
   currentPrice: number | null;
   /** Blofin tickSize — when set, entry/exit/stop round to exchange-legal increments. */
   tickSize?: number | null;
+  /** Cap for leverage clamp (default 125 for crypto; forex plans may pass 2000). */
+  maxLeverage?: number | null;
   /**
    * Prior waiting plan — if a full rescan would return no_entry but price is still
    * between stop and target, keep these levels (prevents "wait → refresh → NO ENTRY").
@@ -455,7 +457,11 @@ export function analyzeScalpSetup(input: {
   const tf = scalpTimeframeConfig(input.timeframeId);
   const symbol = resolveScalpSymbol(input.symbol);
   const amountUsd = Math.max(1, Number(input.amountUsd) || 100);
-  const leverage = Math.min(125, Math.max(1, Number(input.leverage) || 10));
+  const maxLev =
+    input.maxLeverage != null && Number.isFinite(input.maxLeverage) && input.maxLeverage > 0
+      ? Math.min(10_000, Math.max(1, input.maxLeverage))
+      : 125;
+  const leverage = Math.min(maxLev, Math.max(1, Number(input.leverage) || 10));
   const maxLossPctOnMargin = Math.min(100, Math.max(0.5, Number(input.maxLossPctOnMargin) || 5));
   const analyzedAt = input.analyzedAt ?? new Date().toISOString();
   const tickSize =

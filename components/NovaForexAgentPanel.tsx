@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { normalizeForexSymbol, validateForexScalpSymbol, type ForexSymbolEntry } from "@/lib/forex-market";
+import { normalizeForexSymbol, validateForexScalpSymbol, FOREX_SCALP_MAX_LEVERAGE, type ForexSymbolEntry } from "@/lib/forex-market";
 import {
   NOVA_SCALP_DISCLAIMER,
   QUICK_WIN_SCALP_TIMEFRAME_ID,
@@ -109,6 +109,9 @@ export default function NovaForexAgentPanel({
   const [scalpTf, setScalpTf] = useState("5m");
   const [scalpAmount, setScalpAmount] = useState("100");
   const [scalpLev, setScalpLev] = useState("20");
+  const [scalpLevSource, setScalpLevSource] = useState<"default" | "broker" | "user">("default");
+  const [scalpLevHydrated, setScalpLevHydrated] = useState(false);
+  const scalpLevUserEditedRef = useRef(false);
   const [scalpMaxLoss, setScalpMaxLoss] = useState("5");
   const [scalpResult, setScalpResult] = useState<NovaScalpAnalysis | null>(null);
   const [scalpLoading, setScalpLoading] = useState(false);
@@ -213,7 +216,9 @@ export default function NovaForexAgentPanel({
     setSubTab("nova-scalp");
     setSymbol(a.symbol);
     setScalpAmount(String(a.amountUsd));
+    scalpLevUserEditedRef.current = true;
     setScalpLev(String(a.leverage));
+    setScalpLevSource("user");
     setScalpMaxLoss(String(a.maxLossPctOnMargin ?? 5));
     setScalpTf(a.timeframeId as ScalpTimeframeId);
     setScalpResult(a);
@@ -234,6 +239,49 @@ export default function NovaForexAgentPanel({
     if (hasOpenWatchedScalpPlanPending()) restoreWatchedForexPlan();
     return () => window.removeEventListener(SCALP_OPEN_WATCHED_EVENT, onOpen);
   }, [novaForexScalp, restoreWatchedForexPlan]);
+
+  /** Prefill leverage from connected MT account (editable — user can override). */
+  useEffect(() => {
+    if (!novaForexScalp || !enabled) {
+      setScalpLevHydrated(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const listRes = await fetch("/api/user/forex-broker-config", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (listRes.status === 401) return;
+        const listData = (await listRes.json()) as {
+          success?: boolean;
+          connections?: Array<{ broker: string; connected?: boolean }>;
+        };
+        if (!listRes.ok || !listData.success || cancelled) return;
+        const connected = (listData.connections ?? []).find((c) => c.connected);
+        if (!connected?.broker) return;
+        const accRes = await fetch(
+          `/api/user/forex-broker-config/account?broker=${encodeURIComponent(connected.broker)}&period=1d&wait=0`,
+          { credentials: "include", cache: "no-store" }
+        );
+        const accData = (await accRes.json()) as { account?: { leverage?: number } | null };
+        const lev = accData?.account?.leverage;
+        if (cancelled || typeof lev !== "number" || !Number.isFinite(lev) || lev < 1) return;
+        if (scalpLevUserEditedRef.current) return;
+        const capped = Math.min(FOREX_SCALP_MAX_LEVERAGE, Math.max(1, Math.round(lev)));
+        setScalpLev(String(capped));
+        setScalpLevSource("broker");
+      } catch {
+        /* keep default 20 */
+      } finally {
+        if (!cancelled) setScalpLevHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [novaForexScalp, enabled]);
 
   useEffect(() => {
     if (!enabled || !isVip) return;
@@ -329,7 +377,11 @@ export default function NovaForexAgentPanel({
     const lev = overrides?.leverage ?? (Number(scalpLev) || 20);
     if (overrides?.symbol) setSymbol(overrides.symbol);
     if (overrides?.timeframeId) setScalpTf(overrides.timeframeId);
-    if (overrides?.leverage != null) setScalpLev(String(overrides.leverage));
+    if (overrides?.leverage != null) {
+      scalpLevUserEditedRef.current = true;
+      setScalpLev(String(overrides.leverage));
+      setScalpLevSource("user");
+    }
     setScalpLoading(true);
     setScalpError(null);
     try {
@@ -368,7 +420,7 @@ export default function NovaForexAgentPanel({
       try {
         const params = new URLSearchParams({
           timeframe: tfId,
-          leverage: String(Math.min(125, Math.max(1, lev))),
+          leverage: String(Math.min(FOREX_SCALP_MAX_LEVERAGE, Math.max(1, lev))),
           amountUsd: String(Math.max(1, Number(scalpAmount) || 100)),
           maxLossPct: String(Number(scalpMaxLoss) || 5),
         });
@@ -398,10 +450,10 @@ export default function NovaForexAgentPanel({
   );
 
   useEffect(() => {
-    if (!novaForexScalp || subTab !== "nova-scalp") return;
+    if (!novaForexScalp || subTab !== "nova-scalp" || !scalpLevHydrated) return;
     void findQuickWins(QUICK_WIN_SCALP_TIMEFRAME_ID, Number(scalpLev) || 20);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial scan when opening tab
-  }, [novaForexScalp, subTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scan once leverage hydrated when opening tab
+  }, [novaForexScalp, subTab, scalpLevHydrated]);
 
   if (!enabled) {
     return (
@@ -638,14 +690,24 @@ export default function NovaForexAgentPanel({
                   />
                 </label>
                 <label className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Leverage</span>
+                  <span className="text-xs text-muted-foreground">
+                    Leverage
+                    {scalpLevSource === "broker" ? (
+                      <span className="text-muted-foreground/80"> · from MT account</span>
+                    ) : null}
+                  </span>
                   <input
                     type="number"
                     min={1}
-                    max={125}
+                    max={FOREX_SCALP_MAX_LEVERAGE}
                     value={scalpLev}
-                    onChange={(e) => setScalpLev(e.target.value)}
+                    onChange={(e) => {
+                      scalpLevUserEditedRef.current = true;
+                      setScalpLevSource("user");
+                      setScalpLev(e.target.value);
+                    }}
                     className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-24 bg-white dark:bg-zinc-800"
+                    title="Prefills from your connected MT account when available — you can change it"
                   />
                 </label>
                 <label className="space-y-1">

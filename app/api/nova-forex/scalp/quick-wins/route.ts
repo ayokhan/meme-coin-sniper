@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getForexCandles, getForexTicker } from "@/lib/forex-market";
+import { getForexCandles, getForexTicker, FOREX_SCALP_MAX_LEVERAGE } from "@/lib/forex-market";
 import {
   evaluateQuickWinForex,
   FOREX_QUICK_WIN_SYMBOLS,
@@ -37,7 +37,9 @@ export async function GET(request: Request) {
     const tfConfig = forexScalpTimeframeConfig(timeframeId);
     const { interval, limit } = forexScalpCandlesRequest(timeframeId);
     const rawLev = Number(url.searchParams.get("leverage"));
-    const leverage = Number.isFinite(rawLev) ? Math.min(125, Math.max(1, rawLev)) : undefined;
+    const leverage = Number.isFinite(rawLev)
+      ? Math.min(FOREX_SCALP_MAX_LEVERAGE, Math.max(1, rawLev))
+      : undefined;
     const rawMargin = Number(url.searchParams.get("amountUsd"));
     const amountUsd = Number.isFinite(rawMargin) ? Math.max(1, rawMargin) : 100;
     const maxLossPct = Number(url.searchParams.get("maxLossPct"));

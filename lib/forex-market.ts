@@ -17,6 +17,9 @@ export type ForexSymbolEntry = {
   venueNote: string;
 };
 
+/** Plan / UI leverage cap for Nova Forex Scalp (MT accounts often use 1:500–1:2000). */
+export const FOREX_SCALP_MAX_LEVERAGE = 2000;
+
 /** Curated list — expandable; user can also type any symbol we can map. */
 export const FOREX_MARKET_WATCH: ForexSymbolEntry[] = [
   { symbol: "XAUUSD", label: "Gold vs US Dollar", category: "metal", yahoo: "GC=F", venueNote: "Live mid prefers your connected MT broker when linked; else Swissquote spot mid. OHLC shape from Yahoo GC=F, level-shifted to that mid. TradingView may differ if you chart another broker." },

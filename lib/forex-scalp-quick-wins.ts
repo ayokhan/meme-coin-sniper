@@ -1,6 +1,6 @@
 import type { Candle } from "@/lib/hyperliquid";
 import { meanRangePct, trendFrom15mCloses } from "@/lib/crypto-buddie-score";
-import { FOREX_MARKET_WATCH, resolveForexEntry } from "@/lib/forex-market";
+import { FOREX_MARKET_WATCH, FOREX_SCALP_MAX_LEVERAGE, resolveForexEntry } from "@/lib/forex-market";
 import {
   analyzeScalpSetup,
   isValidScalpTimeframeId,
@@ -98,7 +98,7 @@ export function evaluateQuickWinForex(input: {
     : "5m";
   const leverage =
     input.userLeverage != null && Number.isFinite(input.userLeverage)
-      ? Math.min(125, Math.max(1, input.userLeverage))
+      ? Math.min(FOREX_SCALP_MAX_LEVERAGE, Math.max(1, input.userLeverage))
       : oscillation.suggestedLeverage;
   const amountUsd = Math.max(1, Number(input.amountUsd) || 100);
 
@@ -110,6 +110,7 @@ export function evaluateQuickWinForex(input: {
     maxLossPctOnMargin: input.maxLossPctOnMargin ?? 5,
     candles: input.scalpCandles,
     currentPrice: input.currentPrice,
+    maxLeverage: FOREX_SCALP_MAX_LEVERAGE,
   });
 
   if (

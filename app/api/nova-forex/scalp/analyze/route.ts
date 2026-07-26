@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getForexCandles, validateForexScalpSymbol } from "@/lib/forex-market";
+import { getForexCandles, validateForexScalpSymbol, FOREX_SCALP_MAX_LEVERAGE } from "@/lib/forex-market";
 import { resolveForexLivePrice } from "@/lib/forex-live-price";
 import { analyzeScalpSetup, scalpTimeframeConfig } from "@/lib/nova-scalp-agent";
 import { getNovaForexScalpAgentAccess } from "@/lib/vip-futures-addon-access";
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const symbol = validated.symbol;
     const tf = scalpTimeframeConfig(body.timeframeId ?? "5m");
     const amountUsd = Math.max(1, Number(body.amountUsd) || 100);
-    const leverage = Math.min(125, Math.max(1, Number(body.leverage) || 10));
+    const leverage = Math.min(FOREX_SCALP_MAX_LEVERAGE, Math.max(1, Number(body.leverage) || 10));
     const maxLossPctOnMargin = Math.min(100, Math.max(0.5, Number(body.maxLossPctOnMargin) || 5));
 
     const live = await resolveForexLivePrice({
@@ -50,6 +50,7 @@ export async function POST(request: Request) {
       maxLossPctOnMargin,
       candles,
       currentPrice,
+      maxLeverage: FOREX_SCALP_MAX_LEVERAGE,
     });
 
     return NextResponse.json({
