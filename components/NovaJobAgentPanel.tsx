@@ -125,6 +125,10 @@ export default function NovaJobAgentPanel() {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [tunedResumePreview, setTunedResumePreview] = useState<string | null>(null);
   const [lastOpenedJobUrl, setLastOpenedJobUrl] = useState<string | null>(null);
+  const [pasteJobTitle, setPasteJobTitle] = useState("");
+  const [pasteCompany, setPasteCompany] = useState("");
+  const [pasteJd, setPasteJd] = useState("");
+  const [pasteJobUrl, setPasteJobUrl] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -241,11 +245,32 @@ export default function NovaJobAgentPanel() {
     setError(null);
     setNotice(null);
     try {
+      const payload: Record<string, unknown> = { contentText: resumeDraft, improve };
+      if (improve) {
+        const selected = jobs.filter((j) => selectedJobIds.has(j.externalId));
+        if (selected.length === 0) {
+          setError(
+            "Select a job under Find & apply (or use Paste job description below) so AI can tailor your resume to that JD."
+          );
+          setBusy(null);
+          return;
+        }
+        const primary = selected[0];
+        payload.jobTitle = primary.title;
+        payload.company = primary.company;
+        payload.jobDescription = selected
+          .slice(0, 3)
+          .map(
+            (j) =>
+              `${j.title} @ ${j.company}\n${j.descriptionSnippet || "(no description snippet)"}`
+          )
+          .join("\n\n---\n\n");
+      }
       const res = await fetch("/api/nova-job-agent/resume", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentText: resumeDraft, improve }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -254,9 +279,87 @@ export default function NovaJobAgentPanel() {
       }
       setResume(data.resume);
       setResumeDraft(data.resume.contentText);
-      setNotice(improve ? `Resume improved (v${data.resume.version}).` : `Resume saved (v${data.resume.version}).`);
+      if (improve) {
+        const selected = jobs.filter((j) => selectedJobIds.has(j.externalId));
+        const primary = selected[0];
+        setNotice(
+          selected.length > 1
+            ? `Base resume updated (v${data.resume.version}) using ${selected.length} selected jobs (primary: ${primary.title} @ ${primary.company}). For per-job cover letters use Prepare selected.`
+            : `Base resume tailored to ${primary.title} @ ${primary.company} (v${data.resume.version}).`
+        );
+      } else {
+        setNotice(`Resume saved (v${data.resume.version}).`);
+      }
     } catch {
       setError("Network error saving resume.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const prepareFromPastedJd = async () => {
+    const jobTitle = pasteJobTitle.trim();
+    const company = pasteCompany.trim();
+    const jobDescription = pasteJd.trim();
+    if (!jobTitle || !company) {
+      setError("Enter job title and company for the pasted job description.");
+      return;
+    }
+    if (!jobDescription || jobDescription.length < 40) {
+      setError("Paste a fuller job description (at least a few sentences) so Nova can align your materials.");
+      return;
+    }
+    if (!resumeDraft.trim() && !resume?.contentText) {
+      setError("Save a base resume first, then paste a JD to generate a tuned copy + cover letter.");
+      return;
+    }
+    setBusy("paste-jd");
+    setError(null);
+    setNotice(null);
+    try {
+      // Ensure latest draft is saved as active base before tuning
+      if (resumeDraft.trim() && resumeDraft !== (resume?.contentText ?? "")) {
+        const saveRes = await fetch("/api/nova-job-agent/resume", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contentText: resumeDraft, improve: false }),
+        });
+        const saveData = await saveRes.json().catch(() => ({}));
+        if (!saveRes.ok || !saveData.success) {
+          setError(saveData.error || "Could not save resume before generating materials.");
+          return;
+        }
+        setResume(saveData.resume);
+        setResumeDraft(saveData.resume.contentText);
+      }
+      const res = await fetch("/api/nova-job-agent/applications", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobTitle,
+          company,
+          jobUrl: pasteJobUrl.trim() || undefined,
+          source: "pasted_jd",
+          externalId: `pasted-${Date.now()}`,
+          jobDescription,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setError(data.error || "Could not generate tuned resume + cover letter.");
+        return;
+      }
+      setCoverPreview(data.application.coverLetter);
+      setTunedResumePreview(data.application.resumeSnapshot || null);
+      if (data.application.jobUrl) setLastOpenedJobUrl(data.application.jobUrl);
+      setNotice(
+        `Tuned resume + cover letter ready for ${company}. Download below, then submit on the employer site.`
+      );
+      await load();
+    } catch {
+      setError("Failed to generate materials from pasted JD.");
     } finally {
       setBusy(null);
     }
@@ -774,8 +877,10 @@ export default function NovaJobAgentPanel() {
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Base resume is saved here. When you prepare or auto-apply a job, AI rewrites a copy against that job’s
-            description (stored per application — your base resume stays unchanged).
+            Base resume is saved here. <strong>AI adjust</strong> rewrites this base using the{" "}
+            <em>selected</em> job description(s) below. <strong>Prepare selected</strong> /{" "}
+            <strong>Paste JD</strong> create a separate tuned resume + cover letter per application without
+            replacing your base (unless you choose AI adjust).
           </p>
           <textarea
             className="w-full min-h-[220px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm font-mono"
@@ -792,8 +897,9 @@ export default function NovaJobAgentPanel() {
               variant="outline"
               onClick={() => void saveResume(true)}
               disabled={!!busy || !resumeDraft.trim()}
+              title="Select one or more jobs under Find & apply first"
             >
-              {busy === "improve" ? "Improving…" : "AI adjust / update resume"}
+              {busy === "improve" ? "Tailoring…" : "AI adjust to selected job"}
             </Button>
             <Button
               type="button"
@@ -810,6 +916,73 @@ export default function NovaJobAgentPanel() {
               Download resume
             </Button>
           </div>
+          {selectedJobIds.size === 0 ? (
+            <p className="text-[11px] text-amber-700 dark:text-amber-300">
+              Select a job under Find &amp; apply before using AI adjust, or paste a JD in the section below for
+              resume + cover letter.
+            </p>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">
+              {selectedJobIds.size} job{selectedJobIds.size === 1 ? "" : "s"} selected for AI adjust.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Paste job description</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Paste any JD (LinkedIn, company site, email). Nova Agent tunes a copy of your resume and writes a cover
+            letter. Your base resume stays unchanged.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium">Job title</label>
+              <input
+                className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+                value={pasteJobTitle}
+                onChange={(e) => setPasteJobTitle(e.target.value)}
+                placeholder="e.g. Product Manager"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Company</label>
+              <input
+                className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+                value={pasteCompany}
+                onChange={(e) => setPasteCompany(e.target.value)}
+                placeholder="e.g. Acme Health"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium">Job posting URL (optional)</label>
+            <input
+              className="mt-1 w-full h-10 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"
+              value={pasteJobUrl}
+              onChange={(e) => setPasteJobUrl(e.target.value)}
+              placeholder="https://…"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium">Job description</label>
+            <textarea
+              className="mt-1 w-full min-h-[160px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm"
+              value={pasteJd}
+              onChange={(e) => setPasteJd(e.target.value)}
+              placeholder="Paste the full job description here…"
+            />
+          </div>
+          <Button
+            type="button"
+            onClick={() => void prepareFromPastedJd()}
+            disabled={!!busy || !pasteJd.trim() || !pasteJobTitle.trim() || !pasteCompany.trim()}
+          >
+            {busy === "paste-jd" ? "Generating…" : "Generate tuned resume + cover letter"}
+          </Button>
         </CardContent>
       </Card>
 

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
+import { prisma as basePrisma } from "@/lib/db";
 import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
-import { requireJobAgentAccess } from "@/lib/nova-job-agent/access";
+import { requireJobAgentAccess, asStringArray } from "@/lib/nova-job-agent/access";
 import { improveResumeText } from "@/lib/nova-job-agent/ai";
-import { asStringArray } from "@/lib/nova-job-agent/access";
 import { extractResumeText } from "@/lib/nova-job-agent/parse-resume";
+import { resolveApplicantEmail } from "@/lib/nova-job-agent/contact";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -20,11 +21,20 @@ export async function POST(request: Request) {
   let fileName: string | null = null;
   let fileUrl: string | null = null;
   let improve = false;
+  let jobDescription: string | null = null;
+  let jobTitle: string | null = null;
+  let company: string | null = null;
 
   if (contentType.includes("multipart/form-data")) {
     const form = await request.formData();
     improve = form.get("improve") === "1" || form.get("improve") === "true";
     const pasted = String(form.get("contentText") ?? "");
+    const jd = String(form.get("jobDescription") ?? "").trim();
+    if (jd) jobDescription = jd;
+    const jt = String(form.get("jobTitle") ?? "").trim();
+    if (jt) jobTitle = jt;
+    const co = String(form.get("company") ?? "").trim();
+    if (co) company = co;
     const file = form.get("file");
     if (file && typeof file === "object" && "arrayBuffer" in file) {
       const f = file as File;
@@ -38,7 +48,6 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      // Keep original PDF/DOCX in blob storage when possible
       if (/\.(pdf|docx)$/i.test(fileName)) {
         try {
           const blob = await put(`nova-job-agent/${gate.userId}/${Date.now()}-${fileName}`, buf, {
@@ -48,7 +57,6 @@ export async function POST(request: Request) {
           fileUrl = blob.url;
         } catch (e) {
           console.error("job agent resume blob:", e);
-          // Text extract still works without blob storage
         }
       }
     }
@@ -63,6 +71,15 @@ export async function POST(request: Request) {
     contentText = String(body.contentText ?? "").trim();
     fileName = typeof body.fileName === "string" ? body.fileName : null;
     improve = body.improve === true;
+    if (typeof body.jobDescription === "string" && body.jobDescription.trim()) {
+      jobDescription = body.jobDescription.trim();
+    }
+    if (typeof body.jobTitle === "string" && body.jobTitle.trim()) {
+      jobTitle = body.jobTitle.trim();
+    }
+    if (typeof body.company === "string" && body.company.trim()) {
+      company = body.company.trim();
+    }
   }
 
   if (!contentText) {
@@ -77,11 +94,31 @@ export async function POST(request: Request) {
   contentText = contentText.slice(0, MAX_TEXT);
 
   if (improve) {
-    const profile = await prisma.jobAgentProfile.findUnique({ where: { userId: gate.userId } });
+    const [profile, account] = await Promise.all([
+      prisma.jobAgentProfile.findUnique({ where: { userId: gate.userId } }),
+      basePrisma.user.findUnique({
+        where: { id: gate.userId },
+        select: { email: true, name: true },
+      }),
+    ]);
+    const contactEmail = resolveApplicantEmail({
+      contactEmail: profile?.contactEmail,
+      resumeText: contentText,
+      accountEmail: account?.email,
+    });
+    const contactName = (profile?.contactName || account?.name || "").trim() || null;
+    const contactPhone = (profile?.contactPhone || "").trim() || null;
+
     contentText = await improveResumeText({
       resumeText: contentText,
       jobTitles: asStringArray(profile?.jobTitles),
       notes: profile?.notes ?? undefined,
+      jobDescription,
+      jobTitle,
+      company,
+      contactEmail,
+      contactName,
+      contactPhone,
     });
   }
 
@@ -117,6 +154,7 @@ export async function POST(request: Request) {
       version: row.version,
       createdAt: row.createdAt.toISOString(),
       improved: improve,
+      tailoredToJob: Boolean(jobDescription),
     },
   });
 }
