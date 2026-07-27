@@ -200,6 +200,42 @@ export async function recordBillingInvoiceFromSubscriptionRow(input: {
   });
 }
 
+/** Complimentary VIP from admin — recorded for audit; excluded from SickKids VIP tally. */
+export async function recordBillingInvoiceFromAdminGrant(input: {
+  userId: string;
+  planId: string;
+  grantLabel: string;
+  adminTag: string;
+  periodEnd: Date;
+  paidAt?: Date;
+}): Promise<void> {
+  const paidAt = input.paidAt ?? new Date();
+  const existing = await (
+    prisma as unknown as {
+      billingInvoice: {
+        findUnique: (args: { where: { stripeSessionId: string } }) => Promise<{ id: string } | null>;
+      };
+    }
+  ).billingInvoice.findUnique({ where: { stripeSessionId: input.adminTag } }).catch(() => null);
+  if (existing) return;
+
+  await invoiceDb().create({
+    data: {
+      userId: input.userId,
+      stripeSessionId: input.adminTag,
+      amountUsd: 0,
+      currency: "usd",
+      plan: input.planId,
+      description: `Complimentary VIP — ${input.grantLabel} (admin grant)`,
+      status: "paid",
+      paidAt,
+      periodStart: paidAt,
+      periodEnd: input.periodEnd,
+      paymentMethod: "admin_grant",
+    },
+  });
+}
+
 export async function listUserBillingInvoices(
   userId: string,
   opts?: { month?: string | null; limit?: number }

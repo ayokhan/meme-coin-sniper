@@ -8,6 +8,7 @@ import { verifyUsdcPayment } from '@/lib/verify-solana-payment';
 import { getUsageThisMonth } from '@/lib/usage';
 import { recordReferralCommissionForSubscription } from '@/lib/referral-commission';
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from '@/lib/feature-flags';
+import { recordBillingInvoiceFromSubscriptionRow } from '@/lib/billing-invoices';
 
 const PAYMENT_WALLET = process.env.SOLANA_PAYMENT_WALLET ?? '';
 const USDC_MINT = process.env.SOLANA_USDC_MINT ?? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
@@ -125,6 +126,16 @@ export async function POST(request: Request) {
   });
 
   await recordReferralCommissionForSubscription(sub.id);
+
+  await recordBillingInvoiceFromSubscriptionRow({
+    userId: session.user.id,
+    subscriptionId: sub.id,
+    amountUsd: plan.priceUsd,
+    planId: plan.id,
+    paidAt: new Date(),
+    periodEnd: expiresAt,
+    paymentMethod: "usdc",
+  }).catch((e) => console.error("billing invoice after USDC subscribe:", e));
 
   return NextResponse.json({
     success: true,

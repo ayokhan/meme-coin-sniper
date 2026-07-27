@@ -20,6 +20,15 @@ type VipSummary = {
   sickKidsOwedCents: number;
   sickKidsRemittedCents: number;
   sickKidsOutstandingCents: number;
+  countedPurchases?: Array<{
+    id: string;
+    email: string | null;
+    name: string | null;
+    plan: string | null;
+    amountUsd: number;
+    paymentMethod: string | null;
+    paidAt: string;
+  }>;
 };
 
 type SaleRow = {
@@ -235,8 +244,9 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
         <CardContent className="pt-5 space-y-3">
           <h3 className="font-semibold text-sm">SickKids counting — start dates</h3>
           <p className="text-xs text-muted-foreground">
-            VIP giving only counts subscriptions paid on or after the date you set (going forward). Historical VIP
-            purchases before this promo are excluded.
+            VIP giving only counts <strong>card</strong> or <strong>USDC</strong> subscriptions paid on or after the
+            date you set. Admin complimentary grants (e.g. 1 month free) are marked separately and never add to
+            SickKids owed.
           </p>
           <label className="block text-xs text-muted-foreground max-w-sm">
             VIP SickKids starts at
@@ -334,9 +344,9 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
           <CardContent className="pt-5 space-y-3">
             <h3 className="font-semibold text-sm">VIP → SickKids</h3>
             <p className="text-xs text-muted-foreground">
-              {vip?.purchases ?? 0} VIP purchases since start date · owed{" "}
+              {vip?.purchases ?? 0} paid VIP (card/USDC) since start date · owed{" "}
               {formatStoreMoney(vip?.sickKidsOwedCents ?? 0)} (${rates.perVipUsd} each) ·
-              outstanding {formatStoreMoney(vip?.sickKidsOutstandingCents ?? 0)}
+              outstanding {formatStoreMoney(vip?.sickKidsOutstandingCents ?? 0)}. Free admin grants excluded.
             </p>
             <label className="block text-xs text-muted-foreground">
               Note (optional)
@@ -448,6 +458,29 @@ export default function AdminNovaStoreDashboard({ onError, onOk }: Props) {
           </div>
         )}
       </div>
+
+      {(vip?.countedPurchases?.length ?? 0) > 0 && (
+        <div>
+          <h3 className="font-semibold text-sm mb-2">VIP payments counting toward SickKids</h3>
+          <p className="text-xs text-muted-foreground mb-2">Card and USDC only — complimentary admin grants do not appear here.</p>
+          <div className="space-y-2">
+            {vip!.countedPurchases!.slice(0, 50).map((p) => (
+              <div
+                key={p.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-xs"
+              >
+                <span>
+                  {p.email || p.name || "—"} · {p.plan ?? "VIP"} ·{" "}
+                  <span className="uppercase">{p.paymentMethod ?? "—"}</span>
+                </span>
+                <span className="tabular-nums text-muted-foreground">
+                  ${p.amountUsd} · {new Date(p.paidAt).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {remittances.length > 0 && (
         <div>

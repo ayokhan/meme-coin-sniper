@@ -47,6 +47,13 @@ async function loadDashboardPayload() {
   const vipWhere: Record<string, unknown> = {
     status: "paid",
     plan: { in: [...VIP_PLAN_IDS] },
+    /** Only real customer payments — exclude admin free grants and $0 comps. */
+    amountUsd: { gt: 0 },
+    OR: [
+      { paymentMethod: { in: ["card", "usdc"] } },
+      // Legacy invoices before paymentMethod was set: Stripe sessions = card.
+      { paymentMethod: null, stripeSessionId: { not: null } },
+    ],
   };
   if (settings.vipDonationStartsAt) {
     vipWhere.paidAt = { gte: settings.vipDonationStartsAt };
@@ -72,6 +79,7 @@ async function loadDashboardPayload() {
             plan: string | null;
             paidAt: Date;
             stripeSessionId: string | null;
+            paymentMethod: string | null;
             user: { email: string | null; name: string | null } | null;
           }>
         >;
@@ -88,6 +96,7 @@ async function loadDashboardPayload() {
           plan: true,
           paidAt: true,
           stripeSessionId: true,
+          paymentMethod: true,
           user: { select: { email: true, name: true } },
         },
       })
@@ -151,6 +160,16 @@ async function loadDashboardPayload() {
       sickKidsOwedCents: vipOwedCents,
       sickKidsRemittedCents: vipRemitted,
       sickKidsOutstandingCents: vipOutstandingCents,
+      /** Paid VIP invoices that count toward SickKids (card/USDC only). */
+      countedPurchases: (Array.isArray(vipInvoices) ? vipInvoices : []).map((inv) => ({
+        id: inv.id,
+        email: inv.user?.email ?? null,
+        name: inv.user?.name ?? null,
+        plan: inv.plan,
+        amountUsd: inv.amountUsd,
+        paymentMethod: inv.paymentMethod ?? (inv.stripeSessionId ? "card" : null),
+        paidAt: inv.paidAt instanceof Date ? inv.paidAt.toISOString() : String(inv.paidAt),
+      })),
     },
     sales: salesRows,
     remittances,

@@ -13,6 +13,7 @@ import {
 } from "@/lib/admin-vip-grant";
 import { prisma } from "@/lib/db";
 import { VIP_PLANS } from "@/lib/subscription";
+import { recordBillingInvoiceFromAdminGrant } from "@/lib/billing-invoices";
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
@@ -145,6 +146,14 @@ export async function POST(
       notes: "Admin VIP grant",
     }).catch((e) => console.error("referral sync after admin grant:", e));
 
+    await recordBillingInvoiceFromAdminGrant({
+      userId,
+      planId,
+      grantLabel: grantLabel(grantId),
+      adminTag,
+      periodEnd: expiresAt,
+    }).catch((e) => console.error("billing invoice after admin grant:", e));
+
     return NextResponse.json({
       success: true,
       grant: grantId,
@@ -155,6 +164,8 @@ export async function POST(
         expiresAt: expiresAt.toISOString(),
         extendedFromExisting: !!active,
       },
+      complimentary: true,
+      sickKidsExcluded: true,
     });
   } catch (e) {
     console.error("Admin set subscription error:", e);
