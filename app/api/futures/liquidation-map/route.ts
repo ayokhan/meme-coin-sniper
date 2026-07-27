@@ -11,6 +11,10 @@ import {
   normalizeMetalBase,
   type BlofinMetal,
 } from "@/lib/blofin-metals";
+import {
+  getBlofinTrendingPerpBySymbol,
+  getNovaScalpCandles,
+} from "@/lib/nova-scalp-blofin-market";
 
 type ClusterSide = "long_liq_below" | "short_liq_above";
 
@@ -353,6 +357,8 @@ export async function POST(request: Request) {
 
     const useBlofinMetal = isBlofinMetal(symbol);
     let market: TrendingPerp | null = null;
+    /** Candles from Blofin when metal or Blofin-only crypto (e.g. SNXX). */
+    let useBlofinCandles = useBlofinMetal;
     if (useBlofinMetal) {
       market = await getBlofinMetalTrendingPerp(symbol as BlofinMetal);
       if (!market) {
@@ -370,8 +376,15 @@ export async function POST(request: Request) {
         market = locateContract(symbol, all);
       }
       if (!market) {
+        market = await getBlofinTrendingPerpBySymbol(symbol);
+        if (market) useBlofinCandles = true;
+      }
+      if (!market) {
         return NextResponse.json(
-          { success: false, error: `No perpetual market found for ${symbol} on the connected futures feed right now.` },
+          {
+            success: false,
+            error: `No perpetual market found for ${symbol} on Hyperliquid or Blofin right now.`,
+          },
           { status: 404 }
         );
       }
@@ -383,8 +396,10 @@ export async function POST(request: Request) {
     const fundingRatePct = parseNum(market.funding) * 100;
     const dayChangePct = Number.isFinite(market.dayPct) ? market.dayPct : 0;
     const fetchCandles = (interval: string, limit: number) =>
-      useBlofinMetal
-        ? getBlofinMetalCandles(symbol as BlofinMetal, interval, limit)
+      useBlofinCandles
+        ? useBlofinMetal
+          ? getBlofinMetalCandles(symbol as BlofinMetal, interval, limit)
+          : getNovaScalpCandles(market!.coin, interval, limit)
         : getCandles(market!.coin, interval, limit);
     const candles = await fetchCandles("1h", 24);
     const structureCandles = await fetchCandles("15m", 48);

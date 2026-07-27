@@ -95,6 +95,38 @@ function tickerToTrendingPerp(t: BlofinSwapTicker): TrendingPerp | null {
   };
 }
 
+/** Resolve a Blofin USDT swap by base (e.g. SNXX) for tools that import Blofin positions. */
+export async function getBlofinTrendingPerpBySymbol(symbol: string): Promise<TrendingPerp | null> {
+  const base = String(symbol ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/-USDT$/i, "")
+    .split(/[\/\-\s]/)[0];
+  if (!base) return null;
+
+  const { data: tickers } = await fetchBlofinSwapTickersCached();
+  for (const t of tickers) {
+    const row = tickerToTrendingPerp(t);
+    if (row?.coin === base) return row;
+  }
+
+  try {
+    const ticker = await getBlofinTicker(toBlofinInstId(base));
+    const last = ticker?.last ? Number(ticker.last) : NaN;
+    if (!Number.isFinite(last) || last <= 0) return null;
+    return {
+      coin: base,
+      markPx: String(last),
+      prevDayPx: String(last),
+      dayPct: 0,
+      dayNtlVlm: "0",
+      openInterest: "0",
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Quick Wins universe from Blofin: priority majors/alts that list on Blofin + top movers by |24h %|.
  */
