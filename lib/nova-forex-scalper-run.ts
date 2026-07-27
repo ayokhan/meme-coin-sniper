@@ -14,7 +14,7 @@ import {
   getMetaApiPositions,
   getMetaApiSymbolPrice,
   placeMetaApiMarketOrder,
-  closeMetaApiPositionsBySymbol,
+  closeMetaApiPosition,
 } from "@/lib/metaapi";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,8 +72,10 @@ function stopHit(side: string, stop: number, price: number): boolean {
 
 async function readPrice(symbol: string, accountId: string | null, brokerSymbol: string): Promise<number> {
   if (accountId) {
-    const p = await getMetaApiSymbolPrice(accountId, brokerSymbol);
-    if (p?.last) return p.last;
+    for (const sym of brokerSymbolAliases(brokerSymbol)) {
+      const p = await getMetaApiSymbolPrice(accountId, sym);
+      if (p?.last) return p.last;
+    }
   }
   if (usesSpotCalibration(symbol)) {
     const mid = await getForexSpotMid(symbol);
@@ -81,6 +83,40 @@ async function readPrice(symbol: string, accountId: string | null, brokerSymbol:
   }
   const candles = await getForexCandles(symbol, "1m", 2).catch(() => []);
   return candles[0] ? parseFloatSafe(candles[0][4]) : 0;
+}
+
+function brokerSymbolAliases(brokerSymbol: string): string[] {
+  if (brokerSymbol === "XAUUSD") return ["XAUUSD", "GOLD", "XAUUSDm", "XAUUSD."];
+  if (brokerSymbol === "XAGUSD") return ["XAGUSD", "SILVER", "XAGUSDm", "XAGUSD."];
+  return [brokerSymbol];
+}
+
+/** Prefer a symbol MetaAPI can price on this account (gold often listed as GOLD). */
+async function resolveTradeSymbol(accountId: string, brokerSymbol: string): Promise<string> {
+  for (const sym of brokerSymbolAliases(brokerSymbol)) {
+    const p = await getMetaApiSymbolPrice(accountId, sym);
+    if (p?.last) return sym;
+  }
+  return brokerSymbol;
+}
+
+async function closePositionsForSymbol(
+  accountId: string,
+  brokerSymbol: string,
+  tradeSymbol: string
+): Promise<{ ok: boolean; error?: string }> {
+  const aliases = new Set(
+    [...brokerSymbolAliases(brokerSymbol), tradeSymbol].map((s) => s.toUpperCase())
+  );
+  const positions = await getMetaApiPositions(accountId);
+  const matches = positions.filter((p) => aliases.has(String(p.symbol ?? "").toUpperCase()));
+  if (matches.length === 0) return { ok: true };
+  let lastError: string | undefined;
+  for (const pos of matches) {
+    const res = await closeMetaApiPosition({ accountId, positionId: pos.id });
+    if (!res.ok) lastError = res.error;
+  }
+  return lastError ? { ok: false, error: lastError } : { ok: true };
 }
 
 export async function runNovaForexScalperTick(
@@ -149,7 +185,9 @@ export async function runNovaForexScalperTick(
   }
 
   const positions = await getMetaApiPositions(accountId);
-  const hasExchangePosition = positions.some((p) => p.symbol === brokerSymbol);
+  const aliases = new Set(brokerSymbolAliases(brokerSymbol).map((s) => s.toUpperCase()));
+  const hasExchangePosition = positions.some((p) => aliases.has(String(p.symbol ?? "").toUpperCase()));
+  const tradeSymbol = await resolveTradeSymbol(accountId, brokerSymbol);
 
   if (row.inPosition && !hasExchangePosition) {
     await updateRow({
@@ -191,7 +229,7 @@ export async function runNovaForexScalperTick(
 
   if (row.inPosition || hasExchangePosition) {
     if (row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && stopHit(side, row.stopLossPrice, price)) {
-      const cl = await closeMetaApiPositionsBySymbol({ accountId, symbol: brokerSymbol });
+      const cl = await closeMetaApiPositionsBySymbol({ accountId, symbol: tradeSymbol });
       if (!cl.ok) {
         const err = cl.error ?? "Stop close failed";
         await updateRow({
@@ -219,7 +257,7 @@ export async function runNovaForexScalperTick(
     }
 
     if (shouldExit(side, row.exitPrice, lastRef, price)) {
-      const cl = await closeMetaApiPositionsBySymbol({ accountId, symbol: brokerSymbol });
+      const cl = await closeMetaApiPositionsBySymbol({ accountId, symbol: tradeSymbol });
       if (!cl.ok) {
         const err = cl.error ?? "Exit close failed";
         await updateRow({
@@ -256,14 +294,20 @@ export async function runNovaForexScalperTick(
   }
 
   if (!shouldEnter(side, trigger, row.entryPrice, lastRef, price)) {
-    await updateRow({ lastRefPrice: price, lastTickAt: new Date(), lastError: null });
+    const triggerLabel = trigger === "cross_up" ? "cross up" : "cross down";
+    await updateRow({
+      lastRefPrice: price,
+      lastTickAt: new Date(),
+      lastError: null,
+      lastAction: `Waiting for ${side} ${triggerLabel} of entry ${row.entryPrice} (MT mid ~${price}; prev ref ~${lastRef}). Price must cross entry — already through it won’t enter until it comes back and crosses again.`,
+    });
     return { ok: true, message: "Flat; waiting for entry cross." };
   }
 
   const lotSize = Math.max(0.01, row.lotSize || 0.01);
   const order = await placeMetaApiMarketOrder({
     accountId,
-    symbol: brokerSymbol,
+    symbol: tradeSymbol,
     side: side === "long" ? "buy" : "sell",
     volume: lotSize,
   });
