@@ -229,7 +229,7 @@ export async function runNovaForexScalperTick(
 
   if (row.inPosition || hasExchangePosition) {
     if (row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && stopHit(side, row.stopLossPrice, price)) {
-      const cl = await closeMetaApiPositionsBySymbol({ accountId, symbol: tradeSymbol });
+      const cl = await closePositionsForSymbol(accountId, brokerSymbol, tradeSymbol);
       if (!cl.ok) {
         const err = cl.error ?? "Stop close failed";
         await updateRow({
@@ -257,7 +257,7 @@ export async function runNovaForexScalperTick(
     }
 
     if (shouldExit(side, row.exitPrice, lastRef, price)) {
-      const cl = await closeMetaApiPositionsBySymbol({ accountId, symbol: tradeSymbol });
+      const cl = await closePositionsForSymbol(accountId, brokerSymbol, tradeSymbol);
       if (!cl.ok) {
         const err = cl.error ?? "Exit close failed";
         await updateRow({
