@@ -204,6 +204,7 @@ model User {
   referralCommissionsAsReferee ReferralCommission[] @relation("RefereeCommissions")
   blofinPartnerLinkClicks    BlofinPartnerLinkClick[]
   forexBrokerPartnerLinkClicks ForexBrokerPartnerLinkClick[]
+  forexPartnerRebateEnrollments ForexPartnerRebateEnrollment[]
   userForexBrokerConfigs     UserForexBrokerConfig[]
   novaForexBotConfigs        NovaForexBotConfig[]
   novaForexScalperConfigs    NovaForexScalperConfig[]
@@ -549,6 +550,34 @@ model ForexBrokerPartnerLinkClick {
   @@index([userId])
   @@index([broker])
   @@index([clickedAt])
+}
+
+/**
+ * User-submitted forex partner rebate enrollment (name, MT login, Solana USDC wallet).
+ * Admin → Partner rebates. Default offer: $2/lot from your IB commission.
+ */
+model ForexPartnerRebateEnrollment {
+  id            String   @id @default(cuid())
+  userId        String
+  /** vantage | tiomarkets | assexmarkets */
+  broker        String
+  customerName  String
+  customerEmail String
+  /** Broker / MT4 / MT5 account login (for matching volume). */
+  mtLogin       String
+  /** Solana address for USDC payouts. */
+  usdcWallet    String
+  /** percent | usd | per_lot — default per_lot $2 */
+  rewardType    String   @default("per_lot")
+  rewardValue   Float    @default(2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, broker])
+  @@index([broker, createdAt(sort: Desc)])
+  @@index([customerEmail])
+  @@index([usdcWallet])
 }
 
 /**

@@ -70,21 +70,33 @@ export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact 
           )}
         </div>
         {!preview && (
-          <a
-            href={forexBrokerPartnerRegisterPath(partnerBroker)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 transition-colors"
-          >
-            {view.ctaLabel}
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={forexBrokerPartnerRegisterPath(partnerBroker)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 transition-colors"
+            >
+              {view.ctaLabel}
+            </a>
+            <a
+              href="#forex-partner-rebate"
+              className="inline-flex items-center justify-center rounded-md border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 text-xs font-semibold px-3 py-2 transition-colors"
+            >
+              Submit $2/lot rebate details
+            </a>
+          </div>
         )}
         {preview && (
           <span className="inline-flex items-center justify-center rounded-md bg-emerald-600/80 text-white text-xs font-semibold px-3 py-2">
             {view.ctaLabel}
           </span>
         )}
-        {compact && <p className="text-[11px] text-zinc-500">Register first, then connect your MT4/MT5 login below.</p>}
+        {compact && (
+          <p className="text-[11px] text-zinc-500">
+            Register first, connect MT4/MT5 below, then submit rebate details for $2 USDC per lot.
+          </p>
+        )}
       </div>
     </div>
   );

@@ -80,7 +80,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   {
     href: "/admin/forex-partner-rebates",
     label: "Partner rebates",
-    description: "Track IB commission shares you pay to referred customers",
+    description: "User enrollments + IB commission shares you pay ($2/lot USDC)",
     icon: Gift,
     group: "users",
     ownerOnly: true,

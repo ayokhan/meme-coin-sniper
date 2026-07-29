@@ -9,6 +9,7 @@ import {
   REBATE_REWARD_TYPES,
   REBATE_STATUSES,
   rebateBrokerLabel,
+  shortenWallet,
   type RebateBrokerId,
   type RebateRewardType,
   type RebateStatus,
@@ -31,10 +32,27 @@ type Payout = {
   createdAt: string;
 };
 
+type Enrollment = {
+  id: string;
+  userId: string;
+  broker: string;
+  brokerLabel: string;
+  customerName: string;
+  customerEmail: string;
+  mtLogin: string;
+  usdcWallet: string;
+  rewardType: string;
+  rewardValue: number;
+  rewardLabel: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const inputClass = "mt-1 w-full h-9 rounded border px-2 bg-white dark:bg-zinc-900 text-sm";
 
 export default function AdminForexPartnerRebatesPage() {
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,6 +69,18 @@ export default function AdminForexPartnerRebatesPage() {
   const [periodNote, setPeriodNote] = useState("");
   const [notes, setNotes] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const loadEnrollments = useCallback(async () => {
+    try {
+      const q = new URLSearchParams();
+      if (filterBroker && filterBroker !== "other") q.set("broker", filterBroker);
+      const res = await fetch(`/api/admin/forex-partner-rebate-enrollments?${q}`, { credentials: "include" });
+      const data = await res.json();
+      if (res.ok && data.success) setEnrollments(data.enrollments ?? []);
+    } catch {
+      /* ignore */
+    }
+  }, [filterBroker]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -72,8 +102,32 @@ export default function AdminForexPartnerRebatesPage() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadEnrollments();
+  }, [load, loadEnrollments]);
 
+  const copyWallet = async (wallet: string) => {
+    try {
+      await navigator.clipboard.writeText(wallet);
+      setNotice("Wallet copied.");
+    } catch {
+      setError("Could not copy wallet.");
+    }
+  };
+
+  const prefillFromEnrollment = (e: Enrollment) => {
+    setEditingId(null);
+    setCustomerName(e.customerName);
+    setCustomerEmail(e.customerEmail);
+    setBroker((REBATE_BROKERS.includes(e.broker as RebateBrokerId) ? e.broker : "other") as RebateBrokerId);
+    setRewardType((e.rewardType as RebateRewardType) || "per_lot");
+    setRewardValue(String(e.rewardValue || 2));
+    setAmountPaidUsd("");
+    setStatus("pending");
+    setPeriodNote("");
+    setNotes(`MT login: ${e.mtLogin}\nUSDC wallet: ${e.usdcWallet}`);
+    setNotice(`Prefilled payout for ${e.customerName}. Enter lots/period, then Add record.`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const resetForm = () => {
     setEditingId(null);
     setCustomerName("");
@@ -189,11 +243,82 @@ export default function AdminForexPartnerRebatesPage() {
     <div className="max-w-5xl">
       <AdminPageHeader
         title="Partner rebates"
-        description="Track what you pay referred customers from your IB commission (TIO / Vantage / etc.). Brokers do not pay end users — you share from your commission manually."
+        description="Users submit MT login + Solana USDC wallet in Nova Forex Bots. You pay $2/lot from IB commission manually, then log it here."
       />
       <div className="space-y-4">
         {error && <p className="text-sm text-rose-600">{error}</p>}
         {notice && <p className="text-sm text-emerald-700 dark:text-emerald-300">{notice}</p>}
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Enrollments ({enrollments.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            {enrollments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No user submissions yet. Users enroll under Nova Forex Bots → Submit rebate details.
+              </p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-muted-foreground border-b">
+                    <th className="py-2 pr-2">Customer</th>
+                    <th className="py-2 pr-2">Broker</th>
+                    <th className="py-2 pr-2">MT login</th>
+                    <th className="py-2 pr-2">USDC wallet</th>
+                    <th className="py-2 pr-2">Offer</th>
+                    <th className="py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {enrollments.map((e) => (
+                    <tr key={e.id} className="border-b border-zinc-100 dark:border-zinc-800">
+                      <td className="py-1.5 pr-2">
+                        <div className="font-medium">{e.customerName}</div>
+                        <div className="text-muted-foreground">{e.customerEmail}</div>
+                      </td>
+                      <td className="py-1.5 pr-2">{e.brokerLabel}</td>
+                      <td className="py-1.5 pr-2 font-mono">{e.mtLogin}</td>
+                      <td className="py-1.5 pr-2">
+                        <button
+                          type="button"
+                          className="font-mono text-left hover:underline"
+                          title={e.usdcWallet}
+                          onClick={() => void copyWallet(e.usdcWallet)}
+                        >
+                          {shortenWallet(e.usdcWallet, 6, 6)}
+                        </button>
+                      </td>
+                      <td className="py-1.5 pr-2">{e.rewardLabel}</td>
+                      <td className="py-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px]"
+                            onClick={() => void copyWallet(e.usdcWallet)}
+                          >
+                            Copy wallet
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px]"
+                            onClick={() => prefillFromEnrollment(e)}
+                          >
+                            Create payout
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid sm:grid-cols-2 gap-3 text-sm">
           <Card>
