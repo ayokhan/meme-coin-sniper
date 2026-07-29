@@ -5,7 +5,7 @@ import { jobAgentDb as prisma } from "@/lib/nova-job-agent/db";
 
 export const dynamic = "force-dynamic";
 
-/** Owner metrics: Nova Jobs Agent application volume. */
+/** Owner metrics: Nova Jobs Agent — resumes, cover letters, applications. */
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!isOwnerSession(session)) {
@@ -20,32 +20,51 @@ export async function GET() {
     startOfWeek.setUTCDate(startOfWeek.getUTCDate() - 7);
     const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-    const [byStatus, appliedToday, appliedWeek, appliedMonth, preparedTotal, usersWithApps, topUsers] =
-      await Promise.all([
-        prisma.jobAgentApplication.groupBy({
-          by: ["status"],
-          _count: { _all: true },
-        }),
-        prisma.jobAgentApplication.count({
-          where: { status: "applied", createdAt: { gte: startOfDay } },
-        }),
-        prisma.jobAgentApplication.count({
-          where: { status: "applied", createdAt: { gte: startOfWeek } },
-        }),
-        prisma.jobAgentApplication.count({
-          where: { status: "applied", createdAt: { gte: startOfMonth } },
-        }),
-        prisma.jobAgentApplication.count({ where: { status: "prepared" } }),
-        prisma.jobAgentApplication.groupBy({
-          by: ["userId"],
-          _count: { _all: true },
-        }),
-        prisma.jobAgentApplication.groupBy({
-          by: ["userId"],
-          where: { status: { in: ["applied", "prepared"] } },
-          _count: { _all: true },
-        }),
-      ]);
+    const [
+      byStatus,
+      appliedToday,
+      appliedWeek,
+      appliedMonth,
+      resumeVersions,
+      activeResumes,
+      coverLetters,
+      tunedResumes,
+      profiles,
+      usersWithApps,
+      topUsers,
+    ] = await Promise.all([
+      prisma.jobAgentApplication.groupBy({
+        by: ["status"],
+        _count: { _all: true },
+      }),
+      prisma.jobAgentApplication.count({
+        where: { status: "applied", createdAt: { gte: startOfDay } },
+      }),
+      prisma.jobAgentApplication.count({
+        where: { status: "applied", createdAt: { gte: startOfWeek } },
+      }),
+      prisma.jobAgentApplication.count({
+        where: { status: "applied", createdAt: { gte: startOfMonth } },
+      }),
+      prisma.jobAgentResume.count(),
+      prisma.jobAgentResume.count({ where: { isActive: true } }),
+      prisma.jobAgentApplication.count({
+        where: { coverLetter: { not: null } },
+      }),
+      prisma.jobAgentApplication.count({
+        where: { resumeSnapshot: { not: null } },
+      }),
+      prisma.jobAgentProfile.count(),
+      prisma.jobAgentApplication.groupBy({
+        by: ["userId"],
+        _count: { _all: true },
+      }),
+      prisma.jobAgentApplication.groupBy({
+        by: ["userId"],
+        where: { status: { in: ["applied", "prepared"] } },
+        _count: { _all: true },
+      }),
+    ]);
 
     const statusCounts: Record<string, number> = {};
     let total = 0;
@@ -56,34 +75,77 @@ export async function GET() {
 
     const ranked = (topUsers as Array<{ userId: string; _count: { _all: number } }>)
       .sort((a, b) => b._count._all - a._count._all)
-      .slice(0, 15);
+      .slice(0, 20);
     const topIds = ranked.map((r) => r.userId);
-    const users =
+
+    const [users, perUserCover, perUserTuned, perUserApplied, perUserPrepared, perUserResumes] =
       topIds.length === 0
-        ? []
-        : await (
-            prisma as unknown as {
-              user: {
-                findMany: (args: unknown) => Promise<
-                  Array<{ id: string; email: string | null; name: string | null }>
-                >;
-              };
-            }
-          ).user.findMany({
-            where: { id: { in: topIds } },
-            select: { id: true, email: true, name: true },
-          });
-    const userById = new Map(users.map((u) => [u.id, u]));
+        ? [[], [], [], [], [], []]
+        : await Promise.all([
+            (
+              prisma as unknown as {
+                user: {
+                  findMany: (args: unknown) => Promise<
+                    Array<{ id: string; email: string | null; name: string | null }>
+                  >;
+                };
+              }
+            ).user.findMany({
+              where: { id: { in: topIds } },
+              select: { id: true, email: true, name: true },
+            }),
+            prisma.jobAgentApplication.groupBy({
+              by: ["userId"],
+              where: { userId: { in: topIds }, coverLetter: { not: null } },
+              _count: { _all: true },
+            }),
+            prisma.jobAgentApplication.groupBy({
+              by: ["userId"],
+              where: { userId: { in: topIds }, resumeSnapshot: { not: null } },
+              _count: { _all: true },
+            }),
+            prisma.jobAgentApplication.groupBy({
+              by: ["userId"],
+              where: { userId: { in: topIds }, status: "applied" },
+              _count: { _all: true },
+            }),
+            prisma.jobAgentApplication.groupBy({
+              by: ["userId"],
+              where: { userId: { in: topIds }, status: "prepared" },
+              _count: { _all: true },
+            }),
+            prisma.jobAgentResume.groupBy({
+              by: ["userId"],
+              where: { userId: { in: topIds } },
+              _count: { _all: true },
+            }),
+          ]);
+
+    const userById = new Map(
+      (users as Array<{ id: string; email: string | null; name: string | null }>).map((u) => [u.id, u])
+    );
+    const toMap = (rows: Array<{ userId: string; _count: { _all: number } }>) =>
+      new Map(rows.map((r) => [r.userId, r._count._all]));
+    const coverBy = toMap(perUserCover as Array<{ userId: string; _count: { _all: number } }>);
+    const tunedBy = toMap(perUserTuned as Array<{ userId: string; _count: { _all: number } }>);
+    const appliedBy = toMap(perUserApplied as Array<{ userId: string; _count: { _all: number } }>);
+    const preparedBy = toMap(perUserPrepared as Array<{ userId: string; _count: { _all: number } }>);
+    const resumesBy = toMap(perUserResumes as Array<{ userId: string; _count: { _all: number } }>);
 
     return NextResponse.json({
       success: true,
       totals: {
         all: total,
         applied: statusCounts.applied ?? 0,
-        prepared: statusCounts.prepared ?? preparedTotal,
+        prepared: statusCounts.prepared ?? 0,
         queued: statusCounts.queued ?? 0,
         failed: statusCounts.failed ?? 0,
         skipped: statusCounts.skipped ?? 0,
+        resumeVersions,
+        activeResumes,
+        coverLetters,
+        tunedResumes,
+        profiles,
       },
       applied: {
         today: appliedToday,
@@ -98,6 +160,11 @@ export async function GET() {
           email: u?.email ?? null,
           name: u?.name ?? null,
           applications: r._count._all,
+          applied: appliedBy.get(r.userId) ?? 0,
+          prepared: preparedBy.get(r.userId) ?? 0,
+          coverLetters: coverBy.get(r.userId) ?? 0,
+          tunedResumes: tunedBy.get(r.userId) ?? 0,
+          resumeVersions: resumesBy.get(r.userId) ?? 0,
         };
       }),
     });

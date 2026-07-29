@@ -48,6 +48,9 @@ type Dashboard = {
   queued: number;
   failed: number;
   skipped: number;
+  coverLetters?: number;
+  resumeVersions?: number;
+  tunedResumes?: number;
   recent: Array<{
     id: string;
     jobTitle: string;
@@ -59,6 +62,8 @@ type Dashboard = {
     status: string;
     appliedAt: string | null;
     createdAt: string;
+    hasCoverLetter?: boolean;
+    hasTunedResume?: boolean;
   }>;
 };
 
@@ -616,6 +621,9 @@ export default function NovaJobAgentPanel() {
         {[
           { label: "Applied", value: dashboard?.applied ?? 0 },
           { label: "Prepared", value: dashboard?.prepared ?? 0 },
+          { label: "Cover letters", value: dashboard?.coverLetters ?? 0 },
+          { label: "Tuned resumes", value: dashboard?.tunedResumes ?? 0 },
+          { label: "Resume versions", value: dashboard?.resumeVersions ?? 0 },
           { label: "Queued", value: dashboard?.queued ?? 0 },
           { label: "Total tracked", value: dashboard?.total ?? 0 },
         ].map((s) => (

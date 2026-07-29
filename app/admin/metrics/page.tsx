@@ -101,6 +101,11 @@ type JobsAgentMetrics = {
     queued: number;
     failed: number;
     skipped: number;
+    resumeVersions: number;
+    activeResumes: number;
+    coverLetters: number;
+    tunedResumes: number;
+    profiles: number;
   };
   applied: { today: number; last7Days: number; thisMonth: number };
   activeUsers: number;
@@ -109,6 +114,11 @@ type JobsAgentMetrics = {
     email: string | null;
     name: string | null;
     applications: number;
+    applied?: number;
+    prepared?: number;
+    coverLetters?: number;
+    tunedResumes?: number;
+    resumeVersions?: number;
   }>;
 };
 
@@ -572,7 +582,7 @@ export default function AdminMetricsPage() {
                   <div>
                     <CardTitle>Nova Jobs Agent</CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Applications prepared or marked applied across all users. Owner only.
+                      Resumes, cover letters, and applications across all users. Owner only.
                     </p>
                   </div>
                 </div>
@@ -595,6 +605,10 @@ export default function AdminMetricsPage() {
                 {[
                   { label: "Applied (all time)", value: jobsMetrics?.totals.applied ?? 0 },
                   { label: "Prepared", value: jobsMetrics?.totals.prepared ?? 0 },
+                  { label: "Cover letters", value: jobsMetrics?.totals.coverLetters ?? 0 },
+                  { label: "JD-tuned resumes", value: jobsMetrics?.totals.tunedResumes ?? 0 },
+                  { label: "Resume versions", value: jobsMetrics?.totals.resumeVersions ?? 0 },
+                  { label: "Active base resumes", value: jobsMetrics?.totals.activeResumes ?? 0 },
                   { label: "Applied today", value: jobsMetrics?.applied.today ?? 0 },
                   { label: "Users with apps", value: jobsMetrics?.activeUsers ?? 0 },
                 ].map((s) => (
@@ -615,7 +629,10 @@ export default function AdminMetricsPage() {
                   Applied this month: <strong className="text-zinc-800 dark:text-zinc-200">{jobsMetrics?.applied.thisMonth ?? 0}</strong>
                 </span>
                 <span>
-                  Total tracked: <strong className="text-zinc-800 dark:text-zinc-200">{jobsMetrics?.totals.all ?? 0}</strong>
+                  Profiles set up: <strong className="text-zinc-800 dark:text-zinc-200">{jobsMetrics?.totals.profiles ?? 0}</strong>
+                </span>
+                <span>
+                  Total tracked apps: <strong className="text-zinc-800 dark:text-zinc-200">{jobsMetrics?.totals.all ?? 0}</strong>
                 </span>
               </div>
               {jobsMetrics && jobsMetrics.topUsers.length > 0 ? (
@@ -624,7 +641,11 @@ export default function AdminMetricsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>User</TableHead>
-                        <TableHead className="text-right">Prepared + applied</TableHead>
+                        <TableHead className="text-right">Applied</TableHead>
+                        <TableHead className="text-right">Prepared</TableHead>
+                        <TableHead className="text-right">Covers</TableHead>
+                        <TableHead className="text-right">Tuned resumes</TableHead>
+                        <TableHead className="text-right">Resume vers.</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -638,7 +659,11 @@ export default function AdminMetricsPage() {
                               <div className="text-xs text-muted-foreground">{u.email}</div>
                             ) : null}
                           </TableCell>
-                          <TableCell className="text-right font-semibold">{u.applications}</TableCell>
+                          <TableCell className="text-right font-semibold">{u.applied ?? 0}</TableCell>
+                          <TableCell className="text-right">{u.prepared ?? 0}</TableCell>
+                          <TableCell className="text-right">{u.coverLetters ?? 0}</TableCell>
+                          <TableCell className="text-right">{u.tunedResumes ?? 0}</TableCell>
+                          <TableCell className="text-right">{u.resumeVersions ?? 0}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

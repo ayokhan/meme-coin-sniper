@@ -367,6 +367,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "Show/hide the Nova Store tab (merch: tees, mugs, etc.). Visible to everyone when ON — guests can browse; Stripe card checkout requires sign-in. Free shipping from Canada. Default OFF until you enable it.",
   },
+  page_tab_demo_sessions: {
+    label: "Demo session registration",
+    description:
+      "When ON, published demo sessions accept public registrations at /demo/[slug] (share on Instagram, Telegram, WhatsApp). Manage sessions under Admin → Demo sessions. Default OFF.",
+  },
   page_tab_nova_job_agent: {
     label: "Nova Jobs Agent (master)",
     description:

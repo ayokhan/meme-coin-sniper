@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   BarChart3,
+  CalendarDays,
   CreditCard,
   Flag,
   Gift,
@@ -112,6 +113,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Nova Store",
     description: "Merch products, prices, sizes, orders",
     icon: ShoppingBag,
+    group: "product",
+    ownerOnly: true,
+  },
+  {
+    href: "/admin/demo-sessions",
+    label: "Demo sessions",
+    description: "Free Zoom/Meet registration forms & emails",
+    icon: CalendarDays,
     group: "product",
     ownerOnly: true,
   },

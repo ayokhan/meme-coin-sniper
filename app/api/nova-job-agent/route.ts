@@ -70,6 +70,16 @@ export async function GET() {
     totalAll += g._count._all;
   }
 
+  const [coverLetterCount, resumeVersionCount, tunedResumeCount] = await Promise.all([
+    prisma.jobAgentApplication.count({
+      where: { userId: gate.userId, coverLetter: { not: null } },
+    }),
+    prisma.jobAgentResume.count({ where: { userId: gate.userId } }),
+    prisma.jobAgentApplication.count({
+      where: { userId: gate.userId, resumeSnapshot: { not: null } },
+    }),
+  ]);
+
   return Response.json({
     success: true,
     profile: profile
@@ -108,6 +118,9 @@ export async function GET() {
       queued: byStatus.queued ?? 0,
       failed: byStatus.failed ?? 0,
       skipped: byStatus.skipped ?? 0,
+      coverLetters: coverLetterCount,
+      resumeVersions: resumeVersionCount,
+      tunedResumes: tunedResumeCount,
       recent: (apps as any[]).slice(0, 20).map((a) => ({
         id: a.id,
         jobTitle: a.jobTitle,
@@ -119,6 +132,8 @@ export async function GET() {
         status: a.status,
         appliedAt: a.appliedAt?.toISOString() ?? null,
         createdAt: a.createdAt.toISOString(),
+        hasCoverLetter: Boolean(a.coverLetter),
+        hasTunedResume: Boolean(a.resumeSnapshot),
       })),
     },
   });
