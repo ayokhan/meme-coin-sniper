@@ -17,7 +17,7 @@ export async function POST(request: Request, ctx: Ctx) {
   }
 
   const { id } = await ctx.params;
-  let body: { subject?: string; body?: string; onlyNewsletterOptIn?: boolean };
+  let body: { subject?: string; body?: string; onlyNewsletterOptIn?: boolean; includePending?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -38,23 +38,37 @@ export async function POST(request: Request, ctx: Ctx) {
           title: string;
           meetingUrl: string | null;
           sessionAt: Date | null;
-          registrations: Array<{ email: string; newsletterOptIn: boolean; name: string }>;
+          registrations: Array<{
+            email: string;
+            newsletterOptIn: boolean;
+            name: string;
+            paymentStatus: string;
+          }>;
         } | null>;
       };
     }
   ).demoSession.findUnique({
     where: { id },
-    include: { registrations: { select: { email: true, newsletterOptIn: true, name: true } } },
+    include: {
+      registrations: {
+        select: { email: true, newsletterOptIn: true, name: true, paymentStatus: true },
+      },
+    },
   });
 
   if (!demo) {
     return NextResponse.json({ success: false, error: "Session not found." }, { status: 404 });
   }
 
-  let recipients = demo.registrations.map((r) => r.email);
-  if (body.onlyNewsletterOptIn) {
-    recipients = demo.registrations.filter((r) => r.newsletterOptIn).map((r) => r.email);
+  let list = demo.registrations;
+  if (!body.includePending) {
+    list = list.filter((r) => ["paid", "free", "waived"].includes(r.paymentStatus || "free"));
   }
+  if (body.onlyNewsletterOptIn) {
+    list = list.filter((r) => r.newsletterOptIn);
+  }
+
+  const recipients = list.map((r) => r.email);
 
   if (recipients.length === 0) {
     return NextResponse.json({ success: false, error: "No registrant emails to send." }, { status: 400 });

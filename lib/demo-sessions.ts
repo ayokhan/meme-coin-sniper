@@ -17,6 +17,12 @@ export const DEMO_SOURCES = [
   { value: "other", label: "Other" },
 ] as const;
 
+export const DEMO_PAYMENT_STATUSES = ["free", "pending", "paid", "waived"] as const;
+export type DemoPaymentStatus = (typeof DEMO_PAYMENT_STATUSES)[number];
+
+export const DEFAULT_DEMO_PAGE_EYEBROW = "Session registration";
+export const DEFAULT_DEMO_SUBMIT_LABEL = "Complete registration";
+
 export function slugifyDemoTitle(title: string): string {
   return title
     .toLowerCase()
@@ -38,5 +44,14 @@ export function shareTextForDemo(title: string, slug: string, sessionAt?: Date |
   const when = sessionAt
     ? ` — ${sessionAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`
     : "";
-  return `Join my free NovaStaris demo: ${title}${when}\n${publicDemoUrl(slug)}`;
+  return `Join this NovaStaris session: ${title}${when}\n${publicDemoUrl(slug)}`;
 }
+
+export function isPaidDemoSession(priceUsdCents: number | null | undefined): boolean {
+  return typeof priceUsdCents === "number" && priceUsdCents > 0;
+}
+
+export function formatDemoPriceUsd(cents: number): string {
+  return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
+}
+

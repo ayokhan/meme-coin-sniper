@@ -4,18 +4,27 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
-import { publicDemoUrl, shareTextForDemo, slugifyDemoTitle } from "@/lib/demo-sessions";
+import {
+  DEFAULT_DEMO_PAGE_EYEBROW,
+  DEFAULT_DEMO_SUBMIT_LABEL,
+  publicDemoUrl,
+  shareTextForDemo,
+  slugifyDemoTitle,
+} from "@/lib/demo-sessions";
 
 type SessionRow = {
   id: string;
   slug: string;
   title: string;
   description: string | null;
+  pageEyebrow?: string | null;
+  submitLabel?: string | null;
   sessionAt: string | null;
   timezone: string | null;
   meetingUrl: string | null;
   meetingPlatform: string | null;
   locationNote: string | null;
+  priceUsdCents?: number | null;
   isPublished: boolean;
   registrationOpen: boolean;
   maxAttendees: number | null;
@@ -30,11 +39,14 @@ type Registration = {
   phone: string | null;
   city: string | null;
   country: string | null;
+  region?: string | null;
   cryptoExperience: string | null;
   forexExperience: string | null;
   newsletterOptIn: boolean;
   promoOptIn: boolean;
   source: string | null;
+  paymentStatus?: string;
+  amountPaidCents?: number | null;
   createdAt: string;
 };
 
@@ -49,6 +61,9 @@ export default function AdminDemoSessionsPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [pageEyebrow, setPageEyebrow] = useState(DEFAULT_DEMO_PAGE_EYEBROW);
+  const [submitLabel, setSubmitLabel] = useState(DEFAULT_DEMO_SUBMIT_LABEL);
+  const [priceUsd, setPriceUsd] = useState("");
   const [sessionAt, setSessionAt] = useState("");
   const [timezone, setTimezone] = useState("America/Toronto");
   const [meetingUrl, setMeetingUrl] = useState("");
@@ -95,6 +110,11 @@ export default function AdminDemoSessionsPage() {
       setTitle(s.title);
       setSlug(s.slug);
       setDescription(s.description ?? "");
+      setPageEyebrow(s.pageEyebrow || DEFAULT_DEMO_PAGE_EYEBROW);
+      setSubmitLabel(s.submitLabel || DEFAULT_DEMO_SUBMIT_LABEL);
+      setPriceUsd(
+        s.priceUsdCents != null && s.priceUsdCents > 0 ? String(s.priceUsdCents / 100) : ""
+      );
       setSessionAt(s.sessionAt ? toLocalInput(s.sessionAt) : "");
       setTimezone(s.timezone ?? "America/Toronto");
       setMeetingUrl(s.meetingUrl ?? "");
@@ -104,9 +124,9 @@ export default function AdminDemoSessionsPage() {
       setRegistrationOpen(s.registrationOpen !== false);
       setMaxAttendees(s.maxAttendees != null ? String(s.maxAttendees) : "");
       setRegs(s.registrations ?? []);
-      setEmailSubject(`Your NovaStaris demo: ${s.title}`);
+      setEmailSubject(`Your NovaStaris session: ${s.title}`);
       setEmailBody(
-        `Hi,\n\nThanks for registering for ${s.title}.\n\nPlease join with the link below at the scheduled time. Bring questions — we'll walk through the platform live.`
+        `Hi,\n\nThanks for registering for ${s.title}.\n\nPlease join with the link below at the scheduled time. Bring questions — we'll walk through live.`
       );
     } catch {
       setError("Failed to load session detail.");
@@ -121,6 +141,9 @@ export default function AdminDemoSessionsPage() {
     setTitle("");
     setSlug("");
     setDescription("");
+    setPageEyebrow(DEFAULT_DEMO_PAGE_EYEBROW);
+    setSubmitLabel(DEFAULT_DEMO_SUBMIT_LABEL);
+    setPriceUsd("");
     setSessionAt("");
     setTimezone("America/Toronto");
     setMeetingUrl("");
@@ -140,6 +163,9 @@ export default function AdminDemoSessionsPage() {
         title,
         slug: slug || slugifyDemoTitle(title),
         description,
+        pageEyebrow,
+        submitLabel,
+        priceUsd: priceUsd.trim() === "" ? null : priceUsd,
         sessionAt: sessionAt || null,
         timezone,
         meetingUrl,
@@ -227,7 +253,11 @@ export default function AdminDemoSessionsPage() {
         setError(data.error || "Email failed.");
         return;
       }
-      setNotice(`Emailed ${data.sent} of ${data.total} registrants${data.failed ? ` (${data.failed} failed)` : ""}.`);
+      setNotice(
+        `Emailed ${data.sent} of ${data.total} confirmed registrants${
+          data.failed ? ` (${data.failed} failed)` : ""
+        }.`
+      );
     } catch {
       setError("Email send failed.");
     } finally {
@@ -245,11 +275,15 @@ export default function AdminDemoSessionsPage() {
     setNotice("Share text copied — paste into Instagram, Telegram, or WhatsApp.");
   };
 
+  const confirmedRegs = regs.filter(
+    (r) => !r.paymentStatus || ["paid", "free", "waived"].includes(r.paymentStatus)
+  );
+
   return (
     <div className="max-w-5xl">
       <AdminPageHeader
         title="Demo sessions"
-        description="Create shareable registration forms for Zoom/Meet demos. Turn on Feature flags → Demo session registration when ready."
+        description="Shareable registration for demos, info sessions, or webinars. Customize labels, optional Stripe fee, and email attendees. Enable via Feature flags → Demo session registration."
       />
       <div className="space-y-4">
         {error && <p className="text-sm text-rose-600">{error}</p>}
@@ -262,7 +296,7 @@ export default function AdminDemoSessionsPage() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <label className="block text-xs text-muted-foreground">
-                Demo name *
+                Session name *
                 <input
                   className="mt-1 w-full h-9 rounded border px-2 bg-white dark:bg-zinc-900"
                   value={title}
@@ -270,6 +304,36 @@ export default function AdminDemoSessionsPage() {
                     setTitle(e.target.value);
                     if (!selectedId) setSlug(slugifyDemoTitle(e.target.value));
                   }}
+                />
+              </label>
+              <label className="block text-xs text-muted-foreground">
+                Page eyebrow (above title on public form)
+                <input
+                  className="mt-1 w-full h-9 rounded border px-2 bg-white dark:bg-zinc-900"
+                  value={pageEyebrow}
+                  onChange={(e) => setPageEyebrow(e.target.value)}
+                  placeholder="e.g. Free live demo · Info session · Webinar"
+                />
+              </label>
+              <label className="block text-xs text-muted-foreground">
+                Submit button label
+                <input
+                  className="mt-1 w-full h-9 rounded border px-2 bg-white dark:bg-zinc-900"
+                  value={submitLabel}
+                  onChange={(e) => setSubmitLabel(e.target.value)}
+                  placeholder="Complete registration"
+                />
+              </label>
+              <label className="block text-xs text-muted-foreground">
+                Price USD (Stripe) — leave blank for free
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className="mt-1 w-full h-9 rounded border px-2 bg-white dark:bg-zinc-900"
+                  value={priceUsd}
+                  onChange={(e) => setPriceUsd(e.target.value)}
+                  placeholder="0 = free · e.g. 25"
                 />
               </label>
               <label className="block text-xs text-muted-foreground">
@@ -406,7 +470,11 @@ export default function AdminDemoSessionsPage() {
                       <button type="button" className="text-left min-w-0" onClick={() => void loadDetail(s.id)}>
                         <p className="font-medium truncate">{s.title}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {s.registrationCount} registered · {s.isPublished ? "Published" : "Draft"} · /{s.slug}
+                          {s.registrationCount} registered ·{" "}
+                          {s.priceUsdCents != null && s.priceUsdCents > 0
+                            ? `$${(s.priceUsdCents / 100).toFixed(s.priceUsdCents % 100 === 0 ? 0 : 2)}`
+                            : "Free"}{" "}
+                          · {s.isPublished ? "Published" : "Draft"} · /{s.slug}
                         </p>
                       </button>
                       <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => void copyShare(s)}>
@@ -421,7 +489,9 @@ export default function AdminDemoSessionsPage() {
             {selectedId && (
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Email registrants ({regs.length})</CardTitle>
+                  <CardTitle className="text-base">
+                    Email confirmed registrants ({confirmedRegs.length})
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <input
@@ -436,10 +506,15 @@ export default function AdminDemoSessionsPage() {
                     onChange={(e) => setEmailBody(e.target.value)}
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Meeting URL from the session is appended automatically when you send.
+                    Sends to paid/free confirmed only (not pending Stripe checkouts). Meeting URL is appended automatically.
                   </p>
-                  <Button type="button" size="sm" disabled={busy || regs.length === 0} onClick={() => void sendEmail()}>
-                    Send email to all registrants
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={busy || confirmedRegs.length === 0}
+                    onClick={() => void sendEmail()}
+                  >
+                    Send email to confirmed registrants
                   </Button>
                 </CardContent>
               </Card>
@@ -459,8 +534,10 @@ export default function AdminDemoSessionsPage() {
                     <th className="py-2 pr-2">Name</th>
                     <th className="py-2 pr-2">Email</th>
                     <th className="py-2 pr-2">Phone</th>
-                    <th className="py-2 pr-2">City</th>
                     <th className="py-2 pr-2">Country</th>
+                    <th className="py-2 pr-2">Province/State</th>
+                    <th className="py-2 pr-2">City</th>
+                    <th className="py-2 pr-2">Pay</th>
                     <th className="py-2 pr-2">Crypto</th>
                     <th className="py-2 pr-2">Forex</th>
                     <th className="py-2 pr-2">News</th>
@@ -474,8 +551,15 @@ export default function AdminDemoSessionsPage() {
                       <td className="py-1.5 pr-2">{r.name}</td>
                       <td className="py-1.5 pr-2">{r.email}</td>
                       <td className="py-1.5 pr-2">{r.phone || "—"}</td>
-                      <td className="py-1.5 pr-2">{r.city || "—"}</td>
                       <td className="py-1.5 pr-2">{r.country || "—"}</td>
+                      <td className="py-1.5 pr-2">{r.region || "—"}</td>
+                      <td className="py-1.5 pr-2">{r.city || "—"}</td>
+                      <td className="py-1.5 pr-2">
+                        {r.paymentStatus || "free"}
+                        {r.amountPaidCents != null && r.amountPaidCents > 0
+                          ? ` ($${(r.amountPaidCents / 100).toFixed(2)})`
+                          : ""}
+                      </td>
                       <td className="py-1.5 pr-2">{r.cryptoExperience || "—"}</td>
                       <td className="py-1.5 pr-2">{r.forexExperience || "—"}</td>
                       <td className="py-1.5 pr-2">{r.newsletterOptIn ? "Yes" : "No"}</td>

@@ -1,15 +1,23 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Zap } from "lucide-react";
-import { DEMO_EXPERIENCE_LEVELS, DEMO_SOURCES } from "@/lib/demo-sessions";
+import {
+  DEFAULT_DEMO_PAGE_EYEBROW,
+  DEFAULT_DEMO_SUBMIT_LABEL,
+  DEMO_EXPERIENCE_LEVELS,
+  DEMO_SOURCES,
+} from "@/lib/demo-sessions";
+import { DEMO_COUNTRIES, regionsForCountry } from "@/lib/demo-geo";
 
 type DemoSessionPublic = {
   slug: string;
   title: string;
   description: string | null;
+  pageEyebrow: string;
+  submitLabel: string;
   sessionAt: string | null;
   timezone: string | null;
   locationNote: string | null;
@@ -17,6 +25,9 @@ type DemoSessionPublic = {
   registrationOpen: boolean;
   spotsLeft: number | null;
   registeredCount: number;
+  isPaid: boolean;
+  priceUsdCents: number | null;
+  priceLabel: string | null;
 };
 
 const inputClass =
@@ -28,18 +39,23 @@ export default function DemoRegistrationPage() {
   const searchParams = useSearchParams();
   const slug = String(params?.slug ?? "");
   const srcFromQuery = searchParams.get("src")?.trim() || "";
+  const paidOk = searchParams.get("paid") === "1";
+  const canceled = searchParams.get("canceled") === "1";
 
   const [session, setSession] = useState<DemoSessionPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [doneMessage, setDoneMessage] = useState<string | null>(null);
+  const [doneMessage, setDoneMessage] = useState<string | null>(
+    paidOk ? "Payment received. You're registered — check your email for confirmation." : null
+  );
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
+  const [region, setRegion] = useState("");
   const [cryptoExperience, setCryptoExperience] = useState("");
   const [forexExperience, setForexExperience] = useState("");
   const [source, setSource] = useState(
@@ -48,10 +64,12 @@ export default function DemoRegistrationPage() {
   const [newsletterOptIn, setNewsletterOptIn] = useState(true);
   const [promoOptIn, setPromoOptIn] = useState(false);
 
+  const regionOptions = useMemo(() => (country ? regionsForCountry(country) : null), [country]);
+
   useEffect(() => {
     if (!slug) {
       setLoading(false);
-      setError("Invalid demo link.");
+      setError("Invalid session link.");
       return;
     }
     let cancelled = false;
@@ -69,7 +87,7 @@ export default function DemoRegistrationPage() {
         }
         setSession(data.session);
       } catch {
-        if (!cancelled) setError("Could not load this demo session.");
+        if (!cancelled) setError("Could not load this session.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -87,6 +105,10 @@ export default function DemoRegistrationPage() {
     }
   }, [srcFromQuery]);
 
+  useEffect(() => {
+    setRegion("");
+  }, [country]);
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!slug) return;
@@ -100,8 +122,9 @@ export default function DemoRegistrationPage() {
           name,
           email,
           phone: phone || undefined,
-          city,
+          city: city || undefined,
           country,
+          region,
           cryptoExperience: cryptoExperience || undefined,
           forexExperience: forexExperience || undefined,
           source: source || "direct",
@@ -114,7 +137,13 @@ export default function DemoRegistrationPage() {
         setError(data.error || "Registration failed.");
         return;
       }
-      setDoneMessage(data.message || "You're registered. Check your email for session details.");
+      if (data.requiresPayment && data.checkoutUrl) {
+        window.location.href = data.checkoutUrl as string;
+        return;
+      }
+      setDoneMessage(
+        data.message || "You're registered. Check your email for session details."
+      );
     } catch {
       setError("Network error — please try again.");
     } finally {
@@ -129,6 +158,15 @@ export default function DemoRegistrationPage() {
       })
     : null;
 
+  const eyebrow = session?.pageEyebrow || DEFAULT_DEMO_PAGE_EYEBROW;
+  const submitLabel = session?.submitLabel || DEFAULT_DEMO_SUBMIT_LABEL;
+  const canSubmit =
+    name.trim() &&
+    email.trim() &&
+    country &&
+    region.trim() &&
+    (regionOptions ? regionOptions.some((r) => r.value === region) : region.trim().length >= 2);
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.08),_transparent_55%)]" />
@@ -141,7 +179,7 @@ export default function DemoRegistrationPage() {
             <Zap className="h-7 w-7 text-amber-500" />
             NovaStaris
           </Link>
-          <p className="mt-2 text-sm text-zinc-500">Free live demo registration</p>
+          <p className="mt-2 text-sm text-zinc-500">{eyebrow}</p>
         </div>
 
         {loading ? (
@@ -186,6 +224,11 @@ export default function DemoRegistrationPage() {
                 </p>
               )}
               {session.locationNote && <p>{session.locationNote}</p>}
+              {session.isPaid && session.priceLabel && (
+                <p className="text-amber-400/90 font-medium">
+                  Registration fee: {session.priceLabel} USD (Stripe)
+                </p>
+              )}
               {session.spotsLeft != null && (
                 <p>
                   {session.spotsLeft > 0
@@ -201,6 +244,11 @@ export default function DemoRegistrationPage() {
               </p>
             ) : (
               <form onSubmit={onSubmit} className="mt-6 space-y-4">
+                {canceled && (
+                  <div className="rounded-lg bg-amber-950/40 border border-amber-900/50 px-3 py-2 text-sm text-amber-200">
+                    Payment was canceled. You can complete registration below when ready.
+                  </div>
+                )}
                 {error && (
                   <div className="rounded-lg bg-rose-950/50 border border-rose-900/60 px-3 py-2 text-sm text-rose-300">
                     {error}
@@ -244,30 +292,64 @@ export default function DemoRegistrationPage() {
                   />
                 </label>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <label className={labelClass}>
-                    City *
+                <label className={labelClass}>
+                  Country *
+                  <select
+                    className={inputClass}
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    required
+                    autoComplete="country-name"
+                  >
+                    <option value="">Select country…</option>
+                    {DEMO_COUNTRIES.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className={labelClass}>
+                  Province / State *
+                  {regionOptions ? (
+                    <select
+                      className={inputClass}
+                      value={region}
+                      onChange={(e) => setRegion(e.target.value)}
+                      required
+                      disabled={!country}
+                    >
+                      <option value="">Select province / state…</option>
+                      {regionOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
                     <input
                       className={inputClass}
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
+                      value={region}
+                      onChange={(e) => setRegion(e.target.value)}
                       required
-                      autoComplete="address-level2"
-                      placeholder="Your city"
+                      disabled={!country}
+                      autoComplete="address-level1"
+                      placeholder={country ? "Province / state / region" : "Select a country first"}
                     />
-                  </label>
-                  <label className={labelClass}>
-                    Country *
-                    <input
-                      className={inputClass}
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      required
-                      autoComplete="country-name"
-                      placeholder="Your country"
-                    />
-                  </label>
-                </div>
+                  )}
+                </label>
+
+                <label className={labelClass}>
+                  City <span className="text-zinc-600 font-normal">(optional)</span>
+                  <input
+                    className={inputClass}
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    autoComplete="address-level2"
+                    placeholder="City"
+                  />
+                </label>
 
                 <label className={labelClass}>
                   Crypto experience
@@ -305,9 +387,7 @@ export default function DemoRegistrationPage() {
                   How did you hear about this?
                   <select
                     className={inputClass}
-                    value={
-                      DEMO_SOURCES.some((s) => s.value === source) ? source : "other"
-                    }
+                    value={DEMO_SOURCES.some((s) => s.value === source) ? source : "other"}
                     onChange={(e) => setSource(e.target.value)}
                   >
                     {DEMO_SOURCES.map((opt) => (
@@ -340,14 +420,22 @@ export default function DemoRegistrationPage() {
 
                 <button
                   type="submit"
-                  disabled={submitting || !name.trim() || !email.trim()}
+                  disabled={submitting || !canSubmit}
                   className="w-full h-11 rounded-lg bg-amber-500 text-sm font-semibold text-zinc-950 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {submitting ? "Registering…" : "Register for demo"}
+                  {submitting
+                    ? session.isPaid
+                      ? "Redirecting to payment…"
+                      : "Submitting…"
+                    : session.isPaid && session.priceLabel
+                      ? `${submitLabel} · ${session.priceLabel}`
+                      : submitLabel}
                 </button>
 
                 <p className="text-[11px] text-center text-zinc-600">
-                  Meeting link is emailed before the session — not shown here.
+                  {session.isPaid
+                    ? "You'll complete payment securely with Stripe. Confirmation is emailed after payment."
+                    : "You'll get a confirmation email after registering. Meeting details may follow closer to the session."}
                 </p>
               </form>
             )}

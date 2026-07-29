@@ -116,6 +116,30 @@ export async function PATCH(request: Request, ctx: Ctx) {
       data.slug = slug;
     }
   }
+  if (typeof body.pageEyebrow === "string") {
+    data.pageEyebrow = body.pageEyebrow.trim().slice(0, 80) || "Session registration";
+  }
+  if (typeof body.submitLabel === "string") {
+    data.submitLabel = body.submitLabel.trim().slice(0, 60) || "Complete registration";
+  }
+  if ("priceUsd" in body || "priceUsdCents" in body) {
+    let cents: number | null = null;
+    if (body.priceUsdCents != null && body.priceUsdCents !== "") {
+      const n = Math.round(Number(body.priceUsdCents));
+      cents = Number.isFinite(n) && n > 0 ? Math.min(500000, n) : null;
+    } else if (body.priceUsd != null && body.priceUsd !== "") {
+      const dollars = Number(body.priceUsd);
+      if (!Number.isFinite(dollars) || dollars < 0) {
+        return NextResponse.json({ success: false, error: "Invalid price." }, { status: 400 });
+      }
+      const n = Math.round(dollars * 100);
+      if (n > 0 && n < 50) {
+        return NextResponse.json({ success: false, error: "Paid sessions must be at least $0.50." }, { status: 400 });
+      }
+      cents = n > 0 ? Math.min(500000, n) : null;
+    }
+    data.priceUsdCents = cents;
+  }
 
   const row = await demoDb().demoSession.update({ where: { id }, data });
   return NextResponse.json({ success: true, session: serialize(row) });

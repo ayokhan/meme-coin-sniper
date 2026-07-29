@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isOwnerEmail } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { slugifyDemoTitle } from "@/lib/demo-sessions";
+import {
+  DEFAULT_DEMO_PAGE_EYEBROW,
+  DEFAULT_DEMO_SUBMIT_LABEL,
+  slugifyDemoTitle,
+} from "@/lib/demo-sessions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +26,22 @@ async function requireOwner() {
     return { ok: false as const, res: NextResponse.json({ success: false, error: "Owner only." }, { status: 403 }) };
   }
   return { ok: true as const };
+}
+
+function parsePriceUsdCents(body: Record<string, unknown>): number | null | undefined {
+  if (!("priceUsd" in body) && !("priceUsdCents" in body)) return undefined;
+  if (body.priceUsdCents != null && body.priceUsdCents !== "") {
+    const n = Math.round(Number(body.priceUsdCents));
+    if (!Number.isFinite(n) || n < 0) return null;
+    return n === 0 ? null : Math.min(500000, n);
+  }
+  if (body.priceUsd == null || body.priceUsd === "") return null;
+  const dollars = Number(body.priceUsd);
+  if (!Number.isFinite(dollars) || dollars < 0) return null;
+  if (dollars === 0) return null;
+  const cents = Math.round(dollars * 100);
+  if (cents > 0 && cents < 50) return -1;
+  return Math.min(500000, cents);
 }
 
 /** GET — list all demo sessions with registration counts. */
@@ -85,16 +105,28 @@ export async function POST(request: Request) {
       ? null
       : Math.max(1, Math.min(5000, Number(body.maxAttendees) || 0)) || null;
 
+  const priceUsdCents = parsePriceUsdCents(body);
+  if (priceUsdCents === -1) {
+    return NextResponse.json({ success: false, error: "Paid sessions must be at least $0.50." }, { status: 400 });
+  }
+
   const row = await demoDb().demoSession.create({
     data: {
       slug,
       title,
       description: String(body.description ?? "").trim().slice(0, 8000) || null,
+      pageEyebrow:
+        String(body.pageEyebrow ?? DEFAULT_DEMO_PAGE_EYEBROW).trim().slice(0, 80) ||
+        DEFAULT_DEMO_PAGE_EYEBROW,
+      submitLabel:
+        String(body.submitLabel ?? DEFAULT_DEMO_SUBMIT_LABEL).trim().slice(0, 60) ||
+        DEFAULT_DEMO_SUBMIT_LABEL,
       sessionAt,
       timezone: String(body.timezone ?? "America/Toronto").trim().slice(0, 80) || "America/Toronto",
       meetingUrl: String(body.meetingUrl ?? "").trim().slice(0, 500) || null,
       meetingPlatform: String(body.meetingPlatform ?? "").trim().slice(0, 40) || null,
       locationNote: String(body.locationNote ?? "").trim().slice(0, 200) || null,
+      priceUsdCents: priceUsdCents === undefined ? null : priceUsdCents,
       isPublished: body.isPublished === true,
       registrationOpen: body.registrationOpen !== false,
       maxAttendees,

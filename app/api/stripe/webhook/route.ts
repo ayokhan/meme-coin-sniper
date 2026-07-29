@@ -31,7 +31,115 @@ function resolvePlan(planId: string, amountUsd: number, totalPaidUsd: number) {
   return plan;
 }
 
+async function handleDemoSessionCheckout(session: Stripe.Checkout.Session) {
+  const registrationId =
+    (session.metadata?.registrationId ?? session.client_reference_id ?? "").toString().trim();
+  if (!registrationId || !session.id) {
+    console.error("Stripe webhook: demo registration missing id");
+    return NextResponse.json({ error: "Missing demo registration id." }, { status: 400 });
+  }
+
+  const amountCents =
+    session.amount_total != null
+      ? session.amount_total
+      : Math.round(parseFloat(session.metadata?.amountUsd ?? "0") * 100) || null;
+
+  try {
+    const db = prisma as unknown as {
+      demoRegistration: {
+        findUnique: (args: unknown) => Promise<{
+          id: string;
+          name: string;
+          email: string;
+          paymentStatus: string;
+          confirmationSentAt: Date | null;
+          session: {
+            title: string;
+            slug: string;
+            sessionAt: Date | null;
+            timezone: string | null;
+            locationNote: string | null;
+            meetingUrl: string | null;
+            pageEyebrow: string | null;
+          };
+        } | null>;
+        update: (args: unknown) => Promise<unknown>;
+      };
+    };
+
+    const reg = await db.demoRegistration.findUnique({
+      where: { id: registrationId },
+      include: {
+        session: {
+          select: {
+            title: true,
+            slug: true,
+            sessionAt: true,
+            timezone: true,
+            locationNote: true,
+            meetingUrl: true,
+            pageEyebrow: true,
+          },
+        },
+      },
+    });
+    if (!reg) {
+      console.error("Stripe webhook: demo registration not found", registrationId);
+      return NextResponse.json({ error: "Demo registration not found." }, { status: 404 });
+    }
+
+    const alreadyPaid = reg.paymentStatus === "paid";
+    if (!alreadyPaid) {
+      await db.demoRegistration.update({
+        where: { id: reg.id },
+        data: {
+          paymentStatus: "paid",
+          paidAt: new Date(),
+          amountPaidCents: amountCents,
+          stripeCheckoutSessionId: session.id,
+        },
+      });
+    }
+
+    if (!reg.confirmationSentAt) {
+      const { sendDemoRegistrationConfirmation } = await import("@/lib/demo-confirmation-email");
+      const emailResult = await sendDemoRegistrationConfirmation({
+        to: reg.email,
+        name: reg.name,
+        sessionTitle: reg.session.title,
+        slug: reg.session.slug,
+        sessionAt: reg.session.sessionAt,
+        timezone: reg.session.timezone,
+        locationNote: reg.session.locationNote,
+        meetingUrl: reg.session.meetingUrl,
+        includeMeetingLink: Boolean(reg.session.meetingUrl),
+        paid: true,
+        amountUsd: amountCents != null ? amountCents / 100 : null,
+        pageEyebrow: reg.session.pageEyebrow,
+      });
+      if (emailResult.ok) {
+        await db.demoRegistration.update({
+          where: { id: reg.id },
+          data: { confirmationSentAt: new Date() },
+        });
+      } else {
+        console.warn("Stripe webhook: demo confirmation email failed", emailResult.error);
+      }
+    }
+
+    return NextResponse.json({ received: true, demoRegistration: true });
+  } catch (e) {
+    console.error("Stripe webhook: demo session payment handler failed", e);
+    return NextResponse.json({ error: "Demo payment handler failed." }, { status: 500 });
+  }
+}
+
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  /** Guest demo/info session registration — no NovaStaris user required. */
+  if ((session.metadata?.purpose ?? "").toString() === "demo_session_registration") {
+    return handleDemoSessionCheckout(session);
+  }
+
   const userId = session.client_reference_id ?? session.metadata?.userId ?? null;
   if (!userId || !session.id) {
     console.error("Stripe webhook: missing client_reference_id or session id");

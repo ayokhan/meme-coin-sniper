@@ -1430,12 +1430,18 @@ model DemoSession {
   slug              String   @unique
   title             String
   description       String?  @db.Text
+  /** Public page eyebrow e.g. "Free live demo", "Info session", "Webinar". */
+  pageEyebrow       String?  @default("Session registration")
+  /** Submit button label e.g. "Complete registration". */
+  submitLabel       String?  @default("Complete registration")
   /** When the session starts (optional until scheduled). */
   sessionAt         DateTime?
   timezone          String?  @default("America/Toronto")
   meetingUrl        String?
   meetingPlatform   String?
   locationNote      String?
+  /** Stripe price in USD cents. Null/0 = free registration. */
+  priceUsdCents     Int?
   /** Shown publicly when true and feature flag is on. */
   isPublished       Boolean  @default(false)
   registrationOpen  Boolean  @default(true)
@@ -1448,24 +1454,34 @@ model DemoSession {
 }
 
 model DemoRegistration {
-  id                 String   @id @default(cuid())
-  sessionId          String
-  session            DemoSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  name               String
-  email              String
-  phone              String?
-  city               String?
-  country            String?
+  id                      String    @id @default(cuid())
+  sessionId               String
+  session                 DemoSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  name                    String
+  email                   String
+  phone                   String?
+  city                    String?
+  country                 String?
+  /** Province / state / region */
+  region                  String?
   /** none | beginner | intermediate | advanced */
-  cryptoExperience   String?
-  forexExperience    String?
-  newsletterOptIn    Boolean  @default(false)
-  promoOptIn         Boolean  @default(false)
+  cryptoExperience        String?
+  forexExperience         String?
+  newsletterOptIn         Boolean   @default(false)
+  promoOptIn              Boolean   @default(false)
   /** instagram | telegram | whatsapp | direct | other */
-  source             String?
-  createdAt          DateTime @default(now())
+  source                  String?
+  /** free | pending | paid | waived */
+  paymentStatus           String    @default("free")
+  amountPaidCents         Int?
+  stripeCheckoutSessionId String?
+  paidAt                  DateTime?
+  confirmationSentAt      DateTime?
+  createdAt               DateTime  @default(now())
 
   @@unique([sessionId, email])
   @@index([sessionId, createdAt(sort: Desc)])
   @@index([email])
+  @@index([paymentStatus])
+  @@index([stripeCheckoutSessionId])
 }
