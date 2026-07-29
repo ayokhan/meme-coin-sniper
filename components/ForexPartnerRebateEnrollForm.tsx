@@ -135,8 +135,7 @@ export function ForexPartnerRebateEnrollForm({ broker, className = "", defaultOp
           </p>
           <p className="text-xs text-zinc-400 mt-1 max-w-prose">
             Register through NovaStaris, then submit your MT login and Solana USDC wallet. We pay{" "}
-            {formatRebateReward("per_lot", DEFAULT_REBATE_REWARD_VALUE)} from our IB commission (manual USDC
-            payout).
+            {formatRebateReward("per_lot", DEFAULT_REBATE_REWARD_VALUE)} in USDC for your traded lots.
           </p>
         </div>
         <Button
@@ -205,8 +204,8 @@ export function ForexPartnerRebateEnrollForm({ broker, className = "", defaultOp
                 />
               </label>
               <p className="text-[11px] text-zinc-500 leading-relaxed">
-                Offer: {formatRebateReward("per_lot", DEFAULT_REBATE_REWARD_VALUE)}. We match volume on your MT
-                login, then send USDC to this wallet. Update anytime before payout.
+                Offer: {formatRebateReward("per_lot", DEFAULT_REBATE_REWARD_VALUE)} in USDC. We match volume on
+                your MT login, then send USDC to this wallet. Update anytime before payout.
               </p>
               {error && <p className="text-xs text-rose-400">{error}</p>}
               {notice && <p className="text-xs text-emerald-400">{notice}</p>}

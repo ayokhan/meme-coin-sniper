@@ -203,6 +203,36 @@ Questions? Reply to this email or use Need Help in the app.
 https://novastaris.ai`,
 };
 
+/** Customer email: $2/lot USDC rebate for TIOmarkets (and other partner brokers). Admin → Banners → Email. */
+export const FOREX_PARTNER_REBATE_EMAIL = {
+  subject: "Earn $2 USDC per lot — TIOmarkets rebate with NovaStaris",
+  body: `Hi there,
+
+We’re sharing a simple rebate with NovaStaris members who trade forex through our TIOmarkets partnership.
+
+The offer
+• $2 USDC for every standard lot you trade
+• Paid to your Solana USDC wallet
+
+How to join
+1. Sign in to NovaStaris → Focus → Bots → Nova Forex Bots
+2. Tap “Register on TIOmarkets” and open your Unlimited Leverage account through our link
+3. Connect your MT4/MT5 login in NovaStaris
+4. Tap “Submit rebate details” and enter your name, MT login, and Solana USDC wallet
+
+That’s it. Once your details are on file and your trading volume is confirmed, we’ll send your rebate in USDC.
+
+Tips
+• Use the same MT account login you trade with — we match volume to that login
+• You can update your wallet anytime before payout
+• Register through NovaStaris so your account is linked to this offer
+
+Questions? Reply to this email or use Need Help in the app.
+
+— The NovaStaris team
+https://novastaris.ai`,
+};
+
 /** ForexBrokerPartnerPromo.id IS the broker id ("vantage" | "tiomarkets") — same pattern as BlofinPartnerPromo.id = "default". */
 type Row = ForexBrokerPartnerPromoConfig & { id?: string; updatedAt?: Date };
 

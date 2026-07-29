@@ -17,7 +17,7 @@ import type { SiteAnnouncementBannerAdmin } from "@/lib/site-announcement-banner
 import type { BlofinPartnerPromoAdmin, BlofinPartnerLinkClickRow } from "@/lib/blofin-partner-promo";
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import type { ForexBrokerPartnerPromoAdmin, ForexBrokerPartnerLinkClickRow } from "@/lib/forex-broker-partner-promo";
-import { FOREX_PARTNERSHIP_EMAIL, NOVA_FOREX_BOTS_LAUNCH_EMAIL, forexBrokerLabel } from "@/lib/forex-broker-partner-promo";
+import { FOREX_PARTNERSHIP_EMAIL, FOREX_PARTNER_REBATE_EMAIL, NOVA_FOREX_BOTS_LAUNCH_EMAIL, forexBrokerLabel } from "@/lib/forex-broker-partner-promo";
 import type { ForexPartnerBrokerId } from "@/lib/forex-broker-user-config";
 import { formatPromoDrawDate } from "@/lib/promo-banner";
 import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
@@ -1533,6 +1533,23 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
               }
             >
               Load Nova Forex Bots launch email
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setEmailDraft((d) => ({
+                  ...d,
+                  subject: FOREX_PARTNER_REBATE_EMAIL.subject,
+                  body: FOREX_PARTNER_REBATE_EMAIL.body,
+                  audience: "newsletter",
+                  includePartnerLogos: true,
+                  partnerBrand: "tiomarkets",
+                }))
+              }
+            >
+              Load $2/lot rebate email
             </Button>
           </div>
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
