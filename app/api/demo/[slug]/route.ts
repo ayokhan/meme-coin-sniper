@@ -97,8 +97,8 @@ export async function POST(request: Request, ctx: Ctx) {
   const name = String(body.name ?? "").trim().slice(0, 120);
   const email = String(body.email ?? "").trim().toLowerCase().slice(0, 200);
   const phone = String(body.phone ?? "").trim().slice(0, 40) || null;
-  const city = String(body.city ?? "").trim().slice(0, 80) || null;
-  const country = String(body.country ?? "").trim().slice(0, 80) || null;
+  const city = String(body.city ?? "").trim().slice(0, 80);
+  const country = String(body.country ?? "").trim().slice(0, 80);
   const cryptoExperience = isValidDemoExperience(body.cryptoExperience)
     ? body.cryptoExperience
     : String(body.cryptoExperience ?? "").trim().slice(0, 40) || null;
@@ -114,6 +114,12 @@ export async function POST(request: Request, ctx: Ctx) {
   }
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ success: false, error: "A valid email is required." }, { status: 400 });
+  }
+  if (!city) {
+    return NextResponse.json({ success: false, error: "City is required." }, { status: 400 });
+  }
+  if (!country) {
+    return NextResponse.json({ success: false, error: "Country is required." }, { status: 400 });
   }
 
   const session = await demoDb().demoSession.findUnique({

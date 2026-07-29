@@ -100,8 +100,8 @@ export default function DemoRegistrationPage() {
           name,
           email,
           phone: phone || undefined,
-          city: city || undefined,
-          country: country || undefined,
+          city,
+          country,
           cryptoExperience: cryptoExperience || undefined,
           forexExperience: forexExperience || undefined,
           source: source || "direct",
@@ -246,21 +246,25 @@ export default function DemoRegistrationPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label className={labelClass}>
-                    City
+                    City *
                     <input
                       className={inputClass}
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
+                      required
                       autoComplete="address-level2"
+                      placeholder="Your city"
                     />
                   </label>
                   <label className={labelClass}>
-                    Country
+                    Country *
                     <input
                       className={inputClass}
                       value={country}
                       onChange={(e) => setCountry(e.target.value)}
+                      required
                       autoComplete="country-name"
+                      placeholder="Your country"
                     />
                   </label>
                 </div>
