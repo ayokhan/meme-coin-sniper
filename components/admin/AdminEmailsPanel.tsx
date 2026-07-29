@@ -1,0 +1,453 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ADMIN_EMAIL_PRESETS,
+  formatPlainShareText,
+  getAdminEmailPreset,
+  type AdminEmailFormat,
+  type AdminEmailPresetId,
+} from "@/lib/admin-email-presets";
+import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
+import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
+
+type EmailStats = {
+  newsletterCount: number;
+  allEmailCount: number;
+  newsletterEmails: string[];
+  allEmails: string[];
+};
+
+type Props = {
+  onNotice?: (msg: string) => void;
+  onError?: (msg: string) => void;
+};
+
+const inputClass =
+  "text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800";
+
+export default function AdminEmailsPanel({ onNotice, onError }: Props) {
+  const searchParams = useSearchParams();
+  const [stats, setStats] = useState<EmailStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [recipients, setRecipients] = useState<string[]>([]);
+  const [addInput, setAddInput] = useState("");
+  const [format, setFormat] = useState<AdminEmailFormat>("rich");
+  const [presetId, setPresetId] = useState<AdminEmailPresetId>("custom");
+  const [draft, setDraft] = useState({
+    subject: "",
+    body: "",
+    audience: "newsletter" as "newsletter" | "all",
+    includePartnerLogos: false,
+    partnerBrand: "tiomarkets" as PartnerBrandEmail,
+    template: "default" as AnnouncementEmailTemplate,
+    ctaLabel: "",
+    ctaUrl: "",
+  });
+
+  const loadStats = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/announcement-email", { credentials: "include" });
+      const data = await res.json();
+      if (res.ok && data.success && data.stats) {
+        setStats(data.stats as EmailStats);
+      } else {
+        onError?.(data.error || "Could not load email stats.");
+      }
+    } catch {
+      onError?.("Could not load email stats.");
+    } finally {
+      setLoading(false);
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    void loadStats();
+  }, [loadStats]);
+
+  const applyPreset = useCallback((id: AdminEmailPresetId) => {
+    const p = getAdminEmailPreset(id);
+    setPresetId(id);
+    if (!p) return;
+    setDraft({
+      subject: p.subject,
+      body: p.body,
+      audience: "newsletter",
+      includePartnerLogos: p.includePartnerLogos,
+      partnerBrand: p.partnerBrand,
+      template: p.template,
+      ctaLabel: p.ctaLabel,
+      ctaUrl: p.ctaUrl,
+    });
+  }, []);
+
+  useEffect(() => {
+    const preset = searchParams.get("preset") as AdminEmailPresetId | null;
+    if (preset && getAdminEmailPreset(preset)) {
+      applyPreset(preset);
+    }
+  }, [searchParams, applyPreset]);
+
+  useEffect(() => {
+    if (!stats) return;
+    const list = draft.audience === "newsletter" ? stats.newsletterEmails : stats.allEmails;
+    setRecipients([...list]);
+  }, [draft.audience, stats]);
+
+  const shareText = useMemo(
+    () => formatPlainShareText(draft.subject, draft.body),
+    [draft.subject, draft.body]
+  );
+
+  const copyForWhatsApp = async () => {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      onNotice?.("Copied — paste into WhatsApp, Telegram, or Instagram.");
+    } catch {
+      onError?.("Could not copy. Select the plain text and copy manually.");
+    }
+  };
+
+  const addRecipient = () => {
+    const email = addInput.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      onError?.("Enter a valid email.");
+      return;
+    }
+    setRecipients((prev) => (prev.includes(email) ? prev : [...prev, email]));
+    setAddInput("");
+  };
+
+  const send = async () => {
+    if (!confirm) {
+      onError?.("Check the confirmation box before sending.");
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await fetch("/api/admin/announcement-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          subject: draft.subject,
+          body: draft.body,
+          audience: draft.audience,
+          includePartnerLogos: draft.includePartnerLogos,
+          partnerBrand: draft.partnerBrand,
+          template: format === "rich" ? draft.template : "default",
+          format,
+          ctaLabel: format === "rich" ? draft.ctaLabel || undefined : undefined,
+          ctaUrl: format === "rich" ? draft.ctaUrl || undefined : undefined,
+          recipients,
+          confirm: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.result) {
+        const r = data.result as { sent: number; failed: number; total: number };
+        onNotice?.(
+          `Email sent to ${r.sent} of ${r.total} recipients${r.failed ? ` (${r.failed} failed)` : ""}.`
+        );
+        setConfirm(false);
+      } else {
+        onError?.(data.error ?? "Send failed.");
+      }
+    } catch {
+      onError?.("Send failed.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 max-w-4xl">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">1. Choose a template</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Load a preset, then send as rich email or copy plain text for WhatsApp / Telegram / IG.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {ADMIN_EMAIL_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => applyPreset(p.id)}
+                className={`text-left rounded-lg border px-3 py-2.5 transition-colors ${
+                  presetId === p.id
+                    ? "border-teal-500 bg-teal-500/10"
+                    : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500"
+                }`}
+              >
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{p.label}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{p.blurb}</p>
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setPresetId("custom");
+                setDraft((d) => ({ ...d, template: "default", ctaLabel: "", ctaUrl: "" }));
+              }}
+              className={`text-left rounded-lg border px-3 py-2.5 transition-colors ${
+                presetId === "custom"
+                  ? "border-teal-500 bg-teal-500/10"
+                  : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500"
+              }`}
+            >
+              <p className="text-sm font-medium">Custom</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Write your own message</p>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">2. Format</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={format === "rich" ? "default" : "outline"}
+              onClick={() => setFormat("rich")}
+            >
+              Rich email template
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={format === "plain" ? "default" : "outline"}
+              onClick={() => setFormat("plain")}
+            >
+              Plain text
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {format === "rich"
+              ? "Polished HTML for Resend (header, sections, CTA when available)."
+              : "Original plain format — best for WhatsApp / Telegram / Instagram copy-paste. Emails send as simple text too."}
+          </p>
+          {format === "rich" && draft.template === "forex-rebate" && (
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+              Rebate rich layout is on (branded header, offer card, CTA).
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => void copyForWhatsApp()}>
+              Copy for WhatsApp / Telegram / IG
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">3. Message & send</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading audience…</p>
+          ) : (
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">
+              <strong>{stats?.newsletterCount ?? 0}</strong> newsletter ·{" "}
+              <strong>{stats?.allEmailCount ?? 0}</strong> with email (
+              <Link href="/admin/customers" className="underline text-teal-700 dark:text-teal-300">
+                Customers
+              </Link>
+              )
+            </p>
+          )}
+
+          <label className="text-xs text-muted-foreground flex flex-col gap-1 max-w-xs">
+            Audience
+            <select
+              className={inputClass}
+              value={draft.audience}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, audience: e.target.value as "newsletter" | "all" }))
+              }
+            >
+              <option value="newsletter">Newsletter only (recommended)</option>
+              <option value="all">All customers with email</option>
+            </select>
+          </label>
+
+          {format === "rich" && (
+            <>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.includePartnerLogos}
+                  onChange={(e) => setDraft((d) => ({ ...d, includePartnerLogos: e.target.checked }))}
+                />
+                Include partner logos / branded header
+              </label>
+              {draft.includePartnerLogos && (
+                <label className="text-xs text-muted-foreground flex flex-col gap-1 max-w-[200px]">
+                  Partner
+                  <select
+                    className={inputClass}
+                    value={draft.partnerBrand}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        partnerBrand: e.target.value as PartnerBrandEmail,
+                      }))
+                    }
+                  >
+                    <option value="blofin">Blofin</option>
+                    <option value="vantage">Vantage</option>
+                    <option value="tiomarkets">TIOmarkets</option>
+                    <option value="assexmarkets">Assexmarkets</option>
+                  </select>
+                </label>
+              )}
+            </>
+          )}
+
+          {format === "plain" && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={draft.includePartnerLogos}
+                onChange={(e) => setDraft((d) => ({ ...d, includePartnerLogos: e.target.checked }))}
+              />
+              Include logos when emailing plain text (optional)
+            </label>
+          )}
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-medium">Recipients ({recipients.length})</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (!stats) return;
+                  setRecipients(
+                    draft.audience === "newsletter" ? [...stats.newsletterEmails] : [...stats.allEmails]
+                  );
+                }}
+              >
+                Reset from audience
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto rounded-md border p-2 bg-zinc-50/80 dark:bg-zinc-900/50">
+              {recipients.length === 0 ? (
+                <span className="text-xs text-muted-foreground">No recipients — add a test email below.</span>
+              ) : (
+                recipients.map((email) => (
+                  <span
+                    key={email}
+                    className="inline-flex items-center gap-1 rounded-full bg-teal-100 dark:bg-teal-900/40 px-2 py-0.5 text-xs"
+                  >
+                    {email}
+                    <button
+                      type="button"
+                      className="px-1"
+                      aria-label={`Remove ${email}`}
+                      onClick={() => setRecipients((prev) => prev.filter((e) => e !== email))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <input
+                className={`${inputClass} flex-1 min-w-[12rem]`}
+                value={addInput}
+                placeholder="Add test email…"
+                onChange={(e) => setAddInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addRecipient();
+                  }
+                }}
+              />
+              <Button type="button" size="sm" variant="outline" onClick={addRecipient}>
+                Add
+              </Button>
+            </div>
+          </div>
+
+          <label className="text-xs text-muted-foreground flex flex-col gap-1">
+            Subject
+            <input
+              className={inputClass}
+              value={draft.subject}
+              onChange={(e) => {
+                setPresetId("custom");
+                setDraft((d) => ({ ...d, subject: e.target.value }));
+              }}
+            />
+          </label>
+
+          <label className="text-xs text-muted-foreground flex flex-col gap-1">
+            Message (plain text source)
+            <textarea
+              rows={12}
+              className={inputClass}
+              value={draft.body}
+              onChange={(e) => {
+                setPresetId("custom");
+                setDraft((d) => ({ ...d, body: e.target.value }));
+              }}
+              placeholder="Edit the message. Use Copy for WhatsApp, or Send for email."
+            />
+          </label>
+
+          {format === "plain" && (
+            <div className="rounded-md border bg-zinc-50 dark:bg-zinc-900/40 p-3">
+              <p className="text-[11px] font-medium text-muted-foreground mb-1">WhatsApp preview</p>
+              <pre className="whitespace-pre-wrap text-xs text-zinc-800 dark:text-zinc-200 font-sans">
+                {shareText || "—"}
+              </pre>
+            </div>
+          )}
+
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={confirm}
+              onChange={(e) => setConfirm(e.target.checked)}
+            />
+            <span>
+              I confirm sending to <strong>{recipients.length}</strong> recipient
+              {recipients.length === 1 ? "" : "s"} via email ({format === "rich" ? "rich" : "plain"} format).
+            </span>
+          </label>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            disabled={
+              sending || !draft.subject.trim() || !draft.body.trim() || recipients.length === 0 || !confirm
+            }
+            onClick={() => void send()}
+          >
+            {sending ? "Sending…" : `Send ${format === "rich" ? "rich" : "plain"} email`}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

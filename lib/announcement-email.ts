@@ -186,6 +186,23 @@ export function buildForexRebateEmailHtml(args: {
   return emailShell(inner);
 }
 
+/** Original-style plain email: escaped text + line breaks (easy to match WhatsApp copy). */
+export function buildPlainAnnouncementEmailHtml(args: {
+  body: string;
+  includePartnerLogos?: boolean;
+  partnerBrand?: PartnerBrandEmail;
+}): string {
+  const header = args.includePartnerLogos ? partnerLogosEmailHtml(args.partnerBrand ?? "blofin") : "";
+  const bodyHtml = escapeHtml(args.body.trim()).replace(/\n/g, "<br />");
+  const parts = [
+    header,
+    `<p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#18181b;">${bodyHtml}</p>`,
+    `<p style="margin-top:24px;font-size:12px;color:#666;">You received this from NovaStaris. Manage newsletter preferences in your account settings.</p>`,
+    `<p style="font-size:12px;color:#666;"><a href="${APP_ORIGIN}/account">novastaris.ai/account</a></p>`,
+  ];
+  return parts.filter(Boolean).join("");
+}
+
 export function buildAnnouncementEmailHtml(args: {
   body: string;
   includePartnerLogos?: boolean;
@@ -193,7 +210,17 @@ export function buildAnnouncementEmailHtml(args: {
   ctaLabel?: string | null;
   ctaUrl?: string | null;
   template?: AnnouncementEmailTemplate;
+  /** rich = polished card/CTA; plain = original text + optional logos */
+  format?: "rich" | "plain";
 }): string {
+  if (args.format === "plain") {
+    return buildPlainAnnouncementEmailHtml({
+      body: args.body,
+      includePartnerLogos: args.includePartnerLogos,
+      partnerBrand: args.partnerBrand,
+    });
+  }
+
   if (args.template === "forex-rebate") {
     return buildForexRebateEmailHtml({
       partnerBrand: args.partnerBrand ?? "tiomarkets",
@@ -300,11 +327,15 @@ export async function sendAnnouncementEmails(args: {
   ctaLabel?: string | null;
   ctaUrl?: string | null;
   template?: AnnouncementEmailTemplate;
+  format?: "rich" | "plain";
 }): Promise<{ sent: number; failed: number; total: number; errors: string[] }> {
   const subject = args.subject.trim();
   const body = args.body.trim();
+  const format = args.format === "plain" ? "plain" : "rich";
   if (!subject) throw new Error("Subject is required.");
-  if (!body && args.template !== "forex-rebate") throw new Error("Message body is required.");
+  if (!body && !(format === "rich" && args.template === "forex-rebate")) {
+    throw new Error("Message body is required.");
+  }
 
   let recipients: string[];
   if (args.recipients && args.recipients.length > 0) {
@@ -323,6 +354,7 @@ export async function sendAnnouncementEmails(args: {
     ctaLabel: args.ctaLabel,
     ctaUrl: args.ctaUrl,
     template: args.template ?? "default",
+    format,
   });
 
   let sent = 0;

@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       ctaLabel?: string;
       ctaUrl?: string;
       template?: AnnouncementEmailTemplate;
+      format?: "rich" | "plain";
     };
     if (!body.confirm) {
       return NextResponse.json({ success: false, error: "Set confirm: true to send." }, { status: 400 });
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
       : undefined;
     const template: AnnouncementEmailTemplate =
       body.template === "forex-rebate" ? "forex-rebate" : "default";
+    const format = body.format === "plain" ? "plain" : "rich";
     const result = await sendAnnouncementEmails({
       subject: body.subject ?? "",
       body: body.body ?? "",
@@ -59,6 +61,7 @@ export async function POST(request: Request) {
       ctaLabel: typeof body.ctaLabel === "string" ? body.ctaLabel : null,
       ctaUrl: typeof body.ctaUrl === "string" ? body.ctaUrl : null,
       template,
+      format,
     });
     return NextResponse.json({ success: true, result });
   } catch (e) {

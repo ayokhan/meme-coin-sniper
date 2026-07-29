@@ -1195,20 +1195,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    setEmailDraft({
-                      subject: BLOFIN_PARTNERSHIP_EMAIL.subject,
-                      body: BLOFIN_PARTNERSHIP_EMAIL.body,
-                      audience: "all",
-                      includePartnerLogos: blofinPartnerDraft.includeLogosInEmail,
-                      partnerBrand: "blofin",
-                      template: "default",
-                      ctaLabel: "",
-                      ctaUrl: "",
-                    });
-                  }}
+                  asChild
                 >
-                  Load email template
+                  <Link href="/admin/emails?preset=blofin-partnership">Open in Emails</Link>
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground">
@@ -1258,48 +1247,21 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
 
       <ForexBrokerPartnerSection
         broker="vantage"
-        onLoadEmailTemplate={(subject, body, includeLogos) =>
-          setEmailDraft({
-            subject,
-            body,
-            audience: "all",
-            includePartnerLogos: includeLogos,
-            partnerBrand: "vantage",
-            template: "default",
-            ctaLabel: "",
-            ctaUrl: "",
-          })
-        }
+        onLoadEmailTemplate={() => {
+          if (typeof window !== "undefined") window.location.href = "/admin/emails?preset=vantage-partnership";
+        }}
       />
       <ForexBrokerPartnerSection
         broker="tiomarkets"
-        onLoadEmailTemplate={(subject, body, includeLogos) =>
-          setEmailDraft({
-            subject,
-            body,
-            audience: "all",
-            includePartnerLogos: includeLogos,
-            partnerBrand: "tiomarkets",
-            template: "default",
-            ctaLabel: "",
-            ctaUrl: "",
-          })
-        }
+        onLoadEmailTemplate={() => {
+          if (typeof window !== "undefined") window.location.href = "/admin/emails?preset=tio-partnership";
+        }}
       />
       <ForexBrokerPartnerSection
         broker="assexmarkets"
-        onLoadEmailTemplate={(subject, body, includeLogos) =>
-          setEmailDraft({
-            subject,
-            body,
-            audience: "all",
-            includePartnerLogos: includeLogos,
-            partnerBrand: "assexmarkets",
-            template: "default",
-            ctaLabel: "",
-            ctaUrl: "",
-          })
-        }
+        onLoadEmailTemplate={() => {
+          if (typeof window !== "undefined") window.location.href = "/admin/emails?preset=assex-partnership";
+        }}
       />
 
       <Card className="border-zinc-200 dark:border-zinc-800">
@@ -1418,210 +1380,22 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       </Card>
 
       <Card className="border-zinc-200 dark:border-zinc-800">
+              <Card className="border-zinc-200 dark:border-zinc-800">
         <CardHeader>
-          <CardTitle className="text-base">Email announcement</CardTitle>
+          <CardTitle className="text-base">Customer emails</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Send a one-time email via Resend. Prefer <strong>newsletter subscribers</strong> for marketing; use all
-            customers only for important account notices.
+            Email sending moved to its own page — rich templates, plain text, and copy for WhatsApp / Telegram /
+            Instagram.
           </p>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {emailStatsLoading ? (
-            <p className="text-muted-foreground text-sm">Loading audience counts…</p>
-          ) : (
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">
-              <strong>{emailStats?.newsletterCount ?? 0}</strong> newsletter subscribers ·{" "}
-              <strong>{emailStats?.allEmailCount ?? 0}</strong> customers with email (
-              <Link href="/admin/customers" className="text-violet-600 dark:text-violet-400 underline">
-                view in Customers
-              </Link>
-              )
-            </p>
-          )}
-          <label className="text-xs text-muted-foreground flex flex-col gap-1">
-            Audience
-            <select
-              value={emailDraft.audience}
-              onChange={(e) => setEmailDraft((d) => ({ ...d, audience: e.target.value as "newsletter" | "all" }))}
-              className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 max-w-xs"
-            >
-              <option value="newsletter">Newsletter subscribers only (recommended)</option>
-              <option value="all">All customers with email</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-            <input
-              type="checkbox"
-              checked={emailDraft.includePartnerLogos}
-              onChange={(e) => setEmailDraft((d) => ({ ...d, includePartnerLogos: e.target.checked }))}
-            />
-            Include NovaStaris × partner logos at top of email
-          </label>
-          {emailDraft.includePartnerLogos && (
-            <label className="text-xs text-muted-foreground flex flex-col gap-1 min-w-[180px]">
-              Partner logo
-              <select
-                className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-                value={emailDraft.partnerBrand}
-                onChange={(e) =>
-                  setEmailDraft((d) => ({
-                    ...d,
-                    partnerBrand: e.target.value as "blofin" | "vantage" | "tiomarkets" | "assexmarkets",
-                  }))
-                }
-              >
-                <option value="blofin">Blofin</option>
-                <option value="vantage">Vantage Markets</option>
-                <option value="tiomarkets">TIOmarkets</option>
-                <option value="assexmarkets">Assexmarkets</option>
-              </select>
-            </label>
-          )}
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                Recipients ({emailRecipients.length}) — edit before sending
-              </p>
-              <Button type="button" size="sm" variant="ghost" onClick={reloadEmailRecipientsFromAudience}>
-                Reset list from audience
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-700 p-2 bg-zinc-50/80 dark:bg-zinc-900/50">
-              {emailRecipients.length === 0 ? (
-                <span className="text-xs text-muted-foreground">No recipients — add an email below to test.</span>
-              ) : (
-                emailRecipients.map((email) => (
-                  <span
-                    key={email}
-                    className="inline-flex items-center gap-1 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-900 dark:text-violet-100 px-2 py-0.5 text-xs"
-                  >
-                    {email}
-                    <button
-                      type="button"
-                      onClick={() => removeEmailRecipient(email)}
-                      className="rounded-full hover:bg-violet-200/80 dark:hover:bg-violet-800/60 px-1"
-                      aria-label={`Remove ${email}`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <input
-                type="email"
-                value={emailAddInput}
-                onChange={(e) => setEmailAddInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addEmailRecipient();
-                  }
-                }}
-                placeholder="Add test email…"
-                className="flex-1 min-w-[12rem] text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-              />
-              <Button type="button" size="sm" variant="outline" onClick={addEmailRecipient}>
-                Add email
-              </Button>
-            </div>
-          </div>
-          <label className="text-xs text-muted-foreground flex flex-col gap-1">
-            Subject
-            <input
-              value={emailDraft.subject}
-              onChange={(e) => setEmailDraft((d) => ({ ...d, subject: e.target.value }))}
-              className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-            />
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setEmailDraft((d) => ({
-                  ...d,
-                  subject: NOVA_FOREX_BOTS_LAUNCH_EMAIL.subject,
-                  body: NOVA_FOREX_BOTS_LAUNCH_EMAIL.body,
-                  audience: "newsletter",
-                  includePartnerLogos: false,
-                  template: "default",
-                  ctaLabel: "Open Nova Forex Bots",
-                  ctaUrl: "https://novastaris.ai/?tab=nova-forex-bot",
-                }))
-              }
-            >
-              Load Nova Forex Bots launch email
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setEmailDraft((d) => ({
-                  ...d,
-                  subject: FOREX_PARTNER_REBATE_EMAIL.subject,
-                  body: FOREX_PARTNER_REBATE_EMAIL.body,
-                  audience: "newsletter",
-                  includePartnerLogos: true,
-                  partnerBrand: "tiomarkets",
-                  template: "forex-rebate",
-                  ctaLabel: "Open Nova Forex Bots",
-                  ctaUrl: "https://novastaris.ai/?tab=nova-forex-bot#forex-partner-rebate",
-                }))
-              }
-            >
-              Load $2/lot rebate email
-            </Button>
-          </div>
-          {emailDraft.template === "forex-rebate" && (
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
-              Polished rebate layout is on: branded header, offer card, steps, and a teal CTA button. Subject still
-              editable; leave the body as-is for the designed template.
-            </p>
-          )}
-          <label className="text-xs text-muted-foreground flex flex-col gap-1">
-            Message
-            <textarea
-              rows={5}
-              value={emailDraft.body}
-              onChange={(e) => setEmailDraft((d) => ({ ...d, body: e.target.value, template: d.template === "forex-rebate" ? "forex-rebate" : "default" }))}
-              placeholder="Plain text. Line breaks and bullets are formatted in the email."
-              className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-            />
-          </label>
-          <label className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-            <input
-              type="checkbox"
-              checked={emailConfirm}
-              onChange={(e) => setEmailConfirm(e.target.checked)}
-              className="mt-1"
-            />
-            <span>
-              I confirm sending to <strong>{emailRecipients.length}</strong> recipient
-              {emailRecipients.length === 1 ? "" : "s"}. This cannot be undone.
-            </span>
-          </label>
-          <Button
-            size="sm"
-            variant="destructive"
-            disabled={
-              emailSending ||
-              !emailDraft.subject.trim() ||
-              !emailDraft.body.trim() ||
-              emailRecipients.length === 0
-            }
-            onClick={() => void sendAnnouncementEmail()}
-          >
-            {emailSending ? "Sending…" : "Send email announcement"}
+        <CardContent>
+          <Button type="button" size="sm" asChild>
+            <Link href="/admin/emails">Open Emails</Link>
           </Button>
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-200 dark:border-zinc-800">
-        <CardHeader>
+<CardHeader>
           <CardTitle className="text-base">2FA security nudge</CardTitle>
           <p className="text-sm text-muted-foreground">
             Centered modal shown after sign-in for email/password users who have not enabled 2FA. Also sets the
@@ -1736,7 +1510,7 @@ function ForexBrokerPartnerSection({
   onLoadEmailTemplate,
 }: {
   broker: ForexPartnerBrokerId;
-  onLoadEmailTemplate: (subject: string, body: string, includeLogos: boolean) => void;
+  onLoadEmailTemplate: (subject?: string, body?: string, includeLogos?: boolean) => void;
 }) {
   const label = forexBrokerLabel(broker);
   const [promo, setPromo] = useState<ForexBrokerPartnerPromoAdmin | null>(null);
@@ -1929,7 +1703,7 @@ function ForexBrokerPartnerSection({
                   )
                 }
               >
-                Load email template
+                Load in Emails
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground">
