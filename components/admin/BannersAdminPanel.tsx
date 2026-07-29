@@ -150,6 +150,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     audience: "newsletter" as "newsletter" | "all",
     includePartnerLogos: false,
     partnerBrand: "blofin" as "blofin" | "vantage" | "tiomarkets" | "assexmarkets",
+    template: "default" as "default" | "forex-rebate",
+    ctaLabel: "",
+    ctaUrl: "",
   });
   const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
   const [emailAddInput, setEmailAddInput] = useState("");
@@ -526,6 +529,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
           audience: emailDraft.audience,
           includePartnerLogos: emailDraft.includePartnerLogos,
           partnerBrand: emailDraft.partnerBrand,
+          template: emailDraft.template,
+          ctaLabel: emailDraft.ctaLabel || undefined,
+          ctaUrl: emailDraft.ctaUrl || undefined,
           recipients: emailRecipients,
           confirm: true,
         }),
@@ -1196,6 +1202,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                       audience: "all",
                       includePartnerLogos: blofinPartnerDraft.includeLogosInEmail,
                       partnerBrand: "blofin",
+                      template: "default",
+                      ctaLabel: "",
+                      ctaUrl: "",
                     });
                   }}
                 >
@@ -1256,6 +1265,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
             audience: "all",
             includePartnerLogos: includeLogos,
             partnerBrand: "vantage",
+            template: "default",
+            ctaLabel: "",
+            ctaUrl: "",
           })
         }
       />
@@ -1268,6 +1280,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
             audience: "all",
             includePartnerLogos: includeLogos,
             partnerBrand: "tiomarkets",
+            template: "default",
+            ctaLabel: "",
+            ctaUrl: "",
           })
         }
       />
@@ -1280,6 +1295,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
             audience: "all",
             includePartnerLogos: includeLogos,
             partnerBrand: "assexmarkets",
+            template: "default",
+            ctaLabel: "",
+            ctaUrl: "",
           })
         }
       />
@@ -1529,6 +1547,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                   body: NOVA_FOREX_BOTS_LAUNCH_EMAIL.body,
                   audience: "newsletter",
                   includePartnerLogos: false,
+                  template: "default",
+                  ctaLabel: "Open Nova Forex Bots",
+                  ctaUrl: "https://novastaris.ai/?tab=nova-forex-bot",
                 }))
               }
             >
@@ -1546,19 +1567,28 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                   audience: "newsletter",
                   includePartnerLogos: true,
                   partnerBrand: "tiomarkets",
+                  template: "forex-rebate",
+                  ctaLabel: "Open Nova Forex Bots",
+                  ctaUrl: "https://novastaris.ai/?tab=nova-forex-bot#forex-partner-rebate",
                 }))
               }
             >
               Load $2/lot rebate email
             </Button>
           </div>
+          {emailDraft.template === "forex-rebate" && (
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+              Polished rebate layout is on: branded header, offer card, steps, and a teal CTA button. Subject still
+              editable; leave the body as-is for the designed template.
+            </p>
+          )}
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
             Message
             <textarea
               rows={5}
               value={emailDraft.body}
-              onChange={(e) => setEmailDraft((d) => ({ ...d, body: e.target.value }))}
-              placeholder="Plain text. Line breaks are preserved in the email."
+              onChange={(e) => setEmailDraft((d) => ({ ...d, body: e.target.value, template: d.template === "forex-rebate" ? "forex-rebate" : "default" }))}
+              placeholder="Plain text. Line breaks and bullets are formatted in the email."
               className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
             />
           </label>
