@@ -1824,11 +1824,12 @@ function ForexBrokerPartnerSection({
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-xs text-muted-foreground flex flex-col gap-1">
-                Promo badge
+                Promo badge (optional — e.g. Unlimited leverage; leave blank if no offer yet)
                 <input
                   value={draft.promoLabel}
                   onChange={(e) => setDraft((d) => ({ ...d, promoLabel: e.target.value }))}
                   className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                  placeholder="Optional short badge"
                 />
               </label>
               <label className="text-xs text-muted-foreground flex flex-col gap-1">

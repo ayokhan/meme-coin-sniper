@@ -551,6 +551,38 @@ model ForexBrokerPartnerLinkClick {
   @@index([clickedAt])
 }
 
+/**
+ * Manual IB rebate share records — what you pay referred customers from your broker commission.
+ * Admin → Partner rebates. Not paid by TIO/Vantage to the end user.
+ */
+model ForexPartnerRebatePayout {
+  id             String    @id @default(cuid())
+  /** vantage | tiomarkets | assexmarkets | other */
+  broker         String
+  customerName   String
+  customerEmail  String?
+  /** Optional NovaStaris user id if known. */
+  userId         String?
+  /** percent | usd | per_lot */
+  rewardType     String
+  /** e.g. 25 for 25%, 2 for $2, or 2 for $2/lot */
+  rewardValue    Float
+  /** Actual USD you paid them for this entry (when status=paid). */
+  amountPaidUsd  Float?
+  /** pending | paid */
+  status         String    @default("pending")
+  /** e.g. July 2026 · 12 FX lots */
+  periodNote     String?
+  notes          String?   @db.Text
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([broker, status, createdAt(sort: Desc)])
+  @@index([customerEmail])
+  @@index([status, createdAt(sort: Desc)])
+}
+
 /** Customer billing history — stored from Stripe webhooks / checkout; read on account page (no live Stripe API). */
 model BillingInvoice {
   id                String    @id @default(cuid())

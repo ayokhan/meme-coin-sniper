@@ -49,10 +49,10 @@ export const DEFAULT_FOREX_BROKER_PARTNER_PROMO: Record<ForexPartnerBrokerId, Fo
   tiomarkets: {
     enabled: false,
     registerUrl: "",
-    headline: "Trade Forex & CFDs on TIOmarkets with NovaStaris",
+    headline: "Trade Forex & CFDs on TIOmarkets Unlimited Leverage accounts",
     bodyText:
-      "Register with TIOmarkets through NovaStaris and connect your MT4/MT5 account to run Nova Forex Bot and Nova Forex Scalper on your own trades.",
-    promoLabel: "NovaStaris partner offer",
+      "Register with TIOmarkets through NovaStaris on an Unlimited Leverage account, then connect your MT4/MT5 login to run Nova Forex Bot and Nova Forex Scalper on your own trades.",
+    promoLabel: "Unlimited leverage",
     ctaLabel: "Register on TIOmarkets",
     showLogosInBanner: true,
     includeLogosInEmail: true,
@@ -85,8 +85,8 @@ export const FOREX_BROKER_LAUNCH_BANNER: Record<ForexPartnerBrokerId, SiteAnnoun
   },
   tiomarkets: {
     enabled: true,
-    title: "NovaStaris × TIOmarkets — forex trading is here",
-    body: "Register on TIOmarkets through NovaStaris and connect your MT4/MT5 account to trade with Nova Forex Bot and Nova Forex Scalper.",
+    title: "NovaStaris × TIOmarkets — Unlimited Leverage forex",
+    body: "Open a TIOmarkets Unlimited Leverage account through NovaStaris, then connect MT4/MT5 to trade with Nova Forex Bot and Nova Forex Scalper.",
     ctaLabel: "Open Nova Forex Bots",
     ctaHref: "/?tab=nova-forex-bot",
     showPartnerLogos: true,
@@ -126,10 +126,10 @@ Questions? Reply to this email or use Need Help in the app.
 https://novastaris.ai`,
   },
   tiomarkets: {
-    subject: "NovaStaris × TIOmarkets — trade forex with your MT4/MT5 account",
+    subject: "NovaStaris × TIOmarkets — Unlimited Leverage forex with MT4/MT5",
     body: `Hi there,
 
-We partnered with TIOmarkets so NovaStaris members can trade forex, metals, and indices — and connect MT4/MT5 directly to our Nova Forex Bot and Nova Forex Scalper.
+We partnered with TIOmarkets so NovaStaris members can open Unlimited Leverage accounts and trade forex, metals, and indices — then connect MT4/MT5 directly to our Nova Forex Bot and Nova Forex Scalper.
 
 Register through our partner link, then link your MT4/MT5 login in NovaStaris to start trading with AI on your account.
 
