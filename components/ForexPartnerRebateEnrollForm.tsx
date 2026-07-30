@@ -26,6 +26,24 @@ type Enrollment = {
   rewardLabel: string;
 };
 
+type RebateStatusSummary = {
+  pendingUsd: number;
+  paidThisMonthUsd: number;
+  paidAllTimeUsd: number;
+  pendingCount: number;
+  paidCount: number;
+};
+
+type RebatePayoutRow = {
+  id: string;
+  brokerLabel: string;
+  status: string;
+  amountPaidUsd: number | null;
+  suggestedAmountUsd: number | null;
+  periodNote: string | null;
+  createdAt: string;
+};
+
 type Props = {
   broker: ForexPartnerBrokerId;
   className?: string;
@@ -44,12 +62,27 @@ export function ForexPartnerRebateEnrollForm({ broker, className = "", defaultOp
   const [mtLogin, setMtLogin] = useState("");
   const [usdcWallet, setUsdcWallet] = useState("");
   const [existing, setExisting] = useState<Enrollment | null>(null);
+  const [summary, setSummary] = useState<RebateStatusSummary | null>(null);
+  const [payouts, setPayouts] = useState<RebatePayoutRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const partnerBroker: ForexPartnerBrokerId | null = isForexPartnerBrokerId(broker) ? broker : null;
   const brokerLabel = partnerBroker ? FOREX_BROKER_LABELS[partnerBroker] : broker;
+
+  const loadStatus = useCallback(async () => {
+    if (status !== "authenticated") return;
+    try {
+      const res = await fetch("/api/forex-partner-rebate/status", { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok || !data.success) return;
+      setSummary(data.summary ?? null);
+      setPayouts((data.payouts ?? []).slice(0, 5));
+    } catch {
+      /* ignore */
+    }
+  }, [status]);
 
   const load = useCallback(async () => {
     if (!partnerBroker || status !== "authenticated") return;
@@ -78,7 +111,8 @@ export function ForexPartnerRebateEnrollForm({ broker, className = "", defaultOp
 
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadStatus();
+  }, [load, loadStatus]);
 
   useEffect(() => {
     if (status === "authenticated" && !customerName && session?.user?.name) {
@@ -116,6 +150,7 @@ export function ForexPartnerRebateEnrollForm({ broker, className = "", defaultOp
       setExisting(data.enrollment);
       setNotice(data.message || "Saved.");
       setOpen(true);
+      void loadStatus();
     } catch {
       setError("Network error. Try again.");
     } finally {
@@ -148,6 +183,45 @@ export function ForexPartnerRebateEnrollForm({ broker, className = "", defaultOp
           {open ? "Hide form" : existing ? "Update details" : "Submit rebate details"}
         </Button>
       </div>
+
+      {status === "authenticated" && summary && (
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-2.5 py-2">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Pending</p>
+            <p className="text-sm font-semibold text-amber-300">${summary.pendingUsd.toFixed(2)}</p>
+          </div>
+          <div className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-2.5 py-2">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Paid this month</p>
+            <p className="text-sm font-semibold text-emerald-300">${summary.paidThisMonthUsd.toFixed(2)}</p>
+          </div>
+          <div className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-2.5 py-2">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Paid all-time</p>
+            <p className="text-sm font-semibold text-zinc-100">${summary.paidAllTimeUsd.toFixed(2)}</p>
+          </div>
+        </div>
+      )}
+
+      {status === "authenticated" && payouts.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {payouts.map((p) => (
+            <p key={p.id} className="text-[11px] text-zinc-400 flex flex-wrap gap-x-2">
+              <span
+                className={
+                  p.status === "paid" ? "text-emerald-400" : "text-amber-400"
+                }
+              >
+                {p.status === "paid" ? "Paid" : "Pending"}
+              </span>
+              <span>
+                $
+                {(p.amountPaidUsd ?? p.suggestedAmountUsd ?? 0).toFixed(2)}
+              </span>
+              <span>{p.brokerLabel}</span>
+              {p.periodNote && <span>· {p.periodNote}</span>}
+            </p>
+          ))}
+        </div>
+      )}
 
       {existing && !open && (
         <p className="mt-2 text-[11px] text-emerald-400/90">

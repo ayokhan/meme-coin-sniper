@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, isOwnerSession } from "@/lib/auth";
 import {
   getAnnouncementEmailStats,
+  listRecentAnnouncementCampaigns,
   sendAnnouncementEmails,
   type AnnouncementAudience,
   type AnnouncementEmailTemplate,
@@ -14,8 +15,11 @@ export async function GET() {
     return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
   }
   try {
-    const stats = await getAnnouncementEmailStats();
-    return NextResponse.json({ success: true, stats });
+    const [stats, campaigns] = await Promise.all([
+      getAnnouncementEmailStats(),
+      listRecentAnnouncementCampaigns(20),
+    ]);
+    return NextResponse.json({ success: true, stats, campaigns });
   } catch (e) {
     console.error("admin announcement-email GET:", e);
     return NextResponse.json({ success: false, error: "Failed to load email stats." }, { status: 500 });
@@ -66,6 +70,7 @@ export async function POST(request: Request) {
       ctaUrl: typeof body.ctaUrl === "string" ? body.ctaUrl : null,
       template,
       format,
+      createdByUserId: session?.user?.id ?? null,
     });
     return NextResponse.json({ success: true, result });
   } catch (e) {

@@ -21,9 +21,12 @@ type Payout = {
   brokerLabel: string;
   customerName: string;
   customerEmail: string | null;
+  userId?: string | null;
   rewardType: string;
   rewardValue: number;
   rewardLabel: string;
+  lotsTraded: number | null;
+  suggestedAmountUsd: number | null;
   amountPaidUsd: number | null;
   status: string;
   periodNote: string | null;
@@ -61,14 +64,21 @@ export default function AdminForexPartnerRebatesPage() {
 
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
+  const [userId, setUserId] = useState("");
   const [broker, setBroker] = useState<RebateBrokerId>("tiomarkets");
   const [rewardType, setRewardType] = useState<RebateRewardType>("per_lot");
   const [rewardValue, setRewardValue] = useState("2");
+  const [lotsTraded, setLotsTraded] = useState("");
   const [amountPaidUsd, setAmountPaidUsd] = useState("");
   const [status, setStatus] = useState<RebateStatus>("pending");
   const [periodNote, setPeriodNote] = useState("");
   const [notes, setNotes] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const suggestedAmountUsd =
+    rewardType === "per_lot" && lotsTraded !== "" && Number.isFinite(Number(lotsTraded)) && Number.isFinite(Number(rewardValue))
+      ? Math.round(Number(lotsTraded) * Number(rewardValue) * 100) / 100
+      : null;
 
   const loadEnrollments = useCallback(async () => {
     try {
@@ -118,9 +128,11 @@ export default function AdminForexPartnerRebatesPage() {
     setEditingId(null);
     setCustomerName(e.customerName);
     setCustomerEmail(e.customerEmail);
+    setUserId(e.userId || "");
     setBroker((REBATE_BROKERS.includes(e.broker as RebateBrokerId) ? e.broker : "other") as RebateBrokerId);
     setRewardType((e.rewardType as RebateRewardType) || "per_lot");
     setRewardValue(String(e.rewardValue || 2));
+    setLotsTraded("");
     setAmountPaidUsd("");
     setStatus("pending");
     setPeriodNote("");
@@ -132,9 +144,11 @@ export default function AdminForexPartnerRebatesPage() {
     setEditingId(null);
     setCustomerName("");
     setCustomerEmail("");
+    setUserId("");
     setBroker("tiomarkets");
     setRewardType("per_lot");
     setRewardValue("2");
+    setLotsTraded("");
     setAmountPaidUsd("");
     setStatus("pending");
     setPeriodNote("");
@@ -145,9 +159,11 @@ export default function AdminForexPartnerRebatesPage() {
     setEditingId(p.id);
     setCustomerName(p.customerName);
     setCustomerEmail(p.customerEmail ?? "");
+    setUserId(p.userId ?? "");
     setBroker((REBATE_BROKERS.includes(p.broker as RebateBrokerId) ? p.broker : "other") as RebateBrokerId);
     setRewardType((p.rewardType as RebateRewardType) || "usd");
     setRewardValue(String(p.rewardValue));
+    setLotsTraded(p.lotsTraded != null ? String(p.lotsTraded) : "");
     setAmountPaidUsd(p.amountPaidUsd != null ? String(p.amountPaidUsd) : "");
     setStatus((p.status as RebateStatus) || "pending");
     setPeriodNote(p.periodNote ?? "");
@@ -163,9 +179,12 @@ export default function AdminForexPartnerRebatesPage() {
         id: editingId || undefined,
         customerName,
         customerEmail,
+        userId: userId.trim() || null,
         broker,
         rewardType,
         rewardValue,
+        lotsTraded: lotsTraded === "" ? null : lotsTraded,
+        suggestedAmountUsd,
         amountPaidUsd: amountPaidUsd === "" ? null : amountPaidUsd,
         status,
         periodNote,
@@ -192,14 +211,18 @@ export default function AdminForexPartnerRebatesPage() {
     }
   };
 
-  const markPaid = async (id: string) => {
+  const markPaid = async (p: Payout) => {
     setBusy(true);
     try {
+      const payload: Record<string, unknown> = { id: p.id, status: "paid" };
+      if (p.amountPaidUsd == null && p.suggestedAmountUsd != null) {
+        payload.amountPaidUsd = p.suggestedAmountUsd;
+      }
       const res = await fetch("/api/admin/forex-partner-rebates", {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: "paid" }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -355,6 +378,15 @@ export default function AdminForexPartnerRebatesPage() {
                 />
               </label>
               <label className="block text-xs text-muted-foreground">
+                User ID (optional)
+                <input
+                  className={inputClass}
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  placeholder="From enrollment when available"
+                />
+              </label>
+              <label className="block text-xs text-muted-foreground">
                 Broker
                 <select
                   className={inputClass}
@@ -396,6 +428,31 @@ export default function AdminForexPartnerRebatesPage() {
                   />
                 </label>
               </div>
+              {rewardType === "per_lot" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-xs text-muted-foreground">
+                    Lots traded
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className={inputClass}
+                      value={lotsTraded}
+                      onChange={(e) => setLotsTraded(e.target.value)}
+                      placeholder="e.g. 12"
+                    />
+                  </label>
+                  <label className="block text-xs text-muted-foreground">
+                    Suggested USD
+                    <input
+                      readOnly
+                      className={`${inputClass} opacity-80`}
+                      value={suggestedAmountUsd != null ? suggestedAmountUsd.toFixed(2) : ""}
+                      placeholder="lots × value"
+                    />
+                  </label>
+                </div>
+              )}
               <label className="block text-xs text-muted-foreground">
                 Status
                 <select
@@ -419,7 +476,7 @@ export default function AdminForexPartnerRebatesPage() {
                   className={inputClass}
                   value={amountPaidUsd}
                   onChange={(e) => setAmountPaidUsd(e.target.value)}
-                  placeholder="Optional until paid"
+                  placeholder={suggestedAmountUsd != null ? `Suggested $${suggestedAmountUsd.toFixed(2)}` : "Optional until paid"}
                 />
               </label>
               <label className="block text-xs text-muted-foreground">
@@ -501,6 +558,8 @@ export default function AdminForexPartnerRebatesPage() {
                     <th className="py-2 pr-2">Customer</th>
                     <th className="py-2 pr-2">Broker</th>
                     <th className="py-2 pr-2">Reward</th>
+                    <th className="py-2 pr-2">Lots</th>
+                    <th className="py-2 pr-2">Suggested</th>
                     <th className="py-2 pr-2">Period</th>
                     <th className="py-2 pr-2">Paid $</th>
                     <th className="py-2 pr-2">Status</th>
@@ -516,6 +575,10 @@ export default function AdminForexPartnerRebatesPage() {
                       </td>
                       <td className="py-1.5 pr-2">{p.brokerLabel}</td>
                       <td className="py-1.5 pr-2">{p.rewardLabel}</td>
+                      <td className="py-1.5 pr-2">{p.lotsTraded != null ? p.lotsTraded : "—"}</td>
+                      <td className="py-1.5 pr-2">
+                        {p.suggestedAmountUsd != null ? `$${p.suggestedAmountUsd.toFixed(2)}` : "—"}
+                      </td>
                       <td className="py-1.5 pr-2">{p.periodNote || "—"}</td>
                       <td className="py-1.5 pr-2">
                         {p.amountPaidUsd != null ? `$${p.amountPaidUsd.toFixed(2)}` : "—"}
@@ -543,7 +606,7 @@ export default function AdminForexPartnerRebatesPage() {
                               variant="outline"
                               className="h-7 text-[11px]"
                               disabled={busy}
-                              onClick={() => void markPaid(p.id)}
+                              onClick={() => void markPaid(p)}
                             >
                               Mark paid
                             </Button>

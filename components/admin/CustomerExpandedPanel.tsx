@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ADMIN_VIP_GRANTS, type AdminVipGrantId } from "@/lib/admin-vip-grant";
 
 export type AiAgentLimitsPatch = {
@@ -241,6 +241,43 @@ export default function CustomerExpandedPanel({
   onSupportStaffNameSave,
   onAiAgentLimitsSave,
 }: CustomerExpandedPanelProps) {
+  const [timeline, setTimeline] = useState<Array<{ at: string; type: string; label: string; detail?: string }>>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOwner || !c.id) return;
+    let cancelled = false;
+    setTimelineLoading(true);
+    setTimelineError(null);
+    void (async () => {
+      try {
+        const res = await fetch(`/api/admin/customers/${encodeURIComponent(c.id)}/timeline`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok || !data.success) {
+          setTimelineError(data.error || "Could not load timeline.");
+          setTimeline([]);
+          return;
+        }
+        setTimeline(Array.isArray(data.events) ? data.events : []);
+      } catch {
+        if (!cancelled) {
+          setTimelineError("Could not load timeline.");
+          setTimeline([]);
+        }
+      } finally {
+        if (!cancelled) setTimelineLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [c.id, isOwner]);
+
   if (readOnly) {
     return (
       <div className="p-4 bg-zinc-50/80 dark:bg-zinc-900/30 border-t border-zinc-200 dark:border-zinc-700">
@@ -693,6 +730,30 @@ export default function CustomerExpandedPanel({
               </tbody>
             </table>
           </div>
+        </DetailSection>
+      )}
+
+      {isOwner && (
+        <DetailSection title="Activity timeline">
+          {timelineLoading ? (
+            <p className="text-xs text-muted-foreground">Loading…</p>
+          ) : timelineError ? (
+            <p className="text-xs text-rose-600 dark:text-rose-400">{timelineError}</p>
+          ) : timeline.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No activity events yet.</p>
+          ) : (
+            <ul className="space-y-2 max-h-72 overflow-y-auto">
+              {timeline.map((ev, i) => (
+                <li key={`${ev.at}-${ev.type}-${i}`} className="text-xs border-b border-zinc-200/80 dark:border-zinc-700/80 pb-1.5 last:border-0">
+                  <p className="font-medium text-zinc-800 dark:text-zinc-200">{ev.label}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(ev.at).toLocaleString()}
+                    {ev.detail ? ` · ${ev.detail}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </DetailSection>
       )}
     </div>

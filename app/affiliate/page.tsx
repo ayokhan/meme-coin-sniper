@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Copy, Gift, Users, Zap } from "lucide-react";
+import { openTelegramShare } from "@/lib/pnl-share";
 
 type CommissionRow = {
   id: string;
@@ -30,6 +31,7 @@ type AffiliateData = {
     totalEarnedUsd: number;
     pendingUsd: number;
     paidUsd: number;
+    thisWeekUsd?: number;
   };
   nextPayoutFriday: string;
   terms: { title: string; bullets: string[]; payoutNote: string };
@@ -208,13 +210,58 @@ export default function AffiliatePage() {
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Next weekly payout window: <strong className="text-foreground">{data?.nextPayoutFriday ?? "Friday"}</strong> (paid after verification).
-          </p>
+          {data?.referralLink && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                asChild
+              >
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(
+                    `Earn with me on NovaStaris — ${data.commissionRatePct}% VIP referral\n${data.referralLink}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Share WhatsApp
+                </a>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  openTelegramShare(
+                    `Earn with me on NovaStaris — ${data.commissionRatePct}% VIP referral\n${data.referralLink}`,
+                    data.referralLink
+                  )
+                }
+              >
+                Share Telegram
+              </Button>
+            </div>
+          )}
+
+          <div className="rounded-lg border border-amber-400/50 bg-amber-500/10 dark:bg-amber-950/40 px-3 py-2.5">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+              Next weekly payout: {data?.nextPayoutFriday ?? "Friday"}
+            </p>
+            <p className="text-[11px] text-amber-800/80 dark:text-amber-200/80 mt-0.5">
+              Paid after verification — commissions marked pending until then.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">This week</p>
+            <p className="text-xl font-bold font-mono">${(data?.stats.thisWeekUsd ?? 0).toFixed(2)}</p>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Total earned</p>

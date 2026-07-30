@@ -20,7 +20,7 @@ export function buildAnalysisShareCaption(parts: {
     if (a.avgWinUsdt != null) lines.push(`Avg win: +${a.avgWinUsdt.toFixed(2)} USDT`);
     if (a.avgLossUsdt != null) lines.push(`Avg loss: ${a.avgLossUsdt.toFixed(2)} USDT`);
   }
-  lines.push("", "https://novastaris.ai");
+  lines.push("", "https://novastaris.ai/wins");
   return lines.join("\n");
 }
 
@@ -50,7 +50,7 @@ export function buildPnlShareCaption(parts: {
   const held =
     parts.showHoldDuration && parts.heldFor ? ` · Held for ${parts.heldFor}` : "";
   const label = parts.kind === "open" ? "open position" : "closed trade";
-  return `${parts.symbol} ${label} ${roi}${invested}${usdt}${held} on NovaStaris AI\n\nhttps://novastaris.ai`;
+  return `${parts.symbol} ${label} ${roi}${invested}${usdt}${held} on NovaStaris AI\n\nhttps://novastaris.ai/wins`;
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
@@ -75,7 +75,7 @@ export async function nativeSharePnlBlob(
       await navigator.share({ files: [file], title: "NovaStaris PNL", text: caption });
       return "native";
     }
-    await navigator.share({ title: "NovaStaris PNL", text: caption, url: "https://novastaris.ai" });
+    await navigator.share({ title: "NovaStaris PNL", text: caption, url: "https://novastaris.ai/wins" });
     return "native";
   } catch (e) {
     if (e instanceof Error && e.name === "AbortError") return "cancelled";
@@ -83,8 +83,8 @@ export async function nativeSharePnlBlob(
   }
 }
 
-export function openTelegramShare(caption: string) {
-  const url = `https://t.me/share/url?url=${encodeURIComponent("https://novastaris.ai")}&text=${encodeURIComponent(caption)}`;
+export function openTelegramShare(caption: string, shareUrl = "https://novastaris.ai/wins") {
+  const url = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(caption)}`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
 

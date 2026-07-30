@@ -22,6 +22,19 @@ type EmailStats = {
   allEmails: string[];
 };
 
+type CampaignRow = {
+  id: string;
+  subject: string;
+  template: string;
+  format: string;
+  audience: string;
+  recipientCount: number;
+  sentCount: number;
+  failedCount: number;
+  partnerBrand: string | null;
+  createdAt: string;
+};
+
 type Props = {
   onNotice?: (msg: string) => void;
   onError?: (msg: string) => void;
@@ -33,6 +46,7 @@ const inputClass =
 export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const searchParams = useSearchParams();
   const [stats, setStats] = useState<EmailStats | null>(null);
+  const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -58,6 +72,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       const data = await res.json();
       if (res.ok && data.success && data.stats) {
         setStats(data.stats as EmailStats);
+        setCampaigns(Array.isArray(data.campaigns) ? (data.campaigns as CampaignRow[]) : []);
       } else {
         onError?.(data.error || "Could not load email stats.");
       }
@@ -157,6 +172,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           `Email sent to ${r.sent} of ${r.total} recipients${r.failed ? ` (${r.failed} failed)` : ""}.`
         );
         setConfirm(false);
+        void loadStats();
       } else {
         onError?.(data.error ?? "Send failed.");
       }
@@ -451,6 +467,48 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           >
             {sending ? "Sending…" : `Send ${format === "rich" ? "rich" : "plain"} email`}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Recent sends</CardTitle>
+          <p className="text-sm text-muted-foreground">Last 20 announcement email campaigns.</p>
+        </CardHeader>
+        <CardContent>
+          {campaigns.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No campaigns logged yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-muted-foreground border-b">
+                    <th className="py-2 pr-2">Subject</th>
+                    <th className="py-2 pr-2">Template</th>
+                    <th className="py-2 pr-2">Sent / failed</th>
+                    <th className="py-2">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaigns.map((c) => (
+                    <tr key={c.id} className="border-b border-zinc-100 dark:border-zinc-800">
+                      <td className="py-1.5 pr-2 font-medium">{c.subject}</td>
+                      <td className="py-1.5 pr-2">{c.template}</td>
+                      <td className="py-1.5 pr-2">
+                        {c.sentCount}/{c.recipientCount}
+                        {c.failedCount ? (
+                          <span className="text-rose-600 dark:text-rose-400"> · {c.failedCount} failed</span>
+                        ) : null}
+                      </td>
+                      <td className="py-1.5 text-muted-foreground whitespace-nowrap">
+                        {c.createdAt ? new Date(c.createdAt).toLocaleString() : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

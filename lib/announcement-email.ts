@@ -397,6 +397,55 @@ export function getRecipientsForAudience(
   return audience === "newsletter" ? [...stats.newsletterEmails] : [...stats.allEmails];
 }
 
+export type AnnouncementEmailCampaignRow = {
+  id: string;
+  subject: string;
+  template: string;
+  format: string;
+  audience: string;
+  recipientCount: number;
+  sentCount: number;
+  failedCount: number;
+  partnerBrand: string | null;
+  createdByUserId: string | null;
+  createdAt: string;
+};
+
+function campaignDb() {
+  return prisma as unknown as {
+    announcementEmailCampaign: {
+      create: (args: { data: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+      findMany: (args: unknown) => Promise<Array<Record<string, unknown>>>;
+    };
+  };
+}
+
+export async function listRecentAnnouncementCampaigns(limit = 20): Promise<AnnouncementEmailCampaignRow[]> {
+  try {
+    const rows = await campaignDb().announcementEmailCampaign.findMany({
+      orderBy: { createdAt: "desc" },
+      take: Math.min(50, Math.max(1, limit)),
+    });
+    return rows.map((r) => ({
+      id: String(r.id),
+      subject: String(r.subject ?? ""),
+      template: String(r.template ?? "default"),
+      format: String(r.format ?? "rich"),
+      audience: String(r.audience ?? ""),
+      recipientCount: Number(r.recipientCount) || 0,
+      sentCount: Number(r.sentCount) || 0,
+      failedCount: Number(r.failedCount) || 0,
+      partnerBrand: r.partnerBrand != null ? String(r.partnerBrand) : null,
+      createdByUserId: r.createdByUserId != null ? String(r.createdByUserId) : null,
+      createdAt:
+        r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt ?? ""),
+    }));
+  } catch (e) {
+    console.warn("listRecentAnnouncementCampaigns:", e);
+    return [];
+  }
+}
+
 export async function sendAnnouncementEmails(args: {
   subject: string;
   body: string;
@@ -408,12 +457,15 @@ export async function sendAnnouncementEmails(args: {
   ctaUrl?: string | null;
   template?: AnnouncementEmailTemplate;
   format?: "rich" | "plain";
+  createdByUserId?: string | null;
 }): Promise<{ sent: number; failed: number; total: number; errors: string[] }> {
   const subject = args.subject.trim();
   const body = args.body.trim();
   const format = args.format === "plain" ? "plain" : "rich";
+  const template = args.template ?? "default";
+  const audience = args.audience ?? "newsletter";
   if (!subject) throw new Error("Subject is required.");
-  if (!body && !(format === "rich" && (args.template === "forex-rebate" || args.template === "affiliate"))) {
+  if (!body && !(format === "rich" && (template === "forex-rebate" || template === "affiliate"))) {
     throw new Error("Message body is required.");
   }
 
@@ -422,7 +474,7 @@ export async function sendAnnouncementEmails(args: {
     recipients = [...new Set(args.recipients.map((e) => normalizeEmail(e)).filter(Boolean) as string[])];
   } else {
     const stats = await getAnnouncementEmailStats();
-    recipients = getRecipientsForAudience(stats, args.audience ?? "newsletter");
+    recipients = getRecipientsForAudience(stats, audience);
   }
 
   if (recipients.length === 0) throw new Error("No valid recipient emails.");
@@ -433,7 +485,7 @@ export async function sendAnnouncementEmails(args: {
     partnerBrand: args.partnerBrand ?? "blofin",
     ctaLabel: args.ctaLabel,
     ctaUrl: args.ctaUrl,
-    template: args.template ?? "default",
+    template,
     format,
   });
 
@@ -450,6 +502,24 @@ export async function sendAnnouncementEmails(args: {
       if (errors.length < 5) errors.push(`${to}: ${result.error}`);
     }
     await new Promise((r) => setTimeout(r, 200));
+  }
+
+  try {
+    await campaignDb().announcementEmailCampaign.create({
+      data: {
+        subject,
+        template,
+        format,
+        audience: args.recipients?.length ? "custom" : audience,
+        recipientCount: recipients.length,
+        sentCount: sent,
+        failedCount: failed,
+        partnerBrand: args.includePartnerLogos ? (args.partnerBrand ?? "blofin") : null,
+        createdByUserId: args.createdByUserId ?? null,
+      },
+    });
+  } catch (e) {
+    console.warn("AnnouncementEmailCampaign create failed:", e);
   }
 
   return { sent, failed, total: recipients.length, errors };

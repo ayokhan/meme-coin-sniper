@@ -37,10 +37,24 @@ function serialize(row: Record<string, unknown>) {
     ...row,
     brokerLabel: rebateBrokerLabel(String(row.broker ?? "")),
     rewardLabel: formatRebateReward(String(row.rewardType ?? ""), Number(row.rewardValue) || 0),
+    lotsTraded: row.lotsTraded != null ? Number(row.lotsTraded) : null,
+    suggestedAmountUsd: row.suggestedAmountUsd != null ? Number(row.suggestedAmountUsd) : null,
+    amountPaidUsd: row.amountPaidUsd != null ? Number(row.amountPaidUsd) : null,
     paidAt: row.paidAt instanceof Date ? row.paidAt.toISOString() : row.paidAt,
     createdAt: row.createdAt instanceof Date ? (row.createdAt as Date).toISOString() : row.createdAt,
     updatedAt: row.updatedAt instanceof Date ? (row.updatedAt as Date).toISOString() : row.updatedAt,
   };
+}
+
+function parseOptionalNumber(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function suggestedFromLots(rewardType: string, rewardValue: number, lotsTraded: number | null): number | null {
+  if (rewardType !== "per_lot" || lotsTraded == null || lotsTraded < 0) return null;
+  return Math.round(lotsTraded * rewardValue * 100) / 100;
 }
 
 /** GET — list rebate payouts (optional ?broker=&status=). */
@@ -96,13 +110,11 @@ export async function POST(request: Request) {
   }
 
   const status = isRebateStatus(body.status) ? body.status : "pending";
-  const amountPaidRaw = body.amountPaidUsd;
-  const amountPaidUsd =
-    amountPaidRaw == null || amountPaidRaw === ""
-      ? null
-      : Number.isFinite(Number(amountPaidRaw))
-        ? Number(amountPaidRaw)
-        : null;
+  const amountPaidUsd = parseOptionalNumber(body.amountPaidUsd);
+  const lotsTraded = parseOptionalNumber(body.lotsTraded);
+  const suggestedExplicit = parseOptionalNumber(body.suggestedAmountUsd);
+  const suggestedAmountUsd =
+    suggestedExplicit ?? suggestedFromLots(String(body.rewardType), rewardValue, lotsTraded);
 
   const row = await rebateDb().forexPartnerRebatePayout.create({
     data: {
@@ -112,7 +124,9 @@ export async function POST(request: Request) {
       userId: String(body.userId ?? "").trim().slice(0, 64) || null,
       rewardType: body.rewardType,
       rewardValue,
-      amountPaidUsd: status === "paid" ? amountPaidUsd : amountPaidUsd,
+      lotsTraded,
+      suggestedAmountUsd,
+      amountPaidUsd,
       status,
       periodNote: String(body.periodNote ?? "").trim().slice(0, 200) || null,
       notes: String(body.notes ?? "").trim().slice(0, 4000) || null,
@@ -167,10 +181,19 @@ export async function PATCH(request: Request) {
     data.rewardValue = rewardValue;
   }
   if ("amountPaidUsd" in body) {
-    data.amountPaidUsd =
-      body.amountPaidUsd == null || body.amountPaidUsd === ""
-        ? null
-        : Number(body.amountPaidUsd);
+    data.amountPaidUsd = parseOptionalNumber(body.amountPaidUsd);
+  }
+  if ("lotsTraded" in body) {
+    data.lotsTraded = parseOptionalNumber(body.lotsTraded);
+  }
+  if ("suggestedAmountUsd" in body || "lotsTraded" in body || "rewardValue" in body || "rewardType" in body) {
+    const rewardType = String(data.rewardType ?? existing.rewardType ?? "per_lot");
+    const rewardValue = Number(data.rewardValue ?? existing.rewardValue ?? 2);
+    const lots =
+      "lotsTraded" in data ? (data.lotsTraded as number | null) : parseOptionalNumber(existing.lotsTraded);
+    const explicit =
+      "suggestedAmountUsd" in body ? parseOptionalNumber(body.suggestedAmountUsd) : parseOptionalNumber(existing.suggestedAmountUsd);
+    data.suggestedAmountUsd = explicit ?? suggestedFromLots(rewardType, rewardValue, lots);
   }
   if ("periodNote" in body) {
     data.periodNote = String(body.periodNote ?? "").trim().slice(0, 200) || null;
@@ -185,6 +208,13 @@ export async function PATCH(request: Request) {
       if (body.paidAt) {
         const d = new Date(String(body.paidAt));
         if (!Number.isNaN(d.getTime())) data.paidAt = d;
+      }
+      // If marking paid without amount, use suggested
+      if (!("amountPaidUsd" in body) && (existing.amountPaidUsd == null || existing.amountPaidUsd === "")) {
+        const suggested =
+          (data.suggestedAmountUsd as number | null | undefined) ??
+          parseOptionalNumber(existing.suggestedAmountUsd);
+        if (suggested != null) data.amountPaidUsd = suggested;
       }
     } else {
       data.paidAt = null;

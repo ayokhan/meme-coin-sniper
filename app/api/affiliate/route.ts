@@ -87,6 +87,10 @@ export async function GET(request: Request) {
   const paidAmount = (commissions as Array<{ commissionAmountUsd: number; status: string }>)
     .filter((c) => c.status === REFERRAL_COMMISSION_STATUS.PAID)
     .reduce((acc, c) => acc + c.commissionAmountUsd, 0);
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const thisWeekUsd = (commissions as Array<{ commissionAmountUsd: number; createdAt: Date }>)
+    .filter((c) => c.createdAt.getTime() >= weekAgo)
+    .reduce((acc, c) => acc + c.commissionAmountUsd, 0);
 
   return NextResponse.json({
     success: true,
@@ -99,6 +103,7 @@ export async function GET(request: Request) {
       totalEarnedUsd: Math.round(totalEarned * 100) / 100,
       pendingUsd: Math.round(pendingAmount * 100) / 100,
       paidUsd: Math.round(paidAmount * 100) / 100,
+      thisWeekUsd: Math.round(thisWeekUsd * 100) / 100,
     },
     nextPayoutFriday: nextFridayLabel(),
     terms: AFFILIATE_TERMS,

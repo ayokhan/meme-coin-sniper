@@ -596,6 +596,10 @@ model ForexPartnerRebatePayout {
   rewardType     String
   /** e.g. 25 for 25%, 2 for $2, or 2 for $2/lot */
   rewardValue    Float
+  /** Lots traded in this period (for per_lot ops queue). */
+  lotsTraded     Float?
+  /** Suggested payout = lots × rewardValue when per_lot (or entered manually). */
+  suggestedAmountUsd Float?
   /** Actual USD you paid them for this entry (when status=paid). */
   amountPaidUsd  Float?
   /** pending | paid */
@@ -610,6 +614,25 @@ model ForexPartnerRebatePayout {
   @@index([broker, status, createdAt(sort: Desc)])
   @@index([customerEmail])
   @@index([status, createdAt(sort: Desc)])
+  @@index([userId, status, createdAt(sort: Desc)])
+}
+
+/** Log of Admin → Emails announcement blasts (avoid double-sending). */
+model AnnouncementEmailCampaign {
+  id              String   @id @default(cuid())
+  subject         String
+  template        String   @default("default")
+  format          String   @default("rich")
+  audience        String
+  recipientCount  Int      @default(0)
+  sentCount       Int      @default(0)
+  failedCount     Int      @default(0)
+  partnerBrand    String?
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([template, createdAt(sort: Desc)])
 }
 
 /** Customer billing history — stored from Stripe webhooks / checkout; read on account page (no live Stripe API). */

@@ -13,6 +13,7 @@ import {
 } from "@/lib/forex-broker-user-config";
 import { suggestedServersForBroker } from "@/lib/forex-broker-servers";
 import { ForexBrokerPartnerPromoBanner } from "@/components/ForexBrokerPartnerPromoBanner";
+import { ForexGettingStartedChecklist } from "@/components/ForexGettingStartedChecklist";
 import { ForexPartnerRebateEnrollForm } from "@/components/ForexPartnerRebateEnrollForm";
 import ForexBrokerAccountPanel from "@/components/ForexBrokerAccountPanel";
 import { useI18n } from "@/components/I18nProvider";
@@ -532,6 +533,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       </CardHeader>
       <CardContent className="space-y-3">
         {brokerTabs.length > 0 && <ForexBrokerPartnerPromoBanner broker={activeBroker} compact />}
+        {!compact && <ForexGettingStartedChecklist />}
         {brokerTabs.length > 0 && isForexPartnerBrokerId(activeBroker) && (
           <ForexPartnerRebateEnrollForm broker={activeBroker} />
         )}
