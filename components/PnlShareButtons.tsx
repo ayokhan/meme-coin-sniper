@@ -133,6 +133,17 @@ export default function PnlShareButtons({
       >
         IG
       </Button>
+      <a
+        href="/wins"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`self-center text-muted-foreground hover:text-foreground underline-offset-2 hover:underline ${
+          compact ? "text-[10px] px-0.5" : "text-xs px-1"
+        }`}
+        title="Public page linked when you share PNL cards"
+      >
+        Wins
+      </a>
     </div>
   );
 }
