@@ -245,6 +245,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               Rebate rich layout is on (branded header, offer card, CTA).
             </p>
           )}
+          {format === "rich" && draft.template === "affiliate" && (
+            <p className="text-xs text-indigo-700 dark:text-indigo-300 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-3 py-2">
+              Affiliate rich layout is on (NovaStaris header, 10% offer card, Get your link CTA).
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="outline" onClick={() => void copyForWhatsApp()}>
               Copy for WhatsApp / Telegram / IG

@@ -4,7 +4,7 @@ import { sendEmailDetailed } from "@/lib/send-email";
 
 export type AnnouncementAudience = "newsletter" | "all";
 
-export type AnnouncementEmailTemplate = "default" | "forex-rebate";
+export type AnnouncementEmailTemplate = "default" | "forex-rebate" | "affiliate";
 
 export type AnnouncementEmailStats = {
   newsletterCount: number;
@@ -15,6 +15,22 @@ export type AnnouncementEmailStats = {
 
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
 const FOREX_BOTS_URL = `${APP_ORIGIN}/?tab=nova-forex-bot#forex-partner-rebate`;
+const AFFILIATE_URL = `${APP_ORIGIN}/affiliate`;
+
+/** NovaStaris-only email header (no partner logo). */
+function novaBrandHeaderEmailHtml(eyebrow: string): string {
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0;border-collapse:collapse;">
+  <tr>
+    <td align="center" style="background:#0a0a0b;background-image:linear-gradient(135deg,#0a0a0b 0%,#18181b 50%,#1e1b4b 100%);padding:28px 24px 24px 24px;">
+      <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#a1a1aa;">
+        ${escapeHtml(eyebrow)}
+      </p>
+      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;color:#fafafa;letter-spacing:-0.02em;">NovaStaris</p>
+    </td>
+  </tr>
+</table>`.trim();
+}
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -186,6 +202,57 @@ export function buildForexRebateEmailHtml(args: {
   return emailShell(inner);
 }
 
+/** Polished affiliate program marketing email. */
+export function buildAffiliateEmailHtml(args?: { body?: string }): string {
+  const customBody = (args?.body ?? "").trim();
+  const introHtml = customBody
+    ? announcementBodyToHtml(customBody)
+    : `
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">Hi there,</p>
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
+        You can now earn with the NovaStaris Affiliate Program — share your link and get paid when friends go VIP.
+      </p>`;
+
+  const inner = `
+    <tr>
+      <td style="padding:0;">
+        ${novaBrandHeaderEmailHtml("Affiliate program")}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 28px 8px 28px;">
+        <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#6366f1;font-weight:700;">Earn with NovaStaris</p>
+        <h1 style="margin:0 0 16px 0;font-size:24px;line-height:1.25;color:#18181b;font-weight:700;">Earn 10% on VIP referrals</h1>
+        ${introHtml}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px 0;border-collapse:collapse;">
+          <tr>
+            <td style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:0.06em;">The offer</p>
+              <p style="margin:0 0 6px 0;font-size:15px;color:#312e81;"><strong>10%</strong> of the VIP subscription fee when someone you refer subscribes</p>
+              <p style="margin:0;font-size:15px;color:#312e81;">Payouts every <strong>Friday</strong> after verification</p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#18181b;">How to join</p>
+        <ol style="margin:0 0 20px 0;padding-left:20px;color:#3f3f46;font-size:15px;line-height:1.55;">
+          <li style="margin:0 0 8px 0;">Sign in to NovaStaris</li>
+          <li style="margin:0 0 8px 0;">Open Affiliate (or go to novastaris.ai/affiliate)</li>
+          <li style="margin:0 0 8px 0;">Copy your unique referral link</li>
+          <li style="margin:0 0 8px 0;">Share it with friends</li>
+        </ol>
+        <p style="margin:0 0 20px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
+          When they subscribe to VIP through your link, you earn 10%. Commissions start as Pending verification, then get marked Paid.
+        </p>
+        ${ctaButtonHtml("Get your referral link", AFFILIATE_URL)}
+        <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
+          Or open <a href="${AFFILIATE_URL}" style="color:#6366f1;">novastaris.ai/affiliate</a>
+        </p>
+      </td>
+    </tr>`;
+
+  return emailShell(inner);
+}
+
 /** Original-style plain email: escaped text + line breaks (easy to match WhatsApp copy). */
 export function buildPlainAnnouncementEmailHtml(args: {
   body: string;
@@ -229,6 +296,12 @@ export function buildAnnouncementEmailHtml(args: {
     });
   }
 
+  if (args.template === "affiliate") {
+    return buildAffiliateEmailHtml({
+      body: shouldUseCustomAffiliateIntro(args.body) ? args.body : undefined,
+    });
+  }
+
   const header = args.includePartnerLogos ? partnerLogosEmailHtml(args.partnerBrand ?? "blofin") : "";
   const cta =
     args.ctaLabel && args.ctaUrl
@@ -253,6 +326,13 @@ function shouldUseCustomRebateIntro(body: string): boolean {
   if (!t) return false;
   // Stock template contains these section headers — treat as default and use structured HTML only
   if (t.includes("The offer") && t.includes("How to join") && t.includes("$2 USDC")) return false;
+  return true;
+}
+
+function shouldUseCustomAffiliateIntro(body: string): boolean {
+  const t = body.trim();
+  if (!t) return false;
+  if (t.includes("The offer") && t.includes("How to join") && t.includes("10%")) return false;
   return true;
 }
 
@@ -333,7 +413,7 @@ export async function sendAnnouncementEmails(args: {
   const body = args.body.trim();
   const format = args.format === "plain" ? "plain" : "rich";
   if (!subject) throw new Error("Subject is required.");
-  if (!body && !(format === "rich" && args.template === "forex-rebate")) {
+  if (!body && !(format === "rich" && (args.template === "forex-rebate" || args.template === "affiliate"))) {
     throw new Error("Message body is required.");
   }
 

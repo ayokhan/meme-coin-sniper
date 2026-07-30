@@ -34,6 +34,37 @@ export const AFFILIATE_LAUNCH_BANNER = {
   ctaHref: "/affiliate",
 } as const;
 
+/** Customer email: affiliate program invite (Admin → Emails). */
+export const AFFILIATE_PROGRAM_EMAIL = {
+  subject: "Earn 10% with the NovaStaris Affiliate Program",
+  body: `Hi there,
+
+You can now earn with the NovaStaris Affiliate Program.
+
+The offer
+• Earn 10% of the VIP subscription fee when someone you refer subscribes
+• Commissions start as Pending verification, then get marked Paid
+• Payouts every Friday after verification
+
+How to join
+1. Sign in to NovaStaris
+2. Open Affiliate (or go to novastaris.ai/affiliate)
+3. Copy your unique referral link
+4. Share it with friends
+
+When they subscribe to VIP through your link, you earn 10%.
+
+Tips
+• Only paid VIP subscriptions count (no refunds or chargebacks)
+• Self-referrals and abuse aren’t allowed
+• Track referrals and commissions on your Affiliate page
+
+Questions? Reply to this email or use Need Help in the app.
+
+— The NovaStaris team
+https://novastaris.ai/affiliate`,
+} as const;
+
 export function referralRegisterPath(code: string): string {
   return `/register?ref=${encodeURIComponent(code)}`;
 }

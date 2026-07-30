@@ -4,6 +4,7 @@ import {
   NOVA_FOREX_BOTS_LAUNCH_EMAIL,
 } from "@/lib/forex-broker-partner-promo";
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
+import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 
@@ -11,6 +12,7 @@ export type AdminEmailFormat = "rich" | "plain";
 
 export type AdminEmailPresetId =
   | "custom"
+  | "affiliate"
   | "forex-rebate"
   | "forex-bots-launch"
   | "tio-partnership"
@@ -34,8 +36,21 @@ export type AdminEmailPreset = {
 
 const FOREX_BOTS = "https://novastaris.ai/?tab=nova-forex-bot";
 const FOREX_REBATE = `${FOREX_BOTS}#forex-partner-rebate`;
+const AFFILIATE = "https://novastaris.ai/affiliate";
 
 export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
+  {
+    id: "affiliate",
+    label: "Affiliate program (10%)",
+    blurb: "VIP referral — rich layout or plain for WhatsApp",
+    subject: AFFILIATE_PROGRAM_EMAIL.subject,
+    body: AFFILIATE_PROGRAM_EMAIL.body,
+    template: "affiliate",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: "Get your referral link",
+    ctaUrl: AFFILIATE,
+  },
   {
     id: "forex-rebate",
     label: "$2/lot USDC rebate",

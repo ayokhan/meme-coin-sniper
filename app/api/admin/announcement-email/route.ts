@@ -49,7 +49,11 @@ export async function POST(request: Request) {
       ? body.recipients.filter((e): e is string => typeof e === "string")
       : undefined;
     const template: AnnouncementEmailTemplate =
-      body.template === "forex-rebate" ? "forex-rebate" : "default";
+      body.template === "forex-rebate"
+        ? "forex-rebate"
+        : body.template === "affiliate"
+          ? "affiliate"
+          : "default";
     const format = body.format === "plain" ? "plain" : "rich";
     const result = await sendAnnouncementEmails({
       subject: body.subject ?? "",
