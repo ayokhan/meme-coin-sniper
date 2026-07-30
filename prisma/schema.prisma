@@ -100,6 +100,10 @@ model User {
   stripeCustomerId String? @unique  // Stripe Customer id for card auto-renewal
   phone         String?
   country       String?
+  /** Approx city/country at signup from Vercel/CF edge IP (not self-reported). */
+  registeredCountry String?
+  registeredCity    String?
+  registeredIpHash  String?
   experienceTradingCrypto String?  // e.g. beginner | intermediate | expert
   tradingBotOnDemand     Boolean  @default(false)  // owner can enable Trading Bot access for VIP users on request
   polymarketBotOnDemand  Boolean  @default(false)  // owner can enable Nova Polymarket Bot access for VIP users on request

@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import { applyReferralOnSignup } from '@/lib/referral-commission';
 import { normalizeReferralCode } from '@/lib/referral-program';
 import { readReferralCodeFromCookies } from '@/lib/referral-cookie-server';
+import { geoFromRequest } from '@/lib/login-events';
 
 export async function POST(request: Request) {
   try {
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
     const experienceTradingCrypto = (body.experienceTradingCrypto ?? '').toString().trim() || undefined;
     const newsletterOptIn = Boolean(body.newsletterOptIn);
     const novaConnectOptIn = body.novaConnectOptIn === undefined ? true : Boolean(body.novaConnectOptIn);
+    const geo = geoFromRequest(request);
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ success: false, error: 'Valid email is required.' }, { status: 400 });
@@ -43,6 +45,9 @@ export async function POST(request: Request) {
         name,
         phone,
         country,
+        registeredCountry: geo.country ?? undefined,
+        registeredCity: geo.city ?? undefined,
+        registeredIpHash: geo.ipHash ?? undefined,
         experienceTradingCrypto,
         newsletterOptIn,
         novaConnectOptIn,

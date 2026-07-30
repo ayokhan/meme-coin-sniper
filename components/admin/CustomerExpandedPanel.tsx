@@ -38,6 +38,9 @@ export type AdminCustomerRecord = {
   email: string | null;
   phone: string | null;
   country: string | null;
+  /** Approx location from edge IP at signup (not self-reported). */
+  registeredCountry?: string | null;
+  registeredCity?: string | null;
   experienceTradingCrypto: string | null;
   tradingBotOnDemand: boolean;
   polymarketBotOnDemand: boolean;
@@ -324,7 +327,21 @@ export default function CustomerExpandedPanel({
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 p-4 bg-zinc-50/80 dark:bg-zinc-900/30 border-t border-zinc-200 dark:border-zinc-700">
       <DetailSection title="Profile">
         <DetailRow label="Phone">{c.phone ?? "—"}</DetailRow>
-        <DetailRow label="Country">{c.country ?? "—"}</DetailRow>
+        <DetailRow label="Country" hint="Self-reported on profile / register form">
+          {c.country ?? "—"}
+        </DetailRow>
+        <DetailRow
+          label="Registered from"
+          hint="Approx city/country from IP at signup (Vercel edge). Independent of what they typed."
+        >
+          {c.registeredCity || c.registeredCountry ? (
+            <span>
+              {[c.registeredCity, c.registeredCountry].filter(Boolean).join(", ")}
+            </span>
+          ) : (
+            <span className="text-xs text-zinc-500">Not captured yet</span>
+          )}
+        </DetailRow>
         <DetailRow label="Experience">{c.experienceTradingCrypto ?? "—"}</DetailRow>
         <DetailRow label="Payment terms">
           {c.paymentTermsAcceptedAt ? (

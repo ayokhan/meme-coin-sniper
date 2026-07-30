@@ -24,6 +24,8 @@ type Customer = {
   email: string | null;
   phone: string | null;
   country: string | null;
+  registeredCountry?: string | null;
+  registeredCity?: string | null;
   experienceTradingCrypto: string | null;
   tradingBotOnDemand: boolean;
   polymarketBotOnDemand: boolean;

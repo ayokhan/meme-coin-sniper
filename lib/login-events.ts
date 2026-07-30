@@ -134,13 +134,34 @@ export async function recordLoginEvent(args: {
   request?: Request | null;
 }): Promise<void> {
   try {
-    if (!(await isLoginLocationIntelEnabled())) return;
-    const db = loginEventDb();
-    if (!db) return;
     const req = args.request ?? getAuthRequest() ?? null;
     const geo = req
       ? geoFromRequest(req)
       : { country: null, city: null, deviceType: null, browser: null, os: null, ipHash: null };
+
+    // First-touch registered-from (OAuth / older accounts). Independent of intel flag.
+    if (geo.country || geo.city) {
+      try {
+        await (prisma.user as any).updateMany({
+          where: {
+            id: args.userId,
+            registeredCountry: null,
+            registeredCity: null,
+          },
+          data: {
+            registeredCountry: geo.country,
+            registeredCity: geo.city,
+            registeredIpHash: geo.ipHash,
+          },
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (!(await isLoginLocationIntelEnabled())) return;
+    const db = loginEventDb();
+    if (!db) return;
     const provider = normalizeProvider(args.provider);
 
     const recent = await db.findFirst({
