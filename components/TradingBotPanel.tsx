@@ -289,6 +289,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [shareShowAmountInvested, setShareShowAmountInvested] = useState(false);
   const [shareShowHoldDuration, setShareShowHoldDuration] = useState(false);
   const [shareShowLeverage, setShareShowLeverage] = useState(true);
+  const [shareCustomMessage, setShareCustomMessage] = useState("");
   const [showClosedAnalysis, setShowClosedAnalysis] = useState(false);
   /** Analysis share card: stats-only vs stats + total PNL / avg win / avg loss. */
   const [shareAnalysisShowPnlDetails, setShareAnalysisShowPnlDetails] = useState(false);
@@ -3157,6 +3158,17 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   />
                   Show leverage
                 </label>
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 w-full sm:w-auto min-w-[12rem]">
+                  <span className="shrink-0">Card message</span>
+                  <input
+                    type="text"
+                    value={shareCustomMessage}
+                    onChange={(e) => setShareCustomMessage(e.target.value.slice(0, 80))}
+                    placeholder='e.g. ZaZa Smashed it'
+                    maxLength={80}
+                    className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-zinc-800 dark:text-zinc-100 min-w-[10rem] flex-1"
+                  />
+                </label>
               </div>
               {activeTab === "open_orders" && (
                 <div className="mt-2 max-h-64 overflow-auto">
@@ -3300,6 +3312,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                   showAmountInvested: shareShowAmountInvested,
                                   showHoldDuration: false,
                                   showLeverage: shareShowLeverage,
+                                    customMessage: shareCustomMessage.trim() || null,
                                 }
                               )
                             }
@@ -3423,6 +3436,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                     showAmountInvested: shareShowAmountInvested,
                                     showHoldDuration: shareShowHoldDuration,
                                     showLeverage: shareShowLeverage,
+                                    customMessage: shareCustomMessage.trim() || null,
                                   })
                                 }
                               />
@@ -3627,6 +3641,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                 showAmountInvested: shareShowAmountInvested,
                                 showHoldDuration: shareShowHoldDuration,
                                 showLeverage: shareShowLeverage,
+                                    customMessage: shareCustomMessage.trim() || null,
                               })
                             }
                           />
@@ -3653,6 +3668,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                 showAmountInvested: shareShowAmountInvested,
                                 showHoldDuration: shareShowHoldDuration,
                                 showLeverage: shareShowLeverage,
+                                    customMessage: shareCustomMessage.trim() || null,
                                 periodLabel: closedTradesPeriodLabel,
                               }
                             );

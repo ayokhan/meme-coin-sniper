@@ -117,6 +117,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
   const [shareShowRealizedUsdt, setShareShowRealizedUsdt] = useState(true);
   const [shareShowAmountInvested, setShareShowAmountInvested] = useState(false);
   const [shareShowLeverage, setShareShowLeverage] = useState(true);
+  const [shareCustomMessage, setShareCustomMessage] = useState("");
 
   const load = useCallback(async () => {
     if (!connected) return;
@@ -286,6 +287,17 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
               />
               Show leverage
             </label>
+            <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 w-full sm:w-auto min-w-[12rem]">
+              <span className="shrink-0">Card message</span>
+              <input
+                type="text"
+                value={shareCustomMessage}
+                onChange={(e) => setShareCustomMessage(e.target.value.slice(0, 80))}
+                placeholder='e.g. ZaZa Smashed it'
+                maxLength={80}
+                className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-zinc-800 dark:text-zinc-100 min-w-[10rem] flex-1"
+              />
+            </label>
           </div>
         )}
 
@@ -382,6 +394,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                             showRealizedUsdt: shareShowRealizedUsdt,
                             showAmountInvested: shareShowAmountInvested,
                             showLeverage: shareShowLeverage,
+                            customMessage: shareCustomMessage.trim() || null,
                           }
                         )
                       }
@@ -509,6 +522,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                             showRealizedUsdt: shareShowRealizedUsdt,
                             showAmountInvested: shareShowAmountInvested,
                             showLeverage: shareShowLeverage,
+                            customMessage: shareCustomMessage.trim() || null,
                           }
                         )
                       }

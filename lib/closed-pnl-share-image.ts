@@ -43,6 +43,8 @@ export type ClosedTradeShareOptions = {
   showHoldDuration?: boolean;
   /** When false, hide leverage badge. Default true. */
   showLeverage?: boolean;
+  /** Optional user caption on the card, e.g. "ZaZa Smashed it". */
+  customMessage?: string | null;
 };
 
 type PremiumCardParams = {
@@ -65,6 +67,8 @@ type PremiumCardParams = {
   showLeverage?: boolean;
   investedUsdt?: number | null;
   heldFor?: string | null;
+  /** Optional user caption drawn under prices. */
+  customMessage?: string | null;
 };
 
 const W = 1080;
@@ -268,6 +272,35 @@ function drawPremiumPnlShareCard(params: PremiumCardParams): Promise<Blob> {
   ctx.fillText(formatPrice(params.priceLeft), pad, priceY + 26);
   ctx.fillText(formatPrice(params.priceRight), pad + colW, priceY + 26);
 
+  const msg = String(params.customMessage ?? "").trim();
+  if (msg) {
+    const msgMaxW = W * 0.52;
+    const words = msg.split(/\s+/);
+    const lines: string[] = [];
+    let cur = "";
+    ctx.font = "700 36px system-ui, sans-serif";
+    for (const w of words) {
+      const next = cur ? `${cur} ${w}` : w;
+      if (ctx.measureText(next).width > msgMaxW && cur) {
+        lines.push(cur);
+        cur = w;
+      } else {
+        cur = next;
+      }
+    }
+    if (cur) lines.push(cur);
+    const shown = lines.slice(0, 3);
+    let msgY = priceY + 100;
+    ctx.fillStyle = "#f8fafc";
+    ctx.shadowColor = accent;
+    ctx.shadowBlur = 18;
+    for (const line of shown) {
+      ctx.fillText(line, pad, msgY);
+      msgY += 46;
+    }
+    ctx.shadowBlur = 0;
+  }
+
   ctx.fillStyle = "rgba(148,163,184,0.2)";
   ctx.fillRect(pad, H - pad - 64, W - 2 * pad, 1);
   ctx.textAlign = "center";
@@ -319,6 +352,7 @@ export function drawClosedTradeShareCard(
     showLeverage: options?.showLeverage,
     investedUsdt: input.investedUsdt,
     heldFor: input.heldFor,
+    customMessage: options?.customMessage,
   });
 }
 
@@ -345,6 +379,7 @@ export function drawOpenPositionShareCard(
     showLeverage: options?.showLeverage,
     investedUsdt: input.investedUsdt,
     heldFor: input.heldFor,
+    customMessage: options?.customMessage,
   });
 }
 
