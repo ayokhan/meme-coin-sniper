@@ -3158,15 +3158,15 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   />
                   Show leverage
                 </label>
-                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 w-full sm:w-auto min-w-[12rem]">
-                  <span className="shrink-0">Card message</span>
+                <label className="text-[11px] text-muted-foreground flex flex-col gap-1 w-full basis-full">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-200">Card message (optional)</span>
                   <input
                     type="text"
                     value={shareCustomMessage}
                     onChange={(e) => setShareCustomMessage(e.target.value.slice(0, 80))}
                     placeholder='e.g. ZaZa Smashed it'
                     maxLength={80}
-                    className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-zinc-800 dark:text-zinc-100 min-w-[10rem] flex-1"
+                    className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm text-zinc-800 dark:text-zinc-100 w-full max-w-md"
                   />
                 </label>
               </div>

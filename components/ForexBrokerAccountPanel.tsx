@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FOREX_BROKER_LABELS, type ForexBrokerId } from "@/lib/forex-broker-user-config";
 import { drawClosedTradeShareCard, drawOpenPositionShareCard } from "@/lib/closed-pnl-share-image";
 import { estimateForexMarginFromLots } from "@/lib/forex-lot-size";
+import { formatHeldForDuration } from "@/lib/closed-trades";
 import PnlShareButtons from "@/components/PnlShareButtons";
 import { useI18n } from "@/components/I18nProvider";
 
@@ -116,6 +117,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
   /** Same share-card toggles as NovaScalper / Trading Bot. */
   const [shareShowRealizedUsdt, setShareShowRealizedUsdt] = useState(true);
   const [shareShowAmountInvested, setShareShowAmountInvested] = useState(false);
+  const [shareShowHoldDuration, setShareShowHoldDuration] = useState(false);
   const [shareShowLeverage, setShareShowLeverage] = useState(true);
   const [shareCustomMessage, setShareCustomMessage] = useState("");
 
@@ -259,43 +261,57 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
         </div>
 
         {(tab === "positions" || tab === "closed") && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-md border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-900/40 px-2.5 py-2">
-            <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={shareShowRealizedUsdt}
-                onChange={(e) => setShareShowRealizedUsdt(e.target.checked)}
-                className="rounded"
-              />
-              Show {currency} on card (ROI % always shown)
-            </label>
-            <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={shareShowAmountInvested}
-                onChange={(e) => setShareShowAmountInvested(e.target.checked)}
-                className="rounded"
-              />
-              Show Invested
-            </label>
-            <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={shareShowLeverage}
-                onChange={(e) => setShareShowLeverage(e.target.checked)}
-                className="rounded"
-              />
-              Show leverage
-            </label>
-            <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 w-full sm:w-auto min-w-[12rem]">
-              <span className="shrink-0">Card message</span>
+          <div className="space-y-2 rounded-md border border-cyan-500/30 bg-zinc-50/80 dark:bg-zinc-900/40 px-2.5 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
+              Share card options
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={shareShowRealizedUsdt}
+                  onChange={(e) => setShareShowRealizedUsdt(e.target.checked)}
+                  className="rounded"
+                />
+                Show {currency} on card (ROI % always shown)
+              </label>
+              <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={shareShowAmountInvested}
+                  onChange={(e) => setShareShowAmountInvested(e.target.checked)}
+                  className="rounded"
+                />
+                Show Invested
+              </label>
+              <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={shareShowHoldDuration}
+                  onChange={(e) => setShareShowHoldDuration(e.target.checked)}
+                  className="rounded"
+                />
+                Show Held for
+              </label>
+              <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={shareShowLeverage}
+                  onChange={(e) => setShareShowLeverage(e.target.checked)}
+                  className="rounded"
+                />
+                Show leverage
+              </label>
+            </div>
+            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+              <span className="font-medium text-zinc-700 dark:text-zinc-200">Card message (optional)</span>
               <input
                 type="text"
                 value={shareCustomMessage}
                 onChange={(e) => setShareCustomMessage(e.target.value.slice(0, 80))}
                 placeholder='e.g. ZaZa Smashed it'
                 maxLength={80}
-                className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-zinc-800 dark:text-zinc-100 min-w-[10rem] flex-1"
+                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm text-zinc-800 dark:text-zinc-100"
               />
             </label>
           </div>
@@ -444,6 +460,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                   leverage: account?.leverage,
                 });
                 const roi = roiFromProfit(trade.profit, invested);
+                const heldFor = formatHeldForDuration(trade.openedAt, trade.closedAt);
                 return (
                   <div
                     key={`${trade.id}-${trade.closedAt}`}
@@ -493,6 +510,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                     <p className="text-xs text-muted-foreground font-mono">
                       {fmt(trade.openPrice, 5)} → {fmt(trade.closePrice, 5)} · {trade.volume} {t("common.lots")} ·{" "}
                       {new Date(trade.closedAt).toLocaleString()}
+                      {shareShowHoldDuration && heldFor ? ` · Held ${heldFor}` : ""}
                     </p>
                     <PnlShareButtons
                       compact
@@ -503,6 +521,8 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                       showUsdt={shareShowRealizedUsdt}
                       showAmountInvested={shareShowAmountInvested}
                       investedUsdt={invested}
+                      heldFor={heldFor}
+                      showHoldDuration={shareShowHoldDuration}
                       filename={`novastaris-${trade.symbol}-${trade.side}-closed.jpg`}
                       getBlob={async () =>
                         drawClosedTradeShareCard(
@@ -514,13 +534,16 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                             roiPct: roi,
                             realizedPnlUsdt: trade.profit,
                             closedAt: trade.closedAt,
+                            openedAt: trade.openedAt,
                             modeLabel: modeLabel as "Live" | "Demo",
                             leverage: account?.leverage ?? null,
                             investedUsdt: invested,
+                            heldFor,
                           },
                           {
                             showRealizedUsdt: shareShowRealizedUsdt,
                             showAmountInvested: shareShowAmountInvested,
+                            showHoldDuration: shareShowHoldDuration,
                             showLeverage: shareShowLeverage,
                             customMessage: shareCustomMessage.trim() || null,
                           }
