@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FOREX_BROKER_LABELS, type ForexBrokerId } from "@/lib/forex-broker-user-config";
 import { drawClosedTradeShareCard, drawOpenPositionShareCard } from "@/lib/closed-pnl-share-image";
+import { estimateForexMarginFromLots } from "@/lib/forex-lot-size";
 import PnlShareButtons from "@/components/PnlShareButtons";
 import { useI18n } from "@/components/I18nProvider";
 
@@ -82,6 +83,25 @@ function roiFromProfit(profit: number | null, marginHint: number | null): number
   return 0;
 }
 
+function marginForTrade(input: {
+  symbol: string;
+  openPrice: number;
+  volume: number;
+  leverage: number | null | undefined;
+}): number | null {
+  const lev = input.leverage;
+  if (lev == null || !Number.isFinite(lev) || lev <= 0) return null;
+  if (!Number.isFinite(input.openPrice) || input.openPrice <= 0) return null;
+  if (!Number.isFinite(input.volume) || input.volume <= 0) return null;
+  const m = estimateForexMarginFromLots({
+    symbol: input.symbol,
+    entryPrice: input.openPrice,
+    lotSize: input.volume,
+    leverage: lev,
+  });
+  return m > 0 ? m : null;
+}
+
 export default function ForexBrokerAccountPanel({ broker, connected, demoMode, className = "" }: Props) {
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
@@ -93,6 +113,9 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
   const [period, setPeriod] = useState<(typeof PERIODS)[number]["id"]>("7d");
   const [tab, setTab] = useState<"positions" | "orders" | "closed">("positions");
   const [metaHint, setMetaHint] = useState<string | null>(null);
+  /** Same share-card toggles as NovaScalper / Trading Bot. */
+  const [shareShowRealizedUsdt, setShareShowRealizedUsdt] = useState(true);
+  const [shareShowLeverage, setShareShowLeverage] = useState(true);
 
   const load = useCallback(async () => {
     if (!connected) return;
@@ -233,6 +256,29 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
           )}
         </div>
 
+        {(tab === "positions" || tab === "closed") && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-md border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-900/40 px-2.5 py-2">
+            <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={shareShowRealizedUsdt}
+                onChange={(e) => setShareShowRealizedUsdt(e.target.checked)}
+                className="rounded"
+              />
+              Show {currency} on card (ROI % always shown)
+            </label>
+            <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={shareShowLeverage}
+                onChange={(e) => setShareShowLeverage(e.target.checked)}
+                className="rounded"
+              />
+              Show leverage
+            </label>
+          </div>
+        )}
+
         {tab === "positions" && (
           <div className="space-y-2">
             {positions.length === 0 ? (
@@ -240,9 +286,15 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
             ) : (
               positions.map((p) => {
                 const profit = p.profit ?? 0;
-                const marginHint =
-                  account?.margin && positions.length > 0 ? account.margin / positions.length : null;
-                const roi = roiFromProfit(p.profit, marginHint);
+                const invested =
+                  marginForTrade({
+                    symbol: p.symbol,
+                    openPrice: p.openPrice,
+                    volume: p.volume,
+                    leverage: account?.leverage,
+                  }) ??
+                  (account?.margin && positions.length > 0 ? account.margin / positions.length : null);
+                const roi = roiFromProfit(p.profit, invested);
                 return (
                   <div
                     key={p.id}
@@ -260,16 +312,33 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                         >
                           {p.side.toUpperCase()}
                         </span>{" "}
-                        <span className="text-xs text-muted-foreground font-normal">{p.volume} {t("common.lots")}</span>
+                        <span className="text-xs text-muted-foreground font-normal">
+                          {p.volume} {t("common.lots")}
+                        </span>
+                        {shareShowLeverage && account?.leverage ? (
+                          <span className="text-xs text-muted-foreground font-normal"> · {account.leverage}x</span>
+                        ) : null}
                       </p>
-                      <p
-                        className={`font-mono text-sm font-semibold ${
-                          profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                        }`}
-                      >
-                        {profit >= 0 ? "+" : ""}
-                        {fmt(profit)} {currency}
-                      </p>
+                      <div className="text-right">
+                        <p
+                          className={`font-mono text-sm font-semibold ${
+                            profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                          }`}
+                        >
+                          {roi >= 0 ? "+" : ""}
+                          {roi.toFixed(2)}%
+                        </p>
+                        {shareShowRealizedUsdt && (
+                          <p
+                            className={`font-mono text-xs ${
+                              profit >= 0 ? "text-emerald-600/90 dark:text-emerald-400/90" : "text-rose-600/90 dark:text-rose-400/90"
+                            }`}
+                          >
+                            {profit >= 0 ? "+" : ""}
+                            {fmt(profit)} {currency}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground font-mono">
                       Entry {fmt(p.openPrice, 5)} → Mark {fmt(p.currentPrice, 5)}
@@ -282,18 +351,25 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                       symbol={p.symbol}
                       roiPct={roi}
                       pnlUsdt={profit}
+                      showUsdt={shareShowRealizedUsdt}
                       filename={`novastaris-${p.symbol}-${p.side}-open.jpg`}
                       getBlob={async () =>
-                        drawOpenPositionShareCard({
-                          displaySymbol: p.symbol,
-                          direction: p.side,
-                          entryPrice: p.openPrice,
-                          markPrice: p.currentPrice ?? p.openPrice,
-                          roiPct: roi,
-                          unrealizedPnlUsdt: profit,
-                          modeLabel: modeLabel as "Live" | "Demo",
-                          leverage: account?.leverage ?? null,
-                        })
+                        drawOpenPositionShareCard(
+                          {
+                            displaySymbol: p.symbol,
+                            direction: p.side,
+                            entryPrice: p.openPrice,
+                            markPrice: p.currentPrice ?? p.openPrice,
+                            roiPct: roi,
+                            unrealizedPnlUsdt: profit,
+                            modeLabel: modeLabel as "Live" | "Demo",
+                            leverage: account?.leverage ?? null,
+                          },
+                          {
+                            showRealizedUsdt: shareShowRealizedUsdt,
+                            showLeverage: shareShowLeverage,
+                          }
+                        )
                       }
                     />
                   </div>
@@ -334,10 +410,13 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
               <p className="text-sm text-muted-foreground">{t("forex.noClosed")}</p>
             ) : (
               closedTrades.map((trade) => {
-                const roi =
-                  trade.openPrice > 0
-                    ? ((trade.closePrice - trade.openPrice) / trade.openPrice) * 100 * (trade.side === "short" ? -1 : 1)
-                    : 0;
+                const invested = marginForTrade({
+                  symbol: trade.symbol,
+                  openPrice: trade.openPrice,
+                  volume: trade.volume,
+                  leverage: account?.leverage,
+                });
+                const roi = roiFromProfit(trade.profit, invested);
                 return (
                   <div
                     key={`${trade.id}-${trade.closedAt}`}
@@ -355,15 +434,34 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                         >
                           {trade.side.toUpperCase()}
                         </span>
+                        {shareShowLeverage && account?.leverage ? (
+                          <span className="text-xs text-muted-foreground font-normal"> · {account.leverage}x</span>
+                        ) : null}
                       </p>
-                      <p
-                        className={`font-mono text-sm font-semibold ${
-                          trade.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                        }`}
-                      >
-                        {trade.profit >= 0 ? "+" : ""}
-                        {fmt(trade.profit)} {currency}
-                      </p>
+                      <div className="text-right">
+                        <p
+                          className={`font-mono text-sm font-semibold ${
+                            trade.profit >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400"
+                          }`}
+                        >
+                          {roi >= 0 ? "+" : ""}
+                          {roi.toFixed(2)}%
+                        </p>
+                        {shareShowRealizedUsdt && (
+                          <p
+                            className={`font-mono text-xs ${
+                              trade.profit >= 0
+                                ? "text-emerald-600/90 dark:text-emerald-400/90"
+                                : "text-rose-600/90 dark:text-rose-400/90"
+                            }`}
+                          >
+                            {trade.profit >= 0 ? "+" : ""}
+                            {fmt(trade.profit)} {currency}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground font-mono">
                       {fmt(trade.openPrice, 5)} → {fmt(trade.closePrice, 5)} · {trade.volume} {t("common.lots")} ·{" "}
@@ -375,19 +473,27 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                       symbol={trade.symbol}
                       roiPct={roi}
                       pnlUsdt={trade.profit}
+                      showUsdt={shareShowRealizedUsdt}
                       filename={`novastaris-${trade.symbol}-${trade.side}-closed.jpg`}
                       getBlob={async () =>
-                        drawClosedTradeShareCard({
-                          displaySymbol: trade.symbol,
-                          direction: trade.side,
-                          openPrice: trade.openPrice,
-                          closePrice: trade.closePrice,
-                          roiPct: roi,
-                          realizedPnlUsdt: trade.profit,
-                          closedAt: trade.closedAt,
-                          modeLabel: modeLabel as "Live" | "Demo",
-                          leverage: account?.leverage ?? null,
-                        })
+                        drawClosedTradeShareCard(
+                          {
+                            displaySymbol: trade.symbol,
+                            direction: trade.side,
+                            openPrice: trade.openPrice,
+                            closePrice: trade.closePrice,
+                            roiPct: roi,
+                            realizedPnlUsdt: trade.profit,
+                            closedAt: trade.closedAt,
+                            modeLabel: modeLabel as "Live" | "Demo",
+                            leverage: account?.leverage ?? null,
+                            investedUsdt: invested,
+                          },
+                          {
+                            showRealizedUsdt: shareShowRealizedUsdt,
+                            showLeverage: shareShowLeverage,
+                          }
+                        )
                       }
                     />
                   </div>
