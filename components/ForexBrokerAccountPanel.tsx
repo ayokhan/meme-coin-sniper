@@ -115,6 +115,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
   const [metaHint, setMetaHint] = useState<string | null>(null);
   /** Same share-card toggles as NovaScalper / Trading Bot. */
   const [shareShowRealizedUsdt, setShareShowRealizedUsdt] = useState(true);
+  const [shareShowAmountInvested, setShareShowAmountInvested] = useState(false);
   const [shareShowLeverage, setShareShowLeverage] = useState(true);
 
   const load = useCallback(async () => {
@@ -270,6 +271,15 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
             <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
               <input
                 type="checkbox"
+                checked={shareShowAmountInvested}
+                onChange={(e) => setShareShowAmountInvested(e.target.checked)}
+                className="rounded"
+              />
+              Show Invested
+            </label>
+            <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
                 checked={shareShowLeverage}
                 onChange={(e) => setShareShowLeverage(e.target.checked)}
                 className="rounded"
@@ -352,6 +362,8 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                       roiPct={roi}
                       pnlUsdt={profit}
                       showUsdt={shareShowRealizedUsdt}
+                      showAmountInvested={shareShowAmountInvested}
+                      investedUsdt={invested}
                       filename={`novastaris-${p.symbol}-${p.side}-open.jpg`}
                       getBlob={async () =>
                         drawOpenPositionShareCard(
@@ -364,9 +376,11 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                             unrealizedPnlUsdt: profit,
                             modeLabel: modeLabel as "Live" | "Demo",
                             leverage: account?.leverage ?? null,
+                            investedUsdt: invested,
                           },
                           {
                             showRealizedUsdt: shareShowRealizedUsdt,
+                            showAmountInvested: shareShowAmountInvested,
                             showLeverage: shareShowLeverage,
                           }
                         )
@@ -474,6 +488,8 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                       roiPct={roi}
                       pnlUsdt={trade.profit}
                       showUsdt={shareShowRealizedUsdt}
+                      showAmountInvested={shareShowAmountInvested}
+                      investedUsdt={invested}
                       filename={`novastaris-${trade.symbol}-${trade.side}-closed.jpg`}
                       getBlob={async () =>
                         drawClosedTradeShareCard(
@@ -491,6 +507,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                           },
                           {
                             showRealizedUsdt: shareShowRealizedUsdt,
+                            showAmountInvested: shareShowAmountInvested,
                             showLeverage: shareShowLeverage,
                           }
                         )
