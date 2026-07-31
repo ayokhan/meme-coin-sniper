@@ -570,14 +570,18 @@ export async function placeMetaApiMarketOrder(
 ): Promise<MetaApiTradeResult> {
   try {
     const base = await clientBaseForAccount(input.accountId);
-    const body = {
+    const body: Record<string, unknown> = {
       actionType: input.side === "buy" ? "ORDER_TYPE_BUY" : "ORDER_TYPE_SELL",
       symbol: input.symbol,
       volume: input.volume,
-      stopLoss: input.stopLoss,
-      takeProfit: input.takeProfit,
-      clientId: input.clientId,
     };
+    if (input.stopLoss != null && Number.isFinite(input.stopLoss) && input.stopLoss > 0) {
+      body.stopLoss = input.stopLoss;
+    }
+    if (input.takeProfit != null && Number.isFinite(input.takeProfit) && input.takeProfit > 0) {
+      body.takeProfit = input.takeProfit;
+    }
+    if (input.clientId) body.clientId = input.clientId;
     const res = await metaApiFetch<{
       orderId?: string;
       positionId?: string;
@@ -596,6 +600,44 @@ export async function placeMetaApiMarketOrder(
     return {
       ok: false,
       error: toUserFacingForexBridgeError(e instanceof Error ? e.message : "Order failed"),
+    };
+  }
+}
+
+/** Attach or update SL/TP on an open MT position (broker-side protection). */
+export async function modifyMetaApiPositionStops(input: {
+  accountId: string;
+  positionId: string;
+  stopLoss?: number | null;
+  takeProfit?: number | null;
+}): Promise<MetaApiTradeResult> {
+  try {
+    const base = await clientBaseForAccount(input.accountId);
+    const body: Record<string, unknown> = {
+      actionType: "POSITION_MODIFY",
+      positionId: input.positionId,
+    };
+    if (input.stopLoss != null && Number.isFinite(input.stopLoss) && input.stopLoss > 0) {
+      body.stopLoss = input.stopLoss;
+    }
+    if (input.takeProfit != null && Number.isFinite(input.takeProfit) && input.takeProfit > 0) {
+      body.takeProfit = input.takeProfit;
+    }
+    if (body.stopLoss == null && body.takeProfit == null) {
+      return { ok: false, error: "No stop loss or take profit to set." };
+    }
+    const res = await metaApiFetch<{ orderId?: string; message?: string; stringCode?: string }>(
+      `${base}/users/current/accounts/${input.accountId}/trade`,
+      { method: "POST", body: JSON.stringify(body) }
+    );
+    if (res?.stringCode && res.stringCode !== "TRADE_RETCODE_DONE" && !res.orderId) {
+      return { ok: false, error: toUserFacingForexBridgeError(res.message || res.stringCode) };
+    }
+    return { ok: true, orderId: res?.orderId };
+  } catch (e) {
+    return {
+      ok: false,
+      error: toUserFacingForexBridgeError(e instanceof Error ? e.message : "Modify stops failed"),
     };
   }
 }

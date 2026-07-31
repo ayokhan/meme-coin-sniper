@@ -16,6 +16,7 @@ import {
   getMetaApiSymbols,
   getMetaApiAccountInformation,
   placeMetaApiMarketOrder,
+  modifyMetaApiPositionStops,
   closeMetaApiPosition,
 } from "@/lib/metaapi";
 import { forexBrokerSymbolAliases, matchForexSymbolOnBroker } from "@/lib/forex-broker-symbols";
@@ -31,6 +32,27 @@ function parseFloatSafe(s: string): number {
 
 function toBrokerSymbol(symbol: string): string {
   return normalizeForexSymbol(symbol).replace(/[^A-Z0-9]/g, "");
+}
+
+/** Broker-side SL/TP only when on the correct side of entry for this trade. */
+function brokerStopsForSide(
+  side: "long" | "short",
+  entryPrice: number,
+  exitPrice: number,
+  stopLossPrice: number | null
+): { stopLoss?: number; takeProfit?: number } {
+  const out: { stopLoss?: number; takeProfit?: number } = {};
+  const entry = Number(entryPrice);
+  const exit = Number(exitPrice);
+  const stop = stopLossPrice != null ? Number(stopLossPrice) : NaN;
+  if (side === "long") {
+    if (Number.isFinite(exit) && exit > entry) out.takeProfit = exit;
+    if (Number.isFinite(stop) && stop > 0 && stop < entry) out.stopLoss = stop;
+  } else {
+    if (Number.isFinite(exit) && exit < entry) out.takeProfit = exit;
+    if (Number.isFinite(stop) && stop > 0 && stop > entry) out.stopLoss = stop;
+  }
+  return out;
 }
 
 type ForexScalperRow = {
@@ -243,6 +265,33 @@ export async function runNovaForexScalperTick(
         : "cross_down";
 
   if (row.inPosition || hasExchangePosition) {
+    // Attach broker SL/TP if the open was placed without them (software-only exits previously).
+    const desiredStops = brokerStopsForSide(side, row.entryPrice, row.exitPrice, row.stopLossPrice);
+    if (desiredStops.stopLoss != null || desiredStops.takeProfit != null) {
+      const openHere = positions.filter((p) => aliases.has(String(p.symbol ?? "").toUpperCase()));
+      for (const pos of openHere) {
+        const missingSl =
+          desiredStops.stopLoss != null &&
+          (pos.stopLoss == null || !Number.isFinite(Number(pos.stopLoss)) || Number(pos.stopLoss) <= 0);
+        const missingTp =
+          desiredStops.takeProfit != null &&
+          (pos.takeProfit == null || !Number.isFinite(Number(pos.takeProfit)) || Number(pos.takeProfit) <= 0);
+        if (!missingSl && !missingTp) continue;
+        const mod = await modifyMetaApiPositionStops({
+          accountId,
+          positionId: pos.id,
+          stopLoss: missingSl ? desiredStops.stopLoss : pos.stopLoss,
+          takeProfit: missingTp ? desiredStops.takeProfit : pos.takeProfit,
+        });
+        if (mod.ok) {
+          await updateRow({
+            lastTickAt: new Date(),
+            lastAction: `Attached broker stops on #${pos.id}: SL ${desiredStops.stopLoss ?? "—"} / TP ${desiredStops.takeProfit ?? "—"}.`,
+          });
+        }
+      }
+    }
+
     if (row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && stopHit(side, row.stopLossPrice, price)) {
       const cl = await closePositionsForSymbol(accountId, brokerSymbol, tradeSymbol);
       if (!cl.ok) {
@@ -384,36 +433,40 @@ export async function runNovaForexScalperTick(
     }
   }
 
-  let order = await placeMetaApiMarketOrder({
+  const stops = brokerStopsForSide(side, row.entryPrice, row.exitPrice, row.stopLossPrice);
+  const orderPayload = {
     accountId,
     symbol: tradeSymbolResolved,
-    side: side === "long" ? "buy" : "sell",
+    side: (side === "long" ? "buy" : "sell") as "buy" | "sell",
     volume: lotSize,
-  });
+    stopLoss: stops.stopLoss,
+    takeProfit: stops.takeProfit,
+  };
+
+  let order = await placeMetaApiMarketOrder(orderPayload);
   // Retry remaining aliases if broker rejected the first name
   if (!order.ok && /unknown symbol/i.test(order.error ?? "")) {
     for (const sym of forexBrokerSymbolAliases(brokerSymbol)) {
       if (sym === tradeSymbolResolved) continue;
-      const retry = await placeMetaApiMarketOrder({
-        accountId,
-        symbol: sym,
-        side: side === "long" ? "buy" : "sell",
-        volume: lotSize,
-      });
+      const retry = await placeMetaApiMarketOrder({ ...orderPayload, symbol: sym });
       if (retry.ok) {
         order = retry;
         break;
       }
     }
   }
-  // If still no money, try 0.01 once
-  if (!order.ok && /not enough|no money|insufficient/i.test(order.error ?? "") && lotSize > 0.01) {
-    const retry = await placeMetaApiMarketOrder({
+  // If SL/TP rejected, retry bare market then attach stops
+  if (!order.ok && /stop|invalid|invalid stops|invalid price/i.test(order.error ?? "") && (stops.stopLoss || stops.takeProfit)) {
+    order = await placeMetaApiMarketOrder({
       accountId,
       symbol: tradeSymbolResolved,
-      side: side === "long" ? "buy" : "sell",
-      volume: 0.01,
+      side: orderPayload.side,
+      volume: lotSize,
     });
+  }
+  // If still no money, try 0.01 once
+  if (!order.ok && /not enough|no money|insufficient/i.test(order.error ?? "") && lotSize > 0.01) {
+    const retry = await placeMetaApiMarketOrder({ ...orderPayload, volume: 0.01 });
     if (retry.ok) {
       order = retry;
       lotSize = 0.01;
@@ -429,6 +482,29 @@ export async function runNovaForexScalperTick(
       lastAction: `Entry cross @ ~${price} — market ${side === "long" ? "buy" : "sell"} ${lotSize} lots failed: ${err}`,
     });
     return { ok: false, error: err };
+  }
+
+  // Ensure broker SL/TP exist (order may have opened without them)
+  if (stops.stopLoss != null || stops.takeProfit != null) {
+    let positionId = order.positionId;
+    if (!positionId) {
+      const after = await getMetaApiPositions(accountId);
+      const match = after.find((p) => aliases.has(String(p.symbol ?? "").toUpperCase()));
+      positionId = match?.id;
+    }
+    if (positionId) {
+      const mod = await modifyMetaApiPositionStops({
+        accountId,
+        positionId,
+        stopLoss: stops.stopLoss,
+        takeProfit: stops.takeProfit,
+      });
+      if (mod.ok) {
+        lotNote += ` · broker SL ${stops.stopLoss ?? "—"} / TP ${stops.takeProfit ?? "—"}`;
+      } else if (mod.error) {
+        lotNote += ` · broker stops pending (${mod.error})`;
+      }
+    }
   }
 
   await updateRow({
