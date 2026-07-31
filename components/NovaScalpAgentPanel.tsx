@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Send, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
+import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
 import { NOVA_SCALPER_HANDOFF_URL, writeNovaScalperPrefill } from "@/lib/nova-scalper-prefill";
 import { useScalpHandoffNav } from "@/components/useScalpHandoffNav";
 import {
@@ -267,6 +268,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
     <>
     {handoffDialog}
     <div className="space-y-6">
+      <BlofinPartnerPromoBanner compact />
       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-4">
         <div>
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Nova Scalp Agent</h2>

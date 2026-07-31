@@ -13,9 +13,11 @@ import {
   isMetaApiConfigured,
   getMetaApiPositions,
   getMetaApiSymbolPrice,
+  getMetaApiSymbols,
   placeMetaApiMarketOrder,
   closeMetaApiPosition,
 } from "@/lib/metaapi";
+import { forexBrokerSymbolAliases, matchForexSymbolOnBroker } from "@/lib/forex-broker-symbols";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -73,7 +75,7 @@ function stopHit(side: string, stop: number, price: number): boolean {
 
 async function readPrice(symbol: string, accountId: string | null, brokerSymbol: string): Promise<number> {
   if (accountId) {
-    for (const sym of brokerSymbolAliases(brokerSymbol)) {
+    for (const sym of forexBrokerSymbolAliases(brokerSymbol)) {
       const p = await getMetaApiSymbolPrice(accountId, sym);
       if (p?.last) return p.last;
     }
@@ -86,19 +88,23 @@ async function readPrice(symbol: string, accountId: string | null, brokerSymbol:
   return candles[0] ? parseFloatSafe(candles[0][4]) : 0;
 }
 
-function brokerSymbolAliases(brokerSymbol: string): string[] {
-  if (brokerSymbol === "XAUUSD") return ["XAUUSD", "GOLD", "XAUUSDm", "XAUUSD."];
-  if (brokerSymbol === "XAGUSD") return ["XAGUSD", "SILVER", "XAGUSDm", "XAGUSD."];
-  return [brokerSymbol];
-}
-
-/** Prefer a symbol MetaAPI can price on this account (gold often listed as GOLD). */
-async function resolveTradeSymbol(accountId: string, brokerSymbol: string): Promise<string> {
-  for (const sym of brokerSymbolAliases(brokerSymbol)) {
+/** Prefer a symbol MetaAPI can price/trade on this account. */
+async function resolveTradeSymbol(accountId: string, brokerSymbol: string): Promise<string | null> {
+  for (const sym of forexBrokerSymbolAliases(brokerSymbol)) {
     const p = await getMetaApiSymbolPrice(accountId, sym);
     if (p?.last) return sym;
   }
-  return brokerSymbol;
+  const listed = await getMetaApiSymbols(accountId);
+  if (listed.length > 0) {
+    const matched = matchForexSymbolOnBroker(brokerSymbol, listed);
+    if (matched) {
+      const p = await getMetaApiSymbolPrice(accountId, matched);
+      if (p?.last) return matched;
+      // Listed but no price quote — still try trading with the matched name
+      return matched;
+    }
+  }
+  return null;
 }
 
 async function closePositionsForSymbol(
@@ -107,7 +113,7 @@ async function closePositionsForSymbol(
   tradeSymbol: string
 ): Promise<{ ok: boolean; error?: string }> {
   const aliases = new Set(
-    [...brokerSymbolAliases(brokerSymbol), tradeSymbol].map((s) => s.toUpperCase())
+    [...forexBrokerSymbolAliases(brokerSymbol), tradeSymbol].map((s) => s.toUpperCase())
   );
   const positions = await getMetaApiPositions(accountId);
   const matches = positions.filter((p) => aliases.has(String(p.symbol ?? "").toUpperCase()));
@@ -186,9 +192,10 @@ export async function runNovaForexScalperTick(
   }
 
   const positions = await getMetaApiPositions(accountId);
-  const aliases = new Set(brokerSymbolAliases(brokerSymbol).map((s) => s.toUpperCase()));
+  const aliases = new Set(forexBrokerSymbolAliases(brokerSymbol).map((s) => s.toUpperCase()));
   const hasExchangePosition = positions.some((p) => aliases.has(String(p.symbol ?? "").toUpperCase()));
-  const tradeSymbol = await resolveTradeSymbol(accountId, brokerSymbol);
+  const tradeSymbolResolved = await resolveTradeSymbol(accountId, brokerSymbol);
+  const tradeSymbol = tradeSymbolResolved ?? brokerSymbol;
 
   if (row.inPosition && !hasExchangePosition) {
     await updateRow({
@@ -327,13 +334,40 @@ export async function runNovaForexScalperTick(
     return { ok: true, message: "Skipped immediate entry; stop already hit." };
   }
 
+  if (!tradeSymbolResolved) {
+    const hint = `Cannot trade ${brokerSymbol}: not found on your MT Market Watch (tried common aliases). In MT5 → Market Watch, show All / add the symbol (e.g. NVDA.US), or use XAUUSD / EURUSD / NAS100 if those appear in your terminal.`;
+    await updateRow({
+      lastError: "Unknown symbol",
+      lastTickAt: new Date(),
+      lastRefPrice: price,
+      lastAction: `Entry signal @ ~${price} — ${hint}`,
+    });
+    return { ok: false, error: hint };
+  }
+
   const lotSize = Math.max(0.01, row.lotSize || 0.01);
-  const order = await placeMetaApiMarketOrder({
+  let order = await placeMetaApiMarketOrder({
     accountId,
-    symbol: tradeSymbol,
+    symbol: tradeSymbolResolved,
     side: side === "long" ? "buy" : "sell",
     volume: lotSize,
   });
+  // Retry remaining aliases if broker rejected the first name
+  if (!order.ok && /unknown symbol/i.test(order.error ?? "")) {
+    for (const sym of forexBrokerSymbolAliases(brokerSymbol)) {
+      if (sym === tradeSymbolResolved) continue;
+      const retry = await placeMetaApiMarketOrder({
+        accountId,
+        symbol: sym,
+        side: side === "long" ? "buy" : "sell",
+        volume: lotSize,
+      });
+      if (retry.ok) {
+        order = retry;
+        break;
+      }
+    }
+  }
   if (!order.ok) {
     const err = order.error ?? "Order failed";
     await updateRow({
@@ -349,7 +383,7 @@ export async function runNovaForexScalperTick(
     lastRefPrice: price,
     lastTickAt: new Date(),
     lastError: null,
-    lastAction: `Opened ${side} ${lotSize} lots @ ~${price}. Will close at exit ${row.exitPrice} or stop.`,
+    lastAction: `Opened ${side} ${lotSize} lots @ ~${price} (${tradeSymbolResolved}). Will close at exit ${row.exitPrice} or stop.`,
   });
 
   return { ok: true, message: `Entered ${side}. Monitoring exit/stop.` };

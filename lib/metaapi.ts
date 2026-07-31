@@ -62,6 +62,11 @@ export function toUserFacingForexBridgeError(raw: string | null | undefined): st
   if (lower.includes("unauthorized") || lower.includes("invalid password") || lower.includes("wrong password")) {
     return "Login or password was rejected by the broker. Check your MT4/MT5 credentials and try again.";
   }
+  if (lower.includes("unknown symbol") || lower.includes("symbol not found") || lower.includes("market is closed")) {
+    if (lower.includes("unknown symbol") || lower.includes("symbol not found")) {
+      return "Unknown symbol on your MT account. Your broker may use a different name (e.g. NVDA.US, USTEC for NAS100). Pick a Market Watch symbol your MT terminal can trade, or check Market Watch in MT5.";
+    }
+  }
   if (lower.includes("metaapi_token") || lower.includes("not configured")) {
     return "Broker trading is temporarily unavailable. Please try again later or contact support.";
   }
@@ -513,6 +518,24 @@ export async function getMetaApiSymbolPrice(
     return { bid, ask, last: (bid + ask) / 2 };
   } catch {
     return null;
+  }
+}
+
+/** List symbols available on this MT account (for resolving NVDA → broker-specific name). */
+export async function getMetaApiSymbols(accountId: string): Promise<string[]> {
+  try {
+    const base = await clientBaseForAccount(accountId);
+    const res = await metaApiFetch<string[] | { symbols?: string[] }>(
+      `${base}/users/current/accounts/${accountId}/symbols`,
+      { method: "GET" }
+    );
+    if (Array.isArray(res)) return res.filter((s) => typeof s === "string" && s.length > 0);
+    if (res && Array.isArray(res.symbols)) {
+      return res.symbols.filter((s) => typeof s === "string" && s.length > 0);
+    }
+    return [];
+  } catch {
+    return [];
   }
 }
 
