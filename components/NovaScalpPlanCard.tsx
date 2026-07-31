@@ -45,8 +45,11 @@ import {
 import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 import { scalpPlanFeedbackApi } from "@/lib/scalp-plan-market";
 import { NOVA_SCALPER_HANDOFF_URL, writeNovaScalperPrefill } from "@/lib/nova-scalper-prefill";
-import { NOVA_FOREX_SCALPER_HANDOFF_URL, writeNovaForexScalperPrefill } from "@/lib/nova-forex-scalper-prefill";
-import { estimateForexLotsFromMargin } from "@/lib/forex-lot-size";
+import {
+  NOVA_FOREX_SCALPER_HANDOFF_URL,
+  forexScalperEntryTriggerFor,
+  writeNovaForexScalperPrefill,
+} from "@/lib/nova-forex-scalper-prefill";
 import { novaQHandoffUrl, writeNovaQPrefill } from "@/lib/nova-q-prefill";
 import { useScalpHandoffNav } from "@/components/useScalpHandoffNav";
 
@@ -427,11 +430,15 @@ export function NovaScalpPlanCard({
     if (market === "forex") {
       const marginUsd = Math.max(1, Number(result.amountUsd) || 10);
       const leverage = Math.max(1, Number(result.leverage) || 20);
-      const lotSize = estimateForexLotsFromMargin({
-        symbol: result.symbol,
-        entryPrice: result.entryPrice as number,
-        marginUsd,
-        leverage,
+      const enterNow =
+        result.entryMode === "market" ||
+        planStatus === "at_entry" ||
+        (livePrice != null &&
+          result.entryPrice != null &&
+          Math.abs(livePrice - (result.entryPrice as number)) / (result.entryPrice as number) <= 0.0015);
+      const entryTrigger = forexScalperEntryTriggerFor(result.side as "long" | "short", {
+        entryMode: result.entryMode,
+        enterNow,
       });
       const forexPrefill = {
         symbol: result.symbol,
@@ -439,9 +446,11 @@ export function NovaScalpPlanCard({
         entryPrice: result.entryPrice as number,
         exitPrice: result.exitPrice as number,
         stopLossPrice: result.recommendedStopPrice ?? result.stopLossPrice ?? null,
-        lotSize,
+        // Do not bake lots with the agent's typed leverage — Scalper sizes from
+        // marginUsd × real MT account leverage after the broker connection loads.
         marginUsd,
         leverage,
+        entryTrigger,
         source: "Nova Forex Scalp Agent",
         createdAt: new Date().toISOString(),
       };

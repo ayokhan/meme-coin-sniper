@@ -14,6 +14,8 @@ export const NOVA_FOREX_SCALPER_PREFILL_EVENT = "novastaris-nova-forex-scalper-p
 
 export const NOVA_FOREX_SCALPER_HANDOFF_URL = "/?tab=nova-forex-bot&forex=scalp-bot";
 
+export type ForexScalperEntryTrigger = "cross_down" | "cross_up" | "immediate";
+
 export type NovaForexScalperPrefill = {
   /** Forex/CFD symbol as shown in Nova Forex (e.g. "EURUSD", "XAUUSD", "NAS100"). */
   symbol: string;
@@ -22,19 +24,31 @@ export type NovaForexScalperPrefill = {
   /** Take-profit / exit target. */
   exitPrice: number;
   stopLossPrice: number | null;
-  /** MT4/MT5 lot size to open with. */
-  lotSize: number;
+  /**
+   * Optional starting lot estimate. Prefer omitting this and letting the Scalper
+   * size from marginUsd × real MT account leverage after connect.
+   */
+  lotSize?: number;
   /** Plan margin from Nova Forex Scalp Agent (USD) — shown on the bot for context / re-size. */
   marginUsd?: number;
-  /** Plan leverage from Nova Forex Scalp Agent — display / re-size only (MT leverage is account-level). */
+  /** Plan leverage from Nova Forex Scalp Agent — fallback only until MT leverage loads. */
   leverage?: number;
+  /** When "immediate", enter on next tick (agent said enter now / at entry zone). */
+  entryTrigger?: ForexScalperEntryTrigger;
   /** Human-readable origin, e.g. "Nova Forex Agent" or "Nova Forex Fib". */
   source: string;
   createdAt: string;
 };
 
-/** Long dips into entry (cross down); short rallies into entry (cross up). */
-export function forexScalperEntryTriggerFor(side: "long" | "short"): "cross_down" | "cross_up" {
+/**
+ * Long dips into entry (cross down); short rallies into entry (cross up).
+ * When the agent says market / at-entry, use immediate so the bot doesn't wait for a re-cross.
+ */
+export function forexScalperEntryTriggerFor(
+  side: "long" | "short",
+  opts?: { entryMode?: "limit" | "market" | null; enterNow?: boolean }
+): ForexScalperEntryTrigger {
+  if (opts?.enterNow || opts?.entryMode === "market") return "immediate";
   return side === "long" ? "cross_down" : "cross_up";
 }
 

@@ -39,7 +39,7 @@ type ForexScalperRow = {
   broker: string;
   symbol: string;
   side: string; // long | short
-  entryTrigger: string; // cross_down | cross_up
+  entryTrigger: string; // cross_down | cross_up | immediate
   entryPrice: number;
   exitPrice: number;
   stopLossPrice: number | null;
@@ -51,6 +51,7 @@ type ForexScalperRow = {
 };
 
 function shouldEnter(side: string, trigger: string, entry: number, lastRef: number, price: number): boolean {
+  if (trigger === "immediate") return Number.isFinite(price) && price > 0;
   const t = trigger === "cross_up" ? "cross_up" : "cross_down";
   if (side === "long") {
     if (t === "cross_down") return lastRef >= entry && price <= entry;
@@ -225,7 +226,12 @@ export async function runNovaForexScalperTick(
     return { ok: true, message: "Primed price reference. Next tick evaluates entry/exit crosses." };
   }
 
-  const trigger = row.entryTrigger === "cross_up" ? "cross_up" : "cross_down";
+  const trigger =
+    row.entryTrigger === "cross_up"
+      ? "cross_up"
+      : row.entryTrigger === "immediate"
+        ? "immediate"
+        : "cross_down";
 
   if (row.inPosition || hasExchangePosition) {
     if (row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && stopHit(side, row.stopLossPrice, price)) {
@@ -294,7 +300,8 @@ export async function runNovaForexScalperTick(
   }
 
   if (!shouldEnter(side, trigger, row.entryPrice, lastRef, price)) {
-    const triggerLabel = trigger === "cross_up" ? "cross up" : "cross down";
+    const triggerLabel =
+      trigger === "immediate" ? "immediate market" : trigger === "cross_up" ? "cross up" : "cross down";
     await updateRow({
       lastRefPrice: price,
       lastTickAt: new Date(),
@@ -302,6 +309,22 @@ export async function runNovaForexScalperTick(
       lastAction: `Waiting for ${side} ${triggerLabel} of entry ${row.entryPrice} (MT mid ~${price}; prev ref ~${lastRef}). Price must cross entry — already through it won’t enter until it comes back and crosses again.`,
     });
     return { ok: true, message: "Flat; waiting for entry cross." };
+  }
+
+  if (
+    trigger === "immediate" &&
+    row.stopLossPrice != null &&
+    Number.isFinite(row.stopLossPrice) &&
+    stopHit(side, row.stopLossPrice, price)
+  ) {
+    await updateRow({
+      lastRefPrice: price,
+      lastTickAt: new Date(),
+      lastError: null,
+      lastAction: `Immediate entry skipped — live ~${price} already through stop ${row.stopLossPrice}. Refresh the Scalp plan.`,
+      enabled: false,
+    });
+    return { ok: true, message: "Skipped immediate entry; stop already hit." };
   }
 
   const lotSize = Math.max(0.01, row.lotSize || 0.01);

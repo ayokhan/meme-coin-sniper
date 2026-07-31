@@ -62,7 +62,12 @@ function toConfig(row: Record<string, unknown>) {
     broker: parseForexBrokerId(row.broker) ?? "vantage",
     symbol: row.symbol ?? "EURUSD",
     side: row.side === "short" ? "short" : "long",
-    entryTrigger: row.entryTrigger === "cross_up" ? "cross_up" : "cross_down",
+    entryTrigger:
+      row.entryTrigger === "cross_up"
+        ? "cross_up"
+        : row.entryTrigger === "immediate"
+          ? "immediate"
+          : "cross_down",
     entryPrice: row.entryPrice,
     exitPrice: row.exitPrice,
     stopLossPrice: row.stopLossPrice != null ? Number(row.stopLossPrice) : null,
@@ -172,7 +177,12 @@ export async function POST(request: Request) {
         broker: parseForexBrokerId(body.broker) ?? "vantage",
         symbol: normalizeForexSymbol(String(body.symbol ?? "")),
         side: body.side === "short" ? "short" : "long",
-        entryTrigger: body.entryTrigger === "cross_up" ? "cross_up" : "cross_down",
+        entryTrigger:
+          body.entryTrigger === "cross_up"
+            ? "cross_up"
+            : body.entryTrigger === "immediate"
+              ? "immediate"
+              : "cross_down",
         entryPrice: Number(body.entryPrice),
         exitPrice: Number(body.exitPrice),
         stopLossPrice,

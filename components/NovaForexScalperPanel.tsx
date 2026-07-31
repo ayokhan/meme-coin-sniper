@@ -23,7 +23,7 @@ type ForexScalperConfig = {
   broker: ForexBrokerId;
   symbol: string;
   side: "long" | "short";
-  entryTrigger: "cross_down" | "cross_up";
+  entryTrigger: "cross_down" | "cross_up" | "immediate";
   entryPrice: number;
   exitPrice: number;
   stopLossPrice: number | null;
@@ -122,16 +122,22 @@ export default function NovaForexScalperPanel() {
         : 10;
     setPlanMarginUsd(marginUsd);
     const levForLots =
-      accountLeverage && accountLeverage > 0 ? accountLeverage : Math.max(1, Number(prefill.leverage) || 20);
+      accountLeverage && accountLeverage > 0
+        ? accountLeverage
+        : Math.max(1, Number(prefill.leverage) || 20);
     const lotFromPlan =
-      Number.isFinite(prefill.lotSize) && prefill.lotSize > 0
-        ? prefill.lotSize
-        : estimateForexLotsFromMargin({
-            symbol: prefill.symbol,
-            entryPrice: prefill.entryPrice,
-            marginUsd,
-            leverage: levForLots,
-          });
+      estimateForexLotsFromMargin({
+        symbol: prefill.symbol,
+        entryPrice: prefill.entryPrice,
+        marginUsd,
+        leverage: levForLots,
+      });
+    const entryTrigger =
+      prefill.entryTrigger === "immediate" ||
+      prefill.entryTrigger === "cross_up" ||
+      prefill.entryTrigger === "cross_down"
+        ? prefill.entryTrigger
+        : forexScalperEntryTriggerFor(prefill.side);
     setConfigs((list) =>
       list.map((c) =>
         c.id === activeConfigId
@@ -139,21 +145,27 @@ export default function NovaForexScalperPanel() {
               ...c,
               symbol: normalizeForexSymbol(prefill.symbol) || prefill.symbol,
               side: prefill.side,
-              entryTrigger: forexScalperEntryTriggerFor(prefill.side),
+              entryTrigger,
               entryPrice: prefill.entryPrice,
               exitPrice: prefill.exitPrice,
               stopLossPrice:
-                prefill.stopLossPrice != null && Number.isFinite(prefill.stopLossPrice) ? prefill.stopLossPrice : null,
+                prefill.stopLossPrice != null && Number.isFinite(prefill.stopLossPrice)
+                  ? prefill.stopLossPrice
+                  : null,
               lotSize: lotFromPlan,
             }
           : c
       )
     );
+    const triggerNote =
+      entryTrigger === "immediate"
+        ? "Entry trigger: immediate (next tick) — agent said enter now."
+        : `Entry trigger: ${entryTrigger} (waits for price to cross).`;
     setPrefillNotice(
-      `Loaded ${prefill.side.toUpperCase()} ${prefill.symbol} from ${prefill.source} · $${marginUsd} margin → ~${lotFromPlan} lots. Review below, then Save.`
+      `Loaded ${prefill.side.toUpperCase()} ${prefill.symbol} from ${prefill.source} · $${marginUsd} margin → ~${lotFromPlan} lots @ ${levForLots}x${accountLeverage ? " (MT)" : " (plan est.)"}. ${triggerNote} Review, then Save.`
     );
     clearNovaForexScalperPrefill();
-  }, [loading, activeConfigId, configs.length]);
+  }, [loading, activeConfigId, configs.length, accountLeverage]);
 
   const activeConfig = configs.find((c) => c.id === activeConfigId) ?? null;
   const sizingLeverage = accountLeverage && accountLeverage > 0 ? accountLeverage : 20;
@@ -204,6 +216,9 @@ export default function NovaForexScalperPanel() {
     if (Math.abs(nextLots - activeConfig.lotSize) < 0.001) return;
     setConfigs((list) =>
       list.map((c) => (c.id === activeConfig.id ? { ...c, lotSize: nextLots } : c))
+    );
+    setPrefillNotice(
+      `Lots resized to ~${nextLots} for your MT ${accountLeverage}x leverage and $${planMarginUsd} margin. Click Save so the bot uses this size.`
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when leverage / margin / symbol / entry change
   }, [accountLeverage, planMarginUsd, activeConfig?.id, activeConfig?.symbol, activeConfig?.entryPrice]);
@@ -564,12 +579,23 @@ export default function NovaForexScalperPanel() {
             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Entry trigger</label>
             <select
               value={config.entryTrigger}
-              onChange={(e) => setField("entryTrigger", e.target.value as "cross_down" | "cross_up")}
+              onChange={(e) =>
+                setField("entryTrigger", e.target.value as "cross_down" | "cross_up" | "immediate")
+              }
               className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
             >
+              <option value="immediate">
+                Immediate (next tick — use when agent says enter now / at entry zone)
+              </option>
               <option value="cross_down">Cross down (long: dip to entry · short: breakdown through entry)</option>
               <option value="cross_up">Cross up (long: breakout · short: rally to entry)</option>
             </select>
+            {config.entryTrigger !== "immediate" && (
+              <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                Cross triggers wait for price to move back through entry. If live is already past the level,
+                the bot will not chase — switch to Immediate or wait for a retest.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
