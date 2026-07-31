@@ -625,12 +625,12 @@ export default function NovaForexScalperPanel() {
 
           <div>
             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-              Stop loss (optional)
+              Stop loss (sent to MT5)
             </label>
             <input
               type="number"
               step="any"
-              placeholder="Leave empty for no stop"
+              placeholder="Leave empty for no broker stop"
               value={config.stopLossPrice ?? ""}
               onChange={(e) => {
                 const v = e.target.value;
@@ -638,6 +638,10 @@ export default function NovaForexScalperPanel() {
               }}
               className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
             />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Exit price is sent as take-profit; stop loss as S/L on the MT5 position. Keep Auto tick on so levels can be
+              attached if the broker opened without them.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
