@@ -51,3 +51,39 @@ export function estimateForexMarginFromLots(input: {
   const notional = lots * contract * price;
   return Math.round((notional / lev) * 100) / 100;
 }
+
+/**
+ * Largest 0.01-step lot size that fits in freeMargin (uses ~90% buffer for broker padding).
+ * Returns 0 if even 0.01 lots won't fit.
+ */
+export function maxForexLotsForFreeMargin(input: {
+  symbol: string;
+  entryPrice: number;
+  freeMarginUsd: number;
+  leverage: number;
+  /** Fraction of free margin to use (default 0.9). */
+  buffer?: number;
+}): number {
+  const price = Number(input.entryPrice);
+  const free = Math.max(0, Number(input.freeMarginUsd));
+  const lev = Math.max(1, Number(input.leverage) || 1);
+  const buffer = input.buffer ?? 0.9;
+  if (!Number.isFinite(price) || price <= 0 || free <= 0) return 0;
+  const usable = free * buffer;
+  const raw = estimateForexLotsFromMargin({
+    symbol: input.symbol,
+    entryPrice: price,
+    marginUsd: usable,
+    leverage: lev,
+  });
+  // estimateForexLotsFromMargin floors to min 0.01 — verify 0.01 actually fits
+  const needMin = estimateForexMarginFromLots({
+    symbol: input.symbol,
+    entryPrice: price,
+    lotSize: 0.01,
+    leverage: lev,
+  });
+  if (needMin > usable) return 0;
+  return raw;
+}
+

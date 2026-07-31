@@ -62,6 +62,15 @@ export function toUserFacingForexBridgeError(raw: string | null | undefined): st
   if (lower.includes("unauthorized") || lower.includes("invalid password") || lower.includes("wrong password")) {
     return "Login or password was rejected by the broker. Check your MT4/MT5 credentials and try again.";
   }
+  if (
+    lower.includes("not enough money") ||
+    lower.includes("no money") ||
+    lower.includes("not enough margin") ||
+    lower.includes("insufficient funds") ||
+    lower.includes("trade_retcode_no_money")
+  ) {
+    return "Not enough free margin on your MT account for this lot size. Lower Lot size (try 0.01), deposit more funds, or raise account leverage at your broker — then Save and retry.";
+  }
   if (lower.includes("unknown symbol") || lower.includes("symbol not found") || lower.includes("market is closed")) {
     if (lower.includes("unknown symbol") || lower.includes("symbol not found")) {
       return "Unknown symbol on your MT account. Your broker may use a different name (e.g. NVDA.US, USTEC for NAS100). Pick a Market Watch symbol your MT terminal can trade, or check Market Watch in MT5.";

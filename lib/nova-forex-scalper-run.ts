@@ -14,10 +14,12 @@ import {
   getMetaApiPositions,
   getMetaApiSymbolPrice,
   getMetaApiSymbols,
+  getMetaApiAccountInformation,
   placeMetaApiMarketOrder,
   closeMetaApiPosition,
 } from "@/lib/metaapi";
 import { forexBrokerSymbolAliases, matchForexSymbolOnBroker } from "@/lib/forex-broker-symbols";
+import { estimateForexMarginFromLots, maxForexLotsForFreeMargin } from "@/lib/forex-lot-size";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -345,7 +347,43 @@ export async function runNovaForexScalperTick(
     return { ok: false, error: hint };
   }
 
-  const lotSize = Math.max(0.01, row.lotSize || 0.01);
+  const lotSizeConfigured = Math.max(0.01, row.lotSize || 0.01);
+  let lotSize = lotSizeConfigured;
+  let lotNote = "";
+  const acct = await getMetaApiAccountInformation(accountId);
+  if (acct && Number.isFinite(acct.freeMargin) && Number.isFinite(acct.leverage) && acct.leverage > 0) {
+    const need = estimateForexMarginFromLots({
+      symbol: brokerSymbol,
+      entryPrice: price,
+      lotSize,
+      leverage: acct.leverage,
+    });
+    const free = Number(acct.freeMargin);
+    if (need > free * 0.95) {
+      const affordable = maxForexLotsForFreeMargin({
+        symbol: brokerSymbol,
+        entryPrice: price,
+        freeMarginUsd: free,
+        leverage: acct.leverage,
+      });
+      if (affordable < 0.01) {
+        const msg = `Not enough free margin for ${lotSize} lots of ${brokerSymbol} (~$${need} needed, ~$${free.toFixed(2)} free @ 1:${acct.leverage}). Deposit funds, lower size, or raise MT leverage.`;
+        await updateRow({
+          lastError: "Not enough money",
+          lastTickAt: new Date(),
+          lastRefPrice: price,
+          lastAction: `Entry signal @ ~${price} — ${msg}`,
+        });
+        return { ok: false, error: msg };
+      }
+      if (affordable < lotSize) {
+        lotNote = ` (sized down ${lotSize}→${affordable} lots to fit ~$${free.toFixed(2)} free margin)`;
+        lotSize = affordable;
+        await updateRow({ lotSize });
+      }
+    }
+  }
+
   let order = await placeMetaApiMarketOrder({
     accountId,
     symbol: tradeSymbolResolved,
@@ -368,12 +406,27 @@ export async function runNovaForexScalperTick(
       }
     }
   }
+  // If still no money, try 0.01 once
+  if (!order.ok && /not enough|no money|insufficient/i.test(order.error ?? "") && lotSize > 0.01) {
+    const retry = await placeMetaApiMarketOrder({
+      accountId,
+      symbol: tradeSymbolResolved,
+      side: side === "long" ? "buy" : "sell",
+      volume: 0.01,
+    });
+    if (retry.ok) {
+      order = retry;
+      lotSize = 0.01;
+      lotNote = " (retried at 0.01 lots after margin reject)";
+      await updateRow({ lotSize: 0.01 });
+    }
+  }
   if (!order.ok) {
     const err = order.error ?? "Order failed";
     await updateRow({
       lastError: err,
       lastTickAt: new Date(),
-      lastAction: `Entry cross @ ~${price} — market ${side === "long" ? "buy" : "sell"} failed: ${err}`,
+      lastAction: `Entry cross @ ~${price} — market ${side === "long" ? "buy" : "sell"} ${lotSize} lots failed: ${err}`,
     });
     return { ok: false, error: err };
   }
@@ -383,7 +436,7 @@ export async function runNovaForexScalperTick(
     lastRefPrice: price,
     lastTickAt: new Date(),
     lastError: null,
-    lastAction: `Opened ${side} ${lotSize} lots @ ~${price} (${tradeSymbolResolved}). Will close at exit ${row.exitPrice} or stop.`,
+    lastAction: `Opened ${side} ${lotSize} lots @ ~${price} (${tradeSymbolResolved})${lotNote}. Will close at exit ${row.exitPrice} or stop.`,
   });
 
   return { ok: true, message: `Entered ${side}. Monitoring exit/stop.` };

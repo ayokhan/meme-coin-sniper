@@ -11,7 +11,7 @@ import {
   forexScalperEntryTriggerFor,
   readNovaForexScalperPrefill,
 } from "@/lib/nova-forex-scalper-prefill";
-import { estimateForexLotsFromMargin } from "@/lib/forex-lot-size";
+import { estimateForexLotsFromMargin, estimateForexMarginFromLots } from "@/lib/forex-lot-size";
 import ForexBrokerConnectPanel from "@/components/ForexBrokerConnectPanel";
 
 type ForexScalperConfig = {
@@ -696,6 +696,18 @@ export default function NovaForexScalperPanel() {
                 onChange={(e) => setField("lotSize", Math.max(0.01, parseFloat(e.target.value) || 0.01))}
                 className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
               />
+              {accountLeverage != null && accountLeverage > 0 && config.entryPrice > 0 && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Est. margin for {config.lotSize} lots ≈ $
+                  {estimateForexMarginFromLots({
+                    symbol: config.symbol,
+                    entryPrice: config.entryPrice,
+                    lotSize: config.lotSize,
+                    leverage: accountLeverage,
+                  }).toLocaleString()}{" "}
+                  at 1:{accountLeverage}. If MT rejects with “not enough money”, lower lots or fund the account.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
