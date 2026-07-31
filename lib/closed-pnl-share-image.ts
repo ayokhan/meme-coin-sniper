@@ -291,10 +291,14 @@ export function drawClosedTradeShareCard(
   input: ClosedTradeShareInput,
   options?: ClosedTradeShareOptions
 ): Promise<Blob> {
-  const sharedDate =
-    input.closedAt != null && input.closedAt !== ""
-      ? new Date(Number(input.closedAt)).toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "numeric" })
-      : undefined;
+  let sharedDate: string | undefined;
+  if (input.closedAt != null && input.closedAt !== "") {
+    const ms = Number(input.closedAt);
+    const d = Number.isFinite(ms) && ms > 1e11 ? new Date(ms) : new Date(input.closedAt);
+    if (Number.isFinite(d.getTime())) {
+      sharedDate = d.toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "numeric" });
+    }
+  }
   return drawPremiumPnlShareCard({
     displaySymbol: input.displaySymbol,
     direction: input.direction,
