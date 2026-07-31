@@ -38,11 +38,9 @@ export function forexScalperEntryTriggerFor(side: "long" | "short"): "cross_down
   return side === "long" ? "cross_down" : "cross_up";
 }
 
-export function readNovaForexScalperPrefill(): NovaForexScalperPrefill | null {
-  if (typeof window === "undefined") return null;
+function parseNovaForexScalperPrefill(raw: string | null): NovaForexScalperPrefill | null {
+  if (!raw) return null;
   try {
-    const raw = sessionStorage.getItem(NOVA_FOREX_SCALPER_PREFILL_KEY);
-    if (!raw) return null;
     const parsed = JSON.parse(raw) as NovaForexScalperPrefill;
     if (!parsed?.symbol || (parsed.side !== "long" && parsed.side !== "short")) return null;
     if (!Number.isFinite(parsed.entryPrice) || !Number.isFinite(parsed.exitPrice)) return null;
@@ -52,12 +50,33 @@ export function readNovaForexScalperPrefill(): NovaForexScalperPrefill | null {
   }
 }
 
+export function readNovaForexScalperPrefill(): NovaForexScalperPrefill | null {
+  if (typeof window === "undefined") return null;
+  // localStorage so "Scalp this trade" → new tab can still read the handoff
+  // (sessionStorage is per-tab and would leave the destination empty).
+  return (
+    parseNovaForexScalperPrefill(sessionStorage.getItem(NOVA_FOREX_SCALPER_PREFILL_KEY)) ??
+    parseNovaForexScalperPrefill(localStorage.getItem(NOVA_FOREX_SCALPER_PREFILL_KEY))
+  );
+}
+
 export function writeNovaForexScalperPrefill(prefill: NovaForexScalperPrefill | null): void {
   if (typeof window === "undefined") return;
   if (!prefill) {
     sessionStorage.removeItem(NOVA_FOREX_SCALPER_PREFILL_KEY);
+    try {
+      localStorage.removeItem(NOVA_FOREX_SCALPER_PREFILL_KEY);
+    } catch {
+      /* ignore */
+    }
   } else {
-    sessionStorage.setItem(NOVA_FOREX_SCALPER_PREFILL_KEY, JSON.stringify(prefill));
+    const json = JSON.stringify(prefill);
+    sessionStorage.setItem(NOVA_FOREX_SCALPER_PREFILL_KEY, json);
+    try {
+      localStorage.setItem(NOVA_FOREX_SCALPER_PREFILL_KEY, json);
+    } catch {
+      /* ignore */
+    }
   }
   window.dispatchEvent(new CustomEvent(NOVA_FOREX_SCALPER_PREFILL_EVENT));
 }

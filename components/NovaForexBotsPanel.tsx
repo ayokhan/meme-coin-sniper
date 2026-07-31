@@ -12,13 +12,15 @@ type Props = {
   novaForexBot: boolean;
   /** From feature flags: Off / Owner only / All VIP via getNovaForexScalpBotAccess */
   novaForexScalpBot: boolean;
+  /** Keep dashboard URL `forex=` in sync when the user switches bots. */
+  onSubTabChange?: (sub: "forex-bot" | "scalp-bot") => void;
 };
 
 /**
  * Focus → Bots home for Nova Forex execution bots (Vantage Markets / TIOmarkets via MetaAPI).
  * Visibility is controlled by the same tri-state feature flags as before (not a separate page-tab flag).
  */
-export default function NovaForexBotsPanel({ novaForexBot, novaForexScalpBot }: Props) {
+export default function NovaForexBotsPanel({ novaForexBot, novaForexScalpBot, onSubTabChange }: Props) {
   const defaultTab =
     novaForexScalpBot && (typeof window !== "undefined" ? hasNovaForexScalperPrefill() : false)
       ? "scalp-bot"
@@ -28,13 +30,19 @@ export default function NovaForexBotsPanel({ novaForexBot, novaForexScalpBot }: 
 
   const [subTab, setSubTab] = useState<"forex-bot" | "scalp-bot">(defaultTab);
 
+  const selectSubTab = (next: "forex-bot" | "scalp-bot") => {
+    setSubTab(next);
+    onSubTabChange?.(next);
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const forex = params.get("forex");
-    if (forex === "scalp-bot" && novaForexScalpBot) setSubTab("scalp-bot");
-    else if (forex === "forex-bot" && novaForexBot) setSubTab("forex-bot");
-    else if (hasNovaForexScalperPrefill() && novaForexScalpBot) setSubTab("scalp-bot");
+    if (forex === "scalp-bot" && novaForexScalpBot) selectSubTab("scalp-bot");
+    else if (forex === "forex-bot" && novaForexBot) selectSubTab("forex-bot");
+    else if (hasNovaForexScalperPrefill() && novaForexScalpBot) selectSubTab("scalp-bot");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-resolve when bot flags change
   }, [novaForexBot, novaForexScalpBot]);
 
   if (!novaForexBot && !novaForexScalpBot) {
@@ -63,7 +71,7 @@ export default function NovaForexBotsPanel({ novaForexBot, novaForexScalpBot }: 
         </p>
       </div>
 
-      <Tabs value={subTab} onValueChange={(v) => setSubTab(v as "forex-bot" | "scalp-bot")}>
+      <Tabs value={subTab} onValueChange={(v) => selectSubTab(v as "forex-bot" | "scalp-bot")}>
         <TabsList className="flex flex-wrap h-auto gap-1">
           {novaForexBot && <TabsTrigger value="forex-bot">Nova Forex Bot</TabsTrigger>}
           {novaForexScalpBot && <TabsTrigger value="scalp-bot">Nova Forex Scalper</TabsTrigger>}

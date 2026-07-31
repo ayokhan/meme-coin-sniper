@@ -1501,6 +1501,8 @@ export default function Dashboard() {
     "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-radar" | "nova-scalp"
   >("agent");
   const [dashboardUrlReady, setDashboardUrlReady] = useState(false);
+  /** Sub-tab under Nova Forex Bots (kept in URL so Scalp handoffs survive sync). */
+  const [forexBotSubTab, setForexBotSubTab] = useState<"forex-bot" | "scalp-bot" | null>(null);
 
   const applyDashboardPathResult = useCallback((result: DashboardPathApplyResult) => {
     setTopTabFilter(result.filter);
@@ -1578,6 +1580,10 @@ export default function Dashboard() {
         ) {
           setNovaForecastSubTab(forecast);
         }
+        const forex = url.searchParams.get("forex");
+        if (forex === "scalp-bot" || forex === "forex-bot") {
+          setForexBotSubTab(forex);
+        }
         const boss = url.searchParams.get("boss");
         if (boss === "chart" || boss === "demandFib") {
           setOnlineBossSubTab(boss);
@@ -1610,8 +1616,16 @@ export default function Dashboard() {
     if (!pageTabFlagsLoaded || typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const tab = params.get("tab");
+    // Nova Forex Bots visibility depends on vipFuturesAddons. If we mark the URL
+    // "ready" before those flags load, the sync effect rewrites ?tab=nova-forex-bot
+    // to the default Go Hunting tab and the deep link is lost forever.
+    if (tab === "nova-forex-bot" && vipFuturesAddons === null) return;
     if (tab && URL_TAB_IDS.has(tab) && isTabVisibleInGui(tab as TabId)) {
       setActiveTab(tab as TabId);
+    }
+    const forex = params.get("forex");
+    if (forex === "scalp-bot" || forex === "forex-bot") {
+      setForexBotSubTab(forex);
     }
     const gh = params.get("goHunting");
     if (gh === "new_pairs" || gh === "final_stretch" || gh === "migrated") {
@@ -1660,7 +1674,7 @@ export default function Dashboard() {
       setOnlineBossSubTab(boss);
     }
     setDashboardUrlReady(true);
-  }, [pageTabFlagsLoaded, isTabVisibleInGui]);
+  }, [pageTabFlagsLoaded, isTabVisibleInGui, vipFuturesAddons]);
 
   useEffect(() => {
     if (status !== "authenticated" || !pageTabFlagsLoaded || typeof window === "undefined") return;
@@ -1877,6 +1891,7 @@ export default function Dashboard() {
     if (activeTab === "ai-analysis") params.set("agent", aiAgentSubTab);
     if (activeTab === "nova-forecast") params.set("forecast", novaForecastSubTab);
     if (activeTab === "chris-clayton") params.set("boss", onlineBossSubTab);
+    if (activeTab === "nova-forex-bot" && forexBotSubTab) params.set("forex", forexBotSubTab);
     setHomeAnalyticsPath(`/?${params.toString()}`);
     return () => setHomeAnalyticsPath(null);
   }, [
@@ -1888,6 +1903,7 @@ export default function Dashboard() {
     aiAgentSubTab,
     novaForecastSubTab,
     onlineBossSubTab,
+    forexBotSubTab,
     setHomeAnalyticsPath,
   ]);
 
@@ -1903,6 +1919,7 @@ export default function Dashboard() {
     if (activeTab === "ai-analysis") params.set("agent", aiAgentSubTab);
     if (activeTab === "nova-forecast") params.set("forecast", novaForecastSubTab);
     if (activeTab === "chris-clayton") params.set("boss", onlineBossSubTab);
+    if (activeTab === "nova-forex-bot" && forexBotSubTab) params.set("forex", forexBotSubTab);
     const nextQuery = params.toString();
     const nextUrl = nextQuery ? `/?${nextQuery}` : "/";
     const currentUrl = `${window.location.pathname}${window.location.search}`;
@@ -1918,6 +1935,7 @@ export default function Dashboard() {
     aiAgentSubTab,
     novaForecastSubTab,
     onlineBossSubTab,
+    forexBotSubTab,
     router,
     dashboardUrlReady,
   ]);
@@ -7787,6 +7805,7 @@ export default function Dashboard() {
                 <NovaForexBotsPanel
                   novaForexBot={!!vipFuturesAddons?.novaForexBot}
                   novaForexScalpBot={!!vipFuturesAddons?.novaForexScalpBot}
+                  onSubTabChange={setForexBotSubTab}
                 />
               </div>
             ) : activeTab === "nova-ultimate" ? (
