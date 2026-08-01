@@ -2,8 +2,8 @@ import type { DeepPartialMessages } from "./en";
 
 export const sv: DeepPartialMessages = {
   "brand": {
-    "tagline": "AI-tradingintelligens för kryptomemes, forex, futures & prediction markets",
-    "taglineShort": "AI för kryptomemes, forex, futures & prediction markets"
+    "tagline": "Din AI-tradingintelligens för kryptomemes, forex, futures & prediction markets",
+    "taglineShort": "Din AI-tradingintelligens för kryptomemes, forex, futures & prediction markets"
   },
   "nav": {
     "theme": "Tema",

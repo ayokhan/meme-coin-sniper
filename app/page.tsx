@@ -3943,9 +3943,8 @@ export default function Dashboard() {
                   <Zap className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0 animate-[nova-zap-pulse_2s_ease-in-out_infinite]" aria-hidden />
                   {t("brand.tagline")}
                 </span>
-                <span className="sm:hidden flex items-center gap-1 text-[10px] font-semibold mt-0.5 tracking-wide text-zinc-600 dark:text-zinc-300">
-                  <Zap className="h-3 w-3 text-amber-500 dark:text-amber-400 shrink-0" aria-hidden />
-                  <span className="leading-snug">{t("brand.tagline")}</span>
+                <span className="sm:hidden text-[10px] font-semibold mt-0.5 text-zinc-600 dark:text-zinc-300 leading-snug">
+                  {t("brand.tagline")}
                 </span>
               </h1>
             </div>

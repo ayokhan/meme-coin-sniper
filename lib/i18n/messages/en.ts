@@ -1,8 +1,8 @@
 /** English (source of truth for message keys). */
 export const en = {
   brand: {
-    tagline: "AI trading intelligence for crypto memes, forex, futures & prediction markets",
-    taglineShort: "AI trading intelligence for crypto memes, forex, futures & prediction markets",
+    tagline: "Your AI trading intelligence for crypto memes, forex, futures & prediction markets",
+    taglineShort: "Your AI trading intelligence for crypto memes, forex, futures & prediction markets",
   },
   nav: {
     theme: "Theme",

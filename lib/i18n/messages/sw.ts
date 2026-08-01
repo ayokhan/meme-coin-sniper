@@ -2,8 +2,8 @@ import type { DeepPartialMessages } from "./en";
 
 export const sw: DeepPartialMessages = {
   "brand": {
-    "tagline": "Ujasusi wa biashara wa AI kwa crypto memes, forex, futures na soko la utabiri",
-    "taglineShort": "AI kwa crypto memes, forex, futures na soko la utabiri"
+    "tagline": "Ujasusi wako wa biashara wa AI kwa crypto memes, forex, futures na soko la utabiri",
+    "taglineShort": "Ujasusi wako wa biashara wa AI kwa crypto memes, forex, futures na soko la utabiri"
   },
   "nav": {
     "theme": "Mandhari",

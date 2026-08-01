@@ -3,8 +3,8 @@ import type { DeepPartialMessages } from "./en";
 /** Spanish — shell + forex panel. Missing keys fall back to English. */
 export const es: DeepPartialMessages = {
   brand: {
-    tagline: "Inteligencia de trading con IA para crypto memes, forex, futures y mercados de predicción",
-    taglineShort: "IA para crypto memes, forex, futures y mercados de predicción",
+    tagline: "Tu inteligencia de trading con IA para crypto memes, forex, futures y mercados de predicción",
+    taglineShort: "Tu inteligencia de trading con IA para crypto memes, forex, futures y mercados de predicción",
   },
   nav: {
     theme: "Tema",

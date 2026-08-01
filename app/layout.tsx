@@ -32,9 +32,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "NovaStaris — AI trading intelligence for crypto memes, forex, futures & prediction markets",
+  title: "NovaStaris — Your AI trading intelligence for crypto memes, forex, futures & prediction markets",
   description:
-    "NovaStaris: AI trading intelligence for crypto memes, forex, futures & prediction markets. Discover, analyze, and execute across Solana, BSC, forex, futures, and prediction markets with AI.",
+    "NovaStaris: Your AI trading intelligence for crypto memes, forex, futures & prediction markets. Discover, analyze, and execute across Solana, BSC, forex, futures, and prediction markets with AI.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

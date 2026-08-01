@@ -2,8 +2,8 @@ import type { DeepPartialMessages } from "./en";
 
 export const ish: DeepPartialMessages = {
   "brand": {
-    "tagline": "AI trading intelligence ne crypto memes, forex, futures bi prediction markets",
-    "taglineShort": "AI ne crypto memes, forex, futures bi prediction markets"
+    "tagline": "AI trading intelligence rẹẹ ne crypto memes, forex, futures bi prediction markets",
+    "taglineShort": "AI trading intelligence rẹẹ ne crypto memes, forex, futures bi prediction markets"
   },
   "nav": {
     "theme": "Theme",
