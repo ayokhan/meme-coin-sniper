@@ -377,6 +377,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, published demo sessions accept public registrations at /demo/[slug] (share on Instagram, Telegram, WhatsApp). Manage sessions under Admin → Demo sessions. Default OFF.",
   },
+  page_tab_wins: {
+    label: "Wins (/wins shared PNL landing)",
+    description:
+      "When ON, /wins is live (PNL share destination + Account → Wins). Signed-in users see a welcome view; guests see Create account / Sign in. When OFF, the page shows closed and Wins links are hidden in the app. Default ON.",
+  },
   page_tab_nova_job_agent: {
     label: "Nova Jobs Agent (master)",
     description:

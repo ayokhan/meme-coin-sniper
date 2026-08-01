@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   buildPnlShareCaption,
@@ -48,6 +48,21 @@ export default function PnlShareButtons({
   primaryLabel = "Card",
 }: PnlShareButtonsProps) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [winsEnabled, setWinsEnabled] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setWinsEnabled(data?.flags?.page_tab_wins !== false);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const caption =
     captionOverride ??
@@ -133,17 +148,19 @@ export default function PnlShareButtons({
       >
         IG
       </Button>
-      <a
-        href="/wins"
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`self-center text-muted-foreground hover:text-foreground underline-offset-2 hover:underline ${
-          compact ? "text-[10px] px-0.5" : "text-xs px-1"
-        }`}
-        title="Public page linked when you share PNL cards"
-      >
-        Wins
-      </a>
+      {winsEnabled && (
+        <a
+          href="/wins"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`self-center text-muted-foreground hover:text-foreground underline-offset-2 hover:underline ${
+            compact ? "text-[10px] px-0.5" : "text-xs px-1"
+          }`}
+          title="Public page linked when you share PNL cards"
+        >
+          Wins
+        </a>
+      )}
     </div>
   );
 }

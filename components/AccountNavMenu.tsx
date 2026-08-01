@@ -14,7 +14,22 @@ type Props = {
 export default function AccountNavMenu({ className = "", onNavigate }: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [winsEnabled, setWinsEnabled] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setWinsEnabled(data?.flags?.page_tab_wins !== false);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -62,14 +77,16 @@ export default function AccountNavMenu({ className = "", onNavigate }: Props) {
             <Gift className="h-4 w-4 shrink-0 text-amber-500" />
             {t("nav.affiliate")}
           </Link>
-          <Link
-            href="/wins"
-            onClick={close}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          >
-            <Zap className="h-4 w-4 shrink-0 text-amber-500" />
-            Wins
-          </Link>
+          {winsEnabled && (
+            <Link
+              href="/wins"
+              onClick={close}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              <Zap className="h-4 w-4 shrink-0 text-amber-500" />
+              Wins
+            </Link>
+          )}
         </div>
       )}
     </div>

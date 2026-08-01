@@ -167,6 +167,12 @@ export const FEATURE_FLAG_KEYS = {
    * Default OFF until you enable for a campaign.
    */
   PAGE_TAB_DEMO_SESSIONS: 'page_tab_demo_sessions',
+  /**
+   * Public /wins landing (PNL share destination + Account → Wins).
+   * When OFF: page shows closed, Wins links hidden. Share captions may still mention /wins.
+   * Default ON.
+   */
+  PAGE_TAB_WINS: 'page_tab_wins',
 
   /** Master switch: Vercel scheduled /api/cron (daily scan, wallet notify, trading bot, perp jobs). When OFF, cron returns immediately — saves CPU. Default ON. */
   VERCEL_CRON_ENABLED: 'vercel_cron_enabled',
