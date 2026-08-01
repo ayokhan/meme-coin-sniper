@@ -4532,6 +4532,7 @@ export default function Dashboard() {
                 )}
                 {showTopTab("nova-forex") && (
                   <TabsTrigger value="nova-forex" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-700`}>
+                    <Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />
                     <span>{t("tabs.nova-forex")}</span>
                     <TopTabNewPill show={isNewTopTab("nova-forex")} />
                   </TabsTrigger>
