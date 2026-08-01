@@ -3340,11 +3340,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                   investedUsdt: p.margin != null && p.margin > 0 ? p.margin : null,
                                 },
                                 {
-                                  showRealizedUsdt: shareShowRealizedUsdt,
-                                  showAmountInvested: shareShowAmountInvested,
+                                  showRealizedUsdt: pnlShareFlags.showUsd && shareShowRealizedUsdt,
+                                  showAmountInvested: pnlShareFlags.showInvested && shareShowAmountInvested,
                                   showHoldDuration: false,
-                                  showLeverage: shareShowLeverage,
-                                    customMessage: pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null,
+                                  showLeverage: pnlShareFlags.showLeverage && shareShowLeverage,
+                                  customMessage: pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null,
                                 }
                               )
                             }
