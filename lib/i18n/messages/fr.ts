@@ -2,8 +2,8 @@ import type { DeepPartialMessages } from "./en";
 
 export const fr: DeepPartialMessages = {
   brand: {
-    tagline: "Votre sniper crypto IA éclair avancé — futures et intelligence des marchés de prédiction",
-    taglineShort: "Sniper crypto IA pour meme coins, futures et marchés de prédiction.",
+    tagline: "Intelligence de trading IA pour crypto memes, forex, futures et marchés de prédiction",
+    taglineShort: "IA pour crypto memes, forex, futures et marchés de prédiction",
   },
   nav: {
     theme: "Thème",

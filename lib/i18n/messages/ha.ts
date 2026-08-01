@@ -2,8 +2,8 @@ import type { DeepPartialMessages } from "./en";
 
 export const ha: DeepPartialMessages = {
   "brand": {
-    "tagline": "Na'urar AI crypto sniper mai ci gaba, futures da prediction markets",
-    "taglineShort": "AI crypto sniper don meme coins, futures da prediction markets."
+    "tagline": "AI trading intelligence don crypto memes, forex, futures da prediction markets",
+    "taglineShort": "AI don crypto memes, forex, futures da prediction markets"
   },
   "nav": {
     "theme": "Jigo",

@@ -2,8 +2,8 @@ import type { DeepPartialMessages } from "./en";
 
 export const zh: DeepPartialMessages = {
   brand: {
-    tagline: "您的高级 AI 闪电加密狙击、合约与预测市场情报",
-    taglineShort: "面向 meme 币、合约与预测市场的 AI 加密狙击。",
+    tagline: "面向加密 meme、外汇、合约与预测市场的 AI 交易情报",
+    taglineShort: "AI 交易情报：meme、外汇、合约与预测市场",
   },
   nav: {
     theme: "主题",

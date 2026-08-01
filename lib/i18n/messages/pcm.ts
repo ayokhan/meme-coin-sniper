@@ -3,8 +3,8 @@ import type { DeepPartialMessages } from "./en";
 /** Nigerian Pidgin — shell + forex panel. Missing keys fall back to English. */
 export const pcm: DeepPartialMessages = {
   brand: {
-    tagline: "Your advanced AI lightning crypto sniper, futures and prediction market intelligence",
-    taglineShort: "AI crypto sniper for meme coins, futures and prediction markets.",
+    tagline: "AI trading intelligence for crypto memes, forex, futures & prediction markets",
+    taglineShort: "AI for crypto memes, forex, futures & prediction markets",
   },
   nav: {
     theme: "Theme",

@@ -1,8 +1,8 @@
 /** English (source of truth for message keys). */
 export const en = {
   brand: {
-    tagline: "Your Advanced AI Lightning Crypto Sniper, Futures and Prediction Market Intelligence",
-    taglineShort: "AI Crypto Sniper for Meme Coins, Futures & Prediction Markets.",
+    tagline: "AI trading intelligence for crypto memes, forex, futures & prediction markets",
+    taglineShort: "AI for crypto memes, forex, futures & prediction markets",
   },
   nav: {
     theme: "Theme",

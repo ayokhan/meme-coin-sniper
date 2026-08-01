@@ -2,8 +2,8 @@ import type { DeepPartialMessages } from "./en";
 
 export const yo: DeepPartialMessages = {
   brand: {
-    tagline: "AI Lightning Crypto Sniper tó ga jù, Futures àti ìmọ̀ ọjà Prediction",
-    taglineShort: "AI Crypto Sniper fún meme coins, futures àti prediction markets.",
+    tagline: "AI trading intelligence fún crypto memes, forex, futures àti prediction markets",
+    taglineShort: "AI fún crypto memes, forex, futures àti prediction markets",
   },
   nav: {
     theme: "Àwọ̀",
