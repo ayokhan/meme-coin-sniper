@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAllFeatureFlags, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
+import { pnlShareFlagsFromRecord } from "@/lib/pnl-share-flags";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export async function GET() {
     flags: pageTabFlags,
     analyticsPingEnabled: flags[FEATURE_FLAG_KEYS.ANALYTICS_PING_ENABLED] ?? true,
     liveSupportChatEnabled: flags[FEATURE_FLAG_KEYS.LIVE_SUPPORT_CHAT] ?? false,
+    pnlShare: pnlShareFlagsFromRecord(flags),
   });
 }
 

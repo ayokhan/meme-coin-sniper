@@ -133,6 +133,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
       k === "live_activity_enabled" ||
       k === "live_support_chat",
   },
+  {
+    id: "pnl-share",
+    title: "PNL share cards (Nova Bot + Nova Forex)",
+    match: (k) => k.startsWith("pnl_share_"),
+  },
   { id: "ai", title: "AI experiments", match: (k) => k.startsWith("ai_") || k.startsWith("nova_ai_agent") },
   { id: "moralis", title: "API & notifications", match: (k) => k.startsWith("moralis_") || k.startsWith("telegram_") || k === "live_trades_enabled" },
   {
@@ -607,6 +612,31 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Live support chat (Need Help + admin inbox alerts)",
     description:
       "When ON, customers see the Need Help widget and owner live-transfer polling / agent presence heartbeats run. When OFF (default), the widget is hidden and those polls stop — turn ON only when you are staffing live chat. Saves Fluid Active CPU.",
+  },
+  pnl_share_show_usd: {
+    label: "PNL share — Show USD / Realized USDT",
+    description:
+      "When ON, Nova Bot and Nova Forex share-card options include “Show USD / Realized USDT”. When OFF, that checkbox is hidden for everyone. Default ON.",
+  },
+  pnl_share_show_invested: {
+    label: "PNL share — Show Invested",
+    description:
+      "When ON, Nova Bot and Nova Forex share-card options include “Show Invested”. When OFF, that checkbox is hidden for everyone. Default ON.",
+  },
+  pnl_share_show_held_for: {
+    label: "PNL share — Show Held for",
+    description:
+      "When ON, Nova Bot and Nova Forex share-card options include “Show Held for”. When OFF, that checkbox is hidden for everyone. Default ON.",
+  },
+  pnl_share_show_leverage: {
+    label: "PNL share — Show leverage",
+    description:
+      "When ON, Nova Bot and Nova Forex share-card options include “Show leverage”. When OFF, that checkbox is hidden for everyone. Default ON.",
+  },
+  pnl_share_card_message: {
+    label: "PNL share — Card message",
+    description:
+      "When ON, Nova Bot and Nova Forex show the optional “Card message” text field on share cards (e.g. ZaZa Smashed it). When OFF (default), the field is hidden for everyone.",
   },
 };
 

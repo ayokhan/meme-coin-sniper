@@ -9,6 +9,7 @@ import { estimateForexMarginFromLots } from "@/lib/forex-lot-size";
 import { formatHeldForDuration } from "@/lib/closed-trades";
 import PnlShareButtons from "@/components/PnlShareButtons";
 import { useI18n } from "@/components/I18nProvider";
+import { DEFAULT_PNL_SHARE_FLAGS, type PnlShareFlags } from "@/lib/pnl-share-flags";
 
 type AccountInfo = {
   balance: number;
@@ -120,6 +121,33 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
   const [shareShowHoldDuration, setShareShowHoldDuration] = useState(false);
   const [shareShowLeverage, setShareShowLeverage] = useState(true);
   const [shareCustomMessage, setShareCustomMessage] = useState("");
+  const [pnlShareFlags, setPnlShareFlags] = useState<PnlShareFlags>(DEFAULT_PNL_SHARE_FLAGS);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled || !data?.pnlShare) return;
+        setPnlShareFlags({
+          showUsd: data.pnlShare.showUsd !== false,
+          showInvested: data.pnlShare.showInvested !== false,
+          showHeldFor: data.pnlShare.showHeldFor !== false,
+          showLeverage: data.pnlShare.showLeverage !== false,
+          cardMessage: data.pnlShare.cardMessage === true,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const effShowUsd = pnlShareFlags.showUsd && shareShowRealizedUsdt;
+  const effShowInvested = pnlShareFlags.showInvested && shareShowAmountInvested;
+  const effShowHeld = pnlShareFlags.showHeldFor && shareShowHoldDuration;
+  const effShowLev = pnlShareFlags.showLeverage && shareShowLeverage;
+  const effCardMessage = pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null;
 
   const load = useCallback(async () => {
     if (!connected) return;
@@ -266,54 +294,64 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
               Share card options
             </p>
             <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-              <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={shareShowRealizedUsdt}
-                  onChange={(e) => setShareShowRealizedUsdt(e.target.checked)}
-                  className="rounded"
-                />
-                Show {currency} on card (ROI % always shown)
-              </label>
-              <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={shareShowAmountInvested}
-                  onChange={(e) => setShareShowAmountInvested(e.target.checked)}
-                  className="rounded"
-                />
-                Show Invested
-              </label>
-              <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={shareShowHoldDuration}
-                  onChange={(e) => setShareShowHoldDuration(e.target.checked)}
-                  className="rounded"
-                />
-                Show Held for
-              </label>
-              <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={shareShowLeverage}
-                  onChange={(e) => setShareShowLeverage(e.target.checked)}
-                  className="rounded"
-                />
-                Show leverage
-              </label>
+              {pnlShareFlags.showUsd && (
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareShowRealizedUsdt}
+                    onChange={(e) => setShareShowRealizedUsdt(e.target.checked)}
+                    className="rounded"
+                  />
+                  Show {currency} on card (ROI % always shown)
+                </label>
+              )}
+              {pnlShareFlags.showInvested && (
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareShowAmountInvested}
+                    onChange={(e) => setShareShowAmountInvested(e.target.checked)}
+                    className="rounded"
+                  />
+                  Show Invested
+                </label>
+              )}
+              {pnlShareFlags.showHeldFor && (
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareShowHoldDuration}
+                    onChange={(e) => setShareShowHoldDuration(e.target.checked)}
+                    className="rounded"
+                  />
+                  Show Held for
+                </label>
+              )}
+              {pnlShareFlags.showLeverage && (
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareShowLeverage}
+                    onChange={(e) => setShareShowLeverage(e.target.checked)}
+                    className="rounded"
+                  />
+                  Show leverage
+                </label>
+              )}
             </div>
-            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-              <span className="font-medium text-zinc-700 dark:text-zinc-200">Card message (optional)</span>
-              <input
-                type="text"
-                value={shareCustomMessage}
-                onChange={(e) => setShareCustomMessage(e.target.value.slice(0, 80))}
-                placeholder='e.g. ZaZa Smashed it'
-                maxLength={80}
-                className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm text-zinc-800 dark:text-zinc-100"
-              />
-            </label>
+            {pnlShareFlags.cardMessage && (
+              <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                <span className="font-medium text-zinc-700 dark:text-zinc-200">Card message (optional)</span>
+                <input
+                  type="text"
+                  value={shareCustomMessage}
+                  onChange={(e) => setShareCustomMessage(e.target.value.slice(0, 80))}
+                  placeholder='e.g. ZaZa Smashed it'
+                  maxLength={80}
+                  className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm text-zinc-800 dark:text-zinc-100"
+                />
+              </label>
+            )}
           </div>
         )}
 
@@ -353,7 +391,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                         <span className="text-xs text-muted-foreground font-normal">
                           {p.volume} {t("common.lots")}
                         </span>
-                        {shareShowLeverage && account?.leverage ? (
+                        {effShowLev && account?.leverage ? (
                           <span className="text-xs text-muted-foreground font-normal"> · {account.leverage}x</span>
                         ) : null}
                       </p>
@@ -366,7 +404,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                           {roi >= 0 ? "+" : ""}
                           {roi.toFixed(2)}%
                         </p>
-                        {shareShowRealizedUsdt && (
+                        {effShowUsd && (
                           <p
                             className={`font-mono text-xs ${
                               profit >= 0 ? "text-emerald-600/90 dark:text-emerald-400/90" : "text-rose-600/90 dark:text-rose-400/90"
@@ -389,8 +427,8 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                       symbol={p.symbol}
                       roiPct={roi}
                       pnlUsdt={profit}
-                      showUsdt={shareShowRealizedUsdt}
-                      showAmountInvested={shareShowAmountInvested}
+                      showUsdt={effShowUsd}
+                      showAmountInvested={effShowInvested}
                       investedUsdt={invested}
                       filename={`novastaris-${p.symbol}-${p.side}-open.jpg`}
                       getBlob={async () =>
@@ -407,10 +445,10 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                             investedUsdt: invested,
                           },
                           {
-                            showRealizedUsdt: shareShowRealizedUsdt,
-                            showAmountInvested: shareShowAmountInvested,
-                            showLeverage: shareShowLeverage,
-                            customMessage: shareCustomMessage.trim() || null,
+                            showRealizedUsdt: effShowUsd,
+                            showAmountInvested: effShowInvested,
+                            showLeverage: effShowLev,
+                            customMessage: effCardMessage,
                           }
                         )
                       }
@@ -478,7 +516,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                         >
                           {trade.side.toUpperCase()}
                         </span>
-                        {shareShowLeverage && account?.leverage ? (
+                        {effShowLev && account?.leverage ? (
                           <span className="text-xs text-muted-foreground font-normal"> · {account.leverage}x</span>
                         ) : null}
                       </p>
@@ -493,7 +531,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                           {roi >= 0 ? "+" : ""}
                           {roi.toFixed(2)}%
                         </p>
-                        {shareShowRealizedUsdt && (
+                        {effShowUsd && (
                           <p
                             className={`font-mono text-xs ${
                               trade.profit >= 0
@@ -510,7 +548,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                     <p className="text-xs text-muted-foreground font-mono">
                       {fmt(trade.openPrice, 5)} → {fmt(trade.closePrice, 5)} · {trade.volume} {t("common.lots")} ·{" "}
                       {new Date(trade.closedAt).toLocaleString()}
-                      {shareShowHoldDuration && heldFor ? ` · Held ${heldFor}` : ""}
+                      {effShowHeld && heldFor ? ` · Held ${heldFor}` : ""}
                     </p>
                     <PnlShareButtons
                       compact
@@ -518,11 +556,11 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                       symbol={trade.symbol}
                       roiPct={roi}
                       pnlUsdt={trade.profit}
-                      showUsdt={shareShowRealizedUsdt}
-                      showAmountInvested={shareShowAmountInvested}
+                      showUsdt={effShowUsd}
+                      showAmountInvested={effShowInvested}
                       investedUsdt={invested}
                       heldFor={heldFor}
-                      showHoldDuration={shareShowHoldDuration}
+                      showHoldDuration={effShowHeld}
                       filename={`novastaris-${trade.symbol}-${trade.side}-closed.jpg`}
                       getBlob={async () =>
                         drawClosedTradeShareCard(
@@ -541,11 +579,11 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                             heldFor,
                           },
                           {
-                            showRealizedUsdt: shareShowRealizedUsdt,
-                            showAmountInvested: shareShowAmountInvested,
-                            showHoldDuration: shareShowHoldDuration,
-                            showLeverage: shareShowLeverage,
-                            customMessage: shareCustomMessage.trim() || null,
+                            showRealizedUsdt: effShowUsd,
+                            showAmountInvested: effShowInvested,
+                            showHoldDuration: effShowHeld,
+                            showLeverage: effShowLev,
+                            customMessage: effCardMessage,
                           }
                         )
                       }

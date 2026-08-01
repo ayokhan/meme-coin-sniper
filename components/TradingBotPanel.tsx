@@ -29,6 +29,7 @@ import TradeJournalPanel from "@/components/TradeJournalPanel";
 import TradingBotJournalPanel from "@/components/TradingBotJournalPanel";
 import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
 import { buildAnalysisShareCaption } from "@/lib/pnl-share";
+import { DEFAULT_PNL_SHARE_FLAGS, type PnlShareFlags } from "@/lib/pnl-share-flags";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
 
@@ -290,6 +291,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [shareShowHoldDuration, setShareShowHoldDuration] = useState(false);
   const [shareShowLeverage, setShareShowLeverage] = useState(true);
   const [shareCustomMessage, setShareCustomMessage] = useState("");
+  const [pnlShareFlags, setPnlShareFlags] = useState<PnlShareFlags>(DEFAULT_PNL_SHARE_FLAGS);
   const [showClosedAnalysis, setShowClosedAnalysis] = useState(false);
   /** Analysis share card: stats-only vs stats + total PNL / avg win / avg loss. */
   const [shareAnalysisShowPnlDetails, setShareAnalysisShowPnlDetails] = useState(false);
@@ -336,6 +338,26 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   useEffect(() => {
     if (mode !== "polymarket-only" && hasNovaScalperPrefill()) setBotSubTab("scalper");
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled || !data?.pnlShare) return;
+        setPnlShareFlags({
+          showUsd: data.pnlShare.showUsd !== false,
+          showInvested: data.pnlShare.showInvested !== false,
+          showHeldFor: data.pnlShare.showHeldFor !== false,
+          showLeverage: data.pnlShare.showLeverage !== false,
+          cardMessage: data.pnlShare.cardMessage === true,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -3122,53 +3144,63 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                     ))}
                   </select>
                 </label>
-                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={shareShowRealizedUsdt}
-                    onChange={(e) => setShareShowRealizedUsdt(e.target.checked)}
-                    className="rounded"
-                  />
-                  Show Realized USDT (ROI % always shown)
-                </label>
-                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={shareShowAmountInvested}
-                    onChange={(e) => setShareShowAmountInvested(e.target.checked)}
-                    className="rounded"
-                  />
-                  Show Invested
-                </label>
-                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={shareShowHoldDuration}
-                    onChange={(e) => setShareShowHoldDuration(e.target.checked)}
-                    className="rounded"
-                  />
-                  Show Held for
-                </label>
-                <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={shareShowLeverage}
-                    onChange={(e) => setShareShowLeverage(e.target.checked)}
-                    className="rounded"
-                  />
-                  Show leverage
-                </label>
-                <label className="text-[11px] text-muted-foreground flex flex-col gap-1 w-full basis-full">
-                  <span className="font-medium text-zinc-700 dark:text-zinc-200">Card message (optional)</span>
-                  <input
-                    type="text"
-                    value={shareCustomMessage}
-                    onChange={(e) => setShareCustomMessage(e.target.value.slice(0, 80))}
-                    placeholder='e.g. ZaZa Smashed it'
-                    maxLength={80}
-                    className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm text-zinc-800 dark:text-zinc-100 w-full max-w-md"
-                  />
-                </label>
+                {pnlShareFlags.showUsd && (
+                  <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareShowRealizedUsdt}
+                      onChange={(e) => setShareShowRealizedUsdt(e.target.checked)}
+                      className="rounded"
+                    />
+                    Show Realized USDT (ROI % always shown)
+                  </label>
+                )}
+                {pnlShareFlags.showInvested && (
+                  <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareShowAmountInvested}
+                      onChange={(e) => setShareShowAmountInvested(e.target.checked)}
+                      className="rounded"
+                    />
+                    Show Invested
+                  </label>
+                )}
+                {pnlShareFlags.showHeldFor && (
+                  <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareShowHoldDuration}
+                      onChange={(e) => setShareShowHoldDuration(e.target.checked)}
+                      className="rounded"
+                    />
+                    Show Held for
+                  </label>
+                )}
+                {pnlShareFlags.showLeverage && (
+                  <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareShowLeverage}
+                      onChange={(e) => setShareShowLeverage(e.target.checked)}
+                      className="rounded"
+                    />
+                    Show leverage
+                  </label>
+                )}
+                {pnlShareFlags.cardMessage && (
+                  <label className="text-[11px] text-muted-foreground flex flex-col gap-1 w-full basis-full">
+                    <span className="font-medium text-zinc-700 dark:text-zinc-200">Card message (optional)</span>
+                    <input
+                      type="text"
+                      value={shareCustomMessage}
+                      onChange={(e) => setShareCustomMessage(e.target.value.slice(0, 80))}
+                      placeholder='e.g. ZaZa Smashed it'
+                      maxLength={80}
+                      className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2.5 py-2 text-sm text-zinc-800 dark:text-zinc-100 w-full max-w-md"
+                    />
+                  </label>
+                )}
               </div>
               {activeTab === "open_orders" && (
                 <div className="mt-2 max-h-64 overflow-auto">
@@ -3312,7 +3344,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                   showAmountInvested: shareShowAmountInvested,
                                   showHoldDuration: false,
                                   showLeverage: shareShowLeverage,
-                                    customMessage: shareCustomMessage.trim() || null,
+                                    customMessage: pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null,
                                 }
                               )
                             }
@@ -3432,11 +3464,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                 filename={`NovaStaris_Closed_${t.displaySymbol.replace(/[^a-zA-Z0-9]/g, "_")}.jpg`}
                                 getBlob={() =>
                                   drawClosedTradeShareCard(closedTradeToShareInput(t, config?.mode ?? "live"), {
-                                    showRealizedUsdt: shareShowRealizedUsdt,
-                                    showAmountInvested: shareShowAmountInvested,
-                                    showHoldDuration: shareShowHoldDuration,
-                                    showLeverage: shareShowLeverage,
-                                    customMessage: shareCustomMessage.trim() || null,
+                                    showRealizedUsdt: pnlShareFlags.showUsd && shareShowRealizedUsdt,
+                                    showAmountInvested: pnlShareFlags.showInvested && shareShowAmountInvested,
+                                    showHoldDuration: pnlShareFlags.showHeldFor && shareShowHoldDuration,
+                                    showLeverage: pnlShareFlags.showLeverage && shareShowLeverage,
+                                    customMessage: pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null,
                                   })
                                 }
                               />
@@ -3637,11 +3669,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                             filename={`NovaStaris_Closed_Latest.jpg`}
                             getBlob={() =>
                               drawClosedTradeShareCard(closedTradeToShareInput(closedTrades[0], config?.mode ?? "live"), {
-                                showRealizedUsdt: shareShowRealizedUsdt,
-                                showAmountInvested: shareShowAmountInvested,
-                                showHoldDuration: shareShowHoldDuration,
-                                showLeverage: shareShowLeverage,
-                                    customMessage: shareCustomMessage.trim() || null,
+                                showRealizedUsdt: pnlShareFlags.showUsd && shareShowRealizedUsdt,
+                                showAmountInvested: pnlShareFlags.showInvested && shareShowAmountInvested,
+                                showHoldDuration: pnlShareFlags.showHeldFor && shareShowHoldDuration,
+                                showLeverage: pnlShareFlags.showLeverage && shareShowLeverage,
+                                    customMessage: pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null,
                               })
                             }
                           />
@@ -3664,11 +3696,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                               closedTrades.map((t) => closedTradeToShareInput(t, config?.mode ?? "live")),
                               closedTradesTotal,
                               {
-                                showRealizedUsdt: shareShowRealizedUsdt,
-                                showAmountInvested: shareShowAmountInvested,
-                                showHoldDuration: shareShowHoldDuration,
-                                showLeverage: shareShowLeverage,
-                                    customMessage: shareCustomMessage.trim() || null,
+                                showRealizedUsdt: pnlShareFlags.showUsd && shareShowRealizedUsdt,
+                                showAmountInvested: pnlShareFlags.showInvested && shareShowAmountInvested,
+                                showHoldDuration: pnlShareFlags.showHeldFor && shareShowHoldDuration,
+                                showLeverage: pnlShareFlags.showLeverage && shareShowLeverage,
+                                    customMessage: pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null,
                                 periodLabel: closedTradesPeriodLabel,
                               }
                             );

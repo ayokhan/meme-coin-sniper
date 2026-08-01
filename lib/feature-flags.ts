@@ -186,6 +186,17 @@ export const FEATURE_FLAG_KEYS = {
    * Default OFF (turn on only when staffing live chat).
    */
   LIVE_SUPPORT_CHAT: 'live_support_chat',
+
+  /**
+   * PNL share card options (Nova Bot + Nova Forex account panels).
+   * When OFF, that option is hidden for everyone — owner toggles in Admin → Feature flags.
+   */
+  PNL_SHARE_SHOW_USD: 'pnl_share_show_usd',
+  PNL_SHARE_SHOW_INVESTED: 'pnl_share_show_invested',
+  PNL_SHARE_SHOW_HELD_FOR: 'pnl_share_show_held_for',
+  PNL_SHARE_SHOW_LEVERAGE: 'pnl_share_show_leverage',
+  /** Custom text on share cards (e.g. "ZaZa Smashed it"). Default OFF. */
+  PNL_SHARE_CARD_MESSAGE: 'pnl_share_card_message',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];
@@ -227,6 +238,7 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.ACCOUNT_BILLING_HISTORY,
   FEATURE_FLAG_KEYS.PAGE_TAB_NOVA_STORE,
   FEATURE_FLAG_KEYS.PAGE_TAB_DEMO_SESSIONS,
+  FEATURE_FLAG_KEYS.PNL_SHARE_CARD_MESSAGE,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {
