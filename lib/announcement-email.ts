@@ -4,7 +4,12 @@ import { sendEmailDetailed } from "@/lib/send-email";
 
 export type AnnouncementAudience = "newsletter" | "all";
 
-export type AnnouncementEmailTemplate = "default" | "forex-rebate" | "affiliate" | "welcome";
+export type AnnouncementEmailTemplate =
+  | "default"
+  | "forex-rebate"
+  | "affiliate"
+  | "welcome"
+  | "nova-branded";
 
 export type RecentRegistrant = {
   email: string;
@@ -212,6 +217,34 @@ export function buildForexRebateEmailHtml(args: {
   return emailShell(inner);
 }
 
+/** Generic NovaStaris-branded email: dark banner + body + optional CTA. */
+export function buildNovaBrandedEmailHtml(args: {
+  body: string;
+  eyebrow?: string;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+}): string {
+  const cta =
+    args.ctaLabel && args.ctaUrl
+      ? `<div style="margin:8px 0 8px 0;text-align:center;">${ctaButtonHtml(args.ctaLabel, args.ctaUrl)}</div>`
+      : "";
+
+  const inner = `
+    <tr>
+      <td style="padding:0;">
+        ${novaBrandHeaderEmailHtml(args.eyebrow ?? "NovaStaris")}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 28px 8px 28px;">
+        ${announcementBodyToHtml(args.body)}
+        ${cta}
+      </td>
+    </tr>`;
+
+  return emailShell(inner);
+}
+
 /** Polished welcome / Start here email with NovaStaris brand banner. */
 export function buildWelcomeEmailHtml(args?: { body?: string }): string {
   const customBody = (args?.body ?? "").trim();
@@ -368,6 +401,15 @@ export function buildAnnouncementEmailHtml(args: {
   if (args.template === "welcome") {
     return buildWelcomeEmailHtml({
       body: shouldUseCustomWelcomeIntro(args.body) ? args.body : undefined,
+    });
+  }
+
+  if (args.template === "nova-branded") {
+    return buildNovaBrandedEmailHtml({
+      body: args.body,
+      eyebrow: "Next step",
+      ctaLabel: args.ctaLabel,
+      ctaUrl: args.ctaUrl,
     });
   }
 
@@ -568,7 +610,13 @@ export async function sendAnnouncementEmails(args: {
   if (!subject) throw new Error("Subject is required.");
   if (
     !body &&
-    !(format === "rich" && (template === "forex-rebate" || template === "affiliate" || template === "welcome"))
+    !(
+      format === "rich" &&
+      (template === "forex-rebate" ||
+        template === "affiliate" ||
+        template === "welcome" ||
+        template === "nova-branded")
+    )
   ) {
     throw new Error("Message body is required.");
   }

@@ -136,7 +136,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       ctaUrl: p.ctaUrl,
     });
     if (p.defaultAudience === "new") {
-      setNewWindowDays(1);
+      setNewWindowDays(id.startsWith("deepdive-") ? 7 : 1);
     }
   }, []);
 
@@ -340,6 +340,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           {format === "rich" && draft.template === "welcome" && (
             <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
               Welcome rich layout is on (NovaStaris banner, path card, Open Start here CTA).
+            </p>
+          )}
+          {format === "rich" && draft.template === "nova-branded" && (
+            <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
+              NovaStaris banner layout is on (brand header + your message + CTA).
             </p>
           )}
           <div className="flex flex-wrap gap-2">

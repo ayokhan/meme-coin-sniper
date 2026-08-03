@@ -6,6 +6,13 @@ import {
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
 import { WELCOME_EMAIL } from "@/lib/welcome-email";
+import {
+  PATH_DEEPDIVE_FOREX_EMAIL,
+  PATH_DEEPDIVE_FUTURES_EMAIL,
+  PATH_DEEPDIVE_MEME_EMAIL,
+  PATH_DEEPDIVE_POLYMARKET_EMAIL,
+  PATH_DEEPDIVE_WALLETS_EMAIL,
+} from "@/lib/path-deepdive-emails";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 
@@ -14,6 +21,11 @@ export type AdminEmailFormat = "rich" | "plain";
 export type AdminEmailPresetId =
   | "custom"
   | "welcome"
+  | "deepdive-meme"
+  | "deepdive-futures"
+  | "deepdive-forex"
+  | "deepdive-wallets"
+  | "deepdive-polymarket"
   | "affiliate"
   | "forex-rebate"
   | "forex-bots-launch"
@@ -47,7 +59,7 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   {
     id: "welcome",
     label: "Welcome / Start here",
-    blurb: "New registrants — NovaStaris banner + path guide",
+    blurb: "Day 0–1 — NovaStaris banner + path guide",
     subject: WELCOME_EMAIL.subject,
     body: WELCOME_EMAIL.body,
     template: "welcome",
@@ -55,6 +67,71 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "blofin",
     ctaLabel: "Open Start here",
     ctaUrl: START_HERE,
+    defaultAudience: "new",
+  },
+  {
+    id: "deepdive-meme",
+    label: "Deep-dive: Meme hunter",
+    blurb: "Day 3–4 — Go Hunting + AI Agent",
+    subject: PATH_DEEPDIVE_MEME_EMAIL.subject,
+    body: PATH_DEEPDIVE_MEME_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: PATH_DEEPDIVE_MEME_EMAIL.ctaLabel,
+    ctaUrl: PATH_DEEPDIVE_MEME_EMAIL.ctaUrl,
+    defaultAudience: "new",
+  },
+  {
+    id: "deepdive-futures",
+    label: "Deep-dive: Crypto futures",
+    blurb: "Day 3–4 — chart AI on Crypto Futures",
+    subject: PATH_DEEPDIVE_FUTURES_EMAIL.subject,
+    body: PATH_DEEPDIVE_FUTURES_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: PATH_DEEPDIVE_FUTURES_EMAIL.ctaLabel,
+    ctaUrl: PATH_DEEPDIVE_FUTURES_EMAIL.ctaUrl,
+    defaultAudience: "new",
+  },
+  {
+    id: "deepdive-forex",
+    label: "Deep-dive: Forex & metals",
+    blurb: "Day 3–4 — Nova Forex + NovaQ on XAUUSD",
+    subject: PATH_DEEPDIVE_FOREX_EMAIL.subject,
+    body: PATH_DEEPDIVE_FOREX_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: PATH_DEEPDIVE_FOREX_EMAIL.ctaLabel,
+    ctaUrl: PATH_DEEPDIVE_FOREX_EMAIL.ctaUrl,
+    defaultAudience: "new",
+  },
+  {
+    id: "deepdive-wallets",
+    label: "Deep-dive: Wallet tracking",
+    blurb: "Day 3–4 — Wallet Tracker action",
+    subject: PATH_DEEPDIVE_WALLETS_EMAIL.subject,
+    body: PATH_DEEPDIVE_WALLETS_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: PATH_DEEPDIVE_WALLETS_EMAIL.ctaLabel,
+    ctaUrl: PATH_DEEPDIVE_WALLETS_EMAIL.ctaUrl,
+    defaultAudience: "new",
+  },
+  {
+    id: "deepdive-polymarket",
+    label: "Deep-dive: Polymarket",
+    blurb: "Day 3–4 — prediction markets pass",
+    subject: PATH_DEEPDIVE_POLYMARKET_EMAIL.subject,
+    body: PATH_DEEPDIVE_POLYMARKET_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: PATH_DEEPDIVE_POLYMARKET_EMAIL.ctaLabel,
+    ctaUrl: PATH_DEEPDIVE_POLYMARKET_EMAIL.ctaUrl,
     defaultAudience: "new",
   },
   {

@@ -59,7 +59,9 @@ export async function POST(request: Request) {
           ? "affiliate"
           : body.template === "welcome"
             ? "welcome"
-            : "default";
+            : body.template === "nova-branded"
+              ? "nova-branded"
+              : "default";
     const format = body.format === "plain" ? "plain" : "rich";
     const result = await sendAnnouncementEmails({
       subject: body.subject ?? "",
