@@ -239,7 +239,7 @@ export function buildWelcomeEmailHtml(args?: { body?: string }): string {
           </tr>
         </table>
         <p style="margin:0 0 20px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
-          Need the full map of every major tab? Open <strong>Start here</strong> — one page, high-level only.
+          Need the full map of every major tab? Open <strong>Start here</strong>.
         </p>`;
 
   const inner = `

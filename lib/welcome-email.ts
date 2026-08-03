@@ -15,7 +15,7 @@ Pick your path
 4. Prediction markets → Nova Polymarket
 
 Need the full map?
-Open Start here for a one-page guide of every major tab:
+Open Start here for a guide of every major tab:
 https://novastaris.ai/start-here
 
 Stuck?
