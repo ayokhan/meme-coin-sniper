@@ -6,6 +6,7 @@ import {
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
 import { WELCOME_EMAIL } from "@/lib/welcome-email";
+import { VIP_SOFT_PITCH_EMAIL } from "@/lib/vip-pitch-email";
 import {
   PATH_DEEPDIVE_FOREX_EMAIL,
   PATH_DEEPDIVE_FUTURES_EMAIL,
@@ -26,6 +27,7 @@ export type AdminEmailPresetId =
   | "deepdive-forex"
   | "deepdive-wallets"
   | "deepdive-polymarket"
+  | "vip-soft-pitch"
   | "affiliate"
   | "forex-rebate"
   | "forex-bots-launch"
@@ -132,6 +134,19 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "blofin",
     ctaLabel: PATH_DEEPDIVE_POLYMARKET_EMAIL.ctaLabel,
     ctaUrl: PATH_DEEPDIVE_POLYMARKET_EMAIL.ctaUrl,
+    defaultAudience: "new",
+  },
+  {
+    id: "vip-soft-pitch",
+    label: "VIP soft pitch",
+    blurb: "Day 7 — free users → soft upgrade (no hard sell)",
+    subject: VIP_SOFT_PITCH_EMAIL.subject,
+    body: VIP_SOFT_PITCH_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: VIP_SOFT_PITCH_EMAIL.ctaLabel,
+    ctaUrl: VIP_SOFT_PITCH_EMAIL.ctaUrl,
     defaultAudience: "new",
   },
   {

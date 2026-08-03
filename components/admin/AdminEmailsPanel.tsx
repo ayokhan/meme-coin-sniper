@@ -136,7 +136,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       ctaUrl: p.ctaUrl,
     });
     if (p.defaultAudience === "new") {
-      setNewWindowDays(id.startsWith("deepdive-") ? 7 : 1);
+      setNewWindowDays(id.startsWith("deepdive-") || id === "vip-soft-pitch" ? 7 : 1);
     }
   }, []);
 
