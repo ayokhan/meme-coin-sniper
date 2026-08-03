@@ -4,7 +4,7 @@ import { sendEmailDetailed } from "@/lib/send-email";
 
 export type AnnouncementAudience = "newsletter" | "all";
 
-export type AnnouncementEmailTemplate = "default" | "forex-rebate" | "affiliate";
+export type AnnouncementEmailTemplate = "default" | "forex-rebate" | "affiliate" | "welcome";
 
 export type RecentRegistrant = {
   email: string;
@@ -25,6 +25,7 @@ export type AnnouncementEmailStats = {
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
 const FOREX_BOTS_URL = `${APP_ORIGIN}/?tab=nova-forex-bot#forex-partner-rebate`;
 const AFFILIATE_URL = `${APP_ORIGIN}/affiliate`;
+const START_HERE_URL = `${APP_ORIGIN}/start-here`;
 
 /** NovaStaris-only email header (no partner logo). */
 function novaBrandHeaderEmailHtml(eyebrow: string): string {
@@ -211,6 +212,59 @@ export function buildForexRebateEmailHtml(args: {
   return emailShell(inner);
 }
 
+/** Polished welcome / Start here email with NovaStaris brand banner. */
+export function buildWelcomeEmailHtml(args?: { body?: string }): string {
+  const customBody = (args?.body ?? "").trim();
+  const introHtml = customBody
+    ? announcementBodyToHtml(customBody)
+    : `
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">Hi there,</p>
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
+        Welcome to NovaStaris. You&apos;re in — the dashboard has many tabs, so don&apos;t open everything on day one.
+        Pick one path below and start there.
+      </p>`;
+
+  const pathsBlock = customBody
+    ? ""
+    : `
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px 0;border-collapse:collapse;">
+          <tr>
+            <td style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:0.06em;">Pick your path</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>1. Meme coin hunter</strong> — Go Hunting, Trending, Surge, then AI Agent</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>2. Futures &amp; metals</strong> — Crypto Futures. VIP: NovaForecast / Nova Forex</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>3. Wallet tracking</strong> — Wallet Tracker, CT Scan, Coach Calls</p>
+              <p style="margin:0;font-size:15px;color:#134e4a;"><strong>4. Prediction markets</strong> — Nova Polymarket</p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:0 0 20px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
+          Need the full map of every major tab? Open <strong>Start here</strong> — one page, high-level only.
+        </p>`;
+
+  const inner = `
+    <tr>
+      <td style="padding:0;">
+        ${novaBrandHeaderEmailHtml("Welcome")}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 28px 8px 28px;">
+        <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#0d9488;font-weight:700;">Welcome to NovaStaris</p>
+        <h1 style="margin:0 0 16px 0;font-size:24px;line-height:1.25;color:#18181b;font-weight:700;">Start here — pick one path</h1>
+        ${introHtml}
+        ${pathsBlock}
+        ${ctaButtonHtml("Open Start here", START_HERE_URL)}
+        <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
+          Stuck? Use Chat or Support in the app, or reply to this email.<br />
+          Or open <a href="${START_HERE_URL}" style="color:#0d9488;">novastaris.ai/start-here</a>
+        </p>
+      </td>
+    </tr>`;
+
+  return emailShell(inner);
+}
+
 /** Polished affiliate program marketing email. */
 export function buildAffiliateEmailHtml(args?: { body?: string }): string {
   const customBody = (args?.body ?? "").trim();
@@ -311,6 +365,12 @@ export function buildAnnouncementEmailHtml(args: {
     });
   }
 
+  if (args.template === "welcome") {
+    return buildWelcomeEmailHtml({
+      body: shouldUseCustomWelcomeIntro(args.body) ? args.body : undefined,
+    });
+  }
+
   const header = args.includePartnerLogos ? partnerLogosEmailHtml(args.partnerBrand ?? "blofin") : "";
   const cta =
     args.ctaLabel && args.ctaUrl
@@ -342,6 +402,14 @@ function shouldUseCustomAffiliateIntro(body: string): boolean {
   const t = body.trim();
   if (!t) return false;
   if (t.includes("The offer") && t.includes("How to join") && t.includes("10%")) return false;
+  return true;
+}
+
+function shouldUseCustomWelcomeIntro(body: string): boolean {
+  const t = body.trim();
+  if (!t) return false;
+  // Stock welcome template — use structured HTML (banner + path card + CTA)
+  if (t.includes("Pick your path") && t.includes("Meme coin hunter") && t.includes("start-here")) return false;
   return true;
 }
 
@@ -498,7 +566,10 @@ export async function sendAnnouncementEmails(args: {
   const template = args.template ?? "default";
   const audience = args.audience ?? "newsletter";
   if (!subject) throw new Error("Subject is required.");
-  if (!body && !(format === "rich" && (template === "forex-rebate" || template === "affiliate"))) {
+  if (
+    !body &&
+    !(format === "rich" && (template === "forex-rebate" || template === "affiliate" || template === "welcome"))
+  ) {
     throw new Error("Message body is required.");
   }
 

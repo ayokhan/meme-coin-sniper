@@ -57,7 +57,9 @@ export async function POST(request: Request) {
         ? "forex-rebate"
         : body.template === "affiliate"
           ? "affiliate"
-          : "default";
+          : body.template === "welcome"
+            ? "welcome"
+            : "default";
     const format = body.format === "plain" ? "plain" : "rich";
     const result = await sendAnnouncementEmails({
       subject: body.subject ?? "",

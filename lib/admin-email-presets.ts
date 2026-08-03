@@ -47,10 +47,10 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   {
     id: "welcome",
     label: "Welcome / Start here",
-    blurb: "New registrants — pick a path, open Start here",
+    blurb: "New registrants — NovaStaris banner + path guide",
     subject: WELCOME_EMAIL.subject,
     body: WELCOME_EMAIL.body,
-    template: "default",
+    template: "welcome",
     includePartnerLogos: false,
     partnerBrand: "blofin",
     ctaLabel: "Open Start here",
