@@ -5,6 +5,7 @@ import {
 } from "@/lib/forex-broker-partner-promo";
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
+import { WELCOME_EMAIL } from "@/lib/welcome-email";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 
@@ -12,6 +13,7 @@ export type AdminEmailFormat = "rich" | "plain";
 
 export type AdminEmailPresetId =
   | "custom"
+  | "welcome"
   | "affiliate"
   | "forex-rebate"
   | "forex-bots-launch"
@@ -32,13 +34,29 @@ export type AdminEmailPreset = {
   partnerBrand: PartnerBrandEmail;
   ctaLabel: string;
   ctaUrl: string;
+  /** Suggested audience when loading this preset */
+  defaultAudience?: "newsletter" | "all" | "new";
 };
 
 const FOREX_BOTS = "https://novastaris.ai/?tab=nova-forex-bot";
 const FOREX_REBATE = `${FOREX_BOTS}#forex-partner-rebate`;
 const AFFILIATE = "https://novastaris.ai/affiliate";
+const START_HERE = "https://novastaris.ai/start-here";
 
 export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
+  {
+    id: "welcome",
+    label: "Welcome / Start here",
+    blurb: "New registrants — pick a path, open Start here",
+    subject: WELCOME_EMAIL.subject,
+    body: WELCOME_EMAIL.body,
+    template: "default",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: "Open Start here",
+    ctaUrl: START_HERE,
+    defaultAudience: "new",
+  },
   {
     id: "affiliate",
     label: "Affiliate program (10%)",

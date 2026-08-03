@@ -12,6 +12,7 @@ export const en = {
     language: "Language",
     qr: "QR code",
     about: "About",
+    startHere: "Start here",
     chat: "Chat",
     support: "Support",
     status: "Status",
@@ -37,7 +38,7 @@ export const en = {
     title: "Multi-Market AI Trading Workspace",
     blurb:
       "NovaStaris unifies meme discovery, futures decision support, wallet intelligence, prediction market insights, and VIP agent workflows in one trading workspace.",
-    howItWorks: "See how it works",
+    howItWorks: "Start here",
   },
   focus: {
     label: "Focus",

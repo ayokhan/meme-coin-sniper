@@ -15,11 +15,19 @@ import {
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 
+type RecentRegistrant = {
+  email: string;
+  name: string | null;
+  createdAt: string;
+  newsletterOptIn: boolean;
+};
+
 type EmailStats = {
   newsletterCount: number;
   allEmailCount: number;
   newsletterEmails: string[];
   allEmails: string[];
+  recentRegistrants: RecentRegistrant[];
 };
 
 type CampaignRow = {
@@ -35,6 +43,8 @@ type CampaignRow = {
   createdAt: string;
 };
 
+type AudienceMode = "newsletter" | "all" | "new";
+
 type Props = {
   onNotice?: (msg: string) => void;
   onError?: (msg: string) => void;
@@ -42,6 +52,19 @@ type Props = {
 
 const inputClass =
   "text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800";
+
+const NEW_WINDOW_OPTIONS = [
+  { days: 1, label: "Last 24 hours" },
+  { days: 3, label: "Last 3 days" },
+  { days: 7, label: "Last 7 days" },
+  { days: 14, label: "Last 14 days" },
+  { days: 30, label: "Last 30 days" },
+] as const;
+
+function registrantEmailsInWindow(list: RecentRegistrant[], days: number): RecentRegistrant[] {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return list.filter((r) => new Date(r.createdAt).getTime() >= cutoff);
+}
 
 export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const searchParams = useSearchParams();
@@ -54,10 +77,12 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const [addInput, setAddInput] = useState("");
   const [format, setFormat] = useState<AdminEmailFormat>("rich");
   const [presetId, setPresetId] = useState<AdminEmailPresetId>("custom");
+  const [newWindowDays, setNewWindowDays] = useState(1);
+  const [selectedNewEmails, setSelectedNewEmails] = useState<Set<string>>(new Set());
   const [draft, setDraft] = useState({
     subject: "",
     body: "",
-    audience: "newsletter" as "newsletter" | "all",
+    audience: "newsletter" as AudienceMode,
     includePartnerLogos: false,
     partnerBrand: "tiomarkets" as PartnerBrandEmail,
     template: "default" as AnnouncementEmailTemplate,
@@ -71,7 +96,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       const res = await fetch("/api/admin/announcement-email", { credentials: "include" });
       const data = await res.json();
       if (res.ok && data.success && data.stats) {
-        setStats(data.stats as EmailStats);
+        const s = data.stats as EmailStats;
+        setStats({
+          ...s,
+          recentRegistrants: Array.isArray(s.recentRegistrants) ? s.recentRegistrants : [],
+        });
         setCampaigns(Array.isArray(data.campaigns) ? (data.campaigns as CampaignRow[]) : []);
       } else {
         onError?.(data.error || "Could not load email stats.");
@@ -87,6 +116,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     void loadStats();
   }, [loadStats]);
 
+  const windowedNew = useMemo(
+    () => registrantEmailsInWindow(stats?.recentRegistrants ?? [], newWindowDays),
+    [stats?.recentRegistrants, newWindowDays]
+  );
+
   const applyPreset = useCallback((id: AdminEmailPresetId) => {
     const p = getAdminEmailPreset(id);
     setPresetId(id);
@@ -94,13 +128,16 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     setDraft({
       subject: p.subject,
       body: p.body,
-      audience: "newsletter",
+      audience: p.defaultAudience ?? "newsletter",
       includePartnerLogos: p.includePartnerLogos,
       partnerBrand: p.partnerBrand,
       template: p.template,
       ctaLabel: p.ctaLabel,
       ctaUrl: p.ctaUrl,
     });
+    if (p.defaultAudience === "new") {
+      setNewWindowDays(1);
+    }
   }, []);
 
   useEffect(() => {
@@ -110,11 +147,42 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     }
   }, [searchParams, applyPreset]);
 
+  // Sync recipients for newsletter / all audiences
   useEffect(() => {
-    if (!stats) return;
+    if (!stats || draft.audience === "new") return;
     const list = draft.audience === "newsletter" ? stats.newsletterEmails : stats.allEmails;
     setRecipients([...list]);
   }, [draft.audience, stats]);
+
+  // When switching to "new" or changing window, select all in window by default
+  useEffect(() => {
+    if (draft.audience !== "new") return;
+    const emails = windowedNew.map((r) => r.email);
+    setSelectedNewEmails(new Set(emails));
+    setRecipients(emails);
+  }, [draft.audience, windowedNew]);
+
+  const toggleNewEmail = (email: string) => {
+    setSelectedNewEmails((prev) => {
+      const next = new Set(prev);
+      if (next.has(email)) next.delete(email);
+      else next.add(email);
+      const list = windowedNew.map((r) => r.email).filter((e) => next.has(e));
+      setRecipients(list);
+      return next;
+    });
+  };
+
+  const selectAllNew = () => {
+    const emails = windowedNew.map((r) => r.email);
+    setSelectedNewEmails(new Set(emails));
+    setRecipients(emails);
+  };
+
+  const clearNewSelection = () => {
+    setSelectedNewEmails(new Set());
+    setRecipients([]);
+  };
 
   const shareText = useMemo(
     () => formatPlainShareText(draft.subject, draft.body),
@@ -137,6 +205,9 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       return;
     }
     setRecipients((prev) => (prev.includes(email) ? prev : [...prev, email]));
+    if (draft.audience === "new") {
+      setSelectedNewEmails((prev) => new Set(prev).add(email));
+    }
     setAddInput("");
   };
 
@@ -154,7 +225,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         body: JSON.stringify({
           subject: draft.subject,
           body: draft.body,
-          audience: draft.audience,
+          audience: draft.audience === "all" ? "all" : "newsletter",
           includePartnerLogos: draft.includePartnerLogos,
           partnerBrand: draft.partnerBrand,
           template: format === "rich" ? draft.template : "default",
@@ -284,7 +355,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           ) : (
             <p className="text-sm text-zinc-700 dark:text-zinc-300">
               <strong>{stats?.newsletterCount ?? 0}</strong> newsletter ·{" "}
-              <strong>{stats?.allEmailCount ?? 0}</strong> with email (
+              <strong>{stats?.allEmailCount ?? 0}</strong> with email ·{" "}
+              <strong>{stats?.recentRegistrants?.length ?? 0}</strong> new (30d) (
               <Link href="/admin/customers" className="underline text-teal-700 dark:text-teal-300">
                 Customers
               </Link>
@@ -298,13 +370,81 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               className={inputClass}
               value={draft.audience}
               onChange={(e) =>
-                setDraft((d) => ({ ...d, audience: e.target.value as "newsletter" | "all" }))
+                setDraft((d) => ({ ...d, audience: e.target.value as AudienceMode }))
               }
             >
               <option value="newsletter">Newsletter only (recommended)</option>
               <option value="all">All customers with email</option>
+              <option value="new">Newly registered (select below)</option>
             </select>
           </label>
+
+          {draft.audience === "new" && (
+            <div className="rounded-lg border border-teal-500/30 bg-teal-500/5 p-3 space-y-3">
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  Registered in
+                  <select
+                    className={inputClass}
+                    value={newWindowDays}
+                    onChange={(e) => setNewWindowDays(Number(e.target.value))}
+                  >
+                    {NEW_WINDOW_OPTIONS.map((o) => (
+                      <option key={o.days} value={o.days}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={selectAllNew}>
+                    Select all ({windowedNew.length})
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={clearNewSelection}>
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {selectedNewEmails.size} selected · click a row to toggle. Newsletter opt-in shown for reference —
+                welcome can go to any selected registrant.
+              </p>
+              <div className="max-h-56 overflow-y-auto rounded-md border bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800">
+                {windowedNew.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-3">No registrations in this window.</p>
+                ) : (
+                  windowedNew.map((r) => {
+                    const checked = selectedNewEmails.has(r.email);
+                    return (
+                      <label
+                        key={r.email}
+                        className="flex items-start gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={checked}
+                          onChange={() => toggleNewEmail(r.email)}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100 break-all">
+                            {r.email}
+                          </span>
+                          {r.name ? (
+                            <span className="text-muted-foreground"> · {r.name}</span>
+                          ) : null}
+                          <span className="block text-[11px] text-muted-foreground">
+                            {new Date(r.createdAt).toLocaleString()}
+                            {r.newsletterOptIn ? " · newsletter" : ""}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
 
           {format === "rich" && (
             <>
@@ -353,19 +493,23 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-medium">Recipients ({recipients.length})</p>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  if (!stats) return;
-                  setRecipients(
-                    draft.audience === "newsletter" ? [...stats.newsletterEmails] : [...stats.allEmails]
-                  );
-                }}
-              >
-                Reset from audience
-              </Button>
+              {draft.audience !== "new" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    if (!stats) return;
+                    setRecipients(
+                      draft.audience === "newsletter"
+                        ? [...stats.newsletterEmails]
+                        : [...stats.allEmails]
+                    );
+                  }}
+                >
+                  Reset from audience
+                </Button>
+              )}
             </div>
             <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto rounded-md border p-2 bg-zinc-50/80 dark:bg-zinc-900/50">
               {recipients.length === 0 ? (
@@ -381,7 +525,14 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                       type="button"
                       className="px-1"
                       aria-label={`Remove ${email}`}
-                      onClick={() => setRecipients((prev) => prev.filter((e) => e !== email))}
+                      onClick={() => {
+                        setRecipients((prev) => prev.filter((e) => e !== email));
+                        setSelectedNewEmails((prev) => {
+                          const next = new Set(prev);
+                          next.delete(email);
+                          return next;
+                        });
+                      }}
                     >
                       ×
                     </button>

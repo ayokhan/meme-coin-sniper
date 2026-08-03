@@ -6,11 +6,20 @@ export type AnnouncementAudience = "newsletter" | "all";
 
 export type AnnouncementEmailTemplate = "default" | "forex-rebate" | "affiliate";
 
+export type RecentRegistrant = {
+  email: string;
+  name: string | null;
+  createdAt: string;
+  newsletterOptIn: boolean;
+};
+
 export type AnnouncementEmailStats = {
   newsletterCount: number;
   allEmailCount: number;
   newsletterEmails: string[];
   allEmails: string[];
+  /** Users with email registered in the last 30 days (newest first). */
+  recentRegistrants: RecentRegistrant[];
 };
 
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
@@ -342,29 +351,41 @@ function normalizeEmail(email: string): string | null {
   return v;
 }
 
-async function fetchUserEmails(): Promise<Array<{ email: string | null; newsletterOptIn: boolean }>> {
+type UserEmailRow = {
+  email: string | null;
+  name: string | null;
+  newsletterOptIn: boolean;
+  createdAt: Date;
+};
+
+async function fetchUserEmails(): Promise<UserEmailRow[]> {
   return (
     prisma as unknown as {
       user: {
         findMany: (args: {
           where: { email: { not: null } };
-          select: { email: true; newsletterOptIn: true };
-        }) => Promise<Array<{ email: string | null; newsletterOptIn: boolean }>>;
+          select: { email: true; name: true; newsletterOptIn: true; createdAt: true };
+          orderBy: { createdAt: "desc" };
+        }) => Promise<UserEmailRow[]>;
       };
     }
   ).user.findMany({
     where: { email: { not: null } },
-    select: { email: true, newsletterOptIn: true },
+    select: { email: true, name: true, newsletterOptIn: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
   });
 }
 
 export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStats> {
   const users = await fetchUserEmails();
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
   const allEmails: string[] = [];
   const newsletterEmails: string[] = [];
+  const recentRegistrants: RecentRegistrant[] = [];
   const allSet = new Set<string>();
   const newsletterSet = new Set<string>();
+  const recentSet = new Set<string>();
 
   for (const u of users) {
     const email = normalizeEmail(u.email ?? "");
@@ -377,16 +398,28 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
       newsletterSet.add(email);
       newsletterEmails.push(email);
     }
+    const createdMs = u.createdAt instanceof Date ? u.createdAt.getTime() : new Date(u.createdAt).getTime();
+    if (createdMs >= cutoff && !recentSet.has(email)) {
+      recentSet.add(email);
+      recentRegistrants.push({
+        email,
+        name: u.name ?? null,
+        createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : String(u.createdAt),
+        newsletterOptIn: !!u.newsletterOptIn,
+      });
+    }
   }
 
   allEmails.sort();
   newsletterEmails.sort();
+  // recentRegistrants already newest-first from query order
 
   return {
     newsletterCount: newsletterEmails.length,
     allEmailCount: allEmails.length,
     newsletterEmails,
     allEmails,
+    recentRegistrants,
   };
 }
 
