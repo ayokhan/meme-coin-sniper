@@ -11,7 +11,7 @@ import {
   forexScalperEntryTriggerFor,
   readNovaForexScalperPrefill,
 } from "@/lib/nova-forex-scalper-prefill";
-import { estimateForexLotsFromMargin, estimateForexMarginFromLots } from "@/lib/forex-lot-size";
+import { estimateForexLotsFromMargin, estimateForexMarginFromLots, effectiveSizingLeverage, isEquityCfdSymbol } from "@/lib/forex-lot-size";
 import ForexBrokerConnectPanel from "@/components/ForexBrokerConnectPanel";
 
 type ForexScalperConfig = {
@@ -687,6 +687,13 @@ export default function NovaForexScalperPanel() {
             Margin is from your Scalp plan (edit to re-size lots).{" "}
             <strong className="text-foreground">Leverage comes from your MT5 account</strong> and cannot be changed in
             NovaStaris — set it in MetaTrader or your broker portal, then refresh the connection.
+            {isEquityCfdSymbol(config.symbol) && (
+              <>
+                {" "}
+                Stock CFDs (e.g. AAPL) are sized at up to <strong className="text-foreground">1:20</strong> even if the
+                account is 1:2000 — otherwise lot size is far too high.
+              </>
+            )}
           </p>
 
           <div className="grid grid-cols-2 gap-3">
@@ -709,7 +716,11 @@ export default function NovaForexScalperPanel() {
                     lotSize: config.lotSize,
                     leverage: accountLeverage,
                   }).toLocaleString()}{" "}
-                  at 1:{accountLeverage}. If MT rejects with “not enough money”, lower lots or fund the account.
+                  at sizing 1:{effectiveSizingLeverage(config.symbol, accountLeverage)}
+                  {effectiveSizingLeverage(config.symbol, accountLeverage) < accountLeverage
+                    ? ` (account 1:${accountLeverage}, capped for this symbol)`
+                    : ` (account 1:${accountLeverage})`}
+                  . If MT rejects with “not enough money” or “invalid volume”, lower lots.
                 </p>
               )}
             </div>

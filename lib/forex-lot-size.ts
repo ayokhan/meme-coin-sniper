@@ -2,6 +2,10 @@
  * Approximate MT4/MT5 lot size from USD margin × leverage.
  * Brokers differ on contract size — treat this as a starting estimate; users can edit lots.
  * Prefer quantizeForexLots with live MetaAPI symbol specification when placing orders.
+ *
+ * Important: MT account leverage (e.g. 1:2000) is usually **FX max**. Stocks / indices use
+ * much lower margin leverage — we cap effective leverage so $10 margin does not estimate
+ * 60+ lots of AAPL.
  */
 import { normalizeForexSymbol } from "@/lib/forex-market";
 
@@ -16,6 +20,32 @@ export function forexContractSize(symbolRaw: string): number {
   // Majors / most FX: 100,000 base units per lot
   if (s.length === 6 && /^[A-Z]{6}$/.test(s)) return 100_000;
   return 100_000;
+}
+
+const EQUITY_CFD = new Set(["TSLA", "AAPL", "NVDA", "SHOP"]);
+const INDEX_CFD = new Set(["NAS100", "US30", "SPX500"]);
+
+/** Broker single-name stock CFDs (volume often ≈ shares). */
+export function isEquityCfdSymbol(symbolRaw: string): boolean {
+  const s = normalizeForexSymbol(symbolRaw) || String(symbolRaw ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return EQUITY_CFD.has(s);
+}
+
+export function isIndexCfdSymbol(symbolRaw: string): boolean {
+  const s = normalizeForexSymbol(symbolRaw) || String(symbolRaw ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (INDEX_CFD.has(s)) return true;
+  return s.includes("NAS") || s.includes("USTEC") || s.includes("US30") || s.includes("SPX");
+}
+
+/**
+ * Cap leverage used for lot estimates. Account 1:2000 on Vantage-style books is for FX;
+ * equity CFDs are typically ~1:5–1:20 and indices ~1:50–1:200.
+ */
+export function effectiveSizingLeverage(symbolRaw: string, accountLeverage: number): number {
+  const lev = Math.max(1, Number(accountLeverage) || 1);
+  if (isEquityCfdSymbol(symbolRaw)) return Math.min(lev, 20);
+  if (isIndexCfdSymbol(symbolRaw)) return Math.min(lev, 100);
+  return lev;
 }
 
 export type ForexVolumeRules = {
@@ -58,7 +88,7 @@ function contractFor(symbol: string, rules?: ForexVolumeRules): number {
 }
 
 /**
- * lots ≈ (marginUsd × leverage) / (contractSize × entryPrice)
+ * lots ≈ (marginUsd × effectiveLeverage) / (contractSize × entryPrice)
  * Floored to broker volume step (default 0.01).
  */
 export function estimateForexLotsFromMargin(input: {
@@ -67,10 +97,15 @@ export function estimateForexLotsFromMargin(input: {
   marginUsd: number;
   leverage: number;
   rules?: ForexVolumeRules;
+  /** Set true to skip equity/index leverage caps (rare). */
+  useRawAccountLeverage?: boolean;
 }): number {
   const price = Number(input.entryPrice);
   const margin = Math.max(0, Number(input.marginUsd));
-  const lev = Math.max(1, Number(input.leverage) || 1);
+  const accountLev = Math.max(1, Number(input.leverage) || 1);
+  const lev = input.useRawAccountLeverage
+    ? accountLev
+    : effectiveSizingLeverage(input.symbol, accountLev);
   if (!Number.isFinite(price) || price <= 0 || margin <= 0) {
     return quantizeForexLots(0.01, input.rules) || 0.01;
   }
@@ -81,17 +116,21 @@ export function estimateForexLotsFromMargin(input: {
   return lots > 0 ? lots : quantizeForexLots(0.01, input.rules) || 0.01;
 }
 
-/** Inverse estimate: margin ≈ (lots × contractSize × price) / leverage */
+/** Inverse estimate: margin ≈ (lots × contractSize × price) / effectiveLeverage */
 export function estimateForexMarginFromLots(input: {
   symbol: string;
   entryPrice: number;
   lotSize: number;
   leverage: number;
   rules?: ForexVolumeRules;
+  useRawAccountLeverage?: boolean;
 }): number {
   const price = Number(input.entryPrice);
   const lots = Math.max(0.01, Number(input.lotSize) || 0.01);
-  const lev = Math.max(1, Number(input.leverage) || 1);
+  const accountLev = Math.max(1, Number(input.leverage) || 1);
+  const lev = input.useRawAccountLeverage
+    ? accountLev
+    : effectiveSizingLeverage(input.symbol, accountLev);
   if (!Number.isFinite(price) || price <= 0) return 0;
   const contract = contractFor(input.symbol, input.rules);
   const notional = lots * contract * price;
