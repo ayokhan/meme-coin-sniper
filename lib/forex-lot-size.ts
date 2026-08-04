@@ -1,39 +1,84 @@
 /**
  * Approximate MT4/MT5 lot size from USD margin × leverage.
  * Brokers differ on contract size — treat this as a starting estimate; users can edit lots.
+ * Prefer quantizeForexLots with live MetaAPI symbol specification when placing orders.
  */
 import { normalizeForexSymbol } from "@/lib/forex-market";
 
 /** Standard contract size (units per 1.0 lot) for common CFD symbols. */
 export function forexContractSize(symbolRaw: string): number {
-  const s = normalizeForexSymbol(symbolRaw);
-  if (s === "XAUUSD") return 100; // 100 oz
-  if (s === "XAGUSD") return 5000;
-  if (s === "NAS100" || s === "US30" || s === "SPX500") return 1;
+  const s = normalizeForexSymbol(symbolRaw) || String(symbolRaw ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  // Metals (including broker suffixes like XAUUSDM, GOLD.m stripped via normalize)
+  if (s === "XAUUSD" || s.startsWith("XAU") || s === "GOLD" || s.includes("GOLD")) return 100; // 100 oz
+  if (s === "XAGUSD" || s.startsWith("XAG") || s === "SILVER" || s.includes("SILVER")) return 5000;
+  if (s === "NAS100" || s === "US30" || s === "SPX500" || s.includes("NAS") || s.includes("USTEC")) return 1;
   if (s === "TSLA" || s === "AAPL" || s === "NVDA" || s === "SHOP") return 1;
   // Majors / most FX: 100,000 base units per lot
+  if (s.length === 6 && /^[A-Z]{6}$/.test(s)) return 100_000;
   return 100_000;
+}
+
+export type ForexVolumeRules = {
+  minVolume?: number;
+  maxVolume?: number;
+  volumeStep?: number;
+  /** Broker contract size (units per 1.0 lot). Overrides forexContractSize when set. */
+  contractSize?: number;
+};
+
+/**
+ * Clamp and snap lots to broker volumeStep / min / max.
+ * Returns 0 if even minVolume is not representable.
+ */
+export function quantizeForexLots(rawLots: number, rules?: ForexVolumeRules): number {
+  const minV = Math.max(0.01, Number(rules?.minVolume) || 0.01);
+  const maxV = Math.max(minV, Number(rules?.maxVolume) || 100);
+  const step = Math.max(0.01, Number(rules?.volumeStep) || 0.01);
+  if (!Number.isFinite(rawLots) || rawLots <= 0) return 0;
+  // Floor to step so we never exceed intended size / affordability
+  let lots = Math.floor(rawLots / step + 1e-9) * step;
+  // Fix float noise (e.g. 0.30000000004)
+  const stepDigits = Math.min(8, Math.max(0, Math.ceil(-Math.log10(step)) + 1));
+  lots = Number(lots.toFixed(stepDigits));
+  if (lots < minV) {
+    // Only bump to min if raw was at least min (caller wanted a real size)
+    if (rawLots + 1e-9 >= minV) lots = minV;
+    else return 0;
+  }
+  if (lots > maxV) lots = Math.floor(maxV / step + 1e-9) * step;
+  lots = Number(lots.toFixed(stepDigits));
+  if (lots < minV || lots <= 0) return 0;
+  return lots;
+}
+
+function contractFor(symbol: string, rules?: ForexVolumeRules): number {
+  const c = Number(rules?.contractSize);
+  if (Number.isFinite(c) && c > 0) return c;
+  return forexContractSize(symbol);
 }
 
 /**
  * lots ≈ (marginUsd × leverage) / (contractSize × entryPrice)
- * Floored to 0.01 lot minimum (common MT step).
+ * Floored to broker volume step (default 0.01).
  */
 export function estimateForexLotsFromMargin(input: {
   symbol: string;
   entryPrice: number;
   marginUsd: number;
   leverage: number;
+  rules?: ForexVolumeRules;
 }): number {
   const price = Number(input.entryPrice);
   const margin = Math.max(0, Number(input.marginUsd));
   const lev = Math.max(1, Number(input.leverage) || 1);
-  if (!Number.isFinite(price) || price <= 0 || margin <= 0) return 0.01;
-  const contract = forexContractSize(input.symbol);
+  if (!Number.isFinite(price) || price <= 0 || margin <= 0) {
+    return quantizeForexLots(0.01, input.rules) || 0.01;
+  }
+  const contract = contractFor(input.symbol, input.rules);
   const notional = margin * lev;
   const raw = notional / (contract * price);
-  const lots = Math.floor(raw * 100) / 100; // 0.01 step
-  return Math.max(0.01, lots || 0.01);
+  const lots = quantizeForexLots(raw, input.rules);
+  return lots > 0 ? lots : quantizeForexLots(0.01, input.rules) || 0.01;
 }
 
 /** Inverse estimate: margin ≈ (lots × contractSize × price) / leverage */
@@ -42,19 +87,20 @@ export function estimateForexMarginFromLots(input: {
   entryPrice: number;
   lotSize: number;
   leverage: number;
+  rules?: ForexVolumeRules;
 }): number {
   const price = Number(input.entryPrice);
   const lots = Math.max(0.01, Number(input.lotSize) || 0.01);
   const lev = Math.max(1, Number(input.leverage) || 1);
   if (!Number.isFinite(price) || price <= 0) return 0;
-  const contract = forexContractSize(input.symbol);
+  const contract = contractFor(input.symbol, input.rules);
   const notional = lots * contract * price;
   return Math.round((notional / lev) * 100) / 100;
 }
 
 /**
- * Largest 0.01-step lot size that fits in freeMargin (uses ~90% buffer for broker padding).
- * Returns 0 if even 0.01 lots won't fit.
+ * Largest volume-step lot size that fits in freeMargin (uses ~90% buffer for broker padding).
+ * Returns 0 if even min lots won't fit.
  */
 export function maxForexLotsForFreeMargin(input: {
   symbol: string;
@@ -63,6 +109,7 @@ export function maxForexLotsForFreeMargin(input: {
   leverage: number;
   /** Fraction of free margin to use (default 0.9). */
   buffer?: number;
+  rules?: ForexVolumeRules;
 }): number {
   const price = Number(input.entryPrice);
   const free = Math.max(0, Number(input.freeMarginUsd));
@@ -75,15 +122,33 @@ export function maxForexLotsForFreeMargin(input: {
     entryPrice: price,
     marginUsd: usable,
     leverage: lev,
+    rules: input.rules,
   });
-  // estimateForexLotsFromMargin floors to min 0.01 — verify 0.01 actually fits
+  const minLot = quantizeForexLots(Number(input.rules?.minVolume) || 0.01, input.rules) || 0.01;
   const needMin = estimateForexMarginFromLots({
     symbol: input.symbol,
     entryPrice: price,
-    lotSize: 0.01,
+    lotSize: minLot,
     leverage: lev,
+    rules: input.rules,
   });
   if (needMin > usable) return 0;
   return raw;
 }
 
+/** Round price to tick size (for SL/TP). */
+export function roundForexPriceToTick(price: number, tickSize?: number, digits?: number): number {
+  if (!Number.isFinite(price) || price <= 0) return price;
+  if (tickSize != null && Number.isFinite(tickSize) && tickSize > 0) {
+    const n = Math.round(price / tickSize) * tickSize;
+    const d =
+      digits != null && Number.isFinite(digits)
+        ? Math.max(0, Math.min(8, Math.floor(digits)))
+        : Math.min(8, Math.max(0, Math.ceil(-Math.log10(tickSize)) + 1));
+    return Number(n.toFixed(d));
+  }
+  if (digits != null && Number.isFinite(digits)) {
+    return Number(price.toFixed(Math.max(0, Math.min(8, Math.floor(digits)))));
+  }
+  return price;
+}

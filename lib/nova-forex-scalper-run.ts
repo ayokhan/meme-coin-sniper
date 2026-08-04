@@ -14,13 +14,26 @@ import {
   getMetaApiPositions,
   getMetaApiSymbolPrice,
   getMetaApiSymbols,
+  getMetaApiSymbolSpecification,
   getMetaApiAccountInformation,
   placeMetaApiMarketOrder,
   modifyMetaApiPositionStops,
   closeMetaApiPosition,
+  type MetaApiSymbolSpecification,
 } from "@/lib/metaapi";
-import { forexBrokerSymbolAliases, matchForexSymbolOnBroker } from "@/lib/forex-broker-symbols";
-import { estimateForexMarginFromLots, maxForexLotsForFreeMargin } from "@/lib/forex-lot-size";
+import {
+  forexBrokerSymbolAliases,
+  forexSymbolKey,
+  forexSymbolsMatch,
+  matchForexSymbolOnBroker,
+} from "@/lib/forex-broker-symbols";
+import {
+  estimateForexMarginFromLots,
+  maxForexLotsForFreeMargin,
+  quantizeForexLots,
+  roundForexPriceToTick,
+  type ForexVolumeRules,
+} from "@/lib/forex-lot-size";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -34,25 +47,89 @@ function toBrokerSymbol(symbol: string): string {
   return normalizeForexSymbol(symbol).replace(/[^A-Z0-9]/g, "");
 }
 
-/** Broker-side SL/TP only when on the correct side of entry for this trade. */
+function volumeRulesFromSpec(spec: MetaApiSymbolSpecification | null): ForexVolumeRules | undefined {
+  if (!spec) return undefined;
+  return {
+    minVolume: spec.minVolume,
+    maxVolume: spec.maxVolume,
+    volumeStep: spec.volumeStep,
+    contractSize: spec.contractSize,
+  };
+}
+
+/**
+ * Broker SL/TP must sit on the correct side of live bid/ask (MT rejects otherwise).
+ * Prefer market quotes so levels still work when fill differs from plan entry.
+ */
 function brokerStopsForSide(
   side: "long" | "short",
-  entryPrice: number,
   exitPrice: number,
-  stopLossPrice: number | null
+  stopLossPrice: number | null,
+  market: { bid: number; ask: number; last?: number },
+  tick?: { tickSize?: number; digits?: number }
 ): { stopLoss?: number; takeProfit?: number } {
   const out: { stopLoss?: number; takeProfit?: number } = {};
-  const entry = Number(entryPrice);
-  const exit = Number(exitPrice);
-  const stop = stopLossPrice != null ? Number(stopLossPrice) : NaN;
+  const bid = Number(market.bid);
+  const ask = Number(market.ask);
+  const mid =
+    Number.isFinite(bid) && Number.isFinite(ask) && bid > 0 && ask > 0
+      ? (bid + ask) / 2
+      : Number(market.last) || 0;
+  if (!Number.isFinite(mid) || mid <= 0) return out;
+
+  const exit = roundForexPriceToTick(Number(exitPrice), tick?.tickSize, tick?.digits);
+  const stop =
+    stopLossPrice != null
+      ? roundForexPriceToTick(Number(stopLossPrice), tick?.tickSize, tick?.digits)
+      : NaN;
+
+  // Long: TP above ask, SL below bid. Short: TP below bid, SL above ask.
   if (side === "long") {
-    if (Number.isFinite(exit) && exit > entry) out.takeProfit = exit;
-    if (Number.isFinite(stop) && stop > 0 && stop < entry) out.stopLoss = stop;
+    if (Number.isFinite(exit) && exit > ask) out.takeProfit = exit;
+    if (Number.isFinite(stop) && stop > 0 && stop < bid) out.stopLoss = stop;
   } else {
-    if (Number.isFinite(exit) && exit < entry) out.takeProfit = exit;
-    if (Number.isFinite(stop) && stop > 0 && stop > entry) out.stopLoss = stop;
+    if (Number.isFinite(exit) && exit < bid) out.takeProfit = exit;
+    if (Number.isFinite(stop) && stop > 0 && stop > ask) out.stopLoss = stop;
   }
   return out;
+}
+
+/** True only for stop-level rejections — must NOT match "Invalid volume". */
+function isInvalidStopsError(msg: string | undefined | null): boolean {
+  const m = String(msg ?? "").toLowerCase();
+  if (!m) return false;
+  if (m.includes("invalid volume") || m.includes("volume in the request")) return false;
+  return (
+    /invalid\s*stops?/.test(m) ||
+    /invalid\s*s\/?l/.test(m) ||
+    /invalid\s*t\/?p/.test(m) ||
+    /stops?\s*(level|too\s*close)/.test(m) ||
+    /trade_retcode_invalid_stops/.test(m) ||
+    (m.includes("invalid price") && (m.includes("stop") || m.includes("profit")))
+  );
+}
+
+function isInvalidVolumeError(msg: string | undefined | null): boolean {
+  const m = String(msg ?? "").toLowerCase();
+  return m.includes("invalid volume") || m.includes("volume in the request") || m.includes("invalid_volume");
+}
+
+function positionOnSymbol(
+  positions: Array<{ id: string; symbol?: string; stopLoss?: number; takeProfit?: number }>,
+  brokerSymbol: string,
+  tradeSymbol: string
+) {
+  const aliasKeys = new Set(
+    [...forexBrokerSymbolAliases(brokerSymbol), tradeSymbol, brokerSymbol].map((s) => forexSymbolKey(s))
+  );
+  return positions.filter((p) => {
+    const key = forexSymbolKey(String(p.symbol ?? ""));
+    if (aliasKeys.has(key)) return true;
+    return (
+      forexSymbolsMatch(String(p.symbol ?? ""), tradeSymbol) ||
+      forexSymbolsMatch(String(p.symbol ?? ""), brokerSymbol)
+    );
+  });
 }
 
 type ForexScalperRow = {
@@ -136,11 +213,8 @@ async function closePositionsForSymbol(
   brokerSymbol: string,
   tradeSymbol: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const aliases = new Set(
-    [...forexBrokerSymbolAliases(brokerSymbol), tradeSymbol].map((s) => s.toUpperCase())
-  );
   const positions = await getMetaApiPositions(accountId);
-  const matches = positions.filter((p) => aliases.has(String(p.symbol ?? "").toUpperCase()));
+  const matches = positionOnSymbol(positions, brokerSymbol, tradeSymbol);
   if (matches.length === 0) return { ok: true };
   let lastError: string | undefined;
   for (const pos of matches) {
@@ -148,6 +222,46 @@ async function closePositionsForSymbol(
     if (!res.ok) lastError = res.error;
   }
   return lastError ? { ok: false, error: lastError } : { ok: true };
+}
+
+async function attachBrokerStops(input: {
+  accountId: string;
+  positionId: string;
+  stopLoss?: number;
+  takeProfit?: number;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (input.stopLoss == null && input.takeProfit == null) {
+    return { ok: false, error: "No stop loss or take profit to set." };
+  }
+  // Try full pair first, then each side alone if broker rejects one level.
+  let mod = await modifyMetaApiPositionStops({
+    accountId: input.accountId,
+    positionId: input.positionId,
+    stopLoss: input.stopLoss,
+    takeProfit: input.takeProfit,
+  });
+  if (mod.ok) return { ok: true };
+  if (input.stopLoss != null && input.takeProfit != null && isInvalidStopsError(mod.error)) {
+    const slOnly = await modifyMetaApiPositionStops({
+      accountId: input.accountId,
+      positionId: input.positionId,
+      stopLoss: input.stopLoss,
+    });
+    const tpOnly = await modifyMetaApiPositionStops({
+      accountId: input.accountId,
+      positionId: input.positionId,
+      takeProfit: input.takeProfit,
+    });
+    if (slOnly.ok || tpOnly.ok) {
+      const parts: string[] = [];
+      if (!slOnly.ok && mod.error) parts.push(`SL: ${slOnly.error ?? "failed"}`);
+      if (!tpOnly.ok) parts.push(`TP: ${tpOnly.error ?? "failed"}`);
+      return parts.length
+        ? { ok: true, error: `Partial stops · ${parts.join("; ")}` }
+        : { ok: true };
+    }
+  }
+  return { ok: false, error: mod.error ?? "Modify stops failed" };
 }
 
 export async function runNovaForexScalperTick(
@@ -216,10 +330,25 @@ export async function runNovaForexScalperTick(
   }
 
   const positions = await getMetaApiPositions(accountId);
-  const aliases = new Set(forexBrokerSymbolAliases(brokerSymbol).map((s) => s.toUpperCase()));
-  const hasExchangePosition = positions.some((p) => aliases.has(String(p.symbol ?? "").toUpperCase()));
   const tradeSymbolResolved = await resolveTradeSymbol(accountId, brokerSymbol);
   const tradeSymbol = tradeSymbolResolved ?? brokerSymbol;
+  const openHere = positionOnSymbol(positions, brokerSymbol, tradeSymbol);
+  const hasExchangePosition = openHere.length > 0;
+
+  const quote =
+    (await getMetaApiSymbolPrice(accountId, tradeSymbol)) ??
+    (await getMetaApiSymbolPrice(accountId, brokerSymbol));
+  const market = {
+    bid: quote?.bid ?? price,
+    ask: quote?.ask ?? price,
+    last: quote?.last ?? price,
+  };
+  const spec =
+    (tradeSymbolResolved
+      ? await getMetaApiSymbolSpecification(accountId, tradeSymbolResolved)
+      : null) ?? (await getMetaApiSymbolSpecification(accountId, brokerSymbol));
+  const volRules = volumeRulesFromSpec(spec);
+  const tickOpts = { tickSize: spec?.tickSize, digits: spec?.digits };
 
   if (row.inPosition && !hasExchangePosition) {
     await updateRow({
@@ -265,10 +394,11 @@ export async function runNovaForexScalperTick(
         : "cross_down";
 
   if (row.inPosition || hasExchangePosition) {
-    // Attach broker SL/TP if the open was placed without them (software-only exits previously).
-    const desiredStops = brokerStopsForSide(side, row.entryPrice, row.exitPrice, row.stopLossPrice);
+    // Attach broker SL/TP if the open was placed without them (or prior attach failed).
+    let stopAttachNote: string | null = null;
+    let stopAttachError: string | null = null;
+    const desiredStops = brokerStopsForSide(side, row.exitPrice, row.stopLossPrice, market, tickOpts);
     if (desiredStops.stopLoss != null || desiredStops.takeProfit != null) {
-      const openHere = positions.filter((p) => aliases.has(String(p.symbol ?? "").toUpperCase()));
       for (const pos of openHere) {
         const missingSl =
           desiredStops.stopLoss != null &&
@@ -277,17 +407,19 @@ export async function runNovaForexScalperTick(
           desiredStops.takeProfit != null &&
           (pos.takeProfit == null || !Number.isFinite(Number(pos.takeProfit)) || Number(pos.takeProfit) <= 0);
         if (!missingSl && !missingTp) continue;
-        const mod = await modifyMetaApiPositionStops({
+        const mod = await attachBrokerStops({
           accountId,
-          positionId: pos.id,
-          stopLoss: missingSl ? desiredStops.stopLoss : pos.stopLoss,
-          takeProfit: missingTp ? desiredStops.takeProfit : pos.takeProfit,
+          positionId: String(pos.id),
+          stopLoss: missingSl ? desiredStops.stopLoss : Number(pos.stopLoss) > 0 ? Number(pos.stopLoss) : undefined,
+          takeProfit:
+            missingTp ? desiredStops.takeProfit : Number(pos.takeProfit) > 0 ? Number(pos.takeProfit) : undefined,
         });
         if (mod.ok) {
-          await updateRow({
-            lastTickAt: new Date(),
-            lastAction: `Attached broker stops on #${pos.id}: SL ${desiredStops.stopLoss ?? "—"} / TP ${desiredStops.takeProfit ?? "—"}.`,
-          });
+          stopAttachNote = `Attached broker stops on #${pos.id}: SL ${desiredStops.stopLoss ?? "—"} / TP ${desiredStops.takeProfit ?? "—"}${mod.error ? ` (${mod.error})` : ""}.`;
+          stopAttachError = mod.error ?? null;
+        } else {
+          stopAttachNote = `Tried to attach SL ${desiredStops.stopLoss ?? "—"} / TP ${desiredStops.takeProfit ?? "—"} on #${pos.id} — ${mod.error ?? "failed"}. Soft exit still watches levels.`;
+          stopAttachError = mod.error ?? "Could not attach SL/TP";
         }
       }
     }
@@ -348,7 +480,13 @@ export async function runNovaForexScalperTick(
       return { ok: true, message: "Closed at exit target." };
     }
 
-    await updateRow({ lastRefPrice: price, lastTickAt: new Date(), lastError: null });
+    await updateRow({
+      lastRefPrice: price,
+      lastTickAt: new Date(),
+      ...(stopAttachNote
+        ? { lastAction: stopAttachNote, lastError: stopAttachError }
+        : { lastError: null }),
+    });
     return { ok: true, message: "In position; waiting for exit or stop." };
   }
 
@@ -397,8 +535,13 @@ export async function runNovaForexScalperTick(
   }
 
   const lotSizeConfigured = Math.max(0.01, row.lotSize || 0.01);
-  let lotSize = lotSizeConfigured;
+  let lotSize = quantizeForexLots(lotSizeConfigured, volRules) || quantizeForexLots(0.01, volRules) || 0.01;
   let lotNote = "";
+  if (Math.abs(lotSize - lotSizeConfigured) > 1e-9) {
+    lotNote = ` (volume adjusted ${lotSizeConfigured}→${lotSize} for broker min/step/max)`;
+    await updateRow({ lotSize });
+  }
+
   const acct = await getMetaApiAccountInformation(accountId);
   if (acct && Number.isFinite(acct.freeMargin) && Number.isFinite(acct.leverage) && acct.leverage > 0) {
     const need = estimateForexMarginFromLots({
@@ -406,6 +549,7 @@ export async function runNovaForexScalperTick(
       entryPrice: price,
       lotSize,
       leverage: acct.leverage,
+      rules: volRules,
     });
     const free = Number(acct.freeMargin);
     if (need > free * 0.95) {
@@ -414,6 +558,7 @@ export async function runNovaForexScalperTick(
         entryPrice: price,
         freeMarginUsd: free,
         leverage: acct.leverage,
+        rules: volRules,
       });
       if (affordable < 0.01) {
         const msg = `Not enough free margin for ${lotSize} lots of ${brokerSymbol} (~$${need} needed, ~$${free.toFixed(2)} free @ 1:${acct.leverage}). Deposit funds, lower size, or raise MT leverage.`;
@@ -426,14 +571,14 @@ export async function runNovaForexScalperTick(
         return { ok: false, error: msg };
       }
       if (affordable < lotSize) {
-        lotNote = ` (sized down ${lotSize}→${affordable} lots to fit ~$${free.toFixed(2)} free margin)`;
+        lotNote += ` (sized down ${lotSize}→${affordable} lots to fit ~$${free.toFixed(2)} free margin)`;
         lotSize = affordable;
         await updateRow({ lotSize });
       }
     }
   }
 
-  const stops = brokerStopsForSide(side, row.entryPrice, row.exitPrice, row.stopLossPrice);
+  const stops = brokerStopsForSide(side, row.exitPrice, row.stopLossPrice, market, tickOpts);
   const orderPayload = {
     accountId,
     symbol: tradeSymbolResolved,
@@ -455,8 +600,8 @@ export async function runNovaForexScalperTick(
       }
     }
   }
-  // If SL/TP rejected, retry bare market then attach stops
-  if (!order.ok && /stop|invalid|invalid stops|invalid price/i.test(order.error ?? "") && (stops.stopLoss || stops.takeProfit)) {
+  // Only strip SL/TP on genuine stop-level rejections (never on "Invalid volume")
+  if (!order.ok && isInvalidStopsError(order.error) && (stops.stopLoss || stops.takeProfit)) {
     order = await placeMetaApiMarketOrder({
       accountId,
       symbol: tradeSymbolResolved,
@@ -464,14 +609,32 @@ export async function runNovaForexScalperTick(
       volume: lotSize,
     });
   }
-  // If still no money, try 0.01 once
+  // Invalid volume → snap to min step and retry once
+  if (!order.ok && isInvalidVolumeError(order.error)) {
+    const minLot = quantizeForexLots(volRules?.minVolume ?? 0.01, volRules) || 0.01;
+    if (Math.abs(minLot - lotSize) > 1e-9) {
+      const retry = await placeMetaApiMarketOrder({
+        ...orderPayload,
+        volume: minLot,
+        // keep SL/TP so broker-side protection is on the second try
+      });
+      if (retry.ok) {
+        order = retry;
+        lotNote += ` (retried at ${minLot} lots after invalid volume)`;
+        lotSize = minLot;
+        await updateRow({ lotSize: minLot });
+      }
+    }
+  }
+  // If still no money, try min lot once
   if (!order.ok && /not enough|no money|insufficient/i.test(order.error ?? "") && lotSize > 0.01) {
-    const retry = await placeMetaApiMarketOrder({ ...orderPayload, volume: 0.01 });
+    const minLot = quantizeForexLots(volRules?.minVolume ?? 0.01, volRules) || 0.01;
+    const retry = await placeMetaApiMarketOrder({ ...orderPayload, volume: minLot });
     if (retry.ok) {
       order = retry;
-      lotSize = 0.01;
-      lotNote = " (retried at 0.01 lots after margin reject)";
-      await updateRow({ lotSize: 0.01 });
+      lotSize = minLot;
+      lotNote += ` (retried at ${minLot} lots after margin reject)`;
+      await updateRow({ lotSize: minLot });
     }
   }
   if (!order.ok) {
@@ -484,16 +647,18 @@ export async function runNovaForexScalperTick(
     return { ok: false, error: err };
   }
 
-  // Ensure broker SL/TP exist (order may have opened without them)
+  // Always ensure broker SL/TP exist (order may open without them after bare retry)
   if (stops.stopLoss != null || stops.takeProfit != null) {
-    let positionId = order.positionId;
+    let positionId = order.positionId ? String(order.positionId) : undefined;
     if (!positionId) {
+      // Brief wait for position book to update
+      await new Promise((r) => setTimeout(r, 400));
       const after = await getMetaApiPositions(accountId);
-      const match = after.find((p) => aliases.has(String(p.symbol ?? "").toUpperCase()));
-      positionId = match?.id;
+      const match = positionOnSymbol(after, brokerSymbol, tradeSymbolResolved)[0];
+      positionId = match?.id != null ? String(match.id) : undefined;
     }
     if (positionId) {
-      const mod = await modifyMetaApiPositionStops({
+      const mod = await attachBrokerStops({
         accountId,
         positionId,
         stopLoss: stops.stopLoss,
@@ -501,10 +666,16 @@ export async function runNovaForexScalperTick(
       });
       if (mod.ok) {
         lotNote += ` · broker SL ${stops.stopLoss ?? "—"} / TP ${stops.takeProfit ?? "—"}`;
+        if (mod.error) lotNote += ` (${mod.error})`;
       } else if (mod.error) {
         lotNote += ` · broker stops pending (${mod.error})`;
       }
+    } else {
+      lotNote += " · broker stops pending (no position id yet — next tick will attach)";
     }
+  } else if (row.stopLossPrice != null || row.exitPrice) {
+    lotNote +=
+      " · SL/TP not set on MT (levels not on valid side of live bid/ask — check Stop/Exit vs market). Software will still exit on tick.";
   }
 
   await updateRow({

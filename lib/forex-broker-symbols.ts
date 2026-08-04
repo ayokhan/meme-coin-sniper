@@ -5,6 +5,24 @@
 
 import { normalizeForexSymbol } from "@/lib/forex-market";
 
+/** Alphanumeric upper key so XAUUSD.m / XAUUSDm / xauusd# compare equal enough. */
+export function forexSymbolKey(raw: string): string {
+  return String(raw ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+/** True if two broker/Nova symbols refer to the same instrument (suffix-tolerant). */
+export function forexSymbolsMatch(a: string, b: string): boolean {
+  const ka = forexSymbolKey(a);
+  const kb = forexSymbolKey(b);
+  if (!ka || !kb) return false;
+  if (ka === kb) return true;
+  // GOLD vs XAUUSD, USTEC vs NAS100 handled via alias sets at call sites; prefix still helps .US suffixes
+  if (ka.startsWith(kb) || kb.startsWith(ka)) return true;
+  return false;
+}
+
 /** Candidate broker symbol strings for a Nova Market Watch symbol. */
 export function forexBrokerSymbolAliases(symbolRaw: string): string[] {
   const s = normalizeForexSymbol(symbolRaw) || String(symbolRaw ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");

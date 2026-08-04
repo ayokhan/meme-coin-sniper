@@ -71,6 +71,22 @@ export function toUserFacingForexBridgeError(raw: string | null | undefined): st
   ) {
     return "Not enough free margin on your MT account for this lot size. Lower Lot size (try 0.01), deposit more funds, or raise account leverage at your broker — then Save and retry.";
   }
+  if (
+    lower.includes("invalid volume") ||
+    lower.includes("volume in the request") ||
+    lower.includes("trade_retcode_invalid_volume")
+  ) {
+    return "Invalid lot size for this symbol. Your broker has min/step/max volume rules (e.g. 0.01 step or a lower max). Nova will re-size on the next try — or set Lot size manually and Save.";
+  }
+  if (
+    lower.includes("invalid stops") ||
+    lower.includes("invalid stop") ||
+    lower.includes("trade_retcode_invalid_stops") ||
+    lower.includes("stops level") ||
+    lower.includes("stop levels")
+  ) {
+    return "Stop loss or take profit was rejected by the broker (wrong side of market or too close). Nova will retry attaching them; check SL is past live price for shorts / below for longs.";
+  }
   if (lower.includes("unknown symbol") || lower.includes("symbol not found") || lower.includes("market is closed")) {
     if (lower.includes("unknown symbol") || lower.includes("symbol not found")) {
       return "Unknown symbol on your MT account. Your broker may use a different name (e.g. NVDA.US, USTEC for NAS100). Pick a Market Watch symbol your MT terminal can trade, or check Market Watch in MT5.";
@@ -545,6 +561,48 @@ export async function getMetaApiSymbols(accountId: string): Promise<string[]> {
     return [];
   } catch {
     return [];
+  }
+}
+
+/** Broker instrument rules (volume min/step/max, contract size, tick). */
+export type MetaApiSymbolSpecification = {
+  symbol: string;
+  minVolume: number;
+  maxVolume: number;
+  volumeStep: number;
+  contractSize?: number;
+  tickSize?: number;
+  digits?: number;
+  stopsLevel?: number;
+};
+
+export async function getMetaApiSymbolSpecification(
+  accountId: string,
+  symbol: string
+): Promise<MetaApiSymbolSpecification | null> {
+  try {
+    const base = await clientBaseForAccount(accountId);
+    const res = await metaApiFetch<Record<string, unknown>>(
+      `${base}/users/current/accounts/${accountId}/symbols/${encodeURIComponent(symbol)}/specification`,
+      { method: "GET" }
+    );
+    if (!res || typeof res !== "object") return null;
+    const minVolume = Number(res.minVolume);
+    const maxVolume = Number(res.maxVolume);
+    const volumeStep = Number(res.volumeStep);
+    if (!Number.isFinite(minVolume) || !Number.isFinite(volumeStep) || volumeStep <= 0) return null;
+    return {
+      symbol: String(res.symbol ?? symbol),
+      minVolume,
+      maxVolume: Number.isFinite(maxVolume) && maxVolume > 0 ? maxVolume : 100,
+      volumeStep,
+      contractSize: Number.isFinite(Number(res.contractSize)) ? Number(res.contractSize) : undefined,
+      tickSize: Number.isFinite(Number(res.tickSize)) ? Number(res.tickSize) : undefined,
+      digits: Number.isFinite(Number(res.digits)) ? Number(res.digits) : undefined,
+      stopsLevel: Number.isFinite(Number(res.stopsLevel)) ? Number(res.stopsLevel) : undefined,
+    };
+  } catch {
+    return null;
   }
 }
 

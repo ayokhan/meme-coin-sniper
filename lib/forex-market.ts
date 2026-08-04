@@ -66,7 +66,16 @@ export function normalizeForexSymbol(raw: string): string {
   if (!upper) return "";
   if (ALIASES[upper]) return ALIASES[upper];
   if (BY_SYMBOL.has(upper)) return upper;
+  // Broker suffixes: XAUUSDM, XAUUSDPRO, GOLD.m → stripped → GOLD already in ALIASES
+  if (upper.startsWith("XAUUSD")) return "XAUUSD";
+  if (upper.startsWith("XAGUSD")) return "XAGUSD";
+  if (upper.startsWith("GOLD")) return "XAUUSD";
+  if (upper.startsWith("SILVER")) return "XAGUSD";
   if (upper.endsWith("USD") && upper.length >= 6 && upper.length <= 7) return upper;
+  // EURUSDM micro / suffix forms
+  for (const s of BY_SYMBOL.keys()) {
+    if (upper === s || upper.startsWith(s)) return s;
+  }
   return upper;
 }
 
