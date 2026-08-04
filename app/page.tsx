@@ -102,6 +102,7 @@ import {
 import { ADMIN_NAV_ITEMS } from "@/lib/admin-nav-config";
 import { getDelegatedAdminNavHrefs } from "@/lib/admin-access";
 import NovaQFibPanel from "@/components/NovaQFibPanel";
+import NovaQRunBar, { notifyNovaQRunSuccess } from "@/components/NovaQRunBar";
 import NovaPatternDetectorPanel from "@/components/NovaPatternDetectorPanel";
 import NovaExtraPanel from "@/components/NovaExtraPanel";
 import NovaSmartHighLowTable from "@/components/NovaSmartHighLowTable";
@@ -111,7 +112,8 @@ import NovaQTradePlanCard from "@/components/NovaQTradePlanCard";
 import type { NovaQAlignment, NovaQTradePlan } from "@/lib/nova-q-trade-plan";
 import { clearNovaQPrefill, readNovaQPrefill } from "@/lib/nova-q-prefill";
 import { formatQuotePriceUsd } from "@/lib/format-quote-price";
-import { NOVA_FORECAST_RANGES } from "@/lib/nova-timeframes";
+import { NOVA_FORECAST_RANGES, NOVA_UI_TIMEFRAME_IDS } from "@/lib/nova-timeframes";
+import { loadNovaQSession, writeNovaQSession } from "@/lib/nova-q-watch";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import NovaForexBotsPanel from "@/components/NovaForexBotsPanel";
 import TradingUniversityPanel from "@/components/TradingUniversityPanel";
@@ -1757,6 +1759,7 @@ export default function Dashboard() {
   const [novaQResult, setNovaQResult] = useState<NovaQResult | null>(null);
   const [novaQLoading, setNovaQLoading] = useState(false);
   const [novaQError, setNovaQError] = useState<string | null>(null);
+  const [novaQSessionReady, setNovaQSessionReady] = useState(false);
   type NovaPlusResult = {
     symbol: string;
     timeframe: string;
@@ -2777,20 +2780,22 @@ export default function Dashboard() {
     }
   };
 
-  const fetchNovaQ = async () => {
+  const fetchNovaQ = async (overrides?: { symbol?: string; timeframes?: string[] }) => {
     setNovaQLoading(true);
     setNovaQError(null);
-    const symbol = novaQSymbol.trim().toUpperCase() || "BTC";
+    const symbol = (overrides?.symbol ?? novaQSymbol).trim().toUpperCase() || "BTC";
+    const timeframes = overrides?.timeframes ?? novaQTimeframes;
     try {
       const res = await fetch("/api/nova-q", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, timeframes: novaQTimeframes }),
+        body: JSON.stringify({ symbol, timeframes }),
         credentials: "include",
       });
       const data = await res.json();
       if (res.ok && data.success && data.result) {
         setNovaQResult(data.result as NovaQResult);
+        notifyNovaQRunSuccess("q", symbol, timeframes);
       } else {
         setNovaQResult(null);
         setNovaQError(data?.locked ? "NovaQ is for VIP subscribers." : (data?.error ?? (res.ok ? "No data" : `Error ${res.status}`)));
@@ -2802,6 +2807,20 @@ export default function Dashboard() {
       setNovaQLoading(false);
     }
   };
+
+  /** Restore last NovaQ symbol + TFs (shared with Fib). */
+  useEffect(() => {
+    const hydrate = () => {
+      const session = loadNovaQSession();
+      if (!session) return;
+      setNovaQSymbol(session.symbol);
+      setNovaQTimeframes(session.timeframes);
+    };
+    hydrate();
+    setNovaQSessionReady(true);
+    window.addEventListener("nova-q-session-changed", hydrate);
+    return () => window.removeEventListener("nova-q-session-changed", hydrate);
+  }, []);
 
   /** Scalp → NovaQ: prefill symbol (and TF) then auto-run. */
   useEffect(() => {
@@ -2817,6 +2836,7 @@ export default function Dashboard() {
       tfs = [...tfs, prefill.timeframeId];
       setNovaQTimeframes(tfs);
     }
+    writeNovaQSession(symbol, tfs);
     let cancelled = false;
     (async () => {
       setNovaQLoading(true);
@@ -2832,6 +2852,7 @@ export default function Dashboard() {
         if (cancelled) return;
         if (res.ok && data.success && data.result) {
           setNovaQResult(data.result as NovaQResult);
+          notifyNovaQRunSuccess("q", symbol, tfs);
         } else {
           setNovaQResult(null);
           setNovaQError(
@@ -8148,39 +8169,46 @@ export default function Dashboard() {
                   </TabsContent>
                   <TabsContent value="nova-q" className="mt-0">
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-                      <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-2">NovaQ (NovaIntelligence)</h2>
-                      <p className="text-xs text-muted-foreground mb-4">
-                        Select timeframe(s), enter a contract symbol (for example BTC). Hyperliquid is used when listed; otherwise Blofin USDT perps (e.g. <span className="font-mono">SPCX</span>, <span className="font-mono">XAU-USDT</span>, <span className="font-mono">XAG-USDT</span>). Gold on HL: <span className="font-mono">PAXG</span>. NovaQ reports support/resistance, a half-window <strong className="text-zinc-700 dark:text-zinc-300">structure</strong> read from closes, a least-squares <strong className="text-zinc-700 dark:text-zinc-300">close regression</strong> as a trendline-style bias (not hand-drawn chart lines), retest counts as a demand/supply proxy, and a <strong className="text-zinc-700 dark:text-zinc-300">blended direction</strong> when structure and trendline agree (chop when they fight).{" "}
-                        <strong className="text-zinc-700 dark:text-zinc-300">S/R touches</strong> count how many candles in that window wicked near the period low (support) or period high (resistance).
-                      </p>
-                      <div className="flex flex-wrap items-center gap-4 mb-4">
-                        <NovaTimeframeCheckboxPicker
-                          idPrefix="nova-q"
-                          selected={novaQTimeframes}
-                          onChange={setNovaQTimeframes}
+                      <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-3">NovaQ (NovaIntelligence)</h2>
+                      {novaQSessionReady && (
+                        <NovaQRunBar
+                          tool="q"
+                          symbol={novaQSymbol}
+                          timeframes={novaQTimeframes}
+                          onSymbolChange={setNovaQSymbol}
+                          onTimeframesChange={setNovaQTimeframes}
+                          onApplySetup={(sym, tfs, opts) => {
+                            setNovaQSymbol(sym);
+                            setNovaQTimeframes(tfs);
+                            writeNovaQSession(sym, tfs);
+                            if (opts?.run) void fetchNovaQ({ symbol: sym, timeframes: tfs });
+                          }}
+                          onRun={() => void fetchNovaQ()}
+                          loading={novaQLoading}
+                          runLabel="Run NovaQ"
+                          allowedTimeframes={[...NOVA_UI_TIMEFRAME_IDS]}
+                          otherToolLabel={vipFuturesAddons?.novaQFib ? "Open in Fib" : undefined}
+                          onOpenOtherTool={
+                            vipFuturesAddons?.novaQFib
+                              ? (sym, tfs) => {
+                                  writeNovaQSession(sym, tfs);
+                                  setNovaForecastSubTab("nova-q-fib");
+                                }
+                              : undefined
+                          }
+                          helpSummary="Hyperliquid is used when listed; otherwise Blofin USDT perps (e.g. SPCX, XAU-USDT, XAG-USDT). Gold on HL: PAXG. NovaQ reports support/resistance, a half-window structure read from closes, a least-squares close regression as a trendline-style bias (not hand-drawn chart lines), retest counts as a demand/supply proxy, and a blended direction when structure and trendline agree (chop when they fight). S/R touches count how many candles in that window wicked near the period low (support) or period high (resistance). Favorites and recents are shared with NovaQ Fib."
                         />
-                        <input
-                          type="text"
-                          placeholder="Contract symbol e.g. BTC"
-                          value={novaQSymbol}
-                          onChange={(e) => setNovaQSymbol(e.target.value.toUpperCase())}
-                          className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 w-56 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500"
-                        />
-                        <Button onClick={fetchNovaQ} disabled={novaQLoading || novaQTimeframes.length === 0 || !novaQSymbol.trim()}>
-                          {novaQLoading ? "Running…" : "Run NovaQ"}
-                        </Button>
-                      </div>
-                      {novaQTimeframes.length === 0 && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">Select at least one timeframe.</p>
                       )}
                       {novaQError && (
-                        <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{novaQError}</p>
+                        <p className="text-sm text-rose-600 dark:text-rose-400 mt-3 mb-1">{novaQError}</p>
                       )}
-                      {!novaQLoading && !novaQError && !novaQResult && (
-                        <p className="text-xs text-muted-foreground">Choose timeframe(s), enter a symbol, then click Run NovaQ.</p>
+                      {!novaQLoading && !novaQError && !novaQResult && novaQSessionReady && (
+                        <p className="text-xs text-muted-foreground mt-3">
+                          Pick a favorite or major, or type a symbol — then run.
+                        </p>
                       )}
                       {novaQResult && (
-                        <div className="space-y-4">
+                        <div className="space-y-4 mt-4">
                           <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/60 dark:bg-zinc-900/30">
                             <div className="flex flex-wrap items-center gap-3">
                               <span className="font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">{novaQResult.symbol}</span>
@@ -8214,6 +8242,20 @@ export default function Dashboard() {
                                   {novaQResult.alignment.label}
                                 </Badge>
                               ) : null}
+                              {vipFuturesAddons?.novaQFib ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs"
+                                  onClick={() => {
+                                    writeNovaQSession(novaQResult.symbol, novaQTimeframes);
+                                    setNovaForecastSubTab("nova-q-fib");
+                                  }}
+                                >
+                                  Same setup in Fib
+                                </Button>
+                              ) : null}
                             </div>
                             {novaQResult.overallTrendlineSummary?.trim() ? (
                               <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{novaQResult.overallTrendlineSummary}</p>
@@ -8243,7 +8285,16 @@ export default function Dashboard() {
                   </TabsContent>
                   {vipFuturesAddons?.novaQFib && (
                     <TabsContent value="nova-q-fib" className="mt-0">
-                      <NovaQFibPanel enabled={!!vipFuturesAddons.novaQFib} isVip={isVip || isOwner} />
+                      <NovaQFibPanel
+                        enabled={!!vipFuturesAddons.novaQFib}
+                        isVip={isVip || isOwner}
+                        onOpenNovaQ={(sym, tfs) => {
+                          setNovaQSymbol(sym);
+                          setNovaQTimeframes(tfs);
+                          writeNovaQSession(sym, tfs);
+                          setNovaForecastSubTab("nova-q");
+                        }}
+                      />
                     </TabsContent>
                   )}
                   {vipFuturesAddons?.novaExtra && (
