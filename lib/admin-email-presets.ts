@@ -7,6 +7,7 @@ import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
 import { WELCOME_EMAIL } from "@/lib/welcome-email";
 import { VIP_SOFT_PITCH_EMAIL } from "@/lib/vip-pitch-email";
+import { VIP_EXPIRY_POST_EMAIL, VIP_EXPIRY_PRE_EMAIL } from "@/lib/vip-expiry-email";
 import {
   PATH_DEEPDIVE_FOREX_EMAIL,
   PATH_DEEPDIVE_FUTURES_EMAIL,
@@ -28,6 +29,8 @@ export type AdminEmailPresetId =
   | "deepdive-wallets"
   | "deepdive-polymarket"
   | "vip-soft-pitch"
+  | "vip-expiry-pre"
+  | "vip-expiry-post"
   | "affiliate"
   | "forex-rebate"
   | "forex-bots-launch"
@@ -49,7 +52,7 @@ export type AdminEmailPreset = {
   ctaLabel: string;
   ctaUrl: string;
   /** Suggested audience when loading this preset */
-  defaultAudience?: "newsletter" | "all" | "new";
+  defaultAudience?: "newsletter" | "all" | "new" | "free" | "vip" | "inactive7d";
 };
 
 const FOREX_BOTS = "https://novastaris.ai/?tab=nova-forex-bot";
@@ -147,7 +150,33 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "blofin",
     ctaLabel: VIP_SOFT_PITCH_EMAIL.ctaLabel,
     ctaUrl: VIP_SOFT_PITCH_EMAIL.ctaUrl,
-    defaultAudience: "new",
+    defaultAudience: "free",
+  },
+  {
+    id: "vip-expiry-pre",
+    label: "VIP expiry (pre — ends soon)",
+    blurb: "Manual send ~3 days before VIP ends — also auto via cron",
+    subject: VIP_EXPIRY_PRE_EMAIL.subject,
+    body: VIP_EXPIRY_PRE_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: VIP_EXPIRY_PRE_EMAIL.ctaLabel,
+    ctaUrl: VIP_EXPIRY_PRE_EMAIL.ctaUrl,
+    defaultAudience: "vip",
+  },
+  {
+    id: "vip-expiry-post",
+    label: "VIP expiry (post — has ended)",
+    blurb: "Manual win-back after VIP ends — also auto via cron",
+    subject: VIP_EXPIRY_POST_EMAIL.subject,
+    body: VIP_EXPIRY_POST_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: VIP_EXPIRY_POST_EMAIL.ctaLabel,
+    ctaUrl: VIP_EXPIRY_POST_EMAIL.ctaUrl,
+    defaultAudience: "free",
   },
   {
     id: "affiliate",

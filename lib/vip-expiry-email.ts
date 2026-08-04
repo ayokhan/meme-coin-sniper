@@ -15,6 +15,44 @@ function formatDate(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) + " UTC";
 }
 
+/** Admin → Emails preset (no per-user date — soft wording). */
+export const VIP_EXPIRY_PRE_EMAIL = {
+  subject: "Your NovaStaris VIP ends soon",
+  body: `Hi there,
+
+Your VIP access is ending soon — check Account / Billing for your exact date.
+
+After that date, VIP desks (NovaForecast, Nova Forex, CT Scan, and related tools) will pause until you renew.
+
+Renew anytime:
+${SUBSCRIBE_URL}
+
+Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+
+— The NovaStaris team
+${APP}`,
+  ctaLabel: "Renew VIP",
+  ctaUrl: SUBSCRIBE_URL,
+} as const;
+
+/** Admin → Emails preset (win-back after VIP ends). */
+export const VIP_EXPIRY_POST_EMAIL = {
+  subject: "Your NovaStaris VIP has ended",
+  body: `Hi there,
+
+Your VIP period has ended. Free tools still work; VIP desks stay paused until you renew.
+
+Renew anytime:
+${SUBSCRIBE_URL}
+
+Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+
+— The NovaStaris team
+${APP}`,
+  ctaLabel: "Renew VIP",
+  ctaUrl: SUBSCRIBE_URL,
+} as const;
+
 export function buildVipExpiryPreEmail(expiresAt: Date): { subject: string; body: string } {
   const when = formatDate(expiresAt);
   return {
