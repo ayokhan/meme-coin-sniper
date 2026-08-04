@@ -176,6 +176,17 @@ export const FEATURE_FLAG_KEYS = {
 
   /** Master switch: Vercel scheduled /api/cron (daily scan, wallet notify, trading bot, perp jobs). When OFF, cron returns immediately — saves CPU. Default ON. */
   VERCEL_CRON_ENABLED: 'vercel_cron_enabled',
+  /**
+   * Daily VIP expiry emails (one pre ~3d, one post after).
+   * Only Stripe (CC) or USDC subscriptions — not owner admin grants.
+   * Default ON. When OFF, /api/cron/vip-expiry-emails skips sends.
+   */
+  VIP_EXPIRY_EMAILS: 'vip_expiry_emails',
+  /**
+   * Auto welcome email on email/password register and first Google signup.
+   * Default ON. When OFF, no welcome is sent on signup.
+   */
+  WELCOME_AUTO_EMAIL: 'welcome_auto_email',
   /** Client page-view pings to /api/analytics (Insights + live activity data). When OFF, no analytics writes. Default ON. */
   ANALYTICS_PING_ENABLED: 'analytics_ping_enabled',
   /**

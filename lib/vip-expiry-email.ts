@@ -1,11 +1,13 @@
 /**
  * One pre-expiry + one post-expiry VIP email (noreply — point users to Chat/Support).
  * Intended to run from daily cron; idempotent via Subscription.expiry*EmailSentAt.
+ * Only Stripe (CC) or USDC-paid subscriptions — not admin/manual grants.
  */
 
 import { prisma } from "@/lib/db";
 import { buildAnnouncementEmailHtml } from "@/lib/announcement-email";
 import { sendEmailDetailed } from "@/lib/send-email";
+import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 
 const APP = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
 const SUBSCRIBE_URL = `${APP}/subscribe`;
@@ -97,10 +99,29 @@ type SubRow = {
   expiresAt: Date;
   autoRenew: boolean | null;
   cancelAtPeriodEnd: boolean | null;
+  txSignature: string | null;
+  stripeSessionId: string | null;
+  stripeSubscriptionId: string | null;
   expiryPreEmailSentAt: Date | null;
   expiryPostEmailSentAt: Date | null;
   user: { email: string | null } | null;
 };
+
+/**
+ * Paid VIP only: Stripe card (session or subscription id) or USDC (txSignature
+ * that is not an admin-grant-* tag). Complimentary owner grants are excluded.
+ */
+export function isPaidCustomerSubscription(sub: {
+  txSignature?: string | null;
+  stripeSessionId?: string | null;
+  stripeSubscriptionId?: string | null;
+}): boolean {
+  if (sub.stripeSessionId || sub.stripeSubscriptionId) return true;
+  const tx = (sub.txSignature ?? "").trim();
+  if (!tx) return false;
+  if (tx.startsWith("admin-grant-")) return false;
+  return true;
+}
 
 function shouldSkipAutoRenew(sub: SubRow): boolean {
   // Active auto-renew without period-end cancel — Stripe will renew; skip soft emails.
@@ -125,6 +146,7 @@ export type VipExpiryEmailRunResult = {
   postSent: number;
   preFailed: number;
   postFailed: number;
+  skipped?: boolean;
   message?: string;
 };
 
@@ -132,8 +154,22 @@ export type VipExpiryEmailRunResult = {
  * Daily pass:
  * - PRE: expiry in ~3 days (2–4 day window for once-daily cron), not yet sent
  * - POST: expired within last ~36h, not yet sent, no other active VIP
+ * Paid CC/USDC only; feature-flag gated.
  */
 export async function runVipExpiryEmails(): Promise<VipExpiryEmailRunResult> {
+  const enabled = await getFeatureFlag(FEATURE_FLAG_KEYS.VIP_EXPIRY_EMAILS);
+  if (!enabled) {
+    return {
+      ok: true,
+      skipped: true,
+      preSent: 0,
+      postSent: 0,
+      preFailed: 0,
+      postFailed: 0,
+      message: "VIP expiry emails flag OFF (Admin → Feature flags).",
+    };
+  }
+
   const now = Date.now();
   const preFrom = new Date(now + 2 * DAY_MS);
   const preTo = new Date(now + 4 * DAY_MS);
@@ -153,27 +189,33 @@ export async function runVipExpiryEmails(): Promise<VipExpiryEmailRunResult> {
     };
   };
 
+  const selectFields = {
+    id: true,
+    userId: true,
+    expiresAt: true,
+    autoRenew: true,
+    cancelAtPeriodEnd: true,
+    txSignature: true,
+    stripeSessionId: true,
+    stripeSubscriptionId: true,
+    expiryPreEmailSentAt: true,
+    expiryPostEmailSentAt: true,
+    user: { select: { email: true } },
+  };
+
   try {
     const preCandidates = await db.subscription.findMany({
       where: {
         expiresAt: { gte: preFrom, lte: preTo },
         expiryPreEmailSentAt: null,
       },
-      select: {
-        id: true,
-        userId: true,
-        expiresAt: true,
-        autoRenew: true,
-        cancelAtPeriodEnd: true,
-        expiryPreEmailSentAt: true,
-        expiryPostEmailSentAt: true,
-        user: { select: { email: true } },
-      },
+      select: selectFields,
       take: 100,
     });
 
     for (const sub of preCandidates) {
-      if (shouldSkipAutoRenew(sub)) {
+      if (!isPaidCustomerSubscription(sub) || shouldSkipAutoRenew(sub)) {
+        // Suppress without email (admin grant or clean auto-renew)
         await db.subscription.update({
           where: { id: sub.id },
           data: { expiryPreEmailSentAt: new Date() },
@@ -201,28 +243,18 @@ export async function runVipExpiryEmails(): Promise<VipExpiryEmailRunResult> {
         expiresAt: { gte: postFrom, lte: postTo },
         expiryPostEmailSentAt: null,
       },
-      select: {
-        id: true,
-        userId: true,
-        expiresAt: true,
-        autoRenew: true,
-        cancelAtPeriodEnd: true,
-        expiryPreEmailSentAt: true,
-        expiryPostEmailSentAt: true,
-        user: { select: { email: true } },
-      },
+      select: selectFields,
       take: 100,
     });
 
     for (const sub of postCandidates) {
-      if (shouldSkipAutoRenew(sub)) {
+      if (!isPaidCustomerSubscription(sub) || shouldSkipAutoRenew(sub)) {
         await db.subscription.update({
           where: { id: sub.id },
           data: { expiryPostEmailSentAt: new Date() },
         });
         continue;
       }
-      // If they already renewed (newer active sub), skip post
       const stillVip = await db.subscription.findFirst({
         where: { userId: sub.userId, expiresAt: { gt: new Date() } },
         select: { id: true },

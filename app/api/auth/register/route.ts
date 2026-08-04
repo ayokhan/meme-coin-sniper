@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     // Auto welcome; never block signup if mail fails
-    void sendWelcomeEmailToUser(created.email);
+    void sendWelcomeEmailToUser(created.email, { userId: created.id, source: "register" });
 
     return NextResponse.json({ success: true, message: 'Account created. You can sign in.' });
   } catch (e) {

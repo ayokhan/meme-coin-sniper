@@ -217,7 +217,7 @@ async function upsertGoogleUser(params: { email: string; name?: string | null; i
       },
     });
     void import('@/lib/send-welcome-email').then(({ sendWelcomeEmailToUser }) =>
-      sendWelcomeEmailToUser(email)
+      sendWelcomeEmailToUser(email, { userId: user.id, source: "google" })
     );
   } else {
     const shouldUpdateName = !user.name && !!params.name;

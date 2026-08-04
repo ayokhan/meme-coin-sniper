@@ -8,6 +8,7 @@ import {
   type AnnouncementAudience,
   type AnnouncementEmailTemplate,
 } from "@/lib/announcement-email";
+import { listRecentWelcomeEmailLogs } from "@/lib/send-welcome-email";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -15,11 +16,12 @@ export async function GET() {
     return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
   }
   try {
-    const [stats, campaigns] = await Promise.all([
+    const [stats, campaigns, welcomeLogs] = await Promise.all([
       getAnnouncementEmailStats(),
       listRecentAnnouncementCampaigns(20),
+      listRecentWelcomeEmailLogs(40),
     ]);
-    return NextResponse.json({ success: true, stats, campaigns });
+    return NextResponse.json({ success: true, stats, campaigns, welcomeLogs });
   } catch (e) {
     console.error("admin announcement-email GET:", e);
     return NextResponse.json({ success: false, error: "Failed to load email stats." }, { status: 500 });

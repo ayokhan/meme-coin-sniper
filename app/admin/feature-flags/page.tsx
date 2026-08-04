@@ -596,7 +596,17 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   vercel_cron_enabled: {
     label: "Vercel scheduled cron (master)",
     description:
-      "When ON, Vercel runs /api/cron once daily (midnight UTC): Birdeye scan, CT/Twitter scan, wallet Telegram alerts, leverage alerts, pinned token re-analyze, trading bot, perp listing/digest/alerts, Blofin breakout, NovaScalper batch (if enabled), meme leaderboard refresh (if enabled). Turn OFF to skip the entire cron chain and save CPU. Manual Scan buttons still work.",
+      "When ON, Vercel runs /api/cron once daily (midnight UTC): Birdeye scan, CT/Twitter scan, wallet Telegram alerts, leverage alerts, pinned token re-analyze, trading bot, perp listing/digest/alerts, Blofin breakout, NovaScalper batch (if enabled), meme leaderboard refresh (if enabled), VIP expiry reminder emails (if enabled). Turn OFF to skip the entire cron chain and save CPU. Manual Scan buttons still work.",
+  },
+  vip_expiry_emails: {
+    label: "VIP expiry emails (auto pre + post)",
+    description:
+      "When ON (default), daily cron sends at most one “VIP ends soon” and one “VIP has ended” email per paid subscription (Stripe card or USDC only). Owner/admin complimentary grants are never emailed. When OFF, those automatic emails are skipped (Admin → Emails presets still work for manual sends).",
+  },
+  welcome_auto_email: {
+    label: "Welcome email on signup (auto)",
+    description:
+      "When ON (default), new email/password and first-time Google signups receive the Welcome / Start here email once. When OFF, no auto welcome (you can still send the preset from Admin → Emails). Log of recent auto welcomes is on Admin → Emails.",
   },
   analytics_ping_enabled: {
     label: "Analytics page pings",

@@ -639,6 +639,21 @@ model AnnouncementEmailCampaign {
   @@index([template, createdAt(sort: Desc)])
 }
 
+/** Auto welcome on register / first Google signup — audit who received (or failed). */
+model WelcomeEmailLog {
+  id        String   @id @default(cuid())
+  email     String
+  userId    String?
+  success   Boolean  @default(true)
+  error     String?
+  source    String   @default("register") // register | google
+  createdAt DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([email])
+  @@index([userId])
+}
+
 /** Customer billing history — stored from Stripe webhooks / checkout; read on account page (no live Stripe API). */
 model BillingInvoice {
   id                String    @id @default(cuid())

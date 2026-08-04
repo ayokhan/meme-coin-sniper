@@ -49,6 +49,16 @@ type CampaignRow = {
   createdAt: string;
 };
 
+type WelcomeLogRow = {
+  id: string;
+  email: string;
+  userId: string | null;
+  success: boolean;
+  error: string | null;
+  source: string;
+  createdAt: string;
+};
+
 type AudienceMode = "newsletter" | "all" | "new" | "free" | "vip" | "inactive7d";
 
 type Props = {
@@ -76,6 +86,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const searchParams = useSearchParams();
   const [stats, setStats] = useState<EmailStats | null>(null);
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
+  const [welcomeLogs, setWelcomeLogs] = useState<WelcomeLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -111,6 +122,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           inactive7dEmails: Array.isArray(s.inactive7dEmails) ? s.inactive7dEmails : [],
         });
         setCampaigns(Array.isArray(data.campaigns) ? (data.campaigns as CampaignRow[]) : []);
+        setWelcomeLogs(Array.isArray(data.welcomeLogs) ? (data.welcomeLogs as WelcomeLogRow[]) : []);
       } else {
         onError?.(data.error || "Could not load email stats.");
       }
@@ -658,6 +670,54 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           >
             {sending ? "Sending…" : `Send ${format === "rich" ? "rich" : "plain"} email`}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Auto welcome log</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Who received the signup welcome email (register / first Google). Toggle in Feature flags → Welcome email on
+            signup.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {welcomeLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No auto welcome sends logged yet.</p>
+          ) : (
+            <div className="overflow-x-auto max-h-64 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-muted-foreground border-b">
+                    <th className="py-2 pr-2">Email</th>
+                    <th className="py-2 pr-2">Source</th>
+                    <th className="py-2 pr-2">Status</th>
+                    <th className="py-2">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {welcomeLogs.map((w) => (
+                    <tr key={w.id} className="border-b border-zinc-100 dark:border-zinc-800">
+                      <td className="py-1.5 pr-2 font-medium break-all">{w.email}</td>
+                      <td className="py-1.5 pr-2">{w.source}</td>
+                      <td className="py-1.5 pr-2">
+                        {w.success ? (
+                          <span className="text-emerald-700 dark:text-emerald-300">Sent</span>
+                        ) : (
+                          <span className="text-rose-600 dark:text-rose-400" title={w.error ?? undefined}>
+                            Failed{w.error ? `: ${w.error.slice(0, 48)}` : ""}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-1.5 text-muted-foreground whitespace-nowrap">
+                        {w.createdAt ? new Date(w.createdAt).toLocaleString() : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
