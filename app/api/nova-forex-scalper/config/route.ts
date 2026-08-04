@@ -169,13 +169,22 @@ export async function POST(request: Request) {
     const stopRaw = body.stopLossPrice;
     const stopLossPrice = stopRaw == null || stopRaw === "" ? null : Number(stopRaw);
 
+    const nextSymbol = normalizeForexSymbol(String(body.symbol ?? ""));
+    const prevSymbol = normalizeForexSymbol(String(row.symbol ?? ""));
+    const symbolChanged = nextSymbol !== prevSymbol;
+    const sideChanged =
+      (body.side === "short" ? "short" : "long") !== (row.side === "short" ? "short" : "long");
+
+    // Changing symbol/side must not keep tracking the prior instrument's open position state.
+    const clearTradeState = symbolChanged || sideChanged;
+
     const updated = await db.novaForexScalperConfig.update({
       where: { id: row.id },
       data: {
         enabled: body.enabled === true,
         mode: body.mode === "live" ? "live" : "demo",
         broker: parseForexBrokerId(body.broker) ?? "vantage",
-        symbol: normalizeForexSymbol(String(body.symbol ?? "")),
+        symbol: nextSymbol,
         side: body.side === "short" ? "short" : "long",
         entryTrigger:
           body.entryTrigger === "cross_up"
@@ -188,6 +197,16 @@ export async function POST(request: Request) {
         stopLossPrice,
         lotSize: Number(body.lotSize),
         maxRounds: Math.max(0, Math.min(10_000, Math.floor(Number(body.maxRounds) || 0))),
+        ...(clearTradeState
+          ? {
+              inPosition: false,
+              lastRefPrice: null,
+              lastError: null,
+              lastAction: symbolChanged
+                ? `Symbol changed ${prevSymbol || "—"} → ${nextSymbol}. Prior open-state cleared — this config only manages ${nextSymbol} (other MT positions are ignored).`
+                : `Side changed. Prior open-state cleared for a clean ${body.side === "short" ? "short" : "long"} run.`,
+            }
+          : {}),
       },
     });
 

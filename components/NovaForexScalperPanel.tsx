@@ -49,6 +49,7 @@ export default function NovaForexScalperPanel() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
+  const [sizeNotice, setSizeNotice] = useState<string | null>(null);
   const prefillAppliedRef = useRef(false);
   /** Margin from Scalp plan (editable for sizing). */
   const [planMarginUsd, setPlanMarginUsd] = useState(10);
@@ -109,12 +110,16 @@ export default function NovaForexScalperPanel() {
     void load();
   }, [load]);
 
-  // Apply a "Scalp this trade" hand-off from Nova Forex Agent onto the active config.
+  // Apply a one-shot "Scalp this trade" hand-off (expired/stale storage is ignored).
   useEffect(() => {
     if (prefillAppliedRef.current) return;
     if (loading || !activeConfigId || configs.length === 0) return;
     const prefill = readNovaForexScalperPrefill();
-    if (!prefill) return;
+    if (!prefill) {
+      // Drop any expired handoff so refresh doesn't resurrect it
+      clearNovaForexScalperPrefill();
+      return;
+    }
     prefillAppliedRef.current = true;
     const marginUsd =
       prefill.marginUsd != null && Number.isFinite(prefill.marginUsd) && prefill.marginUsd > 0
@@ -125,19 +130,20 @@ export default function NovaForexScalperPanel() {
       accountLeverage && accountLeverage > 0
         ? accountLeverage
         : Math.max(1, Number(prefill.leverage) || 20);
-    const lotFromPlan =
-      estimateForexLotsFromMargin({
-        symbol: prefill.symbol,
-        entryPrice: prefill.entryPrice,
-        marginUsd,
-        leverage: levForLots,
-      });
+    const lotFromPlan = estimateForexLotsFromMargin({
+      symbol: prefill.symbol,
+      entryPrice: prefill.entryPrice,
+      marginUsd,
+      leverage: levForLots,
+    });
     const entryTrigger =
       prefill.entryTrigger === "immediate" ||
       prefill.entryTrigger === "cross_up" ||
       prefill.entryTrigger === "cross_down"
         ? prefill.entryTrigger
         : forexScalperEntryTriggerFor(prefill.side);
+    // Clear storage BEFORE state updates so a fast refresh cannot re-read the same handoff
+    clearNovaForexScalperPrefill();
     setConfigs((list) =>
       list.map((c) =>
         c.id === activeConfigId
@@ -153,6 +159,8 @@ export default function NovaForexScalperPanel() {
                   ? prefill.stopLossPrice
                   : null,
               lotSize: lotFromPlan,
+              // Local UI: new plan is not the previous symbol's open trade
+              inPosition: false,
             }
           : c
       )
@@ -162,9 +170,9 @@ export default function NovaForexScalperPanel() {
         ? "Entry trigger: immediate (next tick) — agent said enter now."
         : `Entry trigger: ${entryTrigger} (waits for price to cross).`;
     setPrefillNotice(
-      `Loaded ${prefill.side.toUpperCase()} ${prefill.symbol} from ${prefill.source} · $${marginUsd} margin → ~${lotFromPlan} lots @ ${levForLots}x${accountLeverage ? " (MT)" : " (plan est.)"}. ${triggerNote} Review, then Save.`
+      `Loaded ${prefill.side.toUpperCase()} ${prefill.symbol} from ${prefill.source} · $${marginUsd} margin → ~${lotFromPlan} lots @ sizing 1:${Math.min(levForLots, isEquityCfdSymbol(prefill.symbol) ? 20 : levForLots)}x. ${triggerNote} Review, click Save, then Start bot. Unrelated open MT positions (other symbols) are not this plan.`
     );
-    clearNovaForexScalperPrefill();
+    setSizeNotice(null);
   }, [loading, activeConfigId, configs.length, accountLeverage]);
 
   const activeConfig = configs.find((c) => c.id === activeConfigId) ?? null;
@@ -204,7 +212,7 @@ export default function NovaForexScalperPanel() {
     };
   }, [activeConfig?.broker, connections]);
 
-  /** When MT leverage arrives, re-estimate lots from current margin (does not change MT leverage). */
+  /** When MT leverage arrives, re-estimate lots (separate notice — not a “prefill” banner). */
   useEffect(() => {
     if (!activeConfig || !accountLeverage || accountLeverage <= 0) return;
     const nextLots = estimateForexLotsFromMargin({
@@ -217,8 +225,8 @@ export default function NovaForexScalperPanel() {
     setConfigs((list) =>
       list.map((c) => (c.id === activeConfig.id ? { ...c, lotSize: nextLots } : c))
     );
-    setPrefillNotice(
-      `Lots resized to ~${nextLots} for your MT ${accountLeverage}x leverage and $${planMarginUsd} margin. Click Save so the bot uses this size.`
+    setSizeNotice(
+      `Lots resized to ~${nextLots} for sizing leverage on ${activeConfig.symbol} and $${planMarginUsd} margin. Click Save.`
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when leverage / margin / symbol / entry change
   }, [accountLeverage, planMarginUsd, activeConfig?.id, activeConfig?.symbol, activeConfig?.entryPrice]);
@@ -263,9 +271,10 @@ export default function NovaForexScalperPanel() {
     return () => clearInterval(id);
   }, [autoSec, activeConfigId, configs, load]);
 
-  const save = async () => {
+  const save = async (overrides?: Partial<ForexScalperConfig>) => {
     const config = configs.find((c) => c.id === activeConfigId);
     if (!config) return;
+    const payload = { ...config, ...overrides, configId: config.id };
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -274,18 +283,33 @@ export default function NovaForexScalperPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ...config, configId: config.id }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success && data.config) {
         setConfigs((list) => list.map((row) => (row.id === data.config.id ? data.config : row)));
-        setSuccess("Nova Forex Scalper saved.");
+        setSuccess(
+          data.config.enabled
+            ? "Saved — bot is ON for this config."
+            : "Nova Forex Scalper saved."
+        );
+        clearNovaForexScalperPrefill();
+        setPrefillNotice(null);
+        setSizeNotice(null);
       } else setError(data.error ?? "Save failed");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
     }
+  };
+
+  const toggleBotEnabled = async () => {
+    const config = configs.find((c) => c.id === activeConfigId);
+    if (!config || config.ownerForceOff) return;
+    const next = !config.enabled;
+    setConfigs((list) => list.map((c) => (c.id === activeConfigId ? { ...c, enabled: next } : c)));
+    await save({ enabled: next });
   };
 
   const addConfig = async () => {
@@ -432,8 +456,23 @@ export default function NovaForexScalperPanel() {
           </div>
           <button
             type="button"
-            onClick={() => setPrefillNotice(null)}
+            onClick={() => {
+              setPrefillNotice(null);
+              clearNovaForexScalperPrefill();
+            }}
             className="text-emerald-700/70 dark:text-emerald-300/70 hover:text-emerald-900 dark:hover:text-emerald-100 text-xs font-medium"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      {sizeNotice && (
+        <div className="rounded-lg border border-sky-300/80 dark:border-sky-700/80 bg-sky-50/70 dark:bg-sky-950/30 p-3 text-sm text-sky-900 dark:text-sky-100 flex items-start gap-2">
+          <div className="flex-1">{sizeNotice}</div>
+          <button
+            type="button"
+            onClick={() => setSizeNotice(null)}
+            className="text-sky-700/70 dark:text-sky-300/70 text-xs font-medium"
           >
             Dismiss
           </button>
@@ -495,19 +534,40 @@ export default function NovaForexScalperPanel() {
         <CardContent className="space-y-4">
           {config.ownerForceOff && (
             <div className="rounded-md border border-cyan-500/30 dark:border-cyan-600/40 bg-slate-50/90 dark:bg-slate-900/60 px-3 py-2 text-xs text-slate-900 dark:text-slate-100">
-              Nova Forex Scalper was <strong>disabled by the owner</strong> in Admin. The switch below stays off until
-              they enable you again.
+              Nova Forex Scalper was <strong>disabled by the owner</strong> in Admin. Start stays off until they enable
+              you again.
             </div>
           )}
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={config.enabled}
-              disabled={!!config.ownerForceOff}
-              onChange={(e) => setField("enabled", e.target.checked)}
-            />
-            <span className="text-sm font-medium">Enabled</span>
-          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              size="default"
+              disabled={!!config.ownerForceOff || saving}
+              onClick={() => void toggleBotEnabled()}
+              className={
+                config.enabled
+                  ? "bg-rose-600 hover:bg-rose-700 text-white min-w-[9rem]"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white min-w-[9rem]"
+              }
+            >
+              {saving ? "Saving…" : config.enabled ? "Stop bot" : "Start bot"}
+            </Button>
+            <div className="text-sm">
+              <span
+                className={
+                  config.enabled
+                    ? "font-semibold text-emerald-700 dark:text-emerald-400"
+                    : "font-semibold text-zinc-500 dark:text-zinc-400"
+                }
+              >
+                {config.enabled ? "Running" : "Stopped"}
+              </span>
+              <p className="text-[11px] text-muted-foreground mt-0.5 max-w-sm">
+                This config only trades <strong className="text-foreground font-mono">{config.symbol}</strong>. Open
+                positions on other symbols (e.g. NVDA while you scalp AAPL) are left alone.
+              </p>
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -839,6 +899,7 @@ export default function NovaForexScalperPanel() {
               >
                 {config.inPosition ? "Yes" : "No"}
               </p>
+              <p className="mt-0.5 text-[10px] font-mono text-muted-foreground">{config.symbol}</p>
             </div>
             <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/70 bg-white/70 dark:bg-zinc-950/50 px-3 py-2.5">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1">

@@ -134,14 +134,10 @@ function positionOnSymbol(
     const key = forexSymbolKey(String(p.symbol ?? ""));
     if (!key) return false;
     if (aliasKeys.has(key)) return true;
-    if (
-      forexSymbolsMatch(String(p.symbol ?? ""), tradeSymbol) ||
-      forexSymbolsMatch(String(p.symbol ?? ""), brokerSymbol)
-    ) {
-      return true;
-    }
-    // Suffix-tolerant: broker "XAUUSD.m" vs Nova "XAUUSD"
-    if (baseKey && (key.startsWith(baseKey) || baseKey.startsWith(key))) return true;
+    // Strict: same root + broker suffix only (never AAPL ↔ NVDA)
+    if (forexSymbolsMatch(String(p.symbol ?? ""), tradeSymbol)) return true;
+    if (forexSymbolsMatch(String(p.symbol ?? ""), brokerSymbol)) return true;
+    if (baseKey && key === baseKey) return true;
     return false;
   });
 }

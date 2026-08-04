@@ -11,6 +11,8 @@ import {
 
 export const NOVA_FOREX_SCALPER_PREFILL_KEY = "novastaris_nova_forex_scalper_prefill";
 export const NOVA_FOREX_SCALPER_PREFILL_EVENT = "novastaris-nova-forex-scalper-prefill";
+/** Prefills older than this are ignored and wiped (stops “ghost” handoffs after refresh). */
+export const NOVA_FOREX_SCALPER_PREFILL_MAX_AGE_MS = 10 * 60 * 1000;
 
 export const NOVA_FOREX_SCALPER_HANDOFF_URL = "/?tab=nova-forex-bot&forex=scalp-bot";
 
@@ -58,6 +60,11 @@ function parseNovaForexScalperPrefill(raw: string | null): NovaForexScalperPrefi
     const parsed = JSON.parse(raw) as NovaForexScalperPrefill;
     if (!parsed?.symbol || (parsed.side !== "long" && parsed.side !== "short")) return null;
     if (!Number.isFinite(parsed.entryPrice) || !Number.isFinite(parsed.exitPrice)) return null;
+    const created = parsed.createdAt ? Date.parse(parsed.createdAt) : NaN;
+    // Missing createdAt → treat as expired (legacy ghost entries after refresh)
+    if (!Number.isFinite(created) || Date.now() - created > NOVA_FOREX_SCALPER_PREFILL_MAX_AGE_MS) {
+      return null;
+    }
     return parsed;
   } catch {
     return null;
@@ -66,12 +73,18 @@ function parseNovaForexScalperPrefill(raw: string | null): NovaForexScalperPrefi
 
 export function readNovaForexScalperPrefill(): NovaForexScalperPrefill | null {
   if (typeof window === "undefined") return null;
-  // localStorage so "Scalp this trade" → new tab can still read the handoff
-  // (sessionStorage is per-tab and would leave the destination empty).
-  return (
-    parseNovaForexScalperPrefill(sessionStorage.getItem(NOVA_FOREX_SCALPER_PREFILL_KEY)) ??
-    parseNovaForexScalperPrefill(localStorage.getItem(NOVA_FOREX_SCALPER_PREFILL_KEY))
-  );
+  const fromSession = parseNovaForexScalperPrefill(sessionStorage.getItem(NOVA_FOREX_SCALPER_PREFILL_KEY));
+  if (fromSession) return fromSession;
+  const fromLocal = parseNovaForexScalperPrefill(localStorage.getItem(NOVA_FOREX_SCALPER_PREFILL_KEY));
+  if (fromLocal) return fromLocal;
+  // Wipe any expired / corrupt leftover so refresh doesn't resurrect a handoff banner
+  try {
+    sessionStorage.removeItem(NOVA_FOREX_SCALPER_PREFILL_KEY);
+    localStorage.removeItem(NOVA_FOREX_SCALPER_PREFILL_KEY);
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
 export function writeNovaForexScalperPrefill(prefill: NovaForexScalperPrefill | null): void {
@@ -84,7 +97,10 @@ export function writeNovaForexScalperPrefill(prefill: NovaForexScalperPrefill | 
       /* ignore */
     }
   } else {
-    const json = JSON.stringify(prefill);
+    const json = JSON.stringify({
+      ...prefill,
+      createdAt: prefill.createdAt || new Date().toISOString(),
+    });
     sessionStorage.setItem(NOVA_FOREX_SCALPER_PREFILL_KEY, json);
     try {
       localStorage.setItem(NOVA_FOREX_SCALPER_PREFILL_KEY, json);
