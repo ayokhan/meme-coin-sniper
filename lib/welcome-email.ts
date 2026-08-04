@@ -10,9 +10,10 @@ You're in. The dashboard has many tabs — don't try to open everything on day o
 
 Pick your path
 1. Meme coin hunter → Go Hunting, Trending, Surge, then AI Agent
-2. Futures & metals → Crypto Futures (chart AI). VIP: NovaForecast / Nova Forex
-3. Wallet tracking → Wallet Tracker, CT Scan, Coach Calls
-4. Prediction markets → Nova Polymarket
+2. Crypto futures → Crypto Futures (chart AI). VIP: NovaForecast
+3. Forex trading → Nova Forex Agent (XAUUSD, FX, indices)
+4. Wallet tracking → Wallet Tracker, CT Scan, Coach Calls
+5. Prediction markets → Nova Polymarket
 
 Need the full map?
 Open Start here for a guide of every major tab:

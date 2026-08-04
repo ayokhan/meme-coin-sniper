@@ -12,11 +12,18 @@ const PATHS = [
     steps: ["Go Hunting / Trending / Surge", "Transactions & Watchlist", "AI Agent for contract analysis"],
   },
   {
-    title: "Futures & metals",
-    blurb: "Structure crypto perp and metals trades with chart AI and VIP desks.",
+    title: "Crypto futures",
+    blurb: "Structure crypto perp trades with chart AI and VIP desks.",
     href: "/?tab=futures",
     cta: "Open Crypto Futures",
-    steps: ["Crypto Futures — chart AI + workflow", "VIP: NovaForecast / NovaRadar / NovaQ", "VIP: Nova Forex for XAUUSD, FX, indices"],
+    steps: ["Crypto Futures — chart AI + workflow", "VIP: NovaForecast / NovaRadar / NovaQ", "Trending Perps / Perp Radar"],
+  },
+  {
+    title: "Forex trading",
+    blurb: "Gold, FX majors, and indices — Market Watch desk separate from crypto.",
+    href: "/?tab=nova-forex",
+    cta: "Open Nova Forex",
+    steps: ["Nova Forex Agent — Market Watch (VIP)", "NovaQ Forex on XAUUSD, EURUSD, indices", "Optional: Forex Bots on MT4/MT5"],
   },
   {
     title: "Wallet tracking",
@@ -53,7 +60,8 @@ const TAB_GROUPS = [
   {
     heading: "VIP desks",
     items: [
-      { name: "NovaForecast / Nova Forex", use: "Perp ranges, NovaQ, Radar; forex Market Watch." },
+      { name: "NovaForecast", use: "Crypto perp ranges, NovaQ, NovaRadar." },
+      { name: "Nova Forex", use: "Market Watch for XAUUSD, FX majors, and indices." },
       { name: "CT Scan / Wallet Tracker / Coach", use: "Twitter + wallet intel and coach signals." },
       { name: "Eagle / Buddie / Investment / Nova+", use: "Deeper VIP intelligence workspaces." },
     ],

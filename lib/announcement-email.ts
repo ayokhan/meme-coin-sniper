@@ -265,9 +265,10 @@ export function buildWelcomeEmailHtml(args?: { body?: string }): string {
             <td style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:16px 18px;">
               <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:0.06em;">Pick your path</p>
               <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>1. Meme coin hunter</strong> — Go Hunting, Trending, Surge, then AI Agent</p>
-              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>2. Futures &amp; metals</strong> — Crypto Futures. VIP: NovaForecast / Nova Forex</p>
-              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>3. Wallet tracking</strong> — Wallet Tracker, CT Scan, Coach Calls</p>
-              <p style="margin:0;font-size:15px;color:#134e4a;"><strong>4. Prediction markets</strong> — Nova Polymarket</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>2. Crypto futures</strong> — Crypto Futures. VIP: NovaForecast</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>3. Forex trading</strong> — Nova Forex Agent (XAUUSD, FX, indices)</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>4. Wallet tracking</strong> — Wallet Tracker, CT Scan, Coach Calls</p>
+              <p style="margin:0;font-size:15px;color:#134e4a;"><strong>5. Prediction markets</strong> — Nova Polymarket</p>
             </td>
           </tr>
         </table>
