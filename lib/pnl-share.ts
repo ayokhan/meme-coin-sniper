@@ -8,6 +8,9 @@ export function buildAnalysisShareCaption(parts: {
   periodLabel: string;
   analysis: ClosedTradesAnalysis;
   showPnlDetails: boolean;
+  /** When set, caption ends with this invite link instead of generic /wins. */
+  shareUrl?: string | null;
+  referralCode?: string | null;
 }): string {
   const { analysis: a, periodLabel, showPnlDetails } = parts;
   const lines = [
@@ -20,7 +23,11 @@ export function buildAnalysisShareCaption(parts: {
     if (a.avgWinUsdt != null) lines.push(`Avg win: +${a.avgWinUsdt.toFixed(2)} USDT`);
     if (a.avgLossUsdt != null) lines.push(`Avg loss: ${a.avgLossUsdt.toFixed(2)} USDT`);
   }
-  lines.push("", "https://novastaris.ai/wins");
+  lines.push("");
+  if (parts.referralCode) {
+    lines.push(`Join with my code ${parts.referralCode}`);
+  }
+  lines.push(parts.shareUrl?.trim() || "https://novastaris.ai/wins");
   return lines.join("\n");
 }
 
@@ -34,6 +41,8 @@ export function buildPnlShareCaption(parts: {
   showAmountInvested?: boolean;
   heldFor?: string | null;
   showHoldDuration?: boolean;
+  shareUrl?: string | null;
+  referralCode?: string | null;
 }): string {
   const roi = `${parts.roiPct >= 0 ? "+" : ""}${parts.roiPct.toFixed(2)}%`;
   const invested =
@@ -50,7 +59,12 @@ export function buildPnlShareCaption(parts: {
   const held =
     parts.showHoldDuration && parts.heldFor ? ` · Held for ${parts.heldFor}` : "";
   const label = parts.kind === "open" ? "open position" : "closed trade";
-  return `${parts.symbol} ${label} ${roi}${invested}${usdt}${held} on NovaStaris AI\n\nhttps://novastaris.ai/wins`;
+  const lines = [`${parts.symbol} ${label} ${roi}${invested}${usdt}${held} on NovaStaris AI`, ""];
+  if (parts.referralCode) {
+    lines.push(`Join with my code ${parts.referralCode}`);
+  }
+  lines.push(parts.shareUrl?.trim() || "https://novastaris.ai/wins");
+  return lines.join("\n");
 }
 
 export function downloadBlob(blob: Blob, filename: string) {

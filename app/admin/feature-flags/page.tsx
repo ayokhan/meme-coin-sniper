@@ -653,6 +653,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, Nova Bot and Nova Forex show the optional “Card message” text field on share cards (e.g. ZaZa Smashed it). When OFF (default), the field is hidden for everyone.",
   },
+  pnl_share_show_referral: {
+    label: "PNL share — Referral code + QR",
+    description:
+      "When ON, share cards can include the user’s personal NovaStaris invite code and QR (Affiliate). Users can still uncheck “Include my invite” before sharing. When OFF, referral branding is hidden for everyone. Default ON.",
+  },
 };
 
 export default function AdminFeatureFlagsPage() {

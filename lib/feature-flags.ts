@@ -214,6 +214,8 @@ export const FEATURE_FLAG_KEYS = {
   PNL_SHARE_SHOW_LEVERAGE: 'pnl_share_show_leverage',
   /** Custom text on share cards (e.g. "ZaZa Smashed it"). Default OFF. */
   PNL_SHARE_CARD_MESSAGE: 'pnl_share_card_message',
+  /** Personal referral code + QR on PNL share cards. Default ON. */
+  PNL_SHARE_SHOW_REFERRAL: 'pnl_share_show_referral',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[keyof typeof FEATURE_FLAG_KEYS];

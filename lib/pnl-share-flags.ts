@@ -7,6 +7,8 @@ export type PnlShareFlags = {
   showHeldFor: boolean;
   showLeverage: boolean;
   cardMessage: boolean;
+  /** Include personal referral code + QR on share cards. Default ON. */
+  showReferral: boolean;
 };
 
 export const DEFAULT_PNL_SHARE_FLAGS: PnlShareFlags = {
@@ -15,6 +17,7 @@ export const DEFAULT_PNL_SHARE_FLAGS: PnlShareFlags = {
   showHeldFor: true,
   showLeverage: true,
   cardMessage: false,
+  showReferral: true,
 };
 
 export function pnlShareFlagsFromRecord(flags: Record<string, boolean> | null | undefined): PnlShareFlags {
@@ -25,5 +28,6 @@ export function pnlShareFlagsFromRecord(flags: Record<string, boolean> | null | 
     showHeldFor: flags[FEATURE_FLAG_KEYS.PNL_SHARE_SHOW_HELD_FOR] !== false,
     showLeverage: flags[FEATURE_FLAG_KEYS.PNL_SHARE_SHOW_LEVERAGE] !== false,
     cardMessage: flags[FEATURE_FLAG_KEYS.PNL_SHARE_CARD_MESSAGE] === true,
+    showReferral: flags[FEATURE_FLAG_KEYS.PNL_SHARE_SHOW_REFERRAL] !== false,
   };
 }

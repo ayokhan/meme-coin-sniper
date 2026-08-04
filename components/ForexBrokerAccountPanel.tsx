@@ -135,6 +135,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
           showHeldFor: data.pnlShare.showHeldFor !== false,
           showLeverage: data.pnlShare.showLeverage !== false,
           cardMessage: data.pnlShare.cardMessage === true,
+          showReferral: data.pnlShare.showReferral !== false,
         });
       })
       .catch(() => {});

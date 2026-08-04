@@ -352,6 +352,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           showHeldFor: data.pnlShare.showHeldFor !== false,
           showLeverage: data.pnlShare.showLeverage !== false,
           cardMessage: data.pnlShare.cardMessage === true,
+          showReferral: data.pnlShare.showReferral !== false,
         });
       })
       .catch(() => {});
