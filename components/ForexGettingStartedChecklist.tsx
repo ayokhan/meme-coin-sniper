@@ -20,7 +20,7 @@ const STEPS: Step[] = [
   { id: "broker", label: "Register / connect your broker" },
   {
     id: "rebate",
-    label: "Submit rebate details",
+    label: "Submit TIOmarkets rebate details ($2/lot USDC)",
     hash: "#forex-partner-rebate",
   },
   {

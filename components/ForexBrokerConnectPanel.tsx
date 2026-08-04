@@ -12,6 +12,7 @@ import {
   type ForexBrokerPlatform,
 } from "@/lib/forex-broker-user-config";
 import { suggestedServersForBroker } from "@/lib/forex-broker-servers";
+import { brokerOffersPartnerRebate } from "@/lib/forex-partner-rebates";
 import { ForexBrokerPartnerPromoBanner } from "@/components/ForexBrokerPartnerPromoBanner";
 import { ForexGettingStartedChecklist } from "@/components/ForexGettingStartedChecklist";
 import { ForexPartnerRebateEnrollForm } from "@/components/ForexPartnerRebateEnrollForm";
@@ -534,9 +535,11 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       <CardContent className="space-y-3">
         {brokerTabs.length > 0 && <ForexBrokerPartnerPromoBanner broker={activeBroker} compact />}
         {!compact && <ForexGettingStartedChecklist />}
-        {brokerTabs.length > 0 && isForexPartnerBrokerId(activeBroker) && (
-          <ForexPartnerRebateEnrollForm broker={activeBroker} />
-        )}
+        {brokerTabs.length > 0 &&
+          isForexPartnerBrokerId(activeBroker) &&
+          brokerOffersPartnerRebate(activeBroker) && (
+            <ForexPartnerRebateEnrollForm broker={activeBroker} />
+          )}
 
         {brokerTabs.length === 0 ? (
           <p className="text-sm text-amber-700 dark:text-amber-300">

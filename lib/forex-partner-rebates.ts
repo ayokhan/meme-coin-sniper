@@ -5,6 +5,18 @@ import type { ForexPartnerBrokerId } from "@/lib/forex-broker-user-config";
 export const REBATE_BROKERS = [...FOREX_PARTNER_BROKER_IDS, "other"] as const;
 export type RebateBrokerId = (typeof REBATE_BROKERS)[number];
 
+/**
+ * Brokers that run the NovaStaris customer $2/lot USDC rebate program.
+ * Other partners may still be connectable without a rebate offer.
+ */
+export const FOREX_REBATE_OFFER_BROKERS = ["tiomarkets"] as const;
+export type ForexRebateOfferBrokerId = (typeof FOREX_REBATE_OFFER_BROKERS)[number];
+
+export function brokerOffersPartnerRebate(broker: string | null | undefined): boolean {
+  if (!broker) return false;
+  return (FOREX_REBATE_OFFER_BROKERS as readonly string[]).includes(broker);
+}
+
 export const REBATE_REWARD_TYPES = [
   { value: "percent", label: "% of your IB commission" },
   { value: "usd", label: "Flat $ amount" },

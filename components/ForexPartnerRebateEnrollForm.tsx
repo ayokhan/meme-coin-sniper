@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
-  FOREX_PARTNER_BROKER_IDS,
   FOREX_BROKER_LABELS,
   type ForexPartnerBrokerId,
   isForexPartnerBrokerId,
@@ -13,6 +12,7 @@ import {
   DEFAULT_REBATE_REWARD_VALUE,
   formatRebateReward,
   shortenWallet,
+  brokerOffersPartnerRebate,
 } from "@/lib/forex-partner-rebates";
 
 type Enrollment = {
@@ -68,7 +68,8 @@ export function ForexPartnerRebateEnrollForm({ broker, className = "", defaultOp
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const partnerBroker: ForexPartnerBrokerId | null = isForexPartnerBrokerId(broker) ? broker : null;
+  const partnerBroker: ForexPartnerBrokerId | null =
+    isForexPartnerBrokerId(broker) && brokerOffersPartnerRebate(broker) ? broker : null;
   const brokerLabel = partnerBroker ? FOREX_BROKER_LABELS[partnerBroker] : broker;
 
   const loadStatus = useCallback(async () => {
@@ -123,7 +124,9 @@ export function ForexPartnerRebateEnrollForm({ broker, className = "", defaultOp
     }
   }, [status, session?.user?.name, session?.user?.email, customerName, customerEmail]);
 
-  if (!partnerBroker || !FOREX_PARTNER_BROKER_IDS.includes(partnerBroker)) return null;
+  if (!partnerBroker) {
+    return null;
+  }
 
   const save = async () => {
     setBusy(true);

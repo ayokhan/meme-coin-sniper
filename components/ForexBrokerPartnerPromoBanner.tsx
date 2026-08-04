@@ -7,6 +7,7 @@ import {
   type ForexBrokerId,
   type ForexPartnerBrokerId,
 } from "@/lib/forex-broker-user-config";
+import { brokerOffersPartnerRebate } from "@/lib/forex-partner-rebates";
 import { PartnerLogosStrip } from "@/components/PartnerLogosStrip";
 
 type PromoView = {
@@ -28,25 +29,48 @@ type Props = {
 
 export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact = false, preview = null }: Props) {
   const [fetchedPromo, setFetchedPromo] = useState<PromoView | null>(null);
+  const [loading, setLoading] = useState(false);
   const promo = preview ?? fetchedPromo;
   const partnerBroker: ForexPartnerBrokerId | null = isForexPartnerBrokerId(broker) ? broker : null;
+  const hasRebate = partnerBroker != null && brokerOffersPartnerRebate(partnerBroker);
 
   useEffect(() => {
-    if (preview || !partnerBroker) return;
+    if (preview || !partnerBroker) {
+      setFetchedPromo(null);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
+    // Clear immediately so Vantage never keeps showing TIO copy (and vice versa).
+    setFetchedPromo(null);
+    setLoading(true);
     fetch(`/api/forex-broker-partner-promo?broker=${partnerBroker}`, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
-        if (!cancelled && data.success && data.promo?.active) setFetchedPromo(data.promo);
+        if (cancelled) return;
+        if (data.success && data.promo?.active) setFetchedPromo(data.promo);
+        else setFetchedPromo(null);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setFetchedPromo(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
   }, [preview, partnerBroker]);
 
   if (!partnerBroker) return null;
-  if (!promo?.active && !preview) return null;
+  if (preview) {
+    /* keep preview path below */
+  } else if (loading) {
+    return null;
+  } else if (!promo?.active) {
+    return null;
+  }
+
   if (!preview && !promo) return null;
 
   const view = promo!;
@@ -79,12 +103,14 @@ export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact 
             >
               {view.ctaLabel}
             </a>
-            <a
-              href="#forex-partner-rebate"
-              className="inline-flex items-center justify-center rounded-md border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 text-xs font-semibold px-3 py-2 transition-colors"
-            >
-              Submit $2/lot rebate details
-            </a>
+            {hasRebate && (
+              <a
+                href="#forex-partner-rebate"
+                className="inline-flex items-center justify-center rounded-md border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 text-xs font-semibold px-3 py-2 transition-colors"
+              >
+                Submit $2/lot rebate details
+              </a>
+            )}
           </div>
         )}
         {preview && (
@@ -92,9 +118,14 @@ export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact 
             {view.ctaLabel}
           </span>
         )}
-        {compact && (
+        {compact && hasRebate && (
           <p className="text-[11px] text-zinc-500">
             Register first, connect MT4/MT5 below, then submit rebate details for $2 USDC per lot.
+          </p>
+        )}
+        {compact && !hasRebate && (
+          <p className="text-[11px] text-zinc-500">
+            Register through NovaStaris (if linked), then connect MT4/MT5 below. No lot rebate on this broker.
           </p>
         )}
       </div>

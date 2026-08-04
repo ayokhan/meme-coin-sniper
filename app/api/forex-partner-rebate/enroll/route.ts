@@ -10,6 +10,7 @@ import {
   isValidRebateEmail,
   isValidSolanaUsdcWallet,
   rebateBrokerLabel,
+  brokerOffersPartnerRebate,
 } from "@/lib/forex-partner-rebates";
 
 export const dynamic = "force-dynamic";
@@ -86,6 +87,15 @@ export async function POST(request: Request) {
 
   if (!isRebatePartnerBrokerId(body.broker)) {
     return NextResponse.json({ success: false, error: "Select a partner broker." }, { status: 400 });
+  }
+  if (!brokerOffersPartnerRebate(String(body.broker))) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "No lot rebate is offered for this broker. Use TIOmarkets for the $2/lot USDC rebate.",
+      },
+      { status: 400 }
+    );
   }
 
   const customerName = String(body.customerName ?? "").trim().slice(0, 120);
