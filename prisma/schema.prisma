@@ -691,6 +691,10 @@ model Subscription {
   stripeSubscriptionId String? @unique // Stripe Subscription id when auto-renew is enabled
   autoRenew         Boolean  @default(false)
   cancelAtPeriodEnd Boolean  @default(false)
+  /** Soft “VIP ends soon” email — send once ~3 days before expiry. */
+  expiryPreEmailSentAt  DateTime?
+  /** Soft “VIP ended” win-back email — send once shortly after expiry. */
+  expiryPostEmailSentAt DateTime?
   createdAt         DateTime @default(now())
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   referralCommission ReferralCommission?
