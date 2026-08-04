@@ -534,7 +534,7 @@ export default function ForexBrokerConnectPanel({ onChange, compact = false }: P
       </CardHeader>
       <CardContent className="space-y-3">
         {brokerTabs.length > 0 && <ForexBrokerPartnerPromoBanner broker={activeBroker} compact />}
-        {!compact && <ForexGettingStartedChecklist />}
+        {!compact && <ForexGettingStartedChecklist activeBroker={activeBroker} />}
         {brokerTabs.length > 0 &&
           isForexPartnerBrokerId(activeBroker) &&
           brokerOffersPartnerRebate(activeBroker) && (

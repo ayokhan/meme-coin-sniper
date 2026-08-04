@@ -87,7 +87,7 @@ export function ForexBrokerPartnerPromoBanner({ broker, className = "", compact 
             <p className="text-sm font-semibold text-zinc-100">{view.headline}</p>
             {!compact && <p className="text-xs text-zinc-400 mt-1 max-w-prose">{view.bodyText}</p>}
           </div>
-          {view.promoLabel && (
+          {view.promoLabel && hasRebate && (
             <span className="shrink-0 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
               {view.promoLabel}
             </span>

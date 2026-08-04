@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, Circle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { ForexBrokerId } from "@/lib/forex-broker-user-config";
+import { brokerOffersPartnerRebate } from "@/lib/forex-partner-rebates";
 
 const STORAGE_KEY = "novastaris-forex-checklist-v1";
 
@@ -16,21 +18,12 @@ type Step = {
   hash?: string;
 };
 
-const STEPS: Step[] = [
-  { id: "broker", label: "Register / connect your broker" },
-  {
-    id: "rebate",
-    label: "Submit TIOmarkets rebate details ($2/lot USDC)",
-    hash: "#forex-partner-rebate",
-  },
-  {
-    id: "affiliate",
-    label: "Get your affiliate link",
-    href: "/affiliate",
-  },
-];
+type Props = {
+  /** Active broker tab — rebate step only on TIOmarkets (or other rebate partners). */
+  activeBroker?: ForexBrokerId | null;
+};
 
-export function ForexGettingStartedChecklist() {
+export function ForexGettingStartedChecklist({ activeBroker = null }: Props) {
   const [dismissed, setDismissed] = useState(true);
   const [done, setDone] = useState<Record<StepId, boolean>>({
     broker: false,
@@ -38,6 +31,25 @@ export function ForexGettingStartedChecklist() {
     affiliate: false,
   });
   const [manual, setManual] = useState<Partial<Record<StepId, boolean>>>({});
+
+  const showRebateStep = brokerOffersPartnerRebate(activeBroker);
+
+  const steps = useMemo((): Step[] => {
+    const list: Step[] = [{ id: "broker", label: "Register / connect your broker" }];
+    if (showRebateStep) {
+      list.push({
+        id: "rebate",
+        label: "Submit TIOmarkets rebate details ($2/lot USDC)",
+        hash: "#forex-partner-rebate",
+      });
+    }
+    list.push({
+      id: "affiliate",
+      label: "Get your affiliate link",
+      href: "/affiliate",
+    });
+    return list;
+  }, [showRebateStep]);
 
   useEffect(() => {
     try {
@@ -54,20 +66,34 @@ export function ForexGettingStartedChecklist() {
   const loadProgress = useCallback(async () => {
     const next: Record<StepId, boolean> = { broker: false, rebate: false, affiliate: false };
     try {
-      const [brokerRes, rebateRes, affiliateRes] = await Promise.all([
+      const fetches: Promise<Response>[] = [
         fetch("/api/user/forex-broker-config", { credentials: "include", cache: "no-store" }),
-        fetch("/api/forex-partner-rebate/status", { credentials: "include", cache: "no-store" }),
         fetch("/api/affiliate", { credentials: "include", cache: "no-store" }),
-      ]);
-      if (brokerRes.ok) {
-        const data = await brokerRes.json();
-        next.broker = Array.isArray(data.connections) && data.connections.some((c: { connected?: boolean }) => c.connected);
+      ];
+      if (showRebateStep) {
+        fetches.splice(
+          1,
+          0,
+          fetch("/api/forex-partner-rebate/status", { credentials: "include", cache: "no-store" })
+        );
       }
-      if (rebateRes.ok) {
+      const results = await Promise.all(fetches);
+      const brokerRes = results[0];
+      const rebateRes = showRebateStep ? results[1] : null;
+      const affiliateRes = showRebateStep ? results[2] : results[1];
+
+      if (brokerRes?.ok) {
+        const data = await brokerRes.json();
+        next.broker =
+          Array.isArray(data.connections) && data.connections.some((c: { connected?: boolean }) => c.connected);
+      }
+      if (rebateRes?.ok) {
         const data = await rebateRes.json();
         next.rebate = !!data.enrolled || (Array.isArray(data.enrollments) && data.enrollments.length > 0);
+      } else {
+        next.rebate = true; // not applicable
       }
-      if (affiliateRes.ok) {
+      if (affiliateRes?.ok) {
         const data = await affiliateRes.json();
         next.affiliate = !!data.referralLink || !!data.referralCode;
       }
@@ -75,7 +101,7 @@ export function ForexGettingStartedChecklist() {
       /* ignore — fall back to manual checks */
     }
     setDone(next);
-  }, []);
+  }, [showRebateStep]);
 
   useEffect(() => {
     if (dismissed) return;
@@ -94,8 +120,12 @@ export function ForexGettingStartedChecklist() {
   if (dismissed) return null;
 
   const isDone = (id: StepId) => !!(done[id] || manual[id]);
-  const completedCount = STEPS.filter((s) => isDone(s.id)).length;
-  if (completedCount === STEPS.length) return null;
+  const completedCount = steps.filter((s) => isDone(s.id)).length;
+  if (completedCount === steps.length) return null;
+
+  const blurb = showRebateStep
+    ? "Connect a broker, enroll for the TIOmarkets $2/lot rebate, then share your affiliate link."
+    : "Connect your broker, then share your affiliate link. Lot rebates apply on TIOmarkets only.";
 
   return (
     <div className="rounded-lg border border-teal-500/30 bg-teal-500/5 dark:bg-teal-950/20 p-3 space-y-2">
@@ -103,7 +133,7 @@ export function ForexGettingStartedChecklist() {
         <div>
           <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Getting started</p>
           <p className="text-[11px] text-muted-foreground">
-            {completedCount}/{STEPS.length} complete — connect, enroll for rebates, then share your affiliate link.
+            {completedCount}/{steps.length} complete — {blurb}
           </p>
         </div>
         <Button type="button" size="sm" variant="ghost" className="h-7 w-7 p-0 shrink-0" onClick={dismiss} aria-label="Dismiss checklist">
@@ -111,7 +141,7 @@ export function ForexGettingStartedChecklist() {
         </Button>
       </div>
       <ul className="space-y-1.5">
-        {STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           const checked = isDone(step.id);
           const content = (
             <span className="flex items-center gap-2 text-xs">
