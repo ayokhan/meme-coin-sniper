@@ -120,7 +120,7 @@ How to get started:
 2. Tap "Register on Vantage Markets" in the partnership banner—or use the link above.
 3. After your Vantage account is ready, connect your MT4/MT5 login in NovaStaris and start trading.
 
-Questions? Reply to this email or use Need Help in the app.
+Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 https://novastaris.ai`,
@@ -140,7 +140,7 @@ How to get started:
 2. Tap "Register on TIOmarkets" in the partnership banner—or use the link above.
 3. After your TIOmarkets account is ready, connect your MT4/MT5 login in NovaStaris and start trading.
 
-Questions? Reply to this email or use Need Help in the app.
+Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 https://novastaris.ai`,
@@ -160,7 +160,7 @@ How to get started:
 2. Tap "Register on Assexmarkets" in the partnership banner—or use the link above.
 3. After your Assexmarkets account is ready, connect your MT4/MT5 login in NovaStaris and start trading.
 
-Questions? Reply to this email or use Need Help in the app.
+Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 https://novastaris.ai`,
@@ -197,7 +197,7 @@ Tips
 • Use the exact symbol name your broker lists
 • Start in demo mode if you want to test first
 
-Questions? Reply to this email or use Need Help in the app.
+Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 https://novastaris.ai`,
@@ -227,7 +227,7 @@ Tips
 • You can update your wallet anytime before payout
 • Register through NovaStaris so your account is linked to this offer
 
-Questions? Reply to this email or use Need Help in the app.
+Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 https://novastaris.ai`,

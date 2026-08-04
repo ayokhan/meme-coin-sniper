@@ -16,7 +16,7 @@ Do those two tabs once. That’s enough for today.
 
 Need the map again? ${APP}/start-here
 
-Stuck? Reply to this email or use Chat / Support in the app.
+Stuck? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 ${APP}`,
@@ -40,7 +40,7 @@ VIP desks (NovaForecast, NovaRadar) unlock with VIP when you’re ready.
 
 Need the map again? ${APP}/start-here
 
-Stuck? Reply to this email or use Chat / Support in the app.
+Stuck? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 ${APP}`,
@@ -64,7 +64,7 @@ Want automated execution later? Focus → Bots → Nova Forex Bots (MT4/MT5 + pa
 
 Need the map again? ${APP}/start-here
 
-Stuck? Reply to this email or use Chat / Support in the app.
+Stuck? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 ${APP}`,
@@ -88,7 +88,7 @@ CT Scan and Coach Calls sit next to this path when you want more signal.
 
 Need the map again? ${APP}/start-here
 
-Stuck? Reply to this email or use Chat / Support in the app.
+Stuck? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 ${APP}`,
@@ -110,7 +110,7 @@ One pass is enough for today.
 
 Need the map again? ${APP}/start-here
 
-Stuck? Reply to this email or use Chat / Support in the app.
+Stuck? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 ${APP}`,

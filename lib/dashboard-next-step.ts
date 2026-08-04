@@ -19,29 +19,36 @@ export function getNextStepForPath(path: DashboardPath | null): NextStepConfig |
   switch (path) {
     case "meme":
       return {
-        title: "Next step: run your first AI analysis",
-        description: "Paste a Solana contract on the AI Agent tab to see NovaStaris score a token.",
+        title: "Do this first: run AI analysis",
+        description: "From Go Hunting, pick a pair — or paste a Solana contract on AI Agent.",
         ctaLabel: "Open AI Agent",
         action: { type: "tab", tab: "ai-analysis" },
       };
     case "futures":
       return {
-        title: "Next step: open Institutional Workflow",
-        description: "Set macro bias and rules before you trade futures.",
+        title: "Do this first: open Institutional Workflow",
+        description: "Set macro bias and rules, or upload one chart for AI framing.",
         ctaLabel: "Open workflow",
         action: { type: "futures-workflow", tab: "futures" },
       };
+    case "forex":
+      return {
+        title: "Do this first: run NovaQ on gold",
+        description: "Open Nova Forex, refresh Market Watch, then NovaQ on XAUUSD.",
+        ctaLabel: "Open Nova Forex",
+        action: { type: "tab", tab: "nova-forex" },
+      };
     case "wallet-tracking":
       return {
-        title: "Next step: open Wallet Tracker",
-        description: "See coordinated buys and add wallets you want to follow.",
+        title: "Do this first: open Wallet Tracker",
+        description: "Review Top Leverage Traders or add a wallet you want to follow.",
         ctaLabel: "Open Wallet Tracker",
         action: { type: "tab", tab: "wallets" },
       };
     case "polymarket":
       return {
-        title: "Next step: open Nova Polymarket",
-        description: "Run on-demand prediction market workflows.",
+        title: "Do this first: open Nova Polymarket",
+        description: "Explore wallet intelligence on one prediction market.",
         ctaLabel: "Open Polymarket",
         action: { type: "tab", tab: "polymarket-bot" },
       };

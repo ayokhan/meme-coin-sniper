@@ -20,7 +20,7 @@ Open Start here for a guide of every major tab:
 https://novastaris.ai/start-here
 
 Stuck?
-Use Chat or Support in the top menu, or reply to this email. We're happy to point you to the right tab.
+Use Chat or Support in the top menu at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 https://novastaris.ai`,

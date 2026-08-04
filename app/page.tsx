@@ -81,6 +81,8 @@ import DashboardPathHintBanner from "@/components/DashboardPathHintBanner";
 import { DashboardOverlayProvider } from "@/components/DashboardOverlayProvider";
 import { DashboardPathPickerOverlay, FuturesOnboardingOverlay } from "@/components/DashboardOverlayModals";
 import DashboardNextStepBanner, { markNextStepDoneForTab } from "@/components/DashboardNextStepBanner";
+import PathFirstActionBanner from "@/components/PathFirstActionBanner";
+import VipSoftPitchPanel from "@/components/VipSoftPitchPanel";
 import PublicStatusStrip from "@/components/PublicStatusStrip";
 import DashboardPaywallHelp from "@/components/DashboardPaywallHelp";
 import type { NextStepAction } from "@/lib/dashboard-next-step";
@@ -4258,6 +4260,13 @@ export default function Dashboard() {
             onChangePath={() => setPathPickerOpen(true)}
           />
         )}
+        {mounted && (
+          <DashboardNextStepBanner
+            path={dashboardPath}
+            hidden={!onboardingDismissed && !dashboardPath}
+            onAction={handleNextStepAction}
+          />
+        )}
         {showSitePromo && sitePromo && (
           <PromoBannerDisplay
             promo={sitePromo}
@@ -4703,21 +4712,30 @@ export default function Dashboard() {
                     <GuestAuthActions registerHref="/register" signInHref="/signin" />
                     <DashboardPaywallHelp />
                   </>
-                ) : (
+                ) : onDemandLocked ? (
                   <>
                     <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
                       <Link
                         href={
-                          onDemandLocked
-                            ? activeTab === "ct"
-                              ? "/support?subject=CT%20Scan%20access%20request"
-                              : "/support?subject=Mem%20Coins%20Trader%20access%20request"
-                            : "/subscribe"
+                          activeTab === "ct"
+                            ? "/support?subject=CT%20Scan%20access%20request"
+                            : "/support?subject=Mem%20Coins%20Trader%20access%20request"
                         }
                       >
-                        {onDemandLocked ? "Contact for access" : VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner ? "Upgrade to VIP" : "Subscribe to VIP"}
+                        Contact for access
                       </Link>
                     </Button>
+                    <DashboardPaywallHelp />
+                  </>
+                ) : (
+                  <>
+                    <VipSoftPitchPanel
+                      tabLabel={
+                        VIP_ONLY_TABS.includes(activeTab) || PAID_TABS.includes(activeTab)
+                          ? String(activeTab).replace(/-/g, " ")
+                          : undefined
+                      }
+                    />
                     <DashboardPaywallHelp />
                   </>
                 )}
@@ -4815,7 +4833,9 @@ export default function Dashboard() {
               </div>
             )}
             {activeTab === "new" && (
-              <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+              <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 space-y-3">
+                <PathFirstActionBanner tab="new" />
+                <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("common.view")}</span>
                   <div className="flex flex-wrap items-center gap-2">
@@ -4848,6 +4868,7 @@ export default function Dashboard() {
                     <button type="button" onClick={() => setActiveTab("surge")} className="underline font-medium">Surge</button> for broader lists.
                   </p>
                 )}
+                </div>
               </div>
             )}
             {activeTab === "bsc" && (
@@ -6368,6 +6389,7 @@ export default function Dashboard() {
               <NovaMemeIntelligencePanel />
             ) : activeTab === "futures" ? (
               <div className="mx-3 sm:mx-6 py-6 sm:py-8">
+                <PathFirstActionBanner tab="futures" className="mb-4" />
                 <div className="flex flex-wrap items-center gap-2 mb-6">
                   <Button
                     variant={futuresView === "workflow" ? "default" : "outline"}
@@ -7769,6 +7791,7 @@ export default function Dashboard() {
               })()
             ) : activeTab === "polymarket-bot" ? (
               <div className="mx-3 sm:mx-6 mb-6 sm:mb-8">
+                <PathFirstActionBanner tab="polymarket-bot" className="mb-4" />
                 <TradingBotPanel mode="polymarket-only" />
               </div>
             ) : activeTab === "prop-firm-bot" ? (
@@ -8336,6 +8359,7 @@ export default function Dashboard() {
               </div>
             ) : activeTab === "nova-forex" ? (
               <div className="mx-6 py-6">
+                <PathFirstActionBanner tab="nova-forex" className="mb-4" />
                 <NovaForexAgentPanel
                   enabled={!!vipFuturesAddons?.novaForexAgent}
                   isVip={isVip || isOwner}
@@ -8740,6 +8764,7 @@ export default function Dashboard() {
               <CoachCallsPanel isOwner={isOwner} isCoachUser={isCoachUser} isVip={isVip} />
             ) : activeTab === "wallets" ? (
               <div className="px-3 sm:px-6 pt-2 space-y-6">
+                <PathFirstActionBanner tab="wallets" />
                 <Tabs value={walletTrackerView} onValueChange={(v) => setWalletTrackerView(v as WalletTrackerView)} className="space-y-4">
                   {(() => {
                     const showMemeCoinsTraders = pageTabFlags?.page_tab_meme_coins_traders ?? true;

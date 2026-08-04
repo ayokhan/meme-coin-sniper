@@ -20,7 +20,7 @@ https://novastaris.ai/subscribe
 Still exploring free tools? That’s fine — Start here anytime:
 https://novastaris.ai/start-here
 
-Questions? Reply to this email or use Chat / Support in the app.
+Questions? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 https://novastaris.ai`,

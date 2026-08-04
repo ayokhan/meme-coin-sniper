@@ -5,6 +5,7 @@ import { applyReferralOnSignup } from '@/lib/referral-commission';
 import { normalizeReferralCode } from '@/lib/referral-program';
 import { readReferralCodeFromCookies } from '@/lib/referral-cookie-server';
 import { geoFromRequest } from '@/lib/login-events';
+import { sendWelcomeEmailToUser } from '@/lib/send-welcome-email';
 
 export async function POST(request: Request) {
   try {
@@ -59,6 +60,9 @@ export async function POST(request: Request) {
     if (referralCode) {
       await applyReferralOnSignup(created.id, referralCode);
     }
+
+    // Auto welcome; never block signup if mail fails
+    void sendWelcomeEmailToUser(created.email);
 
     return NextResponse.json({ success: true, message: 'Account created. You can sign in.' });
   } catch (e) {

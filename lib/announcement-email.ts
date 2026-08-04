@@ -25,6 +25,12 @@ export type AnnouncementEmailStats = {
   allEmails: string[];
   /** Users with email registered in the last 30 days (newest first). */
   recentRegistrants: RecentRegistrant[];
+  freeEmails: string[];
+  vipEmails: string[];
+  inactive7dEmails: string[];
+  freeCount: number;
+  vipCount: number;
+  inactive7dCount: number;
 };
 
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
@@ -290,7 +296,7 @@ export function buildWelcomeEmailHtml(args?: { body?: string }): string {
         ${pathsBlock}
         ${ctaButtonHtml("Open Start here", START_HERE_URL)}
         <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
-          Stuck? Use Chat or Support in the app, or reply to this email.<br />
+          Stuck? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.<br />
           Or open <a href="${START_HERE_URL}" style="color:#0d9488;">novastaris.ai/start-here</a>
         </p>
       </td>
@@ -463,6 +469,7 @@ function normalizeEmail(email: string): string | null {
 }
 
 type UserEmailRow = {
+  id: string;
   email: string | null;
   name: string | null;
   newsletterOptIn: boolean;
@@ -475,14 +482,14 @@ async function fetchUserEmails(): Promise<UserEmailRow[]> {
       user: {
         findMany: (args: {
           where: { email: { not: null } };
-          select: { email: true; name: true; newsletterOptIn: true; createdAt: true };
+          select: { id: true; email: true; name: true; newsletterOptIn: true; createdAt: true };
           orderBy: { createdAt: "desc" };
         }) => Promise<UserEmailRow[]>;
       };
     }
   ).user.findMany({
     where: { email: { not: null } },
-    select: { email: true, name: true, newsletterOptIn: true, createdAt: true },
+    select: { id: true, email: true, name: true, newsletterOptIn: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -490,17 +497,27 @@ async function fetchUserEmails(): Promise<UserEmailRow[]> {
 export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStats> {
   const users = await fetchUserEmails();
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const inactiveCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const now = new Date();
 
   const allEmails: string[] = [];
   const newsletterEmails: string[] = [];
   const recentRegistrants: RecentRegistrant[] = [];
+  const freeEmails: string[] = [];
+  const vipEmails: string[] = [];
+  const inactive7dEmails: string[] = [];
   const allSet = new Set<string>();
   const newsletterSet = new Set<string>();
   const recentSet = new Set<string>();
+  const freeSet = new Set<string>();
+  const vipSet = new Set<string>();
+  const inactiveSet = new Set<string>();
 
+  const userIdByEmail = new Map<string, string>();
   for (const u of users) {
     const email = normalizeEmail(u.email ?? "");
     if (!email) continue;
+    userIdByEmail.set(email, u.id);
     if (!allSet.has(email)) {
       allSet.add(email);
       allEmails.push(email);
@@ -521,9 +538,79 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
     }
   }
 
+  // Active VIP: subscription with expiresAt > now (or no expires if present as legacy active)
+  let vipUserIds = new Set<string>();
+  try {
+    const subs = await (
+      prisma as unknown as {
+        subscription: {
+          findMany: (args: unknown) => Promise<Array<{ userId: string; expiresAt: Date | null }>>;
+        };
+      }
+    ).subscription.findMany({
+      where: {
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { userId: true, expiresAt: true },
+    });
+    vipUserIds = new Set(subs.map((s) => s.userId));
+  } catch {
+    /* optional */
+  }
+
+  // Last login per user
+  const lastLoginByUser = new Map<string, number>();
+  try {
+    const logins = await (
+      prisma as unknown as {
+        loginEvent: {
+          findMany: (args: unknown) => Promise<Array<{ userId: string; createdAt: Date }>>;
+        };
+      }
+    ).loginEvent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5000,
+      select: { userId: true, createdAt: true },
+    });
+    for (const row of logins) {
+      if (lastLoginByUser.has(row.userId)) continue;
+      lastLoginByUser.set(
+        row.userId,
+        row.createdAt instanceof Date ? row.createdAt.getTime() : new Date(row.createdAt).getTime()
+      );
+    }
+  } catch {
+    /* optional */
+  }
+
+  for (const u of users) {
+    const email = normalizeEmail(u.email ?? "");
+    if (!email) continue;
+    const isVip = vipUserIds.has(u.id);
+    if (isVip) {
+      if (!vipSet.has(email)) {
+        vipSet.add(email);
+        vipEmails.push(email);
+      }
+    } else if (!freeSet.has(email)) {
+      freeSet.add(email);
+      freeEmails.push(email);
+    }
+
+    const lastLogin = lastLoginByUser.get(u.id);
+    const createdMs = u.createdAt instanceof Date ? u.createdAt.getTime() : new Date(u.createdAt).getTime();
+    const lastActive = lastLogin ?? createdMs;
+    if (lastActive < inactiveCutoff && !inactiveSet.has(email)) {
+      inactiveSet.add(email);
+      inactive7dEmails.push(email);
+    }
+  }
+
   allEmails.sort();
   newsletterEmails.sort();
-  // recentRegistrants already newest-first from query order
+  freeEmails.sort();
+  vipEmails.sort();
+  inactive7dEmails.sort();
 
   return {
     newsletterCount: newsletterEmails.length,
@@ -531,6 +618,12 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
     newsletterEmails,
     allEmails,
     recentRegistrants,
+    freeEmails,
+    vipEmails,
+    inactive7dEmails,
+    freeCount: freeEmails.length,
+    vipCount: vipEmails.length,
+    inactive7dCount: inactive7dEmails.length,
   };
 }
 

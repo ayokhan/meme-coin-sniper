@@ -201,9 +201,63 @@ export async function GET(
       });
     }
 
+    // Logins
+    try {
+      const logins = await (
+        prisma as unknown as {
+          loginEvent: {
+            findMany: (args: unknown) => Promise<Array<Record<string, unknown>>>;
+          };
+        }
+      ).loginEvent.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 25,
+      });
+      for (const row of logins) {
+        const at = toIso(row.createdAt);
+        if (!at) continue;
+        const place = [row.city, row.country].filter(Boolean).join(", ");
+        events.push({
+          at,
+          type: "login",
+          label: `Signed in · ${String(row.provider ?? "auth")}`,
+          detail: [place, row.deviceType, row.browser].filter(Boolean).join(" · ") || undefined,
+        });
+      }
+    } catch {
+      /* optional */
+    }
+
+    // AI / usage analysis
+    try {
+      const usage = await (
+        prisma as unknown as {
+          usageAnalysisEvent: {
+            findMany: (args: unknown) => Promise<Array<Record<string, unknown>>>;
+          };
+        }
+      ).usageAnalysisEvent.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      });
+      for (const row of usage) {
+        const at = toIso(row.createdAt);
+        if (!at) continue;
+        events.push({
+          at,
+          type: "usage_analysis",
+          label: `AI usage · ${String(row.source ?? "analysis")}`,
+        });
+      }
+    } catch {
+      /* optional */
+    }
+
     events.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 
-    return NextResponse.json({ success: true, events: events.slice(0, 100) });
+    return NextResponse.json({ success: true, events: events.slice(0, 120) });
   } catch (e) {
     console.error("admin customer timeline GET:", e);
     return NextResponse.json({ success: false, error: "Failed to load timeline." }, { status: 500 });

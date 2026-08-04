@@ -1,6 +1,6 @@
 /** User-chosen focus path + shared onboarding storage keys. */
 
-export type DashboardPath = "meme" | "futures" | "wallet-tracking" | "polymarket" | "all";
+export type DashboardPath = "meme" | "futures" | "forex" | "wallet-tracking" | "polymarket" | "all";
 
 export const DASHBOARD_PATH_KEY = "novastaris-dashboard-path-v1";
 export const ONBOARDING_DISMISSED_KEY = "novastaris_onboarding_dismissed";
@@ -33,9 +33,15 @@ export const DASHBOARD_PATH_OPTIONS: Array<{
   },
   {
     id: "futures",
-    title: "Futures & metals trader",
-    description: "VIP: NovaForecast, NovaRadar, Nova Forex, addons. Markets: Crypto Futures chart AI.",
+    title: "Crypto futures trader",
+    description: "Crypto Futures chart AI + VIP NovaForecast / NovaRadar.",
     emoji: "📈",
+  },
+  {
+    id: "forex",
+    title: "Forex & metals trader",
+    description: "VIP: Nova Forex Agent Market Watch — XAUUSD, FX, indices.",
+    emoji: "💱",
   },
   {
     id: "wallet-tracking",
@@ -65,6 +71,7 @@ export function loadDashboardPath(): DashboardPath | null {
     if (
       v === "meme" ||
       v === "futures" ||
+      v === "forex" ||
       v === "wallet-tracking" ||
       v === "polymarket" ||
       v === "all"
@@ -99,7 +106,7 @@ export function applyDashboardPath(
     case "meme":
       return { filter: "core", tab: "new" };
     case "futures":
-      // Most futures power tools (NovaRadar, NovaForecast, Forex, addons) are VIP tabs.
+      // Most futures power tools (NovaRadar, NovaForecast, addons) are VIP tabs.
       if (isVip) {
         return {
           filter: "vip",
@@ -112,6 +119,8 @@ export function applyDashboardPath(
         tab: "futures",
         futuresView: "workflow",
       };
+    case "forex":
+      return { filter: "vip", tab: "nova-forex" };
     case "wallet-tracking":
       return { filter: "vip", tab: "wallets" };
     case "polymarket":
@@ -127,7 +136,9 @@ export function pathDisplayLabel(path: DashboardPath): string {
     case "meme":
       return "Meme";
     case "futures":
-      return "Futures";
+      return "Crypto futures";
+    case "forex":
+      return "Forex";
     case "wallet-tracking":
       return "Wallet tracking";
     case "polymarket":
@@ -147,7 +158,9 @@ export function pathHintCopy(path: DashboardPath | null): string {
     case "meme":
       return "Your path: Meme hunter — start with Go Hunting or Trending, then run AI analysis on a contract.";
     case "futures":
-      return "Your path: Futures — VIP filter shows NovaForecast/NovaRadar, Forex, addons, and Crypto Futures chart AI.";
+      return "Your path: Crypto futures — chart AI on Crypto Futures; VIP unlocks NovaForecast / NovaRadar.";
+    case "forex":
+      return "Your path: Forex — open Nova Forex Agent, refresh Market Watch, run NovaQ on XAUUSD.";
     case "wallet-tracking":
       return "Your path: Wallet tracking — use Wallet Tracker and CT Scan; enable alerts in your account settings.";
     case "polymarket":
@@ -155,7 +168,7 @@ export function pathHintCopy(path: DashboardPath | null): string {
     case "all":
       return "Showing all tools. Use Core / Markets / VIP / Bots filters above to focus.";
     default:
-      return "New here? Pick a focus path (Meme, Futures, Wallet tracking, or Prediction markets) to reduce tab clutter.";
+      return "New here? Pick a focus path (Meme, Futures, Forex, Wallets, or Polymarket) to reduce tab clutter.";
   }
 }
 

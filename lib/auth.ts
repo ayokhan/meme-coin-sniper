@@ -216,6 +216,9 @@ async function upsertGoogleUser(params: { email: string; name?: string | null; i
         image: params.image ?? undefined,
       },
     });
+    void import('@/lib/send-welcome-email').then(({ sendWelcomeEmailToUser }) =>
+      sendWelcomeEmailToUser(email)
+    );
   } else {
     const shouldUpdateName = !user.name && !!params.name;
     const shouldUpdateImage = !user.image && !!params.image;

@@ -28,6 +28,12 @@ type EmailStats = {
   newsletterEmails: string[];
   allEmails: string[];
   recentRegistrants: RecentRegistrant[];
+  freeEmails?: string[];
+  vipEmails?: string[];
+  inactive7dEmails?: string[];
+  freeCount?: number;
+  vipCount?: number;
+  inactive7dCount?: number;
 };
 
 type CampaignRow = {
@@ -43,7 +49,7 @@ type CampaignRow = {
   createdAt: string;
 };
 
-type AudienceMode = "newsletter" | "all" | "new";
+type AudienceMode = "newsletter" | "all" | "new" | "free" | "vip" | "inactive7d";
 
 type Props = {
   onNotice?: (msg: string) => void;
@@ -100,6 +106,9 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         setStats({
           ...s,
           recentRegistrants: Array.isArray(s.recentRegistrants) ? s.recentRegistrants : [],
+          freeEmails: Array.isArray(s.freeEmails) ? s.freeEmails : [],
+          vipEmails: Array.isArray(s.vipEmails) ? s.vipEmails : [],
+          inactive7dEmails: Array.isArray(s.inactive7dEmails) ? s.inactive7dEmails : [],
         });
         setCampaigns(Array.isArray(data.campaigns) ? (data.campaigns as CampaignRow[]) : []);
       } else {
@@ -147,10 +156,19 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     }
   }, [searchParams, applyPreset]);
 
-  // Sync recipients for newsletter / all audiences
+  // Sync recipients for list audiences (not checkbox “new”)
   useEffect(() => {
     if (!stats || draft.audience === "new") return;
-    const list = draft.audience === "newsletter" ? stats.newsletterEmails : stats.allEmails;
+    const list =
+      draft.audience === "newsletter"
+        ? stats.newsletterEmails
+        : draft.audience === "free"
+          ? stats.freeEmails ?? []
+          : draft.audience === "vip"
+            ? stats.vipEmails ?? []
+            : draft.audience === "inactive7d"
+              ? stats.inactive7dEmails ?? []
+              : stats.allEmails;
     setRecipients([...list]);
   }, [draft.audience, stats]);
 
@@ -366,6 +384,9 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             <p className="text-sm text-zinc-700 dark:text-zinc-300">
               <strong>{stats?.newsletterCount ?? 0}</strong> newsletter ·{" "}
               <strong>{stats?.allEmailCount ?? 0}</strong> with email ·{" "}
+              <strong>{stats?.freeCount ?? stats?.freeEmails?.length ?? 0}</strong> free ·{" "}
+              <strong>{stats?.vipCount ?? stats?.vipEmails?.length ?? 0}</strong> VIP ·{" "}
+              <strong>{stats?.inactive7dCount ?? stats?.inactive7dEmails?.length ?? 0}</strong> inactive 7d ·{" "}
               <strong>{stats?.recentRegistrants?.length ?? 0}</strong> new (30d) (
               <Link href="/admin/customers" className="underline text-teal-700 dark:text-teal-300">
                 Customers
@@ -385,6 +406,9 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             >
               <option value="newsletter">Newsletter only (recommended)</option>
               <option value="all">All customers with email</option>
+              <option value="free">Free users (no active VIP)</option>
+              <option value="vip">VIP subscribers (active)</option>
+              <option value="inactive7d">Inactive 7+ days</option>
               <option value="new">Newly registered (select below)</option>
             </select>
           </label>
@@ -510,11 +534,17 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                   variant="ghost"
                   onClick={() => {
                     if (!stats) return;
-                    setRecipients(
+                    const list =
                       draft.audience === "newsletter"
-                        ? [...stats.newsletterEmails]
-                        : [...stats.allEmails]
-                    );
+                        ? stats.newsletterEmails
+                        : draft.audience === "free"
+                          ? stats.freeEmails ?? []
+                          : draft.audience === "vip"
+                            ? stats.vipEmails ?? []
+                            : draft.audience === "inactive7d"
+                              ? stats.inactive7dEmails ?? []
+                              : stats.allEmails;
+                    setRecipients([...list]);
                   }}
                 >
                   Reset from audience
