@@ -727,9 +727,9 @@ export default function NovaForexScalperPanel() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground -mt-2">
-            <strong className="text-foreground">0</strong> = unlimited repeats.{" "}
-            <strong className="text-foreground">1, 2, …</strong> = after that many successful exit (or stop) closes,
-            Nova Forex Scalper turns off.
+            <strong className="text-foreground">0</strong> = unlimited rounds when flat.{" "}
+            <strong className="text-foreground">1</strong> = one full trade then bot turns off. Closes count whether
+            Nova or the broker (SL/TP) exits. While a position is open on this symbol, the bot will not open another.
           </p>
 
           <div className="flex flex-wrap gap-2">

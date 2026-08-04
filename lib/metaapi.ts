@@ -383,17 +383,30 @@ export type MetaApiPosition = {
   [key: string]: unknown;
 };
 
-export async function getMetaApiPositions(accountId: string): Promise<MetaApiPosition[]> {
+export async function getMetaApiPositionsResult(
+  accountId: string
+): Promise<{ ok: true; positions: MetaApiPosition[] } | { ok: false; error: string }> {
   try {
     const base = await clientBaseForAccount(accountId);
     const res = await metaApiFetch<MetaApiPosition[]>(
       `${base}/users/current/accounts/${accountId}/positions`,
       { method: "GET" }
     );
-    return Array.isArray(res) ? res : [];
-  } catch {
-    return [];
+    if (!Array.isArray(res)) {
+      return { ok: false, error: "Unexpected positions response from broker." };
+    }
+    return { ok: true, positions: res };
+  } catch (e) {
+    return {
+      ok: false,
+      error: toUserFacingForexBridgeError(e instanceof Error ? e.message : "Failed to read positions"),
+    };
   }
+}
+
+export async function getMetaApiPositions(accountId: string): Promise<MetaApiPosition[]> {
+  const res = await getMetaApiPositionsResult(accountId);
+  return res.ok ? res.positions : [];
 }
 
 export type MetaApiOrder = {

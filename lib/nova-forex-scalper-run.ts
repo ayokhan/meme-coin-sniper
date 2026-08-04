@@ -2,6 +2,12 @@
  * Nova Forex Scalper: MT4/MT5 via MetaAPI — enter at entry price (cross), exit by closing
  * position at exit price (or optional stop). Repeats when flat up to maxRounds (0 = unlimited).
  * Mirrors lib/nova-scalper-run.ts (Blofin) but sized in lots and traded via MetaAPI.
+ *
+ * Entry safety:
+ * - Never re-enter while any broker position exists on the symbol
+ * - Count broker-side closes (SL/TP/manual) toward maxRounds
+ * - Atomic inPosition claim so concurrent ticks cannot double-open
+ * - Failed position fetches must not look like "flat"
  */
 
 import { prisma } from "@/lib/db";
@@ -11,7 +17,7 @@ import { resolveForexBrokerForSession } from "@/lib/forex-broker-session";
 import { parseForexBrokerId } from "@/lib/forex-broker-user-config";
 import {
   isMetaApiConfigured,
-  getMetaApiPositions,
+  getMetaApiPositionsResult,
   getMetaApiSymbolPrice,
   getMetaApiSymbols,
   getMetaApiSymbolSpecification,
@@ -20,6 +26,7 @@ import {
   modifyMetaApiPositionStops,
   closeMetaApiPosition,
   type MetaApiSymbolSpecification,
+  type MetaApiPosition,
 } from "@/lib/metaapi";
 import {
   forexBrokerSymbolAliases,
@@ -115,21 +122,35 @@ function isInvalidVolumeError(msg: string | undefined | null): boolean {
 }
 
 function positionOnSymbol(
-  positions: Array<{ id: string; symbol?: string; stopLoss?: number; takeProfit?: number }>,
+  positions: Array<{ id: string; symbol?: string; type?: string; stopLoss?: number; takeProfit?: number }>,
   brokerSymbol: string,
   tradeSymbol: string
 ) {
   const aliasKeys = new Set(
     [...forexBrokerSymbolAliases(brokerSymbol), tradeSymbol, brokerSymbol].map((s) => forexSymbolKey(s))
   );
+  const baseKey = forexSymbolKey(brokerSymbol);
   return positions.filter((p) => {
     const key = forexSymbolKey(String(p.symbol ?? ""));
+    if (!key) return false;
     if (aliasKeys.has(key)) return true;
-    return (
+    if (
       forexSymbolsMatch(String(p.symbol ?? ""), tradeSymbol) ||
       forexSymbolsMatch(String(p.symbol ?? ""), brokerSymbol)
-    );
+    ) {
+      return true;
+    }
+    // Suffix-tolerant: broker "XAUUSD.m" vs Nova "XAUUSD"
+    if (baseKey && (key.startsWith(baseKey) || baseKey.startsWith(key))) return true;
+    return false;
   });
+}
+
+function positionMatchesSide(pos: { type?: string }, side: "long" | "short"): boolean {
+  const t = String(pos.type ?? "").toUpperCase();
+  if (!t) return true;
+  if (side === "long") return t.includes("BUY");
+  return t.includes("SELL");
 }
 
 type ForexScalperRow = {
@@ -201,7 +222,6 @@ async function resolveTradeSymbol(accountId: string, brokerSymbol: string): Prom
     if (matched) {
       const p = await getMetaApiSymbolPrice(accountId, matched);
       if (p?.last) return matched;
-      // Listed but no price quote — still try trading with the matched name
       return matched;
     }
   }
@@ -213,13 +233,14 @@ async function closePositionsForSymbol(
   brokerSymbol: string,
   tradeSymbol: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const positions = await getMetaApiPositions(accountId);
-  const matches = positionOnSymbol(positions, brokerSymbol, tradeSymbol);
+  const res = await getMetaApiPositionsResult(accountId);
+  if (!res.ok) return { ok: false, error: res.error };
+  const matches = positionOnSymbol(res.positions, brokerSymbol, tradeSymbol);
   if (matches.length === 0) return { ok: true };
   let lastError: string | undefined;
   for (const pos of matches) {
-    const res = await closeMetaApiPosition({ accountId, positionId: pos.id });
-    if (!res.ok) lastError = res.error;
+    const closeRes = await closeMetaApiPosition({ accountId, positionId: pos.id });
+    if (!closeRes.ok) lastError = closeRes.error;
   }
   return lastError ? { ok: false, error: lastError } : { ok: true };
 }
@@ -233,8 +254,7 @@ async function attachBrokerStops(input: {
   if (input.stopLoss == null && input.takeProfit == null) {
     return { ok: false, error: "No stop loss or take profit to set." };
   }
-  // Try full pair first, then each side alone if broker rejects one level.
-  let mod = await modifyMetaApiPositionStops({
+  const mod = await modifyMetaApiPositionStops({
     accountId: input.accountId,
     positionId: input.positionId,
     stopLoss: input.stopLoss,
@@ -254,14 +274,46 @@ async function attachBrokerStops(input: {
     });
     if (slOnly.ok || tpOnly.ok) {
       const parts: string[] = [];
-      if (!slOnly.ok && mod.error) parts.push(`SL: ${slOnly.error ?? "failed"}`);
+      if (!slOnly.ok) parts.push(`SL: ${slOnly.error ?? "failed"}`);
       if (!tpOnly.ok) parts.push(`TP: ${tpOnly.error ?? "failed"}`);
-      return parts.length
-        ? { ok: true, error: `Partial stops · ${parts.join("; ")}` }
-        : { ok: true };
+      return parts.length ? { ok: true, error: `Partial stops · ${parts.join("; ")}` } : { ok: true };
     }
   }
   return { ok: false, error: mod.error ?? "Modify stops failed" };
+}
+
+/** Atomically claim the right to place an entry (blocks concurrent ticks). */
+async function claimEntrySlot(row: ForexScalperRow): Promise<boolean> {
+  const maxRounds = row.maxRounds ?? 0;
+  const where: Record<string, unknown> = {
+    id: row.id,
+    enabled: true,
+    ownerForceOff: false,
+    inPosition: false,
+  };
+  if (maxRounds > 0) {
+    where.completedRounds = { lt: maxRounds };
+  }
+  const claimed = await db.novaForexScalperConfig.updateMany({
+    where,
+    data: {
+      inPosition: true,
+      lastTickAt: new Date(),
+      lastAction: "Claimed entry slot — placing market order…",
+    },
+  });
+  return claimed.count === 1;
+}
+
+async function releaseEntrySlot(id: string, data: Record<string, unknown>): Promise<void> {
+  await db.novaForexScalperConfig.update({
+    where: { id },
+    data: { inPosition: false, ...data },
+  });
+}
+
+function maxRoundsBlockMessage(maxRounds: number, completedRounds: number): string {
+  return `Max rounds reached (${completedRounds}/${maxRounds}). Not opening again — reset round count or raise Max repeat rounds.`;
 }
 
 export async function runNovaForexScalperTick(
@@ -329,11 +381,23 @@ export async function runNovaForexScalperTick(
     return { ok: false, error: "Could not read last price." };
   }
 
-  const positions = await getMetaApiPositions(accountId);
+  // Never treat a failed position fetch as "flat" — that caused re-entries while still open.
+  const posRes = await getMetaApiPositionsResult(accountId);
+  if (!posRes.ok) {
+    await updateRow({
+      lastError: posRes.error,
+      lastTickAt: new Date(),
+      lastAction: `Skipped tick: could not read open positions (${posRes.error}). Won’t enter while uncertain.`,
+    });
+    return { ok: false, error: posRes.error };
+  }
+  const positions: MetaApiPosition[] = posRes.positions;
+
   const tradeSymbolResolved = await resolveTradeSymbol(accountId, brokerSymbol);
   const tradeSymbol = tradeSymbolResolved ?? brokerSymbol;
   const openHere = positionOnSymbol(positions, brokerSymbol, tradeSymbol);
   const hasExchangePosition = openHere.length > 0;
+  const hasSameSidePosition = openHere.some((p) => positionMatchesSide(p, side));
 
   const quote =
     (await getMetaApiSymbolPrice(accountId, tradeSymbol)) ??
@@ -350,23 +414,31 @@ export async function runNovaForexScalperTick(
   const volRules = volumeRulesFromSpec(spec);
   const tickOpts = { tickSize: spec?.tickSize, digits: spec?.digits };
 
+  // Broker closed while we were in — count as a completed round (was previously free re-entry).
   if (row.inPosition && !hasExchangePosition) {
-    await updateRow({
+    const rounds = (row.completedRounds ?? 0) + 1;
+    const stopData: Record<string, unknown> = {
       inPosition: false,
-      lastAction: "Sync: was marked in-position but broker shows no position; reset to flat.",
+      completedRounds: rounds,
       lastRefPrice: price,
       lastTickAt: new Date(),
       lastError: null,
-    });
-    row.inPosition = false;
-    row.lastRefPrice = price;
+      lastAction: `Position closed on broker (SL/TP or manual). Round ${rounds} complete.`,
+    };
+    if (row.maxRounds > 0 && rounds >= row.maxRounds) {
+      stopData.enabled = false;
+      stopData.lastAction = `Position closed on broker. Max rounds (${row.maxRounds}) reached. Disabled — will not re-enter.`;
+    }
+    await updateRow(stopData);
+    return { ok: true, message: "Synced flat after broker close; round counted." };
   }
 
   if (!row.inPosition && hasExchangePosition) {
     await updateRow({
       inPosition: true,
-      lastAction:
-        "Detected open position on broker (manual or prior run). Nova Forex Scalper will try to exit at your exit/stop only.",
+      lastAction: hasSameSidePosition
+        ? `Detected open ${side} position on broker — monitoring exit/stop only (will not open another).`
+        : `Detected open position on ${tradeSymbol} — monitoring only (will not open another).`,
       lastRefPrice: price,
       lastTickAt: new Date(),
       lastError: null,
@@ -377,13 +449,17 @@ export async function runNovaForexScalperTick(
 
   let lastRef = row.lastRefPrice;
   if (lastRef == null || !Number.isFinite(lastRef)) {
-    await updateRow({
-      lastRefPrice: price,
-      lastTickAt: new Date(),
-      lastError: null,
-      lastAction: "Primed reference price for cross detection.",
-    });
-    return { ok: true, message: "Primed price reference. Next tick evaluates entry/exit crosses." };
+    if (!(row.inPosition || hasExchangePosition)) {
+      await updateRow({
+        lastRefPrice: price,
+        lastTickAt: new Date(),
+        lastError: null,
+        lastAction: "Primed reference price for cross detection.",
+      });
+      return { ok: true, message: "Primed price reference. Next tick evaluates entry/exit crosses." };
+    }
+    lastRef = price;
+    await updateRow({ lastRefPrice: price });
   }
 
   const trigger =
@@ -393,8 +469,8 @@ export async function runNovaForexScalperTick(
         ? "immediate"
         : "cross_down";
 
+  // In-position path: manage only — never place a second market entry.
   if (row.inPosition || hasExchangePosition) {
-    // Attach broker SL/TP if the open was placed without them (or prior attach failed).
     let stopAttachNote: string | null = null;
     let stopAttachError: string | null = null;
     const desiredStops = brokerStopsForSide(side, row.exitPrice, row.stopLossPrice, market, tickOpts);
@@ -483,15 +559,25 @@ export async function runNovaForexScalperTick(
     await updateRow({
       lastRefPrice: price,
       lastTickAt: new Date(),
+      inPosition: true,
       ...(stopAttachNote
         ? { lastAction: stopAttachNote, lastError: stopAttachError }
-        : { lastError: null }),
+        : {
+            lastError: null,
+            lastAction: `In position (${openHere.length} open) — not re-entering. Waiting exit ${row.exitPrice} / stop.`,
+          }),
     });
     return { ok: true, message: "In position; waiting for exit or stop." };
   }
 
+  // Flat path — only place a new order if rounds allow and no concurrent claim.
   if (row.maxRounds > 0 && (row.completedRounds ?? 0) >= row.maxRounds) {
-    await updateRow({ lastRefPrice: price, lastTickAt: new Date() });
+    await updateRow({
+      lastRefPrice: price,
+      lastTickAt: new Date(),
+      lastAction: maxRoundsBlockMessage(row.maxRounds, row.completedRounds ?? 0),
+      enabled: false,
+    });
     return { ok: true, message: "Max rounds reached; not opening again." };
   }
 
@@ -534,6 +620,40 @@ export async function runNovaForexScalperTick(
     return { ok: false, error: hint };
   }
 
+  // Claim before side effects so concurrent ticks / auto-tick can't double-open.
+  const claimed = await claimEntrySlot(row);
+  if (!claimed) {
+    await updateRow({
+      lastRefPrice: price,
+      lastTickAt: new Date(),
+      lastAction: "Entry skipped — already in position, round limit reached, or another tick is entering.",
+    });
+    return { ok: true, message: "Entry skipped (slot not free)." };
+  }
+
+  // Re-verify broker book after claim (avoid stacking if position appeared mid-tick).
+  const recheck = await getMetaApiPositionsResult(accountId);
+  if (!recheck.ok) {
+    await releaseEntrySlot(row.id, {
+      lastError: recheck.error,
+      lastTickAt: new Date(),
+      lastRefPrice: price,
+      lastAction: `Entry aborted — could not re-check positions (${recheck.error}).`,
+    });
+    return { ok: false, error: recheck.error };
+  }
+  const recheckOpen = positionOnSymbol(recheck.positions, brokerSymbol, tradeSymbol);
+  if (recheckOpen.length > 0) {
+    await updateRow({
+      inPosition: true,
+      lastRefPrice: price,
+      lastTickAt: new Date(),
+      lastError: null,
+      lastAction: `Entry aborted — ${recheckOpen.length} open position(s) already on ${tradeSymbol}. Monitoring only.`,
+    });
+    return { ok: true, message: "Already in position; did not re-enter." };
+  }
+
   const lotSizeConfigured = Math.max(0.01, row.lotSize || 0.01);
   let lotSize = quantizeForexLots(lotSizeConfigured, volRules) || quantizeForexLots(0.01, volRules) || 0.01;
   let lotNote = "";
@@ -562,7 +682,7 @@ export async function runNovaForexScalperTick(
       });
       if (affordable < 0.01) {
         const msg = `Not enough free margin for ${lotSize} lots of ${brokerSymbol} (~$${need} needed, ~$${free.toFixed(2)} free @ 1:${acct.leverage}). Deposit funds, lower size, or raise MT leverage.`;
-        await updateRow({
+        await releaseEntrySlot(row.id, {
           lastError: "Not enough money",
           lastTickAt: new Date(),
           lastRefPrice: price,
@@ -589,7 +709,6 @@ export async function runNovaForexScalperTick(
   };
 
   let order = await placeMetaApiMarketOrder(orderPayload);
-  // Retry remaining aliases if broker rejected the first name
   if (!order.ok && /unknown symbol/i.test(order.error ?? "")) {
     for (const sym of forexBrokerSymbolAliases(brokerSymbol)) {
       if (sym === tradeSymbolResolved) continue;
@@ -600,7 +719,6 @@ export async function runNovaForexScalperTick(
       }
     }
   }
-  // Only strip SL/TP on genuine stop-level rejections (never on "Invalid volume")
   if (!order.ok && isInvalidStopsError(order.error) && (stops.stopLoss || stops.takeProfit)) {
     order = await placeMetaApiMarketOrder({
       accountId,
@@ -609,14 +727,12 @@ export async function runNovaForexScalperTick(
       volume: lotSize,
     });
   }
-  // Invalid volume → snap to min step and retry once
   if (!order.ok && isInvalidVolumeError(order.error)) {
     const minLot = quantizeForexLots(volRules?.minVolume ?? 0.01, volRules) || 0.01;
     if (Math.abs(minLot - lotSize) > 1e-9) {
       const retry = await placeMetaApiMarketOrder({
         ...orderPayload,
         volume: minLot,
-        // keep SL/TP so broker-side protection is on the second try
       });
       if (retry.ok) {
         order = retry;
@@ -626,7 +742,6 @@ export async function runNovaForexScalperTick(
       }
     }
   }
-  // If still no money, try min lot once
   if (!order.ok && /not enough|no money|insufficient/i.test(order.error ?? "") && lotSize > 0.01) {
     const minLot = quantizeForexLots(volRules?.minVolume ?? 0.01, volRules) || 0.01;
     const retry = await placeMetaApiMarketOrder({ ...orderPayload, volume: minLot });
@@ -639,23 +754,24 @@ export async function runNovaForexScalperTick(
   }
   if (!order.ok) {
     const err = order.error ?? "Order failed";
-    await updateRow({
+    await releaseEntrySlot(row.id, {
       lastError: err,
       lastTickAt: new Date(),
+      lastRefPrice: price,
       lastAction: `Entry cross @ ~${price} — market ${side === "long" ? "buy" : "sell"} ${lotSize} lots failed: ${err}`,
     });
     return { ok: false, error: err };
   }
 
-  // Always ensure broker SL/TP exist (order may open without them after bare retry)
   if (stops.stopLoss != null || stops.takeProfit != null) {
     let positionId = order.positionId ? String(order.positionId) : undefined;
     if (!positionId) {
-      // Brief wait for position book to update
       await new Promise((r) => setTimeout(r, 400));
-      const after = await getMetaApiPositions(accountId);
-      const match = positionOnSymbol(after, brokerSymbol, tradeSymbolResolved)[0];
-      positionId = match?.id != null ? String(match.id) : undefined;
+      const after = await getMetaApiPositionsResult(accountId);
+      if (after.ok) {
+        const match = positionOnSymbol(after.positions, brokerSymbol, tradeSymbolResolved)[0];
+        positionId = match?.id != null ? String(match.id) : undefined;
+      }
     }
     if (positionId) {
       const mod = await attachBrokerStops({
@@ -678,13 +794,19 @@ export async function runNovaForexScalperTick(
       " · SL/TP not set on MT (levels not on valid side of live bid/ask — check Stop/Exit vs market). Software will still exit on tick.";
   }
 
-  await updateRow({
+  // Immediate is one-shot: after fill, require a cross so auto-tick cannot re-market every cycle.
+  const afterOpen: Record<string, unknown> = {
     inPosition: true,
     lastRefPrice: price,
     lastTickAt: new Date(),
     lastError: null,
     lastAction: `Opened ${side} ${lotSize} lots @ ~${price} (${tradeSymbolResolved})${lotNote}. Will close at exit ${row.exitPrice} or stop.`,
-  });
+  };
+  if (trigger === "immediate") {
+    afterOpen.entryTrigger = side === "short" ? "cross_up" : "cross_down";
+    afterOpen.lastAction = `${afterOpen.lastAction} Immediate entry used — next entries need a price cross (max rounds still apply).`;
+  }
+  await updateRow(afterOpen);
 
   return { ok: true, message: `Entered ${side}. Monitoring exit/stop.` };
 }
