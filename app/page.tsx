@@ -103,6 +103,7 @@ import { ADMIN_NAV_ITEMS } from "@/lib/admin-nav-config";
 import { getDelegatedAdminNavHrefs } from "@/lib/admin-access";
 import NovaQFibPanel from "@/components/NovaQFibPanel";
 import NovaQRunBar, { notifyNovaQRunSuccess } from "@/components/NovaQRunBar";
+import NovaQResultToolbar from "@/components/NovaQResultToolbar";
 import NovaPatternDetectorPanel from "@/components/NovaPatternDetectorPanel";
 import NovaExtraPanel from "@/components/NovaExtraPanel";
 import NovaSmartHighLowTable from "@/components/NovaSmartHighLowTable";
@@ -114,6 +115,7 @@ import { clearNovaQPrefill, readNovaQPrefill } from "@/lib/nova-q-prefill";
 import { formatQuotePriceUsd } from "@/lib/format-quote-price";
 import { NOVA_FORECAST_RANGES, NOVA_UI_TIMEFRAME_IDS } from "@/lib/nova-timeframes";
 import { loadNovaQSession, writeNovaQSession } from "@/lib/nova-q-watch";
+import { normalizeNovaQSymbol } from "@/lib/nova-q-symbol";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import NovaForexBotsPanel from "@/components/NovaForexBotsPanel";
 import TradingUniversityPanel from "@/components/TradingUniversityPanel";
@@ -2783,8 +2785,10 @@ export default function Dashboard() {
   const fetchNovaQ = async (overrides?: { symbol?: string; timeframes?: string[] }) => {
     setNovaQLoading(true);
     setNovaQError(null);
-    const symbol = (overrides?.symbol ?? novaQSymbol).trim().toUpperCase() || "BTC";
+    const raw = (overrides?.symbol ?? novaQSymbol).trim() || "BTC";
+    const symbol = normalizeNovaQSymbol(raw) || "BTC";
     const timeframes = overrides?.timeframes ?? novaQTimeframes;
+    if (symbol !== novaQSymbol) setNovaQSymbol(symbol);
     try {
       const res = await fetch("/api/nova-q", {
         method: "POST",
@@ -8242,20 +8246,24 @@ export default function Dashboard() {
                                   {novaQResult.alignment.label}
                                 </Badge>
                               ) : null}
-                              {vipFuturesAddons?.novaQFib ? (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs"
-                                  onClick={() => {
-                                    writeNovaQSession(novaQResult.symbol, novaQTimeframes);
-                                    setNovaForecastSubTab("nova-q-fib");
-                                  }}
-                                >
-                                  Same setup in Fib
-                                </Button>
-                              ) : null}
+                            </div>
+                            <div className="mt-2">
+                              <NovaQResultToolbar
+                                tool="q"
+                                symbol={novaQResult.symbol}
+                                timeframes={novaQTimeframes}
+                                tradePlan={novaQResult.tradePlan}
+                                onRerun={() => void fetchNovaQ({ symbol: novaQResult.symbol, timeframes: novaQTimeframes })}
+                                otherToolLabel={vipFuturesAddons?.novaQFib ? "Open in Fib" : undefined}
+                                onOpenOtherTool={
+                                  vipFuturesAddons?.novaQFib
+                                    ? (sym, tfs) => {
+                                        writeNovaQSession(sym, tfs);
+                                        setNovaForecastSubTab("nova-q-fib");
+                                      }
+                                    : undefined
+                                }
+                              />
                             </div>
                             {novaQResult.overallTrendlineSummary?.trim() ? (
                               <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{novaQResult.overallTrendlineSummary}</p>

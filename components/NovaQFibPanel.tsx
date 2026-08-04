@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { NovaQFibResult, NovaQFibTimeframeResult } from "@/lib/nova-q-fib";
@@ -13,7 +12,9 @@ import {
   loadNovaQSession,
   writeNovaQSession,
 } from "@/lib/nova-q-watch";
+import { normalizeNovaQSymbol } from "@/lib/nova-q-symbol";
 import NovaQRunBar, { notifyNovaQRunSuccess } from "@/components/NovaQRunBar";
+import NovaQResultToolbar from "@/components/NovaQResultToolbar";
 
 const FIB_TIMEFRAME_OPTIONS = NOVA_UI_TIMEFRAME_IDS.filter((id) =>
   ["1m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "24h", "48h", "1w", "2w", "4w"].includes(id)
@@ -71,12 +72,13 @@ export default function NovaQFibPanel({ enabled, isVip, onOpenNovaQ }: Props) {
         setError("NovaQ Fib is for VIP subscribers.");
         return;
       }
-      const sym = (overrides?.symbol ?? symbol).trim().toUpperCase();
+      const sym = normalizeNovaQSymbol(overrides?.symbol ?? symbol) || (overrides?.symbol ?? symbol).trim().toUpperCase();
       const tfs = overrides?.timeframes ?? timeframes;
       if (!sym) {
         setError("Enter a contract symbol.");
         return;
       }
+      if (sym !== symbol) setSymbol(sym);
       if (tfs.length === 0) {
         setError("Select at least one timeframe.");
         return;
@@ -171,17 +173,16 @@ export default function NovaQFibPanel({ enabled, isVip, onOpenNovaQ }: Props) {
               <Badge variant="outline" className={fibBiasBadgeClass(result.overallFibBias)}>
                 Overall: {formatFibBiasLabel(result.overallFibBias)}
               </Badge>
-              {onOpenNovaQ && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={() => onOpenNovaQ(result.symbol, timeframes)}
-                >
-                  Same setup in NovaQ
-                </Button>
-              )}
+            </div>
+            <div className="mt-2">
+              <NovaQResultToolbar
+                tool="fib"
+                symbol={result.symbol}
+                timeframes={timeframes}
+                onRerun={() => void run({ symbol: result.symbol, timeframes })}
+                otherToolLabel={onOpenNovaQ ? "Open in NovaQ" : undefined}
+                onOpenOtherTool={onOpenNovaQ}
+              />
             </div>
             {result.overallRead?.trim() ? (
               <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{result.overallRead}</p>

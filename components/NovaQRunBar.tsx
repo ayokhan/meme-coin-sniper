@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Star, History, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Star, History, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortNovaTimeframeIds } from "@/lib/nova-timeframes";
+import {
+  normalizeNovaQSymbol,
+  novaQSymbolRewriteNote,
+  searchNovaQSymbolSuggestions,
+  softUnknownSymbolNote,
+  type NovaQSymbolSuggestion,
+} from "@/lib/nova-q-symbol";
 import {
   NOVA_Q_QUICK_PICKS,
   NOVA_Q_TF_PRESETS,
@@ -14,11 +21,13 @@ import {
   clampTimeframesToAllowed,
   clearNovaQRecents,
   detectNovaQPreset,
+  findNovaQFavorite,
   isNovaQFavorited,
   loadNovaQFavorites,
   loadNovaQRecents,
   pushNovaQRecent,
   removeNovaQFavorite,
+  renameNovaQFavorite,
   upsertNovaQFavorite,
   writeLastNovaQPresetHint,
   writeNovaQSession,
@@ -62,8 +71,22 @@ export default function NovaQRunBar({
   const [recents, setRecents] = useState<NovaQRecent[]>([]);
   const [showCustomTf, setShowCustomTf] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   const allowed = useMemo(() => allowedTimeframes, [allowedTimeframes]);
+
+  const suggestions = useMemo(() => {
+    const extras: { symbol: string; group: "recent" | "favorite" }[] = [
+      ...favorites.map((f) => ({ symbol: f.symbol, group: "favorite" as const })),
+      ...recents.map((r) => ({ symbol: r.symbol, group: "recent" as const })),
+    ];
+    return searchNovaQSymbolSuggestions(symbol, extras, 10);
+  }, [symbol, favorites, recents]);
+
+  const rewriteNote = novaQSymbolRewriteNote(symbol);
+  const softWarn = softUnknownSymbolNote(symbol);
 
   useEffect(() => {
     setFavorites(loadNovaQFavorites());
@@ -71,12 +94,10 @@ export default function NovaQRunBar({
     setShowCustomTf(detectNovaQPreset(timeframes) === "custom");
   }, []);
 
-  // Keep custom TF panel open when selection no longer matches a preset
   useEffect(() => {
     if (detectNovaQPreset(timeframes) === "custom") setShowCustomTf(true);
   }, [timeframes]);
 
-  // Refresh lists when favorites change via star / successful runs in other tab
   useEffect(() => {
     const refresh = () => {
       setFavorites(loadNovaQFavorites());
@@ -90,15 +111,45 @@ export default function NovaQRunBar({
     };
   }, []);
 
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setSuggestOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
   const activePreset: NovaQTfPresetId = detectNovaQPreset(timeframes);
   const favorited = isNovaQFavorited(symbol, timeframes);
+  const activeFavorite = findNovaQFavorite(symbol, timeframes);
+
+  const commitSymbol = (raw: string) => {
+    const next = normalizeNovaQSymbol(raw) || raw.trim().toUpperCase();
+    onSymbolChange(next);
+    if (next && timeframes.length) writeNovaQSession(next, timeframes);
+    return next;
+  };
+
+  const runNormalized = () => {
+    const next = commitSymbol(symbol);
+    if (!next || timeframes.length === 0) return;
+    writeNovaQSession(next, timeframes);
+    onRun();
+  };
+
+  const pickSuggestion = (item: NovaQSymbolSuggestion) => {
+    const next = commitSymbol(item.symbol);
+    setSuggestOpen(false);
+    setHighlight(0);
+    if (next && timeframes.length) writeNovaQSession(next, timeframes);
+  };
 
   const applyPreset = (id: Exclude<NovaQTfPresetId, "custom">) => {
     const tfs = clampTimeframesToAllowed(NOVA_Q_TF_PRESETS[id].timeframes, allowed);
     onTimeframesChange(tfs);
     writeLastNovaQPresetHint(id);
     setShowCustomTf(false);
-    if (symbol.trim()) writeNovaQSession(symbol, tfs);
+    if (symbol.trim()) writeNovaQSession(normalizeNovaQSymbol(symbol) || symbol, tfs);
   };
 
   const toggleTf = (tf: string) => {
@@ -108,18 +159,14 @@ export default function NovaQRunBar({
     onTimeframesChange(next);
     writeLastNovaQPresetHint(detectNovaQPreset(next));
     setShowCustomTf(true);
-    if (symbol.trim()) writeNovaQSession(symbol, next);
+    if (symbol.trim()) writeNovaQSession(normalizeNovaQSymbol(symbol) || symbol, next);
   };
 
   const toggleFavorite = () => {
-    const sym = symbol.trim().toUpperCase();
+    const sym = normalizeNovaQSymbol(symbol) || symbol.trim().toUpperCase();
     if (!sym || timeframes.length === 0) return;
     if (favorited) {
-      const match = favorites.find(
-        (f) =>
-          f.symbol === sym &&
-          sortNovaTimeframeIds(f.timeframes).join(",") === sortNovaTimeframeIds(timeframes).join(",")
-      );
+      const match = findNovaQFavorite(sym, timeframes);
       if (match) {
         setFavorites(removeNovaQFavorite(match.id));
         window.dispatchEvent(new CustomEvent("nova-q-watch-changed"));
@@ -132,6 +179,13 @@ export default function NovaQRunBar({
       preferredTool: tool,
     });
     setFavorites(next);
+    window.dispatchEvent(new CustomEvent("nova-q-watch-changed"));
+  };
+
+  const renameFavorite = (f: NovaQFavorite) => {
+    const label = window.prompt("Favorite label (leave empty to clear)", f.label ?? f.symbol);
+    if (label === null) return;
+    setFavorites(renameNovaQFavorite(f.id, label.trim() ? label : null));
     window.dispatchEvent(new CustomEvent("nova-q-watch-changed"));
   };
 
@@ -157,7 +211,7 @@ export default function NovaQRunBar({
         </div>
         {favorites.length === 0 ? (
           <p className="text-[11px] text-muted-foreground">
-            Star a symbol + timeframe mix to re-run later without reconfiguring.
+            Star a symbol + timeframe mix to re-run later without reconfiguring. Pencil renames chips.
           </p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
@@ -171,6 +225,14 @@ export default function NovaQRunBar({
                 >
                   {f.label || f.symbol}
                   <span className="ml-1 text-[10px] opacity-70 font-sans">{f.timeframes.length}tf</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Rename ${f.symbol}`}
+                  className="rounded p-0.5 text-zinc-400 hover:text-violet-500"
+                  onClick={() => renameFavorite(f)}
+                >
+                  <Pencil className="h-3 w-3" />
                 </button>
                 <button
                   type="button"
@@ -235,11 +297,10 @@ export default function NovaQRunBar({
                 key={s}
                 type="button"
                 onClick={() => {
-                  onSymbolChange(s);
-                  if (timeframes.length) writeNovaQSession(s, timeframes);
+                  commitSymbol(s);
                 }}
                 className={`rounded-md border px-2 py-1 text-xs font-mono transition-colors ${
-                  symbol.trim().toUpperCase() === s
+                  normalizeNovaQSymbol(symbol) === s || symbol.trim().toUpperCase() === s
                     ? "border-violet-500 bg-violet-500/15 text-violet-800 dark:text-violet-200"
                     : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 }`}
@@ -306,21 +367,97 @@ export default function NovaQRunBar({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          placeholder="Symbol e.g. BTC, XAUUSD, SNXX"
-          value={symbol}
-          onChange={(e) => onSymbolChange(e.target.value.toUpperCase())}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !loading && !disabled && symbol.trim() && timeframes.length > 0) {
-              e.preventDefault();
-              writeNovaQSession(symbol, timeframes);
-              onRun();
-            }
-          }}
-          className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2.5 py-1.5 w-48 sm:w-56 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500 font-mono"
-        />
+      <div className="flex flex-wrap items-start gap-2">
+        <div className="relative" ref={wrapRef}>
+          <input
+            type="text"
+            placeholder="Symbol e.g. BTC, GOLD, BTCUSDT"
+            value={symbol}
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(e) => {
+              onSymbolChange(e.target.value.toUpperCase());
+              setSuggestOpen(true);
+              setHighlight(0);
+            }}
+            onFocus={() => setSuggestOpen(true)}
+            onBlur={() => {
+              // Defer so suggestion click can fire
+              window.setTimeout(() => {
+                const next = normalizeNovaQSymbol(symbol);
+                if (next && next !== symbol.trim().toUpperCase()) onSymbolChange(next);
+              }, 120);
+            }}
+            onKeyDown={(e) => {
+              if (suggestOpen && suggestions.length > 0) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setHighlight((h) => Math.min(h + 1, suggestions.length - 1));
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setHighlight((h) => Math.max(h - 1, 0));
+                  return;
+                }
+                if (e.key === "Escape") {
+                  setSuggestOpen(false);
+                  return;
+                }
+                if (e.key === "Tab" && suggestions[highlight]) {
+                  e.preventDefault();
+                  pickSuggestion(suggestions[highlight]);
+                  return;
+                }
+              }
+              if (e.key === "Enter" && !loading && !disabled && symbol.trim() && timeframes.length > 0) {
+                e.preventDefault();
+                if (suggestOpen && suggestions[highlight] && suggestions[highlight].symbol !== normalizeNovaQSymbol(symbol)) {
+                  pickSuggestion(suggestions[highlight]);
+                }
+                runNormalized();
+                setSuggestOpen(false);
+              }
+            }}
+            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2.5 py-1.5 w-48 sm:w-56 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-500 font-mono"
+          />
+          {suggestOpen && suggestions.length > 0 && (
+            <ul
+              className="absolute z-30 mt-1 max-h-56 w-64 overflow-auto rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg text-xs"
+              role="listbox"
+            >
+              {suggestions.map((item, i) => (
+                <li key={`${item.group}-${item.symbol}`}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={i === highlight}
+                    className={`w-full text-left px-2.5 py-1.5 flex items-center justify-between gap-2 ${
+                      i === highlight
+                        ? "bg-violet-500/15 text-violet-900 dark:text-violet-100"
+                        : "text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    }`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pickSuggestion(item);
+                    }}
+                    onMouseEnter={() => setHighlight(i)}
+                  >
+                    <span className="font-mono font-medium">{item.symbol}</span>
+                    <span className="text-[10px] text-muted-foreground truncate">
+                      {item.label || item.group}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {(rewriteNote || softWarn) && (
+            <p className={`mt-1 text-[11px] ${softWarn ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+              {softWarn || rewriteNote}
+            </p>
+          )}
+        </div>
         <Button
           type="button"
           variant="outline"
@@ -332,12 +469,21 @@ export default function NovaQRunBar({
         >
           <Star className={`h-4 w-4 ${favorited ? "fill-amber-400 text-amber-500" : "text-zinc-500"}`} />
         </Button>
+        {activeFavorite && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="px-2"
+            title="Rename favorite"
+            onClick={() => renameFavorite(activeFavorite)}
+          >
+            <Pencil className="h-4 w-4 text-zinc-500" />
+          </Button>
+        )}
         <Button
           type="button"
-          onClick={() => {
-            writeNovaQSession(symbol, timeframes);
-            onRun();
-          }}
+          onClick={runNormalized}
           disabled={disabled || loading || timeframes.length === 0 || !symbol.trim()}
         >
           {loading ? "Running…" : runLabel}
@@ -349,8 +495,10 @@ export default function NovaQRunBar({
             size="sm"
             disabled={!symbol.trim() || timeframes.length === 0}
             onClick={() => {
-              writeNovaQSession(symbol, timeframes);
-              onOpenOtherTool(symbol.trim().toUpperCase(), timeframes);
+              const next = commitSymbol(symbol);
+              if (!next) return;
+              writeNovaQSession(next, timeframes);
+              onOpenOtherTool(next, timeframes);
             }}
           >
             {otherToolLabel}
@@ -367,7 +515,8 @@ export default function NovaQRunBar({
 /** Call after a successful NovaQ / Fib analysis so recents + session stay in sync. */
 export function notifyNovaQRunSuccess(tool: NovaQTool, symbol: string, timeframes: string[]): void {
   if (typeof window === "undefined") return;
-  writeNovaQSession(symbol, timeframes);
-  pushNovaQRecent({ symbol, timeframes, tool });
+  const sym = normalizeNovaQSymbol(symbol) || symbol.trim().toUpperCase();
+  writeNovaQSession(sym, timeframes);
+  pushNovaQRecent({ symbol: sym, timeframes, tool });
   window.dispatchEvent(new CustomEvent("nova-q-run-success"));
 }

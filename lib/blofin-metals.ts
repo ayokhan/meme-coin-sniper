@@ -10,19 +10,24 @@ export const BLOFIN_METAL_INST: Record<BlofinMetal, string> = {
   XAG: "XAG-USDT",
 };
 
-/** Normalize GOLD→XAU, SILVER→XAG; strip quote suffixes. */
+/** Normalize GOLD→XAU, SILVER→XAG; strip quote / perp suffixes; XAUUSD→XAU. */
 export function normalizeMetalBase(raw: string): string {
   const upper = String(raw ?? "").trim().toUpperCase();
   if (!upper) return "";
   const stripped = upper
+    .replace(/-PERP$/i, "")
+    .replace(/PERP$/i, "")
     .replace(/\/USDT$/i, "")
     .replace(/-USDT$/i, "")
-    .replace(/\/USD$/i, "")
     .replace(/\.USDT$/i, "")
+    .replace(/USDT$/i, "")
+    .replace(/\/USD$/i, "")
     .trim();
   const base = (stripped.split(/[-/\s]/)[0] ?? stripped).trim();
-  if (base === "GOLD") return "XAU";
-  if (base === "SILVER") return "XAG";
+  if (!base) return "";
+  // Metals common aliases (TV, MT, Blofin)
+  if (base === "GOLD" || base.startsWith("XAU")) return "XAU";
+  if (base === "SILVER" || base.startsWith("XAG")) return "XAG";
   return base;
 }
 

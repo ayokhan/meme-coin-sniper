@@ -40,8 +40,8 @@ export const NOVA_Q_TF_PRESETS: Record<
   swing: { id: "swing", label: "Swing", timeframes: ["4h", "12h", "24h", "1w"] },
 };
 
-/** Always-visible major chips (crypto + common CFD). */
-export const NOVA_Q_QUICK_PICKS = ["BTC", "ETH", "SOL", "XAUUSD", "EURUSD", "NAS100"] as const;
+/** Always-visible major chips for crypto NovaQ (metals = Blofin XAU/XAG). */
+export const NOVA_Q_QUICK_PICKS = ["BTC", "ETH", "SOL", "XAU", "XAG", "PAXG"] as const;
 
 const FAV_KEY = "novastaris-nova-q-favorites-v1";
 const REC_KEY = "novastaris-nova-q-recents-v1";
@@ -142,10 +142,25 @@ export function removeNovaQFavorite(id: string): NovaQFavorite[] {
   return next;
 }
 
-export function isNovaQFavorited(symbol: string, timeframes: string[]): boolean {
+export function findNovaQFavorite(symbol: string, timeframes: string[]): NovaQFavorite | null {
   const s = symbol.trim().toUpperCase();
   const key = tfKey(timeframes);
-  return loadNovaQFavorites().some((f) => f.symbol === s && tfKey(f.timeframes) === key);
+  return loadNovaQFavorites().find((f) => f.symbol === s && tfKey(f.timeframes) === key) ?? null;
+}
+
+export function isNovaQFavorited(symbol: string, timeframes: string[]): boolean {
+  return findNovaQFavorite(symbol, timeframes) != null;
+}
+
+/** Set or clear custom display label on a favorited setup. */
+export function renameNovaQFavorite(id: string, label: string | null): NovaQFavorite[] {
+  const next = loadNovaQFavorites().map((f) =>
+    f.id === id
+      ? { ...f, label: label?.trim() ? label.trim().slice(0, 32) : undefined }
+      : f
+  );
+  saveNovaQFavorites(next);
+  return next;
 }
 
 export function loadNovaQRecents(): NovaQRecent[] {
