@@ -537,6 +537,7 @@ export async function getOrderHistory(options?: {
     averagePrice?: string;
     leverage?: string;
     createdAt?: string;
+    filledAt?: string;
     pnl?: string;
   }[]
 > {
@@ -545,7 +546,7 @@ export async function getOrderHistory(options?: {
   if (options?.instId) q.set("instId", options.instId);
   if (options?.beginMs != null && Number.isFinite(options.beginMs)) q.set("begin", String(Math.floor(options.beginMs)));
   const path = `/api/v1/trade/orders-history?${q.toString()}`;
-  const out = await privateRequest<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createTime?: string; pnl?: string }[]>(
+  const out = await privateRequest<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createTime?: string; updateTime?: string; pnl?: string }[]>(
     "GET",
     path,
     undefined,
@@ -566,6 +567,7 @@ export async function getOrderHistory(options?: {
     averagePrice?: string;
     leverage?: string;
     createTime?: string;
+    updateTime?: string;
     pnl?: string;
   };
   const list: OrderRow[] = Array.isArray(out.data) ? (out.data as OrderRow[]) : ((out.data as { data?: OrderRow[] })?.data ?? []);
@@ -581,6 +583,7 @@ export async function getOrderHistory(options?: {
     averagePrice: o.averagePrice != null && o.averagePrice !== "" ? String(o.averagePrice) : undefined,
     leverage: o.leverage != null && o.leverage !== "" ? String(o.leverage) : undefined,
     createdAt: o.createTime != null ? String(o.createTime) : undefined,
+    filledAt: o.updateTime != null ? String(o.updateTime) : undefined,
     pnl: o.pnl != null && o.pnl !== "" ? String(o.pnl) : undefined,
   }));
 }

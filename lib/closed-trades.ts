@@ -137,7 +137,10 @@ export type BlofinOrderRow = {
   fillPrice?: string;
   averagePrice?: string;
   leverage?: string;
+  /** Order create time (limits may sit for hours). */
   createdAt?: string;
+  /** Last update / fill time when available — prefer for hold duration. */
+  filledAt?: string;
   pnl?: string;
 };
 
@@ -226,9 +229,9 @@ function roiFromPrices(
 function shouldMergeClosingFills(a: BlofinFillRow, b: BlofinFillRow): boolean {
   if (a.instId !== b.instId) return false;
   if (a.orderId && b.orderId && a.orderId === b.orderId) return true;
-  const ta = Number(a.ts ?? 0);
-  const tb = Number(b.ts ?? 0);
-  return Number.isFinite(ta) && Number.isFinite(tb) && Math.abs(ta - tb) <= 3000;
+  const ta = normalizeUnixMs(a.ts) ?? 0;
+  const tb = normalizeUnixMs(b.ts) ?? 0;
+  return ta > 0 && tb > 0 && Math.abs(ta - tb) <= 3000;
 }
 
 function groupClosingFills(sorted: BlofinFillRow[]): BlofinFillRow[][] {
@@ -262,25 +265,39 @@ function pickRepresentativeClosingFill(group: BlofinFillRow[]): BlofinFillRow {
   });
 }
 
+/**
+ * Open for this close = earliest zero-PnL fill on the same instrument after the previous
+ * closing fill. Do not walk past an earlier close (that caused multi-hour “Held for” bugs).
+ */
 function findOpenFillBeforeClose(
   sorted: BlofinFillRow[],
   fillIndex: number
 ): { price: number; openedAt: string | null } | null {
   const f = sorted[fillIndex];
+  let earliest: { price: number; openedAt: string | null } | null = null;
+
   for (let j = fillIndex - 1; j >= 0; j--) {
     const prev = sorted[j];
     if (prev.instId !== f.instId) continue;
     const prevPnl = num(prev.fillPnl) ?? 0;
-    if (Math.abs(prevPnl) < 1e-10) {
-      const price = num(prev.fillPrice);
-      if (price == null || price <= 0) return null;
-      return {
-        price,
-        openedAt: prev.ts != null ? String(normalizeUnixMs(prev.ts) ?? prev.ts) : null,
-      };
+    if (Math.abs(prevPnl) >= 1e-10) {
+      // Same reduce-only burst as this close — keep scanning for the open.
+      if (shouldMergeClosingFills(prev, f)) continue;
+      // Hit a previous round-trip close — stop (older opens belong to that trade).
+      break;
     }
+    const price = num(prev.fillPrice);
+    if (price == null || price <= 0) continue;
+    earliest = {
+      price,
+      openedAt: prev.ts != null ? String(normalizeUnixMs(prev.ts) ?? prev.ts) : null,
+    };
   }
-  return null;
+  return earliest;
+}
+
+function sortFillsByTs(fills: BlofinFillRow[]): BlofinFillRow[] {
+  return [...fills].sort((a, b) => (normalizeUnixMs(a.ts) ?? 0) - (normalizeUnixMs(b.ts) ?? 0));
 }
 
 /** Closed trades from fills-history (fillPnl on closing fills). */
@@ -290,7 +307,7 @@ export function closedTradesFromFills(
   leverageByInst?: Map<string, number>,
   leverageByOrderId?: Map<string, number>
 ): ClosedTrade[] {
-  const sorted = [...fills].sort((a, b) => Number(a.ts ?? 0) - Number(b.ts ?? 0));
+  const sorted = sortFillsByTs(fills);
   const closed: ClosedTrade[] = [];
   const groups = groupClosingFills(sorted);
 
@@ -329,11 +346,16 @@ export function closedTradesFromFills(
   return closed.reverse();
 }
 
+/** Prefer fill/update time over order createTime (limits can sit for hours before fill). */
+function orderEventMs(o: BlofinOrderRow): number | null {
+  return normalizeUnixMs(o.filledAt ?? o.createdAt);
+}
+
 /** Fallback: closing orders in orders-history with non-zero pnl. */
 export function closedTradesFromOrders(orders: BlofinOrderRow[], defaultLeverage: number): ClosedTrade[] {
   const filled = orders
     .filter((o) => o.state === "filled" || o.state === "partially_filled")
-    .sort((a, b) => Number(a.createdAt ?? 0) - Number(b.createdAt ?? 0));
+    .sort((a, b) => (orderEventMs(a) ?? 0) - (orderEventMs(b) ?? 0));
 
   const closed: ClosedTrade[] = [];
 
@@ -353,15 +375,18 @@ export function closedTradesFromOrders(orders: BlofinOrderRow[], defaultLeverage
       const prev = filled[j];
       if (prev.instId !== o.instId) continue;
       const prevPnl = num(prev.pnl) ?? 0;
-      if (Math.abs(prevPnl) < 1e-10) {
-        openPrice = num(prev.averagePrice) ?? num(prev.fillPrice) ?? num(prev.price);
-        openedAt =
-          prev.createdAt != null ? String(normalizeUnixMs(prev.createdAt) ?? prev.createdAt) : null;
+      if (Math.abs(prevPnl) >= 1e-10) {
+        // Prior closing order — don't borrow its entry for this round-trip.
         break;
       }
+      openPrice = num(prev.averagePrice) ?? num(prev.fillPrice) ?? num(prev.price);
+      const openMs = orderEventMs(prev);
+      openedAt = openMs != null ? String(openMs) : null;
+      // Keep scanning for earliest open in this window (overwrite as we go older).
     }
     if (openPrice == null || openPrice <= 0) continue;
 
+    const closeMs = orderEventMs(o);
     closed.push({
       id: o.orderId || `order-${i}`,
       instId: o.instId,
@@ -373,7 +398,7 @@ export function closedTradesFromOrders(orders: BlofinOrderRow[], defaultLeverage
       roiPct: roiFromPrices(direction, openPrice, closePrice, lev),
       leverage: lev,
       openedAt,
-      closedAt: o.createdAt != null ? String(normalizeUnixMs(o.createdAt) ?? o.createdAt) : null,
+      closedAt: closeMs != null ? String(closeMs) : null,
       source: "orders",
     });
   }
@@ -393,12 +418,17 @@ export function closedTradeLooseDedupeKey(t: ClosedTrade): string {
 
 function enrichFillWithOrderLeverage(fillsTrade: ClosedTrade, orderTrade: ClosedTrade): ClosedTrade {
   const lev = orderTrade.leverage > 0 ? orderTrade.leverage : fillsTrade.leverage;
+  // Prefer fill timestamps for hold duration; orders createTime can be hours early on limits.
   const openedAt = fillsTrade.openedAt || orderTrade.openedAt;
-  if (lev === fillsTrade.leverage && openedAt === fillsTrade.openedAt) return fillsTrade;
+  const closedAt = fillsTrade.closedAt || orderTrade.closedAt;
+  if (lev === fillsTrade.leverage && openedAt === fillsTrade.openedAt && closedAt === fillsTrade.closedAt) {
+    return fillsTrade;
+  }
   return {
     ...fillsTrade,
     leverage: lev,
     openedAt,
+    closedAt,
     roiPct: roiFromPrices(fillsTrade.direction, fillsTrade.openPrice, fillsTrade.closePrice, lev),
   };
 }
