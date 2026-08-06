@@ -922,6 +922,13 @@ model EnterLandingConfig {
   updatedAt DateTime @updatedAt
 }
 
+// Owner-managed: which dashboard tabs are visible only to the owner. Single row id "default".
+model TabOwnerOnlyConfig {
+  id        String   @id @default("default")
+  tabs      Json     // string[] of tab ids
+  updatedAt DateTime @updatedAt
+}
+
 // Owner-managed UI languages. Single row id "default".
 // enabledLocales: JSON string array of AppLocale codes (English always forced on).
 model LocaleConfig {

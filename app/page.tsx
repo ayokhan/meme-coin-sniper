@@ -492,6 +492,7 @@ function Dashboard() {
   const [topTabFilter, setTopTabFilter] = useState<TopTabFilter>("all");
   const [pageTabFlags, setPageTabFlags] = useState<Record<string, boolean> | null>(null);
   const [pageTabFlagsLoaded, setPageTabFlagsLoaded] = useState(false);
+  const [ownerOnlyTabs, setOwnerOnlyTabs] = useState<string[]>([]);
   const [liveSupportChatEnabled, setLiveSupportChatEnabled] = useState(false);
   const [tabNewBadges, setTabNewBadges] = useState<Record<string, string>>({});
   const [sitePromo, setSitePromo] = useState<PromoBannerAdmin | null>(null);
@@ -516,6 +517,7 @@ function Dashboard() {
         if (flagsData?.success) {
           setPageTabFlags(flagsData.flags ?? {});
           setLiveSupportChatEnabled(!!flagsData.liveSupportChatEnabled);
+          setOwnerOnlyTabs(Array.isArray(flagsData.ownerOnlyTabs) ? flagsData.ownerOnlyTabs : []);
         }
         if (badgesData?.success) setTabNewBadges(badgesData.badges ?? {});
         if (promoData?.success) setSitePromo(promoData.promo ?? null);
@@ -559,6 +561,8 @@ function Dashboard() {
   };
 
   const isTabVisibleInGui = (tab: TabId) => {
+    // Admin → Tab visibility: owner-only lock (after master page_tab flag still applies below).
+    if (ownerOnlyTabs.includes(tab) && !isOwner) return false;
     /** Same Off / Owner only / All VIP flags as Admin → Feature flags → Nova Forex Bots. */
     if (tab === "nova-forex-bot") {
       return !!(vipFuturesAddons?.novaForexBot || vipFuturesAddons?.novaForexScalpBot);
