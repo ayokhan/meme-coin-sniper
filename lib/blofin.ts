@@ -12,6 +12,7 @@ function getBaseUrl(demo: boolean): string {
 }
 
 import crypto from "crypto";
+import { roundPx } from "@/lib/blofin-tick";
 
 function createHmacSha256Hex(secret: string, message: string): string {
   return crypto.createHmac("sha256", secret).update(message).digest("hex");
@@ -352,49 +353,111 @@ export async function placeMarketOrder(
   return { ok: true, orderId };
 }
 
-/** Place TP/SL order. options.config: per-user config. */
+/** Place TP/SL order on an existing position.
+ * `side` is the **entry** side (`buy` = long, `sell` = short). Blofin requires the
+ * opposite close side and `size: "-1"` for full-position TP/SL (see order-tpsl).
+ * Pass absolute `tpTriggerPrice` / `slTriggerPrice` in options, or pcts from entry.
+ */
 export async function placeTPSLOrder(
   instId: string,
   side: "buy" | "sell",
-  size: string,
+  _size: string,
   marginMode: "isolated" | "cross",
   entryPrice: number,
   tpPct: number,
   slPct: number,
-  options?: { demo?: boolean; config?: BlofinConfig | null }
+  options?: {
+    demo?: boolean;
+    config?: BlofinConfig | null;
+    /** Absolute take-profit trigger (wins over tpPct when set). */
+    tpTriggerPrice?: number | null;
+    /** Absolute stop-loss trigger (wins over slPct when set). */
+    slTriggerPrice?: number | null;
+  }
 ): Promise<{ ok: boolean; error?: string }> {
   const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Blofin API keys not configured" };
+  if (!(entryPrice > 0) || !Number.isFinite(entryPrice)) {
+    return { ok: false, error: "Invalid entry price for TP/SL" };
+  }
+
   const isLong = side === "buy";
-  const tpPrice = isLong
-    ? entryPrice * (1 + tpPct / 100)
-    : entryPrice * (1 - tpPct / 100);
-  const slPrice = isLong
-    ? entryPrice * (1 - slPct / 100)
-    : entryPrice * (1 + slPct / 100);
+  const closeSide: "buy" | "sell" = isLong ? "sell" : "buy";
+
+  let tpPrice: number | null =
+    options?.tpTriggerPrice != null &&
+    Number.isFinite(options.tpTriggerPrice) &&
+    options.tpTriggerPrice > 0
+      ? options.tpTriggerPrice
+      : null;
+  let slPrice: number | null =
+    options?.slTriggerPrice != null &&
+    Number.isFinite(options.slTriggerPrice) &&
+    options.slTriggerPrice > 0
+      ? options.slTriggerPrice
+      : null;
+
+  if (tpPrice == null && Number.isFinite(tpPct) && tpPct > 0) {
+    tpPrice = isLong ? entryPrice * (1 + tpPct / 100) : entryPrice * (1 - tpPct / 100);
+  }
+  if (slPrice == null && Number.isFinite(slPct) && slPct > 0) {
+    slPrice = isLong ? entryPrice * (1 - slPct / 100) : entryPrice * (1 + slPct / 100);
+  }
+
+  if (tpPrice == null && slPrice == null) {
+    return { ok: false, error: "No TP or SL level to attach" };
+  }
+
+  // Sanity: triggers must sit on the correct side of entry.
+  if (tpPrice != null) {
+    const tpOk = isLong ? tpPrice > entryPrice : tpPrice < entryPrice;
+    if (!tpOk) return { ok: false, error: `TP ${tpPrice} is on the wrong side of entry ${entryPrice}` };
+  }
+  if (slPrice != null) {
+    const slOk = isLong ? slPrice < entryPrice : slPrice > entryPrice;
+    if (!slOk) return { ok: false, error: `SL ${slPrice} is on the wrong side of entry ${entryPrice}` };
+  }
+
+  let tickSize: number | null = null;
+  try {
+    const inst = await getInstrument(instId, { demo: options?.demo, config: options?.config });
+    const t = inst?.tickSize ? Number(inst.tickSize) : NaN;
+    if (Number.isFinite(t) && t > 0) tickSize = t;
+  } catch {
+    /* heuristic fallback below */
+  }
+
+  if (tpPrice != null) tpPrice = roundPx(tpPrice, entryPrice, tickSize);
+  if (slPrice != null) slPrice = roundPx(slPrice, entryPrice, tickSize);
+
   const body: Record<string, unknown> = {
     instId,
     marginMode,
     positionSide: "net",
-    side,
-    size,
+    side: closeSide,
+    size: "-1",
     reduceOnly: "true",
-    tpTriggerPrice: String(roundPrice(tpPrice)),
-    tpOrderPrice: "-1",
-    slTriggerPrice: String(roundPrice(slPrice)),
-    slOrderPrice: "-1",
   };
+  if (tpPrice != null) {
+    body.tpTriggerPrice = String(tpPrice);
+    body.tpOrderPrice = "-1";
+  }
+  if (slPrice != null) {
+    body.slTriggerPrice = String(slPrice);
+    body.slOrderPrice = "-1";
+  }
   if (config.brokerId) body.brokerId = config.brokerId;
-  const path = "/api/v1/trade/order-tpsl";
-  const out = await privateRequest<{ tpslId?: string }>("POST", path, body, options?.demo, options?.config);
-  if (out.code !== "0") return { ok: false, error: out.msg || out.code };
-  return { ok: true };
-}
 
-function roundPrice(p: number): number {
-  if (!Number.isFinite(p) || p <= 0) return p;
-  const scale = p >= 1000 ? 1 : p >= 1 ? 2 : 4;
-  return Math.round(p * Math.pow(10, scale)) / Math.pow(10, scale);
+  const path = "/api/v1/trade/order-tpsl";
+  let lastErr = "TP/SL attach failed";
+  // Position may not be bookable for a few hundred ms after market fill.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 400 * attempt));
+    const out = await privateRequest<{ tpslId?: string }>("POST", path, body, options?.demo, options?.config);
+    if (out.code === "0") return { ok: true };
+    lastErr = out.msg || out.code || lastErr;
+  }
+  return { ok: false, error: lastErr };
 }
 
 export type BlofinInstrumentInfo = {

@@ -329,25 +329,41 @@ export async function runNovaScalperTick(
   }
 
   let tpslNote = "";
-  if (row.attachTpsl && (row.tpslTpPct ?? 0) > 0 && (row.tpslSlPct ?? 0) > 0) {
-    const tpsl = await placeTPSLOrder(
-      instId,
-      orderSide,
-      sizeStr,
-      marginMode,
-      price,
-      row.tpslTpPct ?? 2,
-      row.tpslSlPct ?? 1,
-      blofinOpts
-    );
-    tpslNote = tpsl.ok ? " TP/SL attach attempted." : ` TP/SL skipped: ${tpsl.error ?? ""}`;
+  if (row.attachTpsl) {
+    const tpAbs = row.exitPrice > 0 ? row.exitPrice : null;
+    const slAbs =
+      row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && row.stopLossPrice > 0
+        ? row.stopLossPrice
+        : null;
+    const tpPct = row.tpslTpPct ?? 0;
+    const slPct = row.tpslSlPct ?? 0;
+    if (tpAbs || slAbs || tpPct > 0 || slPct > 0) {
+      const tpsl = await placeTPSLOrder(
+        instId,
+        orderSide,
+        sizeStr,
+        marginMode,
+        price,
+        // Prefer plan absolute levels; pct only fills gaps when abs missing.
+        tpAbs ? 0 : tpPct,
+        slAbs ? 0 : slPct,
+        {
+          ...blofinOpts,
+          tpTriggerPrice: tpAbs,
+          slTriggerPrice: slAbs,
+        }
+      );
+      tpslNote = tpsl.ok
+        ? " TP/SL attached on Blofin."
+        : ` TP/SL attach failed: ${tpsl.error ?? "unknown"} (soft exit via cron still active).`;
+    }
   }
 
   await updateRow({
     inPosition: true,
     lastRefPrice: price,
     lastTickAt: new Date(),
-    lastError: null,
+    lastError: tpslNote.includes("failed") ? tpslNote.trim() : null,
     lastAction: `Opened ${side} ${sizeStr} @ ~${price}.${tpslNote} Will close at exit ${row.exitPrice} or stop.`,
   });
 

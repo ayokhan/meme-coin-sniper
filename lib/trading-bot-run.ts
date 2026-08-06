@@ -312,7 +312,6 @@ export async function runTradingBotCycle(
     }
 
     const successMsg = `Opened ${signal} ${sizeStr} @ ${lastPrice}`;
-    await updateLastRun(null, signal, successMsg, resolved.message ?? undefined);
 
     if (bot.tpPct > 0 || bot.slPct > 0) {
       const tpsl = await placeTPSLOrderBlofin(
@@ -325,9 +324,18 @@ export async function runTradingBotCycle(
         bot.slPct,
         blofinOpts
       );
-      if (!tpsl.ok) console.warn("TP/SL order failed:", tpsl.error);
+      if (!tpsl.ok) {
+        const warn = `Opened ${signal} ${sizeStr} @ ${lastPrice}, but TP/SL attach failed: ${tpsl.error ?? "unknown"}`;
+        console.warn("TP/SL order failed:", tpsl.error);
+        await updateLastRun(tpsl.error ?? "TP/SL attach failed", signal, warn, resolved.message ?? undefined);
+        return { ok: true, message: warn };
+      }
+      const withTpsl = `${successMsg} · TP/SL attached on Blofin`;
+      await updateLastRun(null, signal, withTpsl, resolved.message ?? undefined);
+      return { ok: true, message: withTpsl };
     }
 
+    await updateLastRun(null, signal, successMsg, resolved.message ?? undefined);
     return { ok: true, message: successMsg };
   } catch (e) {
     const err = e instanceof Error ? e.message : String(e);

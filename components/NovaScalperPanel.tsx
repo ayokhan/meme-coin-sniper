@@ -907,7 +907,7 @@ export default function NovaScalperPanel() {
                 checked={config.attachTpsl}
                 onChange={(e) => setField("attachTpsl", e.target.checked)}
               />
-              <span className="text-sm">Also attach Blofin TP/SL after entry (experimental; primary exit is still close at exit price)</span>
+              <span className="text-sm">Also attach Blofin TP/SL after entry (uses plan exit/stop; soft cron close remains backup)</span>
             </label>
             {config.attachTpsl && (
               <div className="grid grid-cols-2 gap-2">

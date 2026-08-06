@@ -2497,7 +2497,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            TP/SL are sent to Blofin when the bot opens a position. If they don’t trigger, confirm with Blofin that <code className="rounded bg-zinc-200 dark:bg-zinc-700 px-0.5">order-tpsl</code> is supported for your account.          </p>
+            TP/SL are attached on Blofin after entry (close-side reduce-only). If attach fails, the bot last-run message shows the error — check that message and pending TP/SL on Blofin.
+          </p>
           <p className="text-xs text-muted-foreground">
             <strong>Trailing stop:</strong> NovaStaris uses fixed TP/SL for automated risk. Blofin supports trailing stop on their platform; we can add API support here once Blofin exposes it in their API docs.
           </p>
