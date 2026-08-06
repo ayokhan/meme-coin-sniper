@@ -295,32 +295,41 @@ export default function NovaScalperPanel() {
     return () => clearInterval(id);
   }, [autoSec, activeConfigId, configs, load, fetchPositionPnl]);
 
-  const save = async () => {
+  const save = async (overrides?: Partial<ScalperConfig>) => {
     const config = configs.find((c) => c.id === activeConfigId);
     if (!config) return;
+    const merged = { ...config, ...overrides };
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      const { instrumentPair, instId: _inst, ...rest } = config;
+      const { instrumentPair, instId: _inst, ...rest } = merged;
       const normalizedSymbol = instrumentPair.trim().toUpperCase().replace(/-/g, "/");
       const res = await fetch("/api/admin/nova-scalper", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ...rest, symbol: normalizedSymbol, configId: config.id }),
+        body: JSON.stringify({ ...rest, symbol: normalizedSymbol, configId: merged.id }),
       });
       const data = await res.json();
       if (data.success && data.config) {
         const c = normalizeConfigPayload(data.config as ScalperConfig);
         setConfigs((list) => list.map((row) => (row.id === c.id ? c : row)));
-        setSuccess("NovaScalper saved.");
+        setSuccess(c.enabled ? "Saved — bot is ON for this config." : "NovaScalper saved.");
       } else setError(data.error ?? "Save failed");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
     }
+  };
+
+  const toggleBotEnabled = async () => {
+    const config = configs.find((c) => c.id === activeConfigId);
+    if (!config || config.ownerForceOff) return;
+    const next = !config.enabled;
+    setConfigs((list) => list.map((c) => (c.id === activeConfigId ? { ...c, enabled: next } : c)));
+    await save({ enabled: next });
   };
 
   const addConfig = async () => {
@@ -703,26 +712,41 @@ export default function NovaScalperPanel() {
         <CardContent className="space-y-4">
           {config.ownerForceOff && (
             <div className="rounded-md border border-cyan-500/30 dark:border-cyan-600/40 bg-slate-50/90 dark:bg-slate-900/60 px-3 py-2 text-xs text-slate-900 dark:text-slate-100">
-              NovaScalper was <strong>disabled by the owner</strong> in Admin. The switch below stays off until they enable
-              you again. You can still change prices and save other settings.
+              NovaScalper was <strong>disabled by the owner</strong> in Admin. Start stays off until they enable you
+              again. You can still change prices and save other settings.
             </div>
           )}
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={config.enabled}
-              disabled={!!config.ownerForceOff}
-              onChange={(e) => setField("enabled", e.target.checked)}
-            />
-            <span className="text-sm font-medium">Enabled</span>
-          </label>
-          <p className="text-xs text-muted-foreground -mt-2">
-            Enabled means NovaScalper is allowed to trade on each <strong className="text-foreground">tick</strong> (Check
-            price / Auto tick). It does not run in the background by itself while the tab is closed. Each{" "}
-            <strong className="text-foreground">completed round</strong> is one full entry then exit (or stop); use{" "}
-            <strong className="text-foreground">Max repeat rounds</strong> to stop after N successes (
-            <strong className="text-foreground">0</strong> = keep going when flat).
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              size="default"
+              disabled={!!config.ownerForceOff || saving}
+              onClick={() => void toggleBotEnabled()}
+              className={
+                config.enabled
+                  ? "bg-rose-600 hover:bg-rose-700 text-white min-w-[9rem]"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white min-w-[9rem]"
+              }
+            >
+              {saving ? "Saving…" : config.enabled ? "Stop bot" : "Start bot"}
+            </Button>
+            <div className="text-sm">
+              <span
+                className={
+                  config.enabled
+                    ? "font-semibold text-emerald-700 dark:text-emerald-400"
+                    : "font-semibold text-zinc-500 dark:text-zinc-400"
+                }
+              >
+                {config.enabled ? "Running" : "Stopped"}
+              </span>
+              <p className="text-[11px] text-muted-foreground mt-0.5 max-w-md">
+                Start arms this config for each tick (Check price / Auto tick / server cron). It does not trade other
+                configs. Use <strong className="text-foreground">Max repeat rounds</strong> to auto-stop after N
+                successes (<strong className="text-foreground">0</strong> = keep going when flat).
+              </p>
+            </div>
+          </div>
 
           <div>
             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Mode</label>
