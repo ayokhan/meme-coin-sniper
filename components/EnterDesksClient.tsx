@@ -275,16 +275,6 @@ export default function EnterDesksClient() {
           NovaStaris
         </Link>
         <div className="flex items-center gap-3 text-sm">
-          <a
-            href={INSTAGRAM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden items-center gap-1.5 text-zinc-400 transition-colors hover:text-white sm:inline-flex"
-            aria-label="NovaStaris on Instagram"
-          >
-            <Instagram className="h-3.5 w-3.5" />
-            <span className="font-medium tracking-wide">@{INSTAGRAM_HANDLE}</span>
-          </a>
           <Link href="/signin" className="text-zinc-400 transition-colors hover:text-white">
             Sign in
           </Link>
