@@ -3,7 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Instagram } from "lucide-react";
 import { saveDashboardPath, type DashboardPath } from "@/lib/dashboard-onboarding";
+
+const INSTAGRAM_HANDLE = "novastaris";
+const INSTAGRAM_URL = "https://www.instagram.com/novastaris/";
 
 type DeskId = "meme" | "futures" | "forex" | "prop" | "polymarket";
 
@@ -267,6 +271,16 @@ export default function EnterDesksClient() {
           NovaStaris
         </Link>
         <div className="flex items-center gap-3 text-sm">
+          <a
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden items-center gap-1.5 text-zinc-400 transition-colors hover:text-white sm:inline-flex"
+            aria-label="NovaStaris on Instagram"
+          >
+            <Instagram className="h-3.5 w-3.5" />
+            <span className="font-medium tracking-wide">@{INSTAGRAM_HANDLE}</span>
+          </a>
           <Link href="/signin" className="text-zinc-400 transition-colors hover:text-white">
             Sign in
           </Link>
@@ -619,22 +633,65 @@ export default function EnterDesksClient() {
             </button>
           </section>
         )}
-
-        <footer className="mt-16 flex flex-wrap gap-4 border-t border-white/10 pt-6 text-xs text-zinc-500">
-          <Link href="/?tab=trading-university" className="hover:text-zinc-300">
-            Trading University
-          </Link>
-          <Link href="/start-here" className="hover:text-zinc-300">
-            Classic start guide
-          </Link>
-          <Link href="/affiliate" className="hover:text-zinc-300">
-            Affiliate
-          </Link>
-          <Link href="/wins" className="hover:text-zinc-300">
-            Wins
-          </Link>
-        </footer>
       </main>
+
+      {/* Instagram signal strip — full-bleed invite below the desks */}
+      <a
+        href={INSTAGRAM_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group relative z-10 mt-12 block overflow-hidden border-y border-white/10 bg-gradient-to-r from-cyan-500/10 via-transparent to-amber-500/10 py-4 transition-colors hover:border-white/20"
+      >
+        <div className="pointer-events-none absolute inset-0 opacity-[0.4] [mask-image:linear-gradient(90deg,transparent,black_10%,black_90%,transparent)]">
+          <div className="animate-[enter-ig-marquee_32s_linear_infinite] flex w-max whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.28em] text-zinc-500">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <span key={i} className="mx-6">
+                Follow the desk · @{INSTAGRAM_HANDLE} · charts · desks · wins · Instagram
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-zinc-950/80 text-white transition-transform duration-300 group-hover:scale-105">
+              <Instagram className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-white">
+                @{INSTAGRAM_HANDLE}
+              </p>
+              <p className="text-xs text-zinc-400">Behind the desks — setups, wins, and product drops</p>
+            </div>
+          </div>
+          <span className="rounded-md border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition-colors group-hover:border-cyan-400/50 group-hover:bg-cyan-500/10 group-hover:text-cyan-100">
+            Follow on Instagram
+          </span>
+        </div>
+      </a>
+
+      <footer className="relative z-10 mx-auto flex max-w-6xl flex-wrap gap-4 px-4 pb-16 pt-8 text-xs text-zinc-500 sm:px-6">
+        <a
+          href={INSTAGRAM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 hover:text-zinc-300"
+        >
+          <Instagram className="h-3 w-3" />
+          @{INSTAGRAM_HANDLE}
+        </a>
+        <Link href="/?tab=trading-university" className="hover:text-zinc-300">
+          Trading University
+        </Link>
+        <Link href="/start-here" className="hover:text-zinc-300">
+          Classic start guide
+        </Link>
+        <Link href="/affiliate" className="hover:text-zinc-300">
+          Affiliate
+        </Link>
+        <Link href="/wins" className="hover:text-zinc-300">
+          Wins
+        </Link>
+      </footer>
     </div>
   );
 }
