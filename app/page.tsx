@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef, useMemo, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo, Suspense, type Dispatch, type SetStateAction } from "react";
 import {
   earlyBreakoutScore,
   earlyBreakoutDirection,
@@ -30,8 +30,9 @@ import {
 } from "@/lib/perp-table-prefs";
 import { useTheme } from "next-themes";
 import { useSession, signOut, getSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import EnterDesksClient from "@/components/EnterDesksClient";
 import { Button } from "@/components/ui/button";
 import AccountNavMenu from "@/components/AccountNavMenu";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -371,7 +372,51 @@ function NovaConnectFeedAuthorAvatar({
   );
 }
 
-export default function Dashboard() {
+export default function Home() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#05080f]">
+          <p className="font-[family-name:var(--font-space-grotesk)] text-lg tracking-tight text-white">
+            NovaStaris
+          </p>
+        </div>
+      }
+    >
+      <HomeGate />
+    </Suspense>
+  );
+}
+
+function HomeGate() {
+  const { status } = useSession();
+  const searchParams = useSearchParams();
+  const hasDeepLink =
+    !!searchParams.get("tab") ||
+    !!searchParams.get("ref") ||
+    !!searchParams.get("affiliate") ||
+    !!searchParams.get("code") ||
+    !!searchParams.get("invite");
+
+  if (status === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#05080f] text-zinc-400">
+        <p className="font-[family-name:var(--font-space-grotesk)] text-lg tracking-tight text-white">
+          NovaStaris
+        </p>
+      </div>
+    );
+  }
+
+  // Bare homepage for guests → desk landing (www.novastaris.ai)
+  if (status === "unauthenticated" && !hasDeepLink) {
+    return <EnterDesksClient />;
+  }
+
+  return <Dashboard />;
+}
+
+function Dashboard() {
   const { t } = useI18n();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
