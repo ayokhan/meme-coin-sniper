@@ -382,6 +382,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, /wins is live (PNL share destination + Account → Wins). Signed-in users see a welcome view; guests see Create account / Sign in. When OFF, the page shows closed and Wins links are hidden in the app. Default ON.",
   },
+  enter_landing_enabled: {
+    label: "Enter / desk landing (guests)",
+    description:
+      "When ON, logged-out visitors see the desk landing on / (and /enter). When OFF, guests get the dashboard on bare / and /enter redirects home. Edit cards & copy in Admin → Landing. Default ON.",
+  },
   page_tab_nova_job_agent: {
     label: "Nova Jobs Agent (master)",
     description:

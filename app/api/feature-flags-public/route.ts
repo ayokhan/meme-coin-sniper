@@ -17,6 +17,7 @@ export async function GET() {
     flags: pageTabFlags,
     analyticsPingEnabled: flags[FEATURE_FLAG_KEYS.ANALYTICS_PING_ENABLED] ?? true,
     liveSupportChatEnabled: flags[FEATURE_FLAG_KEYS.LIVE_SUPPORT_CHAT] ?? false,
+    enterLandingEnabled: flags[FEATURE_FLAG_KEYS.ENTER_LANDING_ENABLED] ?? true,
     pnlShare: pnlShareFlagsFromRecord(flags),
   });
 }

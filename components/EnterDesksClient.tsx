@@ -5,15 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Instagram } from "lucide-react";
 import {
-  NOVASTARIS_INSTAGRAM_HANDLE,
-  NOVASTARIS_INSTAGRAM_URL,
-} from "@/components/SiteInstagramFooter";
-import { saveDashboardPath, type DashboardPath } from "@/lib/dashboard-onboarding";
-
-const INSTAGRAM_HANDLE = NOVASTARIS_INSTAGRAM_HANDLE;
-const INSTAGRAM_URL = NOVASTARIS_INSTAGRAM_URL;
-
-type DeskId = "meme" | "futures" | "forex" | "prop" | "polymarket";
+  DEFAULT_ENTER_LANDING,
+  type EnterLandingConfig,
+  type EnterLandingDesk,
+  type EnterLandingDeskId,
+  type EnterLandingGate,
+} from "@/lib/enter-landing";
+import { saveDashboardPath } from "@/lib/dashboard-onboarding";
 
 type ForexRow = {
   symbol: string;
@@ -31,16 +29,8 @@ type FuturesRow = {
   volume24h: number | null;
 };
 
-const DESKS: Array<{
-  id: DeskId;
-  path: DashboardPath | null;
-  title: string;
-  line: string;
-  cta: string;
-  href: string;
-  gate: "open" | "vip" | "preview";
+type DeskStyle = {
   tone: string;
-  /** Border / CTA / active accent — one mood per desk */
   accent: {
     border: string;
     borderHover: string;
@@ -51,15 +41,11 @@ const DESKS: Array<{
     label: string;
     bar: string;
   };
-}> = [
-  {
-    id: "meme",
-    path: "meme",
-    title: "Meme desk",
-    line: "Hunt early Solana & BSC momentum, then run AI contract analysis.",
-    cta: "Enter Go Hunting",
-    href: "/?tab=new",
-    gate: "open",
+};
+
+/** Visual accents hardcoded by desk id — copy/href come from landing config. */
+const DESK_STYLES: Record<EnterLandingDeskId, DeskStyle> = {
+  meme: {
     tone: "from-teal-500/25 via-transparent to-transparent",
     accent: {
       border: "border-teal-500/25",
@@ -72,14 +58,7 @@ const DESKS: Array<{
       bar: "bg-teal-400",
     },
   },
-  {
-    id: "futures",
-    path: "futures",
-    title: "Futures desk",
-    line: "Upload a chart for AI structure — or pick a mover from the opportunity rail.",
-    cta: "Open Chart AI",
-    href: "/?tab=futures&futures=ai",
-    gate: "open",
+  futures: {
     tone: "from-cyan-500/25 via-transparent to-transparent",
     accent: {
       border: "border-cyan-500/25",
@@ -92,14 +71,7 @@ const DESKS: Array<{
       bar: "bg-cyan-400",
     },
   },
-  {
-    id: "forex",
-    path: "forex",
-    title: "Forex desk",
-    line: "Gold, FX, indices. Guests see a delayed Market Watch; live Agent is VIP.",
-    cta: "Open Nova Forex",
-    href: "/?tab=nova-forex",
-    gate: "vip",
+  forex: {
     tone: "from-amber-500/20 via-transparent to-transparent",
     accent: {
       border: "border-amber-500/25",
@@ -112,14 +84,7 @@ const DESKS: Array<{
       bar: "bg-amber-400",
     },
   },
-  {
-    id: "prop",
-    path: null,
-    title: "Prop firm desk",
-    line: "Challenge workflows on your rules. Preview the room — VIP to run.",
-    cta: "Preview Prop Firm",
-    href: "/?tab=prop-firm-bot",
-    gate: "preview",
+  prop: {
     tone: "from-rose-500/20 via-transparent to-transparent",
     accent: {
       border: "border-rose-500/25",
@@ -132,14 +97,7 @@ const DESKS: Array<{
       bar: "bg-rose-400",
     },
   },
-  {
-    id: "polymarket",
-    path: "polymarket",
-    title: "Polymarket desk",
-    line: "Prediction-market radar and wallet intel. Preview free — live is VIP.",
-    cta: "Preview Polymarket",
-    href: "/?tab=polymarket-bot",
-    gate: "preview",
+  polymarket: {
     tone: "from-sky-500/20 via-transparent to-transparent",
     accent: {
       border: "border-sky-500/25",
@@ -152,9 +110,7 @@ const DESKS: Array<{
       bar: "bg-sky-400",
     },
   },
-];
-
-const UNI_PATH = ["Foundations", "Markets", "Applied", "Final exam", "Certificate"] as const;
+};
 
 function fmtPx(n: number | null): string {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -166,7 +122,7 @@ function fmtPct(n: number | null): string {
   return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 }
 
-function gateLabel(gate: (typeof DESKS)[number]["gate"]): string {
+function gateLabel(gate: EnterLandingGate): string {
   if (gate === "vip") return "VIP live · guest snapshot";
   if (gate === "preview") return "Preview · VIP to operate";
   return "Open access";
@@ -175,7 +131,8 @@ function gateLabel(gate: (typeof DESKS)[number]["gate"]): string {
 export default function EnterDesksClient() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [active, setActive] = useState<DeskId | null>(null);
+  const [config, setConfig] = useState<EnterLandingConfig>(DEFAULT_ENTER_LANDING);
+  const [active, setActive] = useState<EnterLandingDeskId | null>(null);
   const [forexRows, setForexRows] = useState<ForexRow[]>([]);
   const [futuresRows, setFuturesRows] = useState<FuturesRow[]>([]);
   const [snapNote, setSnapNote] = useState<string | null>(null);
@@ -184,6 +141,20 @@ export default function EnterDesksClient() {
   const [heroReady, setHeroReady] = useState(false);
   const [desksReady, setDesksReady] = useState(false);
   const [uniReady, setUniReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/public/enter-landing", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled || !data?.success || !data.landing) return;
+        setConfig(data.landing as EnterLandingConfig);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => setHeroReady(true), 40);
@@ -216,7 +187,7 @@ export default function EnterDesksClient() {
       if (el) obs.observe(el);
     }
     return () => obs.disconnect();
-  }, []);
+  }, [config.university.enabled]);
 
   useEffect(() => {
     let cancelled = false;
@@ -239,7 +210,11 @@ export default function EnterDesksClient() {
     };
   }, []);
 
-  const enterDesk = (desk: (typeof DESKS)[number]) => {
+  const desks = config.desks.filter((d) => d.enabled);
+  const ig = config.instagram;
+  const ft = config.footer;
+
+  const enterDesk = (desk: EnterLandingDesk) => {
     startTransition(() => {
       if (desk.path) saveDashboardPath(desk.path);
       router.push(desk.href);
@@ -254,6 +229,9 @@ export default function EnterDesksClient() {
     }
     router.push(`/?tab=futures&futures=ai&symbol=${encodeURIComponent(symbol)}`);
   };
+
+  const findDesk = (id: EnterLandingDeskId) =>
+    config.desks.find((d) => d.id === id) ?? DEFAULT_ENTER_LANDING.desks.find((d) => d.id === id)!;
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-zinc-100">
@@ -294,21 +272,21 @@ export default function EnterDesksClient() {
               heroReady ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
             }`}
           >
-            AI trading intelligence
+            {config.heroEyebrow}
           </p>
           <h1
             className={`mt-4 max-w-3xl font-[family-name:var(--font-space-grotesk)] text-5xl font-bold leading-[1.05] tracking-tight text-white transition-all duration-700 delay-75 sm:text-6xl md:text-7xl ${
               heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             }`}
           >
-            NovaStaris
+            {config.heroTitle}
           </h1>
           <p
             className={`mt-5 max-w-xl text-base text-zinc-400 transition-all duration-700 delay-150 sm:text-lg ${
               heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             }`}
           >
-            Trade intelligence for the desk you run — and a free University so you learn before you size up.
+            {config.heroBlurb}
           </p>
           <div
             className={`mt-8 flex flex-wrap gap-3 transition-all duration-700 delay-200 ${
@@ -319,131 +297,139 @@ export default function EnterDesksClient() {
               href="#desks"
               className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-zinc-950 transition-colors hover:bg-zinc-200"
             >
-              Choose your desk
+              {config.heroPrimaryCta}
             </a>
-            <a
-              href="#university"
-              className="rounded-md border border-amber-400/40 px-5 py-2.5 text-sm font-medium text-amber-100 transition-colors hover:border-amber-300/70 hover:bg-amber-500/10"
-            >
-              Learn free
-            </a>
+            {config.university.enabled && (
+              <a
+                href="#university"
+                className="rounded-md border border-amber-400/40 px-5 py-2.5 text-sm font-medium text-amber-100 transition-colors hover:border-amber-300/70 hover:bg-amber-500/10"
+              >
+                {config.heroSecondaryCta}
+              </a>
+            )}
           </div>
         </section>
 
         <section id="desks" className="space-y-4 pb-8">
           <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-white">
-            Enter a desk
+            {config.desksHeading}
           </h2>
-          <p className="max-w-2xl text-sm text-zinc-400">
-            One job per room. Pick where you trade — we route you into that workflow, not a wall of tabs.
-          </p>
+          <p className="max-w-2xl text-sm text-zinc-400">{config.desksBlurb}</p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {DESKS.map((desk, i) => (
-              <button
-                key={desk.id}
-                type="button"
-                onClick={() => setActive(desk.id === active ? null : desk.id)}
-                style={{
-                  transitionDelay: desksReady ? `${80 + i * 70}ms` : "0ms",
-                }}
-                className={`group relative overflow-hidden rounded-2xl border bg-zinc-950/50 p-5 text-left backdrop-blur-sm transition-all duration-500 ease-out ${desk.accent.border} ${desk.accent.borderHover} ${
-                  active === desk.id ? `${desk.accent.borderActive} ring-1 ${desk.accent.ring}` : ""
-                } ${desksReady ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}
-              >
-                <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${desk.tone}`} />
-                <div className={`pointer-events-none absolute left-0 top-0 h-full w-1 ${desk.accent.bar}`} aria-hidden />
-                <div className="relative">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-white">
-                      {desk.title}
-                    </h3>
-                    <span
-                      className={`shrink-0 rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-wide ${desk.accent.label}`}
-                    >
-                      {gateLabel(desk.gate)}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm leading-relaxed text-zinc-400">{desk.line}</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span
-                      role="link"
-                      tabIndex={0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        enterDesk(desk);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
+            {desks.map((desk, i) => {
+              const style = DESK_STYLES[desk.id];
+              return (
+                <button
+                  key={desk.id}
+                  type="button"
+                  onClick={() => setActive(desk.id === active ? null : desk.id)}
+                  style={{
+                    transitionDelay: desksReady ? `${80 + i * 70}ms` : "0ms",
+                  }}
+                  className={`group relative overflow-hidden rounded-2xl border bg-zinc-950/50 p-5 text-left backdrop-blur-sm transition-all duration-500 ease-out ${style.accent.border} ${style.accent.borderHover} ${
+                    active === desk.id ? `${style.accent.borderActive} ring-1 ${style.accent.ring}` : ""
+                  } ${desksReady ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}
+                >
+                  <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${style.tone}`} />
+                  <div className={`pointer-events-none absolute left-0 top-0 h-full w-1 ${style.accent.bar}`} aria-hidden />
+                  <div className="relative">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-white">
+                        {desk.title}
+                      </h3>
+                      <span
+                        className={`shrink-0 rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-wide ${style.accent.label}`}
+                      >
+                        {gateLabel(desk.gate)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-zinc-400">{desk.line}</p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span
+                        role="link"
+                        tabIndex={0}
+                        onClick={(e) => {
                           e.stopPropagation();
                           enterDesk(desk);
-                        }
-                      }}
-                      className={`inline-flex cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-950 ${desk.accent.cta} ${desk.accent.ctaHover}`}
-                    >
-                      {pending ? "Opening…" : desk.cta}
-                    </span>
-                    <span className="self-center text-[11px] text-zinc-500 group-hover:text-zinc-400">
-                      {active === desk.id ? "Hide preview" : "Show preview"}
-                    </span>
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            enterDesk(desk);
+                          }
+                        }}
+                        className={`inline-flex cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-950 ${style.accent.cta} ${style.accent.ctaHover}`}
+                      >
+                        {pending ? "Opening…" : desk.cta}
+                      </span>
+                      <span className="self-center text-[11px] text-zinc-500 group-hover:text-zinc-400">
+                        {active === desk.id ? "Hide preview" : "Show preview"}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </section>
 
-        <section
-          id="university"
-          className={`relative mt-10 overflow-hidden rounded-2xl border border-amber-500/30 bg-zinc-950/70 p-6 sm:p-8 transition-all duration-700 ease-out ${
-            uniReady ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-          }`}
-        >
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/15 via-transparent to-transparent" />
-          <div className="relative max-w-2xl">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/90">
-              Free to enroll
-            </p>
-            <h2 className="mt-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-white sm:text-3xl">
-              NovaStaris Trading University
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-400 sm:text-base">
-              Learn meme coins, Solana &amp; BSC, futures &amp; perps, prediction markets, forex, and metals — then sit
-              the final exam and earn a certificate. Preview as a guest; enroll free to track progress.
-            </p>
-            <ol className="mt-5 flex flex-wrap items-center gap-x-1 gap-y-2 text-[11px] text-amber-100/80">
-              {UNI_PATH.map((step, i) => (
-                <li key={step} className="inline-flex items-center gap-1">
-                  {i > 0 && <span className="mx-1 text-amber-500/50" aria-hidden>→</span>}
-                  <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-1 font-medium tracking-wide">
-                    {step}
-                  </span>
-                </li>
-              ))}
-            </ol>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => {
-                  startTransition(() => {
-                    router.push("/?tab=trading-university");
-                  });
-                }}
-                className="rounded-md bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-300 disabled:opacity-60"
-              >
-                {pending ? "Opening…" : "Enter Trading University"}
-              </button>
-              <a
-                href="#desks"
-                className="rounded-md border border-white/15 px-4 py-2 text-sm text-zinc-300 transition-colors hover:border-white/30"
-              >
-                Or pick a desk first
-              </a>
+        {config.university.enabled && (
+          <section
+            id="university"
+            className={`relative mt-10 overflow-hidden rounded-2xl border border-amber-500/30 bg-zinc-950/70 p-6 sm:p-8 transition-all duration-700 ease-out ${
+              uniReady ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+            }`}
+          >
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/15 via-transparent to-transparent" />
+            <div className="relative max-w-2xl">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/90">
+                {config.university.eyebrow}
+              </p>
+              <h2 className="mt-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-white sm:text-3xl">
+                {config.university.title}
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400 sm:text-base">
+                {config.university.blurb}
+              </p>
+              <ol className="mt-5 flex flex-wrap items-center gap-x-1 gap-y-2 text-[11px] text-amber-100/80">
+                {config.university.pathSteps.map((step, i) => (
+                  <li key={step} className="inline-flex items-center gap-1">
+                    {i > 0 && (
+                      <span className="mx-1 text-amber-500/50" aria-hidden>
+                        →
+                      </span>
+                    )}
+                    <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-1 font-medium tracking-wide">
+                      {step}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    startTransition(() => {
+                      router.push("/?tab=trading-university");
+                    });
+                  }}
+                  className="rounded-md bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-300 disabled:opacity-60"
+                >
+                  {pending ? "Opening…" : config.university.cta}
+                </button>
+                <a
+                  href="#desks"
+                  className="rounded-md border border-white/15 px-4 py-2 text-sm text-zinc-300 transition-colors hover:border-white/30"
+                >
+                  {config.university.secondaryCta}
+                </a>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {active === "futures" && (
           <section className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/60 p-4 sm:p-5">
@@ -581,7 +567,7 @@ export default function EnterDesksClient() {
               <button
                 type="button"
                 className="rounded-md border border-white/20 px-3 py-1.5 text-xs text-zinc-300"
-                onClick={() => enterDesk(DESKS.find((d) => d.id === "forex")!)}
+                onClick={() => enterDesk(findDesk("forex"))}
               >
                 Open desk (VIP gate)
               </button>
@@ -602,7 +588,7 @@ export default function EnterDesksClient() {
             <button
               type="button"
               className="mt-4 rounded-md bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-cyan-400"
-              onClick={() => enterDesk(DESKS.find((d) => d.id === active)!)}
+              onClick={() => enterDesk(findDesk(active))}
             >
               Open preview in app
             </button>
@@ -621,70 +607,81 @@ export default function EnterDesksClient() {
             <button
               type="button"
               className="mt-4 rounded-md bg-teal-400 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-teal-300"
-              onClick={() => enterDesk(DESKS.find((d) => d.id === "meme")!)}
+              onClick={() => enterDesk(findDesk("meme"))}
             >
-              Enter Go Hunting
+              {findDesk("meme").cta}
             </button>
           </section>
         )}
       </main>
 
-      {/* Instagram signal strip — full-bleed invite below the desks */}
-      <a
-        href={INSTAGRAM_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group relative z-10 mt-12 block overflow-hidden border-y border-white/10 bg-gradient-to-r from-cyan-500/10 via-transparent to-amber-500/10 py-4 transition-colors hover:border-white/20"
-      >
-        <div className="pointer-events-none absolute inset-0 opacity-[0.4] [mask-image:linear-gradient(90deg,transparent,black_10%,black_90%,transparent)]">
-          <div className="animate-[enter-ig-marquee_32s_linear_infinite] flex w-max whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.28em] text-zinc-500">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <span key={i} className="mx-6">
-                Follow the desk · @{INSTAGRAM_HANDLE} · setups · desks · wins · Instagram
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-zinc-950/80 text-white transition-transform duration-300 group-hover:scale-105">
-              <Instagram className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-white">
-                @{INSTAGRAM_HANDLE}
-              </p>
-              <p className="text-xs text-zinc-400">Behind the desks — setups, wins, and product drops</p>
-            </div>
-          </div>
-          <span className="rounded-md border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition-colors group-hover:border-cyan-400/50 group-hover:bg-cyan-500/10 group-hover:text-cyan-100">
-            Follow on Instagram
-          </span>
-        </div>
-      </a>
-
-      <footer className="relative z-10 mx-auto flex max-w-6xl flex-wrap gap-4 px-4 pb-16 pt-8 text-xs text-zinc-500 sm:px-6">
+      {ig.enabled && (
         <a
-          href={INSTAGRAM_URL}
+          href={ig.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 hover:text-zinc-300"
+          className="group relative z-10 mt-12 block overflow-hidden border-y border-white/10 bg-gradient-to-r from-cyan-500/10 via-transparent to-amber-500/10 py-4 transition-colors hover:border-white/20"
         >
-          <Instagram className="h-3 w-3" />
-          @{INSTAGRAM_HANDLE}
+          <div className="pointer-events-none absolute inset-0 opacity-[0.4] [mask-image:linear-gradient(90deg,transparent,black_10%,black_90%,transparent)]">
+            <div className="animate-[enter-ig-marquee_32s_linear_infinite] flex w-max whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.28em] text-zinc-500">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <span key={i} className="mx-6">
+                  {ig.marqueeText}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-zinc-950/80 text-white transition-transform duration-300 group-hover:scale-105">
+                <Instagram className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-white">
+                  @{ig.handle}
+                </p>
+                <p className="text-xs text-zinc-400">{ig.stripBlurb}</p>
+              </div>
+            </div>
+            <span className="rounded-md border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition-colors group-hover:border-cyan-400/50 group-hover:bg-cyan-500/10 group-hover:text-cyan-100">
+              {ig.stripCta}
+            </span>
+          </div>
         </a>
-        <Link href="/?tab=trading-university" className="hover:text-zinc-300">
-          Trading University
-        </Link>
-        <Link href="/start-here" className="hover:text-zinc-300">
-          Classic start guide
-        </Link>
-        <Link href="/affiliate" className="hover:text-zinc-300">
-          Affiliate
-        </Link>
-        <Link href="/wins" className="hover:text-zinc-300">
-          Wins
-        </Link>
+      )}
+
+      <footer className="relative z-10 mx-auto flex max-w-6xl flex-wrap gap-4 px-4 pb-16 pt-8 text-xs text-zinc-500 sm:px-6">
+        {ft.showInstagram && ig.enabled && (
+          <a
+            href={ig.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 hover:text-zinc-300"
+          >
+            <Instagram className="h-3 w-3" />
+            @{ig.handle}
+          </a>
+        )}
+        {ft.showUniversity && (
+          <Link href={ft.universityHref} className="hover:text-zinc-300">
+            {ft.universityLabel}
+          </Link>
+        )}
+        {ft.showStartHere && (
+          <Link href={ft.startHereHref} className="hover:text-zinc-300">
+            {ft.startHereLabel}
+          </Link>
+        )}
+        {ft.showAffiliate && (
+          <Link href={ft.affiliateHref} className="hover:text-zinc-300">
+            {ft.affiliateLabel}
+          </Link>
+        )}
+        {ft.showWins && (
+          <Link href={ft.winsHref} className="hover:text-zinc-300">
+            {ft.winsLabel}
+          </Link>
+        )}
       </footer>
     </div>
   );

@@ -915,6 +915,13 @@ model PromoBanner {
   updatedAt       DateTime  @updatedAt
 }
 
+// Owner-managed enter/desk landing copy + section visibility. Single row id "default".
+model EnterLandingConfig {
+  id        String   @id @default("default")
+  config    Json
+  updatedAt DateTime @updatedAt
+}
+
 // Owner-managed UI languages. Single row id "default".
 // enabledLocales: JSON string array of AppLocale codes (English always forced on).
 model LocaleConfig {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import EnterDesksClient from "@/components/EnterDesksClient";
+import EnterPageClient from "./EnterPageClient";
 
 export const metadata: Metadata = {
   title: "Enter NovaStaris — Choose your trading desk",
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function EnterPage() {
-  return <EnterDesksClient />;
+  return <EnterPageClient />;
 }

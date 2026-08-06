@@ -174,6 +174,13 @@ export const FEATURE_FLAG_KEYS = {
    */
   PAGE_TAB_WINS: 'page_tab_wins',
 
+  /**
+   * Guest desk landing on `/` (and `/enter`).
+   * When OFF: guests get the dashboard on bare `/`; `/enter` redirects home.
+   * Desk copy/visibility: Admin → Landing. Default ON.
+   */
+  ENTER_LANDING_ENABLED: 'enter_landing_enabled',
+
   /** Master switch: Vercel scheduled /api/cron (daily scan, wallet notify, trading bot, perp jobs). When OFF, cron returns immediately — saves CPU. Default ON. */
   VERCEL_CRON_ENABLED: 'vercel_cron_enabled',
   /**

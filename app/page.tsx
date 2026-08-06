@@ -391,6 +391,7 @@ export default function Home() {
 function HomeGate() {
   const { status } = useSession();
   const searchParams = useSearchParams();
+  const [enterLandingEnabled, setEnterLandingEnabled] = useState<boolean | null>(null);
   const hasDeepLink =
     !!searchParams.get("tab") ||
     !!searchParams.get("ref") ||
@@ -398,7 +399,27 @@ function HomeGate() {
     !!searchParams.get("code") ||
     !!searchParams.get("invite");
 
-  if (status === "loading") {
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setEnterLandingEnabled(data?.enterLandingEnabled !== false);
+      })
+      .catch(() => {
+        if (!cancelled) setEnterLandingEnabled(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const showSplash =
+    status === "loading" ||
+    (status === "unauthenticated" && !hasDeepLink && enterLandingEnabled === null);
+
+  if (showSplash) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#05080f] text-zinc-400">
         <p className="font-[family-name:var(--font-space-grotesk)] text-lg tracking-tight text-white">
@@ -408,8 +429,8 @@ function HomeGate() {
     );
   }
 
-  // Bare homepage for guests → desk landing (www.novastaris.ai)
-  if (status === "unauthenticated" && !hasDeepLink) {
+  // Bare homepage for guests → desk landing (www.novastaris.ai), when flag allows
+  if (status === "unauthenticated" && !hasDeepLink && enterLandingEnabled !== false) {
     return <EnterDesksClient />;
   }
 
