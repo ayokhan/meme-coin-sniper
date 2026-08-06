@@ -15,6 +15,7 @@ import {
   getBlofinTrendingPerpBySymbol,
   getNovaScalpCandles,
 } from "@/lib/nova-scalp-blofin-market";
+import { buildLiquidationMapSuggestedPlan } from "@/lib/liquidation-map-plan";
 
 type ClusterSide = "long_liq_below" | "short_liq_above";
 
@@ -434,6 +435,7 @@ export async function POST(request: Request) {
             detail: string;
             suggestedFix: string | null;
           }>;
+          suggestedPlan: ReturnType<typeof buildLiquidationMapSuggestedPlan>;
         }
       | undefined;
     if (hasTradePlan) {
@@ -484,15 +486,29 @@ export async function POST(request: Request) {
       const exitFor25R = traderType === "long" ? entry + 2.5 * riskProxy : entry - 2.5 * riskProxy;
       const fmtPx = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 6 });
 
+      const suggestedPlan = buildLiquidationMapSuggestedPlan({
+        traderType,
+        entry,
+        exit,
+        markPrice,
+        bias: analysis.bias,
+        trend,
+        clusters: analysis.clusters,
+      });
+
       const fixDirection =
         dirPts >= W.direction
           ? null
-          : `Fade or counter-bias setups need smaller size and a hard invalidation beyond the trap zone — or wait until bias softens toward ${traderType === "long" ? "neutral/bullish" : "neutral/bearish"}.`;
+          : `Fade or counter-bias setups need smaller size and a hard invalidation at ~${fmtPx(suggestedPlan.suggestedStop.price)} — or wait until bias softens toward ${traderType === "long" ? "neutral/bullish" : "neutral/bearish"}.`;
 
       const fixTrend =
         trendPts >= W.trend
           ? null
-          : `Prefer pullback or range-edge entries rather than chasing impulse while the read is "${trend}" against ${traderType}.`;
+          : `Prefer pullback or range-edge entries rather than chasing impulse while the read is "${trend}" against ${traderType}.${
+              suggestedPlan.suggestedEntry
+                ? ` Map suggests waiting near ${fmtPx(suggestedPlan.suggestedEntry.price)}.`
+                : ""
+            }`;
 
       const fixStructure =
         structPts >= W.structure
@@ -506,10 +522,10 @@ export async function POST(request: Request) {
         fixRr = `Set take-profit ${traderType === "long" ? "above" : "below"} entry — e.g. near ${fmtPx(exitFor1R)} (~1.0× proxy R) minimum.`;
       } else if (rrMultiple < 1.5) {
         const gapPct = (Math.abs(exitFor15R - exit) / entry) * 100;
-        fixRr = `Improve R:R toward ~1.5× proxy: aim take-profit near ${fmtPx(exitFor15R)} (~${gapPct.toFixed(2)}% ${traderType === "long" ? "above" : "below"} your current exit).`;
+        fixRr = `Improve R:R toward ~1.5× proxy: aim take-profit near ${fmtPx(exitFor15R)} (~${gapPct.toFixed(2)}% ${traderType === "long" ? "above" : "below"} your current exit). Suggested stop ${fmtPx(suggestedPlan.suggestedStop.price)} gives plan R:R ≈ ${suggestedPlan.planRrMultiple?.toFixed(2) ?? "—"}×.`;
       } else if (rrMultiple < 2.5) {
         const gapPct = (Math.abs(exitFor25R - exit) / entry) * 100;
-        fixRr = `For the top RR bracket (~2.5× proxy), stretch target toward ${fmtPx(exitFor25R)} (~${gapPct.toFixed(2)}% vs your exit) or tighten risk with a nearer structural stop if that target is unrealistic.`;
+        fixRr = `For the top RR bracket (~2.5× proxy), stretch target toward ${fmtPx(exitFor25R)} (~${gapPct.toFixed(2)}% vs your exit) or tighten risk with stop near ${fmtPx(suggestedPlan.suggestedStop.price)}.`;
       }
 
       let fixLiq: string | null = null;
@@ -520,11 +536,16 @@ export async function POST(request: Request) {
         const parts: string[] = [];
         if (levN > 10) parts.push(`cut leverage toward ≤8× (you used ${levN}×)`);
         if (nearestRiskCluster && Math.abs(pctChange(entry, nearestRiskCluster.price)) <= 0.8) {
-          parts.push(`bias entry away from the nearest liquidation pocket (~>0.9% clearance if possible)`);
+          if (suggestedPlan.suggestedEntry) {
+            parts.push(`wait for better entry near ${fmtPx(suggestedPlan.suggestedEntry.price)} (~>0.9% clearance from pocket)`);
+          } else {
+            parts.push(`bias entry away from the nearest liquidation pocket (~>0.9% clearance if possible)`);
+          }
         }
+        parts.push(`place hard stop near ${fmtPx(suggestedPlan.suggestedStop.price)}`);
         fixLiq = parts.length ? parts.join("; ") + "." : `Add clearance from liquidation bands and keep leverage moderate (${levN}× reads hot).`;
       } else {
-        fixLiq = `Trim leverage slightly or add spacing from the nearest adverse cluster (${nearestRiskCluster ? `${nearestRiskCluster.distancePct.toFixed(2)}% away` : "see map above"}).`;
+        fixLiq = `Trim leverage slightly or add spacing from the nearest adverse cluster (${nearestRiskCluster ? `${nearestRiskCluster.distancePct.toFixed(2)}% away` : "see map above"}). Suggested stop: ${fmtPx(suggestedPlan.suggestedStop.price)}.`;
       }
 
       const scoreBreakdown: Array<{
@@ -605,10 +626,17 @@ export async function POST(request: Request) {
             : "Lower liquidation risk relative to current cluster spacing.",
         notes: [
           `Planned entry ${entry.toLocaleString(undefined, { maximumFractionDigits: 4 })}, exit ${exit.toLocaleString(undefined, { maximumFractionDigits: 4 })}, leverage ${Number.isFinite(leverage) ? leverage : 10}x.`,
-          "Use a hard invalidation stop outside the nearest trap zone.",
+          `Suggested hard stop: ${fmtPx(suggestedPlan.suggestedStop.price)} (${suggestedPlan.suggestedStop.distancePctFromEntry.toFixed(2)}% from your entry) — ${suggestedPlan.suggestedStop.reason}`,
+          ...(suggestedPlan.suggestedEntry
+            ? [
+                `Better entry suggestion: ${fmtPx(suggestedPlan.suggestedEntry.price)} (${suggestedPlan.suggestedEntry.distancePctFromCurrent.toFixed(2)}% vs your entry) — ${suggestedPlan.suggestedEntry.reason}`,
+              ]
+            : ["Your entry location looks acceptable vs nearest pocket; no better-entry wait required."]),
+          suggestedPlan.summary,
           `Score sums five pillars (max ${W.direction}+${W.trend}+${W.structure}+${W.rr}+${W.liquidation}=100): direction · trend · structure · RR · liquidation.`,
         ],
         scoreBreakdown,
+        suggestedPlan,
       };
     }
 

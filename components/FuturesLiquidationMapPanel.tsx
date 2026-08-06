@@ -72,6 +72,22 @@ type Result = {
     liquidationRisk: string;
     notes: string[];
     scoreBreakdown: Array<{ id: string; label: string; earned: number; max: number; detail: string; suggestedFix: string | null }>;
+    suggestedPlan?: {
+      suggestedStop: {
+        price: number;
+        distancePctFromEntry: number;
+        basis: "nearest_liq_pocket" | "structural_proxy";
+        reason: string;
+      };
+      suggestedEntry: {
+        price: number;
+        distancePctFromCurrent: number;
+        reason: string;
+      } | null;
+      keepYourEntry: boolean;
+      planRrMultiple: number | null;
+      summary: string;
+    };
   };
   disclaimer: string;
 };
@@ -559,6 +575,96 @@ export default function FuturesLiquidationMapPanel() {
                 <p>{result.tradeCheck.trendlineFit}</p>
                 <p>{result.tradeCheck.structureFit}</p>
                 <p>{result.tradeCheck.liquidationRisk}</p>
+                {result.tradeCheck.suggestedPlan && (
+                  <div className="rounded-lg border border-cyan-500/35 bg-cyan-50/70 dark:bg-cyan-950/30 p-3 space-y-2 mt-2">
+                    <p className="text-xs font-semibold text-cyan-950 dark:text-cyan-100">Suggested plan</p>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      {result.tradeCheck.suggestedPlan.summary}
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-md border border-cyan-200/70 dark:border-cyan-800/50 bg-white/60 dark:bg-zinc-950/40 p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Hard stop</p>
+                        <p className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+                          {fmtPrice(result.tradeCheck.suggestedPlan.suggestedStop.price)}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                          {result.tradeCheck.suggestedPlan.suggestedStop.distancePctFromEntry.toFixed(2)}% from your
+                          entry · {result.tradeCheck.suggestedPlan.suggestedStop.basis === "nearest_liq_pocket"
+                            ? "beyond nearest trap"
+                            : "structural proxy"}
+                        </p>
+                        <p className="text-[11px] text-zinc-700 dark:text-zinc-300 mt-1 leading-snug">
+                          {result.tradeCheck.suggestedPlan.suggestedStop.reason}
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-cyan-200/70 dark:border-cyan-800/50 bg-white/60 dark:bg-zinc-950/40 p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Entry</p>
+                        {result.tradeCheck.suggestedPlan.suggestedEntry ? (
+                          <>
+                            <p className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+                              {fmtPrice(result.tradeCheck.suggestedPlan.suggestedEntry.price)}
+                              <span className="ml-1 text-[10px] font-sans font-normal text-amber-700 dark:text-amber-300">
+                                better than yours
+                              </span>
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                              {result.tradeCheck.suggestedPlan.suggestedEntry.distancePctFromCurrent.toFixed(2)}% vs
+                              your entry
+                            </p>
+                            <p className="text-[11px] text-zinc-700 dark:text-zinc-300 mt-1 leading-snug">
+                              {result.tradeCheck.suggestedPlan.suggestedEntry.reason}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+                              Keep {fmtPrice(Number(entry) || result.markPrice)}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                              Your entry has acceptable clearance vs the nearest adverse pocket.
+                            </p>
+                          </>
+                        )}
+                        {result.tradeCheck.suggestedPlan.planRrMultiple != null && (
+                          <p className="text-[11px] font-mono text-cyan-800 dark:text-cyan-200 mt-1.5">
+                            Plan R:R ≈ {result.tradeCheck.suggestedPlan.planRrMultiple.toFixed(2)}× vs your exit
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {result.tradeCheck.suggestedPlan.suggestedEntry && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs border-cyan-500/50 text-cyan-800 dark:text-cyan-200"
+                          onClick={() =>
+                            setEntry(String(result.tradeCheck!.suggestedPlan!.suggestedEntry!.price))
+                          }
+                        >
+                          Use suggested entry
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        title="Copy suggested stop price"
+                        onClick={() => {
+                          const px = String(result.tradeCheck!.suggestedPlan!.suggestedStop.price);
+                          void navigator.clipboard?.writeText(px);
+                        }}
+                      >
+                        Copy stop {fmtPrice(result.tradeCheck.suggestedPlan.suggestedStop.price)}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Map-derived suggestion only — not a broker order. Re-run Search after applying a new entry.
+                    </p>
+                  </div>
+                )}
                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-950/40 p-3 space-y-2 mt-3">
                   <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">Why this score?</p>
                   <p className="text-[11px] text-muted-foreground">
