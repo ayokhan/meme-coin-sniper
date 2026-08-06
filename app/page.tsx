@@ -62,6 +62,7 @@ import MemeTokenTableActions, {
   memeTableShareBtnCopiedClass,
   memeTableShareBtnQuietClass,
   memeTableShareBtnQuietCopiedClass,
+  memeTableExtLinkQuietClass,
 } from "@/components/MemeTokenTableActions";
 import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
 import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
@@ -9935,10 +9936,10 @@ function Dashboard() {
                             </>
                           ) : activeTab === "new" ? (
                             <>
-                              <a href={dexUrl(tok)} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors">Dex</a>
-                              <a href={pumpFunUrl(tok)} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors">Pump</a>
-                              <a href={gmgnUrl(tok)} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors">GMGN</a>
-                              <a href={maestroUrl(tok)} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors" title="Open in Maestro Telegram bot">Maestro</a>
+                              <a href={dexUrl(tok)} target="_blank" rel="noopener noreferrer" className={memeTableExtLinkQuietClass}>Dex</a>
+                              <a href={pumpFunUrl(tok)} target="_blank" rel="noopener noreferrer" className={memeTableExtLinkQuietClass}>Pump</a>
+                              <a href={gmgnUrl(tok)} target="_blank" rel="noopener noreferrer" className={memeTableExtLinkQuietClass}>GMGN</a>
+                              <a href={maestroUrl(tok)} target="_blank" rel="noopener noreferrer" className={memeTableExtLinkQuietClass} title="Open in Maestro Telegram bot">Maestro</a>
                             </>
                           ) : (
                             <>
@@ -9955,7 +9956,7 @@ function Dashboard() {
                               rel="noopener noreferrer"
                               className={
                                 activeTab === "new"
-                                  ? "text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+                                  ? memeTableExtLinkQuietClass
                                   : "inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
                               }
                             >
@@ -9969,7 +9970,7 @@ function Dashboard() {
                               rel="noopener noreferrer"
                               className={
                                 activeTab === "new"
-                                  ? "text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+                                  ? memeTableExtLinkQuietClass
                                   : "inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
                               }
                             >
@@ -9983,7 +9984,7 @@ function Dashboard() {
                               rel="noopener noreferrer"
                               className={
                                 activeTab === "new"
-                                  ? "text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+                                  ? memeTableExtLinkQuietClass
                                   : "inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
                               }
                               title="Website"
