@@ -1618,6 +1618,23 @@ export default function AdminFeatureFlagsPage() {
 
         <Card className="mt-6 border-zinc-200 dark:border-zinc-800">
           <CardHeader>
+            <CardTitle className="text-base">Owner-only tabs</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Lock any dashboard tab so only you (owner) can see it — separate from On/Off flags above.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href="/admin/tab-visibility"
+              className="inline-flex items-center gap-2 text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
+            >
+              Open Tab visibility →
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6 border-zinc-200 dark:border-zinc-800">
+          <CardHeader>
             <CardTitle className="text-base">Site banners</CardTitle>
             <p className="text-sm text-muted-foreground">
               Promo giveaway banner and Meme Coins Agent banner are managed on a dedicated page — turn on/off, edit title and copy, preview live.
