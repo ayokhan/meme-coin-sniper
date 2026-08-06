@@ -57,7 +57,12 @@ import FuturesLiquidationMapPanel from "@/components/FuturesLiquidationMapPanel"
 import NovaMemeIntelligencePanel from "@/components/NovaMemeIntelligencePanel";
 import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel";
 import MemeLeaderboardPanel from "@/components/MemeLeaderboardPanel";
-import MemeTokenTableActions, { memeTableShareBtnClass, memeTableShareBtnCopiedClass } from "@/components/MemeTokenTableActions";
+import MemeTokenTableActions, {
+  memeTableShareBtnClass,
+  memeTableShareBtnCopiedClass,
+  memeTableShareBtnQuietClass,
+  memeTableShareBtnQuietCopiedClass,
+} from "@/components/MemeTokenTableActions";
 import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
 import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
 import type { MemeAgentBannerAdmin } from "@/lib/meme-agent-banner";
@@ -3673,21 +3678,36 @@ function Dashboard() {
     });
   }, []);
 
-  const renderMemeSortHead = (key: MemeTableSortKey, label: string, align: "left" | "right" = "right") => (
-    <TableHead className={`font-semibold text-zinc-700 dark:text-zinc-300 ${align === "right" ? "text-right" : ""}`}>
-      <button
-        type="button"
-        onClick={() => toggleMemeSort(key)}
-        className={`inline-flex items-center gap-0.5 w-full ${align === "right" ? "justify-end" : "justify-start"} hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors`}
-        title={`Sort by ${label}`}
+  const renderMemeSortHead = (key: MemeTableSortKey, label: string, align: "left" | "right" = "right") => {
+    const hunting = activeTab === "new";
+    const activeSort = hunting
+      ? "text-teal-700 dark:text-teal-300"
+      : "text-cyan-600 dark:text-cyan-400";
+    const hoverSort = hunting
+      ? "hover:text-teal-700 dark:hover:text-teal-300"
+      : "hover:text-cyan-600 dark:hover:text-cyan-400";
+    return (
+      <TableHead
+        className={`${
+          hunting
+            ? "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400"
+            : "font-semibold text-zinc-700 dark:text-zinc-300"
+        } ${align === "right" ? "text-right" : ""}`}
       >
-        <span>{label}</span>
-        {memeSortKey === key && (
-          <span className="text-cyan-600 dark:text-cyan-400 text-[10px]">{memeSortDir === "desc" ? "▼" : "▲"}</span>
-        )}
-      </button>
-    </TableHead>
-  );
+        <button
+          type="button"
+          onClick={() => toggleMemeSort(key)}
+          className={`inline-flex items-center gap-0.5 w-full ${align === "right" ? "justify-end" : "justify-start"} ${hoverSort} transition-colors`}
+          title={`Sort by ${label}`}
+        >
+          <span>{label}</span>
+          {memeSortKey === key && (
+            <span className={`${activeSort} text-[10px]`}>{memeSortDir === "desc" ? "▼" : "▲"}</span>
+          )}
+        </button>
+      </TableHead>
+    );
+  };
 
   // Sort + dedupe token rows for meme tables
   const tokensForDisplay = (() => {
@@ -9613,9 +9633,30 @@ function Dashboard() {
                 </div>
               )
             ) : tokensForDisplay.length === 0 ? (
+              activeTab === "new" ? (
+                <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-700/90 dark:text-teal-200/85">
+                    Meme desk
+                  </p>
+                  <p className="mt-2 font-[family-name:var(--font-space-grotesk)] text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
+                    No pairs in this view
+                  </p>
+                  <p className="mt-2 max-w-sm text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                    Try Final Stretch or refresh — Solana listings ebb by the hour.
+                  </p>
+                  <Button
+                    onClick={() => fetchTokens(activeTab, true, true)}
+                    disabled={loading}
+                    size="sm"
+                    className="mt-6 bg-teal-600 hover:bg-teal-500 text-white"
+                  >
+                    {loading ? t("common.loading") : t("nav.refresh")}
+                  </Button>
+                </div>
+              ) : (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
                 <p className="font-semibold text-zinc-700 dark:text-zinc-300">
-                  {activeTab === "bsc" ? "No BSC tokens in this view." : activeTab === "ct" ? "No CT tokens yet." : activeTab === "surge" ? "No surge tokens right now." : activeTab === "transactions" ? "No transaction data yet." : activeTab === "trending" ? "No trending tokens right now." : activeTab === "new" ? "No tokens in this view. Try another filter or refresh." : "No tokens yet."}
+                  {activeTab === "bsc" ? "No BSC tokens in this view." : activeTab === "ct" ? "No CT tokens yet." : activeTab === "surge" ? "No surge tokens right now." : activeTab === "transactions" ? "No transaction data yet." : activeTab === "trending" ? "No trending tokens right now." : "No tokens yet."}
                 </p>
                 <p className="mt-2">
                   {activeTab === "bsc"
@@ -9628,8 +9669,6 @@ function Dashboard() {
                         ? "Transactions tab shows coins by 24h buy/sell counts. Data from Surge (DexScreener). Refreshes every 60s."
                         : activeTab === "trending"
                           ? "Trending = live by 24h volume + price change. Try again in a moment."
-                          : activeTab === "new"
-                            ? "New pairs = newest from DexScreener + Birdeye (last ~4h; refreshes every 60s)."
                             : "Run Scan to save tokens to the DB, or use New pairs for live recent listings."}
                 </p>
                 <p className="mt-4 text-xs max-w-md text-zinc-500 dark:text-zinc-400">
@@ -9641,8 +9680,6 @@ function Dashboard() {
                       ? "Sorted by total transactions (buys + sells) descending."
                       : activeTab === "ct"
                         ? "CT Scan: KOLs, smart money. When 3+ tweet the same coin → potential viral."
-                        : activeTab === "new"
-                          ? "Go Hunting: newest pairs (last ~4h). Click a column header to sort ▲▼. Auto-refreshes every 60s."
                           : "Trending = live movers. List auto-refreshes every 60s."}
                 </p>
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
@@ -9661,6 +9698,7 @@ function Dashboard() {
                   )}
                 </div>
               </div>
+              )
             ) : activeTab === "transactions" ? (
               <div className="mx-3 sm:mx-6 overflow-x-auto pb-8 sm:pb-10 [&_table]:w-full [&_table]:min-w-[620px]">
               <Table>
@@ -9704,12 +9742,40 @@ function Dashboard() {
               </Table>
               </div>
             ) : (
-              <div className="mx-3 sm:mx-6 overflow-x-auto pb-8 sm:pb-10 [&_table]:w-full [&_table]:min-w-[980px]">
+              <div
+                className={
+                  activeTab === "new"
+                    ? "mx-3 sm:mx-6 mb-8 sm:mb-10 max-h-[min(70vh,760px)] overflow-auto rounded-xl border border-teal-500/20 dark:border-teal-400/15 [&_table]:w-full [&_table]:min-w-[980px]"
+                    : "mx-3 sm:mx-6 overflow-x-auto pb-8 sm:pb-10 [&_table]:w-full [&_table]:min-w-[980px]"
+                }
+              >
               <Table>
-                <TableHeader>
+                <TableHeader
+                  className={
+                    activeTab === "new"
+                      ? "sticky top-0 z-10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm [&_tr]:border-b [&_tr]:border-teal-500/20 dark:[&_tr]:border-teal-400/15"
+                      : undefined
+                  }
+                >
                   <TableRow className="border-zinc-200/80 dark:border-zinc-800/80 hover:bg-transparent">
-                    <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colSymbol")}</TableHead>
-                    <TableHead className="hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colName")}</TableHead>
+                    <TableHead
+                      className={
+                        activeTab === "new"
+                          ? "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400"
+                          : "font-semibold text-zinc-700 dark:text-zinc-300"
+                      }
+                    >
+                      {t("ui.colSymbol")}
+                    </TableHead>
+                    <TableHead
+                      className={
+                        activeTab === "new"
+                          ? "hidden sm:table-cell text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400"
+                          : "hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300"
+                      }
+                    >
+                      {t("ui.colName")}
+                    </TableHead>
                     {renderMemeSortHead("score", "Score")}
                     {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol ({surgeWindow})</TableHead>}
                     {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">TXNS</TableHead>}
@@ -9720,27 +9786,46 @@ function Dashboard() {
                     {renderMemeSortHead("age", "Age")}
                     {renderMemeSortHead("liquidity", "Liq")}
                     {renderMemeSortHead("price", "Price")}
-                    <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">{t("ui.colLinks")}</TableHead>
+                    <TableHead
+                      className={
+                        activeTab === "new"
+                          ? "text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400"
+                          : "text-right font-semibold text-zinc-700 dark:text-zinc-300"
+                      }
+                    >
+                      {t("ui.colLinks")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tokensForDisplay.map((t) => (
+                  {tokensForDisplay.map((tok) => (
                     <TableRow
-                      key={t.id}
-                      className="border-zinc-200/60 dark:border-zinc-800/60 transition-colors hover:bg-cyan-50/40 dark:hover:bg-cyan-950/20"
+                      key={tok.id}
+                      className={
+                        activeTab === "new"
+                          ? "border-zinc-200/50 dark:border-zinc-800/50 transition-colors hover:bg-teal-50/50 dark:hover:bg-teal-950/25"
+                          : "border-zinc-200/60 dark:border-zinc-800/60 transition-colors hover:bg-cyan-50/40 dark:hover:bg-cyan-950/20"
+                      }
                     >
-                      <TableCell className="font-semibold text-zinc-900 dark:text-zinc-100">{t.symbol}</TableCell>
+                      <TableCell className="font-semibold text-zinc-900 dark:text-zinc-100">{tok.symbol}</TableCell>
                       <TableCell className="max-w-[140px] truncate hidden sm:table-cell text-muted-foreground">
-                        {t.name}
+                        {tok.name}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Badge variant="secondary" className="bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200 border-0 font-semibold">
-                            {t.viralScore}
+                          <Badge
+                            variant="secondary"
+                            className={
+                              activeTab === "new"
+                                ? "bg-teal-100 dark:bg-teal-900/45 text-teal-900 dark:text-teal-100 border-0 font-semibold tabular-nums"
+                                : "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200 border-0 font-semibold"
+                            }
+                          >
+                            {tok.viralScore}
                           </Badge>
-                          {activeTab === "ct" && t.kolCount != null && (
+                          {activeTab === "ct" && tok.kolCount != null && (
                             <span className="text-xs text-muted-foreground" title="KOLs who tweeted">
-                              {t.kolCount} KOL{t.kolCount !== 1 ? "s" : ""}
+                              {tok.kolCount} KOL{tok.kolCount !== 1 ? "s" : ""}
                             </span>
                           )}
                         </div>
@@ -9748,24 +9833,24 @@ function Dashboard() {
                       {activeTab === "surge" && (
                         <TableCell className="text-right tabular-nums font-medium text-cyan-700 dark:text-cyan-300">
                           {formatVol(
-                            surgeWindow === "5m" ? t.volume5m
-                            : surgeWindow === "15m" ? t.volume15m
-                            : surgeWindow === "30m" ? t.volume30m
-                            : surgeWindow === "1h" ? t.volume1h
-                            : surgeWindow === "6h" ? t.volume6h
-                            : t.volume24h
+                            surgeWindow === "5m" ? tok.volume5m
+                            : surgeWindow === "15m" ? tok.volume15m
+                            : surgeWindow === "30m" ? tok.volume30m
+                            : surgeWindow === "1h" ? tok.volume1h
+                            : surgeWindow === "6h" ? tok.volume6h
+                            : tok.volume24h
                           )}
                         </TableCell>
                       )}
                       {activeTab === "surge" && (
                         <TableCell className="text-right tabular-nums text-xs">
-                          {t.txnsBuys24h != null || t.txnsSells24h != null ? (
+                          {tok.txnsBuys24h != null || tok.txnsSells24h != null ? (
                             <>
                               <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                                {((t.txnsBuys24h ?? 0) + (t.txnsSells24h ?? 0)).toLocaleString()}
+                                {((tok.txnsBuys24h ?? 0) + (tok.txnsSells24h ?? 0)).toLocaleString()}
                               </span>
                               <span className="block text-muted-foreground">
-                                {(t.txnsBuys24h ?? 0).toLocaleString()} / {(t.txnsSells24h ?? 0).toLocaleString()}
+                                {(tok.txnsBuys24h ?? 0).toLocaleString()} / {(tok.txnsSells24h ?? 0).toLocaleString()}
                               </span>
                             </>
                           ) : (
@@ -9774,96 +9859,136 @@ function Dashboard() {
                         </TableCell>
                       )}
                       {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
-                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(t.pct5m)}`}>{fmtPct(t.pct5m)}</TableCell>
+                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(tok.pct5m)}`}>{fmtPct(tok.pct5m)}</TableCell>
                       )}
                       {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
-                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(t.pct1h)}`}>{fmtPct(t.pct1h)}</TableCell>
+                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(tok.pct1h)}`}>{fmtPct(tok.pct1h)}</TableCell>
                       )}
                       {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
-                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(t.pct6h)}`}>{fmtPct(t.pct6h)}</TableCell>
+                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(tok.pct6h)}`}>{fmtPct(tok.pct6h)}</TableCell>
                       )}
                       {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
-                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(t.pct24h)}`}>{fmtPct(t.pct24h)}</TableCell>
+                        <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(tok.pct24h)}`}>{fmtPct(tok.pct24h)}</TableCell>
                       )}
                       <TableCell className="text-right tabular-nums text-muted-foreground text-xs">
-                        {formatAge(t.launchedAt)}
+                        {formatAge(tok.launchedAt)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">
-                        {formatLiq(t.liquidity)}
+                        {formatLiq(tok.liquidity)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {formatPrice(t.priceUSD)}
+                        {formatPrice(tok.priceUSD)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        <div
+                          className={
+                            activeTab === "new"
+                              ? "flex items-center justify-end gap-2.5 flex-wrap"
+                              : "flex items-center justify-end gap-1.5 flex-wrap"
+                          }
+                        >
                           <button
                             type="button"
-                            onClick={() => toggleWatchlist(t, activeTab === "bsc" ? "bsc" : "solana")}
-                            className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium transition-colors ${isInWatchlist(t.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300" : "text-zinc-500 hover:text-amber-500 dark:text-zinc-400 dark:hover:text-amber-400"}`}
-                            title={isInWatchlist(t.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "Remove from watchlist" : "Add to watchlist"}
+                            onClick={() => toggleWatchlist(tok, activeTab === "bsc" ? "bsc" : "solana")}
+                            className={`inline-flex items-center ${activeTab === "new" ? "p-0.5" : "rounded-md px-2 py-1"} text-xs font-medium transition-colors ${isInWatchlist(tok.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300" : "text-zinc-500 hover:text-amber-500 dark:text-zinc-400 dark:hover:text-amber-400"}`}
+                            title={isInWatchlist(tok.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "Remove from watchlist" : "Add to watchlist"}
                           >
-                            <Star className={`h-3.5 w-3.5 ${isInWatchlist(t.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "fill-current" : ""}`} />
+                            <Star className={`h-3.5 w-3.5 ${isInWatchlist(tok.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "fill-current" : ""}`} />
                           </button>
                           <MemeTokenTableActions
-                            contractAddress={t.contractAddress}
+                            contractAddress={tok.contractAddress}
                             chain={activeTab === "bsc" ? "bsc" : "solana"}
+                            variant={activeTab === "new" ? "quiet" : "default"}
                           />
                           <button
                             type="button"
                             onClick={() => {
-                              const url = activeTab === "bsc" ? dexUrlBsc(t) : dexUrl(t);
+                              const url = activeTab === "bsc" ? dexUrlBsc(tok) : dexUrl(tok);
                               navigator.clipboard.writeText(url).then(() => {
-                                setCopiedTokenId(t.id);
+                                setCopiedTokenId(tok.id);
                                 setTimeout(() => setCopiedTokenId(null), 2000);
                               });
                             }}
-                            className={copiedTokenId === t.id ? memeTableShareBtnCopiedClass : memeTableShareBtnClass}
+                            className={
+                              activeTab === "new"
+                                ? copiedTokenId === tok.id
+                                  ? memeTableShareBtnQuietCopiedClass
+                                  : memeTableShareBtnQuietClass
+                                : copiedTokenId === tok.id
+                                  ? memeTableShareBtnCopiedClass
+                                  : memeTableShareBtnClass
+                            }
                             title="Copy Dex link"
                           >
-                            {copiedTokenId === t.id ? "Copied!" : <><Copy className="h-3 w-3 mr-0.5 inline" /> Share</>}
+                            {copiedTokenId === tok.id ? (
+                              "Copied!"
+                            ) : (
+                              <>
+                                <Copy className="h-3 w-3 mr-0.5 inline" /> Share
+                              </>
+                            )}
                           </button>
                           {activeTab === "bsc" ? (
                             <>
-                              <a href={dexUrlBsc(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
-                              <a href={bscScanUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">BscScan</a>
+                              <a href={dexUrlBsc(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
+                              <a href={bscScanUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">BscScan</a>
+                            </>
+                          ) : activeTab === "new" ? (
+                            <>
+                              <a href={dexUrl(tok)} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors">Dex</a>
+                              <a href={pumpFunUrl(tok)} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors">Pump</a>
+                              <a href={gmgnUrl(tok)} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors">GMGN</a>
+                              <a href={maestroUrl(tok)} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors" title="Open in Maestro Telegram bot">Maestro</a>
                             </>
                           ) : (
                             <>
-                              <a href={dexUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
-                              <a href={pumpFunUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Pump</a>
-                              <a href={gmgnUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">GMGN</a>
-                              <a href={maestroUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors" title="Open in Maestro Telegram bot">Maestro</a>
+                              <a href={dexUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
+                              <a href={pumpFunUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Pump</a>
+                              <a href={gmgnUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">GMGN</a>
+                              <a href={maestroUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors" title="Open in Maestro Telegram bot">Maestro</a>
                             </>
                           )}
-                          {t.twitter && (
+                          {tok.twitter && (
                             <a
-                              href={t.twitter}
+                              href={tok.twitter}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                              className={
+                                activeTab === "new"
+                                  ? "text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+                                  : "inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                              }
                             >
                               X
                             </a>
                           )}
-                          {t.telegram && (
+                          {tok.telegram && (
                             <a
-                              href={t.telegram}
+                              href={tok.telegram}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                              className={
+                                activeTab === "new"
+                                  ? "text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+                                  : "inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                              }
                             >
                               TG
                             </a>
                           )}
-                          {t.website && (
+                          {tok.website && (
                             <a
-                              href={t.website}
+                              href={tok.website}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                              className={
+                                activeTab === "new"
+                                  ? "text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+                                  : "inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
+                              }
                               title="Website"
                             >
-                              🌐
+                              {activeTab === "new" ? "Web" : "🌐"}
                             </a>
                           )}
                         </div>

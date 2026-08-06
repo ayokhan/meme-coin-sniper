@@ -29,13 +29,32 @@ export const memeTableShareBtnCopiedClass =
   "bg-emerald-100 text-emerald-800 border-emerald-300/80 " +
   "dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700/70";
 
+const copyBtnQuietClass =
+  "inline-flex items-center gap-0.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors";
+const copyBtnQuietCopiedClass =
+  "inline-flex items-center gap-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400";
+const analyzeBtnQuietClass =
+  "inline-flex items-center gap-0.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors";
+
+export const memeTableShareBtnQuietClass =
+  "inline-flex items-center gap-0.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors";
+export const memeTableShareBtnQuietCopiedClass =
+  "inline-flex items-center gap-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400";
+
 type Props = {
   contractAddress: string;
   chain?: "solana" | "bsc";
+  /** Desk-quiet text links (Go Hunting) vs colored chips */
+  variant?: "default" | "quiet";
 };
 
-export default function MemeTokenTableActions({ contractAddress, chain = "solana" }: Props) {
+export default function MemeTokenTableActions({
+  contractAddress,
+  chain = "solana",
+  variant = "default",
+}: Props) {
   const [copied, setCopied] = useState(false);
+  const quiet = variant === "quiet";
 
   const copyId = async () => {
     try {
@@ -52,16 +71,28 @@ export default function MemeTokenTableActions({ contractAddress, chain = "solana
       <button
         type="button"
         onClick={() => void copyId()}
-        className={copied ? copyBtnCopiedClass : copyBtnClass}
+        className={
+          quiet
+            ? copied
+              ? copyBtnQuietCopiedClass
+              : copyBtnQuietClass
+            : copied
+              ? copyBtnCopiedClass
+              : copyBtnClass
+        }
         title={`Copy contract: ${contractAddress}`}
       >
-        {copied ? <Check className="h-3 w-3 mr-0.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3 w-3 mr-0.5 inline" />}
+        {copied ? (
+          <Check className={`h-3 w-3 mr-0.5 ${quiet ? "" : "text-emerald-600 dark:text-emerald-400"}`} />
+        ) : (
+          <Copy className="h-3 w-3 mr-0.5 inline" />
+        )}
         {copied ? "Copied" : "Copy ID"}
       </button>
       <button
         type="button"
         onClick={() => openNovaStarisAiAgent(contractAddress, chain)}
-        className={analyzeBtnClass}
+        className={quiet ? analyzeBtnQuietClass : analyzeBtnClass}
         title="Run Nova AI Analysis on this coin"
       >
         <Sparkles className="h-3 w-3 mr-0.5 inline" />
