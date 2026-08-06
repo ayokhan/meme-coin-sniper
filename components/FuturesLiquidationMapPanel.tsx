@@ -71,6 +71,15 @@ type Result = {
     structureFit: string;
     liquidationRisk: string;
     notes: string[];
+    analyzed?: {
+      traderType: "long" | "short";
+      entry: number;
+      exit: number;
+      leverage: number;
+      estLiquidationPrice: number | null;
+      estLiquidationDistancePct: number | null;
+      rrMultiple: number | null;
+    };
     scoreBreakdown: Array<{ id: string; label: string; earned: number; max: number; detail: string; suggestedFix: string | null }>;
     suggestedPlan?: {
       suggestedStop: {
@@ -216,6 +225,22 @@ export default function FuturesLiquidationMapPanel({
     if (p.entryPrice != null) setEntry(String(p.entryPrice));
     if (p.leverage != null && p.leverage > 0) setLeverage(String(Math.round(p.leverage)));
   }, []);
+
+  const inputsStale = useMemo(() => {
+    const a = result?.tradeCheck?.analyzed;
+    if (!a) return false;
+    const entryN = entry.trim() ? Number(entry) : NaN;
+    const exitN = exit.trim() ? Number(exit) : NaN;
+    const levN = leverage.trim() ? Number(leverage) : NaN;
+    if (!Number.isFinite(entryN) || !Number.isFinite(exitN) || !Number.isFinite(levN)) return true;
+    const close = (x: number, y: number) => Math.abs(x - y) <= Math.max(1e-8, Math.abs(y) * 1e-6);
+    return (
+      traderType !== a.traderType ||
+      !close(entryN, a.entry) ||
+      !close(exitN, a.exit) ||
+      !close(levN, a.leverage)
+    );
+  }, [result, entry, exit, leverage, traderType]);
 
   const run = async (positionOverride?: BlofinPosition | null) => {
     const s = symbol.trim();
@@ -423,7 +448,7 @@ export default function FuturesLiquidationMapPanel({
               </select>
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Entry point</label>
+              <label className="block text-xs text-muted-foreground mb-1">Entry price</label>
               <input
                 value={entry}
                 onChange={(e) => setEntry(e.target.value)}
@@ -432,7 +457,7 @@ export default function FuturesLiquidationMapPanel({
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Exit point</label>
+              <label className="block text-xs text-muted-foreground mb-1">Exit / take-profit</label>
               <input
                 value={exit}
                 onChange={(e) => setExit(e.target.value)}
@@ -450,6 +475,18 @@ export default function FuturesLiquidationMapPanel({
               />
             </div>
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Bias &amp; clusters are market-wide (same until the coin moves).{" "}
+            <strong className="font-medium text-zinc-700 dark:text-zinc-300">Your trade check</strong> uses entry,
+            exit, and leverage — click <strong className="font-medium">Search liquidation map</strong> after you change
+            them.
+          </p>
+          {inputsStale && (
+            <p className="rounded-md border border-amber-400/50 bg-amber-50/80 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+              Inputs changed since the last run — click <strong>Search liquidation map</strong> to refresh Your trade
+              check (score, stop, est. liquidation).
+            </p>
+          )}
           {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
         </CardContent>
       </Card>
@@ -564,6 +601,22 @@ export default function FuturesLiquidationMapPanel({
                 <CardTitle className="text-base">Your trade check</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
+                {result.tradeCheck.analyzed && (
+                  <p className="text-[11px] text-muted-foreground rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/40 px-2.5 py-1.5">
+                    Scored on {result.tradeCheck.analyzed.traderType} · entry{" "}
+                    {fmtPrice(result.tradeCheck.analyzed.entry)} · exit {fmtPrice(result.tradeCheck.analyzed.exit)} ·{" "}
+                    {result.tradeCheck.analyzed.leverage}×
+                    {result.tradeCheck.analyzed.estLiquidationPrice != null && (
+                      <>
+                        {" "}
+                        · est. liq {fmtPrice(result.tradeCheck.analyzed.estLiquidationPrice)}
+                        {result.tradeCheck.analyzed.estLiquidationDistancePct != null
+                          ? ` (${result.tradeCheck.analyzed.estLiquidationDistancePct.toFixed(2)}% from entry)`
+                          : ""}
+                      </>
+                    )}
+                  </p>
+                )}
                 <div className="flex items-center gap-2">
                   <Badge variant="outline">Score: {result.tradeCheck.score}/100</Badge>
                   <Badge
