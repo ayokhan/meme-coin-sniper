@@ -81,16 +81,24 @@ export default function StartHerePage() {
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <header className="sticky top-0 z-10 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl">
         <div className="mx-auto max-w-3xl px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
-          <Link href="/" className="flex items-center gap-2 text-zinc-900 dark:text-zinc-100 font-semibold">
+          <Link href="/enter" className="flex items-center gap-2 text-zinc-900 dark:text-zinc-100 font-semibold">
             <Zap className="h-5 w-5 text-cyan-500" />
             NovaStaris
           </Link>
-          <Link
-            href="/"
-            className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-          >
-            ← Dashboard
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/enter"
+              className="text-sm font-medium text-teal-700 dark:text-teal-400 hover:underline"
+            >
+              Enter desks
+            </Link>
+            <Link
+              href="/"
+              className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            >
+              ← Dashboard
+            </Link>
+          </div>
         </div>
       </header>
 

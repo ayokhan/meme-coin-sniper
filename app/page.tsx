@@ -1569,6 +1569,8 @@ export default function Dashboard() {
         } else if (fv && URL_FUTURES_VIEWS.has(fv)) {
           setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map");
         }
+        const sym = url.searchParams.get("symbol")?.trim().toUpperCase();
+        if (sym) setFuturesSymbol(sym);
         const agent = url.searchParams.get("agent");
         if (agent === "meme" || agent === "chart") {
           setAiAgentSubTab(agent);
@@ -1658,6 +1660,8 @@ export default function Dashboard() {
     } else if (fv && URL_FUTURES_VIEWS.has(fv)) {
       setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map");
     }
+    const sym = params.get("symbol")?.trim().toUpperCase();
+    if (sym) setFuturesSymbol(sym);
     const agent = params.get("agent");
     if (agent === "meme" || agent === "chart") {
       setAiAgentSubTab(agent);
@@ -4005,7 +4009,7 @@ export default function Dashboard() {
               <Link href="/qr"><QrCode className="h-3.5 w-3.5 mr-1.5 inline" />{t("nav.qr")}</Link>
             </Button>
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              <Link href="/start-here">{t("nav.startHere")}</Link>
+              <Link href="/enter">{t("nav.startHere")}</Link>
             </Button>
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               <Link href="/chat">{t("nav.chat")}</Link>
@@ -4174,7 +4178,7 @@ export default function Dashboard() {
                 <Link href="/qr" onClick={() => setMobileMenuOpen(false)}><QrCode className="h-4 w-4 mr-2 inline" />{t("nav.qr")}</Link>
               </Button>
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                <Link href="/start-here" onClick={() => setMobileMenuOpen(false)}>{t("nav.startHere")}</Link>
+                <Link href="/enter" onClick={() => setMobileMenuOpen(false)}>{t("nav.startHere")}</Link>
               </Button>
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
                 <Link href="/chat" onClick={() => setMobileMenuOpen(false)}>{t("nav.chat")}</Link>
@@ -4438,7 +4442,7 @@ export default function Dashboard() {
             </CardTitle>
             <p className="mt-2 max-w-5xl text-sm sm:text-[15px] leading-relaxed text-zinc-600 dark:text-zinc-300 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden sm:[display:block]">
               {t("workspace.blurb")}
-              <Link href="/start-here" className="ml-1 inline-flex items-center font-semibold text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 hover:underline underline-offset-2">
+              <Link href="/enter" className="ml-1 inline-flex items-center font-semibold text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 hover:underline underline-offset-2">
                 {t("workspace.howItWorks")}
               </Link>
               .
@@ -6809,7 +6813,7 @@ export default function Dashboard() {
                     )}
                   </div>
                 ) : futuresView === "liquidation-map" ? (
-                  <FuturesLiquidationMapPanel />
+                  <FuturesLiquidationMapPanel initialSymbol={futuresSymbol} />
                 ) : (
                 <FuturesWorkflow />
                 )}

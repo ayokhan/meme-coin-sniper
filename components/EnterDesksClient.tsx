@@ -1,0 +1,490 @@
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { saveDashboardPath, type DashboardPath } from "@/lib/dashboard-onboarding";
+
+type DeskId = "meme" | "futures" | "forex" | "prop" | "polymarket";
+
+type ForexRow = {
+  symbol: string;
+  currentPrice: number | null;
+  high: number | null;
+  low: number | null;
+  direction: "bullish" | "bearish" | "sideways";
+  insight: string;
+};
+
+type FuturesRow = {
+  symbol: string;
+  markPx: number | null;
+  dayChangePct: number | null;
+  volume24h: number | null;
+};
+
+const DESKS: Array<{
+  id: DeskId;
+  path: DashboardPath | null;
+  title: string;
+  line: string;
+  cta: string;
+  href: string;
+  gate: "open" | "vip" | "preview";
+  tone: string;
+}> = [
+  {
+    id: "meme",
+    path: "meme",
+    title: "Meme desk",
+    line: "Hunt early Solana & BSC momentum, then run AI contract analysis.",
+    cta: "Enter Go Hunting",
+    href: "/?tab=new",
+    gate: "open",
+    tone: "from-teal-500/25 via-transparent to-transparent",
+  },
+  {
+    id: "futures",
+    path: "futures",
+    title: "Futures desk",
+    line: "Upload a chart for AI structure — or pick a mover from the opportunity rail.",
+    cta: "Open Chart AI",
+    href: "/?tab=futures&futures=ai",
+    gate: "open",
+    tone: "from-cyan-500/25 via-transparent to-transparent",
+  },
+  {
+    id: "forex",
+    path: "forex",
+    title: "Forex desk",
+    line: "Gold, FX, indices. Guests see a delayed Market Watch; live Agent is VIP.",
+    cta: "Open Nova Forex",
+    href: "/?tab=nova-forex",
+    gate: "vip",
+    tone: "from-amber-500/20 via-transparent to-transparent",
+  },
+  {
+    id: "prop",
+    path: null,
+    title: "Prop firm desk",
+    line: "Challenge workflows on your rules. Preview the room — VIP to run.",
+    cta: "Preview Prop Firm",
+    href: "/?tab=prop-firm-bot",
+    gate: "preview",
+    tone: "from-rose-500/20 via-transparent to-transparent",
+  },
+  {
+    id: "polymarket",
+    path: "polymarket",
+    title: "Polymarket desk",
+    line: "Prediction-market radar and wallet intel. Preview free — live is VIP.",
+    cta: "Preview Polymarket",
+    href: "/?tab=polymarket-bot",
+    gate: "preview",
+    tone: "from-sky-500/20 via-transparent to-transparent",
+  },
+];
+
+function fmtPx(n: number | null): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return n.toLocaleString(undefined, { maximumFractionDigits: n >= 100 ? 2 : 5 });
+}
+
+function fmtPct(n: number | null): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+}
+
+function gateLabel(gate: (typeof DESKS)[number]["gate"]): string {
+  if (gate === "vip") return "VIP live · guest snapshot";
+  if (gate === "preview") return "Preview · VIP to operate";
+  return "Open access";
+}
+
+export default function EnterDesksClient() {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [active, setActive] = useState<DeskId | null>(null);
+  const [forexRows, setForexRows] = useState<ForexRow[]>([]);
+  const [futuresRows, setFuturesRows] = useState<FuturesRow[]>([]);
+  const [snapNote, setSnapNote] = useState<string | null>(null);
+  const [snapAsOf, setSnapAsOf] = useState<string | null>(null);
+  const [snapLoading, setSnapLoading] = useState(false);
+  const [heroReady, setHeroReady] = useState(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setHeroReady(true), 40);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSnapLoading(true);
+    fetch("/api/public/desk-snapshots", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled || !data?.success) return;
+        setForexRows(data.forex?.rows ?? []);
+        setFuturesRows(data.futures?.rows ?? []);
+        setSnapNote(data.forex?.note ?? data.futures?.note ?? null);
+        setSnapAsOf(data.forex?.asOf ?? data.futures?.asOf ?? null);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setSnapLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const enterDesk = (desk: (typeof DESKS)[number]) => {
+    startTransition(() => {
+      if (desk.path) saveDashboardPath(desk.path);
+      router.push(desk.href);
+    });
+  };
+
+  const openFuturesSymbol = (symbol: string, mode: "ai" | "liq") => {
+    saveDashboardPath("futures");
+    if (mode === "liq") {
+      router.push(`/?tab=futures&futures=liquidation-map&symbol=${encodeURIComponent(symbol)}`);
+      return;
+    }
+    router.push(`/?tab=futures&futures=ai&symbol=${encodeURIComponent(symbol)}`);
+  };
+
+  return (
+    <div className="relative min-h-screen overflow-x-hidden text-zinc-100">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(34,211,238,0.18),transparent_50%),radial-gradient(ellipse_at_90%_10%,rgba(245,158,11,0.12),transparent_45%),linear-gradient(180deg,#05080f_0%,#0a1220_45%,#05080f_100%)]" />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(148,163,184,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.35) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
+        }}
+      />
+
+      <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
+        <Link
+          href="/enter"
+          className="font-[family-name:var(--font-space-grotesk)] text-xl font-bold tracking-tight text-white sm:text-2xl"
+        >
+          NovaStaris
+        </Link>
+        <div className="flex items-center gap-3 text-sm">
+          <Link href="/signin" className="text-zinc-400 transition-colors hover:text-white">
+            Sign in
+          </Link>
+          <Link
+            href="/register"
+            className="rounded-md bg-cyan-500 px-3 py-1.5 font-medium text-zinc-950 transition-colors hover:bg-cyan-400"
+          >
+            Create account
+          </Link>
+        </div>
+      </header>
+
+      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+        <section className="flex min-h-[70vh] flex-col justify-center py-10 sm:py-16">
+          <p
+            className={`text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/90 transition-all duration-500 ${
+              heroReady ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+            }`}
+          >
+            AI trading intelligence
+          </p>
+          <h1
+            className={`mt-4 max-w-3xl font-[family-name:var(--font-space-grotesk)] text-5xl font-bold leading-[1.05] tracking-tight text-white transition-all duration-700 delay-75 sm:text-6xl md:text-7xl ${
+              heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            }`}
+          >
+            NovaStaris
+          </h1>
+          <p
+            className={`mt-5 max-w-xl text-base text-zinc-400 transition-all duration-700 delay-150 sm:text-lg ${
+              heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            }`}
+          >
+            Trade intelligence for the desk you actually run — memes, futures, forex, prop, or prediction markets.
+          </p>
+          <div
+            className={`mt-8 flex flex-wrap gap-3 transition-all duration-700 delay-200 ${
+              heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            }`}
+          >
+            <a
+              href="#desks"
+              className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-zinc-950 transition-colors hover:bg-zinc-200"
+            >
+              Choose your desk
+            </a>
+            <Link
+              href="/"
+              className="rounded-md border border-white/20 px-5 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:border-white/40"
+            >
+              Skip to dashboard
+            </Link>
+          </div>
+        </section>
+
+        <section id="desks" className="space-y-4 pb-8">
+          <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-white">
+            Enter a desk
+          </h2>
+          <p className="max-w-2xl text-sm text-zinc-400">
+            One job per room. Pick where you trade — we route you into that workflow, not a wall of tabs.
+          </p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {DESKS.map((desk) => (
+              <button
+                key={desk.id}
+                type="button"
+                onClick={() => setActive(desk.id === active ? null : desk.id)}
+                className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/50 p-5 text-left backdrop-blur-sm transition-colors hover:border-cyan-400/40 ${
+                  active === desk.id ? "border-cyan-400/50 ring-1 ring-cyan-400/30" : ""
+                }`}
+              >
+                <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${desk.tone}`} />
+                <div className="relative">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-white">
+                      {desk.title}
+                    </h3>
+                    <span className="shrink-0 rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
+                      {gateLabel(desk.gate)}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-400">{desk.line}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <span
+                      role="link"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        enterDesk(desk);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          enterDesk(desk);
+                        }
+                      }}
+                      className="inline-flex cursor-pointer rounded-md bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-cyan-400"
+                    >
+                      {pending ? "Opening…" : desk.cta}
+                    </span>
+                    <span className="self-center text-[11px] text-zinc-500 group-hover:text-zinc-400">
+                      {active === desk.id ? "Hide preview" : "Show preview"}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {active === "futures" && (
+          <section className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/60 p-4 sm:p-5">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-white">
+                  Opportunity rail
+                </h3>
+                <p className="mt-1 text-xs text-zinc-400">
+                  Curated movers — open Chart AI or Liquidation Map with the symbol filled.
+                </p>
+              </div>
+              {snapAsOf && (
+                <p className="text-[10px] text-zinc-500">
+                  As of {new Date(snapAsOf).toLocaleString()} · cached ~15–30m
+                </p>
+              )}
+            </div>
+            {snapLoading && futuresRows.length === 0 ? (
+              <p className="mt-4 text-sm text-zinc-500">Loading rail…</p>
+            ) : futuresRows.length === 0 ? (
+              <p className="mt-4 text-sm text-zinc-500">Rail unavailable right now — open Chart AI anyway.</p>
+            ) : (
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full min-w-[520px] text-left text-xs">
+                  <thead className="text-zinc-500">
+                    <tr className="border-b border-white/10">
+                      <th className="py-2 pr-3 font-medium">Symbol</th>
+                      <th className="py-2 pr-3 font-medium">Mark</th>
+                      <th className="py-2 pr-3 font-medium">24h</th>
+                      <th className="py-2 font-medium">Open</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {futuresRows.map((r) => (
+                      <tr key={r.symbol} className="border-b border-white/5">
+                        <td className="py-2.5 pr-3 font-mono font-semibold text-zinc-100">{r.symbol}</td>
+                        <td className="py-2.5 pr-3 font-mono text-zinc-300">{fmtPx(r.markPx)}</td>
+                        <td
+                          className={`py-2.5 pr-3 font-mono ${
+                            (r.dayChangePct ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"
+                          }`}
+                        >
+                          {fmtPct(r.dayChangePct)}
+                        </td>
+                        <td className="py-2.5">
+                          <div className="flex flex-wrap gap-1.5">
+                            <button
+                              type="button"
+                              className="rounded border border-cyan-500/40 px-2 py-1 text-[10px] font-medium text-cyan-200 hover:bg-cyan-500/10"
+                              onClick={() => openFuturesSymbol(r.symbol, "ai")}
+                            >
+                              Chart AI
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded border border-white/15 px-2 py-1 text-[10px] font-medium text-zinc-300 hover:bg-white/5"
+                              onClick={() => openFuturesSymbol(r.symbol, "liq")}
+                            >
+                              Liq map
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {active === "forex" && (
+          <section className="mt-4 rounded-2xl border border-amber-500/25 bg-zinc-950/60 p-4 sm:p-5">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-white">
+                  Delayed Market Watch
+                </h3>
+                <p className="mt-1 text-xs text-zinc-400">
+                  {snapNote ?? "Guest snapshot of majors. Live Agent / NovaQ Forex requires VIP."}
+                </p>
+              </div>
+              {snapAsOf && (
+                <p className="text-[10px] text-zinc-500">
+                  As of {new Date(snapAsOf).toLocaleString()} · not live
+                </p>
+              )}
+            </div>
+            {snapLoading && forexRows.length === 0 ? (
+              <p className="mt-4 text-sm text-zinc-500">Loading snapshot…</p>
+            ) : (
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full min-w-[560px] text-left text-xs">
+                  <thead className="text-zinc-500">
+                    <tr className="border-b border-white/10">
+                      <th className="py-2 pr-3 font-medium">Symbol</th>
+                      <th className="py-2 pr-3 font-medium">Price</th>
+                      <th className="py-2 pr-3 font-medium">Bias</th>
+                      <th className="py-2 font-medium">Read</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {forexRows.map((r) => (
+                      <tr key={r.symbol} className="border-b border-white/5">
+                        <td className="py-2.5 pr-3 font-mono font-semibold text-zinc-100">{r.symbol}</td>
+                        <td className="py-2.5 pr-3 font-mono text-zinc-300">{fmtPx(r.currentPrice)}</td>
+                        <td className="py-2.5 pr-3">
+                          <span
+                            className={
+                              r.direction === "bullish"
+                                ? "text-emerald-400"
+                                : r.direction === "bearish"
+                                  ? "text-rose-400"
+                                  : "text-zinc-400"
+                            }
+                          >
+                            {r.direction}
+                          </span>
+                        </td>
+                        <td className="max-w-[240px] py-2.5 text-zinc-500">{r.insight}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href="/subscribe"
+                className="rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-amber-400"
+              >
+                Upgrade for live Forex Agent
+              </Link>
+              <button
+                type="button"
+                className="rounded-md border border-white/20 px-3 py-1.5 text-xs text-zinc-300"
+                onClick={() => enterDesk(DESKS.find((d) => d.id === "forex")!)}
+              >
+                Open desk (VIP gate)
+              </button>
+            </div>
+          </section>
+        )}
+
+        {(active === "prop" || active === "polymarket") && (
+          <section className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/60 p-5">
+            <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-white">
+              {active === "prop" ? "Prop firm preview" : "Polymarket preview"}
+            </h3>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+              {active === "prop"
+                ? "See the challenge workspace layout and rules flow. Running bots against your prop account stays VIP — no empty locked table."
+                : "See the prediction-market radar room. Live wallet intel and automations stay VIP."}
+            </p>
+            <button
+              type="button"
+              className="mt-4 rounded-md bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-cyan-400"
+              onClick={() => enterDesk(DESKS.find((d) => d.id === active)!)}
+            >
+              Open preview in app
+            </button>
+          </section>
+        )}
+
+        {active === "meme" && (
+          <section className="mt-4 rounded-2xl border border-teal-500/25 bg-zinc-950/60 p-5">
+            <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-white">
+              Meme hunter
+            </h3>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+              Go Hunting → Trending / Surge → AI Agent on a contract. Free guests can explore discovery; deeper AI runs
+              follow your plan limits.
+            </p>
+            <button
+              type="button"
+              className="mt-4 rounded-md bg-teal-400 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-teal-300"
+              onClick={() => enterDesk(DESKS.find((d) => d.id === "meme")!)}
+            >
+              Enter Go Hunting
+            </button>
+          </section>
+        )}
+
+        <footer className="mt-16 flex flex-wrap gap-4 border-t border-white/10 pt-6 text-xs text-zinc-500">
+          <Link href="/how-it-works" className="hover:text-zinc-300">
+            How it works
+          </Link>
+          <Link href="/start-here" className="hover:text-zinc-300">
+            Classic start guide
+          </Link>
+          <Link href="/affiliate" className="hover:text-zinc-300">
+            Affiliate
+          </Link>
+          <Link href="/wins" className="hover:text-zinc-300">
+            Wins
+          </Link>
+        </footer>
+      </main>
+    </div>
+  );
+}

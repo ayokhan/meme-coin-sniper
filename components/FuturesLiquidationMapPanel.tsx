@@ -147,8 +147,19 @@ function bufferToLiquidationPct(side: "long" | "short", mark: number, liq: numbe
   return ((liq - mark) / mark) * 100;
 }
 
-export default function FuturesLiquidationMapPanel() {
-  const [symbol, setSymbol] = useState("BTC");
+export default function FuturesLiquidationMapPanel({
+  initialSymbol,
+}: {
+  initialSymbol?: string;
+} = {}) {
+  const [symbol, setSymbol] = useState(() => {
+    const s = (initialSymbol ?? "").trim().toUpperCase();
+    return s || "BTC";
+  });
+  useEffect(() => {
+    const s = (initialSymbol ?? "").trim().toUpperCase();
+    if (s) setSymbol(s);
+  }, [initialSymbol]);
   const [traderType, setTraderType] = useState<"long" | "short">("long");
   const [entry, setEntry] = useState("");
   const [exit, setExit] = useState("");

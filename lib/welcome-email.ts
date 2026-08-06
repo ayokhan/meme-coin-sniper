@@ -15,6 +15,9 @@ Pick your path
 4. Wallet tracking → Wallet Tracker, CT Scan, Coach Calls
 5. Prediction markets → Nova Polymarket
 
+Choose your desk
+https://novastaris.ai/enter
+
 Need the full map?
 Open Start here for a guide of every major tab:
 https://novastaris.ai/start-here

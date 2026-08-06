@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Legacy URL — Start here is the canonical guide. */
+/** Legacy URL — desk chooser is the canonical entry. */
 export default function HowItWorksRedirect() {
-  redirect("/start-here");
+  redirect("/enter");
 }
