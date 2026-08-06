@@ -83,6 +83,7 @@ import { DashboardOverlayProvider } from "@/components/DashboardOverlayProvider"
 import { DashboardPathPickerOverlay, FuturesOnboardingOverlay } from "@/components/DashboardOverlayModals";
 import DashboardNextStepBanner, { markNextStepDoneForTab } from "@/components/DashboardNextStepBanner";
 import PathFirstActionBanner from "@/components/PathFirstActionBanner";
+import DeskTabChrome, { DeskViewSegment } from "@/components/DeskTabChrome";
 import VipSoftPitchPanel from "@/components/VipSoftPitchPanel";
 import PublicStatusStrip from "@/components/PublicStatusStrip";
 import DashboardPaywallHelp from "@/components/DashboardPaywallHelp";
@@ -4907,42 +4908,62 @@ function Dashboard() {
               </div>
             )}
             {activeTab === "new" && (
-              <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 space-y-3">
-                <PathFirstActionBanner tab="new" />
-                <div className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("common.view")}</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {(["new_pairs", "final_stretch", "migrated"] as const).map((v) => (
+              <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 space-y-3 animate-in fade-in-0 slide-in-from-bottom-1 duration-500">
+                <DeskTabChrome
+                  accent="meme"
+                  eyebrow="Meme desk"
+                  title={t("tabs.new")}
+                  line="Hunt early Solana momentum, then run AI contract analysis on one pick."
+                >
+                  <DeskViewSegment
+                    accent="meme"
+                    value={goHuntingView}
+                    onChange={setGoHuntingView}
+                    options={[
+                      { id: "new_pairs" as const, label: t("ui.newPairs") },
+                      { id: "final_stretch" as const, label: t("ui.finalStretch") },
+                      { id: "migrated" as const, label: t("ui.migrated") },
+                    ]}
+                    hint={
+                      goHuntingView === "new_pairs"
+                        ? t("ui.huntingNewHint")
+                        : goHuntingView === "final_stretch"
+                          ? t("ui.huntingFinalHint")
+                          : t("ui.huntingMigratedHint")
+                    }
+                  />
+                  {goHuntingView === "new_pairs" && tokensForDisplay.length > 0 && tokensForDisplay.length <= 5 && (
+                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-300/90">
+                      Only {tokensForDisplay.length} pair{tokensForDisplay.length === 1 ? "" : "s"} launched in this
+                      window right now — Solana new-listing volume varies by hour. Try{" "}
                       <button
-                        key={v}
                         type="button"
-                        onClick={() => setGoHuntingView(v)}
-                        className={`px-3 py-1.5 min-h-[36px] rounded-md text-sm font-medium transition-colors ${
-                          goHuntingView === v
-                            ? "bg-cyan-500 text-white dark:bg-cyan-600"
-                            : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
-                        }`}
+                        onClick={() => setGoHuntingView("final_stretch")}
+                        className="underline font-medium text-teal-700 dark:text-teal-300"
                       >
-                        {v === "new_pairs" ? t("ui.newPairs") : v === "final_stretch" ? t("ui.finalStretch") : t("ui.migrated")}
+                        Final Stretch
                       </button>
-                    ))}
-                  </div>
-                </div>
-                <span className="mt-2 block text-xs text-muted-foreground">
-                  {goHuntingView === "new_pairs" && t("ui.huntingNewHint")}
-                  {goHuntingView === "final_stretch" && t("ui.huntingFinalHint")}
-                  {goHuntingView === "migrated" && t("ui.huntingMigratedHint")}
-                </span>
-                {goHuntingView === "new_pairs" && tokensForDisplay.length > 0 && tokensForDisplay.length <= 5 && (
-                  <p className="mt-2 text-xs text-slate-600 dark:text-slate-300/90">
-                    Only {tokensForDisplay.length} pair{tokensForDisplay.length === 1 ? "" : "s"} launched in this window right now — Solana new-listing volume varies by hour.
-                    Try <button type="button" onClick={() => setGoHuntingView("final_stretch")} className="underline font-medium">Final Stretch</button>,{" "}
-                    <button type="button" onClick={() => setActiveTab("trending")} className="underline font-medium">Trending</button>, or{" "}
-                    <button type="button" onClick={() => setActiveTab("surge")} className="underline font-medium">Surge</button> for broader lists.
-                  </p>
-                )}
-                </div>
+                      ,{" "}
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("trending")}
+                        className="underline font-medium text-teal-700 dark:text-teal-300"
+                      >
+                        Trending
+                      </button>
+                      , or{" "}
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("surge")}
+                        className="underline font-medium text-teal-700 dark:text-teal-300"
+                      >
+                        Surge
+                      </button>{" "}
+                      for broader lists.
+                    </p>
+                  )}
+                </DeskTabChrome>
+                <PathFirstActionBanner tab="new" />
               </div>
             )}
             {activeTab === "bsc" && (
