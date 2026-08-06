@@ -207,7 +207,7 @@ export default function EnterDesksClient() {
               heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             }`}
           >
-            Trade intelligence for the desk you actually run — memes, futures, forex, prop, or prediction markets.
+            Trade intelligence for the desk you run — and a free University so you learn before you size up.
           </p>
           <div
             className={`mt-8 flex flex-wrap gap-3 transition-all duration-700 delay-200 ${
@@ -220,12 +220,12 @@ export default function EnterDesksClient() {
             >
               Choose your desk
             </a>
-            <Link
-              href="/"
-              className="rounded-md border border-white/20 px-5 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:border-white/40"
+            <a
+              href="#university"
+              className="rounded-md border border-amber-400/40 px-5 py-2.5 text-sm font-medium text-amber-100 transition-colors hover:border-amber-300/70 hover:bg-amber-500/10"
             >
-              Skip to dashboard
-            </Link>
+              Learn free
+            </a>
           </div>
         </section>
 
@@ -284,6 +284,45 @@ export default function EnterDesksClient() {
                 </div>
               </button>
             ))}
+          </div>
+        </section>
+
+        <section
+          id="university"
+          className="relative mt-10 overflow-hidden rounded-2xl border border-amber-500/30 bg-zinc-950/70 p-6 sm:p-8"
+        >
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/15 via-transparent to-transparent" />
+          <div className="relative max-w-2xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/90">
+              Free to enroll
+            </p>
+            <h2 className="mt-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-white sm:text-3xl">
+              NovaStaris Trading University
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-400 sm:text-base">
+              Learn meme coins, Solana &amp; BSC, futures &amp; perps, prediction markets, forex, and metals — then sit
+              the final exam and earn a certificate. Preview as a guest; enroll free to track progress.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => {
+                  startTransition(() => {
+                    router.push("/?tab=trading-university");
+                  });
+                }}
+                className="rounded-md bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-300 disabled:opacity-60"
+              >
+                {pending ? "Opening…" : "Enter Trading University"}
+              </button>
+              <a
+                href="#desks"
+                className="rounded-md border border-white/15 px-4 py-2 text-sm text-zinc-300 transition-colors hover:border-white/30"
+              >
+                Or pick a desk first
+              </a>
+            </div>
           </div>
         </section>
 
