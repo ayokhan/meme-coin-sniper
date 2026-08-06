@@ -20,15 +20,16 @@ export type MemeTableAnalyzeHintBannerAdmin = MemeTableAnalyzeHintBannerConfig &
 
 export const DEFAULT_MEME_TABLE_HINT_BANNER: MemeTableAnalyzeHintBannerConfig = {
   enabled: true,
-  headline: "Don't Get Rugged",
-  guestTitle: "Analyze any coin with Nova AI Analysis",
+  headline: "Don't get rugged",
+  guestTitle: "Analyze before you ape",
   guestBody:
-    "Sign in or register free, then tap the purple Analyze button on any row. Nova AI Analysis works on Solana and BSC meme coins.",
-  freeTitle: "Tap Analyze for Nova AI Analysis",
-  freeBody: "Tap the purple Analyze button on any row to run Nova AI Analysis on any Solana or BSC meme coin.",
-  vipTitle: "Unlimited Nova AI Analysis",
+    "Sign in, then tap the purple Analyze button on any row — or open AI Agent to paste a contract.",
+  freeTitle: "Scan a row, then Analyze",
+  freeBody:
+    "Tap the purple Analyze button on any pair. Prefer pasting a contract? Use Open AI Agent.",
+  vipTitle: "Unlimited AI on every row",
   vipBody:
-    "Tap the purple Analyze button on any row to run Nova AI Analysis on any Solana or BSC meme coin — unlimited Meme Agent uses.",
+    "Tap the purple Analyze button on any Solana or BSC pair — unlimited Meme Agent. Or open AI Agent to paste a contract.",
 };
 
 type Row = MemeTableAnalyzeHintBannerConfig & { updatedAt?: Date };

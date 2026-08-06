@@ -4984,7 +4984,6 @@ function Dashboard() {
                     </p>
                   )}
                 </DeskTabChrome>
-                <PathFirstActionBanner tab="new" />
               </div>
             )}
             {activeTab === "bsc" && (
@@ -5025,6 +5024,7 @@ function Dashboard() {
                 <MemeTableAnalyzeHint
                   tier={isGuest ? "guest" : isVip ? "vip" : "free"}
                   config={memeTableHintBanner}
+                  variant={activeTab === "new" ? "memeDesk" : "default"}
                 />
               )}
             {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-forex-bot" && activeTab !== "nova-ultimate" && tokensForDisplay.length === 0 ? (
