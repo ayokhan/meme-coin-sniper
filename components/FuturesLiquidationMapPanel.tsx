@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { buildLiquidationMapTradeCheck } from "@/lib/liquidation-map-trade-check";
 
 type BlofinPosition = {
   id: string;
@@ -38,7 +39,7 @@ type Result = {
   volume24h: number;
   volatilityPct: number;
   trend?: "up" | "down" | "sideways";
-  marketStructure?: string;
+  marketStructure?: "higher-highs/higher-lows" | "lower-highs/lower-lows" | "mixed";
   trendlineRead?: string;
   aliasUsed?: string | null;
   bias: "long" | "short" | "neutral";
@@ -78,6 +79,7 @@ type Result = {
       leverage: number;
       estLiquidationPrice: number | null;
       estLiquidationDistancePct: number | null;
+      liqSource?: "exchange" | "estimated" | null;
       rrMultiple: number | null;
     };
     scoreBreakdown: Array<{ id: string; label: string; earned: number; max: number; detail: string; suggestedFix: string | null }>;
@@ -226,21 +228,63 @@ export default function FuturesLiquidationMapPanel({
     if (p.leverage != null && p.leverage > 0) setLeverage(String(Math.round(p.leverage)));
   }, []);
 
-  const inputsStale = useMemo(() => {
-    const a = result?.tradeCheck?.analyzed;
-    if (!a) return false;
+  const exchangeLiqForTrade = useCallback(
+    (positionOverride?: BlofinPosition | null): number | null => {
+      const p = positionOverride ?? linkedPosition;
+      if (!p || p.liquidationPrice == null || !(p.liquidationPrice > 0)) return null;
+      const sym = symbol.trim().toUpperCase();
+      if (p.symbol.toUpperCase() !== sym) return null;
+      if (p.side !== traderType) return null;
+      return p.liquidationPrice;
+    },
+    [linkedPosition, symbol, traderType]
+  );
+
+  /** Debounced client re-score — reuses cached map clusters (no candle refetch). */
+  useEffect(() => {
+    if (!result || loading) return;
     const entryN = entry.trim() ? Number(entry) : NaN;
     const exitN = exit.trim() ? Number(exit) : NaN;
     const levN = leverage.trim() ? Number(leverage) : NaN;
-    if (!Number.isFinite(entryN) || !Number.isFinite(exitN) || !Number.isFinite(levN)) return true;
+    if (!(entryN > 0 && exitN > 0 && Number.isFinite(levN) && levN >= 1)) return;
+    if (!result.trend || !result.marketStructure) return;
+
+    const a = result.tradeCheck?.analyzed;
     const close = (x: number, y: number) => Math.abs(x - y) <= Math.max(1e-8, Math.abs(y) * 1e-6);
-    return (
-      traderType !== a.traderType ||
-      !close(entryN, a.entry) ||
-      !close(exitN, a.exit) ||
-      !close(levN, a.leverage)
-    );
-  }, [result, entry, exit, leverage, traderType]);
+    const exchLiq = exchangeLiqForTrade();
+    const liqAligned =
+      exchLiq != null
+        ? a?.liqSource === "exchange" &&
+          a.estLiquidationPrice != null &&
+          close(a.estLiquidationPrice, exchLiq)
+        : a?.liqSource !== "exchange";
+    const already =
+      a &&
+      a.traderType === traderType &&
+      close(a.entry, entryN) &&
+      close(a.exit, exitN) &&
+      close(a.leverage, levN) &&
+      liqAligned;
+    if (already) return;
+
+    const t = window.setTimeout(() => {
+      const next = buildLiquidationMapTradeCheck({
+        traderType,
+        entry: entryN,
+        exit: exitN,
+        leverage: levN,
+        exchangeLiquidationPrice: exchLiq,
+        markPrice: result.markPrice,
+        bias: result.bias,
+        trend: result.trend!,
+        marketStructure: result.marketStructure!,
+        clusters: result.clusters,
+      });
+      if (!next) return;
+      setResult((prev) => (prev ? { ...prev, tradeCheck: next } : prev));
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [result, entry, exit, leverage, traderType, loading, exchangeLiqForTrade]);
 
   const run = async (positionOverride?: BlofinPosition | null) => {
     const s = symbol.trim();
@@ -255,6 +299,7 @@ export default function FuturesLiquidationMapPanel({
     try {
       const entryVal = entry.trim() ? Number(entry) : activePosition?.entryPrice ?? undefined;
       const levVal = leverage.trim() ? Number(leverage) : activePosition?.leverage ?? undefined;
+      const exchLiq = exchangeLiqForTrade(activePosition);
       const res = await fetch("/api/futures/liquidation-map", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -264,6 +309,7 @@ export default function FuturesLiquidationMapPanel({
           entry: entryVal,
           exit: exit.trim() ? Number(exit) : undefined,
           leverage: levVal,
+          exchangeLiquidationPrice: exchLiq ?? undefined,
         }),
       });
       const data = await res.json();
@@ -477,16 +523,10 @@ export default function FuturesLiquidationMapPanel({
           </div>
           <p className="text-[11px] text-muted-foreground">
             Bias &amp; clusters are market-wide (same until the coin moves).{" "}
-            <strong className="font-medium text-zinc-700 dark:text-zinc-300">Your trade check</strong> uses entry,
-            exit, and leverage — click <strong className="font-medium">Search liquidation map</strong> after you change
-            them.
+            <strong className="font-medium text-zinc-700 dark:text-zinc-300">Your trade check</strong> re-scores
+            automatically when you edit entry, exit, or leverage (uses the last map run — Search again after the coin
+            moves). Linked Blofin positions use the exchange liquidation price when available.
           </p>
-          {inputsStale && (
-            <p className="rounded-md border border-amber-400/50 bg-amber-50/80 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
-              Inputs changed since the last run — click <strong>Search liquidation map</strong> to refresh Your trade
-              check (score, stop, est. liquidation).
-            </p>
-          )}
           {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
         </CardContent>
       </Card>
@@ -609,7 +649,8 @@ export default function FuturesLiquidationMapPanel({
                     {result.tradeCheck.analyzed.estLiquidationPrice != null && (
                       <>
                         {" "}
-                        · est. liq {fmtPrice(result.tradeCheck.analyzed.estLiquidationPrice)}
+                        · {result.tradeCheck.analyzed.liqSource === "exchange" ? "Blofin liq" : "est. liq"}{" "}
+                        {fmtPrice(result.tradeCheck.analyzed.estLiquidationPrice)}
                         {result.tradeCheck.analyzed.estLiquidationDistancePct != null
                           ? ` (${result.tradeCheck.analyzed.estLiquidationDistancePct.toFixed(2)}% from entry)`
                           : ""}
@@ -725,7 +766,7 @@ export default function FuturesLiquidationMapPanel({
                       </Button>
                     </div>
                     <p className="text-[10px] text-muted-foreground">
-                      Map-derived suggestion only — not a broker order. Re-run Search after applying a new entry.
+                      Map-derived suggestion only — not a broker order. Trade check updates after you apply a new entry.
                     </p>
                   </div>
                 )}
