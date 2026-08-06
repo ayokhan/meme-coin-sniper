@@ -32,6 +32,17 @@ const DESKS: Array<{
   href: string;
   gate: "open" | "vip" | "preview";
   tone: string;
+  /** Border / CTA / active accent — one mood per desk */
+  accent: {
+    border: string;
+    borderHover: string;
+    borderActive: string;
+    ring: string;
+    cta: string;
+    ctaHover: string;
+    label: string;
+    bar: string;
+  };
 }> = [
   {
     id: "meme",
@@ -42,6 +53,16 @@ const DESKS: Array<{
     href: "/?tab=new",
     gate: "open",
     tone: "from-teal-500/25 via-transparent to-transparent",
+    accent: {
+      border: "border-teal-500/25",
+      borderHover: "hover:border-teal-400/55",
+      borderActive: "border-teal-400/60",
+      ring: "ring-teal-400/30",
+      cta: "bg-teal-400",
+      ctaHover: "hover:bg-teal-300",
+      label: "text-teal-200/80",
+      bar: "bg-teal-400",
+    },
   },
   {
     id: "futures",
@@ -52,6 +73,16 @@ const DESKS: Array<{
     href: "/?tab=futures&futures=ai",
     gate: "open",
     tone: "from-cyan-500/25 via-transparent to-transparent",
+    accent: {
+      border: "border-cyan-500/25",
+      borderHover: "hover:border-cyan-400/55",
+      borderActive: "border-cyan-400/60",
+      ring: "ring-cyan-400/30",
+      cta: "bg-cyan-400",
+      ctaHover: "hover:bg-cyan-300",
+      label: "text-cyan-200/80",
+      bar: "bg-cyan-400",
+    },
   },
   {
     id: "forex",
@@ -62,6 +93,16 @@ const DESKS: Array<{
     href: "/?tab=nova-forex",
     gate: "vip",
     tone: "from-amber-500/20 via-transparent to-transparent",
+    accent: {
+      border: "border-amber-500/25",
+      borderHover: "hover:border-amber-400/55",
+      borderActive: "border-amber-400/60",
+      ring: "ring-amber-400/30",
+      cta: "bg-amber-400",
+      ctaHover: "hover:bg-amber-300",
+      label: "text-amber-200/80",
+      bar: "bg-amber-400",
+    },
   },
   {
     id: "prop",
@@ -72,6 +113,16 @@ const DESKS: Array<{
     href: "/?tab=prop-firm-bot",
     gate: "preview",
     tone: "from-rose-500/20 via-transparent to-transparent",
+    accent: {
+      border: "border-rose-500/25",
+      borderHover: "hover:border-rose-400/55",
+      borderActive: "border-rose-400/60",
+      ring: "ring-rose-400/30",
+      cta: "bg-rose-400",
+      ctaHover: "hover:bg-rose-300",
+      label: "text-rose-200/80",
+      bar: "bg-rose-400",
+    },
   },
   {
     id: "polymarket",
@@ -82,8 +133,20 @@ const DESKS: Array<{
     href: "/?tab=polymarket-bot",
     gate: "preview",
     tone: "from-sky-500/20 via-transparent to-transparent",
+    accent: {
+      border: "border-sky-500/25",
+      borderHover: "hover:border-sky-400/55",
+      borderActive: "border-sky-400/60",
+      ring: "ring-sky-400/30",
+      cta: "bg-sky-400",
+      ctaHover: "hover:bg-sky-300",
+      label: "text-sky-200/80",
+      bar: "bg-sky-400",
+    },
   },
 ];
+
+const UNI_PATH = ["Foundations", "Markets", "Applied", "Final exam", "Certificate"] as const;
 
 function fmtPx(n: number | null): string {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -111,10 +174,40 @@ export default function EnterDesksClient() {
   const [snapAsOf, setSnapAsOf] = useState<string | null>(null);
   const [snapLoading, setSnapLoading] = useState(false);
   const [heroReady, setHeroReady] = useState(false);
+  const [desksReady, setDesksReady] = useState(false);
+  const [uniReady, setUniReady] = useState(false);
 
   useEffect(() => {
     const t = window.setTimeout(() => setHeroReady(true), 40);
     return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
+      setDesksReady(true);
+      setUniReady(true);
+      return;
+    }
+    const nodes = [
+      { id: "desks", set: setDesksReady },
+      { id: "university", set: setUniReady },
+    ] as const;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const id = (e.target as HTMLElement).id;
+          if (id === "desks") setDesksReady(true);
+          if (id === "university") setUniReady(true);
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
+    );
+    for (const n of nodes) {
+      const el = document.getElementById(n.id);
+      if (el) obs.observe(el);
+    }
+    return () => obs.disconnect();
   }, []);
 
   useEffect(() => {
@@ -238,22 +331,28 @@ export default function EnterDesksClient() {
           </p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {DESKS.map((desk) => (
+            {DESKS.map((desk, i) => (
               <button
                 key={desk.id}
                 type="button"
                 onClick={() => setActive(desk.id === active ? null : desk.id)}
-                className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/50 p-5 text-left backdrop-blur-sm transition-colors hover:border-cyan-400/40 ${
-                  active === desk.id ? "border-cyan-400/50 ring-1 ring-cyan-400/30" : ""
-                }`}
+                style={{
+                  transitionDelay: desksReady ? `${80 + i * 70}ms` : "0ms",
+                }}
+                className={`group relative overflow-hidden rounded-2xl border bg-zinc-950/50 p-5 text-left backdrop-blur-sm transition-all duration-500 ease-out ${desk.accent.border} ${desk.accent.borderHover} ${
+                  active === desk.id ? `${desk.accent.borderActive} ring-1 ${desk.accent.ring}` : ""
+                } ${desksReady ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}
               >
                 <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${desk.tone}`} />
+                <div className={`pointer-events-none absolute left-0 top-0 h-full w-1 ${desk.accent.bar}`} aria-hidden />
                 <div className="relative">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-white">
                       {desk.title}
                     </h3>
-                    <span className="shrink-0 rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
+                    <span
+                      className={`shrink-0 rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-wide ${desk.accent.label}`}
+                    >
                       {gateLabel(desk.gate)}
                     </span>
                   </div>
@@ -273,7 +372,7 @@ export default function EnterDesksClient() {
                           enterDesk(desk);
                         }
                       }}
-                      className="inline-flex cursor-pointer rounded-md bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-cyan-400"
+                      className={`inline-flex cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-950 ${desk.accent.cta} ${desk.accent.ctaHover}`}
                     >
                       {pending ? "Opening…" : desk.cta}
                     </span>
@@ -289,7 +388,9 @@ export default function EnterDesksClient() {
 
         <section
           id="university"
-          className="relative mt-10 overflow-hidden rounded-2xl border border-amber-500/30 bg-zinc-950/70 p-6 sm:p-8"
+          className={`relative mt-10 overflow-hidden rounded-2xl border border-amber-500/30 bg-zinc-950/70 p-6 sm:p-8 transition-all duration-700 ease-out ${
+            uniReady ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+          }`}
         >
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/15 via-transparent to-transparent" />
           <div className="relative max-w-2xl">
@@ -303,6 +404,16 @@ export default function EnterDesksClient() {
               Learn meme coins, Solana &amp; BSC, futures &amp; perps, prediction markets, forex, and metals — then sit
               the final exam and earn a certificate. Preview as a guest; enroll free to track progress.
             </p>
+            <ol className="mt-5 flex flex-wrap items-center gap-x-1 gap-y-2 text-[11px] text-amber-100/80">
+              {UNI_PATH.map((step, i) => (
+                <li key={step} className="inline-flex items-center gap-1">
+                  {i > 0 && <span className="mx-1 text-amber-500/50" aria-hidden>→</span>}
+                  <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-1 font-medium tracking-wide">
+                    {step}
+                  </span>
+                </li>
+              ))}
+            </ol>
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 type="button"
