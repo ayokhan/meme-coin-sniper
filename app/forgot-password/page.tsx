@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -77,6 +78,9 @@ export default function ForgotPasswordPage() {
           <p className="text-xs text-center text-muted-foreground">
             <Link href="/signin" className="underline hover:no-underline">Back to sign in</Link>
           </p>
+          <div className="flex justify-center">
+            <SiteInstagramFooter className="border-0 pt-2 pb-0 mt-0" />
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, CreditCard } from "lucide-react";
 import { CARD_PAYMENT_FEE_USD, getCardPriceUsd } from "@/lib/subscription";
 import VipExpiryBanner from "@/components/VipExpiryBanner";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 import {
   SICKKIDS_FOUNDATION_URL,
   VIP_GIVING_BODY,
@@ -632,6 +633,7 @@ function SubscribeContent() {
             )}
           </div>
         )}
+        <SiteInstagramFooter />
       </main>
     </div>
   );

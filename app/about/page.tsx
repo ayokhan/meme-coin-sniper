@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Zap, Brain, Target, Shield, Sparkles, TrendingUp, BarChart3, Activity, MessageCircle, QrCode } from "lucide-react";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 function AboutContent() {
   const searchParams = useSearchParams();
@@ -233,6 +234,9 @@ function AboutContent() {
           <Button asChild className="bg-gradient-to-r from-cyan-500 via-violet-500 to-blue-600 text-white border-0">
             <Link href="/">Go to Dashboard</Link>
           </Button>
+        </div>
+        <div className="flex justify-center">
+          <SiteInstagramFooter className="border-0 pt-6 pb-0" />
         </div>
       </main>
     </div>

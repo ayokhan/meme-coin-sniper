@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Zap } from "lucide-react";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 type Service = { name: string; status: "ok" | "degraded" | "error" | "skip"; message: string };
 
@@ -129,6 +130,7 @@ export default function StatusPage() {
         <p className="mt-4 text-sm text-muted-foreground">
           <Link href="/" className="underline hover:no-underline">Back to app</Link>
         </p>
+        <SiteInstagramFooter className="border-0 pt-4 pb-0" />
       </div>
     </div>
   );

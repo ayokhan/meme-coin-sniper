@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Download, QrCode, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 const SITE_URL = "https://www.novastaris.ai";
 
@@ -72,6 +73,9 @@ export default function QrPage() {
             <p className="text-xs text-center text-zinc-500 dark:text-zinc-400">
               Encoded URL: <span className="font-mono">{SITE_URL}</span>
             </p>
+            <div className="flex justify-center w-full">
+              <SiteInstagramFooter className="border-0 pt-2 pb-0 mt-0" />
+            </div>
           </CardContent>
         </Card>
       </main>

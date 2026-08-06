@@ -4,10 +4,14 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Instagram } from "lucide-react";
+import {
+  NOVASTARIS_INSTAGRAM_HANDLE,
+  NOVASTARIS_INSTAGRAM_URL,
+} from "@/components/SiteInstagramFooter";
 import { saveDashboardPath, type DashboardPath } from "@/lib/dashboard-onboarding";
 
-const INSTAGRAM_HANDLE = "novastaris";
-const INSTAGRAM_URL = "https://www.instagram.com/novastaris/";
+const INSTAGRAM_HANDLE = NOVASTARIS_INSTAGRAM_HANDLE;
+const INSTAGRAM_URL = NOVASTARIS_INSTAGRAM_URL;
 
 type DeskId = "meme" | "futures" | "forex" | "prop" | "polymarket";
 
@@ -646,7 +650,7 @@ export default function EnterDesksClient() {
           <div className="animate-[enter-ig-marquee_32s_linear_infinite] flex w-max whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.28em] text-zinc-500">
             {Array.from({ length: 8 }).map((_, i) => (
               <span key={i} className="mx-6">
-                Follow the desk · @{INSTAGRAM_HANDLE} · charts · desks · wins · Instagram
+                Follow the desk · @{INSTAGRAM_HANDLE} · setups · desks · wins · Instagram
               </span>
             ))}
           </div>

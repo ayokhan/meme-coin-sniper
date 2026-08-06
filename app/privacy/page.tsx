@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 export const metadata = {
   title: "Privacy Policy — NovaStaris",
@@ -40,6 +41,7 @@ export default function PrivacyPage() {
           {" · "}
           <Link href="/terms" className="underline hover:no-underline">Terms of Service</Link>
         </p>
+        <SiteInstagramFooter className="border-0 pt-4 pb-0" />
       </div>
     </div>
   );

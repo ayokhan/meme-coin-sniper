@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap } from "lucide-react";
 import { PasswordInput } from "@/components/PasswordInput";
 import { signInWithGoogle } from "@/lib/google-oauth-client";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 function GoogleLogo() {
   return (
@@ -263,6 +264,9 @@ function SignInForm() {
           <p className="text-xs text-center text-muted-foreground">
             <Link href="/" className="underline hover:no-underline">Back to app</Link>
           </p>
+          <div className="flex justify-center">
+            <SiteInstagramFooter className="border-0 pt-2 pb-0 mt-0" />
+          </div>
         </CardContent>
       </Card>
     </div>

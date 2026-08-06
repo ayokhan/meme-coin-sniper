@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Zap, CheckCircle } from "lucide-react";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 function SupportForm() {
   const searchParams = useSearchParams();
@@ -177,6 +178,9 @@ function SupportForm() {
             Prefer to chat? Talk to Nja, our AI assistant →
           </Link>
         </p>
+        <div className="flex justify-center">
+          <SiteInstagramFooter />
+        </div>
       </main>
     </div>
   );

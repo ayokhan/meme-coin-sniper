@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Share2, Zap } from "lucide-react";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 export default function WinsPage() {
   const { data: session, status } = useSession();
@@ -121,6 +122,7 @@ export default function WinsPage() {
             </div>
           </div>
         )}
+        <SiteInstagramFooter className="max-w-xl mx-auto" />
       </div>
     </div>
   );

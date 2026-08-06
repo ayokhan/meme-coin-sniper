@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Zap } from "lucide-react";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 const PATHS = [
   {
@@ -190,6 +191,7 @@ export default function StartHerePage() {
           <p className="text-xs text-zinc-400 dark:text-zinc-600 pt-2">
             Not financial advice. Always confirm prices and risk with your broker or venue.
           </p>
+          <SiteInstagramFooter className="border-0 pt-4 pb-0" />
         </section>
       </main>
     </div>

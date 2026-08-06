@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Copy, Gift, Users, Zap } from "lucide-react";
 import { openTelegramShare } from "@/lib/pnl-share";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 type CommissionRow = {
   id: string;
@@ -373,6 +374,7 @@ export default function AffiliatePage() {
           </CardContent>
         </Card>
       )}
+      <SiteInstagramFooter />
     </div>
   );
 }

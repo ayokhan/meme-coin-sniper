@@ -12,6 +12,7 @@ import type { PromoBannerAdmin } from "@/lib/promo-banner";
 import { PasswordInput } from "@/components/PasswordInput";
 import { signInWithGoogle } from "@/lib/google-oauth-client";
 import { readReferralCookie } from "@/components/ReferralCapture";
+import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 function GoogleLogo() {
   return (
@@ -367,6 +368,9 @@ function RegisterForm() {
                   Back to app
                 </Link>
               </p>
+              <div className="flex justify-center">
+                <SiteInstagramFooter className="border-0 pt-2 pb-0 mt-0" />
+              </div>
             </>
           )}
         </CardContent>
