@@ -900,33 +900,20 @@ export default function NovaScalperPanel() {
             </select>
           </div>
 
-          <div className="rounded-md border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 p-3 space-y-2">
+          <div className="rounded-md border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/50 p-3 space-y-1.5">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={config.attachTpsl}
                 onChange={(e) => setField("attachTpsl", e.target.checked)}
               />
-              <span className="text-sm">Also attach Blofin TP/SL after entry (uses plan exit/stop; soft cron close remains backup)</span>
+              <span className="text-sm">Also attach Blofin TP/SL after entry</span>
             </label>
-            {config.attachTpsl && (
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="number"
-                  placeholder="TP %"
-                  value={config.tpslTpPct ?? ""}
-                  onChange={(e) => setField("tpslTpPct", e.target.value === "" ? null : parseFloat(e.target.value))}
-                  className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm"
-                />
-                <input
-                  type="number"
-                  placeholder="SL %"
-                  value={config.tpslSlPct ?? ""}
-                  onChange={(e) => setField("tpslSlPct", e.target.value === "" ? null : parseFloat(e.target.value))}
-                  className="rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm"
-                />
-              </div>
-            )}
+            <p className="text-xs text-muted-foreground pl-6">
+              Uses the same <strong className="text-foreground">Exit price</strong> and{" "}
+              <strong className="text-foreground">Stop loss</strong> above (absolute prices, not %). Soft cron close
+              stays as backup.
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
