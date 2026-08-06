@@ -60,10 +60,9 @@ import MemeLeaderboardPanel from "@/components/MemeLeaderboardPanel";
 import MemeTokenTableActions, {
   memeTableShareBtnClass,
   memeTableShareBtnCopiedClass,
-  memeTableShareBtnQuietClass,
-  memeTableShareBtnQuietCopiedClass,
   memeTableExtLinkQuietClass,
 } from "@/components/MemeTokenTableActions";
+import MemeRowMoreMenu from "@/components/MemeRowMoreMenu";
 import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
 import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
 import type { MemeAgentBannerAdmin } from "@/lib/meme-agent-banner";
@@ -9901,6 +9900,51 @@ function Dashboard() {
                             chain={activeTab === "bsc" ? "bsc" : "solana"}
                             variant={activeTab === "new" ? "quiet" : "default"}
                           />
+                          {activeTab === "new" ? (
+                            <>
+                              <a
+                                href={dexUrl(tok)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={memeTableExtLinkQuietClass}
+                              >
+                                Dex
+                              </a>
+                              <MemeRowMoreMenu
+                                items={[
+                                  {
+                                    type: "action",
+                                    label: "Copy ID",
+                                    onClick: async () => {
+                                      await navigator.clipboard.writeText(tok.contractAddress);
+                                    },
+                                  },
+                                  {
+                                    type: "action",
+                                    label: "Share Dex link",
+                                    onClick: async () => {
+                                      await navigator.clipboard.writeText(dexUrl(tok));
+                                      setCopiedTokenId(tok.id);
+                                      setTimeout(() => setCopiedTokenId(null), 2000);
+                                    },
+                                  },
+                                  { type: "link", label: "Pump", href: pumpFunUrl(tok) },
+                                  { type: "link", label: "GMGN", href: gmgnUrl(tok) },
+                                  { type: "link", label: "Maestro", href: maestroUrl(tok) },
+                                  ...(tok.twitter
+                                    ? [{ type: "link" as const, label: "X", href: tok.twitter }]
+                                    : []),
+                                  ...(tok.telegram
+                                    ? [{ type: "link" as const, label: "Telegram", href: tok.telegram }]
+                                    : []),
+                                  ...(tok.website
+                                    ? [{ type: "link" as const, label: "Website", href: tok.website }]
+                                    : []),
+                                ]}
+                              />
+                            </>
+                          ) : (
+                            <>
                           <button
                             type="button"
                             onClick={() => {
@@ -9911,13 +9955,9 @@ function Dashboard() {
                               });
                             }}
                             className={
-                              activeTab === "new"
-                                ? copiedTokenId === tok.id
-                                  ? memeTableShareBtnQuietCopiedClass
-                                  : memeTableShareBtnQuietClass
-                                : copiedTokenId === tok.id
-                                  ? memeTableShareBtnCopiedClass
-                                  : memeTableShareBtnClass
+                              copiedTokenId === tok.id
+                                ? memeTableShareBtnCopiedClass
+                                : memeTableShareBtnClass
                             }
                             title="Copy Dex link"
                           >
@@ -9934,13 +9974,6 @@ function Dashboard() {
                               <a href={dexUrlBsc(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
                               <a href={bscScanUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">BscScan</a>
                             </>
-                          ) : activeTab === "new" ? (
-                            <>
-                              <a href={dexUrl(tok)} target="_blank" rel="noopener noreferrer" className={memeTableExtLinkQuietClass}>Dex</a>
-                              <a href={pumpFunUrl(tok)} target="_blank" rel="noopener noreferrer" className={memeTableExtLinkQuietClass}>Pump</a>
-                              <a href={gmgnUrl(tok)} target="_blank" rel="noopener noreferrer" className={memeTableExtLinkQuietClass}>GMGN</a>
-                              <a href={maestroUrl(tok)} target="_blank" rel="noopener noreferrer" className={memeTableExtLinkQuietClass} title="Open in Maestro Telegram bot">Maestro</a>
-                            </>
                           ) : (
                             <>
                               <a href={dexUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
@@ -9954,11 +9987,7 @@ function Dashboard() {
                               href={tok.twitter}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={
-                                activeTab === "new"
-                                  ? memeTableExtLinkQuietClass
-                                  : "inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
-                              }
+                              className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
                             >
                               X
                             </a>
@@ -9968,11 +9997,7 @@ function Dashboard() {
                               href={tok.telegram}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={
-                                activeTab === "new"
-                                  ? memeTableExtLinkQuietClass
-                                  : "inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
-                              }
+                              className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
                             >
                               TG
                             </a>
@@ -9982,15 +10007,13 @@ function Dashboard() {
                               href={tok.website}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={
-                                activeTab === "new"
-                                  ? memeTableExtLinkQuietClass
-                                  : "inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
-                              }
+                              className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
                               title="Website"
                             >
-                              {activeTab === "new" ? "Web" : "🌐"}
+                              🌐
                             </a>
+                          )}
+                            </>
                           )}
                         </div>
                       </TableCell>

@@ -29,18 +29,13 @@ export const memeTableShareBtnCopiedClass =
   "bg-emerald-100 text-emerald-800 border-emerald-300/80 " +
   "dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700/70";
 
-const copyBtnQuietClass =
-  "inline-flex items-center rounded-md border border-zinc-200/90 dark:border-zinc-700/80 bg-zinc-50/90 dark:bg-zinc-800/70 px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hover:border-teal-500/35 hover:text-teal-800 dark:hover:text-teal-200 transition-colors";
-const copyBtnQuietCopiedClass =
-  "inline-flex items-center rounded-md border border-emerald-300/70 dark:border-emerald-700/60 bg-emerald-50/90 dark:bg-emerald-950/50 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300";
-
-/** Soft secondary share chip (desk rows) — less loud than amber pill, still clearly a control */
+/** Soft secondary share chip (desk rows) */
 export const memeTableShareBtnQuietClass =
   "inline-flex items-center rounded-md border border-amber-300/50 dark:border-amber-700/50 bg-amber-50/80 dark:bg-amber-950/40 px-2 py-1 text-[11px] font-medium text-amber-900 dark:text-amber-200 hover:bg-amber-100/90 dark:hover:bg-amber-900/50 transition-colors";
 export const memeTableShareBtnQuietCopiedClass =
   "inline-flex items-center rounded-md border border-emerald-300/70 dark:border-emerald-700/60 bg-emerald-50/90 dark:bg-emerald-950/50 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300";
 
-/** Soft external link chip for Go Hunting — readable as clickable without pill clutter */
+/** Soft external link chip */
 export const memeTableExtLinkQuietClass =
   "inline-flex items-center rounded-md border border-zinc-200/90 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/60 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hover:border-teal-500/40 hover:text-teal-800 dark:hover:text-teal-200 transition-colors";
 
@@ -48,8 +43,8 @@ type Props = {
   contractAddress: string;
   chain?: "solana" | "bsc";
   /**
-   * Desk row: soft Copy chip + always-visible purple Analyze
-   * (matches “Don’t Get Rugged” / purple Analyze messaging).
+   * default — Analyze + Copy ID (colored)
+   * quiet — Analyze only (Copy/Share/ext live in More menu on Go Hunting)
    */
   variant?: "default" | "quiet";
 };
@@ -83,27 +78,21 @@ export default function MemeTokenTableActions({
         <Sparkles className="h-3 w-3 mr-0.5 inline" />
         Analyze
       </button>
-      <button
-        type="button"
-        onClick={() => void copyId()}
-        className={
-          quiet
-            ? copied
-              ? copyBtnQuietCopiedClass
-              : copyBtnQuietClass
-            : copied
-              ? copyBtnCopiedClass
-              : copyBtnClass
-        }
-        title={`Copy contract: ${contractAddress}`}
-      >
-        {copied ? (
-          <Check className={`h-3 w-3 mr-0.5 ${quiet ? "" : "text-emerald-600 dark:text-emerald-400"}`} />
-        ) : (
-          <Copy className="h-3 w-3 mr-0.5 inline" />
-        )}
-        {copied ? "Copied" : "Copy ID"}
-      </button>
+      {!quiet && (
+        <button
+          type="button"
+          onClick={() => void copyId()}
+          className={copied ? copyBtnCopiedClass : copyBtnClass}
+          title={`Copy contract: ${contractAddress}`}
+        >
+          {copied ? (
+            <Check className="h-3 w-3 mr-0.5 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <Copy className="h-3 w-3 mr-0.5 inline" />
+          )}
+          {copied ? "Copied" : "Copy ID"}
+        </button>
+      )}
     </>
   );
 }
