@@ -510,8 +510,8 @@ export default function EnterDesksClient() {
         )}
 
         <footer className="mt-16 flex flex-wrap gap-4 border-t border-white/10 pt-6 text-xs text-zinc-500">
-          <Link href="/how-it-works" className="hover:text-zinc-300">
-            How it works
+          <Link href="/?tab=trading-university" className="hover:text-zinc-300">
+            Trading University
           </Link>
           <Link href="/start-here" className="hover:text-zinc-300">
             Classic start guide
