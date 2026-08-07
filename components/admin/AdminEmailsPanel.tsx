@@ -355,8 +355,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Free strategy call (Calendly)</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Free Calendly plan is enough (1 event type). Paste your public booking link, enable, then load the
-            “Free strategy call” preset. Users book / reschedule on Calendly — no extra NovaStaris cost.
+            Users land on /strategy-call, then book on Calendly (external). Free Calendly plan is enough.
+            Paste / update your public booking link below, enable, then load the “Free strategy call” preset.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -372,7 +372,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             <input
               type="url"
               className={`${inputClass} flex-1`}
-              placeholder="https://calendly.com/your-name/novastaris-strategy-call"
+              placeholder="https://calendly.com/novastaris-ai/30min"
               value={strategyCallUrl}
               onChange={(e) => setStrategyCallUrl(e.target.value)}
             />
