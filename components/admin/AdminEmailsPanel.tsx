@@ -12,6 +12,7 @@ import {
   type AdminEmailFormat,
   type AdminEmailPresetId,
 } from "@/lib/admin-email-presets";
+import { buildStrategyCallEmail } from "@/lib/strategy-call";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 
@@ -106,6 +107,9 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     ctaLabel: "",
     ctaUrl: "",
   });
+  const [strategyCallUrl, setStrategyCallUrl] = useState("");
+  const [strategyCallEnabled, setStrategyCallEnabled] = useState(false);
+  const [strategyCallSaving, setStrategyCallSaving] = useState(false);
 
   const loadStats = useCallback(async () => {
     setLoading(true);
@@ -137,29 +141,90 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     void loadStats();
   }, [loadStats]);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/strategy-call", { credentials: "include" });
+        const data = await res.json();
+        if (res.ok && data.success && data.config) {
+          setStrategyCallUrl(String(data.config.bookingUrl ?? ""));
+          setStrategyCallEnabled(!!data.config.enabled);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
+
+  const saveStrategyCall = useCallback(async () => {
+    setStrategyCallSaving(true);
+    try {
+      const res = await fetch("/api/admin/strategy-call", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: strategyCallEnabled, bookingUrl: strategyCallUrl }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.config) {
+        setStrategyCallUrl(String(data.config.bookingUrl ?? ""));
+        setStrategyCallEnabled(!!data.config.enabled);
+        onNotice?.(
+          data.config.enabled && data.config.bookingUrl
+            ? "Strategy call booking link saved."
+            : "Strategy call settings saved (enable + paste Calendly URL to use in emails)."
+        );
+      } else {
+        onError?.(data.error || "Could not save strategy call link.");
+      }
+    } catch {
+      onError?.("Could not save strategy call link.");
+    } finally {
+      setStrategyCallSaving(false);
+    }
+  }, [strategyCallEnabled, strategyCallUrl, onNotice, onError]);
+
   const windowedNew = useMemo(
     () => registrantEmailsInWindow(stats?.recentRegistrants ?? [], newWindowDays),
     [stats?.recentRegistrants, newWindowDays]
   );
 
-  const applyPreset = useCallback((id: AdminEmailPresetId) => {
-    const p = getAdminEmailPreset(id);
-    setPresetId(id);
-    if (!p) return;
-    setDraft({
-      subject: p.subject,
-      body: p.body,
-      audience: p.defaultAudience ?? "newsletter",
-      includePartnerLogos: p.includePartnerLogos,
-      partnerBrand: p.partnerBrand,
-      template: p.template,
-      ctaLabel: p.ctaLabel,
-      ctaUrl: p.ctaUrl,
-    });
-    if (p.defaultAudience === "new") {
-      setNewWindowDays(id.startsWith("deepdive-") || id === "vip-soft-pitch" ? 7 : 1);
-    }
-  }, []);
+  const applyPreset = useCallback(
+    (id: AdminEmailPresetId) => {
+      setPresetId(id);
+      if (id === "strategy-call") {
+        const url = strategyCallUrl.trim();
+        const built = buildStrategyCallEmail(url);
+        setDraft({
+          subject: built.subject,
+          body: built.body,
+          audience: "free",
+          includePartnerLogos: false,
+          partnerBrand: "blofin",
+          template: "nova-branded",
+          ctaLabel: built.ctaLabel,
+          ctaUrl: built.ctaUrl,
+        });
+        return;
+      }
+      const p = getAdminEmailPreset(id);
+      if (!p) return;
+      setDraft({
+        subject: p.subject,
+        body: p.body,
+        audience: p.defaultAudience ?? "newsletter",
+        includePartnerLogos: p.includePartnerLogos,
+        partnerBrand: p.partnerBrand,
+        template: p.template,
+        ctaLabel: p.ctaLabel,
+        ctaUrl: p.ctaUrl,
+      });
+      if (p.defaultAudience === "new") {
+        setNewWindowDays(id.startsWith("deepdive-") || id === "vip-soft-pitch" ? 7 : 1);
+      }
+    },
+    [strategyCallUrl]
+  );
 
   useEffect(() => {
     const preset = searchParams.get("preset") as AdminEmailPresetId | null;
@@ -286,6 +351,42 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
 
   return (
     <div className="space-y-4 max-w-4xl">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Free strategy call (Calendly)</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Free Calendly plan is enough (1 event type). Paste your public booking link, enable, then load the
+            “Free strategy call” preset. Users book / reschedule on Calendly — no extra NovaStaris cost.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={strategyCallEnabled}
+              onChange={(e) => setStrategyCallEnabled(e.target.checked)}
+            />
+            Enabled (use this link in the strategy-call email)
+          </label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="url"
+              className={`${inputClass} flex-1`}
+              placeholder="https://calendly.com/your-name/novastaris-strategy-call"
+              value={strategyCallUrl}
+              onChange={(e) => setStrategyCallUrl(e.target.value)}
+            />
+            <Button type="button" size="sm" disabled={strategyCallSaving} onClick={() => void saveStrategyCall()}>
+              {strategyCallSaving ? "Saving…" : "Save link"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Setup: calendly.com → free account → connect Google Calendar → create one event (e.g. 15–20 min) →
+            copy the share link here.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">1. Choose a template</CardTitle>

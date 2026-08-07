@@ -502,6 +502,14 @@ model SiteAnnouncementBanner {
   updatedAt        DateTime @updatedAt
 }
 
+/** Owner Calendly (or similar) link for free NovaStaris strategy calls. */
+model StrategyCallConfig {
+  id         String   @id @default("default")
+  enabled    Boolean  @default(false)
+  bookingUrl String   @default("")
+  updatedAt  DateTime @updatedAt
+}
+
 /** Owner-managed Blofin affiliate registration promo (Trading Bot / NovaScalper / Prop Firm). Off by default until link is set. */
 model BlofinPartnerPromo {
   id                      String   @id @default("default")

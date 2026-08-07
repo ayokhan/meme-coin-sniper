@@ -15,6 +15,7 @@ import {
   PATH_DEEPDIVE_POLYMARKET_EMAIL,
   PATH_DEEPDIVE_WALLETS_EMAIL,
 } from "@/lib/path-deepdive-emails";
+import { buildStrategyCallEmail } from "@/lib/strategy-call";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 
@@ -29,6 +30,7 @@ export type AdminEmailPresetId =
   | "deepdive-wallets"
   | "deepdive-polymarket"
   | "vip-soft-pitch"
+  | "strategy-call"
   | "vip-expiry-pre"
   | "vip-expiry-post"
   | "affiliate"
@@ -59,6 +61,7 @@ const FOREX_BOTS = "https://novastaris.ai/?tab=nova-forex-bot";
 const FOREX_REBATE = `${FOREX_BOTS}#forex-partner-rebate`;
 const AFFILIATE = "https://novastaris.ai/affiliate";
 const START_HERE = "https://novastaris.ai/start-here";
+const STRATEGY_CALL = buildStrategyCallEmail("");
 
 export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   {
@@ -150,6 +153,19 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "blofin",
     ctaLabel: VIP_SOFT_PITCH_EMAIL.ctaLabel,
     ctaUrl: VIP_SOFT_PITCH_EMAIL.ctaUrl,
+    defaultAudience: "free",
+  },
+  {
+    id: "strategy-call",
+    label: "Free strategy call",
+    blurb: "Book via Calendly — set your link below first",
+    subject: STRATEGY_CALL.subject,
+    body: STRATEGY_CALL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: STRATEGY_CALL.ctaLabel,
+    ctaUrl: STRATEGY_CALL.ctaUrl,
     defaultAudience: "free",
   },
   {
