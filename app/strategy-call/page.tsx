@@ -73,7 +73,7 @@ export default async function StrategyCallPage() {
             <li>Your path: meme, crypto futures, forex, wallets, Polymarket, or bots</li>
             <li>The right tabs for that path (and what to ignore for now)</li>
             <li>One practical first action inside NovaStaris</li>
-            <li>VIP / partner options only if they&apos;re relevant — no hard sell</li>
+            <li>VIP desks and partner tools when they fit your path</li>
           </ul>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             About 30 minutes. Free. You pick a time on Calendly; we meet on the invite they send you.

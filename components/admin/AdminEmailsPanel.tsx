@@ -109,6 +109,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   });
   const [strategyCallUrl, setStrategyCallUrl] = useState("");
   const [strategyCallEnabled, setStrategyCallEnabled] = useState(false);
+  const [strategyCallShowNav, setStrategyCallShowNav] = useState(true);
+  const [strategyCallShowPopup, setStrategyCallShowPopup] = useState(true);
   const [strategyCallSaving, setStrategyCallSaving] = useState(false);
 
   const loadStats = useCallback(async () => {
@@ -149,6 +151,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         if (res.ok && data.success && data.config) {
           setStrategyCallUrl(String(data.config.bookingUrl ?? ""));
           setStrategyCallEnabled(!!data.config.enabled);
+          setStrategyCallShowNav(data.config.showNavButton !== false);
+          setStrategyCallShowPopup(data.config.showOncePopup !== false);
         }
       } catch {
         /* ignore */
@@ -163,16 +167,23 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: strategyCallEnabled, bookingUrl: strategyCallUrl }),
+        body: JSON.stringify({
+          enabled: strategyCallEnabled,
+          bookingUrl: strategyCallUrl,
+          showNavButton: strategyCallShowNav,
+          showOncePopup: strategyCallShowPopup,
+        }),
       });
       const data = await res.json();
       if (res.ok && data.success && data.config) {
         setStrategyCallUrl(String(data.config.bookingUrl ?? ""));
         setStrategyCallEnabled(!!data.config.enabled);
+        setStrategyCallShowNav(data.config.showNavButton !== false);
+        setStrategyCallShowPopup(data.config.showOncePopup !== false);
         onNotice?.(
-          data.config.enabled && data.config.bookingUrl
-            ? "Strategy call booking link saved."
-            : "Strategy call settings saved (enable + paste Calendly URL to use in emails)."
+          data.config.enabled
+            ? "Strategy call settings saved."
+            : "Strategy call disabled (nav, popup, and page promo off)."
         );
       } else {
         onError?.(data.error || "Could not save strategy call link.");
@@ -182,7 +193,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     } finally {
       setStrategyCallSaving(false);
     }
-  }, [strategyCallEnabled, strategyCallUrl, onNotice, onError]);
+  }, [strategyCallEnabled, strategyCallUrl, strategyCallShowNav, strategyCallShowPopup, onNotice, onError]);
 
   const windowedNew = useMemo(
     () => registrantEmailsInWindow(stats?.recentRegistrants ?? [], newWindowDays),
@@ -366,7 +377,25 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               checked={strategyCallEnabled}
               onChange={(e) => setStrategyCallEnabled(e.target.checked)}
             />
-            Enabled (use this link in the strategy-call email)
+            Enabled (page, Start here link, emails)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={strategyCallShowNav}
+              onChange={(e) => setStrategyCallShowNav(e.target.checked)}
+              disabled={!strategyCallEnabled}
+            />
+            Show “Strategy call” button in dashboard nav
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={strategyCallShowPopup}
+              onChange={(e) => setStrategyCallShowPopup(e.target.checked)}
+              disabled={!strategyCallEnabled}
+            />
+            Show one-time popup on dashboard (once per browser)
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
@@ -377,12 +406,12 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               onChange={(e) => setStrategyCallUrl(e.target.value)}
             />
             <Button type="button" size="sm" disabled={strategyCallSaving} onClick={() => void saveStrategyCall()}>
-              {strategyCallSaving ? "Saving…" : "Save link"}
+              {strategyCallSaving ? "Saving…" : "Save"}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Setup: calendly.com → free account → connect Google Calendar → create one event (e.g. 15–20 min) →
-            copy the share link here.
+            Setup: calendly.com → free account → connect Google Calendar → create one event → copy the share link
+            here. Page: /strategy-call
           </p>
         </CardContent>
       </Card>

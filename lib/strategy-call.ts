@@ -19,18 +19,32 @@ export const STRATEGY_CALL_PAGE_URL = "https://novastaris.ai/strategy-call";
 export type StrategyCallConfigAdmin = {
   enabled: boolean;
   bookingUrl: string;
+  showNavButton: boolean;
+  showOncePopup: boolean;
   updatedAt: string | null;
+};
+
+/** Public shape for dashboard (nav + one-time popup). */
+export type StrategyCallPublicConfig = {
+  enabled: boolean;
+  bookingUrl: string;
+  showNavButton: boolean;
+  showOncePopup: boolean;
 };
 
 const DEFAULT: StrategyCallConfigAdmin = {
   enabled: true,
   bookingUrl: DEFAULT_STRATEGY_CALL_BOOKING_URL,
+  showNavButton: true,
+  showOncePopup: true,
   updatedAt: null,
 };
 
 type Row = {
   enabled: boolean;
   bookingUrl: string;
+  showNavButton?: boolean;
+  showOncePopup?: boolean;
   updatedAt?: Date;
 };
 
@@ -38,8 +52,19 @@ type Db = {
   findUnique: (args: { where: { id: string } }) => Promise<Row | null>;
   upsert: (args: {
     where: { id: string };
-    create: { id: string; enabled: boolean; bookingUrl: string };
-    update: { enabled: boolean; bookingUrl: string };
+    create: {
+      id: string;
+      enabled: boolean;
+      bookingUrl: string;
+      showNavButton: boolean;
+      showOncePopup: boolean;
+    };
+    update: {
+      enabled: boolean;
+      bookingUrl: string;
+      showNavButton: boolean;
+      showOncePopup: boolean;
+    };
   }) => Promise<unknown>;
 };
 
@@ -59,18 +84,23 @@ function normalizeUrl(raw: string): string {
   }
 }
 
+function fromRow(row: Row | null): StrategyCallConfigAdmin {
+  if (!row) return { ...DEFAULT };
+  return {
+    enabled: row.enabled !== false,
+    bookingUrl: (row.bookingUrl ?? "").trim() || DEFAULT_STRATEGY_CALL_BOOKING_URL,
+    showNavButton: row.showNavButton !== false,
+    showOncePopup: row.showOncePopup !== false,
+    updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : null,
+  };
+}
+
 export async function getStrategyCallConfig(): Promise<StrategyCallConfigAdmin> {
   const db = store();
   if (!db) return { ...DEFAULT };
   try {
     const row = await db.findUnique({ where: { id: STRATEGY_CALL_CONFIG_ID } });
-    if (!row) return { ...DEFAULT };
-    const bookingUrl = (row.bookingUrl ?? "").trim() || DEFAULT_STRATEGY_CALL_BOOKING_URL;
-    return {
-      enabled: row.enabled !== false,
-      bookingUrl,
-      updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : null,
-    };
+    return fromRow(row);
   } catch {
     return { ...DEFAULT };
   }
@@ -79,6 +109,8 @@ export async function getStrategyCallConfig(): Promise<StrategyCallConfigAdmin> 
 export async function setStrategyCallConfig(patch: {
   enabled?: boolean;
   bookingUrl?: string;
+  showNavButton?: boolean;
+  showOncePopup?: boolean;
 }): Promise<StrategyCallConfigAdmin> {
   const db = store();
   if (!db) throw new Error("Strategy call config storage unavailable.");
@@ -89,6 +121,8 @@ export async function setStrategyCallConfig(patch: {
       patch.bookingUrl !== undefined
         ? normalizeUrl(patch.bookingUrl) || DEFAULT_STRATEGY_CALL_BOOKING_URL
         : current.bookingUrl,
+    showNavButton: patch.showNavButton ?? current.showNavButton,
+    showOncePopup: patch.showOncePopup ?? current.showOncePopup,
   };
   await db.upsert({
     where: { id: STRATEGY_CALL_CONFIG_ID },
@@ -96,6 +130,15 @@ export async function setStrategyCallConfig(patch: {
     update: next,
   });
   return getStrategyCallConfig();
+}
+
+export function toStrategyCallPublic(cfg: StrategyCallConfigAdmin): StrategyCallPublicConfig {
+  return {
+    enabled: cfg.enabled,
+    bookingUrl: cfg.bookingUrl || DEFAULT_STRATEGY_CALL_BOOKING_URL,
+    showNavButton: cfg.enabled && cfg.showNavButton,
+    showOncePopup: cfg.enabled && cfg.showOncePopup,
+  };
 }
 
 /**

@@ -82,6 +82,8 @@ import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
 import NovaRadarPanel from "@/components/NovaRadarPanel";
 import { useFuturesOnboarding } from "@/components/FuturesOnboardingModal";
 import { TwoFactorSecurityNudgeHost } from "@/components/TwoFactorSecurityNudgeModal";
+import { StrategyCallOncePopup } from "@/components/StrategyCallOncePopup";
+import type { StrategyCallPublicConfig } from "@/lib/strategy-call";
 import { SiteAnnouncementHost } from "@/components/SiteAnnouncementModal";
 import DashboardPathHintBanner from "@/components/DashboardPathHintBanner";
 import { DashboardOverlayProvider } from "@/components/DashboardOverlayProvider";
@@ -505,6 +507,7 @@ function Dashboard() {
   const [memeAgentBanner, setMemeAgentBanner] = useState<MemeAgentBannerAdmin | null>(null);
   const [memeTableHintBanner, setMemeTableHintBanner] = useState<MemeTableAnalyzeHintBannerAdmin | null>(null);
   const [guestNudgeBanner, setGuestNudgeBanner] = useState<GuestRegistrationNudgeBannerAdmin | null>(null);
+  const [strategyCallPublic, setStrategyCallPublic] = useState<StrategyCallPublicConfig | null>(null);
   const [promoBannerDismissed, setPromoBannerDismissed] = useState(false);
 
   // Client-side: hide/show main GUI tabs based on owner feature flags + NEW badges + promo.
@@ -517,8 +520,9 @@ function Dashboard() {
       fetch("/api/meme-agent-banner").then((r) => r.json()),
       fetch("/api/meme-table-analyze-hint").then((r) => r.json()),
       fetch("/api/guest-registration-nudge-banner").then((r) => r.json()),
+      fetch("/api/strategy-call").then((r) => r.json()),
     ])
-      .then(([flagsData, badgesData, promoData, memeBannerData, memeTableHintData, guestNudgeData]) => {
+      .then(([flagsData, badgesData, promoData, memeBannerData, memeTableHintData, guestNudgeData, strategyCallData]) => {
         if (cancelled) return;
         if (flagsData?.success) {
           setPageTabFlags(flagsData.flags ?? {});
@@ -530,6 +534,9 @@ function Dashboard() {
         if (memeBannerData?.success) setMemeAgentBanner(memeBannerData.banner ?? null);
         if (memeTableHintData?.success) setMemeTableHintBanner(memeTableHintData.banner ?? null);
         if (guestNudgeData?.success) setGuestNudgeBanner(guestNudgeData.banner ?? null);
+        if (strategyCallData?.success && strategyCallData.config) {
+          setStrategyCallPublic(strategyCallData.config as StrategyCallPublicConfig);
+        }
       })
       .catch(() => {})
       .finally(() => {
@@ -4102,9 +4109,11 @@ function Dashboard() {
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               <Link href="/enter">{t("nav.startHere")}</Link>
             </Button>
-            <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              <Link href="/strategy-call">{t("nav.strategyCall")}</Link>
-            </Button>
+            {(strategyCallPublic?.showNavButton ?? true) && (
+              <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+                <Link href="/strategy-call">{t("nav.strategyCall")}</Link>
+              </Button>
+            )}
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               <Link href="/chat">{t("nav.chat")}</Link>
             </Button>
@@ -4274,9 +4283,11 @@ function Dashboard() {
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
                 <Link href="/enter" onClick={() => setMobileMenuOpen(false)}>{t("nav.startHere")}</Link>
               </Button>
-              <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                <Link href="/strategy-call" onClick={() => setMobileMenuOpen(false)}>{t("nav.strategyCall")}</Link>
-              </Button>
+              {(strategyCallPublic?.showNavButton ?? true) && (
+                <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
+                  <Link href="/strategy-call" onClick={() => setMobileMenuOpen(false)}>{t("nav.strategyCall")}</Link>
+                </Button>
+              )}
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
                 <Link href="/chat" onClick={() => setMobileMenuOpen(false)}>{t("nav.chat")}</Link>
               </Button>
@@ -4440,6 +4451,12 @@ function Dashboard() {
         />
         <TwoFactorSecurityNudgeHost />
         <SiteAnnouncementHost />
+        {strategyCallPublic?.showOncePopup && (
+          <StrategyCallOncePopup
+            enabled={strategyCallPublic.showOncePopup}
+            showNavButton={strategyCallPublic.showNavButton}
+          />
+        )}
         <FuturesOnboardingOverlay
           activeTab={activeTab}
           showPrompt={showFuturesOnboardingPrompt || futuresOnboardingForce}

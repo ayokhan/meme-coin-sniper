@@ -23,10 +23,17 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
   }
   try {
-    const body = (await request.json()) as { enabled?: boolean; bookingUrl?: string };
+    const body = (await request.json()) as {
+      enabled?: boolean;
+      bookingUrl?: string;
+      showNavButton?: boolean;
+      showOncePopup?: boolean;
+    };
     const config = await setStrategyCallConfig({
       enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
       bookingUrl: typeof body.bookingUrl === "string" ? body.bookingUrl : undefined,
+      showNavButton: typeof body.showNavButton === "boolean" ? body.showNavButton : undefined,
+      showOncePopup: typeof body.showOncePopup === "boolean" ? body.showOncePopup : undefined,
     });
     return NextResponse.json({ success: true, config });
   } catch (e) {
