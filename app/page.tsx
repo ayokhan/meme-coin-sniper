@@ -4111,7 +4111,7 @@ function Dashboard() {
             </Button>
             {(strategyCallPublic?.showNavButton ?? true) && (
               <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-                <Link href="/strategy-call">{t("nav.strategyCall")}</Link>
+                <Link href="/discovery-call">{t("nav.strategyCall")}</Link>
               </Button>
             )}
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
@@ -4285,7 +4285,7 @@ function Dashboard() {
               </Button>
               {(strategyCallPublic?.showNavButton ?? true) && (
                 <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                  <Link href="/strategy-call" onClick={() => setMobileMenuOpen(false)}>{t("nav.strategyCall")}</Link>
+                  <Link href="/discovery-call" onClick={() => setMobileMenuOpen(false)}>{t("nav.strategyCall")}</Link>
                 </Button>
               )}
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">

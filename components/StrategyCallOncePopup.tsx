@@ -32,7 +32,7 @@ type Props = {
 };
 
 /**
- * Small one-time popup pointing customers to the free strategy call.
+ * Small one-time popup pointing customers to the Discovery call.
  * Dismissed permanently via localStorage (once per browser).
  */
 export function StrategyCallOncePopup({ enabled, showNavButton }: Props) {
@@ -91,14 +91,14 @@ export function StrategyCallOncePopup({ enabled, showNavButton }: Props) {
               id="strategy-call-nudge-title"
               className="text-sm font-semibold text-zinc-900 dark:text-zinc-50"
             >
-              Book a Strategy call
+              Book a Discovery call
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
               Get a short guided walkthrough of NovaStaris
               {showNavButton ? (
                 <>
                   . Find{" "}
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">Strategy call</span> in the top
+                  <span className="font-medium text-zinc-800 dark:text-zinc-200">Discovery call</span> in the top
                   menu, or continue here.
                 </>
               ) : (
@@ -107,8 +107,8 @@ export function StrategyCallOncePopup({ enabled, showNavButton }: Props) {
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button asChild size="sm" className="bg-teal-600 hover:bg-teal-500 text-white">
-                <Link href="/strategy-call" onClick={dismiss}>
-                  Book a Strategy call
+                <Link href="/discovery-call" onClick={dismiss}>
+                  Book a Discovery call
                 </Link>
               </Button>
               <Button type="button" size="sm" variant="ghost" onClick={dismiss}>

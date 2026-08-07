@@ -1,20 +1,23 @@
 /**
- * Free NovaStaris strategy call — booking URL (Calendly) + email copy.
+ * NovaStaris Discovery call — booking URL (Calendly) + email copy.
  *
  * Flow: NovaStaris page/email explains the call → user clicks → Calendly
  * (external) for picking a time. NovaStaris does not host the calendar.
+ *
+ * Internal IDs still use “strategyCall*” for DB/API stability; customer-facing
+ * name is Discovery call.
  */
 
 import { prisma } from "@/lib/db";
 
 export const STRATEGY_CALL_CONFIG_ID = "default";
 
-/** Default Calendly event — NovaStaris 30‑min feature walkthrough. */
+/** Default Calendly event — NovaStaris 30‑min product discovery. */
 export const DEFAULT_STRATEGY_CALL_BOOKING_URL =
   "https://calendly.com/novastaris-ai/30min";
 
-export const STRATEGY_CALL_PAGE_PATH = "/strategy-call";
-export const STRATEGY_CALL_PAGE_URL = "https://novastaris.ai/strategy-call";
+export const STRATEGY_CALL_PAGE_PATH = "/discovery-call";
+export const STRATEGY_CALL_PAGE_URL = "https://novastaris.ai/discovery-call";
 
 export type StrategyCallConfigAdmin = {
   enabled: boolean;
@@ -113,7 +116,7 @@ export async function setStrategyCallConfig(patch: {
   showOncePopup?: boolean;
 }): Promise<StrategyCallConfigAdmin> {
   const db = store();
-  if (!db) throw new Error("Strategy call config storage unavailable.");
+  if (!db) throw new Error("Discovery call config storage unavailable.");
   const current = await getStrategyCallConfig();
   const next = {
     enabled: patch.enabled ?? current.enabled,
@@ -164,10 +167,10 @@ export function buildStrategyCallEmail(bookingUrl: string): {
 } {
   const calendly = bookingUrl.trim() || DEFAULT_STRATEGY_CALL_BOOKING_URL;
   return {
-    subject: "Book a NovaStaris Strategy call",
+    subject: "Book a NovaStaris Discovery call",
     body: `Hi there,
 
-Book a Strategy call for a guided introduction to NovaStaris.
+Book a Discovery call for a guided introduction to NovaStaris.
 
 In about 30 minutes, we’ll review the desks relevant to how you trade (meme, futures, forex, wallets, Polymarket, or bots), clarify which tabs to use first, and help you leave with one clear next step.
 
@@ -188,7 +191,7 @@ Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not
 
 — The NovaStaris team
 https://novastaris.ai`,
-    ctaLabel: "Book a Strategy call",
+    ctaLabel: "Book a Discovery call",
     ctaUrl: calendly,
   };
 }

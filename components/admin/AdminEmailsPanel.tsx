@@ -182,14 +182,14 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         setStrategyCallShowPopup(data.config.showOncePopup !== false);
         onNotice?.(
           data.config.enabled
-            ? "Strategy call settings saved."
-            : "Strategy call disabled (nav, popup, and page promo off)."
+            ? "Discovery call settings saved."
+            : "Discovery call disabled (nav, popup, and page promo off)."
         );
       } else {
-        onError?.(data.error || "Could not save strategy call link.");
+        onError?.(data.error || "Could not save Discovery call link.");
       }
     } catch {
-      onError?.("Could not save strategy call link.");
+      onError?.("Could not save Discovery call link.");
     } finally {
       setStrategyCallSaving(false);
     }
@@ -364,10 +364,10 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     <div className="space-y-4 max-w-4xl">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Strategy call (Calendly)</CardTitle>
+          <CardTitle className="text-base">Discovery call (Calendly)</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Users land on /strategy-call, then book via Calendly (external). Free Calendly plan is enough.
-            Paste / update your public booking link below, enable, then load the “Strategy call” preset.
+            Users land on /discovery-call, then book via Calendly (external). Free Calendly plan is enough.
+            Paste / update your public booking link below, enable, then load the “Discovery call” preset.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -386,7 +386,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               onChange={(e) => setStrategyCallShowNav(e.target.checked)}
               disabled={!strategyCallEnabled}
             />
-            Show “Strategy call” button in dashboard nav
+            Show “Discovery call” button in dashboard nav
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -411,7 +411,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           </div>
           <p className="text-xs text-muted-foreground">
             Setup: calendly.com → free account → connect Google Calendar → create one event → copy the share link
-            here. Page: /strategy-call
+            here. Page: /discovery-call
           </p>
         </CardContent>
       </Card>

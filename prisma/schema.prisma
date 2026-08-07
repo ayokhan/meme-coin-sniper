@@ -502,7 +502,7 @@ model SiteAnnouncementBanner {
   updatedAt        DateTime @updatedAt
 }
 
-/** Owner Calendly (or similar) link for free NovaStaris strategy calls. */
+/** Owner Calendly link for complimentary NovaStaris Discovery calls. */
 model StrategyCallConfig {
   id             String   @id @default("default")
   enabled        Boolean  @default(true)

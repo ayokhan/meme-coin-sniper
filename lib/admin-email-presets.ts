@@ -157,7 +157,7 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   },
   {
     id: "strategy-call",
-    label: "Strategy call",
+    label: "Discovery call",
     blurb: "Guided walkthrough — Calendly booking link",
     subject: STRATEGY_CALL.subject,
     body: STRATEGY_CALL.body,
