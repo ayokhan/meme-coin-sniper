@@ -364,10 +364,10 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     <div className="space-y-4 max-w-4xl">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Free strategy call (Calendly)</CardTitle>
+          <CardTitle className="text-base">Strategy session (Calendly)</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Users land on /strategy-call, then book on Calendly (external). Free Calendly plan is enough.
-            Paste / update your public booking link below, enable, then load the “Free strategy call” preset.
+            Users land on /strategy-call, then schedule via Calendly (external). Free Calendly plan is enough.
+            Paste / update your public booking link below, enable, then load the “Strategy session” preset.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -386,7 +386,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               onChange={(e) => setStrategyCallShowNav(e.target.checked)}
               disabled={!strategyCallEnabled}
             />
-            Show “Strategy call” button in dashboard nav
+            Show “Strategy session” button in dashboard nav
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input

@@ -164,31 +164,31 @@ export function buildStrategyCallEmail(bookingUrl: string): {
 } {
   const calendly = bookingUrl.trim() || DEFAULT_STRATEGY_CALL_BOOKING_URL;
   return {
-    subject: "Free NovaStaris strategy call — walk through the features",
+    subject: "Schedule a complimentary NovaStaris strategy session",
     body: `Hi there,
 
-Want a free strategy call to go over NovaStaris features?
+We offer a complimentary strategy session for a guided introduction to NovaStaris.
 
-On a short call we’ll walk through the desks that matter for you (meme, futures, forex, wallets, Polymarket, bots), show how the tabs fit together, and help you take one clear next step — so you’re not stuck staring at the dashboard.
+In about 30 minutes, we will review the desks relevant to how you trade (meme, futures, forex, wallets, Polymarket, or bots), clarify which tabs to use first, and help you leave with one clear next step.
 
-This call is free. No payment required.
+There is no charge for this session.
 
-Book a time (opens Calendly):
+Schedule a time:
 ${calendly}
 
-Or open the NovaStaris page first:
+Or review the details on NovaStaris first:
 ${STRATEGY_CALL_PAGE_URL}
 
-Already booked? Use the same Calendly link to reschedule or cancel.
+Already scheduled? Use the same calendar link to reschedule or cancel.
 
-Prefer self-serve? Open Start here anytime:
+Prefer to explore on your own? Start here anytime:
 https://novastaris.ai/start-here
 
 Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
 
 — The NovaStaris team
 https://novastaris.ai`,
-    ctaLabel: "Book free strategy call",
+    ctaLabel: "Schedule a session",
     ctaUrl: calendly,
   };
 }

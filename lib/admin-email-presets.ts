@@ -157,8 +157,8 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   },
   {
     id: "strategy-call",
-    label: "Free strategy call",
-    blurb: "Feature walkthrough — Calendly book link",
+    label: "Strategy session",
+    blurb: "Complimentary walkthrough — Calendly booking link",
     subject: STRATEGY_CALL.subject,
     body: STRATEGY_CALL.body,
     template: "nova-branded",

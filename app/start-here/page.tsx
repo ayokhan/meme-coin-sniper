@@ -177,12 +177,12 @@ export default function StartHerePage() {
 
         <section className="border-t border-zinc-200 dark:border-zinc-800 pt-8 space-y-3">
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Want a live walkthrough of NovaStaris features?{" "}
+            Want a guided introduction to NovaStaris?{" "}
             <Link
               href="/strategy-call"
               className="text-teal-600 dark:text-teal-400 underline underline-offset-2 font-medium"
             >
-              Book a free strategy call
+              Schedule a strategy session
             </Link>
             .
           </p>

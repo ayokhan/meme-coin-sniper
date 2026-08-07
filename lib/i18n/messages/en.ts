@@ -13,7 +13,7 @@ export const en = {
     qr: "QR code",
     about: "About",
     startHere: "Start here",
-    strategyCall: "Strategy call",
+    strategyCall: "Strategy session",
     chat: "Chat",
     support: "Support",
     status: "Status",

@@ -9,9 +9,9 @@ import {
 } from "@/lib/strategy-call";
 
 export const metadata: Metadata = {
-  title: "Free strategy call | NovaStaris",
+  title: "Strategy session | NovaStaris",
   description:
-    "Book a free NovaStaris strategy call to walk through features, pick a path, and take one clear next step.",
+    "Schedule a complimentary NovaStaris strategy session for a guided walkthrough of the platform and a clear next step.",
 };
 
 export const dynamic = "force-dynamic";
@@ -51,14 +51,14 @@ export default async function StrategyCallPage() {
       <main className="mx-auto max-w-3xl px-3 sm:px-4 py-10 sm:py-14 space-y-10">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-600 dark:text-teal-400">
-            Free strategy call
+            Complimentary strategy session
           </p>
           <h1 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
-            Walk through NovaStaris features with us
+            A guided introduction to NovaStaris
           </h1>
           <p className="mt-3 text-base text-zinc-600 dark:text-zinc-400 max-w-2xl leading-relaxed">
-            Book a short call to go over the product — which desks fit how you trade, how the tabs work
-            together, and one clear next step so you&apos;re not stuck on day one.
+            Schedule a short session with our team to review the platform, identify the desks that match how you
+            trade, and leave with a clear first step.
           </p>
         </div>
 
@@ -67,16 +67,17 @@ export default async function StrategyCallPage() {
           aria-labelledby="what-we-cover"
         >
           <h2 id="what-we-cover" className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-            What we cover
+            Session agenda
           </h2>
           <ul className="space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-disc list-inside">
-            <li>Your path: meme, crypto futures, forex, wallets, Polymarket, or bots</li>
-            <li>The right tabs for that path (and what to ignore for now)</li>
+            <li>Choosing a starting path: meme, crypto futures, forex, wallets, Polymarket, or bots</li>
+            <li>The tabs that matter for that path — and what to set aside for later</li>
             <li>One practical first action inside NovaStaris</li>
-            <li>VIP desks and partner tools when they fit your path</li>
+            <li>VIP desks and partner tools when they align with your workflow</li>
           </ul>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            About 30 minutes. Free. You pick a time on Calendly; we meet on the invite they send you.
+            Approximately 30 minutes. No charge. Select a time via our calendar; you will receive a confirmation
+            invite.
           </p>
         </section>
 
@@ -89,15 +90,15 @@ export default async function StrategyCallPage() {
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-5 py-3 transition-colors"
             >
               <CalendarDays className="h-4 w-4" aria-hidden />
-              Book on Calendly
+              Schedule a session
             </a>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-              Opens Calendly in a new tab. Reschedule or cancel anytime from the same link.
+              Opens our booking calendar in a new tab. You can reschedule or cancel from the same link.
             </p>
           </div>
         ) : (
           <p className="text-sm text-zinc-600 dark:text-zinc-400 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 px-4 py-3">
-            Strategy calls are paused right now. Use{" "}
+            Strategy sessions are not available at the moment. Use{" "}
             <Link href="/start-here" className="text-teal-600 dark:text-teal-400 underline underline-offset-2">
               Start here
             </Link>
@@ -115,7 +116,7 @@ export default async function StrategyCallPage() {
 
         <section className="border-t border-zinc-200 dark:border-zinc-800 pt-8 space-y-3">
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Prefer to explore alone?{" "}
+            Prefer to explore on your own?{" "}
             <Link href="/start-here" className="text-teal-600 dark:text-teal-400 underline underline-offset-2">
               Open Start here
             </Link>
