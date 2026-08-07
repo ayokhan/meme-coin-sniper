@@ -18,6 +18,25 @@ const DEFAULT: StrategyCallConfigAdmin = {
   updatedAt: null,
 };
 
+type Row = {
+  enabled: boolean;
+  bookingUrl: string;
+  updatedAt?: Date;
+};
+
+type Db = {
+  findUnique: (args: { where: { id: string } }) => Promise<Row | null>;
+  upsert: (args: {
+    where: { id: string };
+    create: { id: string; enabled: boolean; bookingUrl: string };
+    update: { enabled: boolean; bookingUrl: string };
+  }) => Promise<unknown>;
+};
+
+function store(): Db | null {
+  return (prisma as unknown as { strategyCallConfig?: Db }).strategyCallConfig ?? null;
+}
+
 function normalizeUrl(raw: string): string {
   const v = raw.trim();
   if (!v) return "";
@@ -31,10 +50,10 @@ function normalizeUrl(raw: string): string {
 }
 
 export async function getStrategyCallConfig(): Promise<StrategyCallConfigAdmin> {
+  const db = store();
+  if (!db) return { ...DEFAULT };
   try {
-    const row = await prisma.strategyCallConfig.findUnique({
-      where: { id: STRATEGY_CALL_CONFIG_ID },
-    });
+    const row = await db.findUnique({ where: { id: STRATEGY_CALL_CONFIG_ID } });
     if (!row) return { ...DEFAULT };
     return {
       enabled: !!row.enabled,
@@ -50,12 +69,14 @@ export async function setStrategyCallConfig(patch: {
   enabled?: boolean;
   bookingUrl?: string;
 }): Promise<StrategyCallConfigAdmin> {
+  const db = store();
+  if (!db) throw new Error("Strategy call config storage unavailable.");
   const current = await getStrategyCallConfig();
   const next = {
     enabled: patch.enabled ?? current.enabled,
     bookingUrl: patch.bookingUrl !== undefined ? normalizeUrl(patch.bookingUrl) : current.bookingUrl,
   };
-  await prisma.strategyCallConfig.upsert({
+  await db.upsert({
     where: { id: STRATEGY_CALL_CONFIG_ID },
     create: { id: STRATEGY_CALL_CONFIG_ID, ...next },
     update: next,
