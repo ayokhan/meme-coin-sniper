@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
@@ -667,6 +668,8 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
 
 export default function AdminFeatureFlagsPage() {
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
+  const highlightFlag = (searchParams.get("flag") ?? "").trim();
   const [flags, setFlags] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -686,6 +689,17 @@ export default function AdminFeatureFlagsPage() {
   const [goHuntingRefreshSaving, setGoHuntingRefreshSaving] = useState(false);
   const [goHuntingRefreshResetting, setGoHuntingRefreshResetting] = useState(false);
   const [goHuntingRefreshResetEmail, setGoHuntingRefreshResetEmail] = useState("");
+
+  useEffect(() => {
+    if (!highlightFlag || loading) return;
+    const el = document.getElementById(`flag-${highlightFlag}`);
+    if (!el) return;
+    const details = el.closest("details");
+    if (details) details.open = true;
+    window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+  }, [highlightFlag, loading, flags]);
 
   const load = () =>
     Promise.all([
@@ -1492,8 +1506,17 @@ export default function AdminFeatureFlagsPage() {
                       {group.entries.map(([key, { label, description }]) => {
                   const enabled = flags[key] ?? true;
                   const busy = toggling === key;
+                  const highlighted = highlightFlag === key;
                   return (
-                          <li key={key} className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3">
+                          <li
+                            key={key}
+                            id={`flag-${key}`}
+                            className={`rounded-lg p-3 scroll-mt-24 ${
+                              highlighted
+                                ? "bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-400/60 dark:ring-amber-500/50"
+                                : "bg-zinc-50/80 dark:bg-zinc-900/50"
+                            }`}
+                          >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                                 <p className="font-medium text-zinc-900 dark:text-zinc-100">{label}</p>

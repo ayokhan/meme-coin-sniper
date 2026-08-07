@@ -66,15 +66,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   {
     href: "/admin/forex-bot-users",
     label: "Forex bot users",
-    description: "Users with MT4/MT5 logins for Nova Forex bots",
-    icon: KeyRound,
-    group: "users",
-    ownerOnly: true,
-  },
-  {
-    href: "/admin/forex-bot-users",
-    label: "Forex bot users",
-    description: "Users with Vantage/TIOmarkets MT4/MT5 connections for Nova Forex Bot/Scalper",
+    description: "Users with MT4/MT5 logins for Nova Forex bots (Vantage/TIOmarkets)",
     icon: KeyRound,
     group: "users",
     ownerOnly: true,

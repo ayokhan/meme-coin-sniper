@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Zap, Menu, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Zap, Menu, X, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ADMIN_NAV_GROUPS, ADMIN_NAV_ITEMS, adminNavByGroup } from "@/lib/admin-nav-config";
 import { canAccessDelegatedAdminPath, getDelegatedAdminNavHrefs } from "@/lib/admin-access";
+import AdminCommandPalette, { useAdminCommandPaletteHotkey } from "@/components/admin/AdminCommandPalette";
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const delegatedHrefs = getDelegatedAdminNavHrefs(session);
   const delegatedOnly = Array.isArray(delegatedHrefs) && delegatedHrefs.length > 0;
 
@@ -37,6 +39,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     if (visibleItems.length === 1) return visibleItems[0].label;
     return "Admin";
   }, [delegatedOnly, visibleItems]);
+
+  const togglePalette = useCallback(() => setPaletteOpen((v) => !v), []);
+  useAdminCommandPaletteHotkey(togglePalette);
+
+  const isMac =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
   const nav = (
     <nav className="flex flex-col gap-5 py-4">
@@ -81,7 +89,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950">
       <header className="sticky top-0 z-40 border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3 px-4 py-3 max-w-[1600px] mx-auto">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               className="lg:hidden p-2 rounded-md border border-zinc-200 dark:border-zinc-700"
@@ -90,7 +98,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
-            <Link href="/" className="inline-flex items-center gap-2 font-bold text-zinc-900 dark:text-zinc-100">
+            <Link href="/" className="inline-flex items-center gap-2 font-bold text-zinc-900 dark:text-zinc-100 shrink-0">
               <Zap className="h-5 w-5 text-amber-500" />
               NovaStaris
             </Link>
@@ -99,12 +107,26 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               {headerLabel}
             </span>
           </div>
-          <Link
-            href="/"
-            className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-          >
-            ← Dashboard
-          </Link>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-2.5 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 hover:border-cyan-500/40 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+              title="Search admin (Ctrl/⌘ K)"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Search</span>
+              <kbd className="hidden md:inline rounded border border-zinc-200 dark:border-zinc-600 px-1 py-0.5 text-[10px] text-zinc-500">
+                {isMac ? "⌘K" : "Ctrl+K"}
+              </kbd>
+            </button>
+            <Link
+              href="/"
+              className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            >
+              ← Dashboard
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -126,6 +148,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         )}
         <main className="flex-1 min-w-0 px-4 py-6 lg:px-8">{children}</main>
       </div>
+
+      <AdminCommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        navItems={visibleItems}
+        includeFlags={isOwner && !delegatedOnly}
+      />
     </div>
   );
 }
