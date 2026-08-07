@@ -102,8 +102,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   },
   {
     href: "/admin/tab-visibility",
-    label: "Tab visibility",
-    description: "Owner-only lock per dashboard tab",
+    label: "Product visibility",
+    description: "Tab On/Off, owner-only locks, and NEW badges",
     icon: EyeOff,
     group: "product",
     ownerOnly: true,

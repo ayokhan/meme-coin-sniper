@@ -1,6 +1,6 @@
 /**
  * Owner-managed green "NEW" pills on main navigation tabs.
- * Configured in Admin → Feature flags → Tab NEW badges.
+ * Configured in Admin → Product visibility.
  */
 import { prisma } from "@/lib/db";
 

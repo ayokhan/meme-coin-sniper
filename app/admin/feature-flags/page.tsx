@@ -3,27 +3,14 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
-import type { TabNewBadgeAdminRow } from "@/lib/tab-new-badges";
-
-function toDatetimeLocalValue(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function fromDatetimeLocalValue(value: string): string | null {
-  const v = value.trim();
-  if (!v) return null;
-  const ms = Date.parse(v);
-  if (!Number.isFinite(ms)) return null;
-  return new Date(ms).toISOString();
-}
+import {
+  PRODUCT_VISIBILITY_FLAG_ROWS,
+  PRODUCT_VISIBILITY_SUBTAB_FLAGS,
+} from "@/lib/product-visibility";
 
 type AiAgentQuotasState = {
   memeAgentFreeDailyLimit: number;
@@ -144,7 +131,7 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
   {
     id: "prop-firm",
     title: "Prop Firm Challenge",
-    match: (k) => k === "prop_firm_blofin" || k === "page_tab_prop_firm_bot",
+    match: (k) => k === "prop_firm_blofin",
   },
   {
     id: "nova-forex-bots",
@@ -159,15 +146,12 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
   },
   {
     id: "wallet-subs",
-    title: "Wallet Tracker subtabs",
+    title: "Wallet Tracker agents",
     match: (k) =>
-      k === "page_tab_meme_coins_traders" ||
-      k === "page_tab_leverage_traders" ||
       k === "nova_perp_wallet_analyst" ||
       k === "nova_meme_leaderboard" ||
       k === "nova_deep_meme_agent",
   },
-  { id: "tabs", title: "Dashboard tabs", match: (k) => k.startsWith("page_tab_") && k !== "page_tab_nova_job_agent" },
   {
     id: "account",
     title: "Account & billing",
@@ -668,6 +652,7 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
 
 export default function AdminFeatureFlagsPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const highlightFlag = (searchParams.get("flag") ?? "").trim();
   const [flags, setFlags] = useState<Record<string, boolean>>({});
@@ -675,10 +660,6 @@ export default function AdminFeatureFlagsPage() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [toggling, setToggling] = useState<string | null>(null);
-  const [tabNewRows, setTabNewRows] = useState<TabNewBadgeAdminRow[]>([]);
-  const [tabNewLoading, setTabNewLoading] = useState(true);
-  const [tabNewSaving, setTabNewSaving] = useState<string | null>(null);
-  const [tabNewDraftDates, setTabNewDraftDates] = useState<Record<string, string>>({});
   const [aiAgentQuotas, setAiAgentQuotas] = useState<AiAgentQuotasState>(DEFAULT_AI_AGENT_QUOTAS);
   const [aiAgentQuotasDraft, setAiAgentQuotasDraft] = useState<AiAgentQuotasDraft>(quotasToDraft(DEFAULT_AI_AGENT_QUOTAS));
   const [aiAgentQuotasSaving, setAiAgentQuotasSaving] = useState(false);
@@ -689,6 +670,14 @@ export default function AdminFeatureFlagsPage() {
   const [goHuntingRefreshSaving, setGoHuntingRefreshSaving] = useState(false);
   const [goHuntingRefreshResetting, setGoHuntingRefreshResetting] = useState(false);
   const [goHuntingRefreshResetEmail, setGoHuntingRefreshResetEmail] = useState("");
+
+  useEffect(() => {
+    if (!highlightFlag.startsWith("page_tab_") || highlightFlag === "page_tab_nova_job_agent") return;
+    const row =
+      PRODUCT_VISIBILITY_FLAG_ROWS.find((r) => r.flagKey === highlightFlag) ??
+      PRODUCT_VISIBILITY_SUBTAB_FLAGS.find((r) => r.flagKey === highlightFlag);
+    router.replace(row ? `/admin/tab-visibility#vis-${row.tabId}` : "/admin/tab-visibility");
+  }, [highlightFlag, router]);
 
   useEffect(() => {
     if (!highlightFlag || loading) return;
@@ -704,22 +693,12 @@ export default function AdminFeatureFlagsPage() {
   const load = () =>
     Promise.all([
       fetch("/api/admin/feature-flags").then((r) => r.json()),
-      fetch("/api/admin/tab-new-badges").then((r) => r.json()),
       fetch("/api/admin/ai-agent-quotas").then((r) => r.json()),
       fetch("/api/admin/go-hunting-refresh").then((r) => r.json()),
     ])
-      .then(([flagsData, badgesData, quotasData, goHuntingData]) => {
+      .then(([flagsData, quotasData, goHuntingData]) => {
         if (flagsData.success) setFlags(flagsData.flags ?? {});
         else setError(flagsData.error ?? "Failed to load");
-        if (badgesData.success) {
-          const rows = (badgesData.rows ?? []) as TabNewBadgeAdminRow[];
-          setTabNewRows(rows);
-          const drafts: Record<string, string> = {};
-          for (const row of rows) {
-            drafts[row.tabId] = toDatetimeLocalValue(row.expiresAt);
-          }
-          setTabNewDraftDates(drafts);
-        }
         if (quotasData.success && quotasData.quotas) {
           const q = quotasData.quotas as AiAgentQuotasState;
           setAiAgentQuotas(q);
@@ -734,42 +713,12 @@ export default function AdminFeatureFlagsPage() {
       .catch(() => setError("Failed to load"))
       .finally(() => {
         setLoading(false);
-        setTabNewLoading(false);
       });
 
   useEffect(() => {
     if (status !== "authenticated") return;
     load();
   }, [status]);
-
-  const patchTabNew = async (body: { tabId: string; expiresAt?: string | null; resetToDefault?: boolean }) => {
-    setTabNewSaving(body.tabId);
-    setError("");
-    setSuccessMessage("");
-    try {
-      const res = await fetch("/api/admin/tab-new-badges", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (data.success) {
-        const rows = (data.rows ?? []) as TabNewBadgeAdminRow[];
-        setTabNewRows(rows);
-        const drafts: Record<string, string> = {};
-        for (const row of rows) {
-          drafts[row.tabId] = toDatetimeLocalValue(row.expiresAt);
-        }
-        setTabNewDraftDates(drafts);
-        setSuccessMessage("Tab NEW badge updated.");
-        setTimeout(() => setSuccessMessage(""), 4000);
-      } else setError(data.error ?? "Update failed");
-    } catch {
-      setError("Update failed");
-    } finally {
-      setTabNewSaving(null);
-    }
-  };
 
   const patchAiAgentQuotas = async () => {
     const memeDaily = Number(aiAgentQuotasDraft.memeAgentFreeDailyLimit);
@@ -1027,17 +976,33 @@ export default function AdminFeatureFlagsPage() {
     }
     return "other";
   };
+  const hideFromFlagsList = (key: string) =>
+    key.startsWith("page_tab_") && key !== "page_tab_nova_job_agent";
   const groupedFlags = FLAG_GROUPS.map((g) => ({
     ...g,
-    entries: flagEntries.filter(([key]) => flagGroupId(key) === g.id),
-  })).filter((g) => g.entries.length > 0);
+    entries: flagEntries.filter(([key]) => !hideFromFlagsList(key) && flagGroupId(key) === g.id),
+  })).filter((g) => g.entries.length > 0 || g.id === "nova-jobs-agent");
 
   return (
     <div className="max-w-3xl">
         <AdminPageHeader
           title="Feature flags"
-          description="Turn features on or off during testing. When OFF, related API calls or notifications are skipped."
+          description="Kill-switches for APIs, bots, and experiments. Dashboard tab On/Off, owner-only locks, and NEW badges live under Product visibility."
         />
+
+        <Card className="mb-6 border-cyan-200/80 dark:border-cyan-900/50 bg-cyan-50/40 dark:bg-cyan-950/20">
+          <CardContent className="py-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Looking for tabs or NEW badges?</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Show/Hide, owner-only, and green NEW pills are on one page now.
+              </p>
+            </div>
+            <Button size="sm" asChild>
+              <Link href="/admin/tab-visibility">Open Product visibility</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         <Card className="border-zinc-200 dark:border-zinc-800">
           <CardContent className="space-y-4 pt-6">
@@ -1329,7 +1294,7 @@ export default function AdminFeatureFlagsPage() {
                   </div>
                 </div>
                 {groupedFlags.map((group) => (
-                  <details key={group.id} open={group.id !== "tabs"} className="rounded-xl border border-zinc-200 dark:border-zinc-700">
+                  <details key={group.id} open className="rounded-xl border border-zinc-200 dark:border-zinc-700">
                     <summary className="cursor-pointer px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100 list-none flex items-center justify-between">
                       {group.title}
                       <span className="text-xs font-normal text-muted-foreground">{group.entries.length} flags</span>
@@ -1550,100 +1515,9 @@ export default function AdminFeatureFlagsPage() {
 
         <Card className="mt-6 border-zinc-200 dark:border-zinc-800">
           <CardHeader>
-            <CardTitle className="text-base">Tab NEW badges</CardTitle>
+            <CardTitle className="text-base">Product visibility</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Control the green <strong className="text-zinc-800 dark:text-zinc-200">NEW</strong> pill on main navigation tabs.
-              Set an expiry date (your local time) or turn off. Tabs without a saved row use code defaults until you change them.
-              Users see updates on refresh (no deploy needed).
-            </p>
-          </CardHeader>
-          <CardContent>
-            {tabNewLoading ? (
-              <p className="text-muted-foreground text-sm">Loading tab badges…</p>
-            ) : (
-              <ul className="space-y-3 max-h-[min(70vh,520px)] overflow-y-auto pr-1">
-                {tabNewRows.map((row) => {
-                  const busy = tabNewSaving === row.tabId;
-                  const draft = tabNewDraftDates[row.tabId] ?? "";
-                  return (
-                    <li
-                      key={row.tabId}
-                      className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 space-y-2"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="font-medium text-sm text-zinc-900 dark:text-zinc-100">{row.label}</p>
-                          <p className="text-[11px] text-muted-foreground font-mono">{row.tabId}</p>
-                        </div>
-                        <span
-                          className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                            row.active
-                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
-                              : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
-                          }`}
-                        >
-                          {row.active ? "NEW visible" : "NEW off"}
-                          {row.usesDefault && row.active ? " (default)" : ""}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-end gap-2">
-                        <label className="text-xs text-muted-foreground flex flex-col gap-1 min-w-[200px] flex-1">
-                          Show until (local)
-                          <input
-                            type="datetime-local"
-                            value={draft}
-                            onChange={(e) =>
-                              setTabNewDraftDates((prev) => ({ ...prev, [row.tabId]: e.target.value }))
-                            }
-                            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-                          />
-                        </label>
-                        <Button
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => {
-                            const iso = fromDatetimeLocalValue(draft);
-                            if (!iso) {
-                              setError("Pick a valid date and time, or use Turn off.");
-                              return;
-                            }
-                            void patchTabNew({ tabId: row.tabId, expiresAt: iso });
-                          }}
-                        >
-                          {busy ? "…" : "Save"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={busy}
-                          onClick={() => void patchTabNew({ tabId: row.tabId, expiresAt: null })}
-                        >
-                          Turn off
-                        </Button>
-                        {!row.usesDefault && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={busy}
-                            onClick={() => void patchTabNew({ tabId: row.tabId, resetToDefault: true })}
-                          >
-                            Reset default
-                          </Button>
-                        )}
-      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="mt-6 border-zinc-200 dark:border-zinc-800">
-          <CardHeader>
-            <CardTitle className="text-base">Owner-only tabs</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Lock any dashboard tab so only you (owner) can see it — separate from On/Off flags above.
+              Dashboard tab Show/Hide, owner-only locks, and green NEW pills are managed on one page.
             </p>
           </CardHeader>
           <CardContent>
@@ -1651,7 +1525,7 @@ export default function AdminFeatureFlagsPage() {
               href="/admin/tab-visibility"
               className="inline-flex items-center gap-2 text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
             >
-              Open Tab visibility →
+              Open Product visibility →
             </Link>
           </CardContent>
         </Card>

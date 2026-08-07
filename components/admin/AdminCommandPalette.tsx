@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Flag, Search, CornerDownLeft } from "lucide-react";
-import { ADMIN_NAV_GROUPS, ADMIN_NAV_ITEMS, type AdminNavItem } from "@/lib/admin-nav-config";
+import { ADMIN_NAV_GROUPS, type AdminNavItem } from "@/lib/admin-nav-config";
 import { FEATURE_FLAG_KEYS } from "@/lib/feature-flag-keys";
+import {
+  PRODUCT_VISIBILITY_FLAG_ROWS,
+  PRODUCT_VISIBILITY_SUBTAB_FLAGS,
+} from "@/lib/product-visibility";
 
 type CommandItem = {
   id: string;
@@ -21,6 +25,14 @@ function humanizeFlagKey(key: string): string {
     .filter(Boolean)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
+}
+
+function productVisibilityHrefForFlag(key: string): string | null {
+  if (!key.startsWith("page_tab_")) return null;
+  const row =
+    PRODUCT_VISIBILITY_FLAG_ROWS.find((r) => r.flagKey === key) ??
+    PRODUCT_VISIBILITY_SUBTAB_FLAGS.find((r) => r.flagKey === key);
+  return row ? `/admin/tab-visibility#vis-${row.tabId}` : "/admin/tab-visibility";
 }
 
 function dedupeNav(items: AdminNavItem[]): AdminNavItem[] {
@@ -74,14 +86,17 @@ export default function AdminCommandPalette({ open, onOpenChange, navItems, incl
     }));
 
     const flags: CommandItem[] = includeFlags
-      ? Object.values(FEATURE_FLAG_KEYS).map((key) => ({
-          id: `flag:${key}`,
-          kind: "flag" as const,
-          label: humanizeFlagKey(key),
-          hint: `Feature flag · ${key}`,
-          href: `/admin/feature-flags?flag=${encodeURIComponent(key)}`,
-          keywords: key,
-        }))
+      ? Object.values(FEATURE_FLAG_KEYS).map((key) => {
+          const visHref = productVisibilityHrefForFlag(key);
+          return {
+            id: `flag:${key}`,
+            kind: "flag" as const,
+            label: humanizeFlagKey(key),
+            hint: visHref ? `Product visibility · ${key}` : `Feature flag · ${key}`,
+            href: visHref ?? `/admin/feature-flags?flag=${encodeURIComponent(key)}`,
+            keywords: key,
+          };
+        })
       : [];
 
     return [...nav, ...flags];

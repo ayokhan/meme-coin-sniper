@@ -1,6 +1,6 @@
 /**
  * Owner-managed: which dashboard tabs are visible only to the owner.
- * Configured in Admin → Tab visibility. Master page_tab_* flags still apply.
+ * Configured in Admin → Product visibility. Master page_tab_* flags still apply.
  */
 
 import { prisma } from "@/lib/db";
