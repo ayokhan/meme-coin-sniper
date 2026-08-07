@@ -8,7 +8,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import CustomerExpandedPanel from "@/components/admin/CustomerExpandedPanel";
 import { canViewAdminCustomersSession } from "@/lib/admin-access";
-import { grantLabel, type AdminVipGrantId } from "@/lib/admin-vip-grant";
+import { ADMIN_VIP_QUICK_GRANTS, grantLabel, type AdminVipGrantId } from "@/lib/admin-vip-grant";
 
 type Payment = {
   date: string;
@@ -1401,14 +1401,32 @@ export default function AdminCustomersPage() {
                             {isOwner && (
                             <td className="py-2 align-top">
                               <div className="flex flex-wrap gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleGrantVip(c.id, "1month")}
-                                  disabled={updatingId === c.id}
-                                  className="text-[11px] px-2 py-1 rounded bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-100 disabled:opacity-50"
-                                >
-                                  +1 mo VIP
-                                </button>
+                                {ADMIN_VIP_QUICK_GRANTS.map((grantId) => {
+                                  const label =
+                                    grantId === "3day"
+                                      ? "+3d VIP"
+                                      : grantId === "1week"
+                                        ? "+1 wk Free VIP"
+                                        : "+1 mo VIP";
+                                  return (
+                                    <button
+                                      key={grantId}
+                                      type="button"
+                                      onClick={() => handleGrantVip(c.id, grantId)}
+                                      disabled={updatingId === c.id}
+                                      title={`Grant ${grantLabel(grantId)} VIP (extends from now or current expiry)`}
+                                      className={`text-[11px] px-2 py-1 rounded disabled:opacity-50 ${
+                                        grantId === "1month"
+                                          ? "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-100"
+                                          : grantId === "1week"
+                                            ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-100"
+                                            : "bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100"
+                                      }`}
+                                    >
+                                      {label}
+                                    </button>
+                                  );
+                                })}
                                 <button
                                   type="button"
                                   onClick={() => setExpandedCustomerId(expanded ? null : c.id)}

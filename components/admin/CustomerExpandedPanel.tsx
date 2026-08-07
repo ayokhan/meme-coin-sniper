@@ -650,8 +650,12 @@ export default function CustomerExpandedPanel({
               onClick={() => onGrantVip(g.id)}
               disabled={busy.subscription}
               className={`text-xs px-2.5 py-1 rounded disabled:opacity-50 ${
-                g.id === "1month"
-                  ? "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-100 font-medium"
+                g.id === "1month" || g.id === "1week" || g.id === "3day"
+                  ? g.id === "1week"
+                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-100 font-medium"
+                    : g.id === "3day"
+                      ? "bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100 font-medium"
+                      : "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-100 font-medium"
                   : "border border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200"
               }`}
             >
