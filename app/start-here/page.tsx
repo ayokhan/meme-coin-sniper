@@ -182,7 +182,7 @@ export default function StartHerePage() {
               href="/strategy-call"
               className="text-teal-600 dark:text-teal-400 underline underline-offset-2 font-medium"
             >
-              Schedule a strategy session
+              Book a Strategy call
             </Link>
             .
           </p>

@@ -164,19 +164,19 @@ export function buildStrategyCallEmail(bookingUrl: string): {
 } {
   const calendly = bookingUrl.trim() || DEFAULT_STRATEGY_CALL_BOOKING_URL;
   return {
-    subject: "Schedule a complimentary NovaStaris strategy session",
+    subject: "Book a NovaStaris Strategy call",
     body: `Hi there,
 
-We offer a complimentary strategy session for a guided introduction to NovaStaris.
+Book a Strategy call for a guided introduction to NovaStaris.
 
-In about 30 minutes, we will review the desks relevant to how you trade (meme, futures, forex, wallets, Polymarket, or bots), clarify which tabs to use first, and help you leave with one clear next step.
+In about 30 minutes, we’ll review the desks relevant to how you trade (meme, futures, forex, wallets, Polymarket, or bots), clarify which tabs to use first, and help you leave with one clear next step.
 
-There is no charge for this session.
+This call is complimentary.
 
-Schedule a time:
+Book a time:
 ${calendly}
 
-Or review the details on NovaStaris first:
+Or review details first:
 ${STRATEGY_CALL_PAGE_URL}
 
 Already scheduled? Use the same calendar link to reschedule or cancel.
@@ -188,7 +188,7 @@ Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not
 
 — The NovaStaris team
 https://novastaris.ai`,
-    ctaLabel: "Schedule a session",
+    ctaLabel: "Book a Strategy call",
     ctaUrl: calendly,
   };
 }

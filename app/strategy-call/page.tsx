@@ -9,9 +9,9 @@ import {
 } from "@/lib/strategy-call";
 
 export const metadata: Metadata = {
-  title: "Strategy session | NovaStaris",
+  title: "Strategy call | NovaStaris",
   description:
-    "Schedule a complimentary NovaStaris strategy session for a guided walkthrough of the platform and a clear next step.",
+    "Book a NovaStaris Strategy call for a guided introduction to the platform and a clear next step.",
 };
 
 export const dynamic = "force-dynamic";
@@ -51,13 +51,13 @@ export default async function StrategyCallPage() {
       <main className="mx-auto max-w-3xl px-3 sm:px-4 py-10 sm:py-14 space-y-10">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-600 dark:text-teal-400">
-            Complimentary strategy session
+            Strategy call
           </p>
           <h1 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
             A guided introduction to NovaStaris
           </h1>
           <p className="mt-3 text-base text-zinc-600 dark:text-zinc-400 max-w-2xl leading-relaxed">
-            Schedule a short session with our team to review the platform, identify the desks that match how you
+            Schedule a short call with our team to review the platform, identify the desks that match how you
             trade, and leave with a clear first step.
           </p>
         </div>
@@ -76,8 +76,8 @@ export default async function StrategyCallPage() {
             <li>VIP desks and partner tools when they align with your workflow</li>
           </ul>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Approximately 30 minutes. No charge. Select a time via our calendar; you will receive a confirmation
-            invite.
+            Approximately 30 minutes. Complimentary. Select a time via our calendar; you will receive a
+            confirmation invite.
           </p>
         </section>
 
@@ -90,7 +90,7 @@ export default async function StrategyCallPage() {
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-5 py-3 transition-colors"
             >
               <CalendarDays className="h-4 w-4" aria-hidden />
-              Schedule a session
+              Book a Strategy call
             </a>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
               Opens our booking calendar in a new tab. You can reschedule or cancel from the same link.
@@ -98,7 +98,7 @@ export default async function StrategyCallPage() {
           </div>
         ) : (
           <p className="text-sm text-zinc-600 dark:text-zinc-400 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 px-4 py-3">
-            Strategy sessions are not available at the moment. Use{" "}
+            Strategy calls are not available at the moment. Use{" "}
             <Link href="/start-here" className="text-teal-600 dark:text-teal-400 underline underline-offset-2">
               Start here
             </Link>

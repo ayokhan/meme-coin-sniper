@@ -91,15 +91,14 @@ export function StrategyCallOncePopup({ enabled, showNavButton }: Props) {
               id="strategy-call-nudge-title"
               className="text-sm font-semibold text-zinc-900 dark:text-zinc-50"
             >
-              Complimentary strategy session
+              Book a Strategy call
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Schedule a short guided introduction to NovaStaris
+              Get a short guided walkthrough of NovaStaris
               {showNavButton ? (
                 <>
-                  {" "}
-                  — find{" "}
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">Strategy session</span> in the top
+                  . Find{" "}
+                  <span className="font-medium text-zinc-800 dark:text-zinc-200">Strategy call</span> in the top
                   menu, or continue here.
                 </>
               ) : (
@@ -109,7 +108,7 @@ export function StrategyCallOncePopup({ enabled, showNavButton }: Props) {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button asChild size="sm" className="bg-teal-600 hover:bg-teal-500 text-white">
                 <Link href="/strategy-call" onClick={dismiss}>
-                  View details
+                  Book a Strategy call
                 </Link>
               </Button>
               <Button type="button" size="sm" variant="ghost" onClick={dismiss}>
