@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getForexCandles, getForexTicker, FOREX_SCALP_MAX_LEVERAGE } from "@/lib/forex-market";
+import { getForexCandles, FOREX_SCALP_MAX_LEVERAGE } from "@/lib/forex-market";
 import {
   evaluateQuickWinForex,
   FOREX_QUICK_WIN_SYMBOLS,
@@ -48,14 +48,14 @@ export async function GET(request: Request) {
     const evaluated = await Promise.all(
       FOREX_QUICK_WIN_SYMBOLS.map(async (sym) => {
         try {
-          const [c5, c15, cScalp, ticker] = await Promise.all([
+          const [c5, c15, cScalp] = await Promise.all([
             getForexCandles(sym, "5m", 12),
             getForexCandles(sym, "15m", 10),
             getForexCandles(sym, interval, limit),
-            getForexTicker(sym),
           ]);
           if (!cScalp.length) return null;
-          const price = ticker?.last ? Number(ticker.last) : null;
+          const close = Number(cScalp[0]?.[4]);
+          const price = Number.isFinite(close) ? close : null;
           return evaluateQuickWinForex({
             symbol: sym,
             candles15m: c15,

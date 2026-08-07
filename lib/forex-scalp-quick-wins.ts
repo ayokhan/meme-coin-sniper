@@ -1,6 +1,6 @@
 import type { Candle } from "@/lib/hyperliquid";
 import { meanRangePct, trendFrom15mCloses } from "@/lib/crypto-buddie-score";
-import { FOREX_MARKET_WATCH, FOREX_SCALP_MAX_LEVERAGE, resolveForexEntry } from "@/lib/forex-market";
+import { FOREX_QUICK_WIN_CORE_SYMBOLS, FOREX_SCALP_MAX_LEVERAGE, resolveForexEntry } from "@/lib/forex-market";
 import {
   analyzeScalpSetup,
   isValidScalpTimeframeId,
@@ -159,7 +159,7 @@ export function evaluateQuickWinForex(input: {
   return { win: null, near, oscillationOk: true };
 }
 
-export const FOREX_QUICK_WIN_SYMBOLS = FOREX_MARKET_WATCH.map((e) => e.symbol);
+export const FOREX_QUICK_WIN_SYMBOLS = FOREX_QUICK_WIN_CORE_SYMBOLS;
 
 export function forexScalpCandlesRequest(timeframeId: string) {
   return scalpCandlesRequest(timeframeId);

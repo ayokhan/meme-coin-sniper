@@ -20,7 +20,7 @@ export type ForexSymbolEntry = {
 /** Plan / UI leverage cap for Nova Forex Scalp (MT accounts often use 1:500–1:2000). */
 export const FOREX_SCALP_MAX_LEVERAGE = 2000;
 
-/** Curated list — expandable; user can also type any symbol we can map. */
+/** Curated Market Watch — dropdown / NovaQ / Scalp symbol picker. Expand carefully. */
 export const FOREX_MARKET_WATCH: ForexSymbolEntry[] = [
   { symbol: "XAUUSD", label: "Gold vs US Dollar", category: "metal", yahoo: "GC=F", venueNote: "Live mid prefers your connected MT broker when linked; else Swissquote spot mid. OHLC shape from Yahoo GC=F, level-shifted to that mid. TradingView may differ if you chart another broker." },
   { symbol: "XAGUSD", label: "Silver vs US Dollar", category: "metal", yahoo: "SI=F", venueNote: "Live mid prefers your connected MT broker when linked; else Swissquote spot mid. OHLC shape from Yahoo SI=F, level-shifted to that mid." },
@@ -29,9 +29,15 @@ export const FOREX_MARKET_WATCH: ForexSymbolEntry[] = [
   { symbol: "USDJPY", label: "US Dollar vs Yen", category: "forex", yahoo: "USDJPY=X", venueNote: "Major FX pair." },
   { symbol: "AUDUSD", label: "Australian Dollar vs USD", category: "forex", yahoo: "AUDUSD=X", venueNote: "Major FX pair." },
   { symbol: "USDCAD", label: "US Dollar vs Canadian Dollar", category: "forex", yahoo: "USDCAD=X", venueNote: "Major FX pair." },
+  { symbol: "NZDUSD", label: "New Zealand Dollar vs USD", category: "forex", yahoo: "NZDUSD=X", venueNote: "Major FX pair." },
+  { symbol: "USDCHF", label: "US Dollar vs Swiss Franc", category: "forex", yahoo: "USDCHF=X", venueNote: "Major FX pair." },
+  { symbol: "EURJPY", label: "Euro vs Yen", category: "forex", yahoo: "EURJPY=X", venueNote: "Major FX cross." },
+  { symbol: "GBPJPY", label: "British Pound vs Yen", category: "forex", yahoo: "GBPJPY=X", venueNote: "Major FX cross." },
   { symbol: "NAS100", label: "Nasdaq 100", category: "index", yahoo: "NQ=F", venueNote: "Nasdaq 100 E-mini futures proxy (Yahoo)." },
   { symbol: "US30", label: "Dow Jones 30", category: "index", yahoo: "YM=F", venueNote: "Dow mini futures proxy (Yahoo)." },
   { symbol: "SPX500", label: "S&P 500", category: "index", yahoo: "ES=F", venueNote: "S&P 500 E-mini futures proxy (Yahoo)." },
+  { symbol: "GER40", label: "Germany 40 (DAX)", category: "index", yahoo: "^GDAXI", venueNote: "DAX cash index proxy (Yahoo ^GDAXI)." },
+  { symbol: "UK100", label: "UK 100 (FTSE)", category: "index", yahoo: "^FTSE", venueNote: "FTSE 100 cash index proxy (Yahoo ^FTSE)." },
   { symbol: "TSLA", label: "Tesla Motors", category: "stock", yahoo: "TSLA", venueNote: "NASDAQ equity." },
   { symbol: "AAPL", label: "Apple", category: "stock", yahoo: "AAPL", venueNote: "NASDAQ equity." },
   { symbol: "NVDA", label: "Nvidia", category: "stock", yahoo: "NVDA", venueNote: "NASDAQ equity." },
@@ -39,6 +45,33 @@ export const FOREX_MARKET_WATCH: ForexSymbolEntry[] = [
 ];
 
 const BY_SYMBOL = new Map(FOREX_MARKET_WATCH.map((e) => [e.symbol, e]));
+
+/**
+ * Symbols fetched on “Refresh Market” / high-low board.
+ * Kept lean on purpose — each symbol is Yahoo fetch(es) on Vercel CPU.
+ * Extra catalog symbols stay available in the dropdown for single-symbol tools.
+ */
+export const FOREX_FORECAST_DEFAULT_SYMBOLS = [
+  "XAUUSD",
+  "XAGUSD",
+  "EURUSD",
+  "GBPUSD",
+  "USDJPY",
+  "AUDUSD",
+  "USDCAD",
+  "NAS100",
+  "US30",
+  "SPX500",
+  "TSLA",
+  "AAPL",
+  "NVDA",
+  "SHOP",
+] as const;
+
+/**
+ * Scalp Quick Wins scan set — same lean list as forecast board (not full catalog).
+ */
+export const FOREX_QUICK_WIN_CORE_SYMBOLS: readonly string[] = [...FOREX_FORECAST_DEFAULT_SYMBOLS];
 
 const ALIASES: Record<string, string> = {
   GOLD: "XAUUSD",
@@ -51,6 +84,12 @@ const ALIASES: Record<string, string> = {
   DOW: "US30",
   SP500: "SPX500",
   SPX: "SPX500",
+  DAX: "GER40",
+  DE40: "GER40",
+  GERMANY40: "GER40",
+  FTSE: "UK100",
+  FTSE100: "UK100",
+  UKX: "UK100",
   TESLA: "TSLA",
   APPLE: "AAPL",
   NVIDIA: "NVDA",
@@ -263,4 +302,3 @@ export async function getForexTicker(symbol: string): Promise<{ last: string } |
   return { last: String(last) };
 }
 
-export const FOREX_FORECAST_DEFAULT_SYMBOLS = FOREX_MARKET_WATCH.map((e) => e.symbol);

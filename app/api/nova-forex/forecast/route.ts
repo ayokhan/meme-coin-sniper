@@ -5,7 +5,6 @@ import {
   FOREX_FORECAST_DEFAULT_SYMBOLS,
   forexContractDescription,
   getForexCandles,
-  getForexTicker,
   normalizeForexSymbol,
 } from "@/lib/forex-market";
 import { NOVA_FOREX_FORECAST_RANGES } from "@/lib/nova-forex-timeframes";
@@ -56,16 +55,17 @@ export async function GET(request: Request) {
         const candles = await getForexCandles(sym, interval, candleLimit);
         const hl = highLowFromCandles(candles as CandleTuple[]);
         if (!hl) continue;
-        const ticker = await getForexTicker(sym);
-        const currentPrice = ticker?.last ? Number(ticker.last) : Number(candles[0]?.[4]) || null;
+        // Reuse last close — avoid a second Yahoo round-trip per symbol (Vercel CPU).
+        const currentPrice = Number(candles[0]?.[4]);
+        const price = Number.isFinite(currentPrice) ? currentPrice : null;
         const structureDirection = structureDirectionFromCloses(candles as CandleTuple[]);
         const tl = trendlineRegressionFromCloses(candles as CandleTuple[]) ?? { bias: "flat" as const };
         const direction = combineStructureAndTrendline(structureDirection, tl.bias);
         const mid = (hl.high + hl.low) / 2;
         let insight = "Mid-range—wait for retest of high or low.";
-        if (currentPrice != null) {
-          if (currentPrice > mid) insight = "Bias: short on retest of high (price above range mid).";
-          else if (currentPrice < mid) insight = "Bias: long on retest of low (price below range mid).";
+        if (price != null) {
+          if (price > mid) insight = "Bias: short on retest of high (price above range mid).";
+          else if (price < mid) insight = "Bias: long on retest of low (price below range mid).";
         }
         items.push({
           symbol: sym,
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
           low: hl.low,
           shortEntry: hl.high,
           longEntry: hl.low,
-          currentPrice,
+          currentPrice: price,
           direction,
           insight,
         });
