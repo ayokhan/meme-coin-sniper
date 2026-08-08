@@ -13,6 +13,7 @@ import {
   type AdminEmailPresetId,
 } from "@/lib/admin-email-presets";
 import { buildStrategyCallEmail } from "@/lib/strategy-call";
+import { buildVipTrialInviteEmail } from "@/lib/vip-trial";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 import { ADMIN_EMAIL_DRAFT_STORAGE_KEY } from "@/lib/paid-strategy-call";
@@ -214,7 +215,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   );
 
   const applyPreset = useCallback(
-    (id: AdminEmailPresetId) => {
+    async (id: AdminEmailPresetId) => {
       setPresetId(id);
       if (id === "strategy-call") {
         const url = strategyCallUrl.trim();
@@ -230,6 +231,47 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           ctaUrl: built.ctaUrl,
         });
         return;
+      }
+      if (id === "vip-trial-invite") {
+        try {
+          const res = await fetch("/api/admin/vip-trial", { credentials: "include", cache: "no-store" });
+          const data = await res.json();
+          const cfg = data?.config as
+            | {
+                trialDays?: number;
+                reminderHoursBefore?: number;
+                planIdAfterTrial?: string;
+              }
+            | undefined;
+          const trialDays = Math.max(1, Number(cfg?.trialDays) || 3);
+          const reminderHoursBefore = Math.max(6, Number(cfg?.reminderHoursBefore) || 24);
+          const planId = typeof cfg?.planIdAfterTrial === "string" ? cfg.planIdAfterTrial : "1month";
+          const plan =
+            planId === "6month"
+              ? { label: "6 months", priceUsd: 750 }
+              : planId === "12month"
+                ? { label: "12 months", priceUsd: 1500 }
+                : { label: "1 month", priceUsd: 150 };
+          const built = buildVipTrialInviteEmail({
+            trialDays,
+            reminderHoursBefore,
+            planLabel: plan.label,
+            planPriceUsd: plan.priceUsd,
+          });
+          setDraft({
+            subject: built.subject,
+            body: built.body,
+            audience: "free",
+            includePartnerLogos: false,
+            partnerBrand: "blofin",
+            template: "nova-branded",
+            ctaLabel: built.ctaLabel,
+            ctaUrl: built.ctaUrl,
+          });
+          return;
+        } catch {
+          /* fall through to static preset */
+        }
       }
       const p = getAdminEmailPreset(id);
       if (!p) return;
@@ -820,6 +862,35 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               placeholder="Edit the message. Use Copy for WhatsApp, or Send for email."
             />
           </label>
+
+          {format === "rich" && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Button text (CTA)
+                <input
+                  className={inputClass}
+                  value={draft.ctaLabel}
+                  onChange={(e) => {
+                    setPresetId("custom");
+                    setDraft((d) => ({ ...d, ctaLabel: e.target.value }));
+                  }}
+                  placeholder='e.g. Start 3-day VIP trial'
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Button link (CTA URL)
+                <input
+                  className={inputClass}
+                  value={draft.ctaUrl}
+                  onChange={(e) => {
+                    setPresetId("custom");
+                    setDraft((d) => ({ ...d, ctaUrl: e.target.value }));
+                  }}
+                  placeholder="https://novastaris.ai/subscribe?trial=1"
+                />
+              </label>
+            </div>
+          )}
 
           {format === "plain" && (
             <div className="rounded-md border bg-zinc-50 dark:bg-zinc-900/40 p-3">

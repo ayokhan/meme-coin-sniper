@@ -77,7 +77,7 @@ const STRATEGY_CALL = buildStrategyCallEmail("");
 const PAID_STRATEGY = buildPaidStrategyCallMarketingEmail();
 const PAID_STRATEGY_SCHEDULE = buildPaidStrategyCallScheduleEmail();
 const VIP_TRIAL_INVITE = buildVipTrialInviteEmail({
-  trialDays: 2,
+  trialDays: 3,
   reminderHoursBefore: 24,
   planLabel: "1 month",
   planPriceUsd: 150,
