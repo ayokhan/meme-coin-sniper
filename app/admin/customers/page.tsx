@@ -902,6 +902,33 @@ export default function AdminCustomersPage() {
     }
   };
 
+  const handleSetVipLimited = async (id: string, limited: boolean) => {
+    setUpdatingId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/customers/${id}/subscription`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "setLimited", limited }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadCustomers();
+        setSuccessMessage(
+          data.message ??
+            (limited ? "Converted to Limited VIP (same expiry)." : "Converted to unlimited VIP (same expiry).")
+        );
+        setTimeout(() => setSuccessMessage(""), 4000);
+      } else {
+        setError(data.error ?? "Failed to convert VIP");
+      }
+    } catch {
+      setError("Failed to convert VIP");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const handleClearSubscription = async (id: string) => {
     setUpdatingId(id);
     setError("");
@@ -1505,6 +1532,7 @@ export default function AdminCustomersPage() {
                                   onCommunityRep={(v) => handleCommunityRepToggle(c.id, v)}
                                   onAcceptRules={() => handleAcceptRules(c.id, true)}
                                   onGrantVip={(grant, opts) => handleGrantVip(c.id, grant, opts)}
+                                  onSetVipLimited={(limited) => handleSetVipLimited(c.id, limited)}
                                   onClearSubscription={() => handleClearSubscription(c.id)}
                                   onResetPassword={() => handleResetPassword(c.id, c.email)}
                                   onDisable2fa={() => handleDisable2fa(c.id, c.email, c.twoFactorMethod)}

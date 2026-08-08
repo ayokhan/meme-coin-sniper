@@ -19,6 +19,7 @@ const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SEC
 
 type Body =
   | { action: "grant"; grant: AdminVipGrantId; limited?: boolean }
+  | { action: "setLimited"; limited: boolean }
   | { action: "clear" }
   | { action: "set"; tier?: string; planId?: string | null; months?: number | null; limited?: boolean };
 
@@ -89,6 +90,43 @@ export async function POST(
         },
       });
       return NextResponse.json({ success: true, cleared: true });
+    }
+
+    if (action === "setLimited") {
+      const limited = rawBody.limited === true;
+      const now = new Date();
+      const active = (await prisma.subscription.findFirst({
+        where: { userId, expiresAt: { gt: now } },
+        orderBy: { expiresAt: "desc" },
+      })) as { id: string; expiresAt: Date; deskLimited?: boolean } | null;
+      if (!active) {
+        return NextResponse.json(
+          { success: false, error: "No active VIP to convert. Grant VIP first." },
+          { status: 400 }
+        );
+      }
+      await (prisma as unknown as { subscription: { update: (args: unknown) => Promise<unknown> } }).subscription.update({
+        where: { id: active.id },
+        data: {
+          deskLimited: limited,
+          // Keep complimentary admin access; don't mark as Stripe card trial
+          isTrial: false,
+          trialEndsAt: null,
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        deskLimited: limited,
+        subscription: {
+          expiresAt: active.expiresAt.toISOString(),
+          deskLimited: limited,
+          extendedFromExisting: false,
+          convertedOnly: true,
+        },
+        message: limited
+          ? "Converted to Limited VIP — same expiry, 3/day desk caps."
+          : "Converted to unlimited VIP — same expiry.",
+      });
     }
 
     let grantId: AdminVipGrantId | null = null;

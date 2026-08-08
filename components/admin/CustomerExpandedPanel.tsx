@@ -200,6 +200,7 @@ export type CustomerExpandedPanelProps = {
   onCommunityRep: (value: boolean) => void;
   onAcceptRules: () => void;
   onGrantVip: (grant: AdminVipGrantId, opts?: { limited?: boolean }) => void;
+  onSetVipLimited?: (limited: boolean) => void;
   onClearSubscription: () => void;
   onResetPassword: () => void;
   onDisable2fa: () => void;
@@ -236,6 +237,7 @@ export default function CustomerExpandedPanel({
   onCommunityRep,
   onAcceptRules,
   onGrantVip,
+  onSetVipLimited,
   onClearSubscription,
   onResetPassword,
   onDisable2fa,
@@ -656,9 +658,34 @@ export default function CustomerExpandedPanel({
           />
           <span>
             Grant as <strong>Limited VIP</strong> (3 uses/day per desk — same as trial; applies to all durations
-            below)
+            below when you click a button)
           </span>
         </label>
+        {c.isActive && onSetVipLimited && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {!c.subscriptionDeskLimited ? (
+              <button
+                type="button"
+                onClick={() => onSetVipLimited(true)}
+                disabled={busy.subscription}
+                className="text-xs px-2.5 py-1 rounded border border-amber-400/80 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-100 disabled:opacity-50"
+                title="Keep the same expiry date — only switch to 3/day desk caps"
+              >
+                Convert to Limited (keep expiry)
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSetVipLimited(false)}
+                disabled={busy.subscription}
+                className="text-xs px-2.5 py-1 rounded border border-emerald-400/80 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-100 disabled:opacity-50"
+                title="Keep the same expiry date — remove desk caps"
+              >
+                Convert to Unlimited (keep expiry)
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {ADMIN_VIP_GRANTS.map((g) => (
             <button
