@@ -49,6 +49,7 @@ export async function GET(request: Request) {
     novaForexScalper?: { ok: boolean; processed?: number; skipped?: boolean; message?: string };
     memeLeaderboard?: { ok: boolean; refreshed?: number; totalWallets?: number; skipped?: boolean; message?: string };
     vipExpiryEmails?: { ok: boolean; preSent?: number; postSent?: number; message?: string };
+    vipTrialEmails?: { ok: boolean; scanned?: number; sent?: number; failed?: number; message?: string };
   } = {};
 
   try {
