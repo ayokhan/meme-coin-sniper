@@ -354,13 +354,16 @@ export default function AdminVipTrialPage() {
         <CardHeader className="pb-2">
           <CardTitle className="text-base">System / cron error log</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Failed trial/expiry emails and related ops errors. Also check Trial email log for per-recipient send
-            failures. Manual templates: Admin → Emails → VIP trial ending / invite.
+            Full ops log (all crons, Stripe, unhandled API errors, emails) lives at{" "}
+            <Link href="/admin/system-errors" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+              Admin → System errors
+            </Link>
+            . Recent trial-related entries below.
           </p>
         </CardHeader>
         <CardContent>
           {systemErrors.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No system errors logged yet.</p>
+            <p className="text-sm text-muted-foreground">No recent system errors.</p>
           ) : (
             <ul className="space-y-2 max-h-72 overflow-y-auto text-sm">
               {systemErrors.map((e) => (

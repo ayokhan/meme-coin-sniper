@@ -811,5 +811,19 @@ export async function sendAnnouncementEmails(args: {
     console.warn("AnnouncementEmailCampaign create failed:", e);
   }
 
+  if (failed > 0) {
+    try {
+      const { logSystemError } = await import("@/lib/system-error-log");
+      await logSystemError({
+        source: "email.announcement",
+        message: `Announcement email: ${failed}/${recipients.length} failed`,
+        detail: errors.slice(0, 5).join("\n") || null,
+        meta: { subject, sent, failed, total: recipients.length },
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
   return { sent, failed, total: recipients.length, errors };
 }

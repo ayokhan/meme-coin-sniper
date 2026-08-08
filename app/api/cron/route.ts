@@ -342,5 +342,12 @@ export async function GET(request: Request) {
     };
   }
 
+  try {
+    const { logCronJobFailures } = await import('@/lib/system-error-log');
+    await logCronJobFailures(results);
+  } catch (e) {
+    console.error('logCronJobFailures:', e);
+  }
+
   return NextResponse.json({ success: true, cron: results });
 }

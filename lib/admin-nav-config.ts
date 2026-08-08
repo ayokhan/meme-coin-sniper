@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   CalendarDays,
   CreditCard,
@@ -44,6 +45,14 @@ export const ADMIN_NAV_GROUPS: { id: AdminNavGroup; label: string }[] = [
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin", label: "Hub", description: "Admin home", icon: Zap, group: "overview" },
+  {
+    href: "/admin/system-errors",
+    label: "System errors",
+    description: "Cron, Stripe, API, and email failures",
+    icon: AlertTriangle,
+    group: "overview",
+    ownerOnly: true,
+  },
   { href: "/admin/insights", label: "App insights", icon: BarChart3, group: "analytics" },
   { href: "/admin/metrics", label: "Usage metrics", icon: BarChart3, group: "analytics" },
   {

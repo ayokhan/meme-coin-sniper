@@ -830,7 +830,7 @@ model TrialDeskUsage {
   @@index([desk, dayKey])
 }
 
-/** Owner-visible ops failures (cron email misses, send errors, etc.). */
+/** Owner-visible ops failures (crons, Stripe, unhandled routes, email sends, etc.). */
 model SystemErrorLog {
   id        String   @id @default(cuid())
   source    String

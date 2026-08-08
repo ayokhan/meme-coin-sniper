@@ -133,6 +133,12 @@ async function handleDemoSessionCheckout(session: Stripe.Checkout.Session) {
     return NextResponse.json({ received: true, demoRegistration: true });
   } catch (e) {
     console.error("Stripe webhook: demo session payment handler failed", e);
+    try {
+      const { logSystemException } = await import("@/lib/system-error-log");
+      await logSystemException("stripe.demo_session", e);
+    } catch {
+      /* ignore */
+    }
     return NextResponse.json({ error: "Demo payment handler failed." }, { status: 500 });
   }
 }
@@ -146,6 +152,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = session.client_reference_id ?? session.metadata?.userId ?? null;
   if (!userId || !session.id) {
     console.error("Stripe webhook: missing client_reference_id or session id");
+    try {
+      const { logSystemError } = await import("@/lib/system-error-log");
+      await logSystemError({
+        source: "stripe.checkout",
+        message: "Missing client_reference_id or session id",
+        meta: {
+          sessionId: session.id ?? null,
+          purpose: session.metadata?.purpose ?? null,
+        },
+      });
+    } catch {
+      /* ignore */
+    }
     return NextResponse.json({ error: "Missing user or session id." }, { status: 400 });
   }
 
@@ -555,6 +574,15 @@ export async function POST(request: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Invalid signature";
     console.error("Stripe webhook signature error:", msg);
+    try {
+      const { logSystemError } = await import("@/lib/system-error-log");
+      await logSystemError({
+        source: "stripe.webhook.signature",
+        message: msg,
+      });
+    } catch {
+      /* ignore */
+    }
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
@@ -598,6 +626,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true });
   } catch (e) {
     console.error("Stripe webhook handler error:", e);
+    try {
+      const { logSystemException } = await import("@/lib/system-error-log");
+      await logSystemException("stripe.webhook", e, { eventType: event?.type ?? null });
+    } catch {
+      /* ignore */
+    }
     return NextResponse.json({ error: "Webhook handler failed." }, { status: 500 });
   }
 }
