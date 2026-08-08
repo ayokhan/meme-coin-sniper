@@ -204,7 +204,7 @@ export default function AdminVipTrialPage() {
                     type="number"
                     min={0}
                     max={100}
-                    value={config.dailyLimitPerDesk ?? 5}
+                    value={config.dailyLimitPerDesk ?? 3}
                     onChange={(e) =>
                       setConfig({ ...config, dailyLimitPerDesk: Number(e.target.value) })
                     }
@@ -227,7 +227,7 @@ export default function AdminVipTrialPage() {
                 </label>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Trial users: {config.dailyLimitPerDesk ?? 5}/day each for AI Agent, Forecast, Forex, Radar, etc.
+                Trial users: {config.dailyLimitPerDesk ?? 3}/day each for AI Agent, Forecast, Forex, Radar, etc.
                 Paid VIP stays unlimited.
               </p>
               <Button size="sm" disabled={saving} onClick={() => void save()}>

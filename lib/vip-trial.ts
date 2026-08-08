@@ -45,7 +45,7 @@ const DEFAULT: VipTrialConfigAdmin = {
   trialDays: 2,
   reminderHoursBefore: 24,
   planIdAfterTrial: "1month",
-  dailyLimitPerDesk: 5,
+  dailyLimitPerDesk: 3,
   updatedAt: null,
 };
 

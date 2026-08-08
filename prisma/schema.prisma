@@ -811,7 +811,7 @@ model VipTrialConfig {
   /** VIP plan billed after trial (must be a VIP_PLANS id). */
   planIdAfterTrial      String   @default("1month")
   /** Max uses per desk per UTC day for trial users (AI Agent, Forecast, Forex, …). */
-  dailyLimitPerDesk     Int      @default(5)
+  dailyLimitPerDesk     Int      @default(3)
   updatedAt             DateTime @updatedAt
 }
 

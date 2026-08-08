@@ -62,7 +62,7 @@ export async function getTrialDeskUsageToday(
   desk: TrialDeskId
 ): Promise<{ used: number; limit: number; remaining: number }> {
   const cfg = await getVipTrialConfig();
-  const limit = Math.max(0, Math.min(100, cfg.dailyLimitPerDesk ?? 5));
+  const limit = Math.max(0, Math.min(100, cfg.dailyLimitPerDesk ?? 3));
   const db = usageDb();
   if (!db) return { used: 0, limit, remaining: limit };
   const dayKey = utcDayKey();
@@ -93,7 +93,7 @@ export async function assertTrialDeskAccess(
   if (!onTrial) return { ok: true, onTrial: false };
 
   const cfg = await getVipTrialConfig();
-  const limit = Math.max(0, Math.min(100, cfg.dailyLimitPerDesk ?? 5));
+  const limit = Math.max(0, Math.min(100, cfg.dailyLimitPerDesk ?? 3));
   if (limit === 0) {
     return {
       ok: false,
