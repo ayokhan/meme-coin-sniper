@@ -219,6 +219,8 @@ model User {
   jobAgentResumes            JobAgentResume[]
   jobAgentApplications       JobAgentApplication[]
   storeOrders                StoreOrder[]
+  discoveryCallCompletions   DiscoveryCallCompletion[]
+  paidStrategyCallOrders     PaidStrategyCallOrder[]
 
   @@index([referredByUserId])
 }
@@ -507,11 +509,64 @@ model StrategyCallConfig {
   id             String   @id @default("default")
   enabled        Boolean  @default(true)
   bookingUrl     String   @default("https://calendly.com/novastaris-ai/30min")
-  /** Show “Strategy call” in dashboard top nav / mobile menu. */
+  /** Show “Discovery call” in dashboard top nav / mobile menu. */
   showNavButton  Boolean  @default(true)
   /** One-time soft popup pointing customers to the nav / page. */
   showOncePopup  Boolean  @default(true)
   updatedAt      DateTime @updatedAt
+}
+
+/** Manual log of people who completed a Discovery call (owner data). */
+model DiscoveryCallCompletion {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?
+  phone       String?
+  userId      String?
+  completedAt DateTime @default(now())
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([completedAt])
+  @@index([userId])
+  @@index([email])
+}
+
+/** Paid Strategy call ($200/hr) — owner toggles + Stripe orders (manual scheduling after pay). */
+model PaidStrategyCallConfig {
+  id            String   @id @default("default")
+  enabled       Boolean  @default(false)
+  showNavButton Boolean  @default(true)
+  priceUsd      Int      @default(200)
+  updatedAt     DateTime @updatedAt
+}
+
+model PaidStrategyCallOrder {
+  id                      String    @id @default(cuid())
+  userId                  String?
+  email                   String
+  name                    String
+  phone                   String
+  amountUsd               Float
+  /** pending | paid | contacted | completed | cancelled */
+  status                  String    @default("pending")
+  stripeCheckoutSessionId String?   @unique
+  confirmationEmailSentAt DateTime?
+  ownerAlertSentAt        DateTime?
+  notes                   String    @default("")
+  paidAt                  DateTime?
+  completedAt             DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  user                    User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([userId])
+  @@index([email])
+  @@index([paidAt])
+  @@index([createdAt])
 }
 
 /** Owner-managed Blofin affiliate registration promo (Trading Bot / NovaScalper / Prop Firm). Off by default until link is set. */

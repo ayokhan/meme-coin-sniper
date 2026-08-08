@@ -14,6 +14,7 @@ export const en = {
     about: "About",
     startHere: "Start here",
     strategyCall: "Discovery call",
+    paidStrategyCall: "Strategy call",
     chat: "Chat",
     support: "Support",
     status: "Status",

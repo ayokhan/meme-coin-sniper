@@ -195,6 +195,38 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return NextResponse.json({ received: true, donation: true });
   }
 
+  /** Paid Strategy call — record receipt + confirmation email, never grant VIP. */
+  if ((session.metadata?.purpose ?? "").toString() === "paid_strategy_call") {
+    const amountUsd =
+      session.amount_total != null
+        ? session.amount_total / 100
+        : parseFloat(session.metadata?.amountUsd ?? "0") || 0;
+    try {
+      const { fulfillPaidStrategyCallOrder } = await import("@/lib/paid-strategy-call");
+      await fulfillPaidStrategyCallOrder({
+        orderId: session.metadata?.orderId ?? null,
+        stripeSessionId: session.id,
+        amountUsd,
+        userId,
+      });
+      await recordBillingInvoiceFromCheckout({
+        userId,
+        amountUsd,
+        planId: "strategy_call",
+        stripeSessionId: session.id,
+        paymentMethod: "card",
+      });
+    } catch (e) {
+      console.error("Stripe webhook: paid strategy call fulfill failed", e);
+    }
+    console.info("Stripe webhook: paid strategy call received", {
+      userId,
+      sessionId: session.id,
+      amountUsd,
+    });
+    return NextResponse.json({ received: true, strategyCall: true });
+  }
+
   /** Nova Store merch — mark order paid + capture shipping address. Never grant VIP. */
   if ((session.metadata?.purpose ?? "").toString() === "nova_store_order") {
     const orderId = (session.metadata?.orderId ?? "").toString();

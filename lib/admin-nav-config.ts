@@ -56,6 +56,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   },
   { href: "/admin/customers", label: "Customers", icon: Users, group: "users" },
   {
+    href: "/admin/calls",
+    label: "Calls",
+    description: "Discovery completions + paid Strategy call",
+    icon: CalendarDays,
+    group: "users",
+    ownerOnly: true,
+  },
+  {
     href: "/admin/blofin-users",
     label: "Blofin / bot users",
     description: "Users with Blofin API keys for Nova bots",

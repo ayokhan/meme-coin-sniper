@@ -16,6 +16,7 @@ import {
   PATH_DEEPDIVE_WALLETS_EMAIL,
 } from "@/lib/path-deepdive-emails";
 import { buildStrategyCallEmail } from "@/lib/strategy-call";
+import { buildPaidStrategyCallMarketingEmail } from "@/lib/paid-strategy-call";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 
@@ -31,6 +32,7 @@ export type AdminEmailPresetId =
   | "deepdive-polymarket"
   | "vip-soft-pitch"
   | "strategy-call"
+  | "paid-strategy-call"
   | "vip-expiry-pre"
   | "vip-expiry-post"
   | "affiliate"
@@ -62,6 +64,7 @@ const FOREX_REBATE = `${FOREX_BOTS}#forex-partner-rebate`;
 const AFFILIATE = "https://novastaris.ai/affiliate";
 const START_HERE = "https://novastaris.ai/start-here";
 const STRATEGY_CALL = buildStrategyCallEmail("");
+const PAID_STRATEGY = buildPaidStrategyCallMarketingEmail();
 
 export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   {
@@ -158,7 +161,7 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   {
     id: "strategy-call",
     label: "Discovery call",
-    blurb: "Guided walkthrough — Calendly booking link",
+    blurb: "Complimentary walkthrough — Calendly booking link",
     subject: STRATEGY_CALL.subject,
     body: STRATEGY_CALL.body,
     template: "nova-branded",
@@ -167,6 +170,19 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     ctaLabel: STRATEGY_CALL.ctaLabel,
     ctaUrl: STRATEGY_CALL.ctaUrl,
     defaultAudience: "free",
+  },
+  {
+    id: "paid-strategy-call",
+    label: "Strategy call ($200/hr)",
+    blurb: "Paid expert session — Stripe purchase page",
+    subject: PAID_STRATEGY.subject,
+    body: PAID_STRATEGY.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: PAID_STRATEGY.ctaLabel,
+    ctaUrl: PAID_STRATEGY.ctaUrl,
+    defaultAudience: "all",
   },
   {
     id: "vip-expiry-pre",
