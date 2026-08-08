@@ -78,7 +78,7 @@ export async function GET(request: Request) {
         scanned: trial.scanned,
         sent: trial.sent,
         failed: trial.failed,
-        message: trial.message,
+        message: `scanned ${trial.scanned}, sent ${trial.sent}, failed ${trial.failed}`,
       };
     }
   } catch (e) {
