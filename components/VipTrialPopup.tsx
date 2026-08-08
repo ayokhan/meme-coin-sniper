@@ -112,11 +112,14 @@ function VipTrialPopupModal({ open, offer, onRemindLater, onDismissPermanent }: 
             Unlock NovaForecast, Nova Forex, CT Scan, deeper wallet tools, and higher AI limits.
             Card required — we email you about {offer.reminderHoursBefore} hours before the trial ends so you
             can cancel. If you don’t cancel, you’re charged ${offer.planPriceUsd} + ${CARD_FEE_USD} card
-            fee (${cardTotal}) for {offer.planLabel} and VIP renews until you turn it off.
+            fee (${cardTotal}) for {offer.planLabel} and VIP renews automatically until you turn it off.
           </p>
-          <p className="mt-2 text-xs text-amber-800 dark:text-amber-200/90">
-            Trial desks are limited to a few uses per day — enough to try every desk without burning the
-            platform.
+          <p className="mt-2 text-xs text-muted-foreground">
+            By starting a trial you agree to our{" "}
+            <Link href="/payment-terms" className="underline hover:no-underline text-cyan-600 dark:text-cyan-400">
+              Payment Terms
+            </Link>
+            , including auto-charge after the free trial if you don’t cancel.
           </p>
         </div>
 

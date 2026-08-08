@@ -31,6 +31,17 @@ export default function PaymentTermsPage() {
               <strong>Subscription period.</strong> Your access is valid for the period corresponding to the plan you purchased (e.g. 1 month, 6 months, 12 months). Access continues until the end of that period; we do not prorate refunds for early cancellation.
             </p>
             <p>
+              <strong>VIP free trial (card).</strong> When you start a VIP trial, you must add a valid payment
+              card. The trial lasts for the free period shown at checkout (for example 2 or 3 days). Before the
+              trial ends we send a reminder email so you can cancel.{" "}
+              <strong>
+                If you do not cancel before the trial ends, your card is charged automatically for the VIP plan
+                you selected (list price + $8 card fee), and VIP then renews automatically until you cancel.
+              </strong>{" "}
+              Cancelling stops future charges; it does not refund time already used. Complimentary admin grants
+              (including Limited VIP) are not card trials and are not billed unless you later subscribe.
+            </p>
+            <p>
               <strong>Payment methods.</strong> We accept credit/debit card (via Stripe) and USDC on Solana. USDC payments are charged at the listed subscription price. Card payments include an additional $8 card payment fee per checkout. You are responsible for providing accurate payment details and for any fees charged by your bank or wallet.
             </p>
             <p>
