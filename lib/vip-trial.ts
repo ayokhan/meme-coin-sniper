@@ -18,6 +18,8 @@ export const VIP_TRIAL_CONFIG_ID = "default";
 
 export type VipTrialConfigAdmin = {
   enabled: boolean;
+  /** Login popup for eligible free users (independent of email blasts). */
+  showLoginPopup: boolean;
   trialDays: number;
   reminderHoursBefore: number;
   planIdAfterTrial: string;
@@ -28,6 +30,7 @@ export type VipTrialConfigAdmin = {
 
 export type VipTrialPublicOffer = {
   enabled: boolean;
+  showLoginPopup: boolean;
   trialDays: number;
   reminderHoursBefore: number;
   planIdAfterTrial: string;
@@ -38,10 +41,12 @@ export type VipTrialPublicOffer = {
   ineligibleReason: string | null;
   /** True when user already has active VIP. */
   alreadyVip: boolean;
+  updatedAt: string | null;
 };
 
 const DEFAULT: VipTrialConfigAdmin = {
   enabled: false,
+  showLoginPopup: false,
   trialDays: 2,
   reminderHoursBefore: 24,
   planIdAfterTrial: "1month",
@@ -51,6 +56,7 @@ const DEFAULT: VipTrialConfigAdmin = {
 
 type ConfigRow = {
   enabled: boolean;
+  showLoginPopup?: boolean;
   trialDays: number;
   reminderHoursBefore: number;
   planIdAfterTrial: string;
@@ -66,6 +72,7 @@ type PrismaVipTrial = typeof prisma & {
       create: {
         id: string;
         enabled: boolean;
+        showLoginPopup: boolean;
         trialDays: number;
         reminderHoursBefore: number;
         planIdAfterTrial: string;
@@ -73,6 +80,7 @@ type PrismaVipTrial = typeof prisma & {
       };
       update: {
         enabled?: boolean;
+        showLoginPopup?: boolean;
         trialDays?: number;
         reminderHoursBefore?: number;
         planIdAfterTrial?: string;
@@ -174,6 +182,7 @@ export async function getVipTrialConfig(): Promise<VipTrialConfigAdmin> {
     if (!row) return { ...DEFAULT };
     return {
       enabled: !!row.enabled,
+      showLoginPopup: !!row.showLoginPopup,
       trialDays: clampTrialDays(row.trialDays),
       reminderHoursBefore: clampReminderHours(row.reminderHoursBefore),
       planIdAfterTrial: normalizePlanId(row.planIdAfterTrial),
@@ -187,6 +196,7 @@ export async function getVipTrialConfig(): Promise<VipTrialConfigAdmin> {
 
 export async function setVipTrialConfig(patch: {
   enabled?: boolean;
+  showLoginPopup?: boolean;
   trialDays?: number;
   reminderHoursBefore?: number;
   planIdAfterTrial?: string;
@@ -197,6 +207,7 @@ export async function setVipTrialConfig(patch: {
   const current = await getVipTrialConfig();
   const next = {
     enabled: patch.enabled ?? current.enabled,
+    showLoginPopup: patch.showLoginPopup ?? current.showLoginPopup,
     trialDays: patch.trialDays != null ? clampTrialDays(patch.trialDays) : current.trialDays,
     reminderHoursBefore:
       patch.reminderHoursBefore != null
@@ -238,6 +249,7 @@ export async function getVipTrialPublicOffer(userId: string | null): Promise<Vip
   const plan = VIP_PLANS.find((p) => p.id === cfg.planIdAfterTrial) ?? VIP_PLANS[0]!;
   const base: VipTrialPublicOffer = {
     enabled: cfg.enabled,
+    showLoginPopup: cfg.showLoginPopup,
     trialDays: cfg.trialDays,
     reminderHoursBefore: cfg.reminderHoursBefore,
     planIdAfterTrial: plan.id,
@@ -246,6 +258,7 @@ export async function getVipTrialPublicOffer(userId: string | null): Promise<Vip
     eligible: false,
     ineligibleReason: cfg.enabled ? null : "VIP trial is not available right now.",
     alreadyVip: false,
+    updatedAt: cfg.updatedAt,
   };
   if (!cfg.enabled) return base;
   if (!userId) {

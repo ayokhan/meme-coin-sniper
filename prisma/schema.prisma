@@ -812,6 +812,8 @@ model VipTrialConfig {
   planIdAfterTrial      String   @default("1month")
   /** Max uses per desk per UTC day for trial users (AI Agent, Forecast, Forex, …). */
   dailyLimitPerDesk     Int      @default(3)
+  /** Show login popup promoting VIP trial to eligible free users. */
+  showLoginPopup        Boolean  @default(false)
   updatedAt             DateTime @updatedAt
 }
 

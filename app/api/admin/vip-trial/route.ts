@@ -106,6 +106,7 @@ export async function PATCH(request: Request) {
   try {
       const config = await setVipTrialConfig({
       enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
+      showLoginPopup: typeof body.showLoginPopup === "boolean" ? body.showLoginPopup : undefined,
       trialDays: body.trialDays != null ? Number(body.trialDays) : undefined,
       reminderHoursBefore:
         body.reminderHoursBefore != null ? Number(body.reminderHoursBefore) : undefined,

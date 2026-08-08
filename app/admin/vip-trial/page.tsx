@@ -11,6 +11,7 @@ import { VIP_CANCEL_SURVEY_REASONS } from "@/lib/vip-trial-constants";
 
 type Config = {
   enabled: boolean;
+  showLoginPopup: boolean;
   trialDays: number;
   reminderHoursBefore: number;
   planIdAfterTrial: string;
@@ -173,6 +174,20 @@ export default function AdminVipTrialPage() {
                 />
                 Enable VIP trial offer (subscribe + lock screens)
               </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded"
+                  checked={!!config.showLoginPopup}
+                  onChange={(e) => setConfig({ ...config, showLoginPopup: e.target.checked })}
+                  disabled={!config.enabled}
+                />
+                Show login popup (eligible free users — no email required)
+              </label>
+              <p className="text-[11px] text-muted-foreground -mt-2 ml-6">
+                Popup only appears when trial is enabled and the user is eligible. Turn off email flags
+                separately under Feature flags if you want in-app only.
+              </p>
               <div className="grid sm:grid-cols-3 gap-3">
                 <label className="text-xs text-muted-foreground flex flex-col gap-1">
                   Trial days (1–14)

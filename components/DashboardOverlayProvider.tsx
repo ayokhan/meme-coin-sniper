@@ -3,17 +3,27 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 /** Higher priority wins; only one blocking overlay at a time. */
-export type DashboardOverlayId = "path-picker" | "site-announcement" | "two-factor" | "futures-onboarding";
+export type DashboardOverlayId =
+  | "path-picker"
+  | "vip-trial-popup"
+  | "site-announcement"
+  | "two-factor"
+  | "futures-onboarding";
 
 const OVERLAY_PRIORITY: Record<DashboardOverlayId, number> = {
   "path-picker": 100,
+  "vip-trial-popup": 95,
   "site-announcement": 90,
   "two-factor": 70,
   "futures-onboarding": 50,
 };
 
 /** Marketing overlays — only one per browser session after dismiss (2FA / path-picker still ok). */
-const MARKETING_OVERLAYS: DashboardOverlayId[] = ["site-announcement", "futures-onboarding"];
+const MARKETING_OVERLAYS: DashboardOverlayId[] = [
+  "vip-trial-popup",
+  "site-announcement",
+  "futures-onboarding",
+];
 const SESSION_KEY = "novastaris-marketing-overlay-done";
 
 type OverlayContextValue = {

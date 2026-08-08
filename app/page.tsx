@@ -86,6 +86,7 @@ import { StrategyCallOncePopup } from "@/components/StrategyCallOncePopup";
 import type { StrategyCallPublicConfig } from "@/lib/strategy-call";
 import type { PaidStrategyCallPublicConfig } from "@/lib/paid-strategy-call";
 import { SiteAnnouncementHost } from "@/components/SiteAnnouncementModal";
+import { VipTrialPopupHost } from "@/components/VipTrialPopup";
 import DashboardPathHintBanner from "@/components/DashboardPathHintBanner";
 import { DashboardOverlayProvider } from "@/components/DashboardOverlayProvider";
 import { DashboardPathPickerOverlay, FuturesOnboardingOverlay } from "@/components/DashboardOverlayModals";
@@ -4478,6 +4479,7 @@ function Dashboard() {
           onApply={applyDashboardPathResult}
         />
         <TwoFactorSecurityNudgeHost />
+        <VipTrialPopupHost />
         <SiteAnnouncementHost />
         {strategyCallPublic?.showOncePopup && (
           <StrategyCallOncePopup
