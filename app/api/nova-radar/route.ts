@@ -69,13 +69,16 @@ async function enrichRunOptionsForSymbol(
 
 export async function POST(request: Request) {
   try {
-    const { tier } = await getSessionAndSubscription();
+    const { tier, userId } = await getSessionAndSubscription();
     if (tier !== "vip") {
       return NextResponse.json(
         { success: false, error: "NovaRadar is for VIP subscribers.", locked: true },
         { status: 403 }
       );
     }
+    const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+    const blocked = await trialDeskLimitResponse(userId, "nova_radar");
+    if (blocked) return blocked;
 
     const body = await request.json().catch(() => ({}));
     const bodyRec = body as Record<string, unknown>;

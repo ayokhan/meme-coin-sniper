@@ -234,6 +234,13 @@ export async function runVipExpiryEmails(): Promise<VipExpiryEmailRunResult> {
         preSent += 1;
       } else {
         preFailed += 1;
+        const { logSystemError } = await import("@/lib/system-error-log");
+        await logSystemError({
+          source: "cron_vip_expiry_emails",
+          message: `VIP expiry pre-email failed`,
+          detail: email,
+          meta: { subscriptionId: sub.id, kind: "pre" },
+        });
       }
       await new Promise((r) => setTimeout(r, 150));
     }
@@ -279,6 +286,13 @@ export async function runVipExpiryEmails(): Promise<VipExpiryEmailRunResult> {
         postSent += 1;
       } else {
         postFailed += 1;
+        const { logSystemError } = await import("@/lib/system-error-log");
+        await logSystemError({
+          source: "cron_vip_expiry_emails",
+          message: `VIP expiry post-email failed`,
+          detail: email,
+          meta: { subscriptionId: sub.id, kind: "post" },
+        });
       }
       await new Promise((r) => setTimeout(r, 150));
     }
@@ -293,13 +307,24 @@ export async function runVipExpiryEmails(): Promise<VipExpiryEmailRunResult> {
     };
   } catch (e) {
     console.error("runVipExpiryEmails:", e);
+    const message = e instanceof Error ? e.message : "VIP expiry emails failed";
+    try {
+      const { logSystemError } = await import("@/lib/system-error-log");
+      await logSystemError({
+        source: "cron.vip-expiry-emails",
+        message,
+        detail: e instanceof Error ? e.stack : undefined,
+      });
+    } catch {
+      /* ignore logging failure */
+    }
     return {
       ok: false,
       preSent,
       postSent,
       preFailed,
       postFailed,
-      message: e instanceof Error ? e.message : "VIP expiry emails failed",
+      message,
     };
   }
 }

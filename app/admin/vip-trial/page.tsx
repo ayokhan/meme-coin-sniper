@@ -14,6 +14,7 @@ type Config = {
   trialDays: number;
   reminderHoursBefore: number;
   planIdAfterTrial: string;
+  dailyLimitPerDesk: number;
   updatedAt: string | null;
 };
 
@@ -52,6 +53,14 @@ type Survey = {
   createdAt: string;
 };
 
+type SystemError = {
+  id: string;
+  source: string;
+  message: string;
+  detail: string | null;
+  createdAt: string;
+};
+
 export default function AdminVipTrialPage() {
   const { data: session, status } = useSession();
   const isOwner = !!(session?.user as { isOwner?: boolean } | undefined)?.isOwner;
@@ -59,6 +68,7 @@ export default function AdminVipTrialPage() {
   const [signups, setSignups] = useState<Signup[]>([]);
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [systemErrors, setSystemErrors] = useState<SystemError[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -75,6 +85,7 @@ export default function AdminVipTrialPage() {
       setSignups(data.signups ?? []);
       setEmailLogs(data.emailLogs ?? []);
       setSurveys(data.surveys ?? []);
+      setSystemErrors(data.systemErrors ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -188,6 +199,19 @@ export default function AdminVipTrialPage() {
                   />
                 </label>
                 <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  Daily uses per desk (trial)
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={config.dailyLimitPerDesk ?? 5}
+                    onChange={(e) =>
+                      setConfig({ ...config, dailyLimitPerDesk: Number(e.target.value) })
+                    }
+                    className="text-sm border rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600"
+                  />
+                </label>
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
                   Plan after trial
                   <select
                     value={config.planIdAfterTrial}
@@ -202,6 +226,10 @@ export default function AdminVipTrialPage() {
                   </select>
                 </label>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                Trial users: {config.dailyLimitPerDesk ?? 5}/day each for AI Agent, Forecast, Forex, Radar, etc.
+                Paid VIP stays unlimited.
+              </p>
               <Button size="sm" disabled={saving} onClick={() => void save()}>
                 {saving ? "Saving…" : "Save settings"}
               </Button>
@@ -315,6 +343,41 @@ export default function AdminVipTrialPage() {
                   <p className="text-[11px] text-muted-foreground mt-1">
                     {new Date(s.createdAt).toLocaleString()}
                   </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">System / cron error log</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Failed trial/expiry emails and related ops errors. Also check Trial email log for per-recipient send
+            failures. Manual templates: Admin → Emails → VIP trial ending / invite.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {systemErrors.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No system errors logged yet.</p>
+          ) : (
+            <ul className="space-y-2 max-h-72 overflow-y-auto text-sm">
+              {systemErrors.map((e) => (
+                <li
+                  key={e.id}
+                  className="rounded-lg border border-rose-200/80 dark:border-rose-900/50 px-3 py-2"
+                >
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <span className="font-medium text-rose-800 dark:text-rose-200">{e.source}</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {new Date(e.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs mt-1">{e.message}</p>
+                  {e.detail ? (
+                    <p className="text-[11px] text-muted-foreground mt-0.5 break-words">{e.detail}</p>
+                  ) : null}
                 </li>
               ))}
             </ul>

@@ -28,6 +28,9 @@ export async function POST(request: Request) {
     if (!access.ok) {
       return NextResponse.json({ success: false, error: access.error, disabled: access.disabled }, { status: access.status });
     }
+    const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+    const blocked = await trialDeskLimitResponse(session?.user?.id, "nova_forex");
+    if (blocked) return blocked;
 
     const body = await request.json().catch(() => ({}));
     const symbolsParam = body.symbols ?? body.symbol ?? "XAUUSD";

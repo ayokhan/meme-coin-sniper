@@ -810,7 +810,37 @@ model VipTrialConfig {
   reminderHoursBefore   Int      @default(24)
   /** VIP plan billed after trial (must be a VIP_PLANS id). */
   planIdAfterTrial      String   @default("1month")
+  /** Max uses per desk per UTC day for trial users (AI Agent, Forecast, Forex, …). */
+  dailyLimitPerDesk     Int      @default(5)
   updatedAt             DateTime @updatedAt
+}
+
+/** Per-desk daily counters for VIP trial users (UTC day). */
+model TrialDeskUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  desk      String
+  /** YYYY-MM-DD UTC */
+  dayKey    String
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, desk, dayKey])
+  @@index([userId, dayKey])
+  @@index([desk, dayKey])
+}
+
+/** Owner-visible ops failures (cron email misses, send errors, etc.). */
+model SystemErrorLog {
+  id        String   @id @default(cuid())
+  source    String
+  message   String
+  detail    String?
+  meta      String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([source, createdAt(sort: Desc)])
 }
 
 /** Audit log for VIP trial lifecycle emails (owner can review). */

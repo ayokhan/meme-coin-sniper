@@ -12,15 +12,38 @@ const OVERLAY_PRIORITY: Record<DashboardOverlayId, number> = {
   "futures-onboarding": 50,
 };
 
+/** Marketing overlays — only one per browser session after dismiss (2FA / path-picker still ok). */
+const MARKETING_OVERLAYS: DashboardOverlayId[] = ["site-announcement", "futures-onboarding"];
+const SESSION_KEY = "novastaris-marketing-overlay-done";
+
 type OverlayContextValue = {
   activeOverlay: DashboardOverlayId | null;
   registerOverlay: (id: DashboardOverlayId, wantsOpen: boolean) => void;
+  markMarketingOverlayDone: () => void;
 };
 
 const OverlayContext = createContext<OverlayContextValue | null>(null);
 
 export function DashboardOverlayProvider({ children }: { children: React.ReactNode }) {
   const [claims, setClaims] = useState<Partial<Record<DashboardOverlayId, boolean>>>({});
+  const [marketingDone, setMarketingDone] = useState(false);
+
+  useEffect(() => {
+    try {
+      setMarketingDone(sessionStorage.getItem(SESSION_KEY) === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const markMarketingOverlayDone = useCallback(() => {
+    setMarketingDone(true);
+    try {
+      sessionStorage.setItem(SESSION_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const registerOverlay = useCallback((id: DashboardOverlayId, wantsOpen: boolean) => {
     setClaims((prev) => {
@@ -34,6 +57,7 @@ export function DashboardOverlayProvider({ children }: { children: React.ReactNo
     let best = -1;
     for (const [id, wants] of Object.entries(claims) as [DashboardOverlayId, boolean][]) {
       if (!wants) continue;
+      if (marketingDone && MARKETING_OVERLAYS.includes(id)) continue;
       const p = OVERLAY_PRIORITY[id];
       if (p > best) {
         best = p;
@@ -41,11 +65,11 @@ export function DashboardOverlayProvider({ children }: { children: React.ReactNo
       }
     }
     return winner;
-  }, [claims]);
+  }, [claims, marketingDone]);
 
   const value = useMemo(
-    () => ({ activeOverlay, registerOverlay }),
-    [activeOverlay, registerOverlay]
+    () => ({ activeOverlay, registerOverlay, markMarketingOverlayDone }),
+    [activeOverlay, registerOverlay, markMarketingOverlayDone]
   );
 
   return <OverlayContext.Provider value={value}>{children}</OverlayContext.Provider>;
@@ -63,4 +87,10 @@ export function useDashboardOverlay(id: DashboardOverlayId, wantsOpen: boolean):
 
   if (!ctx) return wantsOpen;
   return wantsOpen && ctx.activeOverlay === id;
+}
+
+/** Call when user dismisses site announcement / finishes futures onboarding. */
+export function useMarkMarketingOverlayDone(): () => void {
+  const ctx = useContext(OverlayContext);
+  return ctx?.markMarketingOverlayDone ?? (() => {});
 }

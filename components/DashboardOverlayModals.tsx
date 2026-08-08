@@ -2,7 +2,7 @@
 
 import DashboardPathPickerModal from "@/components/DashboardPathPickerModal";
 import FuturesOnboardingModal from "@/components/FuturesOnboardingModal";
-import { useDashboardOverlay } from "@/components/DashboardOverlayProvider";
+import { useDashboardOverlay, useMarkMarketingOverlayDone } from "@/components/DashboardOverlayProvider";
 import type { DashboardPathApplyOptions, DashboardPathApplyResult } from "@/lib/dashboard-onboarding";
 
 type PathPickerProps = {
@@ -27,5 +27,15 @@ type FuturesProps = {
 export function FuturesOnboardingOverlay({ activeTab, showPrompt, onClose, onGoNovaRadar }: FuturesProps) {
   const wantsOpen = activeTab === "futures" && showPrompt;
   const open = useDashboardOverlay("futures-onboarding", wantsOpen);
-  return <FuturesOnboardingModal open={open} onClose={onClose} onGoNovaRadar={onGoNovaRadar} />;
+  const markMarketingDone = useMarkMarketingOverlayDone();
+  return (
+    <FuturesOnboardingModal
+      open={open}
+      onClose={() => {
+        markMarketingDone();
+        onClose();
+      }}
+      onGoNovaRadar={onGoNovaRadar}
+    />
+  );
 }

@@ -38,12 +38,18 @@ export type NovaForecastItem = {
 /** GET - NovaForecast Agent: high/low and short/long entry for selected time range. VIP only. */
 export async function GET(request: Request) {
   try {
-    const { tier } = await getSessionAndSubscription();
+    const { tier, session } = await getSessionAndSubscription();
     if (tier !== "vip") {
       return NextResponse.json(
         { success: false, error: "NovaForecast Agent is for VIP subscribers.", locked: true },
         { status: 403 }
       );
+    }
+    const userId = session?.user?.id;
+    if (userId) {
+      const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+      const blocked = await trialDeskLimitResponse(userId, "nova_forecast");
+      if (blocked) return blocked;
     }
 
     const { searchParams } = new URL(request.url);

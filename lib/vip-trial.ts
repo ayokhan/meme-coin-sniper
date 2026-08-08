@@ -21,6 +21,8 @@ export type VipTrialConfigAdmin = {
   trialDays: number;
   reminderHoursBefore: number;
   planIdAfterTrial: string;
+  /** Max uses per desk per UTC day while on trial. */
+  dailyLimitPerDesk: number;
   updatedAt: string | null;
 };
 
@@ -43,6 +45,7 @@ const DEFAULT: VipTrialConfigAdmin = {
   trialDays: 2,
   reminderHoursBefore: 24,
   planIdAfterTrial: "1month",
+  dailyLimitPerDesk: 5,
   updatedAt: null,
 };
 
@@ -51,6 +54,7 @@ type ConfigRow = {
   trialDays: number;
   reminderHoursBefore: number;
   planIdAfterTrial: string;
+  dailyLimitPerDesk?: number;
   updatedAt: Date;
 };
 
@@ -65,12 +69,14 @@ type PrismaVipTrial = typeof prisma & {
         trialDays: number;
         reminderHoursBefore: number;
         planIdAfterTrial: string;
+        dailyLimitPerDesk: number;
       };
       update: {
         enabled?: boolean;
         trialDays?: number;
         reminderHoursBefore?: number;
         planIdAfterTrial?: string;
+        dailyLimitPerDesk?: number;
       };
     }) => Promise<ConfigRow>;
   };
@@ -155,6 +161,11 @@ function normalizePlanId(raw: string): VipPlanId {
   return "1month";
 }
 
+function clampDailyLimit(n: number): number {
+  if (!Number.isFinite(n)) return DEFAULT.dailyLimitPerDesk;
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
 export async function getVipTrialConfig(): Promise<VipTrialConfigAdmin> {
   const db = cfgDb();
   if (!db) return { ...DEFAULT };
@@ -166,6 +177,7 @@ export async function getVipTrialConfig(): Promise<VipTrialConfigAdmin> {
       trialDays: clampTrialDays(row.trialDays),
       reminderHoursBefore: clampReminderHours(row.reminderHoursBefore),
       planIdAfterTrial: normalizePlanId(row.planIdAfterTrial),
+      dailyLimitPerDesk: clampDailyLimit(row.dailyLimitPerDesk ?? DEFAULT.dailyLimitPerDesk),
       updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : null,
     };
   } catch {
@@ -178,6 +190,7 @@ export async function setVipTrialConfig(patch: {
   trialDays?: number;
   reminderHoursBefore?: number;
   planIdAfterTrial?: string;
+  dailyLimitPerDesk?: number;
 }): Promise<VipTrialConfigAdmin> {
   const db = cfgDb();
   if (!db) throw new Error("VipTrialConfig model unavailable — run prisma migrate.");
@@ -191,6 +204,10 @@ export async function setVipTrialConfig(patch: {
         : current.reminderHoursBefore,
     planIdAfterTrial:
       patch.planIdAfterTrial != null ? normalizePlanId(patch.planIdAfterTrial) : current.planIdAfterTrial,
+    dailyLimitPerDesk:
+      patch.dailyLimitPerDesk != null
+        ? clampDailyLimit(patch.dailyLimitPerDesk)
+        : current.dailyLimitPerDesk,
   };
   await db.upsert({
     where: { id: VIP_TRIAL_CONFIG_ID },
@@ -289,6 +306,64 @@ ${app}`,
     ctaUrl: `${app}/subscribe`,
   };
 }
+
+/** Admin Emails preset — blast free users about card-required VIP trial. */
+export function buildVipTrialInviteEmail(input: {
+  trialDays: number;
+  reminderHoursBefore: number;
+  planLabel: string;
+  planPriceUsd: number;
+}): { subject: string; body: string; ctaLabel: string; ctaUrl: string } {
+  const app = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
+  return {
+    subject: `Try NovaStaris VIP free for ${input.trialDays} days`,
+    body: `Hi there,
+
+VIP desks (NovaForecast, Nova Forex, CT Scan, wallets, and more) are easier to understand when you can try them.
+
+We’re offering a ${input.trialDays}-day VIP trial:
+
+• Card required (so you can cancel anytime)
+• Full VIP desks during the trial
+• We’ll email you about ${input.reminderHoursBefore} hours before the trial ends
+• If you don’t cancel, you’re billed for ${input.planLabel} ($${input.planPriceUsd} + card fee) and VIP renews until you turn it off
+
+Start your trial:
+${app}/subscribe?trial=1
+
+Prefer to explore first? Open Start here:
+${app}/start-here
+
+Need help? Use Chat or Support in the app — this inbox is not monitored.
+
+— The NovaStaris team
+${app}`,
+    ctaLabel: `Start ${input.trialDays}-day VIP trial`,
+    ctaUrl: `${app}/subscribe?trial=1`,
+  };
+}
+
+/** Soft template for Admin → Emails (manual send / test) — trial ending reminder. */
+export const VIP_TRIAL_REMINDER_EMAIL_PRESET = {
+  subject: "Reminder: your NovaStaris VIP trial ends soon",
+  body: `Hi there,
+
+Your NovaStaris VIP trial ends soon (check Account / Subscribe for your exact time).
+
+If you do nothing, your card will be charged and VIP will renew automatically until you cancel.
+
+Want to stop before you’re charged? Open Subscribe and turn off auto-renew / cancel before the trial ends. You’ll keep VIP until the trial end time, then access pauses — no further charges.
+
+Cancel / manage:
+https://novastaris.ai/subscribe
+
+Need help? Use Chat or Support in the app — this inbox is not monitored.
+
+— The NovaStaris team
+https://novastaris.ai`,
+  ctaLabel: "Manage VIP / cancel",
+  ctaUrl: "https://novastaris.ai/subscribe",
+} as const;
 
 export async function logVipTrialEmail(input: {
   userId?: string | null;
@@ -396,6 +471,13 @@ export async function runVipTrialReminderEmails(): Promise<{
           success: false,
           error: result.error ?? "send failed",
         });
+        const { logSystemError } = await import("@/lib/system-error-log");
+        await logSystemError({
+          source: "cron_vip_trial_emails",
+          message: `Trial reminder failed for ${email}`,
+          detail: result.error ?? "send failed",
+          meta: { subscriptionId: row.id, userId: row.userId },
+        });
       }
     } catch (e) {
       failed += 1;
@@ -406,6 +488,12 @@ export async function runVipTrialReminderEmails(): Promise<{
         kind: "trial_reminder",
         success: false,
         error: e instanceof Error ? e.message : "send failed",
+      });
+      const { logSystemError } = await import("@/lib/system-error-log");
+      await logSystemError({
+        source: "cron_vip_trial_emails",
+        message: `Trial reminder exception for ${email}`,
+        detail: e instanceof Error ? e.message : "send failed",
       });
     }
   }

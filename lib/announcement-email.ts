@@ -28,9 +28,15 @@ export type AnnouncementEmailStats = {
   freeEmails: string[];
   vipEmails: string[];
   inactive7dEmails: string[];
+  /** Active VIP trial (isTrial + not expired). */
+  trialEmails: string[];
+  /** Trial ending within ~36h (or already past reminder window). */
+  trialExpiringEmails: string[];
   freeCount: number;
   vipCount: number;
   inactive7dCount: number;
+  trialCount: number;
+  trialExpiringCount: number;
 };
 
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
@@ -506,12 +512,16 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
   const freeEmails: string[] = [];
   const vipEmails: string[] = [];
   const inactive7dEmails: string[] = [];
+  const trialEmails: string[] = [];
+  const trialExpiringEmails: string[] = [];
   const allSet = new Set<string>();
   const newsletterSet = new Set<string>();
   const recentSet = new Set<string>();
   const freeSet = new Set<string>();
   const vipSet = new Set<string>();
   const inactiveSet = new Set<string>();
+  const trialSet = new Set<string>();
+  const trialExpiringSet = new Set<string>();
 
   const userIdByEmail = new Map<string, string>();
   for (const u of users) {
@@ -540,20 +550,38 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
 
   // Active VIP: subscription with expiresAt > now (or no expires if present as legacy active)
   let vipUserIds = new Set<string>();
+  const trialUserIds = new Set<string>();
+  const trialExpiringUserIds = new Set<string>();
   try {
     const subs = await (
       prisma as unknown as {
         subscription: {
-          findMany: (args: unknown) => Promise<Array<{ userId: string; expiresAt: Date | null }>>;
+          findMany: (args: unknown) => Promise<
+            Array<{
+              userId: string;
+              expiresAt: Date | null;
+              isTrial?: boolean;
+              trialEndsAt?: Date | null;
+            }>
+          >;
         };
       }
     ).subscription.findMany({
       where: {
         OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
-      select: { userId: true, expiresAt: true },
+      select: { userId: true, expiresAt: true, isTrial: true, trialEndsAt: true },
     });
     vipUserIds = new Set(subs.map((s) => s.userId));
+    const expireSoon = now.getTime() + 36 * 60 * 60 * 1000;
+    for (const s of subs) {
+      if (!s.isTrial) continue;
+      trialUserIds.add(s.userId);
+      const end = s.trialEndsAt ?? s.expiresAt;
+      if (end && end.getTime() <= expireSoon) {
+        trialExpiringUserIds.add(s.userId);
+      }
+    }
   } catch {
     /* optional */
   }
@@ -597,6 +625,15 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
       freeEmails.push(email);
     }
 
+    if (trialUserIds.has(u.id) && !trialSet.has(email)) {
+      trialSet.add(email);
+      trialEmails.push(email);
+    }
+    if (trialExpiringUserIds.has(u.id) && !trialExpiringSet.has(email)) {
+      trialExpiringSet.add(email);
+      trialExpiringEmails.push(email);
+    }
+
     const lastLogin = lastLoginByUser.get(u.id);
     const createdMs = u.createdAt instanceof Date ? u.createdAt.getTime() : new Date(u.createdAt).getTime();
     const lastActive = lastLogin ?? createdMs;
@@ -611,6 +648,8 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
   freeEmails.sort();
   vipEmails.sort();
   inactive7dEmails.sort();
+  trialEmails.sort();
+  trialExpiringEmails.sort();
 
   return {
     newsletterCount: newsletterEmails.length,
@@ -621,9 +660,13 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
     freeEmails,
     vipEmails,
     inactive7dEmails,
+    trialEmails,
+    trialExpiringEmails,
     freeCount: freeEmails.length,
     vipCount: vipEmails.length,
     inactive7dCount: inactive7dEmails.length,
+    trialCount: trialEmails.length,
+    trialExpiringCount: trialExpiringEmails.length,
   };
 }
 

@@ -8,6 +8,8 @@ import {
   listVipTrialSignups,
   setVipTrialConfig,
 } from "@/lib/vip-trial";
+import { listSystemErrorLogs } from "@/lib/system-error-log";
+import { TRIAL_DESKS } from "@/lib/trial-desk-quota";
 
 export const dynamic = "force-dynamic";
 
@@ -27,16 +29,18 @@ export async function GET() {
     return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
   }
 
-  const [config, signups, emailLogs, surveys] = await Promise.all([
+  const [config, signups, emailLogs, surveys, systemErrors] = await Promise.all([
     getVipTrialConfig(),
     listVipTrialSignups(80),
     listVipTrialEmailLogs(80),
     listVipCancelSurveys(80),
+    listSystemErrorLogs(80),
   ]);
 
   return NextResponse.json({
     success: true,
     config,
+    trialDesks: TRIAL_DESKS,
     signups: signups.map((s) => ({
       id: s.id,
       userId: s.userId,
@@ -80,6 +84,14 @@ export async function GET() {
       wasTrial: s.wasTrial,
       createdAt: s.createdAt.toISOString(),
     })),
+    systemErrors: systemErrors.map((e) => ({
+      id: e.id,
+      source: e.source,
+      message: e.message,
+      detail: e.detail,
+      meta: e.meta,
+      createdAt: e.createdAt.toISOString(),
+    })),
   });
 }
 
@@ -92,13 +104,15 @@ export async function PATCH(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   try {
-    const config = await setVipTrialConfig({
+      const config = await setVipTrialConfig({
       enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
       trialDays: body.trialDays != null ? Number(body.trialDays) : undefined,
       reminderHoursBefore:
         body.reminderHoursBefore != null ? Number(body.reminderHoursBefore) : undefined,
       planIdAfterTrial:
         typeof body.planIdAfterTrial === "string" ? body.planIdAfterTrial : undefined,
+      dailyLimitPerDesk:
+        body.dailyLimitPerDesk != null ? Number(body.dailyLimitPerDesk) : undefined,
     });
     return NextResponse.json({ success: true, config });
   } catch (e) {

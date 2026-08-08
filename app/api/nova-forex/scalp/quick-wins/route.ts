@@ -30,6 +30,9 @@ export async function GET(request: Request) {
         { status: access.status }
       );
     }
+    const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+    const blocked = await trialDeskLimitResponse(session?.user?.id, "nova_forex");
+    if (blocked) return blocked;
 
     const url = new URL(request.url);
     const rawTf = url.searchParams.get("timeframe")?.trim() ?? "5m";

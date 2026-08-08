@@ -35,6 +35,10 @@ export async function POST(request: Request) {
       { status: access.status },
     );
   }
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+  const blocked = await trialDeskLimitResponse(userId, "wallets");
+  if (blocked) return blocked;
 
   let body: { address?: string; chain?: string; period?: string };
   try {

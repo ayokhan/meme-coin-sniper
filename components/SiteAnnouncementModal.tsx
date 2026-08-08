@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PartnerLogosStrip } from "@/components/PartnerLogosStrip";
 import type { SiteAnnouncementBannerAdmin } from "@/lib/site-announcement-banner";
 import { DEFAULT_SITE_ANNOUNCEMENT } from "@/lib/site-announcement-banner";
-import { useDashboardOverlay } from "@/components/DashboardOverlayProvider";
+import { useDashboardOverlay, useMarkMarketingOverlayDone } from "@/components/DashboardOverlayProvider";
 
 export const SITE_ANNOUNCEMENT_DISMISS_KEY = "novastaris_site_announcement_dismissed_at";
 export const SITE_ANNOUNCEMENT_LATER_KEY = "novastaris_site_announcement_later_at";
@@ -150,16 +150,19 @@ export function SiteAnnouncementHost() {
   const [wantsOpen, setWantsOpen] = useState(false);
   const [banner, setBanner] = useState<SiteAnnouncementBannerAdmin | null>(null);
   const open = useDashboardOverlay("site-announcement", wantsOpen);
+  const markMarketingDone = useMarkMarketingOverlayDone();
 
   const closeLater = useCallback(() => {
     if (banner?.updatedAt) dismissSiteAnnouncementLater(banner.updatedAt);
+    markMarketingDone();
     setWantsOpen(false);
-  }, [banner?.updatedAt]);
+  }, [banner?.updatedAt, markMarketingDone]);
 
   const closePermanent = useCallback(() => {
     if (banner?.updatedAt) dismissSiteAnnouncementPermanent(banner.updatedAt);
+    markMarketingDone();
     setWantsOpen(false);
-  }, [banner?.updatedAt]);
+  }, [banner?.updatedAt, markMarketingDone]);
 
   useEffect(() => {
     if (status !== "authenticated") return;

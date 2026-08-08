@@ -33,9 +33,13 @@ type EmailStats = {
   freeEmails?: string[];
   vipEmails?: string[];
   inactive7dEmails?: string[];
+  trialEmails?: string[];
+  trialExpiringEmails?: string[];
   freeCount?: number;
   vipCount?: number;
   inactive7dCount?: number;
+  trialCount?: number;
+  trialExpiringCount?: number;
 };
 
 type CampaignRow = {
@@ -61,7 +65,7 @@ type WelcomeLogRow = {
   createdAt: string;
 };
 
-type AudienceMode = "newsletter" | "all" | "new" | "free" | "vip" | "inactive7d";
+type AudienceMode = "newsletter" | "all" | "new" | "free" | "vip" | "inactive7d" | "trial" | "trial-expiring";
 
 type Props = {
   onNotice?: (msg: string) => void;
@@ -128,6 +132,13 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           freeEmails: Array.isArray(s.freeEmails) ? s.freeEmails : [],
           vipEmails: Array.isArray(s.vipEmails) ? s.vipEmails : [],
           inactive7dEmails: Array.isArray(s.inactive7dEmails) ? s.inactive7dEmails : [],
+          trialEmails: Array.isArray(s.trialEmails) ? s.trialEmails : [],
+          trialExpiringEmails: Array.isArray(s.trialExpiringEmails) ? s.trialExpiringEmails : [],
+          freeCount: s.freeCount,
+          vipCount: s.vipCount,
+          inactive7dCount: s.inactive7dCount,
+          trialCount: s.trialCount,
+          trialExpiringCount: s.trialExpiringCount,
         });
         setCampaigns(Array.isArray(data.campaigns) ? (data.campaigns as CampaignRow[]) : []);
         setWelcomeLogs(Array.isArray(data.welcomeLogs) ? (data.welcomeLogs as WelcomeLogRow[]) : []);
@@ -287,7 +298,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             ? stats.vipEmails ?? []
             : draft.audience === "inactive7d"
               ? stats.inactive7dEmails ?? []
-              : stats.allEmails;
+              : draft.audience === "trial"
+                ? stats.trialEmails ?? []
+                : draft.audience === "trial-expiring"
+                  ? stats.trialExpiringEmails ?? []
+                  : stats.allEmails;
     setRecipients([...list]);
   }, [draft.audience, stats, recipientsLocked]);
 
@@ -559,6 +574,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               <strong>{stats?.allEmailCount ?? 0}</strong> with email ·{" "}
               <strong>{stats?.freeCount ?? stats?.freeEmails?.length ?? 0}</strong> free ·{" "}
               <strong>{stats?.vipCount ?? stats?.vipEmails?.length ?? 0}</strong> VIP ·{" "}
+              <strong>{stats?.trialCount ?? stats?.trialEmails?.length ?? 0}</strong> on trial ·{" "}
+              <strong>{stats?.trialExpiringCount ?? stats?.trialExpiringEmails?.length ?? 0}</strong> trial ending soon ·{" "}
               <strong>{stats?.inactive7dCount ?? stats?.inactive7dEmails?.length ?? 0}</strong> inactive 7d ·{" "}
               <strong>{stats?.recentRegistrants?.length ?? 0}</strong> new (30d) (
               <Link href="/admin/customers" className="underline text-teal-700 dark:text-teal-300">
@@ -582,6 +599,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               <option value="free">Free users (no active VIP)</option>
               <option value="vip">VIP subscribers (active)</option>
               <option value="inactive7d">Inactive 7+ days</option>
+              <option value="trial">On VIP trial</option>
+              <option value="trial-expiring">Trial ending soon (~36h)</option>
               <option value="new">Newly registered (select below)</option>
             </select>
           </label>
@@ -716,7 +735,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                             ? stats.vipEmails ?? []
                             : draft.audience === "inactive7d"
                               ? stats.inactive7dEmails ?? []
-                              : stats.allEmails;
+                              : draft.audience === "trial"
+                                ? stats.trialEmails ?? []
+                                : draft.audience === "trial-expiring"
+                                  ? stats.trialExpiringEmails ?? []
+                                  : stats.allEmails;
                     setRecipients([...list]);
                   }}
                 >

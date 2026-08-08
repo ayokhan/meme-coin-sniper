@@ -429,7 +429,24 @@ export async function assertAiAgentAccess(
     };
   }
 
-  if (isPaid || isOwnerSession(session as Parameters<typeof isOwnerSession>[0])) {
+  if (isOwnerSession(session as Parameters<typeof isOwnerSession>[0])) {
+    return { ok: true, unlimited: true };
+  }
+
+  if (isPaid) {
+    const { assertTrialDeskAccess, userIsOnVipTrial } = await import("@/lib/trial-desk-quota");
+    if (await userIsOnVipTrial(userId)) {
+      const trial = await assertTrialDeskAccess(userId, "ai_agent", { record: true });
+      if (!trial.ok) {
+        return {
+          ok: false,
+          status: trial.status,
+          error: trial.error,
+          locked: false,
+        };
+      }
+      return { ok: true, unlimited: false };
+    }
     return { ok: true, unlimited: true };
   }
 

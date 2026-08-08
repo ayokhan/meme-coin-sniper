@@ -31,6 +31,10 @@ export async function GET() {
     if (tier !== 'vip' || !canAccessCtScan(session)) {
       return NextResponse.json({ success: false, error: 'VIP + on-demand access required for Twitter scan.', locked: true }, { status: 403 });
     }
+    const userId = (session?.user as { id?: string } | undefined)?.id;
+    const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+    const blocked = await trialDeskLimitResponse(userId, "ct");
+    if (blocked) return blocked;
     if (!process.env.APIFY_API_TOKEN) {
       return NextResponse.json({
         success: false,

@@ -9,6 +9,10 @@ import { WELCOME_EMAIL } from "@/lib/welcome-email";
 import { VIP_SOFT_PITCH_EMAIL } from "@/lib/vip-pitch-email";
 import { VIP_EXPIRY_POST_EMAIL, VIP_EXPIRY_PRE_EMAIL } from "@/lib/vip-expiry-email";
 import {
+  VIP_TRIAL_REMINDER_EMAIL_PRESET,
+  buildVipTrialInviteEmail,
+} from "@/lib/vip-trial";
+import {
   PATH_DEEPDIVE_FOREX_EMAIL,
   PATH_DEEPDIVE_FUTURES_EMAIL,
   PATH_DEEPDIVE_MEME_EMAIL,
@@ -34,6 +38,8 @@ export type AdminEmailPresetId =
   | "deepdive-wallets"
   | "deepdive-polymarket"
   | "vip-soft-pitch"
+  | "vip-trial-invite"
+  | "vip-trial-ending"
   | "strategy-call"
   | "paid-strategy-call"
   | "paid-strategy-schedule"
@@ -60,7 +66,7 @@ export type AdminEmailPreset = {
   ctaLabel: string;
   ctaUrl: string;
   /** Suggested audience when loading this preset */
-  defaultAudience?: "newsletter" | "all" | "new" | "free" | "vip" | "inactive7d";
+  defaultAudience?: "newsletter" | "all" | "new" | "free" | "vip" | "inactive7d" | "trial" | "trial-expiring";
 };
 
 const FOREX_BOTS = "https://novastaris.ai/?tab=nova-forex-bot";
@@ -70,6 +76,12 @@ const START_HERE = "https://novastaris.ai/start-here";
 const STRATEGY_CALL = buildStrategyCallEmail("");
 const PAID_STRATEGY = buildPaidStrategyCallMarketingEmail();
 const PAID_STRATEGY_SCHEDULE = buildPaidStrategyCallScheduleEmail();
+const VIP_TRIAL_INVITE = buildVipTrialInviteEmail({
+  trialDays: 2,
+  reminderHoursBefore: 24,
+  planLabel: "1 month",
+  planPriceUsd: 150,
+});
 
 export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   {
@@ -162,6 +174,32 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     ctaLabel: VIP_SOFT_PITCH_EMAIL.ctaLabel,
     ctaUrl: VIP_SOFT_PITCH_EMAIL.ctaUrl,
     defaultAudience: "free",
+  },
+  {
+    id: "vip-trial-invite",
+    label: "VIP trial invite (existing free users)",
+    blurb: "Rich footer — card-required trial CTA for registered free users",
+    subject: VIP_TRIAL_INVITE.subject,
+    body: VIP_TRIAL_INVITE.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: VIP_TRIAL_INVITE.ctaLabel,
+    ctaUrl: VIP_TRIAL_INVITE.ctaUrl,
+    defaultAudience: "free",
+  },
+  {
+    id: "vip-trial-ending",
+    label: "VIP trial ending reminder",
+    blurb: "Manual send if cron fails — same copy as auto reminder",
+    subject: VIP_TRIAL_REMINDER_EMAIL_PRESET.subject,
+    body: VIP_TRIAL_REMINDER_EMAIL_PRESET.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: VIP_TRIAL_REMINDER_EMAIL_PRESET.ctaLabel,
+    ctaUrl: VIP_TRIAL_REMINDER_EMAIL_PRESET.ctaUrl,
+    defaultAudience: "trial-expiring",
   },
   {
     id: "strategy-call",
