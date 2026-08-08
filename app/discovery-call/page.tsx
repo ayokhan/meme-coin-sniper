@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
 import { CalendarDays, Zap } from "lucide-react";
 import SiteInstagramFooter from "@/components/SiteInstagramFooter";
+import { authOptions } from "@/lib/auth";
 import {
   DEFAULT_STRATEGY_CALL_BOOKING_URL,
   getStrategyCallBookingUrl,
@@ -16,12 +18,16 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+const PAGE_PATH = "/discovery-call";
+
 export default async function DiscoveryCallPage() {
-  const [bookingUrl, promoted] = await Promise.all([
+  const [session, bookingUrl, promoted] = await Promise.all([
+    getServerSession(authOptions),
     getStrategyCallBookingUrl(),
     isStrategyCallPromoted(),
   ]);
   const calendlyUrl = bookingUrl || DEFAULT_STRATEGY_CALL_BOOKING_URL;
+  const signedIn = !!session?.user;
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -82,20 +88,46 @@ export default async function DiscoveryCallPage() {
         </section>
 
         {promoted ? (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <a
-              href={calendlyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-5 py-3 transition-colors"
-            >
-              <CalendarDays className="h-4 w-4" aria-hidden />
-              Book a Discovery call
-            </a>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-              Opens our booking calendar in a new tab. You can reschedule or cancel from the same link.
-            </p>
-          </div>
+          signedIn ? (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <a
+                href={calendlyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-5 py-3 transition-colors"
+              >
+                <CalendarDays className="h-4 w-4" aria-hidden />
+                Book a Discovery call
+              </a>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
+                Opens our booking calendar in a new tab. You can reschedule or cancel from the same link.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-teal-200/70 dark:border-teal-800/40 bg-white dark:bg-zinc-900/80 p-5 sm:p-6 space-y-3">
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                Sign in to book a Discovery call
+              </p>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Discovery calls are for registered NovaStaris members so we can follow up on your account and path.
+                Create a free account (no card required), then return here to book.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Link
+                  href={`/signin?callbackUrl=${encodeURIComponent(PAGE_PATH)}`}
+                  className="inline-flex items-center justify-center rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-5 py-2.5 transition-colors"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href={`/register?callbackUrl=${encodeURIComponent(PAGE_PATH)}`}
+                  className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200 text-sm font-medium px-5 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors"
+                >
+                  Create free account
+                </Link>
+              </div>
+            </div>
+          )
         ) : (
           <p className="text-sm text-zinc-600 dark:text-zinc-400 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 px-4 py-3">
             Discovery calls are not available at the moment. Use{" "}
