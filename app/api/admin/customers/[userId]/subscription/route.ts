@@ -70,7 +70,10 @@ export async function POST(
       return NextResponse.json({ success: false, error: "User ID required." }, { status: 400 });
     }
 
-    const rawBody = (await request.json().catch(() => ({}))) as Partial<Body>;
+    const rawBody = (await request.json().catch(() => ({}))) as Partial<Body> & {
+      grant?: string;
+      limited?: boolean;
+    };
     const action = rawBody.action;
 
     if (action === "clear") {
