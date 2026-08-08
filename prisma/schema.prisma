@@ -161,6 +161,8 @@ model User {
   aiAgentOnboardingCompletedAt       DateTime?
   /** When user accepted Payment Terms and Conditions (required before any subscription payment). */
   paymentTermsAcceptedAt     DateTime?
+  /** Set when user starts a card-required VIP trial (one trial per account). */
+  vipTrialUsedAt             DateTime?
   /** Optional 2FA: "totp" (authenticator app) or "email". Null = disabled. */
   twoFactorMethod            String?
   totpSecretEncrypted        String?
@@ -170,6 +172,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   subscriptions Subscription[]
+  vipCancelSurveys VipCancelSurvey[]
   pinnedTokens  PinnedToken[]
   novaInvestmentAgentPortfolioPins NovaInvestmentAgentPortfolioPin[]
   userTelegram  UserTelegram?
@@ -783,12 +786,65 @@ model Subscription {
   expiryPreEmailSentAt  DateTime?
   /** Soft “VIP ended” win-back email — send once shortly after expiry. */
   expiryPostEmailSentAt DateTime?
+  /** Card-required VIP trial (Stripe trialing). */
+  isTrial                   Boolean   @default(false)
+  trialEndsAt               DateTime?
+  trialReminderEmailSentAt  DateTime?
   createdAt         DateTime @default(now())
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   referralCommission ReferralCommission?
+  cancelSurvey      VipCancelSurvey?
   @@unique([stripeSessionId])
   @@index([userId])
   @@index([expiresAt])
+  @@index([isTrial, trialEndsAt])
+}
+
+/** Owner-configurable card-required VIP trial (Stripe trial_period_days). */
+model VipTrialConfig {
+  id                    String   @id @default("default")
+  enabled               Boolean  @default(false)
+  /** Days of free VIP before first charge (Stripe trial_period_days). */
+  trialDays             Int      @default(2)
+  /** Hours before trialEndsAt to send cancel reminder (default 24). */
+  reminderHoursBefore   Int      @default(24)
+  /** VIP plan billed after trial (must be a VIP_PLANS id). */
+  planIdAfterTrial      String   @default("1month")
+  updatedAt             DateTime @updatedAt
+}
+
+/** Audit log for VIP trial lifecycle emails (owner can review). */
+model VipTrialEmailLog {
+  id             String   @id @default(cuid())
+  userId         String?
+  email          String
+  subscriptionId String?
+  kind           String   // trial_reminder | trial_started (future)
+  success        Boolean  @default(true)
+  error          String?
+  meta           String?  // JSON: trialDays, trialEndsAt, etc.
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([email])
+  @@index([userId])
+  @@index([kind, createdAt(sort: Desc)])
+}
+
+/** Why a user cancelled auto-renew (trial or paid). */
+model VipCancelSurvey {
+  id             String   @id @default(cuid())
+  userId         String
+  subscriptionId String?  @unique
+  reasons        String   // JSON string array
+  comment        String   @default("")
+  wasTrial       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([userId])
 }
 
 /** Affiliate commission when a referred user pays for VIP. Owner marks paid after weekly Friday payout. */

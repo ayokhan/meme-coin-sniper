@@ -4,7 +4,9 @@ import { prisma } from "@/lib/db";
 import {
   periodEndFromStripeSubscription,
   setStripeCustomerId,
+  trialEndFromStripeSubscription,
   upsertSubscriptionFromStripePeriod,
+  vipAccessEndFromStripeSubscription,
 } from "@/lib/stripe-billing";
 import { VIP_PLANS, findPlanByListOrCardAmount } from "@/lib/subscription";
 import { recordReferralCommissionForSubscription } from "@/lib/referral-commission";
@@ -14,6 +16,7 @@ import {
   recordBillingInvoiceFromCheckout,
   recordBillingInvoiceFromSubscriptionRow,
 } from "@/lib/billing-invoices";
+import { logVipTrialEmail } from "@/lib/vip-trial";
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
@@ -345,15 +348,51 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const customerId = typeof stripeSub.customer === "string" ? stripeSub.customer : stripeSub.customer?.id;
     if (customerId) await setStripeCustomerId(userId, customerId);
 
+    const isTrial =
+      stripeSub.status === "trialing" ||
+      session.metadata?.vipTrial === "true" ||
+      stripeSub.metadata?.vipTrial === "true";
+    const trialEndsAt = trialEndFromStripeSubscription(stripeSub);
+    const periodEnd = vipAccessEndFromStripeSubscription(stripeSub);
+
     await upsertSubscriptionFromStripePeriod({
       userId,
       planId: plan.id,
       amountUsd: amountUsd || plan.priceUsd,
-      periodEnd: periodEndFromStripeSubscription(stripeSub),
+      periodEnd,
       stripeSessionId: session.id,
       stripeSubscriptionId: stripeSub.id,
       autoRenew: true,
+      isTrial,
+      trialEndsAt,
     });
+
+    if (isTrial) {
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { vipTrialUsedAt: new Date() } as Record<string, unknown>,
+        });
+      } catch (e) {
+        console.warn("Stripe webhook: could not set vipTrialUsedAt", e);
+      }
+      const userEmail = (
+        await prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
+      )?.email;
+      if (userEmail) {
+        await logVipTrialEmail({
+          userId,
+          email: userEmail,
+          kind: "trial_started",
+          success: true,
+          meta: {
+            planId: plan.id,
+            trialEndsAt: trialEndsAt?.toISOString() ?? null,
+            stripeSubscriptionId: stripeSub.id,
+          },
+        });
+      }
+    }
   } else {
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + plan.months);
@@ -459,27 +498,43 @@ async function syncStripeSubscription(stripeSub: Stripe.Subscription) {
   const plan = resolvePlan(planId, 0, 0);
 
   if (!subRow && userId && plan) {
+    const isTrial =
+      stripeSub.status === "trialing" || stripeSub.metadata?.vipTrial === "true";
     await upsertSubscriptionFromStripePeriod({
       userId,
       planId: plan.id,
       amountUsd: plan.priceUsd,
-      periodEnd: periodEndFromStripeSubscription(stripeSub),
+      periodEnd: vipAccessEndFromStripeSubscription(stripeSub),
       stripeSubscriptionId: stripeSub.id,
       autoRenew: stripeSub.status === "active" || stripeSub.status === "trialing",
+      isTrial,
+      trialEndsAt: trialEndFromStripeSubscription(stripeSub),
     });
     subRow = await db.subscription.findFirst({ where: { stripeSubscriptionId: stripeSub.id } });
   }
 
   if (!subRow) return;
 
+  const stillTrial = stripeSub.status === "trialing";
   await db.subscription.update({
     where: { id: subRow.id },
     data: {
-      expiresAt: periodEndFromStripeSubscription(stripeSub),
+      expiresAt: vipAccessEndFromStripeSubscription(stripeSub),
       autoRenew: stripeSub.status === "active" || stripeSub.status === "trialing",
       cancelAtPeriodEnd: stripeSub.cancel_at_period_end ?? false,
+      isTrial: stillTrial,
+      trialEndsAt: stillTrial ? trialEndFromStripeSubscription(stripeSub) : null,
     },
   });
+
+  // First paid invoice after trial — create referral commission if missing.
+  if (!stillTrial && stripeSub.status === "active") {
+    try {
+      await recordReferralCommissionForSubscription(subRow.id);
+    } catch {
+      /* already exists or not eligible */
+    }
+  }
 }
 
 /** POST - Stripe webhook: checkout, renewals, subscription lifecycle. */

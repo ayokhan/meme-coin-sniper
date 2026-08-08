@@ -157,6 +157,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     ownerOnly: true,
   },
   {
+    href: "/admin/vip-trial",
+    label: "VIP trial",
+    description: "Trial days, signups, reminder emails, cancel surveys",
+    icon: Gift,
+    group: "product",
+    ownerOnly: true,
+  },
+  {
     href: "/admin/demo-sessions",
     label: "Demo sessions",
     description: "Free Zoom/Meet registration forms & emails",

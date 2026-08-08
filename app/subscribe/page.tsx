@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, CreditCard } from "lucide-react";
 import { CARD_PAYMENT_FEE_USD, getCardPriceUsd } from "@/lib/subscription";
 import VipExpiryBanner from "@/components/VipExpiryBanner";
+import VipCancelSurveyDialog from "@/components/VipCancelSurveyDialog";
 import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 import {
   SICKKIDS_FOUNDATION_URL,
@@ -55,9 +56,20 @@ function SubscribeContent() {
   const [hasStripeCustomer, setHasStripeCustomer] = useState(false);
   const [billingActionLoading, setBillingActionLoading] = useState(false);
   const [billingMessage, setBillingMessage] = useState("");
+  const [cancelSurveyOpen, setCancelSurveyOpen] = useState(false);
   const [vipExpiryBannerDismissed, setVipExpiryBannerDismissed] = useState(true);
   const [payByCardEnabled, setPayByCardEnabled] = useState(true);
   const [payByUsdcEnabled, setPayByUsdcEnabled] = useState(true);
+  const [trialOffer, setTrialOffer] = useState<{
+    enabled: boolean;
+    trialDays: number;
+    reminderHoursBefore: number;
+    planLabel: string;
+    planPriceUsd: number;
+    eligible: boolean;
+  } | null>(null);
+  const [trialLoading, setTrialLoading] = useState(false);
+  const wantTrial = searchParams.get("trial") === "1";
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -102,6 +114,25 @@ function SubscribeContent() {
       }
     })();
   }, [status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/vip-trial", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success && d.offer) {
+          setTrialOffer({
+            enabled: !!d.offer.enabled,
+            trialDays: d.offer.trialDays,
+            reminderHoursBefore: d.offer.reminderHoursBefore,
+            planLabel: d.offer.planLabel,
+            planPriceUsd: d.offer.planPriceUsd,
+            eligible: !!d.offer.eligible,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [status, paid]);
 
   useEffect(() => {
     const success = searchParams.get("success");
@@ -211,6 +242,39 @@ function SubscribeContent() {
     }
   };
 
+  const handleStartTrial = async () => {
+    if (!termsAcceptedForPayment) {
+      setCardError("Accept the Payment Terms above to start your trial.");
+      return;
+    }
+    setCardError("");
+    setTrialLoading(true);
+    try {
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startTrial: true,
+          successUrl:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/subscribe?success=1&trial=1`
+              : undefined,
+          cancelUrl: typeof window !== "undefined" ? `${window.location.origin}/subscribe?trial=1` : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setCardError(data.error || "Could not start trial checkout.");
+    } catch {
+      setCardError("Request failed. Try again.");
+    } finally {
+      setTrialLoading(false);
+    }
+  };
+
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setVerifyError("");
@@ -287,6 +351,32 @@ function SubscribeContent() {
   if (showActiveOnlyView) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-3 sm:px-4 py-6">
+        <VipCancelSurveyDialog
+          open={cancelSurveyOpen}
+          loading={billingActionLoading}
+          onClose={() => setCancelSurveyOpen(false)}
+          onConfirm={async ({ reasons, comment }) => {
+            setBillingActionLoading(true);
+            setBillingMessage("");
+            try {
+              const res = await fetch("/api/stripe/cancel-auto-renew", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reasons, comment }),
+              });
+              const data = await res.json();
+              if (data.success) {
+                setCancelAtPeriodEnd(true);
+                setCancelSurveyOpen(false);
+                setBillingMessage(data.message ?? data.goodbyeMessage ?? "Auto-renewal will stop at period end.");
+              } else {
+                setBillingMessage(data.error ?? "Could not update billing.");
+              }
+            } finally {
+              setBillingActionLoading(false);
+            }
+          }}
+        />
         <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-6 py-4 text-center max-w-md w-full">
           <p className="font-semibold text-emerald-800 dark:text-emerald-200">You have an active subscription</p>
           <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
@@ -337,24 +427,9 @@ function SubscribeContent() {
                   variant="outline"
                   disabled={billingActionLoading}
                   className="w-full"
-                  onClick={async () => {
-                    setBillingActionLoading(true);
-                    setBillingMessage("");
-                    try {
-                      const res = await fetch("/api/stripe/cancel-auto-renew", { method: "POST" });
-                      const data = await res.json();
-                      if (data.success) {
-                        setCancelAtPeriodEnd(true);
-                        setBillingMessage(data.message ?? "Auto-renewal will stop at period end.");
-                      } else {
-                        setBillingMessage(data.error ?? "Could not update billing.");
-                      }
-                    } finally {
-                      setBillingActionLoading(false);
-                    }
-                  }}
+                  onClick={() => setCancelSurveyOpen(true)}
                 >
-                  {billingActionLoading ? "Updating…" : "Turn off auto-renewal"}
+                  Turn off auto-renewal
                 </Button>
               ) : null}
               {hasStripeCustomer && (
@@ -540,6 +615,38 @@ function SubscribeContent() {
         )}
 
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Payment method</h2>
+        {trialOffer?.enabled && trialOffer.eligible && payByCardEnabled && (
+          <Card className="mb-6 border-amber-300/80 dark:border-amber-700/60 bg-amber-50/60 dark:bg-amber-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg text-amber-900 dark:text-amber-100">
+                {wantTrial ? "Start your VIP trial" : `${trialOffer.trialDays}-day VIP trial`}
+              </CardTitle>
+              <p className="text-sm text-amber-900/80 dark:text-amber-100/80">
+                Card required. Free for {trialOffer.trialDays} days, then{" "}
+                <strong>
+                  {trialOffer.planLabel} (${trialOffer.planPriceUsd} + ${cardFee} card fee)
+                </strong>{" "}
+                renews automatically until you cancel. We’ll email you about {trialOffer.reminderHoursBefore}{" "}
+                hours before the trial ends so you can cancel first.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {cardError && <p className="text-sm text-rose-600 dark:text-rose-400 mb-2">{cardError}</p>}
+              <Button
+                type="button"
+                disabled={!termsAcceptedForPayment || trialLoading}
+                onClick={() => void handleStartTrial()}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                {trialLoading
+                  ? "Redirecting…"
+                  : termsAcceptedForPayment
+                    ? `Start ${trialOffer.trialDays}-day free VIP trial`
+                    : "Accept terms above to start trial"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
         {!payByCardEnabled && !payByUsdcEnabled ? (
           <div className="mb-8 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-5 py-4 text-amber-900 dark:text-amber-100">
             <p className="font-semibold">New payments temporarily unavailable</p>

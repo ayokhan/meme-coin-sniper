@@ -19,6 +19,8 @@ export async function upsertSubscriptionFromStripePeriod(input: {
   stripeSessionId?: string | null;
   stripeSubscriptionId?: string | null;
   autoRenew?: boolean;
+  isTrial?: boolean;
+  trialEndsAt?: Date | null;
 }): Promise<void> {
   const db = prisma as unknown as {
     subscription: {
@@ -30,6 +32,14 @@ export async function upsertSubscriptionFromStripePeriod(input: {
       update: (args: unknown) => Promise<unknown>;
     };
   };
+
+  const trialData =
+    input.isTrial != null
+      ? {
+          isTrial: input.isTrial,
+          trialEndsAt: input.trialEndsAt ?? (input.isTrial ? input.periodEnd : null),
+        }
+      : {};
 
   if (input.stripeSubscriptionId) {
     const existing = await db.subscription.findFirst({
@@ -43,6 +53,7 @@ export async function upsertSubscriptionFromStripePeriod(input: {
           plan: input.planId,
           amountUsd: input.amountUsd,
           autoRenew: input.autoRenew ?? true,
+          ...trialData,
         },
       });
       return;
@@ -66,10 +77,31 @@ export async function upsertSubscriptionFromStripePeriod(input: {
       stripeSessionId: input.stripeSessionId ?? null,
       stripeSubscriptionId: input.stripeSubscriptionId ?? null,
       autoRenew: input.autoRenew ?? false,
+      isTrial: input.isTrial ?? false,
+      trialEndsAt: input.trialEndsAt ?? null,
     },
   })) as { id: string };
 
-  await recordReferralCommissionForSubscription(created.id);
+  // Don't create affiliate commission on $0 trial start — wait for paid invoice.
+  if (!input.isTrial) {
+    await recordReferralCommissionForSubscription(created.id);
+  }
+}
+
+export function trialEndFromStripeSubscription(sub: Stripe.Subscription): Date | null {
+  if (typeof sub.trial_end === "number" && sub.trial_end > 0) {
+    return new Date(sub.trial_end * 1000);
+  }
+  return null;
+}
+
+/** Prefer trial_end while trialing so VIP expiresAt matches first charge time. */
+export function vipAccessEndFromStripeSubscription(sub: Stripe.Subscription): Date {
+  if (sub.status === "trialing") {
+    const trialEnd = trialEndFromStripeSubscription(sub);
+    if (trialEnd) return trialEnd;
+  }
+  return periodEndFromStripeSubscription(sub);
 }
 
 export async function setStripeCustomerId(userId: string, customerId: string): Promise<void> {

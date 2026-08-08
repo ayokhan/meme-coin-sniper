@@ -320,5 +320,26 @@ export async function GET(request: Request) {
     };
   }
 
+  try {
+    const authTrial = request.headers.get('authorization');
+    const trialRes = await fetch(`${base}/api/cron/vip-trial-emails`, {
+      cache: 'no-store',
+      headers: authTrial ? { Authorization: authTrial } : {},
+    });
+    const trialData = await trialRes.json().catch(() => ({}));
+    results.vipTrialEmails = {
+      ok: trialData.success === true,
+      scanned: typeof trialData.scanned === 'number' ? trialData.scanned : undefined,
+      sent: typeof trialData.sent === 'number' ? trialData.sent : undefined,
+      failed: typeof trialData.failed === 'number' ? trialData.failed : undefined,
+      message: trialData.message ?? trialData.error,
+    };
+  } catch (e) {
+    results.vipTrialEmails = {
+      ok: false,
+      message: e instanceof Error ? e.message : 'VIP trial reminder emails failed',
+    };
+  }
+
   return NextResponse.json({ success: true, cron: results });
 }

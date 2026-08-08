@@ -93,6 +93,7 @@ import DashboardNextStepBanner, { markNextStepDoneForTab } from "@/components/Da
 import PathFirstActionBanner from "@/components/PathFirstActionBanner";
 import DeskTabChrome, { DeskViewSegment } from "@/components/DeskTabChrome";
 import VipSoftPitchPanel from "@/components/VipSoftPitchPanel";
+import VipDeskPreview from "@/components/VipDeskPreview";
 import PublicStatusStrip from "@/components/PublicStatusStrip";
 import DashboardPaywallHelp from "@/components/DashboardPaywallHelp";
 import type { NextStepAction } from "@/lib/dashboard-next-step";
@@ -4874,6 +4875,7 @@ function Dashboard() {
                   </>
                 ) : (
                   <>
+                    <VipDeskPreview tabId={activeTab} />
                     <VipSoftPitchPanel
                       tabLabel={
                         VIP_ONLY_TABS.includes(activeTab) || PAID_TABS.includes(activeTab)

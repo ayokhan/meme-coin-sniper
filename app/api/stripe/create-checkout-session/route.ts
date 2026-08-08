@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db";
 import { getStripeCustomerId, planToStripeRecurring } from "@/lib/stripe-billing";
 import { VIP_PLANS, getCardPriceForPlan } from "@/lib/subscription";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
+import { getVipTrialConfig, getVipTrialPublicOffer, userHasUsedVipTrial } from "@/lib/vip-trial";
+import { getActiveSubscriptionDetails } from "@/lib/subscription";
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
@@ -41,10 +43,40 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const planId = (body.planId ?? body.plan ?? "").toString();
-  const autoRenew = body.autoRenew === true;
-  const successUrl = (body.successUrl ?? request.headers.get("origin") ?? "").trim() || `${process.env.NEXTAUTH_URL ?? ""}/subscribe?success=1`;
-  const cancelUrl = (body.cancelUrl ?? request.headers.get("origin") ?? "").trim() || `${process.env.NEXTAUTH_URL ?? ""}/subscribe?canceled=1`;
+  const startTrial = body.startTrial === true || body.trial === true;
+  const trialCfg = startTrial ? await getVipTrialConfig() : null;
+  const offer = startTrial ? await getVipTrialPublicOffer(session.user.id) : null;
+
+  if (startTrial) {
+    if (!trialCfg?.enabled || !offer?.eligible) {
+      return NextResponse.json(
+        { success: false, error: offer?.ineligibleReason ?? "VIP trial is not available." },
+        { status: 400 }
+      );
+    }
+    if (await userHasUsedVipTrial(session.user.id)) {
+      return NextResponse.json(
+        { success: false, error: "This account already used its VIP trial." },
+        { status: 400 }
+      );
+    }
+    const active = await getActiveSubscriptionDetails(session.user.id);
+    if (active && active.expiresAt > new Date()) {
+      return NextResponse.json({ success: false, error: "You already have active VIP." }, { status: 400 });
+    }
+  }
+
+  const planId = startTrial
+    ? trialCfg!.planIdAfterTrial
+    : (body.planId ?? body.plan ?? "").toString();
+  // Trial always becomes recurring after the free days.
+  const autoRenew = startTrial ? true : body.autoRenew === true;
+  const successUrl =
+    (body.successUrl ?? request.headers.get("origin") ?? "").trim() ||
+    `${process.env.NEXTAUTH_URL ?? ""}/subscribe?success=1${startTrial ? "&trial=1" : ""}`;
+  const cancelUrl =
+    (body.cancelUrl ?? request.headers.get("origin") ?? "").trim() ||
+    `${process.env.NEXTAUTH_URL ?? ""}/subscribe?canceled=1`;
 
   const plan = VIP_PLANS.find((p) => p.id === planId);
   if (!plan) {
@@ -58,11 +90,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Minimum charge is $0.50." }, { status: 400 });
   }
 
+  const trialDays = startTrial ? trialCfg!.trialDays : 0;
   const productData = {
-    name: `NovaStaris VIP — ${plan.label}`,
-    description: autoRenew
-      ? `Recurring VIP: ${plan.label} ($${plan.priceUsd} + $${cardFeeUsd} card fee per billing period). Cancel anytime before renewal.`
-      : `Subscription: ${plan.label} ($${plan.priceUsd} + $${cardFeeUsd} card fee). Payment terms: no refund after 24 hours of use.`,
+    name: startTrial
+      ? `NovaStaris VIP — ${trialDays}-day trial then ${plan.label}`
+      : `NovaStaris VIP — ${plan.label}`,
+    description: startTrial
+      ? `${trialDays} days free VIP. Card required. We email you ~${trialCfg!.reminderHoursBefore}h before the trial ends so you can cancel. If you don’t cancel, you’re charged $${plan.priceUsd} + $${cardFeeUsd} card fee and VIP renews automatically until you cancel.`
+      : autoRenew
+        ? `Recurring VIP: ${plan.label} ($${plan.priceUsd} + $${cardFeeUsd} card fee per billing period). Cancel anytime before renewal.`
+        : `Subscription: ${plan.label} ($${plan.priceUsd} + $${cardFeeUsd} card fee). Payment terms: no refund after 24 hours of use.`,
   };
 
   try {
@@ -74,6 +111,8 @@ export async function POST(request: Request) {
       cardTotalUsd: String(cardPriceUsd),
       autoRenew: autoRenew ? "true" : "false",
       userId: session.user.id,
+      vipTrial: startTrial ? "true" : "false",
+      trialDays: startTrial ? String(trialDays) : "",
     };
 
     const checkoutSession = autoRenew
@@ -83,8 +122,16 @@ export async function POST(request: Request) {
           customer_email: existingCustomerId ? undefined : session.user.email,
           client_reference_id: session.user.id,
           metadata: sharedMetadata,
+          payment_method_collection: "always",
           subscription_data: {
-            metadata: { planId, userId: session.user.id, tier: "vip" },
+            trial_period_days: startTrial ? trialDays : undefined,
+            metadata: {
+              planId,
+              userId: session.user.id,
+              tier: "vip",
+              vipTrial: startTrial ? "true" : "false",
+              trialDays: startTrial ? String(trialDays) : "",
+            },
           },
           line_items: [
             {
@@ -127,6 +174,8 @@ export async function POST(request: Request) {
       sessionId: checkoutSession.id,
       url: checkoutSession.url,
       autoRenew,
+      trial: startTrial,
+      trialDays: startTrial ? trialDays : null,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to create checkout session.";
