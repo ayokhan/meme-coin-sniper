@@ -205,8 +205,7 @@ export default function StrategyCallClient() {
           </li>
           <li>
             <span className="font-semibold text-zinc-900 dark:text-zinc-100">3. We schedule within 24 hours</span> —
-            an expert emails and calls you to set the 1-hour session. This is not self-serve Calendly booking, so
-            we can avoid double-booking.
+            an expert emails and calls you to set the 1-hour session.
           </li>
         </ol>
       </section>
