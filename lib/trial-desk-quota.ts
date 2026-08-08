@@ -1,6 +1,7 @@
 /**
- * Daily usage limits for VIP trial users (not full paid VIP).
+ * Daily usage limits for VIP trial + admin “Limited VIP” grants.
  * Each desk (AI Agent, NovaForecast, Nova Forex, …) has an independent daily cap.
+ * Full paid VIP (Stripe/USDC, non-limited admin grants) is unlimited.
  */
 
 import { prisma } from "@/lib/db";
@@ -32,7 +33,7 @@ type UsageDb = {
     upsert: (args: unknown) => Promise<{ count: number }>;
   };
   subscription?: {
-    findFirst: (args: unknown) => Promise<{ id: string; isTrial?: boolean } | null>;
+    findFirst: (args: unknown) => Promise<{ id: string; isTrial?: boolean; deskLimited?: boolean } | null>;
   };
 };
 
@@ -40,14 +41,17 @@ function usageDb() {
   return (prisma as unknown as UsageDb).trialDeskUsage ?? null;
 }
 
-/** Active card trial (isTrial + not expired). Paid VIP after trial is NOT trial. */
-export async function userIsOnVipTrial(userId: string): Promise<boolean> {
+/**
+ * Active VIP that is capped: Stripe card trial (isTrial) or admin Limited grant (deskLimited).
+ * Paid unlimited VIP / owner: false.
+ */
+export async function userHasLimitedDeskQuota(userId: string): Promise<boolean> {
   try {
     const row = await (prisma as unknown as UsageDb).subscription?.findFirst({
       where: {
         userId,
-        isTrial: true,
         expiresAt: { gt: new Date() },
+        OR: [{ isTrial: true }, { deskLimited: true }],
       },
       orderBy: { expiresAt: "desc" },
     });
@@ -55,6 +59,11 @@ export async function userIsOnVipTrial(userId: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** @deprecated Prefer userHasLimitedDeskQuota */
+export async function userIsOnVipTrial(userId: string): Promise<boolean> {
+  return userHasLimitedDeskQuota(userId);
 }
 
 export async function getTrialDeskUsageToday(
@@ -78,8 +87,8 @@ export async function getTrialDeskUsageToday(
 }
 
 /**
- * Enforce + optionally increment. Call before expensive desk work for trial users.
- * Full paid VIP / owner / non-trial: always ok (no-op).
+ * Enforce + optionally increment. Call before expensive desk work for limited VIP users.
+ * Full paid VIP / owner / non-limited: always ok (no-op).
  */
 export async function assertTrialDeskAccess(
   userId: string,
@@ -89,8 +98,8 @@ export async function assertTrialDeskAccess(
   | { ok: true; onTrial: boolean; used?: number; limit?: number; remaining?: number }
   | { ok: false; error: string; status: number; used: number; limit: number }
 > {
-  const onTrial = await userIsOnVipTrial(userId);
-  if (!onTrial) return { ok: true, onTrial: false };
+  const limited = await userHasLimitedDeskQuota(userId);
+  if (!limited) return { ok: true, onTrial: false };
 
   const cfg = await getVipTrialConfig();
   const limit = Math.max(0, Math.min(100, cfg.dailyLimitPerDesk ?? 3));
@@ -100,7 +109,7 @@ export async function assertTrialDeskAccess(
       status: 429,
       used: 0,
       limit: 0,
-      error: "VIP trial desk usage is paused. Upgrade to full VIP for unlimited access.",
+      error: "Limited VIP desk usage is paused. Upgrade to full VIP for unlimited access.",
     };
   }
 
@@ -125,7 +134,7 @@ export async function assertTrialDeskAccess(
       status: 429,
       used,
       limit,
-      error: `VIP trial daily limit reached for ${deskLabel} (${limit}/day). Resets at 00:00 UTC, or upgrade to full VIP for unlimited use.`,
+      error: `Limited VIP daily cap reached for ${deskLabel} (${limit}/day). Resets at 00:00 UTC. Full VIP is unlimited — upgrade anytime.`,
     };
   }
 

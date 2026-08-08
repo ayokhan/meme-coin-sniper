@@ -72,6 +72,8 @@ export type AdminCustomerRecord = {
   twoFactorMethod?: string | null;
   subscriptionExpiresAt: string | null;
   isActive: boolean;
+  subscriptionIsTrial?: boolean;
+  subscriptionDeskLimited?: boolean;
   subscriptionAutoRenew?: boolean;
   subscriptionCancelAtPeriodEnd?: boolean;
   hasStripeSubscription?: boolean;
@@ -197,7 +199,7 @@ export type CustomerExpandedPanelProps = {
   onCoach: (value: boolean) => void;
   onCommunityRep: (value: boolean) => void;
   onAcceptRules: () => void;
-  onGrantVip: (grant: AdminVipGrantId) => void;
+  onGrantVip: (grant: AdminVipGrantId, opts?: { limited?: boolean }) => void;
   onClearSubscription: () => void;
   onResetPassword: () => void;
   onDisable2fa: () => void;
@@ -247,6 +249,7 @@ export default function CustomerExpandedPanel({
   const [timeline, setTimeline] = useState<Array<{ at: string; type: string; label: string; detail?: string }>>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [grantLimited, setGrantLimited] = useState(false);
 
   useEffect(() => {
     if (!isOwner || !c.id) return;
@@ -618,6 +621,8 @@ export default function CustomerExpandedPanel({
         {c.isActive && c.subscriptionExpiresAt && (
           <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">
             Active VIP until {new Date(c.subscriptionExpiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+            {c.subscriptionDeskLimited ? " · Limited (3/day per desk)" : " · Unlimited desks"}
+            {c.subscriptionIsTrial ? " · Card trial" : ""}
           </p>
         )}
         {!c.isActive && c.subscriptionExpiresAt && (
@@ -642,24 +647,38 @@ export default function CustomerExpandedPanel({
         <p className="text-[11px] text-muted-foreground mb-2">
           Admin VIP grants do not turn on card auto-renew. Customers enable that at checkout on the subscribe page.
         </p>
+        <label className="flex items-center gap-2 text-xs mb-2 cursor-pointer">
+          <input
+            type="checkbox"
+            className="rounded"
+            checked={grantLimited}
+            onChange={(e) => setGrantLimited(e.target.checked)}
+          />
+          <span>
+            Grant as <strong>Limited VIP</strong> (3 uses/day per desk — same as trial; applies to all durations
+            below)
+          </span>
+        </label>
         <div className="flex flex-wrap gap-2">
           {ADMIN_VIP_GRANTS.map((g) => (
             <button
               key={g.id}
               type="button"
-              onClick={() => onGrantVip(g.id)}
+              onClick={() => onGrantVip(g.id, { limited: grantLimited })}
               disabled={busy.subscription}
               className={`text-xs px-2.5 py-1 rounded disabled:opacity-50 ${
-                g.id === "1month" || g.id === "1week" || g.id === "3day"
-                  ? g.id === "1week"
-                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-100 font-medium"
-                    : g.id === "3day"
-                      ? "bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100 font-medium"
-                      : "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-100 font-medium"
-                  : "border border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200"
+                grantLimited
+                  ? "bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100 font-medium border border-amber-300/60 dark:border-amber-700/50"
+                  : g.id === "1month" || g.id === "1week" || g.id === "3day"
+                    ? g.id === "1week"
+                      ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-100 font-medium"
+                      : g.id === "3day"
+                        ? "bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100 font-medium"
+                        : "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-100 font-medium"
+                    : "border border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200"
               }`}
             >
-              {g.label} VIP
+              {g.label} {grantLimited ? "Ltd" : "VIP"}
             </button>
           ))}
           {c.isActive && (

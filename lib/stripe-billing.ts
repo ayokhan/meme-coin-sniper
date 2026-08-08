@@ -38,8 +38,10 @@ export async function upsertSubscriptionFromStripePeriod(input: {
       ? {
           isTrial: input.isTrial,
           trialEndsAt: input.trialEndsAt ?? (input.isTrial ? input.periodEnd : null),
+          // Card trial is desk-capped; paid renewals clear admin Limited grants.
+          deskLimited: false,
         }
-      : {};
+      : { deskLimited: false };
 
   if (input.stripeSubscriptionId) {
     const existing = await db.subscription.findFirst({
@@ -79,6 +81,7 @@ export async function upsertSubscriptionFromStripePeriod(input: {
       autoRenew: input.autoRenew ?? false,
       isTrial: input.isTrial ?? false,
       trialEndsAt: input.trialEndsAt ?? null,
+      deskLimited: false,
     },
   })) as { id: string };
 

@@ -40,6 +40,8 @@ export async function GET() {
           autoRenew?: boolean;
           cancelAtPeriodEnd?: boolean;
           txSignature?: string | null;
+          isTrial?: boolean;
+          deskLimited?: boolean;
         }>;
       }).subscriptions ?? [];
       const subs = [...rawSubs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -110,6 +112,8 @@ export async function GET() {
         subscriptionPlan: subPlan,
         subscriptionExpiresAt: activeSub ? activeSub.expiresAt : latestSub?.expiresAt ?? null,
         isActive: !!activeSub,
+        subscriptionIsTrial: !!(activeSub?.isTrial),
+        subscriptionDeskLimited: !!(activeSub?.deskLimited || activeSub?.isTrial),
         subscriptionAutoRenew: !!(activeSub?.autoRenew ?? stripeSub?.autoRenew),
         subscriptionCancelAtPeriodEnd: !!(activeSub?.cancelAtPeriodEnd ?? stripeSub?.cancelAtPeriodEnd),
         hasStripeSubscription: !!(activeSub?.stripeSubscriptionId ?? stripeSub?.stripeSubscriptionId),

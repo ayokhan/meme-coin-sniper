@@ -790,6 +790,11 @@ model Subscription {
   isTrial                   Boolean   @default(false)
   trialEndsAt               DateTime?
   trialReminderEmailSentAt  DateTime?
+  /**
+   * Admin “Limited VIP” grants: same per-desk daily caps as card trial.
+   * Paid Stripe/USDC VIP stays false (unlimited). Card trials use isTrial.
+   */
+  deskLimited               Boolean   @default(false)
   createdAt         DateTime @default(now())
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   referralCommission ReferralCommission?
@@ -798,6 +803,7 @@ model Subscription {
   @@index([userId])
   @@index([expiresAt])
   @@index([isTrial, trialEndsAt])
+  @@index([deskLimited, expiresAt])
 }
 
 /** Owner-configurable card-required VIP trial (Stripe trial_period_days). */

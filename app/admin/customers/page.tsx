@@ -59,6 +59,8 @@ type Customer = {
   subscriptionPlan: string | null;
   subscriptionExpiresAt: string | null;
   isActive: boolean;
+  subscriptionIsTrial?: boolean;
+  subscriptionDeskLimited?: boolean;
   subscriptionAutoRenew?: boolean;
   subscriptionCancelAtPeriodEnd?: boolean;
   hasStripeSubscription?: boolean;
@@ -873,20 +875,22 @@ export default function AdminCustomersPage() {
     }
   };
 
-  const handleGrantVip = async (id: string, grant: AdminVipGrantId) => {
+  const handleGrantVip = async (id: string, grant: AdminVipGrantId, opts?: { limited?: boolean }) => {
     setUpdatingId(id);
     setError("");
+    const limited = !!opts?.limited;
     try {
       const res = await fetch(`/api/admin/customers/${id}/subscription`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "grant", grant }),
+        body: JSON.stringify({ action: "grant", grant, limited }),
       });
       const data = await res.json();
       if (data.success) {
         loadCustomers();
         const extended = data.subscription?.extendedFromExisting ? " (extended)" : "";
-        setSuccessMessage(`Granted ${data.grantLabel ?? grantLabel(grant)} VIP${extended}.`);
+        const ltd = data.deskLimited || limited ? " Limited" : "";
+        setSuccessMessage(`Granted ${data.grantLabel ?? grantLabel(grant)}${ltd} VIP${extended}.`);
         setTimeout(() => setSuccessMessage(""), 4000);
       } else {
         setError(data.error ?? "Failed to update subscription");
@@ -1376,7 +1380,10 @@ export default function AdminCustomersPage() {
                               </p>
                               <p className="text-[11px] mt-0.5">
                                 {c.isActive ? (
-                                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">Active</span>
+                                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                                    Active
+                                    {c.subscriptionDeskLimited ? " · Limited" : ""}
+                                  </span>
                                 ) : (
                                   <span className="text-zinc-500">Expired / none</span>
                                 )}
@@ -1414,7 +1421,7 @@ export default function AdminCustomersPage() {
                                       type="button"
                                       onClick={() => handleGrantVip(c.id, grantId)}
                                       disabled={updatingId === c.id}
-                                      title={`Grant ${grantLabel(grantId)} VIP (extends from now or current expiry)`}
+                                      title={`Grant ${grantLabel(grantId)} VIP (unlimited desks)`}
                                       className={`text-[11px] px-2 py-1 rounded disabled:opacity-50 ${
                                         grantId === "1month"
                                           ? "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-100"
@@ -1427,6 +1434,15 @@ export default function AdminCustomersPage() {
                                     </button>
                                   );
                                 })}
+                                <button
+                                  type="button"
+                                  onClick={() => handleGrantVip(c.id, "3day", { limited: true })}
+                                  disabled={updatingId === c.id}
+                                  title="Grant 3 days Limited VIP (3 uses/day per desk)"
+                                  className="text-[11px] px-2 py-1 rounded disabled:opacity-50 border border-amber-400/70 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-100"
+                                >
+                                  +3d Ltd
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => setExpandedCustomerId(expanded ? null : c.id)}
@@ -1488,7 +1504,7 @@ export default function AdminCustomersPage() {
                                   onCoach={(v) => handleCoachUserToggle(c.id, v)}
                                   onCommunityRep={(v) => handleCommunityRepToggle(c.id, v)}
                                   onAcceptRules={() => handleAcceptRules(c.id, true)}
-                                  onGrantVip={(grant) => handleGrantVip(c.id, grant)}
+                                  onGrantVip={(grant, opts) => handleGrantVip(c.id, grant, opts)}
                                   onClearSubscription={() => handleClearSubscription(c.id)}
                                   onResetPassword={() => handleResetPassword(c.id, c.email)}
                                   onDisable2fa={() => handleDisable2fa(c.id, c.email, c.twoFactorMethod)}

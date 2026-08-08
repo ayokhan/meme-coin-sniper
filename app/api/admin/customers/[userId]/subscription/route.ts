@@ -18,9 +18,9 @@ import { recordBillingInvoiceFromAdminGrant } from "@/lib/billing-invoices";
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 type Body =
-  | { action: "grant"; grant: AdminVipGrantId }
+  | { action: "grant"; grant: AdminVipGrantId; limited?: boolean }
   | { action: "clear" }
-  | { action: "set"; tier?: string; planId?: string | null; months?: number | null };
+  | { action: "set"; tier?: string; planId?: string | null; months?: number | null; limited?: boolean };
 
 function resolveGrantFromLegacy(body: Extract<Body, { action: "set" }>): AdminVipGrantId {
   const months = body.months;
@@ -103,6 +103,7 @@ export async function POST(
     }
 
     const now = new Date();
+    const deskLimited = rawBody.limited === true;
     const active = (await prisma.subscription.findFirst({
       where: { userId, expiresAt: { gt: now } },
       orderBy: { expiresAt: "desc" },
@@ -112,7 +113,7 @@ export async function POST(
     const expiresAt = addAdminVipGrantDuration(base, grantId);
     const planId = planIdForAdminGrant(grantId);
     const amountUsd = listPriceForAdminGrantPlan(planId) || VIP_PLANS[0]?.priceUsd || 0;
-    const adminTag = `admin-grant-${grantId}-${Date.now()}`;
+    const adminTag = `admin-grant-${grantId}${deskLimited ? "-ltd" : ""}-${Date.now()}`;
 
     if (active) {
       await (prisma as unknown as { subscription: { update: (args: unknown) => Promise<unknown> } }).subscription.update({
@@ -125,6 +126,10 @@ export async function POST(
           txSignature: adminTag,
           autoRenew: false,
           cancelAtPeriodEnd: false,
+          deskLimited,
+          // Admin grants are not Stripe card trials
+          isTrial: false,
+          trialEndsAt: null,
         },
       });
     } else {
@@ -137,19 +142,21 @@ export async function POST(
           expiresAt,
           txSignature: adminTag,
           autoRenew: false,
+          deskLimited,
+          isTrial: false,
         } as Record<string, unknown>,
       });
     }
 
     await syncReferralCommissionForReferee(userId, {
       allowAdminGrants: true,
-      notes: "Admin VIP grant",
+      notes: deskLimited ? "Admin Limited VIP grant" : "Admin VIP grant",
     }).catch((e) => console.error("referral sync after admin grant:", e));
 
     await recordBillingInvoiceFromAdminGrant({
       userId,
       planId,
-      grantLabel: grantLabel(grantId),
+      grantLabel: `${grantLabel(grantId)}${deskLimited ? " Limited" : ""}`,
       adminTag,
       periodEnd: expiresAt,
     }).catch((e) => console.error("billing invoice after admin grant:", e));
@@ -158,11 +165,13 @@ export async function POST(
       success: true,
       grant: grantId,
       grantLabel: grantLabel(grantId),
+      deskLimited,
       subscription: {
         tier: "vip",
         plan: planId,
         expiresAt: expiresAt.toISOString(),
         extendedFromExisting: !!active,
+        deskLimited,
       },
       complimentary: true,
       sickKidsExcluded: true,
