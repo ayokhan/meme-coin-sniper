@@ -48,8 +48,6 @@ export async function GET(request: Request) {
     novaScalper?: { ok: boolean; processed?: number; skipped?: boolean; message?: string };
     novaForexScalper?: { ok: boolean; processed?: number; skipped?: boolean; message?: string };
     memeLeaderboard?: { ok: boolean; refreshed?: number; totalWallets?: number; skipped?: boolean; message?: string };
-    vipExpiryEmails?: { ok: boolean; preSent?: number; postSent?: number; message?: string };
-    vipTrialEmails?: { ok: boolean; scanned?: number; sent?: number; failed?: number; message?: string };
   } = {};
 
   try {
@@ -299,47 +297,6 @@ export async function GET(request: Request) {
     }
   } catch (e) {
     results.memeLeaderboard = { ok: false, message: e instanceof Error ? e.message : 'Meme leaderboard refresh failed' };
-  }
-
-  try {
-    const authVip = request.headers.get('authorization');
-    const vipRes = await fetch(`${base}/api/cron/vip-expiry-emails`, {
-      cache: 'no-store',
-      headers: authVip ? { Authorization: authVip } : {},
-    });
-    const vipData = await vipRes.json().catch(() => ({}));
-    results.vipExpiryEmails = {
-      ok: vipData.success === true,
-      preSent: typeof vipData.preSent === 'number' ? vipData.preSent : undefined,
-      postSent: typeof vipData.postSent === 'number' ? vipData.postSent : undefined,
-      message: vipData.message ?? vipData.error,
-    };
-  } catch (e) {
-    results.vipExpiryEmails = {
-      ok: false,
-      message: e instanceof Error ? e.message : 'VIP expiry emails failed',
-    };
-  }
-
-  try {
-    const authTrial = request.headers.get('authorization');
-    const trialRes = await fetch(`${base}/api/cron/vip-trial-emails`, {
-      cache: 'no-store',
-      headers: authTrial ? { Authorization: authTrial } : {},
-    });
-    const trialData = await trialRes.json().catch(() => ({}));
-    results.vipTrialEmails = {
-      ok: trialData.success === true,
-      scanned: typeof trialData.scanned === 'number' ? trialData.scanned : undefined,
-      sent: typeof trialData.sent === 'number' ? trialData.sent : undefined,
-      failed: typeof trialData.failed === 'number' ? trialData.failed : undefined,
-      message: trialData.message ?? trialData.error,
-    };
-  } catch (e) {
-    results.vipTrialEmails = {
-      ok: false,
-      message: e instanceof Error ? e.message : 'VIP trial reminder emails failed',
-    };
   }
 
   try {

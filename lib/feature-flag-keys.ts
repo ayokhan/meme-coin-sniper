@@ -175,14 +175,25 @@ export const FEATURE_FLAG_KEYS = {
    */
   ENTER_LANDING_ENABLED: 'enter_landing_enabled',
 
-  /** Master switch: Vercel scheduled /api/cron (daily scan, wallet notify, trading bot, perp jobs). When OFF, cron returns immediately — saves CPU. Default ON. */
+  /** Master switch: Vercel scheduled /api/cron (daily scan, wallet notify, trading bot, perp jobs). When OFF, cron returns immediately — saves CPU. Default ON. Email notifications use a separate cron. */
   VERCEL_CRON_ENABLED: 'vercel_cron_enabled',
+  /**
+   * Dedicated Vercel cron /api/cron/emails (VIP expiry + VIP trial reminders).
+   * Independent of vercel_cron_enabled so you can keep auto emails ON while heavy master cron is OFF.
+   * Default ON.
+   */
+  EMAIL_NOTIFICATIONS_CRON: 'email_notifications_cron',
   /**
    * Daily VIP expiry emails (one pre ~3d, one post after).
    * Only Stripe (CC) or USDC subscriptions — not owner admin grants.
-   * Default ON. When OFF, /api/cron/vip-expiry-emails skips sends.
+   * Default ON. When OFF, /api/cron/emails skips VIP expiry sends.
    */
   VIP_EXPIRY_EMAILS: 'vip_expiry_emails',
+  /**
+   * VIP trial ending reminder (~reminderHoursBefore end).
+   * Default ON. When OFF, /api/cron/emails skips trial reminders.
+   */
+  VIP_TRIAL_REMINDER_EMAILS: 'vip_trial_reminder_emails',
   /**
    * Auto welcome email on email/password register and first Google signup.
    * Default ON. When OFF, no welcome is sent on signup.

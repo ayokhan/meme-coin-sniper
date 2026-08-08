@@ -586,12 +586,22 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   vercel_cron_enabled: {
     label: "Vercel scheduled cron (master)",
     description:
-      "When ON, Vercel runs /api/cron once daily (midnight UTC): Birdeye scan, CT/Twitter scan, wallet Telegram alerts, leverage alerts, pinned token re-analyze, trading bot, perp listing/digest/alerts, Blofin breakout, NovaScalper batch (if enabled), meme leaderboard refresh (if enabled), VIP expiry reminder emails (if enabled). Turn OFF to skip the entire cron chain and save CPU. Manual Scan buttons still work.",
+      "When ON, Vercel runs /api/cron once daily (00:00 UTC): Birdeye scan, CT/Twitter scan, wallet Telegram alerts, leverage alerts, pinned token re-analyze, trading bot, perp listing/digest/alerts, Blofin breakout, NovaScalper batch (if enabled), meme leaderboard refresh (if enabled). Does NOT send VIP emails anymore — those use the separate Email notifications cron. Turn OFF to skip the heavy chain and save CPU. Manual Scan buttons still work.",
+  },
+  email_notifications_cron: {
+    label: "Email notifications cron (dedicated)",
+    description:
+      "When ON (default), Vercel runs /api/cron/emails daily at 00:15 UTC for auto emails only (VIP expiry + VIP trial reminders). Independent of the master cron — keep this ON even if you turn master cron OFF. When OFF, no automatic VIP emails fire (Admin → Emails presets still work for manual sends).",
   },
   vip_expiry_emails: {
     label: "VIP expiry emails (auto pre + post)",
     description:
-      "When ON (default), daily cron sends at most one “VIP ends soon” and one “VIP has ended” email per paid subscription (Stripe card or USDC only). Owner/admin complimentary grants are never emailed. When OFF, those automatic emails are skipped (Admin → Emails presets still work for manual sends).",
+      "When ON (default), the email notifications cron sends at most one “VIP ends soon” and one “VIP has ended” email per paid subscription (Stripe card or USDC only). Owner/admin complimentary grants are never emailed. When OFF, those automatic emails are skipped (Admin → Emails presets still work for manual sends). Requires Email notifications cron ON.",
+  },
+  vip_trial_reminder_emails: {
+    label: "VIP trial reminder emails (auto)",
+    description:
+      "When ON (default), the email notifications cron sends the trial-ending reminder (~hours before charge, from Admin → VIP trial settings). When OFF, trial reminders are skipped. Requires Email notifications cron ON. Manual preset: Admin → Emails → VIP trial ending.",
   },
   welcome_auto_email: {
     label: "Welcome email on signup (auto)",
