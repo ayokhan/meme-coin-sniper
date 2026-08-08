@@ -43,6 +43,7 @@ type EmailLog = {
 
 type Survey = {
   id: string;
+  userId: string;
   email: string | null;
   name: string | null;
   reasons: string[];
