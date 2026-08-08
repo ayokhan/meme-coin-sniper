@@ -35,10 +35,27 @@ export async function PATCH(request: Request) {
       enabled?: boolean;
       showNavButton?: boolean;
       priceUsd?: number;
+      confirmationSubject?: string;
+      confirmationBody?: string;
+      scheduleSubject?: string;
+      scheduleBody?: string;
       orderId?: string;
       status?: string;
       notes?: string;
+      personalizeSchedule?: boolean;
     };
+
+    if (body.orderId && body.personalizeSchedule) {
+      const { getPaidStrategyCallOrderById, buildPersonalizedScheduleEmail } = await import(
+        "@/lib/paid-strategy-call"
+      );
+      const order = await getPaidStrategyCallOrderById(body.orderId);
+      if (!order) {
+        return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
+      }
+      const draft = await buildPersonalizedScheduleEmail(order);
+      return NextResponse.json({ success: true, draft });
+    }
 
     if (body.orderId) {
       const order = await updatePaidStrategyCallOrderStatus(body.orderId, {
@@ -52,6 +69,11 @@ export async function PATCH(request: Request) {
       enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
       showNavButton: typeof body.showNavButton === "boolean" ? body.showNavButton : undefined,
       priceUsd: typeof body.priceUsd === "number" ? body.priceUsd : undefined,
+      confirmationSubject:
+        typeof body.confirmationSubject === "string" ? body.confirmationSubject : undefined,
+      confirmationBody: typeof body.confirmationBody === "string" ? body.confirmationBody : undefined,
+      scheduleSubject: typeof body.scheduleSubject === "string" ? body.scheduleSubject : undefined,
+      scheduleBody: typeof body.scheduleBody === "string" ? body.scheduleBody : undefined,
     });
     return NextResponse.json({ success: true, config });
   } catch (e) {

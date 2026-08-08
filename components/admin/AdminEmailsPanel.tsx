@@ -15,6 +15,7 @@ import {
 import { buildStrategyCallEmail } from "@/lib/strategy-call";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
+import { ADMIN_EMAIL_DRAFT_STORAGE_KEY } from "@/lib/paid-strategy-call";
 
 type RecentRegistrant = {
   email: string;
@@ -97,6 +98,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const [presetId, setPresetId] = useState<AdminEmailPresetId>("custom");
   const [newWindowDays, setNewWindowDays] = useState(1);
   const [selectedNewEmails, setSelectedNewEmails] = useState<Set<string>>(new Set());
+  const [recipientsLocked, setRecipientsLocked] = useState(false);
   const [draft, setDraft] = useState({
     subject: "",
     body: "",
@@ -242,10 +244,39 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     if (preset && getAdminEmailPreset(preset)) {
       applyPreset(preset);
     }
+    try {
+      const raw = sessionStorage.getItem(ADMIN_EMAIL_DRAFT_STORAGE_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(ADMIN_EMAIL_DRAFT_STORAGE_KEY);
+      const d = JSON.parse(raw) as {
+        subject?: string;
+        body?: string;
+        recipients?: string[];
+        template?: AnnouncementEmailTemplate;
+        presetId?: AdminEmailPresetId;
+      };
+      if (d.presetId) setPresetId(d.presetId);
+      setDraft((prev) => ({
+        ...prev,
+        subject: d.subject ?? prev.subject,
+        body: d.body ?? prev.body,
+        template: d.template ?? "nova-branded",
+        audience: "newsletter",
+        ctaLabel: "",
+        ctaUrl: "",
+      }));
+      if (Array.isArray(d.recipients) && d.recipients.length) {
+        setRecipients(d.recipients);
+        setRecipientsLocked(true);
+      }
+    } catch {
+      /* ignore */
+    }
   }, [searchParams, applyPreset]);
 
   // Sync recipients for list audiences (not checkbox “new”)
   useEffect(() => {
+    if (recipientsLocked) return;
     if (!stats || draft.audience === "new") return;
     const list =
       draft.audience === "newsletter"
@@ -258,7 +289,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               ? stats.inactive7dEmails ?? []
               : stats.allEmails;
     setRecipients([...list]);
-  }, [draft.audience, stats]);
+  }, [draft.audience, stats, recipientsLocked]);
 
   // When switching to "new" or changing window, select all in window by default
   useEffect(() => {

@@ -540,6 +540,12 @@ model PaidStrategyCallConfig {
   enabled       Boolean  @default(false)
   showNavButton Boolean  @default(true)
   priceUsd      Int      @default(200)
+  /** Auto email after Stripe payment. Empty = built-in default. Placeholders: {{name}} {{firstName}} {{phone}} {{email}} {{amountUsd}} */
+  confirmationSubject String @default("")
+  confirmationBody    String @default("") @db.Text
+  /** Manual outreach to schedule the session after payment. Empty = built-in default. */
+  scheduleSubject String @default("")
+  scheduleBody    String @default("") @db.Text
   updatedAt     DateTime @updatedAt
 }
 

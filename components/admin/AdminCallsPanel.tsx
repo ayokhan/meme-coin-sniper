@@ -1,13 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DiscoveryCallCompletionRow } from "@/lib/discovery-call-completions";
-import type { PaidStrategyCallConfigAdmin, PaidStrategyCallOrderRow } from "@/lib/paid-strategy-call";
+import {
+  DEFAULT_CONFIRMATION_BODY,
+  DEFAULT_CONFIRMATION_SUBJECT,
+  DEFAULT_SCHEDULE_BODY,
+  DEFAULT_SCHEDULE_SUBJECT,
+  previewConfirmationEmail,
+  previewScheduleEmail,
+  ADMIN_EMAIL_DRAFT_STORAGE_KEY,
+  type PaidStrategyCallConfigAdmin,
+  type PaidStrategyCallOrderRow,
+} from "@/lib/paid-strategy-call";
 
 const inputClass =
   "text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 w-full";
+
+const taClass = `${inputClass} min-h-[160px] font-mono text-xs leading-relaxed`;
 
 type Props = {
   onNotice?: (msg: string) => void;
@@ -38,7 +51,14 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
       if (cRes.ok && cData.success) setCompletions(cData.completions ?? []);
       else onError?.(cData.error || "Could not load Discovery completions.");
       if (pRes.ok && pData.success) {
-        setCfg(pData.config ?? null);
+        const config = pData.config as PaidStrategyCallConfigAdmin;
+        setCfg({
+          ...config,
+          confirmationSubject: config.confirmationSubject || DEFAULT_CONFIRMATION_SUBJECT,
+          confirmationBody: config.confirmationBody || DEFAULT_CONFIRMATION_BODY,
+          scheduleSubject: config.scheduleSubject || DEFAULT_SCHEDULE_SUBJECT,
+          scheduleBody: config.scheduleBody || DEFAULT_SCHEDULE_BODY,
+        });
         setOrders(pData.orders ?? []);
       } else onError?.(pData.error || "Could not load Strategy call settings.");
     } catch {
@@ -52,6 +72,12 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
     void load();
   }, [load]);
 
+  const confirmationPreview = useMemo(
+    () => (cfg ? previewConfirmationEmail(cfg) : null),
+    [cfg]
+  );
+  const schedulePreview = useMemo(() => (cfg ? previewScheduleEmail(cfg) : null), [cfg]);
+
   const saveConfig = async () => {
     if (!cfg) return;
     setSaving(true);
@@ -64,12 +90,23 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
           enabled: cfg.enabled,
           showNavButton: cfg.showNavButton,
           priceUsd: cfg.priceUsd,
+          confirmationSubject: cfg.confirmationSubject,
+          confirmationBody: cfg.confirmationBody,
+          scheduleSubject: cfg.scheduleSubject,
+          scheduleBody: cfg.scheduleBody,
         }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setCfg(data.config);
-        onNotice?.("Strategy call settings saved.");
+        const config = data.config as PaidStrategyCallConfigAdmin;
+        setCfg({
+          ...config,
+          confirmationSubject: config.confirmationSubject || DEFAULT_CONFIRMATION_SUBJECT,
+          confirmationBody: config.confirmationBody || DEFAULT_CONFIRMATION_BODY,
+          scheduleSubject: config.scheduleSubject || DEFAULT_SCHEDULE_SUBJECT,
+          scheduleBody: config.scheduleBody || DEFAULT_SCHEDULE_BODY,
+        });
+        onNotice?.("Strategy call settings & email templates saved.");
       } else onError?.(data.error || "Save failed.");
     } catch {
       onError?.("Save failed.");
@@ -144,6 +181,40 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
     }
   };
 
+  const openScheduleEmail = async (orderId: string) => {
+    try {
+      const res = await fetch("/api/admin/paid-strategy-call", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, personalizeSchedule: true }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.draft) {
+        onError?.(data.error || "Could not build schedule email.");
+        return;
+      }
+      const draft = data.draft as { to: string; subject: string; body: string };
+      try {
+        sessionStorage.setItem(
+          ADMIN_EMAIL_DRAFT_STORAGE_KEY,
+          JSON.stringify({
+            subject: draft.subject,
+            body: draft.body,
+            recipients: [draft.to],
+            template: "nova-branded",
+            presetId: "paid-strategy-schedule",
+          })
+        );
+      } catch {
+        /* ignore */
+      }
+      window.location.href = "/admin/emails?preset=paid-strategy-schedule";
+    } catch {
+      onError?.("Could not open schedule email.");
+    }
+  };
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
   }
@@ -188,19 +259,93 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
                   onChange={(e) => setCfg({ ...cfg, priceUsd: Number(e.target.value) || 200 })}
                 />
               </label>
-              <Button type="button" size="sm" disabled={saving} onClick={() => void saveConfig()}>
-                {saving ? "Saving…" : "Save Strategy settings"}
-              </Button>
             </>
           )}
         </CardContent>
       </Card>
 
+      {cfg && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Email templates (edit & approve)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Placeholders: {"{{name}}"} {"{{firstName}}"} {"{{phone}}"} {"{{email}}"} {"{{amountUsd}}"}. Save before
+              going live. Auto confirmation sends on payment; schedule email you send manually from each paid order.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">1. Auto confirmation (sent right after Stripe payment)</p>
+              <input
+                className={inputClass}
+                value={cfg.confirmationSubject}
+                onChange={(e) => setCfg({ ...cfg, confirmationSubject: e.target.value })}
+                placeholder="Subject"
+              />
+              <textarea
+                className={taClass}
+                value={cfg.confirmationBody}
+                onChange={(e) => setCfg({ ...cfg, confirmationBody: e.target.value })}
+              />
+              {confirmationPreview && (
+                <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 p-3 space-y-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Preview (sample customer)
+                  </p>
+                  <p className="text-sm font-medium">{confirmationPreview.subject}</p>
+                  <pre className="text-xs whitespace-pre-wrap text-zinc-700 dark:text-zinc-300 font-sans">
+                    {confirmationPreview.body}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">2. Schedule outreach (you send after payment to book the hour)</p>
+              <input
+                className={inputClass}
+                value={cfg.scheduleSubject}
+                onChange={(e) => setCfg({ ...cfg, scheduleSubject: e.target.value })}
+                placeholder="Subject"
+              />
+              <textarea
+                className={taClass}
+                value={cfg.scheduleBody}
+                onChange={(e) => setCfg({ ...cfg, scheduleBody: e.target.value })}
+              />
+              {schedulePreview && (
+                <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 p-3 space-y-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Preview (sample customer)
+                  </p>
+                  <p className="text-sm font-medium">{schedulePreview.subject}</p>
+                  <pre className="text-xs whitespace-pre-wrap text-zinc-700 dark:text-zinc-300 font-sans">
+                    {schedulePreview.body}
+                  </pre>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Also available as preset{" "}
+                <Link href="/admin/emails?preset=paid-strategy-schedule" className="underline text-teal-600">
+                  Strategy call — schedule session
+                </Link>{" "}
+                in Admin → Emails.
+              </p>
+            </div>
+
+            <Button type="button" size="sm" disabled={saving} onClick={() => void saveConfig()}>
+              {saving ? "Saving…" : "Save Strategy settings & emails"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Strategy call payments</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Paid orders — contact by email/phone within 24 hours, then mark contacted or completed.
+            Paid orders appear here. Confirmation email column shows if the auto email was sent. Use Schedule email to
+            reach out and book.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -216,6 +361,7 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
                     <th className="py-2 pr-2">Contact</th>
                     <th className="py-2 pr-2">$</th>
                     <th className="py-2 pr-2">Status</th>
+                    <th className="py-2 pr-2">Confirm email</th>
                     <th className="py-2">Actions</th>
                   </tr>
                 </thead>
@@ -232,14 +378,45 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
                       </td>
                       <td className="py-2 pr-2">${o.amountUsd.toFixed(0)}</td>
                       <td className="py-2 pr-2">{o.status}</td>
+                      <td className="py-2 pr-2 text-xs">
+                        {o.confirmationEmailSentAt ? (
+                          <span className="text-emerald-700 dark:text-emerald-300">
+                            Sent {new Date(o.confirmationEmailSentAt).toLocaleString()}
+                          </span>
+                        ) : o.status === "pending" ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <span className="text-amber-700 dark:text-amber-300">Not logged / failed</span>
+                        )}
+                      </td>
                       <td className="py-2 space-x-1 whitespace-nowrap">
+                        {(o.status === "paid" || o.status === "contacted" || o.status === "completed") && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void openScheduleEmail(o.id)}
+                          >
+                            Schedule email
+                          </Button>
+                        )}
                         {o.status === "paid" && (
-                          <Button type="button" size="sm" variant="outline" onClick={() => void setOrderStatus(o.id, "contacted")}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void setOrderStatus(o.id, "contacted")}
+                          >
                             Contacted
                           </Button>
                         )}
                         {(o.status === "paid" || o.status === "contacted") && (
-                          <Button type="button" size="sm" variant="outline" onClick={() => void setOrderStatus(o.id, "completed")}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void setOrderStatus(o.id, "completed")}
+                          >
                             Completed
                           </Button>
                         )}
@@ -262,10 +439,30 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-2">
-            <input className={inputClass} placeholder="Name *" value={draftName} onChange={(e) => setDraftName(e.target.value)} />
-            <input className={inputClass} placeholder="Email" value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} />
-            <input className={inputClass} placeholder="Phone" value={draftPhone} onChange={(e) => setDraftPhone(e.target.value)} />
-            <input className={inputClass} type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} />
+            <input
+              className={inputClass}
+              placeholder="Name *"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+            />
+            <input
+              className={inputClass}
+              placeholder="Email"
+              value={draftEmail}
+              onChange={(e) => setDraftEmail(e.target.value)}
+            />
+            <input
+              className={inputClass}
+              placeholder="Phone"
+              value={draftPhone}
+              onChange={(e) => setDraftPhone(e.target.value)}
+            />
+            <input
+              className={inputClass}
+              type="date"
+              value={draftDate}
+              onChange={(e) => setDraftDate(e.target.value)}
+            />
             <input
               className={`${inputClass} sm:col-span-2`}
               placeholder="Notes"
@@ -273,7 +470,12 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
               onChange={(e) => setDraftNotes(e.target.value)}
             />
           </div>
-          <Button type="button" size="sm" disabled={saving || !draftName.trim()} onClick={() => void addCompletion()}>
+          <Button
+            type="button"
+            size="sm"
+            disabled={saving || !draftName.trim()}
+            onClick={() => void addCompletion()}
+          >
             Add completion
           </Button>
 

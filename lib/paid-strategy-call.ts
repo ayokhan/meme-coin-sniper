@@ -17,6 +17,10 @@ export type PaidStrategyCallConfigAdmin = {
   enabled: boolean;
   showNavButton: boolean;
   priceUsd: number;
+  confirmationSubject: string;
+  confirmationBody: string;
+  scheduleSubject: string;
+  scheduleBody: string;
   updatedAt: string | null;
 };
 
@@ -42,10 +46,58 @@ export type PaidStrategyCallOrderRow = {
   createdAt: string;
 };
 
+export type StrategyCallEmailVars = {
+  name: string;
+  firstName: string;
+  phone: string;
+  email: string;
+  amountUsd: string;
+};
+
+export const DEFAULT_CONFIRMATION_SUBJECT =
+  "Strategy call confirmed — we will contact you within 24 hours";
+
+export const DEFAULT_CONFIRMATION_BODY = `Hi {{firstName}},
+
+Thank you for purchasing a NovaStaris Strategy call.
+
+Payment received: {{amountUsd}} USD for a 1-hour session with our experts.
+
+What happens next:
+• One of our experts will contact you within 24 hours by email and phone to schedule your call.
+• We will use the phone number you provided: {{phone}}
+• Please watch your inbox (and spam folder) for our message.
+
+This is not a Calendly self-serve booking — we schedule personally to avoid conflicts and match you with the right expert.
+
+Need help in the meantime? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+
+— The NovaStaris team
+https://novastaris.ai`;
+
+export const DEFAULT_SCHEDULE_SUBJECT = "Let's schedule your NovaStaris Strategy call";
+
+export const DEFAULT_SCHEDULE_BODY = `Hi {{firstName}},
+
+Thank you again for your Strategy call purchase ({{amountUsd}} USD).
+
+I'd like to book your 1-hour session. Please reply with 2–3 time windows that work for you over the next few days (include your timezone), or confirm a time if I propose one below.
+
+We'll also reach you at {{phone}} if needed.
+
+Looking forward to the session.
+
+— The NovaStaris team
+https://novastaris.ai`;
+
 const DEFAULT_CONFIG: PaidStrategyCallConfigAdmin = {
   enabled: false,
   showNavButton: true,
   priceUsd: PAID_STRATEGY_CALL_PRICE_USD_DEFAULT,
+  confirmationSubject: "",
+  confirmationBody: "",
+  scheduleSubject: "",
+  scheduleBody: "",
   updatedAt: null,
 };
 
@@ -53,6 +105,10 @@ type ConfigRow = {
   enabled: boolean;
   showNavButton?: boolean;
   priceUsd?: number;
+  confirmationSubject?: string | null;
+  confirmationBody?: string | null;
+  scheduleSubject?: string | null;
+  scheduleBody?: string | null;
   updatedAt?: Date;
 };
 
@@ -82,8 +138,20 @@ type ConfigDb = {
       enabled: boolean;
       showNavButton: boolean;
       priceUsd: number;
+      confirmationSubject: string;
+      confirmationBody: string;
+      scheduleSubject: string;
+      scheduleBody: string;
     };
-    update: { enabled: boolean; showNavButton: boolean; priceUsd: number };
+    update: {
+      enabled: boolean;
+      showNavButton: boolean;
+      priceUsd: number;
+      confirmationSubject: string;
+      confirmationBody: string;
+      scheduleSubject: string;
+      scheduleBody: string;
+    };
   }) => Promise<unknown>;
 };
 
@@ -134,6 +202,50 @@ function toOrderRow(r: OrderRow): PaidStrategyCallOrderRow {
   };
 }
 
+export const ADMIN_EMAIL_DRAFT_STORAGE_KEY = "novastaris_admin_email_draft";
+
+export function fillStrategyCallEmailTemplate(
+  template: string,
+  vars: StrategyCallEmailVars
+): string {
+  return template
+    .replace(/\{\{firstName\}\}/gi, vars.firstName)
+    .replace(/\{\{name\}\}/gi, vars.name)
+    .replace(/\{\{phone\}\}/gi, vars.phone)
+    .replace(/\{\{email\}\}/gi, vars.email)
+    .replace(/\{\{amountUsd\}\}/gi, vars.amountUsd);
+}
+
+export function strategyCallEmailVarsFrom(order: {
+  name: string;
+  phone: string;
+  email: string;
+  amountUsd: number;
+}): StrategyCallEmailVars {
+  const name = order.name.trim() || "there";
+  return {
+    name,
+    firstName: name.split(/\s+/)[0] || "there",
+    phone: order.phone,
+    email: order.email,
+    amountUsd: String(Math.round(order.amountUsd)),
+  };
+}
+
+export function resolveConfirmationEmail(cfg: PaidStrategyCallConfigAdmin): { subject: string; body: string } {
+  return {
+    subject: cfg.confirmationSubject.trim() || DEFAULT_CONFIRMATION_SUBJECT,
+    body: cfg.confirmationBody.trim() || DEFAULT_CONFIRMATION_BODY,
+  };
+}
+
+export function resolveScheduleEmail(cfg: PaidStrategyCallConfigAdmin): { subject: string; body: string } {
+  return {
+    subject: cfg.scheduleSubject.trim() || DEFAULT_SCHEDULE_SUBJECT,
+    body: cfg.scheduleBody.trim() || DEFAULT_SCHEDULE_BODY,
+  };
+}
+
 export async function getPaidStrategyCallConfig(): Promise<PaidStrategyCallConfigAdmin> {
   const db = configStore();
   if (!db) return { ...DEFAULT_CONFIG };
@@ -145,6 +257,10 @@ export async function getPaidStrategyCallConfig(): Promise<PaidStrategyCallConfi
       enabled: row.enabled === true,
       showNavButton: row.showNavButton !== false,
       priceUsd: price,
+      confirmationSubject: (row.confirmationSubject ?? "").trim(),
+      confirmationBody: (row.confirmationBody ?? "").trim(),
+      scheduleSubject: (row.scheduleSubject ?? "").trim(),
+      scheduleBody: (row.scheduleBody ?? "").trim(),
       updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : null,
     };
   } catch {
@@ -156,6 +272,10 @@ export async function setPaidStrategyCallConfig(patch: {
   enabled?: boolean;
   showNavButton?: boolean;
   priceUsd?: number;
+  confirmationSubject?: string;
+  confirmationBody?: string;
+  scheduleSubject?: string;
+  scheduleBody?: string;
 }): Promise<PaidStrategyCallConfigAdmin> {
   const db = configStore();
   if (!db) throw new Error("Paid Strategy call config unavailable.");
@@ -170,6 +290,11 @@ export async function setPaidStrategyCallConfig(patch: {
     enabled: patch.enabled ?? current.enabled,
     showNavButton: patch.showNavButton ?? current.showNavButton,
     priceUsd,
+    confirmationSubject:
+      patch.confirmationSubject !== undefined ? patch.confirmationSubject : current.confirmationSubject,
+    confirmationBody: patch.confirmationBody !== undefined ? patch.confirmationBody : current.confirmationBody,
+    scheduleSubject: patch.scheduleSubject !== undefined ? patch.scheduleSubject : current.scheduleSubject,
+    scheduleBody: patch.scheduleBody !== undefined ? patch.scheduleBody : current.scheduleBody,
   };
   await db.upsert({
     where: { id: PAID_STRATEGY_CALL_CONFIG_ID },
@@ -294,24 +419,11 @@ export async function sendPaidStrategyCallConfirmationEmail(order: {
   phone: string;
   amountUsd: number;
 }): Promise<{ ok: boolean; error?: string }> {
-  const first = order.name.trim().split(/\s+/)[0] || "there";
-  const body = `Hi ${first},
-
-Thank you for purchasing a NovaStaris Strategy call.
-
-Payment received: $${order.amountUsd.toFixed(0)} USD for a 1-hour session with our experts.
-
-What happens next:
-• One of our experts will contact you within 24 hours by email and phone to schedule your call.
-• We will use the phone number you provided: ${order.phone}
-• Please watch your inbox (and spam folder) for our message.
-
-This is not a Calendly self-serve booking — we schedule personally to avoid conflicts and match you with the right expert.
-
-Need help in the meantime? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
-
-— The NovaStaris team
-https://novastaris.ai`;
+  const cfg = await getPaidStrategyCallConfig();
+  const tpl = resolveConfirmationEmail(cfg);
+  const vars = strategyCallEmailVarsFrom(order);
+  const subject = fillStrategyCallEmailTemplate(tpl.subject, vars);
+  const body = fillStrategyCallEmailTemplate(tpl.body, vars);
 
   const html = buildNovaBrandedEmailHtml({
     body,
@@ -320,7 +432,7 @@ https://novastaris.ai`;
     ctaUrl: "https://novastaris.ai",
   });
 
-  return sendEmailDetailed(order.email, "Strategy call confirmed — we will contact you within 24 hours", html);
+  return sendEmailDetailed(order.email, subject, html);
 }
 
 export async function sendPaidStrategyCallOwnerAlert(order: {
@@ -462,5 +574,74 @@ Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not
 https://novastaris.ai`,
     ctaLabel: "View Strategy call",
     ctaUrl: PAID_STRATEGY_CALL_PAGE_URL,
+  };
+}
+
+/** Owner follow-up after payment — ask for times to book the session. */
+export function buildPaidStrategyCallScheduleEmail(): {
+  subject: string;
+  body: string;
+  ctaLabel: string;
+  ctaUrl: string;
+} {
+  return {
+    subject: DEFAULT_SCHEDULE_SUBJECT,
+    body: DEFAULT_SCHEDULE_BODY,
+    ctaLabel: "Open dashboard",
+    ctaUrl: "https://novastaris.ai",
+  };
+}
+
+/** Personalize schedule template for a paid order (uses saved admin copy when available). */
+export async function buildPersonalizedScheduleEmail(order: {
+  name: string;
+  phone: string;
+  email: string;
+  amountUsd: number;
+}): Promise<{ subject: string; body: string; to: string }> {
+  const cfg = await getPaidStrategyCallConfig();
+  const tpl = resolveScheduleEmail(cfg);
+  const vars = strategyCallEmailVarsFrom(order);
+  return {
+    to: order.email,
+    subject: fillStrategyCallEmailTemplate(tpl.subject, vars),
+    body: fillStrategyCallEmailTemplate(tpl.body, vars),
+  };
+}
+
+/** Preview confirmation email with sample or order vars. */
+export function previewConfirmationEmail(
+  cfg: PaidStrategyCallConfigAdmin,
+  vars?: Partial<StrategyCallEmailVars>
+): { subject: string; body: string } {
+  const tpl = resolveConfirmationEmail(cfg);
+  const full: StrategyCallEmailVars = {
+    name: vars?.name ?? "Alex Trader",
+    firstName: vars?.firstName ?? "Alex",
+    phone: vars?.phone ?? "+1 555 000 0000",
+    email: vars?.email ?? "customer@email.com",
+    amountUsd: vars?.amountUsd ?? String(cfg.priceUsd || PAID_STRATEGY_CALL_PRICE_USD_DEFAULT),
+  };
+  return {
+    subject: fillStrategyCallEmailTemplate(tpl.subject, full),
+    body: fillStrategyCallEmailTemplate(tpl.body, full),
+  };
+}
+
+export function previewScheduleEmail(
+  cfg: PaidStrategyCallConfigAdmin,
+  vars?: Partial<StrategyCallEmailVars>
+): { subject: string; body: string } {
+  const tpl = resolveScheduleEmail(cfg);
+  const full: StrategyCallEmailVars = {
+    name: vars?.name ?? "Alex Trader",
+    firstName: vars?.firstName ?? "Alex",
+    phone: vars?.phone ?? "+1 555 000 0000",
+    email: vars?.email ?? "customer@email.com",
+    amountUsd: vars?.amountUsd ?? String(cfg.priceUsd || PAID_STRATEGY_CALL_PRICE_USD_DEFAULT),
+  };
+  return {
+    subject: fillStrategyCallEmailTemplate(tpl.subject, full),
+    body: fillStrategyCallEmailTemplate(tpl.body, full),
   };
 }

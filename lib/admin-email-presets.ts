@@ -16,7 +16,10 @@ import {
   PATH_DEEPDIVE_WALLETS_EMAIL,
 } from "@/lib/path-deepdive-emails";
 import { buildStrategyCallEmail } from "@/lib/strategy-call";
-import { buildPaidStrategyCallMarketingEmail } from "@/lib/paid-strategy-call";
+import {
+  buildPaidStrategyCallMarketingEmail,
+  buildPaidStrategyCallScheduleEmail,
+} from "@/lib/paid-strategy-call";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 
@@ -33,6 +36,7 @@ export type AdminEmailPresetId =
   | "vip-soft-pitch"
   | "strategy-call"
   | "paid-strategy-call"
+  | "paid-strategy-schedule"
   | "vip-expiry-pre"
   | "vip-expiry-post"
   | "affiliate"
@@ -65,6 +69,7 @@ const AFFILIATE = "https://novastaris.ai/affiliate";
 const START_HERE = "https://novastaris.ai/start-here";
 const STRATEGY_CALL = buildStrategyCallEmail("");
 const PAID_STRATEGY = buildPaidStrategyCallMarketingEmail();
+const PAID_STRATEGY_SCHEDULE = buildPaidStrategyCallScheduleEmail();
 
 export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   {
@@ -183,6 +188,18 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     ctaLabel: PAID_STRATEGY.ctaLabel,
     ctaUrl: PAID_STRATEGY.ctaUrl,
     defaultAudience: "all",
+  },
+  {
+    id: "paid-strategy-schedule",
+    label: "Strategy call — schedule session",
+    blurb: "After payment — ask customer for times (edit placeholders)",
+    subject: PAID_STRATEGY_SCHEDULE.subject,
+    body: PAID_STRATEGY_SCHEDULE.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: PAID_STRATEGY_SCHEDULE.ctaLabel,
+    ctaUrl: PAID_STRATEGY_SCHEDULE.ctaUrl,
   },
   {
     id: "vip-expiry-pre",
