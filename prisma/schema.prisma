@@ -820,6 +820,11 @@ model VipTrialConfig {
   dailyLimitPerDesk     Int      @default(3)
   /** Show login popup promoting VIP trial to eligible free users. */
   showLoginPopup        Boolean  @default(false)
+  /** Optional login-popup copy (empty = built-in defaults). Supports {{trialDays}} {{reminderHours}} {{planLabel}} {{planPrice}} {{cardFee}} {{cardTotal}}. */
+  popupTitle            String?
+  popupBody             String?  @db.Text
+  popupCtaLabel         String?
+  popupSecondaryCtaLabel String?
   updatedAt             DateTime @updatedAt
 }
 

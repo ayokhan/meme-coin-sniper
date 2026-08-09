@@ -114,6 +114,11 @@ export async function PATCH(request: Request) {
         typeof body.planIdAfterTrial === "string" ? body.planIdAfterTrial : undefined,
       dailyLimitPerDesk:
         body.dailyLimitPerDesk != null ? Number(body.dailyLimitPerDesk) : undefined,
+      popupTitle: typeof body.popupTitle === "string" ? body.popupTitle : undefined,
+      popupBody: typeof body.popupBody === "string" ? body.popupBody : undefined,
+      popupCtaLabel: typeof body.popupCtaLabel === "string" ? body.popupCtaLabel : undefined,
+      popupSecondaryCtaLabel:
+        typeof body.popupSecondaryCtaLabel === "string" ? body.popupSecondaryCtaLabel : undefined,
     });
     return NextResponse.json({ success: true, config });
   } catch (e) {

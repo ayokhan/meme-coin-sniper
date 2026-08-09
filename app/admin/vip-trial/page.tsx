@@ -16,6 +16,10 @@ type Config = {
   reminderHoursBefore: number;
   planIdAfterTrial: string;
   dailyLimitPerDesk: number;
+  popupTitle: string;
+  popupBody: string;
+  popupCtaLabel: string;
+  popupSecondaryCtaLabel: string;
   updatedAt: string | null;
 };
 
@@ -245,6 +249,59 @@ export default function AdminVipTrialPage() {
                 Trial users: {config.dailyLimitPerDesk ?? 3}/day each for AI Agent, Forecast, Forex, Radar, etc.
                 Paid VIP stays unlimited.
               </p>
+
+              <div className="rounded-lg border border-amber-200/70 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/20 p-3 space-y-3">
+                <p className="text-xs font-semibold text-amber-900 dark:text-amber-100">Login popup copy</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Leave blank to use defaults. Placeholders:{" "}
+                  <code className="text-[10px]">{"{{trialDays}}"}</code>{" "}
+                  <code className="text-[10px]">{"{{reminderHours}}"}</code>{" "}
+                  <code className="text-[10px]">{"{{planLabel}}"}</code>{" "}
+                  <code className="text-[10px]">{"{{planPrice}}"}</code>{" "}
+                  <code className="text-[10px]">{"{{cardFee}}"}</code>{" "}
+                  <code className="text-[10px]">{"{{cardTotal}}"}</code>
+                </p>
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  Title
+                  <input
+                    value={config.popupTitle ?? ""}
+                    onChange={(e) => setConfig({ ...config, popupTitle: e.target.value })}
+                    placeholder="Try VIP free for {{trialDays}} days"
+                    className="text-sm border rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600"
+                  />
+                </label>
+                <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                  Body
+                  <textarea
+                    rows={5}
+                    value={config.popupBody ?? ""}
+                    onChange={(e) => setConfig({ ...config, popupBody: e.target.value })}
+                    placeholder="Unlock NovaForecast…"
+                    className="text-sm border rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600"
+                  />
+                </label>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                    Primary button
+                    <input
+                      value={config.popupCtaLabel ?? ""}
+                      onChange={(e) => setConfig({ ...config, popupCtaLabel: e.target.value })}
+                      placeholder="Start {{trialDays}}-day VIP trial"
+                      className="text-sm border rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600"
+                    />
+                  </label>
+                  <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                    Secondary button
+                    <input
+                      value={config.popupSecondaryCtaLabel ?? ""}
+                      onChange={(e) => setConfig({ ...config, popupSecondaryCtaLabel: e.target.value })}
+                      placeholder="See VIP plans"
+                      className="text-sm border rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600"
+                    />
+                  </label>
+                </div>
+              </div>
+
               <Button size="sm" disabled={saving} onClick={() => void save()}>
                 {saving ? "Saving…" : "Save settings"}
               </Button>

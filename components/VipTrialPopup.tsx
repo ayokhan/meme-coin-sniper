@@ -7,8 +7,6 @@ import { Gift, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDashboardOverlay, useMarkMarketingOverlayDone } from "@/components/DashboardOverlayProvider";
 
-const CARD_FEE_USD = 8;
-
 const DISMISS_KEY = "novastaris_vip_trial_popup_dismissed_at";
 const LATER_KEY = "novastaris_vip_trial_popup_later_at";
 
@@ -22,6 +20,10 @@ type TrialOffer = {
   eligible: boolean;
   alreadyVip: boolean;
   updatedAt: string | null;
+  popupTitle: string;
+  popupBody: string;
+  popupCtaLabel: string;
+  popupSecondaryCtaLabel: string;
 };
 
 function readDismissedAt(): string | null {
@@ -78,8 +80,6 @@ function VipTrialPopupModal({ open, offer, onRemindLater, onDismissPermanent }: 
 
   if (!open) return null;
 
-  const cardTotal = offer.planPriceUsd + CARD_FEE_USD;
-
   return (
     <div
       className="fixed inset-0 z-[106] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
@@ -106,13 +106,10 @@ function VipTrialPopupModal({ open, offer, onRemindLater, onDismissPermanent }: 
             <Gift className="h-7 w-7 text-amber-600 dark:text-amber-400" aria-hidden />
           </div>
           <h2 id="vip-trial-popup-title" className="text-lg font-bold text-zinc-900 dark:text-zinc-100 pr-8">
-            Try VIP free for {offer.trialDays} days
+            {offer.popupTitle}
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-            Unlock NovaForecast, Nova Forex, deeper wallet tools, and higher AI limits.
-            Card required — we email you about {offer.reminderHoursBefore} hours before the trial ends so you
-            can cancel. If you don’t cancel, you’re charged ${offer.planPriceUsd} + ${CARD_FEE_USD} card
-            fee (${cardTotal}) for {offer.planLabel} and VIP renews automatically until you turn it off.
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+            {offer.popupBody}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
             By starting a trial you agree to our{" "}
@@ -126,12 +123,12 @@ function VipTrialPopupModal({ open, offer, onRemindLater, onDismissPermanent }: 
         <div className="mt-5 flex flex-col gap-2">
           <Button asChild className="w-full bg-amber-500 hover:bg-amber-600 text-white">
             <Link href="/subscribe?trial=1" onClick={onRemindLater}>
-              Start {offer.trialDays}-day VIP trial
+              {offer.popupCtaLabel}
             </Link>
           </Button>
           <Button asChild variant="outline" className="w-full">
             <Link href="/subscribe" onClick={onRemindLater}>
-              See VIP plans
+              {offer.popupSecondaryCtaLabel}
             </Link>
           </Button>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1">

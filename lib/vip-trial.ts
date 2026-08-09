@@ -25,6 +25,11 @@ export type VipTrialConfigAdmin = {
   planIdAfterTrial: string;
   /** Max uses per desk per UTC day while on trial. */
   dailyLimitPerDesk: number;
+  /** Login popup copy (empty = built-in defaults). */
+  popupTitle: string;
+  popupBody: string;
+  popupCtaLabel: string;
+  popupSecondaryCtaLabel: string;
   updatedAt: string | null;
 };
 
@@ -42,7 +47,18 @@ export type VipTrialPublicOffer = {
   /** True when user already has active VIP. */
   alreadyVip: boolean;
   updatedAt: string | null;
+  popupTitle: string;
+  popupBody: string;
+  popupCtaLabel: string;
+  popupSecondaryCtaLabel: string;
 };
+
+export const VIP_TRIAL_POPUP_DEFAULTS = {
+  title: "Try VIP free for {{trialDays}} days",
+  body: "Unlock NovaForecast, Nova Forex, deeper wallet tools, and higher AI limits. Card required — we email you about {{reminderHours}} hours before the trial ends so you can cancel. If you don’t cancel, you’re charged ${{planPrice}} + ${{cardFee}} card fee (${{cardTotal}}) for {{planLabel}} and VIP renews automatically until you turn it off.",
+  ctaLabel: "Start {{trialDays}}-day VIP trial",
+  secondaryCtaLabel: "See VIP plans",
+} as const;
 
 const DEFAULT: VipTrialConfigAdmin = {
   enabled: false,
@@ -51,6 +67,10 @@ const DEFAULT: VipTrialConfigAdmin = {
   reminderHoursBefore: 24,
   planIdAfterTrial: "1month",
   dailyLimitPerDesk: 3,
+  popupTitle: "",
+  popupBody: "",
+  popupCtaLabel: "",
+  popupSecondaryCtaLabel: "",
   updatedAt: null,
 };
 
@@ -61,6 +81,10 @@ type ConfigRow = {
   reminderHoursBefore: number;
   planIdAfterTrial: string;
   dailyLimitPerDesk?: number;
+  popupTitle?: string | null;
+  popupBody?: string | null;
+  popupCtaLabel?: string | null;
+  popupSecondaryCtaLabel?: string | null;
   updatedAt: Date;
 };
 
@@ -77,6 +101,10 @@ type PrismaVipTrial = typeof prisma & {
         reminderHoursBefore: number;
         planIdAfterTrial: string;
         dailyLimitPerDesk: number;
+        popupTitle?: string | null;
+        popupBody?: string | null;
+        popupCtaLabel?: string | null;
+        popupSecondaryCtaLabel?: string | null;
       };
       update: {
         enabled?: boolean;
@@ -85,6 +113,10 @@ type PrismaVipTrial = typeof prisma & {
         reminderHoursBefore?: number;
         planIdAfterTrial?: string;
         dailyLimitPerDesk?: number;
+        popupTitle?: string | null;
+        popupBody?: string | null;
+        popupCtaLabel?: string | null;
+        popupSecondaryCtaLabel?: string | null;
       };
     }) => Promise<ConfigRow>;
   };
@@ -174,6 +206,78 @@ function clampDailyLimit(n: number): number {
   return Math.min(100, Math.max(0, Math.round(n)));
 }
 
+function strOrEmpty(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
+const CARD_FEE_USD = 8;
+
+/** Fill {{trialDays}} {{reminderHours}} {{planLabel}} {{planPrice}} {{cardFee}} {{cardTotal}}. */
+export function fillVipTrialPopupTemplate(
+  template: string,
+  vars: {
+    trialDays: number;
+    reminderHours: number;
+    planLabel: string;
+    planPrice: number;
+    cardFee?: number;
+    cardTotal?: number;
+  }
+): string {
+  const cardFee = vars.cardFee ?? CARD_FEE_USD;
+  const cardTotal = vars.cardTotal ?? vars.planPrice + cardFee;
+  const map: Record<string, string> = {
+    trialDays: String(vars.trialDays),
+    reminderHours: String(vars.reminderHours),
+    planLabel: vars.planLabel,
+    planPrice: String(vars.planPrice),
+    cardFee: String(cardFee),
+    cardTotal: String(cardTotal),
+  };
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => map[key] ?? "");
+}
+
+export function resolveVipTrialPopupCopy(cfg: {
+  trialDays: number;
+  reminderHoursBefore: number;
+  planLabel: string;
+  planPriceUsd: number;
+  popupTitle?: string;
+  popupBody?: string;
+  popupCtaLabel?: string;
+  popupSecondaryCtaLabel?: string;
+}): {
+  popupTitle: string;
+  popupBody: string;
+  popupCtaLabel: string;
+  popupSecondaryCtaLabel: string;
+} {
+  const vars = {
+    trialDays: cfg.trialDays,
+    reminderHours: cfg.reminderHoursBefore,
+    planLabel: cfg.planLabel,
+    planPrice: cfg.planPriceUsd,
+  };
+  return {
+    popupTitle: fillVipTrialPopupTemplate(
+      (cfg.popupTitle || "").trim() || VIP_TRIAL_POPUP_DEFAULTS.title,
+      vars
+    ),
+    popupBody: fillVipTrialPopupTemplate(
+      (cfg.popupBody || "").trim() || VIP_TRIAL_POPUP_DEFAULTS.body,
+      vars
+    ),
+    popupCtaLabel: fillVipTrialPopupTemplate(
+      (cfg.popupCtaLabel || "").trim() || VIP_TRIAL_POPUP_DEFAULTS.ctaLabel,
+      vars
+    ),
+    popupSecondaryCtaLabel: fillVipTrialPopupTemplate(
+      (cfg.popupSecondaryCtaLabel || "").trim() || VIP_TRIAL_POPUP_DEFAULTS.secondaryCtaLabel,
+      vars
+    ),
+  };
+}
+
 export async function getVipTrialConfig(): Promise<VipTrialConfigAdmin> {
   const db = cfgDb();
   if (!db) return { ...DEFAULT };
@@ -187,6 +291,10 @@ export async function getVipTrialConfig(): Promise<VipTrialConfigAdmin> {
       reminderHoursBefore: clampReminderHours(row.reminderHoursBefore),
       planIdAfterTrial: normalizePlanId(row.planIdAfterTrial),
       dailyLimitPerDesk: clampDailyLimit(row.dailyLimitPerDesk ?? DEFAULT.dailyLimitPerDesk),
+      popupTitle: strOrEmpty(row.popupTitle),
+      popupBody: strOrEmpty(row.popupBody),
+      popupCtaLabel: strOrEmpty(row.popupCtaLabel),
+      popupSecondaryCtaLabel: strOrEmpty(row.popupSecondaryCtaLabel),
       updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : null,
     };
   } catch {
@@ -201,6 +309,10 @@ export async function setVipTrialConfig(patch: {
   reminderHoursBefore?: number;
   planIdAfterTrial?: string;
   dailyLimitPerDesk?: number;
+  popupTitle?: string;
+  popupBody?: string;
+  popupCtaLabel?: string;
+  popupSecondaryCtaLabel?: string;
 }): Promise<VipTrialConfigAdmin> {
   const db = cfgDb();
   if (!db) throw new Error("VipTrialConfig model unavailable — run prisma migrate.");
@@ -219,6 +331,13 @@ export async function setVipTrialConfig(patch: {
       patch.dailyLimitPerDesk != null
         ? clampDailyLimit(patch.dailyLimitPerDesk)
         : current.dailyLimitPerDesk,
+    popupTitle: patch.popupTitle != null ? String(patch.popupTitle) : current.popupTitle,
+    popupBody: patch.popupBody != null ? String(patch.popupBody) : current.popupBody,
+    popupCtaLabel: patch.popupCtaLabel != null ? String(patch.popupCtaLabel) : current.popupCtaLabel,
+    popupSecondaryCtaLabel:
+      patch.popupSecondaryCtaLabel != null
+        ? String(patch.popupSecondaryCtaLabel)
+        : current.popupSecondaryCtaLabel,
   };
   await db.upsert({
     where: { id: VIP_TRIAL_CONFIG_ID },
@@ -247,6 +366,16 @@ export async function userHasUsedVipTrial(userId: string): Promise<boolean> {
 export async function getVipTrialPublicOffer(userId: string | null): Promise<VipTrialPublicOffer> {
   const cfg = await getVipTrialConfig();
   const plan = VIP_PLANS.find((p) => p.id === cfg.planIdAfterTrial) ?? VIP_PLANS[0]!;
+  const popup = resolveVipTrialPopupCopy({
+    trialDays: cfg.trialDays,
+    reminderHoursBefore: cfg.reminderHoursBefore,
+    planLabel: plan.label,
+    planPriceUsd: plan.priceUsd,
+    popupTitle: cfg.popupTitle,
+    popupBody: cfg.popupBody,
+    popupCtaLabel: cfg.popupCtaLabel,
+    popupSecondaryCtaLabel: cfg.popupSecondaryCtaLabel,
+  });
   const base: VipTrialPublicOffer = {
     enabled: cfg.enabled,
     showLoginPopup: cfg.showLoginPopup,
@@ -259,6 +388,7 @@ export async function getVipTrialPublicOffer(userId: string | null): Promise<Vip
     ineligibleReason: cfg.enabled ? null : "VIP trial is not available right now.",
     alreadyVip: false,
     updatedAt: cfg.updatedAt,
+    ...popup,
   };
   if (!cfg.enabled) return base;
   if (!userId) {
