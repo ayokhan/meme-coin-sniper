@@ -12,7 +12,7 @@ Pick your path
 1. Meme coin hunter → Go Hunting, Trending, Surge, then AI Agent
 2. Crypto futures → Crypto Futures (chart AI). VIP: NovaForecast
 3. Forex trading → Nova Forex Agent (XAUUSD, FX, indices)
-4. Wallet tracking → Wallet Tracker, CT Scan, Coach Calls
+4. Wallet tracking → Wallet Tracker, Coach Calls
 5. Prediction markets → Nova Polymarket
 
 Choose your desk

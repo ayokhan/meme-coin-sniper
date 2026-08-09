@@ -14,6 +14,20 @@ const START_HERE_URL =
 
 export type WelcomeEmailSource = "register" | "google";
 
+function isTransientSendError(error: string): boolean {
+  const e = error.toLowerCase();
+  return (
+    e.includes("fetch failed") ||
+    e.includes("network") ||
+    e.includes("econnreset") ||
+    e.includes("etimedout") ||
+    e.includes("socket") ||
+    e.includes("503") ||
+    e.includes("429") ||
+    e.includes("timeout")
+  );
+}
+
 async function logWelcome(args: {
   email: string;
   userId?: string | null;
@@ -39,6 +53,17 @@ async function logWelcome(args: {
     });
   } catch (e) {
     console.warn("WelcomeEmailLog create failed:", e);
+    try {
+      const { logSystemError } = await import("@/lib/system-error-log");
+      await logSystemError({
+        source: "email.welcome.log",
+        message: `WelcomeEmailLog write failed for ${args.email}`,
+        detail: e instanceof Error ? e.message : String(e),
+        meta: { email: args.email, success: args.success, source: args.source },
+      });
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -80,7 +105,18 @@ export async function listRecentWelcomeEmailLogs(limit = 50): Promise<WelcomeEma
   }
 }
 
-/** Fire-and-forget safe; never throws to callers. */
+async function sendWithRetry(to: string, subject: string, html: string, attempts = 3) {
+  let last: { ok: true } | { ok: false; error: string } = { ok: false, error: "not attempted" };
+  for (let i = 0; i < attempts; i++) {
+    last = await sendEmailDetailed(to, subject, html);
+    if (last.ok) return last;
+    if (!isTransientSendError(last.error) || i === attempts - 1) return last;
+    await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+  }
+  return last;
+}
+
+/** Fire-and-forget safe; never throws to callers. Retries transient Resend/network failures. */
 export async function sendWelcomeEmailToUser(
   email: string | null | undefined,
   opts?: { userId?: string | null; source?: WelcomeEmailSource }
@@ -111,21 +147,39 @@ export async function sendWelcomeEmailToUser(
       ctaLabel: "Open Start here",
       ctaUrl: START_HERE_URL,
     });
-    const result = await sendEmailDetailed(to, WELCOME_EMAIL.subject, html);
+    const result = await sendWithRetry(to, WELCOME_EMAIL.subject, html, 3);
     if (result.ok) {
       await logWelcome({ email: to, userId, success: true, source });
     } else {
       console.warn("Welcome email failed:", to, result.error);
       await logWelcome({ email: to, userId, success: false, error: result.error, source });
+      try {
+        const { logSystemError } = await import("@/lib/system-error-log");
+        await logSystemError({
+          source: "email.welcome",
+          message: `Welcome email failed for ${to}`,
+          detail: result.error,
+          meta: { email: to, userId, source },
+        });
+      } catch {
+        /* ignore */
+      }
     }
   } catch (e) {
     console.error("sendWelcomeEmailToUser:", e);
+    const message = e instanceof Error ? e.message : "send failed";
     await logWelcome({
       email: to,
       userId,
       success: false,
-      error: e instanceof Error ? e.message : "send failed",
+      error: message,
       source,
     });
+    try {
+      const { logSystemException } = await import("@/lib/system-error-log");
+      await logSystemException("email.welcome", e, { email: to, userId, source });
+    } catch {
+      /* ignore */
+    }
   }
 }

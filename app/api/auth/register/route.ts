@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcrypt';
 import { applyReferralOnSignup } from '@/lib/referral-commission';
@@ -61,8 +61,10 @@ export async function POST(request: Request) {
       await applyReferralOnSignup(created.id, referralCode);
     }
 
-    // Auto welcome; never block signup if mail fails
-    void sendWelcomeEmailToUser(created.email, { userId: created.id, source: "register" });
+    // Auto welcome after response — retries + log; don't block signup
+    after(() =>
+      sendWelcomeEmailToUser(created.email, { userId: created.id, source: "register" })
+    );
 
     return NextResponse.json({ success: true, message: 'Account created. You can sign in.' });
   } catch (e) {
