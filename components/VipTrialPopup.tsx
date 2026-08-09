@@ -109,7 +109,7 @@ function VipTrialPopupModal({ open, offer, onRemindLater, onDismissPermanent }: 
             Try VIP free for {offer.trialDays} days
           </h2>
           <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-            Unlock NovaForecast, Nova Forex, CT Scan, deeper wallet tools, and higher AI limits.
+            Unlock NovaForecast, Nova Forex, deeper wallet tools, and higher AI limits.
             Card required — we email you about {offer.reminderHoursBefore} hours before the trial ends so you
             can cancel. If you don’t cancel, you’re charged ${offer.planPriceUsd} + ${CARD_FEE_USD} card
             fee (${cardTotal}) for {offer.planLabel} and VIP renews automatically until you turn it off.

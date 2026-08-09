@@ -24,7 +24,7 @@ export const VIP_EXPIRY_PRE_EMAIL = {
 
 Your VIP access is ending soon — check Account / Billing for your exact date.
 
-After that date, VIP desks (NovaForecast, Nova Forex, CT Scan, and related tools) will pause until you renew.
+After that date, VIP desks (NovaForecast, Nova Forex, and related tools) will pause until you renew.
 
 Renew anytime:
 ${SUBSCRIBE_URL}
@@ -63,7 +63,7 @@ export function buildVipExpiryPreEmail(expiresAt: Date): { subject: string; body
 
 Your VIP access is scheduled to end on ${when}.
 
-After that date, VIP desks (NovaForecast, Nova Forex, CT Scan, and related tools) will pause until you renew.
+After that date, VIP desks (NovaForecast, Nova Forex, and related tools) will pause until you renew.
 
 Renew anytime:
 ${SUBSCRIBE_URL}

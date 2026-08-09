@@ -332,7 +332,7 @@ export function buildVipTrialInviteEmail(input: {
     subject: `Try NovaStaris VIP free for ${input.trialDays} days`,
     body: `Hi there,
 
-VIP desks (NovaForecast, Nova Forex, CT Scan, wallets, and more) are easier to understand when you can try them.
+VIP desks (NovaForecast, Nova Forex, wallets, and more) are easier to understand when you can try them.
 
 We’re offering a ${input.trialDays}-day VIP trial:
 

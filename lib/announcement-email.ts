@@ -279,7 +279,7 @@ export function buildWelcomeEmailHtml(args?: { body?: string }): string {
               <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>1. Meme coin hunter</strong> — Go Hunting, Trending, Surge, then AI Agent</p>
               <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>2. Crypto futures</strong> — Crypto Futures. VIP: NovaForecast</p>
               <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>3. Forex trading</strong> — Nova Forex Agent (XAUUSD, FX, indices)</p>
-              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>4. Wallet tracking</strong> — Wallet Tracker, CT Scan, Coach Calls</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>4. Wallet tracking</strong> — Wallet Tracker, Coach Calls</p>
               <p style="margin:0;font-size:15px;color:#134e4a;"><strong>5. Prediction markets</strong> — Nova Polymarket</p>
             </td>
           </tr>

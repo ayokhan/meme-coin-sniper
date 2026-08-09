@@ -518,7 +518,7 @@ function SubscribeContent() {
           <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">What&apos;s included in VIP</p>
           <ul className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 list-disc list-inside space-y-1">
             <li>Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana + BSC), Crypto Futures, NovaConnect</li>
-            <li>CT Scan, Wallet Tracker, Coach Calls + Telegram Signals (on-demand where noted)</li>
+            <li>Wallet Tracker, Coach Calls + Telegram Signals (on-demand where noted)</li>
             <li>NovaForecast, Nova Forex Agent, NovaQ, Nova Investment Agent, Nova+, NovaScalper</li>
             <li>On-demand: AI Trading Bot, Nova Polymarket, Nova Prop Firm Challenge, Nova Ultimate</li>
           </ul>

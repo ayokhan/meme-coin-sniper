@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 const UNLOCKS = [
   "NovaForecast + NovaRadar — crypto perp ranges and structure",
   "Nova Forex Agent — Market Watch for XAUUSD, FX, indices",
-  "CT Scan, Coach Calls, deeper wallet intelligence",
+  "Wallet Tracker, Coach Calls, deeper wallet intelligence",
   "Higher AI limits and VIP workspaces",
 ] as const;
 
