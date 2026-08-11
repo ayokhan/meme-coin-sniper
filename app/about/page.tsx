@@ -31,9 +31,14 @@ function AboutContent() {
             <Zap className="h-5 w-5 text-cyan-500" />
             NovaStaris
           </Link>
-          <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-            ← Dashboard
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/case-studies" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+              Case studies
+            </Link>
+            <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+              ← Dashboard
+            </Link>
+          </div>
         </div>
       </header>
 

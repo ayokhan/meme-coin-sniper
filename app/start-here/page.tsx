@@ -187,6 +187,10 @@ export default function StartHerePage() {
             <Link href="/about" className="underline underline-offset-2 hover:text-zinc-800 dark:hover:text-zinc-200">
               About NovaStaris
             </Link>
+            {" · "}
+            <Link href="/case-studies" className="underline underline-offset-2 hover:text-zinc-800 dark:hover:text-zinc-200">
+              Case studies
+            </Link>
           </p>
           <p className="text-xs text-zinc-400 dark:text-zinc-600 pt-2">
             Not financial advice. Always confirm prices and risk with your broker or venue.
