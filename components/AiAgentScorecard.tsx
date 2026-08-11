@@ -1,10 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowRight, CheckCircle2, MinusCircle, Pin, RotateCcw, XCircle, Zap } from "lucide-react";
+import { AlertTriangle, CheckCircle2, MinusCircle, Pin, RotateCcw, XCircle } from "lucide-react";
 
 export type AiAgentScorecardResult = {
   score: number;
@@ -203,12 +202,6 @@ type Props = {
   onPin?: () => void;
   canPin?: boolean;
   pinSuccess?: string | null;
-  /**
-   * VIP/owner with Pulse tab: call to open Pulse.
-   * Free/paid non-VIP: omit and we link to /subscribe instead when showPulseCta.
-   */
-  onOpenPulse?: () => void;
-  showPulseCta?: boolean;
   actions?: ReactNode;
 };
 
@@ -220,8 +213,6 @@ export default function AiAgentScorecard({
   onPin,
   canPin,
   pinSuccess,
-  onOpenPulse,
-  showPulseCta = true,
   actions,
 }: Props) {
   const band = scoreBand(result.score);
@@ -249,8 +240,8 @@ export default function AiAgentScorecard({
   const isBuy = result.signal === "buy";
   const nextTitle = isBuy ? "Looks interesting — next step" : "Skip this one — next step";
   const nextBlurb = isBuy
-    ? "Pin it for monitoring, or check timing on Nova Pulse. Still size small and manage risk."
-    : "Clear skip. Check another CA, or explore Nova Pulse when you want futures/forex timing desks.";
+    ? "Pin it for monitoring if you want alerts on the board. Still size small and manage risk."
+    : "Clear skip. Check another contract address when you’re ready.";
 
   return (
     <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -582,7 +573,7 @@ export default function AiAgentScorecard({
         </ul>
       </div>
 
-      {(onCheckAnother || onPin || showPulseCta) && (
+      {(onCheckAnother || onPin) && (
         <div
           className={`rounded-xl border p-4 sm:p-5 space-y-3 ${
             isBuy
@@ -627,33 +618,6 @@ export default function AiAgentScorecard({
                 Pin for monitoring
               </Button>
             )}
-            {showPulseCta &&
-              (onOpenPulse ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onOpenPulse}
-                  className="border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40"
-                >
-                  <Zap className="h-3.5 w-3.5 mr-1.5" />
-                  Open Nova Pulse
-                  <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                </Button>
-              ) : (
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40"
-                >
-                  <Link href="/subscribe">
-                    <Zap className="h-3.5 w-3.5 mr-1.5" />
-                    Nova Pulse (VIP)
-                    <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                  </Link>
-                </Button>
-              ))}
           </div>
           {pinSuccess && (
             <p className="text-xs text-emerald-600 dark:text-emerald-400">{pinSuccess}</p>

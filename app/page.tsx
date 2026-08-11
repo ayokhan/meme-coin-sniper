@@ -5460,12 +5460,6 @@ function Dashboard() {
                       !!(aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim())
                     }
                     pinSuccess={pinSuccess}
-                    showPulseCta={showTopTab("nova-pulse") || !isVip}
-                    onOpenPulse={
-                      (isVip || isOwner) && showTopTab("nova-pulse")
-                        ? () => setActiveTab("nova-pulse")
-                        : undefined
-                    }
                     actions={
                       (isOwner || isCoachUser) ? (
                       <div className="flex flex-wrap gap-2 items-center">
