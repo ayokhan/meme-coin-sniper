@@ -47,14 +47,14 @@ function SideToggle({
         onClick={() => onChange("long")}
         className={`px-3 py-1.5 text-sm font-medium ${side === "long" ? "bg-emerald-500 text-white dark:bg-emerald-600" : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"}`}
       >
-        Long
+        Buy (Long)
       </button>
       <button
         type="button"
         onClick={() => onChange("short")}
         className={`px-3 py-1.5 text-sm font-medium ${side === "short" ? "bg-rose-500 text-white dark:bg-rose-600" : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"}`}
       >
-        Short
+        Sell (Short)
       </button>
     </div>
   );
@@ -163,7 +163,7 @@ function PlanCard({ plan, recommended }: { plan: NovaRadarPlanResult; recommende
               : "border-rose-500/60 text-rose-700 dark:text-rose-300"
           }
         >
-          {plan.side === "long" ? "Long limit" : "Short limit"}
+          {plan.side === "long" ? "Buy limit (Long)" : "Sell limit (Short)"}
         </Badge>
         <Badge variant="outline" className={realismBadgeClass(plan.realism)}>
           {realismLabel(plan.realism)}

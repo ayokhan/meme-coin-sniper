@@ -407,7 +407,7 @@ export default function NovaForexScalpAgentPanel({
             <div>
               <h3 className="text-base font-semibold text-zinc-800 dark:text-zinc-200">Quick Wins</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Market Watch symbols with a confirmed LONG or SHORT on your timeframe.
+                Market Watch symbols with a confirmed Buy (Long) or Sell (Short) on your timeframe.
                 {qwTfLabel ? ` Showing: ${qwTfLabel}.` : ""}
                 {` Preview at $${Number(scalpAmount) || 100} margin · ${Number(scalpLev) || 20}x.`}
               </p>
@@ -442,7 +442,7 @@ export default function NovaForexScalpAgentPanel({
             <div className="space-y-3 text-xs text-muted-foreground">
               <p>
                 {qwScanSummary
-                  ? `Scanned ${qwScanSummary.symbolsScanned} Market Watch symbols on ${qwTfLabel}: ${qwScanSummary.oscillationQualified} had tight range, but none had a confirmed LONG/SHORT (price mid-range or structure conflict). Normal in chop.`
+                  ? `Scanned ${qwScanSummary.symbolsScanned} Market Watch symbols on ${qwTfLabel}: ${qwScanSummary.oscillationQualified} had tight range, but none had a confirmed Buy (Long) / Sell (Short) (price mid-range or structure conflict). Normal in chop.`
                   : "No quick-win candidates right now."}
               </p>
               {nearSetups.length > 0 && (

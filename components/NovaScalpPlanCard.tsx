@@ -70,17 +70,18 @@ function fmtUsd(n: number | null | undefined): string {
   return "$" + n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 });
 }
 
-function sideBadge(side: NovaScalpAnalysis["side"]) {
+function sideBadge(side: NovaScalpAnalysis["side"], market: ScalpPlanMarket = "crypto") {
+  const forex = market === "forex";
   if (side === "long")
     return (
       <span className="inline-flex rounded-md bg-emerald-500/15 px-2.5 py-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-        LONG
+        {forex ? "Buy (Long)" : "LONG"}
       </span>
     );
   if (side === "short")
     return (
       <span className="inline-flex rounded-md bg-rose-500/15 px-2.5 py-1 text-sm font-semibold text-rose-700 dark:text-rose-300">
-        SHORT
+        {forex ? "Sell (Short)" : "SHORT"}
       </span>
     );
   return (
@@ -522,7 +523,7 @@ export function NovaScalpPlanCard({
             {result.symbol} · {result.timeframeLabel}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
-            {sideBadge(result.side)}
+            {sideBadge(result.side, market)}
             {canScalpTrade && (
               <Button
                 type="button"
@@ -799,8 +800,13 @@ export function NovaScalpPlanCard({
                   Pinned to Active trade bar — track PnL while you refresh or scan other symbols.
                 </p>
                 <p className="text-[11px] text-muted-foreground font-mono">
-                  Entry {fmtUsd(activeTrade.filledEntryPrice)} · {activeTrade.side.toUpperCase()} ·{" "}
-                  {activeTrade.timeframeLabel}
+                  Entry {fmtUsd(activeTrade.filledEntryPrice)} ·{" "}
+                  {market === "forex"
+                    ? activeTrade.side === "long"
+                      ? "Buy (Long)"
+                      : "Sell (Short)"
+                    : activeTrade.side.toUpperCase()}{" "}
+                  · {activeTrade.timeframeLabel}
                 </p>
                 {activeTrade.enteredAt && (
                   <p className="text-[11px] text-muted-foreground">

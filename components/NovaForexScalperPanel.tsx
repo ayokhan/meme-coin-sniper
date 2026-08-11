@@ -170,7 +170,7 @@ export default function NovaForexScalperPanel() {
         ? "Entry trigger: immediate (next tick) — agent said enter now."
         : `Entry trigger: ${entryTrigger} (waits for price to cross).`;
     setPrefillNotice(
-      `Loaded ${prefill.side.toUpperCase()} ${prefill.symbol} from ${prefill.source} · $${marginUsd} margin → ~${lotFromPlan} lots @ sizing 1:${Math.min(levForLots, isEquityCfdSymbol(prefill.symbol) ? 20 : levForLots)}x. ${triggerNote} Review, click Save, then Start bot. Unrelated open MT positions (other symbols) are not this plan.`
+      `Loaded ${prefill.side === "long" ? "Buy (Long)" : "Sell (Short)"} ${prefill.symbol} from ${prefill.source} · $${marginUsd} margin → ~${lotFromPlan} lots @ sizing 1:${Math.min(levForLots, isEquityCfdSymbol(prefill.symbol) ? 20 : levForLots)}x. ${triggerNote} Review, click Save, then Start bot. Unrelated open MT positions (other symbols) are not this plan.`
     );
     setSizeNotice(null);
   }, [loading, activeConfigId, configs.length, accountLeverage]);
@@ -629,8 +629,8 @@ export default function NovaForexScalperPanel() {
                 onChange={(e) => setField("side", e.target.value as "long" | "short")}
                 className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
               >
-                <option value="long">Long</option>
-                <option value="short">Short</option>
+                <option value="long">Buy (Long)</option>
+                <option value="short">Sell (Short)</option>
               </select>
             </div>
           </div>
@@ -871,11 +871,11 @@ export default function NovaForexScalperPanel() {
               <span
                 className={
                   config.side === "long"
-                    ? "rounded-full bg-emerald-600 text-white px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
-                    : "rounded-full bg-rose-600 text-white px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
+                    ? "rounded-full bg-emerald-600 text-white px-2.5 py-0.5 text-[11px] font-semibold tracking-wider"
+                    : "rounded-full bg-rose-600 text-white px-2.5 py-0.5 text-[11px] font-semibold tracking-wider"
                 }
               >
-                {config.side}
+                {config.side === "long" ? "Buy (Long)" : "Sell (Short)"}
               </span>
             </div>
           </div>

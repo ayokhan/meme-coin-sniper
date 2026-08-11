@@ -387,7 +387,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                               : "text-rose-600 dark:text-rose-400"
                           }
                         >
-                          {p.side.toUpperCase()}
+                          {p.side === "long" ? "Buy (Long)" : "Sell (Short)"}
                         </span>{" "}
                         <span className="text-xs text-muted-foreground font-normal">
                           {p.volume} {t("common.lots")}
@@ -515,7 +515,7 @@ export default function ForexBrokerAccountPanel({ broker, connected, demoMode, c
                               : "text-rose-600 dark:text-rose-400"
                           }
                         >
-                          {trade.side.toUpperCase()}
+                          {trade.side === "long" ? "Buy (Long)" : "Sell (Short)"}
                         </span>
                         {effShowLev && account?.leverage ? (
                           <span className="text-xs text-muted-foreground font-normal"> · {account.leverage}x</span>

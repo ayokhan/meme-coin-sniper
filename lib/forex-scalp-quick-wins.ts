@@ -126,7 +126,7 @@ export function evaluateQuickWinForex(input: {
         momentumBias: oscillation.momentumBias,
         rangePct15m: oscillation.rangePct15m,
         liquidityNote: oscillation.liquidityNote,
-        directionHint: `${side.toUpperCase()} on ${analysis.timeframeLabel}: ${analysis.rationale.split(".")[0]}.`,
+        directionHint: `${side === "long" ? "Buy (Long)" : "Sell (Short)"} on ${analysis.timeframeLabel}: ${analysis.rationale.split(".")[0]}.`,
         suggestedLeverage: leverage,
         estHoldMinutes: analysis.estimatedHoldMinutes ?? oscillation.estHoldMinutes,
         currentPrice: input.currentPrice,

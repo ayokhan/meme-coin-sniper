@@ -502,11 +502,11 @@ export default function NovaForexBotPanel() {
                 <span
                   className={
                     config.positionSide === "long"
-                      ? "rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
-                      : "rounded-full bg-rose-500/15 text-rose-800 dark:text-rose-200 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
+                      ? "rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold tracking-wider"
+                      : "rounded-full bg-rose-500/15 text-rose-800 dark:text-rose-200 px-2.5 py-0.5 text-[11px] font-semibold tracking-wider"
                   }
                 >
-                  {config.positionSide}
+                  {config.positionSide === "long" ? "Buy (Long)" : "Sell (Short)"}
                 </span>
               )}
             </div>
@@ -516,7 +516,7 @@ export default function NovaForexBotPanel() {
           <p className="text-[11px] text-muted-foreground">
             <strong className="text-foreground">Idle / Armed</strong> = bot switch.{" "}
             <strong className="text-foreground">Demo / Live</strong> = your preference label (use Demo mode on the
-            broker connect for a demo MT login). <strong className="text-foreground">Long / Short</strong> appears when
+            broker connect for a demo MT login). <strong className="text-foreground">Buy (Long) / Sell (Short)</strong> appears when
             the bot holds a position.
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -525,7 +525,7 @@ export default function NovaForexBotPanel() {
               <p className="mt-0.5 font-semibold text-foreground">
                 {config.inPosition ? (
                   <span className={config.positionSide === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-                    Yes · {(config.positionSide ?? "—").toUpperCase()}
+                    Yes · {config.positionSide === "long" ? "Buy (Long)" : config.positionSide === "short" ? "Sell (Short)" : "—"}
                   </span>
                 ) : (
                   "No"

@@ -239,13 +239,17 @@ export default function NovaScalpActiveTradeBar() {
               Active trade · {scalpPlanWatchLabel(trade.market)}
             </p>
             <span
-              className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
                 trade.side === "long"
                   ? "bg-emerald-500/20 text-emerald-300"
                   : "bg-rose-500/20 text-rose-300"
               }`}
             >
-              {trade.side}
+              {trade.market === "forex"
+                ? trade.side === "long"
+                  ? "Buy (Long)"
+                  : "Sell (Short)"
+                : trade.side.toUpperCase()}
             </span>
           </div>
           <p className="text-xs mt-0.5 font-mono">
