@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,24 @@ const accentStyles = {
 } as const;
 
 export default function CaseStudiesPage() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setEnabled(data?.flags?.page_tab_case_studies !== false);
+      })
+      .catch(() => {
+        if (!cancelled) setEnabled(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-zinc-50 dark:bg-zinc-950">
       <div
@@ -132,6 +151,23 @@ export default function CaseStudiesPage() {
         </div>
       </header>
 
+      {enabled === false ? (
+        <main className="relative mx-auto max-w-xl px-3 sm:px-4 py-16 space-y-4 text-center sm:text-left">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700 dark:text-cyan-300">
+            Case studies
+          </p>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Case studies is temporarily off
+          </h1>
+          <p className="text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">
+            This page is disabled by the site owner right now. You can still use the NovaStaris dashboard and other
+            tools.
+          </p>
+          <Button asChild>
+            <Link href="/">Open app</Link>
+          </Button>
+        </main>
+      ) : (
       <main className="relative mx-auto max-w-5xl px-3 sm:px-4 py-10 sm:py-14 space-y-14 sm:space-y-20">
         <section className="text-center space-y-5 animate-in fade-in duration-700">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700 dark:text-cyan-300">
@@ -277,6 +313,7 @@ export default function CaseStudiesPage() {
           </p>
         </section>
       </main>
+      )}
 
       <SiteInstagramFooter />
     </div>

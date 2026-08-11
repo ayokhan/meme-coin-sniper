@@ -169,6 +169,11 @@ export const FEATURE_FLAG_KEYS = {
    * Default ON.
    */
   PAGE_TAB_WINS: 'page_tab_wins',
+  /**
+   * Public /case-studies marketing page + header / Account links.
+   * When OFF: page shows closed and Case studies links are hidden. Default ON.
+   */
+  PAGE_TAB_CASE_STUDIES: 'page_tab_case_studies',
 
   /**
    * Guest desk landing on `/` (and `/enter`).

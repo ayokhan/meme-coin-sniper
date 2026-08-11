@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,20 @@ function AboutContent() {
   const searchParams = useSearchParams();
   const copy = (searchParams.get("copy") ?? "a").toLowerCase();
   const isVariantB = copy === "b";
+  const [caseStudiesEnabled, setCaseStudiesEnabled] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setCaseStudiesEnabled(data?.flags?.page_tab_case_studies !== false);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const heroTitle = isVariantB
     ? "Trade With Clarity. Execute With Conviction."
@@ -32,9 +46,11 @@ function AboutContent() {
             NovaStaris
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/case-studies" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              Case studies
-            </Link>
+            {caseStudiesEnabled && (
+              <Link href="/case-studies" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+                Case studies
+              </Link>
+            )}
             <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               ← Dashboard
             </Link>

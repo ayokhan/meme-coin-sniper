@@ -40,6 +40,7 @@ export const PRODUCT_VISIBILITY_FLAG_ROWS: ProductVisibilityFlagRow[] = [
   { tabId: "nova-store", flagKey: "page_tab_nova_store", label: "Nova Store" },
   { tabId: "demo-sessions", flagKey: "page_tab_demo_sessions", label: "Demo sessions (public)" },
   { tabId: "wins", flagKey: "page_tab_wins", label: "Wins landing" },
+  { tabId: "case-studies", flagKey: "page_tab_case_studies", label: "Case studies" },
 ];
 
 /** Wallet Tracker subtabs (not top-level). */

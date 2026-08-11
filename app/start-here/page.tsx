@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Zap } from "lucide-react";
 import SiteInstagramFooter from "@/components/SiteInstagramFooter";
@@ -78,6 +79,21 @@ const TAB_GROUPS = [
 ] as const;
 
 export default function StartHerePage() {
+  const [caseStudiesEnabled, setCaseStudiesEnabled] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setCaseStudiesEnabled(data?.flags?.page_tab_case_studies !== false);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <header className="sticky top-0 z-10 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl">
@@ -187,10 +203,14 @@ export default function StartHerePage() {
             <Link href="/about" className="underline underline-offset-2 hover:text-zinc-800 dark:hover:text-zinc-200">
               About NovaStaris
             </Link>
-            {" · "}
-            <Link href="/case-studies" className="underline underline-offset-2 hover:text-zinc-800 dark:hover:text-zinc-200">
-              Case studies
-            </Link>
+            {caseStudiesEnabled && (
+              <>
+                {" · "}
+                <Link href="/case-studies" className="underline underline-offset-2 hover:text-zinc-800 dark:hover:text-zinc-200">
+                  Case studies
+                </Link>
+              </>
+            )}
           </p>
           <p className="text-xs text-zinc-400 dark:text-zinc-600 pt-2">
             Not financial advice. Always confirm prices and risk with your broker or venue.

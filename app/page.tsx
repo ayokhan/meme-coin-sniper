@@ -4156,9 +4156,11 @@ function Dashboard() {
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               <Link href="/enter">{t("nav.startHere")}</Link>
             </Button>
-            <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              <Link href="/case-studies">{t("nav.caseStudies")}</Link>
-            </Button>
+            {(!pageTabFlagsLoaded || pageTabFlags?.page_tab_case_studies !== false) && (
+              <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+                <Link href="/case-studies">{t("nav.caseStudies")}</Link>
+              </Button>
+            )}
             {(strategyCallPublic?.showNavButton ?? true) && (
               <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
                 <Link href="/discovery-call">{t("nav.strategyCall")}</Link>
@@ -4338,9 +4340,11 @@ function Dashboard() {
               <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
                 <Link href="/enter" onClick={() => setMobileMenuOpen(false)}>{t("nav.startHere")}</Link>
               </Button>
-              <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
-                <Link href="/case-studies" onClick={() => setMobileMenuOpen(false)}>{t("nav.caseStudies")}</Link>
-              </Button>
+              {(!pageTabFlagsLoaded || pageTabFlags?.page_tab_case_studies !== false) && (
+                <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
+                  <Link href="/case-studies" onClick={() => setMobileMenuOpen(false)}>{t("nav.caseStudies")}</Link>
+                </Button>
+              )}
               {(strategyCallPublic?.showNavButton ?? true) && (
                 <Button variant="outline" size="sm" asChild className="justify-start h-12 font-normal border-zinc-200 dark:border-zinc-700">
                   <Link href="/discovery-call" onClick={() => setMobileMenuOpen(false)}>{t("nav.strategyCall")}</Link>

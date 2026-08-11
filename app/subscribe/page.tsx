@@ -48,6 +48,7 @@ function SubscribeContent() {
   const [verifySuccess, setVerifySuccess] = useState(false);
   const [cardPaymentFeeUsd, setCardPaymentFeeUsd] = useState(CARD_PAYMENT_FEE_USD);
   const [cardLoading, setCardLoading] = useState(false);
+  const [caseStudiesEnabled, setCaseStudiesEnabled] = useState(true);
   const [cardError, setCardError] = useState("");
   const [autoRenew, setAutoRenew] = useState(false);
   const [subscriptionAutoRenew, setSubscriptionAutoRenew] = useState(false);
@@ -70,6 +71,19 @@ function SubscribeContent() {
   } | null>(null);
   const [trialLoading, setTrialLoading] = useState(false);
   const wantTrial = searchParams.get("trial") === "1";
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setCaseStudiesEnabled(data?.flags?.page_tab_case_studies !== false);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -468,9 +482,11 @@ function SubscribeContent() {
             <Link href="/about" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               About
             </Link>
-            <Link href="/case-studies" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              Case studies
-            </Link>
+            {caseStudiesEnabled && (
+              <Link href="/case-studies" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+                Case studies
+              </Link>
+            )}
             <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               ← Dashboard
             </Link>

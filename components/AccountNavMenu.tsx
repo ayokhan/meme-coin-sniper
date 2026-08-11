@@ -15,6 +15,7 @@ export default function AccountNavMenu({ className = "", onNavigate }: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [winsEnabled, setWinsEnabled] = useState(true);
+  const [caseStudiesEnabled, setCaseStudiesEnabled] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,6 +25,7 @@ export default function AccountNavMenu({ className = "", onNavigate }: Props) {
       .then((data) => {
         if (cancelled) return;
         setWinsEnabled(data?.flags?.page_tab_wins !== false);
+        setCaseStudiesEnabled(data?.flags?.page_tab_case_studies !== false);
       })
       .catch(() => {});
     return () => {
@@ -77,14 +79,16 @@ export default function AccountNavMenu({ className = "", onNavigate }: Props) {
             <Gift className="h-4 w-4 shrink-0 text-amber-500" />
             {t("nav.affiliate")}
           </Link>
-          <Link
-            href="/case-studies"
-            onClick={close}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          >
-            <BookOpen className="h-4 w-4 shrink-0 text-cyan-500" />
-            {t("nav.caseStudies")}
-          </Link>
+          {caseStudiesEnabled && (
+            <Link
+              href="/case-studies"
+              onClick={close}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              <BookOpen className="h-4 w-4 shrink-0 text-cyan-500" />
+              {t("nav.caseStudies")}
+            </Link>
+          )}
           {winsEnabled && (
             <Link
               href="/wins"

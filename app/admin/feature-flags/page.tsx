@@ -372,6 +372,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, /wins is live (PNL share destination + Account → Wins). Signed-in users see a welcome view; guests see Create account / Sign in. When OFF, the page shows closed and Wins links are hidden in the app. Default ON.",
   },
+  page_tab_case_studies: {
+    label: "Case studies (/case-studies)",
+    description:
+      "When ON, /case-studies is live and Case studies links show in the header, Account menu, About, Subscribe, and Start here. When OFF, the page shows closed and those links are hidden. Default ON. Toggle in Admin → Product visibility.",
+  },
   enter_landing_enabled: {
     label: "Enter / desk landing (guests)",
     description:
