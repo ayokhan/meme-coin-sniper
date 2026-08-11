@@ -1094,6 +1094,13 @@ model EnterLandingConfig {
   updatedAt DateTime @updatedAt
 }
 
+// Owner-managed /case-studies page hero + story copy. Single row id "default".
+model CaseStudiesConfig {
+  id        String   @id @default("default")
+  config    Json
+  updatedAt DateTime @updatedAt
+}
+
 // Owner-managed: which dashboard tabs are visible only to the owner. Single row id "default".
 model TabOwnerOnlyConfig {
   id        String   @id @default("default")
