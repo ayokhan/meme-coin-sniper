@@ -1,8 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle2, MinusCircle, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, ArrowRight, CheckCircle2, MinusCircle, Pin, RotateCcw, XCircle, Zap } from "lucide-react";
 
 export type AiAgentScorecardResult = {
   score: number;
@@ -195,10 +197,33 @@ type Props = {
   result: AiAgentScorecardResult;
   isOwner?: boolean;
   isVip?: boolean;
+  /** Clear result and focus the CA field for another run */
+  onCheckAnother?: () => void;
+  /** Pin current token to monitoring board */
+  onPin?: () => void;
+  canPin?: boolean;
+  pinSuccess?: string | null;
+  /**
+   * VIP/owner with Pulse tab: call to open Pulse.
+   * Free/paid non-VIP: omit and we link to /subscribe instead when showPulseCta.
+   */
+  onOpenPulse?: () => void;
+  showPulseCta?: boolean;
   actions?: ReactNode;
 };
 
-export default function AiAgentScorecard({ result, isOwner, isVip, actions }: Props) {
+export default function AiAgentScorecard({
+  result,
+  isOwner,
+  isVip,
+  onCheckAnother,
+  onPin,
+  canPin,
+  pinSuccess,
+  onOpenPulse,
+  showPulseCta = true,
+  actions,
+}: Props) {
   const band = scoreBand(result.score);
   const info = result.tokenInfo ?? {};
   const issues = info.securityIssues ?? [];
@@ -221,6 +246,11 @@ export default function AiAgentScorecard({ result, isOwner, isVip, actions }: Pr
 
   const topPct = info.topHolderPercent;
   const topOk = topPct == null ? null : topPct < 20 ? true : topPct > 30 ? false : null;
+  const isBuy = result.signal === "buy";
+  const nextTitle = isBuy ? "Looks interesting — next step" : "Skip this one — next step";
+  const nextBlurb = isBuy
+    ? "Pin it for monitoring, or check timing on Nova Pulse. Still size small and manage risk."
+    : "Clear skip. Check another CA, or explore Nova Pulse when you want futures/forex timing desks.";
 
   return (
     <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -551,6 +581,85 @@ export default function AiAgentScorecard({ result, isOwner, isVip, actions }: Pr
           ))}
         </ul>
       </div>
+
+      {(onCheckAnother || onPin || showPulseCta) && (
+        <div
+          className={`rounded-xl border p-4 sm:p-5 space-y-3 ${
+            isBuy
+              ? "border-emerald-300/70 dark:border-emerald-700/50 bg-gradient-to-br from-emerald-50/90 via-white to-cyan-50/50 dark:from-emerald-950/30 dark:via-zinc-900 dark:to-cyan-950/20"
+              : "border-zinc-300/80 dark:border-zinc-600/70 bg-gradient-to-br from-zinc-100/90 via-white to-amber-50/40 dark:from-zinc-900 dark:via-zinc-900 dark:to-amber-950/20"
+          }`}
+        >
+          <div>
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{nextTitle}</p>
+            <p className="mt-0.5 text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">{nextBlurb}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {onCheckAnother && (
+              <Button
+                type="button"
+                variant={isBuy ? "outline" : "default"}
+                size="sm"
+                onClick={onCheckAnother}
+                className={
+                  isBuy
+                    ? "border-zinc-300 dark:border-zinc-600"
+                    : "bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900"
+                }
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                {isBuy ? "Check another CA" : "Skip & check another"}
+              </Button>
+            )}
+            {canPin && onPin && (
+              <Button
+                type="button"
+                variant={isBuy ? "default" : "outline"}
+                size="sm"
+                onClick={onPin}
+                className={
+                  isBuy
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                    : "border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50"
+                }
+              >
+                <Pin className="h-3.5 w-3.5 mr-1.5" />
+                Pin for monitoring
+              </Button>
+            )}
+            {showPulseCta &&
+              (onOpenPulse ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onOpenPulse}
+                  className="border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40"
+                >
+                  <Zap className="h-3.5 w-3.5 mr-1.5" />
+                  Open Nova Pulse
+                  <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40"
+                >
+                  <Link href="/subscribe">
+                    <Zap className="h-3.5 w-3.5 mr-1.5" />
+                    Nova Pulse (VIP)
+                    <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  </Link>
+                </Button>
+              ))}
+          </div>
+          {pinSuccess && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">{pinSuccess}</p>
+          )}
+        </div>
+      )}
 
       {actions}
     </div>

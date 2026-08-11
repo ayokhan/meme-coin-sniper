@@ -5440,7 +5440,34 @@ function Dashboard() {
                     result={aiAnalysisResult}
                     isOwner={isOwner}
                     isVip={isVip}
+                    onCheckAnother={() => {
+                      setAiAnalysisResult(null);
+                      setAiAnalysisError(null);
+                      setAiAnalysisCa("");
+                      setAiAnalysisAmountUsd("");
+                      setPinSuccess(null);
+                      setAiAnalysisFeedbackSent(null);
+                      setAiAnalysisFeedbackNote("");
+                      requestAnimationFrame(() => {
+                        const el = document.getElementById("ai-ca") as HTMLInputElement | null;
+                        el?.focus();
+                        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                      });
+                    }}
+                    onPin={status === "authenticated" ? () => void pinCurrentToken() : undefined}
+                    canPin={
+                      status === "authenticated" &&
+                      !!(aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim())
+                    }
+                    pinSuccess={pinSuccess}
+                    showPulseCta={showTopTab("nova-pulse") || !isVip}
+                    onOpenPulse={
+                      (isVip || isOwner) && showTopTab("nova-pulse")
+                        ? () => setActiveTab("nova-pulse")
+                        : undefined
+                    }
                     actions={
+                      (isOwner || isCoachUser) ? (
                       <div className="flex flex-wrap gap-2 items-center">
                     {(isOwner || isCoachUser) && (
                       <>
@@ -5492,14 +5519,6 @@ function Dashboard() {
                         >
                           {aiAnalysisShareLoading ? "Sharing…" : aiAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
                         </Button>
-                      </>
-                    )}
-                    {status === "authenticated" && (aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim()) && (
-                      <>
-                        <Button type="button" variant="outline" size="sm" onClick={() => pinCurrentToken()} className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50">
-                          Pin to the Nova Staris monitoring board for 3-min updates
-                        </Button>
-                        {pinSuccess && <span className="text-xs text-emerald-600 dark:text-emerald-400">{pinSuccess}</span>}
                       </>
                     )}
                     {isOwner && (
@@ -5591,6 +5610,7 @@ function Dashboard() {
                       </div>
                     )}
                       </div>
+                      ) : undefined
                     }
                   />
                 )}
