@@ -70,6 +70,7 @@ import type { MemeTableAnalyzeHintBannerAdmin } from "@/lib/meme-table-analyze-h
 import type { GuestRegistrationNudgeBannerAdmin } from "@/lib/guest-registration-nudge-banner";
 import DeepMemeAgentPanel from "@/components/DeepMemeAgentPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
+import AiAgentScorecard from "@/components/AiAgentScorecard";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
@@ -1113,7 +1114,26 @@ function Dashboard() {
       takeProfitPct?: string;
       stopLossPct?: string;
     };
-    tokenInfo: { symbol?: string; name?: string; contractAddress?: string; liquidityUsd?: number; volume24h?: number; priceUsd?: number | null; priceChange24hPct?: number; marketCapUsd?: number | null; securityIssues?: string[]; securityWarnings?: string[] };
+    tokenInfo: {
+      symbol?: string;
+      name?: string;
+      contractAddress?: string;
+      liquidityUsd?: number;
+      volume24h?: number;
+      priceUsd?: number | null;
+      priceChange24hPct?: number;
+      marketCapUsd?: number | null;
+      hasTwitter?: boolean;
+      hasTelegram?: boolean;
+      hasWebsite?: boolean;
+      securityIssues?: string[];
+      securityWarnings?: string[];
+      isHoneypot?: boolean | null;
+      isMintable?: boolean | null;
+      lpLocked?: boolean | null;
+      topHolderPercent?: number | null;
+      holderCount?: number | null;
+    };
     ragEnabled?: boolean;
     ragUsed?: boolean;
     ragConfigured?: boolean;
@@ -5164,7 +5184,7 @@ function Dashboard() {
                 </Table>
               </div>
             ) : activeTab === "ai-analysis" ? (
-              <div className="mx-3 sm:mx-6 py-6 sm:py-8 max-w-2xl">
+              <div className={`mx-3 sm:mx-6 py-6 sm:py-8 ${aiAgentSubTab === "meme" ? "max-w-4xl" : "max-w-2xl"}`}>
                 <div className="flex flex-wrap gap-2 mb-6">
                   <Button
                     variant={aiAgentSubTab === "meme" ? "default" : "outline"}
@@ -5416,136 +5436,14 @@ function Dashboard() {
                   <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{aiAnalysisError}</p>
                 )}
                 {aiAnalysisResult && (
-                  <div className="mt-6 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 p-5">
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{aiAnalysisResult.tokenInfo?.symbol ?? "—"}</span>
-                        <span className="text-sm text-muted-foreground">{aiAnalysisResult.tokenInfo?.name}</span>
-                      </div>
-                      <div
-                        className={`text-4xl font-bold tabular-nums ${
-                          aiAnalysisResult.score >= 76 ? "text-emerald-600 dark:text-emerald-400" :
-                          aiAnalysisResult.score >= 51 ? "text-cyan-600 dark:text-cyan-400" :
-                          aiAnalysisResult.score >= 26 ? "text-amber-600 dark:text-amber-400" :
-                          "text-rose-600 dark:text-rose-400"
-                        }`}
-                      >
-                        {aiAnalysisResult.score}
-                        <span className="text-lg font-normal text-muted-foreground ml-1">/ 100</span>
-                      </div>
-                      <Badge
-                        className={`text-sm font-bold px-3 py-1 ${
-                          aiAnalysisResult.signal === "buy"
-                            ? "bg-emerald-500 text-white dark:bg-emerald-600 border-0 hover:bg-emerald-600 dark:hover:bg-emerald-700"
-                            : "bg-rose-500 text-white dark:bg-rose-600 border-0 hover:bg-rose-600 dark:hover:bg-rose-700"
-                        }`}
-                      >
-                        {aiAnalysisResult.signal === "buy" ? "BUY" : "NO BUY"}
-                      </Badge>
-                      {(() => {
-                        const outlookRaw = memePriceOutlookRaw(aiAnalysisResult.recommendations);
-                        const outlook = normalizeMemePriceOutlook(outlookRaw);
-                        if (!outlook) return null;
-                        const cls =
-                          outlook === "bullish"
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-300/60"
-                            : outlook === "bearish"
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300/60"
-                              : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-300/60";
-                        return (
-                          <Badge variant="outline" className={`text-sm font-semibold px-3 py-1 ${cls}`} title={outlookRaw}>
-                            Outlook: {outlook === "bullish" ? "Bullish" : outlook === "bearish" ? "Bearish" : "Neutral"}
-                          </Badge>
-                        );
-                      })()}
-                      {(isOwner || isVip) && aiAnalysisResult.ragEnabled && (
-                        <Badge
-                          variant="outline"
-                          className="text-sm font-semibold px-3 py-1 border-violet-400/60 bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200"
-                          title={isOwner ? "VIP feature: personal analysis history informs Claude (Admin → Feature Flags → AI Analysis RAG)" : "NovaStaris uses your past analyses on similar tokens for more consistent scoring"}
-                        >
-                          {aiAnalysisResult.ragUsed ? "Informed by your history" : "Personal context active"}
-                        </Badge>
-                      )}
-                    </div>
-                    {isOwner && aiAnalysisResult.ragEnabled && !aiAnalysisResult.ragConfigured && (
-                      <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
-                        Personal context is enabled but OPENAI_API_KEY is not set — analysis ran without retrieval. Add the key in Vercel env to enable embeddings.
-                      </p>
-                    )}
-                    {(isOwner || isVip) && aiAnalysisResult.ragEnabled && aiAnalysisResult.ragConfigured && !aiAnalysisResult.ragUsed && (
-                      <p className="mt-2 text-xs text-violet-700 dark:text-violet-300">
-                        Your analysis history is building — after a few runs, similar tokens will inform new scores.
-                      </p>
-                    )}
-                    {(isOwner || isVip) && aiAnalysisResult.ragUsed && (aiAnalysisResult.ragSnippets?.length ?? 0) > 0 && (
-                      <details className="mt-3 rounded-lg border border-violet-200/80 dark:border-violet-800/80 bg-violet-50/40 dark:bg-violet-950/20 p-3 text-sm">
-                        <summary className="cursor-pointer font-medium text-violet-800 dark:text-violet-200">
-                          Your similar past analyses ({aiAnalysisResult.ragSnippets!.length})
-                        </summary>
-                        <ul className="mt-2 space-y-2 text-violet-900/90 dark:text-violet-100/90">
-                          {aiAnalysisResult.ragSnippets!.map((s, i) => (
-                            <li key={`${s.contractAddress}-${i}`} className="text-xs leading-relaxed">
-                              <span className="font-medium">{s.symbol ?? s.contractAddress.slice(0, 8)}</span>
-                              {s.score != null && ` · score ${s.score}`}
-                              {s.signal && ` · ${s.signal}`}
-                              {s.feedbackOutcome && ` · feedback: ${s.feedbackOutcome}`}
-                              {s.sameToken && " · same token"}
-                              {" · "}
-                              {(s.similarity * 100).toFixed(0)}% match
-                              <span className="block text-muted-foreground mt-0.5">{s.summaryText}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
-                    <details className="mt-3 text-sm text-muted-foreground">
-                      <summary className="cursor-pointer font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">Why 0–100?</summary>
-                      <p className="mt-2 pl-2 border-l-2 border-cyan-300 dark:border-cyan-700">
-                        NovaStaris AI weighs liquidity, volume, security checks, socials, and <strong>narrative strength</strong> (viral potential, community/KOL buzz). Strong narratives often drive volume and mcap. 76+ = high confidence; 51–75 = watch; 26–50 = risky; 0–25 = very risky or new. The score is a snapshot — always do your own research and manage risk.
-                      </p>
-                    </details>
-                    {aiAnalysisResult.narrativeAssessment && (
-                      <div className="mt-3 rounded-lg border border-violet-200/80 dark:border-violet-800/80 bg-violet-50/50 dark:bg-violet-950/30 p-3 text-sm">
-                        <p className="font-medium text-violet-800 dark:text-violet-200">Narrative</p>
-                        <p className="text-violet-700 dark:text-violet-300">{aiAnalysisResult.narrativeAssessment}</p>
-                      </div>
-                    )}
-                    {aiAnalysisResult.tokenInfo && (aiAnalysisResult.tokenInfo.liquidityUsd != null || aiAnalysisResult.tokenInfo.volume24h != null) && (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Liquidity ${(aiAnalysisResult.tokenInfo.liquidityUsd ?? 0).toLocaleString()} · Vol 24h ${(aiAnalysisResult.tokenInfo.volume24h ?? 0).toLocaleString()}
-                        {aiAnalysisResult.tokenInfo.priceChange24hPct != null && ` · ${aiAnalysisResult.tokenInfo.priceChange24hPct >= 0 ? "+" : ""}${aiAnalysisResult.tokenInfo.priceChange24hPct.toFixed(1)}% 24h`}
-                      </p>
-                    )}
-                    {(aiAnalysisResult.tokenInfo?.securityIssues?.length ?? 0) > 0 && (
-                      <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{(aiAnalysisResult.tokenInfo?.securityIssues ?? []).join(" ")}</p>
-                    )}
-                    {aiAnalysisResult.amountRiskNote && (
-                      <div className="mt-4 rounded-lg border border-cyan-500/25 dark:border-cyan-600/35 bg-slate-50/90 dark:bg-slate-900/60 p-3 text-sm">
-                        <p className="font-medium text-slate-700 dark:text-slate-200">Amount vs risk:</p>
-                        <p className="text-slate-600 dark:text-slate-300">{aiAnalysisResult.amountRiskNote}</p>
-                      </div>
-                    )}
-                    {aiAnalysisResult.recommendations && (aiAnalysisResult.recommendations.supportResistance || aiAnalysisResult.recommendations.marketStructure || memePriceOutlookRaw(aiAnalysisResult.recommendations) || aiAnalysisResult.recommendations.trendlineRead || aiAnalysisResult.recommendations.demandSupplyZones || aiAnalysisResult.recommendations.buyZoneMcap || aiAnalysisResult.recommendations.takeProfitPct || aiAnalysisResult.recommendations.stopLossPct) && (
-                      <div className="mt-4 rounded-lg border border-cyan-200/80 dark:border-cyan-800/80 bg-cyan-50/50 dark:bg-cyan-950/30 p-4 space-y-2 text-sm">
-                        <p className="font-semibold text-cyan-800 dark:text-cyan-200">Trading levels (meme coins are volatile — use risk management)</p>
-                        {aiAnalysisResult.recommendations.supportResistance && <p><span className="text-muted-foreground">Support / Resistance:</span> {aiAnalysisResult.recommendations.supportResistance}</p>}
-                        {aiAnalysisResult.recommendations.marketStructure && <p><span className="text-muted-foreground">Market structure:</span> {aiAnalysisResult.recommendations.marketStructure}</p>}
-                        {memePriceOutlookRaw(aiAnalysisResult.recommendations) && <p><span className="text-muted-foreground">Price outlook:</span> {memePriceOutlookRaw(aiAnalysisResult.recommendations)}</p>}
-                        {aiAnalysisResult.recommendations.trendlineRead && <p><span className="text-muted-foreground">Trendline read:</span> {aiAnalysisResult.recommendations.trendlineRead}</p>}
-                        {aiAnalysisResult.recommendations.demandSupplyZones && <p><span className="text-muted-foreground">Demand / Supply zones:</span> {aiAnalysisResult.recommendations.demandSupplyZones}</p>}
-                        {aiAnalysisResult.recommendations.buyZoneMcap && <p><span className="text-muted-foreground">Buy zone (mcap):</span> {aiAnalysisResult.recommendations.buyZoneMcap}</p>}
-                        {aiAnalysisResult.recommendations.takeProfitPct && <p><span className="text-emerald-600 dark:text-emerald-400">Take profit:</span> {aiAnalysisResult.recommendations.takeProfitPct}</p>}
-                        {aiAnalysisResult.recommendations.stopLossPct && <p><span className="text-rose-600 dark:text-rose-400">Stop loss:</span> {aiAnalysisResult.recommendations.stopLossPct}</p>}
-                      </div>
-                    )}
-                    <ul className="mt-4 list-disc list-inside space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
-                      {aiAnalysisResult.reasons.map((r, i) => (
-                        <li key={i}>{r}</li>
-                      ))}
-                    </ul>
+                  <AiAgentScorecard
+                    result={aiAnalysisResult}
+                    isOwner={isOwner}
+                    isVip={isVip}
+                    actions={
+                      <div className="flex flex-wrap gap-2 items-center">
                     {(isOwner || isCoachUser) && (
-                      <div className="mt-4 flex flex-wrap gap-2 items-center">
+                      <>
                         <Button
                           type="button"
                           variant="outline"
@@ -5594,105 +5492,107 @@ function Dashboard() {
                         >
                           {aiAnalysisShareLoading ? "Sharing…" : aiAnalysisShareSuccess ? "Shared!" : <><Send className="h-3.5 w-3.5 mr-1.5 inline" /> Share to Coach Calls</>}
                         </Button>
-                      </div>
+                      </>
                     )}
                     {status === "authenticated" && (aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim()) && (
-                        <>
-                          <Button type="button" variant="outline" size="sm" onClick={() => pinCurrentToken()} className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50">
-                            Pin to the Nova Staris monitoring board for 3-min updates
-                          </Button>
-                          {pinSuccess && <span className="text-xs text-emerald-600 dark:text-emerald-400">{pinSuccess}</span>}
-                        </>
-                      )}
-                      {isOwner && (
-                        <div className="w-full mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700 space-y-2">
-                          <span className="text-xs text-muted-foreground">Was this analysis accurate?</span>
-                          {aiAnalysisFeedbackSent ? (
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400 block">Thanks — feedback recorded.</span>
-                          ) : (
-                            <>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={aiAnalysisFeedbackLoading}
-                                  onClick={async () => {
-                                    const ca = aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim();
-                                    if (!ca) return;
-                                    setAiAnalysisFeedbackLoading(true);
-                                    try {
-                                      const res = await fetch("/api/admin/ai-feedback", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                          contractAddress: ca,
-                                          outcome: "good",
-                                          score: aiAnalysisResult.score,
-                                          signal: aiAnalysisResult.signal,
-                                          note: aiAnalysisFeedbackNote.trim() || undefined,
-                                        }),
-                                      });
-                                      const data = await res.json();
-                                      if (data.success) { setAiAnalysisFeedbackSent("good"); setAiAnalysisFeedbackNote(""); }
-                                      else alert(data.error ?? "Failed to send feedback");
-                                    } catch {
-                                      alert("Failed to send feedback");
-                                    } finally {
-                                      setAiAnalysisFeedbackLoading(false);
-                                    }
-                                  }}
-                                  className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
-                                >
-                                  Yes, worked well
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={aiAnalysisFeedbackLoading}
-                                  onClick={async () => {
-                                    const ca = aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim();
-                                    if (!ca) return;
-                                    setAiAnalysisFeedbackLoading(true);
-                                    try {
-                                      const res = await fetch("/api/admin/ai-feedback", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                          contractAddress: ca,
-                                          outcome: "bad",
-                                          score: aiAnalysisResult.score,
-                                          signal: aiAnalysisResult.signal,
-                                          note: aiAnalysisFeedbackNote.trim() || undefined,
-                                        }),
-                                      });
-                                      const data = await res.json();
-                                      if (data.success) { setAiAnalysisFeedbackSent("bad"); setAiAnalysisFeedbackNote(""); }
-                                      else alert(data.error ?? "Failed to send feedback");
-                                    } catch {
-                                      alert("Failed to send feedback");
-                                    } finally {
-                                      setAiAnalysisFeedbackLoading(false);
-                                    }
-                                  }}
-                                  className="text-xs border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50"
-                                >
-                                  No, didn't work
-                                </Button>
-                              </div>
-                              <textarea
-                                placeholder="Optional note (e.g. took profit earlier, stop hit)"
-                                value={aiAnalysisFeedbackNote}
-                                onChange={(e) => setAiAnalysisFeedbackNote(e.target.value.slice(0, 500))}
-                                rows={2}
-                                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                              />
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                      <>
+                        <Button type="button" variant="outline" size="sm" onClick={() => pinCurrentToken()} className="border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/50">
+                          Pin to the Nova Staris monitoring board for 3-min updates
+                        </Button>
+                        {pinSuccess && <span className="text-xs text-emerald-600 dark:text-emerald-400">{pinSuccess}</span>}
+                      </>
+                    )}
+                    {isOwner && (
+                      <div className="w-full mt-1 pt-3 border-t border-zinc-200 dark:border-zinc-700 space-y-2">
+                        <span className="text-xs text-muted-foreground">Was this analysis accurate?</span>
+                        {aiAnalysisFeedbackSent ? (
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 block">Thanks — feedback recorded.</span>
+                        ) : (
+                          <>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={aiAnalysisFeedbackLoading}
+                                onClick={async () => {
+                                  const ca = aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim();
+                                  if (!ca) return;
+                                  setAiAnalysisFeedbackLoading(true);
+                                  try {
+                                    const res = await fetch("/api/admin/ai-feedback", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        contractAddress: ca,
+                                        outcome: "good",
+                                        score: aiAnalysisResult.score,
+                                        signal: aiAnalysisResult.signal,
+                                        note: aiAnalysisFeedbackNote.trim() || undefined,
+                                      }),
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) { setAiAnalysisFeedbackSent("good"); setAiAnalysisFeedbackNote(""); }
+                                    else alert(data.error ?? "Failed to send feedback");
+                                  } catch {
+                                    alert("Failed to send feedback");
+                                  } finally {
+                                    setAiAnalysisFeedbackLoading(false);
+                                  }
+                                }}
+                                className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                              >
+                                Yes, worked well
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={aiAnalysisFeedbackLoading}
+                                onClick={async () => {
+                                  const ca = aiAnalysisResult.tokenInfo?.contractAddress ?? aiAnalysisCa.trim();
+                                  if (!ca) return;
+                                  setAiAnalysisFeedbackLoading(true);
+                                  try {
+                                    const res = await fetch("/api/admin/ai-feedback", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        contractAddress: ca,
+                                        outcome: "bad",
+                                        score: aiAnalysisResult.score,
+                                        signal: aiAnalysisResult.signal,
+                                        note: aiAnalysisFeedbackNote.trim() || undefined,
+                                      }),
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) { setAiAnalysisFeedbackSent("bad"); setAiAnalysisFeedbackNote(""); }
+                                    else alert(data.error ?? "Failed to send feedback");
+                                  } catch {
+                                    alert("Failed to send feedback");
+                                  } finally {
+                                    setAiAnalysisFeedbackLoading(false);
+                                  }
+                                }}
+                                className="text-xs border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                              >
+                                No, didn't work
+                              </Button>
+                            </div>
+                            <textarea
+                              placeholder="Optional note (e.g. took profit earlier, stop hit)"
+                              value={aiAnalysisFeedbackNote}
+                              onChange={(e) => setAiAnalysisFeedbackNote(e.target.value.slice(0, 500))}
+                              rows={2}
+                              className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                            />
+                          </>
+                        )}
+                      </div>
+                    )}
+                      </div>
+                    }
+                  />
                 )}
                 </>
                 )}

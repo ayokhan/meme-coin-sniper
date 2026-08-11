@@ -83,6 +83,7 @@ export function getSecuritySummary(data: GoPlusSecurityData) {
   if (data.is_mintable === "1") warnings.push("⚠️ Mintable");
   const topPct = getTopHolderPercentage(data);
   if (topPct > 30) warnings.push(`⚠️ Top holder: ${topPct.toFixed(1)}%`);
+  if (!isLPLocked(data)) warnings.push("⚠️ LP not locked");
   return { issues, warnings };
 }
 

@@ -1,7 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { CLAUDE_SONNET_MODEL } from '@/lib/anthropic-models';
 import { getBscToken, extractSocials } from '@/lib/api-clients/dexscreener';
-import { checkBscTokenSecurity, getSecuritySummary, getTopHolderPercentage } from '@/lib/api-clients/goplus';
+import {
+  checkBscTokenSecurity,
+  getSecuritySummary,
+  getTopHolderPercentage,
+  isLPLocked,
+} from '@/lib/api-clients/goplus';
 import { parseClaudeJsonResponse } from '@/lib/parse-claude-json';
 
 const anthropic = new Anthropic({
@@ -38,6 +43,11 @@ export type AnalysisResult = {
     hasWebsite?: boolean;
     securityIssues?: string[];
     securityWarnings?: string[];
+    isHoneypot?: boolean | null;
+    isMintable?: boolean | null;
+    lpLocked?: boolean | null;
+    topHolderPercent?: number | null;
+    holderCount?: number | null;
   };
 };
 
@@ -65,6 +75,8 @@ export async function runAiAnalysisBsc(contractAddress: string, options?: { amou
   const priceChange = dexData.priceChange?.h24 ?? dexData.priceChange?.h6 ?? 0;
   const securitySummary = securityData ? getSecuritySummary(securityData) : { issues: [] as string[], warnings: [] as string[] };
   const topHolderPct = securityData ? getTopHolderPercentage(securityData) : 0;
+  const holderCountRaw = securityData?.holder_count ? parseInt(securityData.holder_count, 10) : NaN;
+  const holderCount = Number.isFinite(holderCountRaw) ? holderCountRaw : null;
   const mcap = dexData.fdv ?? undefined;
 
   const tokenSummary = {
@@ -204,6 +216,11 @@ Keep reasons short. Include at least one reason that references narrative/viral 
       hasWebsite: tokenSummary.hasWebsite,
       securityIssues: tokenSummary.security.issues,
       securityWarnings: tokenSummary.security.warnings,
+      isHoneypot: securityData ? securityData.is_honeypot === '1' : null,
+      isMintable: securityData ? securityData.is_mintable === '1' : null,
+      lpLocked: securityData ? isLPLocked(securityData) : null,
+      topHolderPercent: securityData ? topHolderPct : null,
+      holderCount,
     },
   };
 }
