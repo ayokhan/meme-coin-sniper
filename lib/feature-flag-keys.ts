@@ -32,6 +32,8 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_WALLETS: 'page_tab_wallets',
   PAGE_TAB_COACH_CALLS: 'page_tab_coach_calls',
   PAGE_TAB_NOVA_FORECAST: 'page_tab_nova_forecast',
+  /** VIP: Nova Pulse top-level tab (short-horizon Futures/Forex scalp desks). Default OFF until admin enables. */
+  PAGE_TAB_NOVA_PULSE: 'page_tab_nova_pulse',
   /** VIP: Nova Forex Agent top-level tab (forex/CFD Market Watch). Default OFF until admin enables. */
   PAGE_TAB_NOVA_FOREX: 'page_tab_nova_forex',
   PAGE_TAB_NOVA_PLUS: 'page_tab_nova_plus',
@@ -94,7 +96,7 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_MEME_LEADERBOARD: 'nova_meme_leaderboard',
   /** VIP: Deep Meme Agent subtab under Wallet Tracker (token security + top-holder analyzer using GoPlus + Dexscreener + Helius). Default ON. */
   NOVA_DEEP_MEME_AGENT: 'nova_deep_meme_agent',
-  /** VIP: Nova Scalp Agent subtab under NovaForecast Agent (leveraged scalp entry/exit + Quick Wins scanner). Default OFF until admin enables. */
+  /** VIP: Nova Scalp Agent under Nova Pulse → Futures (leveraged scalp entry/exit + Quick Wins scanner). Default OFF until admin enables. */
   NOVA_SCALP_AGENT: 'nova_scalp_agent',
   /** VIP: NovaQ Fib subtab under NovaForecast Agent (Fibonacci retracement from pivot swings; classic NovaQ unchanged). Default OFF until admin enables. */
   NOVA_Q_FIB: 'nova_q_fib',
@@ -106,7 +108,7 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_FOREX_AGENT: 'nova_forex_agent',
   /** VIP: Nova Forex Fib subtab. Default OFF until admin enables. */
   NOVA_FOREX_FIB: 'nova_forex_fib',
-  /** VIP: Nova Forex Scalp Agent subtab. Default OFF until admin enables. */
+  /** VIP: Nova Forex Agent under Nova Pulse → Forex (scalp plans). Default OFF until admin enables. */
   NOVA_FOREX_SCALP_AGENT: 'nova_forex_scalp_agent',
   /** VIP: Nova Forex Bot (MT4/MT5 via MetaAPI, EMA/MA crossover). Master switch. Default OFF until admin enables. */
   NOVA_FOREX_BOT: 'nova_forex_bot',

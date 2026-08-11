@@ -78,7 +78,7 @@ import { NOVASTARIS_OPEN_AI_AGENT } from "@/lib/novastaris-events";
 import PropFirmBotPanel from "@/components/PropFirmBotPanel";
 import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
-import NovaScalpAgentPanel from "@/components/NovaScalpAgentPanel";
+import NovaPulsePanel from "@/components/NovaPulsePanel";
 import NovaRadarPanel from "@/components/NovaRadarPanel";
 import { useFuturesOnboarding } from "@/components/FuturesOnboardingModal";
 import { TwoFactorSecurityNudgeHost } from "@/components/TwoFactorSecurityNudgeModal";
@@ -242,6 +242,7 @@ type TabId =
   | "nova-ultimate"
   | "coach-calls"
   | "nova-forecast"
+  | "nova-pulse"
   | "nova-forex"
   | "nova-plus"
   | "nova-investment"
@@ -257,9 +258,9 @@ type TabId =
   | "nova-job-agent"
   | "nova-store";
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
-const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-forex-bot", "nova-plus", "nova-connect"];
+const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-forex-bot", "nova-plus", "nova-connect"];
 /** Platform: surge, transactions, ai-analysis, futures. VIP-only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-forex-bot", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-forex-bot", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
 /** Main dashboard top nav — flex-none overrides default TabsTrigger flex-1 so wrapped tabs do not overlap. */
 const DASHBOARD_TOP_TABS_LIST_CLASS =
   "!flex !h-auto !min-h-0 w-full flex-wrap content-start items-start gap-x-2 gap-y-2 p-3 sm:p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-gradient-to-br from-zinc-50/95 via-white/90 to-zinc-100/80 dark:from-zinc-900/95 dark:via-zinc-800/90 dark:to-zinc-900/80 shadow-inner [&_[role=tab]]:!h-auto [&_[role=tab]]:flex-none [&_[role=tab]]:grow-0 [&_[role=tab]]:shrink-0 [&_[role=tab]]:inline-flex [&_[role=tab]]:items-center [&_[role=tab]]:gap-1.5 [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:leading-normal [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab][data-state=active]]:shadow-md";
@@ -285,6 +286,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   wallets: "page_tab_wallets",
   "coach-calls": "page_tab_coach_calls",
   "nova-forecast": "page_tab_nova_forecast",
+  "nova-pulse": "page_tab_nova_pulse",
   "nova-forex": "page_tab_nova_forex",
   "nova-plus": "page_tab_nova_plus",
   "nova-investment": "page_tab_nova_investment_agent",
@@ -319,6 +321,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "wallets",
   "coach-calls",
   "nova-forecast",
+  "nova-pulse",
   "nova-forex",
   "nova-plus",
   "nova-investment",
@@ -609,7 +612,7 @@ function Dashboard() {
     if (topTabFilter === "all") return true;
     const coreTabs: TabId[] = ["new", "trending", "bsc", "watchlist", "nova-connect", "trading-university", "nova-store"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
-    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence", "chris-clayton", "nova-job-agent"];
+    const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence", "chris-clayton", "nova-job-agent"];
     const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-forex-bot", "nova-ultimate"];
     if (topTabFilter === "core") return coreTabs.includes(tab);
     if (topTabFilter === "pro") return proTabs.includes(tab);
@@ -1606,11 +1609,12 @@ function Dashboard() {
   const [novaForecastRange, setNovaForecastRange] = useState<string>("2w");
   const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
   const [novaForecastSubTab, setNovaForecastSubTab] = useState<
-    "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-radar" | "nova-scalp"
+    "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-radar"
   >("agent");
   const [dashboardUrlReady, setDashboardUrlReady] = useState(false);
   /** Sub-tab under Nova Forex Bots (kept in URL so Scalp handoffs survive sync). */
   const [forexBotSubTab, setForexBotSubTab] = useState<"forex-bot" | "scalp-bot" | null>(null);
+  const [novaPulseSubTab, setNovaPulseSubTab] = useState<"futures" | "forex">("futures");
 
   const applyDashboardPathResult = useCallback((result: DashboardPathApplyResult) => {
     setTopTabFilter(result.filter);
@@ -1678,19 +1682,29 @@ function Dashboard() {
           setAiAgentSubTab(agent);
         }
         const forecast = url.searchParams.get("forecast");
-        if (
+        if (forecast === "nova-scalp") {
+          setActiveTab("nova-pulse");
+          setNovaPulseSubTab("futures");
+        } else if (
           forecast === "agent" ||
           forecast === "nova-smart" ||
           forecast === "nova-q" ||
           forecast === "nova-q-fib" ||
           forecast === "nova-extra" ||
           forecast === "nova-pattern" ||
-          forecast === "nova-radar" ||
-          forecast === "nova-scalp"
+          forecast === "nova-radar"
         ) {
           setNovaForecastSubTab(forecast);
         }
+        const pulse = url.searchParams.get("pulse");
+        if (pulse === "futures" || pulse === "forex") {
+          setNovaPulseSubTab(pulse);
+        }
         const forex = url.searchParams.get("forex");
+        if (tab === "nova-forex" && forex === "nova-scalp") {
+          setActiveTab("nova-pulse");
+          setNovaPulseSubTab("forex");
+        }
         if (forex === "scalp-bot" || forex === "forex-bot") {
           setForexBotSubTab(forex);
         }
@@ -1769,17 +1783,27 @@ function Dashboard() {
       setAiAgentSubTab(agent);
     }
     const forecast = params.get("forecast");
-    if (
+    if (forecast === "nova-scalp") {
+      setActiveTab("nova-pulse");
+      setNovaPulseSubTab("futures");
+    } else if (
       forecast === "agent" ||
       forecast === "nova-smart" ||
       forecast === "nova-q" ||
       forecast === "nova-q-fib" ||
       forecast === "nova-extra" ||
       forecast === "nova-pattern" ||
-      forecast === "nova-radar" ||
-      forecast === "nova-scalp"
+      forecast === "nova-radar"
     ) {
       setNovaForecastSubTab(forecast);
+    }
+    const pulse = params.get("pulse");
+    if (pulse === "futures" || pulse === "forex") {
+      setNovaPulseSubTab(pulse);
+    }
+    if (tab === "nova-forex" && params.get("forex") === "nova-scalp") {
+      setActiveTab("nova-pulse");
+      setNovaPulseSubTab("forex");
     }
     const boss = params.get("boss");
     if (boss === "chart" || boss === "demandFib") {
@@ -2003,6 +2027,7 @@ function Dashboard() {
     if (activeTab === "futures") params.set("futures", futuresView);
     if (activeTab === "ai-analysis") params.set("agent", aiAgentSubTab);
     if (activeTab === "nova-forecast") params.set("forecast", novaForecastSubTab);
+    if (activeTab === "nova-pulse") params.set("pulse", novaPulseSubTab);
     if (activeTab === "chris-clayton") params.set("boss", onlineBossSubTab);
     if (activeTab === "nova-forex-bot" && forexBotSubTab) params.set("forex", forexBotSubTab);
     setHomeAnalyticsPath(`/?${params.toString()}`);
@@ -2015,6 +2040,7 @@ function Dashboard() {
     futuresView,
     aiAgentSubTab,
     novaForecastSubTab,
+    novaPulseSubTab,
     onlineBossSubTab,
     forexBotSubTab,
     setHomeAnalyticsPath,
@@ -2031,6 +2057,7 @@ function Dashboard() {
     if (activeTab === "futures") params.set("futures", futuresView);
     if (activeTab === "ai-analysis") params.set("agent", aiAgentSubTab);
     if (activeTab === "nova-forecast") params.set("forecast", novaForecastSubTab);
+    if (activeTab === "nova-pulse") params.set("pulse", novaPulseSubTab);
     if (activeTab === "chris-clayton") params.set("boss", onlineBossSubTab);
     if (activeTab === "nova-forex-bot" && forexBotSubTab) params.set("forex", forexBotSubTab);
     const nextQuery = params.toString();
@@ -2047,6 +2074,7 @@ function Dashboard() {
     futuresView,
     aiAgentSubTab,
     novaForecastSubTab,
+    novaPulseSubTab,
     onlineBossSubTab,
     forexBotSubTab,
     router,
@@ -2263,7 +2291,7 @@ function Dashboard() {
       if (status === "authenticated") fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-job-agent" || tab === "nova-store" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
+    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-job-agent" || tab === "nova-store" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-pulse" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -3337,7 +3365,7 @@ function Dashboard() {
 
   // Auto-refresh: Go Hunting / Trending / Surge share VIP daily limit; auto off unless admin enables.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent" || activeTab === "nova-store") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-pulse" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent" || activeTab === "nova-store") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
@@ -4712,6 +4740,13 @@ function Dashboard() {
                     <TopTabNewPill show={isNewTopTab("nova-forecast")} />
                   </TabsTrigger>
                 )}
+                {showTopTab("nova-pulse") && (
+                  <TabsTrigger value="nova-pulse" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-sky-500 data-[state=active]:text-white dark:data-[state=active]:bg-sky-600`}>
+                    <Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />
+                    <span>{t("tabs.nova-pulse")}</span>
+                    <TopTabNewPill show={isNewTopTab("nova-pulse")} />
+                  </TabsTrigger>
+                )}
                 {showTopTab("nova-forex") && (
                   <TabsTrigger value="nova-forex" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-700`}>
                     <Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />
@@ -4822,6 +4857,7 @@ function Dashboard() {
                       : t("lockDesc.wallets"))}
                   {activeTab === "coach-calls" && t("lockDesc.coach-calls")}
                   {activeTab === "nova-forecast" && t("lockDesc.nova-forecast")}
+                  {activeTab === "nova-pulse" && t("lockDesc.nova-pulse")}
                   {activeTab === "nova-forex" && t("lockDesc.nova-forex")}
                   {activeTab === "nova-forex-bot" && t("lockDesc.nova-forex-bot")}
                   {activeTab === "nova-plus" && t("lockDesc.nova-plus")}
@@ -8089,7 +8125,7 @@ function Dashboard() {
               })()
             ) : activeTab === "nova-forecast" ? (
               <div className="mx-6 py-6">
-                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-radar" | "nova-scalp")} className="space-y-4">
+                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-radar")} className="space-y-4">
                   <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg flex-wrap h-auto gap-1">
                     <TabsTrigger value="agent" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaForecast Agent
@@ -8118,11 +8154,6 @@ function Dashboard() {
                     <TabsTrigger value="nova-radar" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaRadar
                     </TabsTrigger>
-                    {vipFuturesAddons?.novaScalpAgent && (
-                      <TabsTrigger value="nova-scalp" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
-                        Nova Scalp Agent
-                      </TabsTrigger>
-                    )}
                   </TabsList>
                   <TabsContent value="agent" className="mt-0">
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
@@ -8515,16 +8546,20 @@ function Dashboard() {
                       </div>
                     </TabsContent>
                   )}
-                  {vipFuturesAddons?.novaScalpAgent && (
-                    <TabsContent value="nova-scalp" className="mt-0">
-                      <NovaScalpAgentPanel
-                        enabled={!!vipFuturesAddons.novaScalpAgent}
-                        isVip={isVip || isOwner}
-                        canShareCoach={isOwner || isCoachUser}
-                      />
-                    </TabsContent>
-                  )}
                 </Tabs>
+              </div>
+            ) : activeTab === "nova-pulse" ? (
+              <div className="mx-6 py-6">
+                <NovaPulsePanel
+                  isVip={isVip || isOwner}
+                  canShareCoach={isOwner || isCoachUser}
+                  novaScalpAgent={!!vipFuturesAddons?.novaScalpAgent}
+                  novaForexScalpAgent={!!vipFuturesAddons?.novaForexScalpAgent}
+                  novaForexBot={!!vipFuturesAddons?.novaForexBot}
+                  novaForexScalpBot={!!vipFuturesAddons?.novaForexScalpBot}
+                  subTab={novaPulseSubTab}
+                  onSubTabChange={setNovaPulseSubTab}
+                />
               </div>
             ) : activeTab === "nova-forex" ? (
               <div className="mx-6 py-6">
@@ -8533,7 +8568,6 @@ function Dashboard() {
                   enabled={!!vipFuturesAddons?.novaForexAgent}
                   isVip={isVip || isOwner}
                   novaForexFib={!!vipFuturesAddons?.novaForexFib}
-                  novaForexScalp={!!vipFuturesAddons?.novaForexScalpAgent}
                   novaForexBot={!!vipFuturesAddons?.novaForexBot}
                   novaForexScalpBot={!!vipFuturesAddons?.novaForexScalpBot}
                 />

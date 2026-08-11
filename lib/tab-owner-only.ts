@@ -27,6 +27,7 @@ export const OWNER_ONLY_MANAGED_TABS = [
   "wallets",
   "coach-calls",
   "nova-forecast",
+  "nova-pulse",
   "nova-forex",
   "nova-plus",
   "nova-investment",

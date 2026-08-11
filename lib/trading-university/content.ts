@@ -267,7 +267,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     diagram: "risk",
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
-      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+      { label: "Nova Scalp", href: "/?tab=nova-pulse&pulse=futures" },
     ],
   },
   {
@@ -479,7 +479,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     diagram: "orders",
     relatedTools: [
       { label: "Crypto Futures", href: "/?tab=futures" },
-      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+      { label: "Nova Scalp", href: "/?tab=nova-pulse&pulse=futures" },
       { label: "Nova Forex Agent", href: "/?tab=nova-forex" },
     ],
   },
@@ -547,7 +547,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     diagram: "journal",
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
-      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+      { label: "Nova Scalp", href: "/?tab=nova-pulse&pulse=futures" },
     ],
   },
   {
@@ -629,7 +629,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     ],
     diagram: "styles",
     relatedTools: [
-      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+      { label: "Nova Scalp", href: "/?tab=nova-pulse&pulse=futures" },
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
       { label: "NovaScalper", href: "/?tab=trading-bot" },
     ],
@@ -731,7 +731,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     relatedTools: [
       { label: "NovaForecast Agent", href: "/?tab=nova-forecast" },
       { label: "NovaStaris AI Agent", href: "/?tab=ai-analysis&agent=chart" },
-      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+      { label: "Nova Scalp", href: "/?tab=nova-pulse&pulse=futures" },
     ],
   },
   {
@@ -1263,7 +1263,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     diagram: "margin",
     relatedTools: [
       { label: "Crypto Futures", href: "/?tab=futures" },
-      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+      { label: "Nova Scalp", href: "/?tab=nova-pulse&pulse=futures" },
       { label: "Perp Radar", href: "/?tab=perp-radar" },
     ],
   },
@@ -1519,7 +1519,7 @@ export const TRADING_UNIVERSITY_LESSONS: UniversityLesson[] = [
     diagram: "metals",
     relatedTools: [
       { label: "Nova Forex Agent", href: "/?tab=nova-forex" },
-      { label: "Nova Scalp", href: "/?tab=nova-forecast&forecast=nova-scalp" },
+      { label: "Nova Scalp", href: "/?tab=nova-pulse&pulse=futures" },
       { label: "Crypto Futures", href: "/?tab=futures" },
     ],
   },

@@ -176,11 +176,11 @@ export async function getNovaForexFibAccess(session: Session | null): Promise<Vi
 }
 
 export async function getNovaForexScalpAgentAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
-  const base = await getNovaForexAgentAccess(session);
+  const base = await assertVip(session);
   if (!base.ok) return base;
   const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_AGENT);
   if (!on) {
-    return { ok: false, status: 403, error: "Nova Forex Scalp Agent is not available on your account yet. Contact support if you need access.", disabled: true };
+    return { ok: false, status: 403, error: "Nova Forex Agent (Pulse) is not available on your account yet. Contact support if you need access.", disabled: true };
   }
   return base;
 }

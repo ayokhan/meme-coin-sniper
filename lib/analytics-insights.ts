@@ -58,6 +58,7 @@ const TAB_LABELS: Record<string, string> = {
   wallets: 'Wallet Tracker',
   'coach-calls': 'Coach Calls + Telegram Signals',
   'nova-forecast': 'Nova Forecast',
+  'nova-pulse': 'Nova Pulse',
   'nova-forex': 'Nova Forex',
   'nova-plus': 'Nova Plus',
   'nova-investment': 'Nova Investment',
@@ -100,7 +101,10 @@ const SUB_LABELS: Record<string, Record<string, string>> = {
     'nova-extra': 'Nova Extra',
     'nova-pattern': 'Nova Pattern',
     'nova-radar': 'Nova Radar',
-    'nova-scalp': 'Nova Scalp',
+  },
+  pulse: {
+    futures: 'Futures (Nova Scalp)',
+    forex: 'Forex (Nova Forex Agent)',
   },
   boss: {
     chart: 'Chart',
@@ -121,7 +125,7 @@ export function formatAnalyticsPathLabel(path: string): string {
     else if (url.pathname === '/') parts.push('Home');
     else parts.push(url.pathname);
 
-    for (const key of ['goHunting', 'bsc', 'wallet', 'futures', 'forecast', 'boss'] as const) {
+    for (const key of ['goHunting', 'bsc', 'wallet', 'futures', 'forecast', 'pulse', 'boss'] as const) {
       const val = url.searchParams.get(key);
       if (val) {
         const subMap = SUB_LABELS[key];

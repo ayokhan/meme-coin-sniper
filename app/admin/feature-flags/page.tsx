@@ -319,6 +319,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Tab: Nova Forex Agent",
     description: "Show/hide the Nova Forex Agent tab in the main GUI (also requires Nova Forex Agent feature flag ON).",
   },
+  page_tab_nova_pulse: {
+    label: "Tab: Nova Pulse",
+    description:
+      "Show/hide the Nova Pulse VIP tab (Futures = Nova Scalp Agent, Forex = Nova Forex Agent). Subtabs still require their own feature flags. Default OFF until you enable it.",
+  },
   page_tab_nova_plus: {
     label: "Tab: Nova+",
     description: "Show/hide the Nova+ tab (VIP-only risk-managed trade analysis) in the main GUI.",
@@ -444,9 +449,9 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
       "When ON, VIP users see the Crypto Buddie subtab: ranked perps for short-horizon style reads plus optional Sol/BSC AI monitor polling. Default OFF until you enable it.",
   },
   nova_scalp_agent: {
-    label: "Nova Scalp Agent (NovaForecast)",
+    label: "Nova Scalp Agent (Nova Pulse → Futures)",
     description:
-      "When ON, VIP users see the Nova Scalp Agent subtab under NovaForecast Agent: leveraged entry/exit plans, expected PnL, stop-loss, and Quick Wins scanner. Default OFF until you enable it.",
+      "When ON, VIP users see Nova Scalp Agent under Nova Pulse → Futures: leveraged entry/exit plans, expected PnL, stop-loss, and Quick Wins scanner. Requires Tab: Nova Pulse ON. Default OFF until you enable it.",
   },
   nova_q_fib: {
     label: "NovaQ Fib (NovaForecast)",
@@ -474,9 +479,9 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
       "When ON, VIP users see NovaForex Fib subtab under Nova Forex Agent. Requires Nova Forex Agent ON. Default OFF.",
   },
   nova_forex_scalp_agent: {
-    label: "Nova Forex Scalp Agent",
+    label: "Nova Forex Agent (Nova Pulse → Forex)",
     description:
-      "When ON, VIP users see Nova Forex Scalp subtab. Requires Nova Forex Agent ON. Default OFF.",
+      "When ON, VIP users see Nova Forex Agent under Nova Pulse → Forex (short-horizon scalp plans for gold, FX, indices). Requires Tab: Nova Pulse ON. Independent of the Nova Forex Agent structure desk. Default OFF.",
   },
   nova_forex_bot: {
     label: "Nova Forex Bot (master)",

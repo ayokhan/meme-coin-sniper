@@ -984,8 +984,8 @@ export function NovaScalpPlanCard({
                 <Link
                   href={
                     market === "forex"
-                      ? "/?tab=nova-forex&forex=nova-scalp#nova-forex-scalp-quick-wins"
-                      : "/?tab=nova-forecast&forecast=nova-scalp#nova-scalp-quick-wins"
+                      ? "/?tab=nova-pulse&pulse=forex#nova-forex-scalp-quick-wins"
+                      : "/?tab=nova-pulse&pulse=futures#nova-scalp-quick-wins"
                   }
                 >
                   {market === "forex" ? "Find quick wins" : "Find quick wins"}

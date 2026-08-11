@@ -192,6 +192,7 @@ export const URL_TAB_IDS = new Set([
   "nova-ultimate",
   "coach-calls",
   "nova-forecast",
+  "nova-pulse",
   "nova-forex",
   "nova-plus",
   "nova-investment",

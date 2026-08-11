@@ -187,8 +187,8 @@ export default function NovaScalpWatchBanner() {
                   <Link
                     href={
                       market === "forex"
-                        ? "/?tab=nova-forex&forex=nova-scalp#nova-scalp-watched-plan"
-                        : "/?tab=nova-forecast&forecast=nova-scalp#nova-scalp-watched-plan"
+                        ? "/?tab=nova-pulse&pulse=forex#nova-scalp-watched-plan"
+                        : "/?tab=nova-pulse&pulse=futures#nova-scalp-watched-plan"
                     }
                     onClick={() => requestOpenWatchedScalpPlan(a, market)}
                   >

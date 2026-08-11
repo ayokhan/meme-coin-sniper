@@ -37,8 +37,8 @@ function formatHoldElapsed(enteredAtIso: string, nowMs: number): string {
 
 function scalpTabHref(market: ScalpActiveTrade["market"]): string {
   return market === "forex"
-    ? "/?tab=nova-forex&forex=nova-scalp"
-    : "/?tab=nova-forecast&forecast=nova-scalp";
+    ? "/?tab=nova-pulse&pulse=forex"
+    : "/?tab=nova-pulse&pulse=futures";
 }
 
 export default function NovaScalpActiveTradeBar() {
