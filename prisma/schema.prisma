@@ -1108,6 +1108,48 @@ model RealtorOsConfig {
   updatedAt DateTime @updatedAt
 }
 
+// Realtor OS leads captured from inbound email (and later forms/SMS).
+model RealtorOsLead {
+  id        String   @id @default(cuid())
+  email     String
+  name      String?
+  phone     String?
+  intent    String? // buyer | seller | rent | unknown
+  area      String?
+  status    String   @default("new") // new | contacted | booked | closed | spam
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages  RealtorOsMessage[]
+
+  @@unique([email])
+  @@index([status, updatedAt])
+}
+
+// Inbound/outbound realtor emails + AI drafts.
+model RealtorOsMessage {
+  id           String    @id @default(cuid())
+  leadId       String?
+  lead         RealtorOsLead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  /** Provider Message-ID for dedupe */
+  internetMessageId String? @unique
+  direction    String // inbound | outbound
+  fromAddress  String
+  toAddress    String
+  subject      String
+  bodyText     String    @db.Text
+  receivedAt   DateTime?
+  draftBody    String?   @db.Text
+  draftStatus  String    @default("none") // none | draft | sent | skipped
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([direction, createdAt])
+  @@index([leadId, createdAt])
+  @@index([draftStatus, createdAt])
+}
+
 // Owner-managed: which dashboard tabs are visible only to the owner. Single row id "default".
 model TabOwnerOnlyConfig {
   id        String   @id @default("default")

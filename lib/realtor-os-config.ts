@@ -66,7 +66,7 @@ export const DEFAULT_REALTOR_OS_CONFIG: RealtorOsConfig = {
   clientName: "",
   mode: "test",
   approveBeforeSend: true,
-  notes: "Use test email / Twilio trial / test calendar until MVP is proven, then switch mode to live and replace credentials.",
+  notes: "Use a real Gmail + App Password for demos. Sync inbox → AI draft → Send. Flip mode to live when showing the client.",
   email: { provider: "gmail", address: "", secret: "" },
   phone: { provider: "twilio", number: "", accountSid: "", authToken: "" },
   calendar: { provider: "google", calendarId: "", secret: "" },
@@ -150,8 +150,8 @@ export function toPublicRealtorOsConfig(config: RealtorOsConfig, updatedAt: Date
     },
     updatedAt: updatedAt ? updatedAt.toISOString() : null,
     connectionStatus: {
-      email: config.email.address ? "configured" : "empty",
-      phone: config.phone.number || config.phone.accountSid ? "configured" : "empty",
+      email: config.email.address && config.email.secret ? "configured" : "empty",
+      phone: config.phone.number && config.phone.accountSid && config.phone.authToken ? "configured" : "empty",
       calendar: config.calendar.calendarId ? "configured" : "empty",
     },
   };

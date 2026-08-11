@@ -178,11 +178,18 @@ export default function AdminRealtorOsPage() {
         description="Test email / phone / calendar credentials for the realtor AI ops prototype. Swap to live later without rewriting the app."
       />
 
-      <div className="rounded-lg border border-amber-200/80 dark:border-amber-800/50 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-        Start in <strong>test</strong> mode with a throwaway inbox, Twilio trial number, and a spare calendar. When demos
-        pass, flip mode to <strong>live</strong> and paste his real credentials here.
+      <div className="rounded-lg border border-amber-200/80 dark:border-amber-800/50 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100 space-y-2">
+        <p>
+          <strong>Demo setup (Gmail):</strong> turn on 2-Step Verification → Google Account → Security → App passwords →
+          create one for Mail → paste the 16-character password into <em>Secret</em> below (not your normal Gmail
+          password). Then open the desk tab → <strong>Test login</strong> → <strong>Sync inbox + draft</strong>.
+        </p>
+        <p className="text-xs opacity-90">
+          Mode <strong>test</strong> vs <strong>live</strong> is a label for you — both use the credentials you save here.
+          Swap the address/secret when you move from your demo inbox to the realtor&apos;s inbox.
+        </p>
         {meta.updatedAt && (
-          <span className="block mt-1 text-xs opacity-80">Last saved {new Date(meta.updatedAt).toLocaleString()}</span>
+          <span className="block text-xs opacity-80">Last saved {new Date(meta.updatedAt).toLocaleString()}</span>
         )}
       </div>
 
@@ -400,6 +407,66 @@ export default function AdminRealtorOsPage() {
         <Button type="button" disabled={saving} onClick={() => void save()} className="bg-cyan-600 hover:bg-cyan-500 text-white">
           {saving ? "Saving…" : "Save"}
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={saving}
+          onClick={async () => {
+            setError("");
+            setNotice("");
+            setSaving(true);
+            try {
+              const body = {
+                clientName: form.clientName,
+                mode: form.mode,
+                approveBeforeSend: form.approveBeforeSend,
+                notes: form.notes,
+                bookingLink: form.bookingLink,
+                email: {
+                  provider: form.emailProvider,
+                  address: form.emailAddress,
+                  secret: form.emailSecret,
+                },
+                phone: {
+                  provider: form.phoneProvider,
+                  number: form.phoneNumber,
+                  accountSid: form.phoneAccountSid,
+                  authToken: form.phoneAuthToken,
+                },
+                calendar: {
+                  provider: form.calendarProvider,
+                  calendarId: form.calendarId,
+                  secret: form.calendarSecret,
+                },
+              };
+              const saveRes = await fetch("/api/admin/realtor-os", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+              });
+              const saveData = await saveRes.json();
+              if (!saveData.success) throw new Error(saveData.error ?? "Save failed");
+              const cfg = saveData.config as RealtorOsConfigPublic;
+              setForm(fromPublic(cfg));
+              setMeta({ updatedAt: cfg.updatedAt, status: cfg.connectionStatus });
+
+              const res = await fetch("/api/admin/realtor-os/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "test" }),
+              });
+              const data = await res.json();
+              if (!data.success) throw new Error(data.error ?? "Connection failed");
+              setNotice("Saved. Mailbox login OK.");
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "Save/test failed");
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          Save & test login
+        </Button>
         <Button type="button" variant="outline" disabled={saving} onClick={() => void load()}>
           Reload
         </Button>
@@ -414,7 +481,7 @@ export default function AdminRealtorOsPage() {
           Reset defaults
         </Button>
         <Button asChild variant="outline">
-          <Link href="/?tab=realtor-os">Open desk tab</Link>
+          <Link href="/?tab=realtor-os">Open desk</Link>
         </Button>
       </div>
     </div>
