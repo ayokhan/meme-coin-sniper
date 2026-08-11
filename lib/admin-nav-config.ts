@@ -22,6 +22,7 @@ import {
   Users,
   Wallet,
   Zap,
+  Building2,
 } from "lucide-react";
 
 export type AdminNavGroup = "overview" | "analytics" | "users" | "trackers" | "product";
@@ -155,6 +156,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Case studies",
     description: "Edit /case-studies stories, hero, and CTAs",
     icon: BookOpen,
+    group: "product",
+    ownerOnly: true,
+  },
+  {
+    href: "/admin/realtor-os",
+    label: "Realtor OS",
+    description: "Test email / phone / calendar for realtor AI ops",
+    icon: Building2,
     group: "product",
     ownerOnly: true,
   },

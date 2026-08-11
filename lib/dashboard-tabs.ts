@@ -32,7 +32,8 @@ export type DashboardTabId =
   | "nova-connect"
   | "chris-clayton"
   | "trading-university"
-  | "nova-store";
+  | "nova-store"
+  | "realtor-os";
 
 export const DASHBOARD_TAB_ORDER: DashboardTabId[] = [
   "new",
@@ -67,6 +68,7 @@ export const DASHBOARD_TAB_ORDER: DashboardTabId[] = [
   "chris-clayton",
   "trading-university",
   "nova-store",
+  "realtor-os",
 ];
 
 export const TAB_SHORT_LABELS: Record<DashboardTabId, string> = {
@@ -102,4 +104,5 @@ export const TAB_SHORT_LABELS: Record<DashboardTabId, string> = {
   "chris-clayton": "Boss",
   "trading-university": "University",
   "nova-store": "Store",
+  "realtor-os": "Realtor",
 };

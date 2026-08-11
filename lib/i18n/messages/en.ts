@@ -182,6 +182,7 @@ export const en = {
     "trading-university": "NovaStaris Trading University",
     "nova-job-agent": "Nova Jobs Agent",
     "nova-store": "Nova Store",
+    "realtor-os": "Realtor OS",
     bsc: "BSC",
     watchlist: "Watchlist",
     "chris-clayton": "Online Boss Strategy",

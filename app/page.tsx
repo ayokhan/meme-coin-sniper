@@ -135,6 +135,7 @@ import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import NovaForexBotsPanel from "@/components/NovaForexBotsPanel";
 import TradingUniversityPanel from "@/components/TradingUniversityPanel";
 import NovaJobAgentPanel from "@/components/NovaJobAgentPanel";
+import RealtorOsPanel from "@/components/RealtorOsPanel";
 import NovaStorePanel from "@/components/NovaStorePanel";
 import TradingUniversityInviteBanner, {
   dismissTradingUniversityBannerStorage,
@@ -257,6 +258,7 @@ type TabId =
   | "chris-clayton"
   | "trading-university"
   | "nova-job-agent"
+  | "realtor-os"
   | "nova-store";
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
 const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-forex-bot", "nova-plus", "nova-connect"];
@@ -301,6 +303,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   "chris-clayton": "page_tab_chris_clayton",
   "trading-university": "page_tab_trading_university",
   "nova-job-agent": "page_tab_nova_job_agent",
+  "realtor-os": "page_tab_realtor_os",
   "nova-store": "page_tab_nova_store",
 };
 const TAB_VISIBILITY_ORDER: TabId[] = [
@@ -336,6 +339,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "chris-clayton",
   "trading-university",
   "nova-job-agent",
+  "realtor-os",
   "nova-store",
 ];
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
@@ -605,6 +609,7 @@ function Dashboard() {
     }
     if (tab === "nova-connect") return novaConnectEnabled && isTabPageEnabled(tab);
     if (tab === "chris-clayton") return isOwner && isTabPageEnabled(tab);
+    if (tab === "realtor-os") return isOwner && isTabPageEnabled(tab);
     if (tab === "nova-job-agent") return (isOwner || canAccessNovaJobsAgentEffective) && isTabPageEnabled(tab);
     return isTabPageEnabled(tab);
   };
@@ -2311,7 +2316,7 @@ function Dashboard() {
       if (status === "authenticated") fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-job-agent" || tab === "nova-store" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-pulse" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
+    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-job-agent" || tab === "realtor-os" || tab === "nova-store" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-pulse" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -3385,7 +3390,7 @@ function Dashboard() {
 
   // Auto-refresh: Go Hunting / Trending / Surge share VIP daily limit; auto off unless admin enables.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-pulse" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent" || activeTab === "nova-store") return;
+    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-pulse" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent" || activeTab === "realtor-os" || activeTab === "nova-store") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
@@ -4806,7 +4811,7 @@ function Dashboard() {
                   </TabsTrigger>
                 )}
               </TabsList>
-              {(showTopTab("bsc") || showTopTab("watchlist") || showTopTab("chris-clayton") || showTopTab("trading-university") || showTopTab("nova-job-agent") || showTopTab("nova-store")) && (
+              {(showTopTab("bsc") || showTopTab("watchlist") || showTopTab("chris-clayton") || showTopTab("trading-university") || showTopTab("nova-job-agent") || showTopTab("nova-store") || showTopTab("realtor-os")) && (
                 <div className="w-full shrink-0 border-t border-zinc-200/80 dark:border-zinc-700/80 pt-3">
                   <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     {t("more")}
@@ -4827,6 +4832,11 @@ function Dashboard() {
                     {showTopTab("nova-job-agent") && (
                       <TabsTrigger value="nova-job-agent" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-indigo-600 data-[state=active]:text-white dark:data-[state=active]:bg-indigo-700 gap-1.5`}>
                         <span>{t("tabs.nova-job-agent")}</span>
+                      </TabsTrigger>
+                    )}
+                    {showTopTab("realtor-os") && (
+                      <TabsTrigger value="realtor-os" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-amber-700 data-[state=active]:text-white dark:data-[state=active]:bg-amber-800 gap-1.5`}>
+                        <span>{t("tabs.realtor-os")}</span>
                       </TabsTrigger>
                     )}
                     {showTopTab("bsc") && (
@@ -8885,6 +8895,8 @@ function Dashboard() {
                   <NovaJobAgentPanel />
                 </div>
               )
+            ) : activeTab === "realtor-os" ? (
+              <RealtorOsPanel />
             ) : activeTab === "nova-store" ? (
               <NovaStorePanel />
             ) : activeTab === "coach-calls" ? (

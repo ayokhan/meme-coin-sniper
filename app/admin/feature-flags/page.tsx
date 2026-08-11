@@ -377,6 +377,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, /case-studies is live and Case studies links show in the header, Account menu, About, Subscribe, and Start here. When OFF, the page shows closed and those links are hidden. Default ON. Toggle in Admin → Product visibility.",
   },
+  page_tab_realtor_os: {
+    label: "Tab: Realtor OS (owner only)",
+    description:
+      "Owner-only prototype desk for a realtor AI ops build (test email / phone / calendar). Hidden from all non-owners. Configure credentials in Admin → Realtor OS. Default ON.",
+  },
   enter_landing_enabled: {
     label: "Enter / desk landing (guests)",
     description:

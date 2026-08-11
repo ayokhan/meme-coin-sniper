@@ -1101,6 +1101,13 @@ model CaseStudiesConfig {
   updatedAt DateTime @updatedAt
 }
 
+// Owner-only Realtor AI Ops (test/live credentials). Single row id "default".
+model RealtorOsConfig {
+  id        String   @id @default("default")
+  config    Json
+  updatedAt DateTime @updatedAt
+}
+
 // Owner-managed: which dashboard tabs are visible only to the owner. Single row id "default".
 model TabOwnerOnlyConfig {
   id        String   @id @default("default")

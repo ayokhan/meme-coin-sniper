@@ -174,6 +174,11 @@ export const FEATURE_FLAG_KEYS = {
    * When OFF: page shows closed and Case studies links are hidden. Default ON.
    */
   PAGE_TAB_CASE_STUDIES: 'page_tab_case_studies',
+  /**
+   * Owner-only Realtor AI Ops desk (email/SMS/calendar prototype). Default ON for owner testing.
+   * Access is hardcoded owner-only in the dashboard regardless of other tiers.
+   */
+  PAGE_TAB_REALTOR_OS: 'page_tab_realtor_os',
 
   /**
    * Guest desk landing on `/` (and `/enter`).
