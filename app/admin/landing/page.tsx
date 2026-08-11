@@ -366,6 +366,87 @@ export default function AdminLandingPage() {
 
           <Card>
             <CardHeader className="pb-2">
+              <CardTitle className="text-base">Case studies strip</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Below-fold proof strip on /enter. Also requires Product visibility → Case studies ON.
+              </p>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={config.caseStudies.enabled}
+                  onChange={(e) =>
+                    setConfig((c) => ({ ...c, caseStudies: { ...c.caseStudies, enabled: e.target.checked } }))
+                  }
+                  className="rounded"
+                />
+                Show Case studies strip
+              </label>
+              {(
+                [
+                  ["eyebrow", "Eyebrow"],
+                  ["title", "Title"],
+                  ["blurb", "Blurb"],
+                  ["cta", "CTA"],
+                  ["href", "Href"],
+                ] as const
+              ).map(([key, label]) => (
+                <div key={key}>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
+                  {key === "blurb" ? (
+                    <textarea
+                      rows={2}
+                      className={fieldClass}
+                      value={config.caseStudies[key]}
+                      onChange={(e) =>
+                        setConfig((c) => ({
+                          ...c,
+                          caseStudies: { ...c.caseStudies, [key]: e.target.value },
+                        }))
+                      }
+                    />
+                  ) : (
+                    <input
+                      className={fieldClass}
+                      value={config.caseStudies[key]}
+                      onChange={(e) =>
+                        setConfig((c) => ({
+                          ...c,
+                          caseStudies: { ...c.caseStudies, [key]: e.target.value },
+                        }))
+                      }
+                    />
+                  )}
+                </div>
+              ))}
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Chips (one per line: Label|href)
+                </label>
+                <textarea
+                  rows={3}
+                  className={fieldClass}
+                  value={config.caseStudies.chips.map((c) => `${c.label}|${c.href}`).join("\n")}
+                  onChange={(e) => {
+                    const chips = e.target.value
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map((line) => {
+                        const [label, href] = line.split("|").map((s) => s.trim());
+                        return label && href ? { label, href } : null;
+                      })
+                      .filter((x): x is { label: string; href: string } => !!x);
+                    setConfig((c) => ({ ...c, caseStudies: { ...c.caseStudies, chips } }));
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
               <CardTitle className="text-base">Instagram</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -443,6 +524,7 @@ export default function AdminLandingPage() {
                   ["showStartHere", "startHereLabel", "startHereHref", "Start here"],
                   ["showAffiliate", "affiliateLabel", "affiliateHref", "Affiliate"],
                   ["showWins", "winsLabel", "winsHref", "Wins"],
+                  ["showCaseStudies", "caseStudiesLabel", "caseStudiesHref", "Case studies"],
                 ] as const
               ).map(([showKey, labelKey, hrefKey, name]) => (
                 <div key={showKey} className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">

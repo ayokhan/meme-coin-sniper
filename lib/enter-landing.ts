@@ -40,6 +40,16 @@ export type EnterLandingConfig = {
     secondaryCta: string;
     pathSteps: string[];
   };
+  /** Below-fold proof strip on /enter (also gated by page_tab_case_studies). */
+  caseStudies: {
+    enabled: boolean;
+    eyebrow: string;
+    title: string;
+    blurb: string;
+    cta: string;
+    href: string;
+    chips: Array<{ label: string; href: string }>;
+  };
   instagram: {
     enabled: boolean;
     handle: string;
@@ -63,6 +73,9 @@ export type EnterLandingConfig = {
     showWins: boolean;
     winsLabel: string;
     winsHref: string;
+    showCaseStudies: boolean;
+    caseStudiesLabel: string;
+    caseStudiesHref: string;
     showInstagram: boolean;
   };
 };
@@ -143,6 +156,19 @@ export const DEFAULT_ENTER_LANDING: EnterLandingConfig = {
     secondaryCta: "Or pick a desk first",
     pathSteps: ["Foundations", "Markets", "Applied", "Final exam", "Certificate"],
   },
+  caseStudies: {
+    enabled: true,
+    eyebrow: "Proof",
+    title: "See how traders use these desks",
+    blurb: "Short member-style journeys for meme checks, futures structure, and forex — before you pick a path.",
+    cta: "Read case studies",
+    href: "/case-studies",
+    chips: [
+      { label: "Meme checks", href: "/case-studies#meme" },
+      { label: "Futures structure", href: "/case-studies#forecast" },
+      { label: "Forex desk", href: "/case-studies#forex" },
+    ],
+  },
   instagram: {
     enabled: true,
     handle: "novastaris",
@@ -166,6 +192,9 @@ export const DEFAULT_ENTER_LANDING: EnterLandingConfig = {
     showWins: true,
     winsLabel: "Wins",
     winsHref: "/wins",
+    showCaseStudies: true,
+    caseStudiesLabel: "Case studies",
+    caseStudiesHref: "/case-studies",
     showInstagram: true,
   },
 };
@@ -231,12 +260,26 @@ export function normalizeEnterLandingConfig(raw: unknown): EnterLandingConfig {
   });
 
   const uni = r.university && typeof r.university === "object" ? (r.university as Record<string, unknown>) : {};
+  const cs = r.caseStudies && typeof r.caseStudies === "object" ? (r.caseStudies as Record<string, unknown>) : {};
   const ig = r.instagram && typeof r.instagram === "object" ? (r.instagram as Record<string, unknown>) : {};
   const ft = r.footer && typeof r.footer === "object" ? (r.footer as Record<string, unknown>) : {};
 
   const pathSteps = Array.isArray(uni.pathSteps)
     ? uni.pathSteps.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
     : d.university.pathSteps;
+
+  const chipsRaw = Array.isArray(cs.chips) ? cs.chips : null;
+  const chips =
+    chipsRaw
+      ?.map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const row = item as { label?: unknown; href?: unknown };
+        const label = typeof row.label === "string" ? row.label.trim() : "";
+        const href = typeof row.href === "string" ? row.href.trim() : "";
+        if (!label || !href) return null;
+        return { label, href };
+      })
+      .filter((x): x is { label: string; href: string } => !!x) ?? d.caseStudies.chips;
 
   return {
     heroEyebrow: asString(r.heroEyebrow, d.heroEyebrow),
@@ -255,6 +298,15 @@ export function normalizeEnterLandingConfig(raw: unknown): EnterLandingConfig {
       cta: asString(uni.cta, d.university.cta),
       secondaryCta: asString(uni.secondaryCta, d.university.secondaryCta),
       pathSteps: pathSteps.length ? pathSteps : d.university.pathSteps,
+    },
+    caseStudies: {
+      enabled: asBool(cs.enabled, d.caseStudies.enabled),
+      eyebrow: asString(cs.eyebrow, d.caseStudies.eyebrow),
+      title: asString(cs.title, d.caseStudies.title),
+      blurb: asString(cs.blurb, d.caseStudies.blurb),
+      cta: asString(cs.cta, d.caseStudies.cta),
+      href: asString(cs.href, d.caseStudies.href),
+      chips: chips.length ? chips : d.caseStudies.chips,
     },
     instagram: {
       enabled: asBool(ig.enabled, d.instagram.enabled),
@@ -279,6 +331,9 @@ export function normalizeEnterLandingConfig(raw: unknown): EnterLandingConfig {
       showWins: asBool(ft.showWins, d.footer.showWins),
       winsLabel: asString(ft.winsLabel, d.footer.winsLabel),
       winsHref: asString(ft.winsHref, d.footer.winsHref),
+      showCaseStudies: asBool(ft.showCaseStudies, d.footer.showCaseStudies),
+      caseStudiesLabel: asString(ft.caseStudiesLabel, d.footer.caseStudiesLabel),
+      caseStudiesHref: asString(ft.caseStudiesHref, d.footer.caseStudiesHref),
       showInstagram: asBool(ft.showInstagram, d.footer.showInstagram),
     },
   };

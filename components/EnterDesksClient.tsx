@@ -141,6 +141,8 @@ export default function EnterDesksClient() {
   const [heroReady, setHeroReady] = useState(false);
   const [desksReady, setDesksReady] = useState(false);
   const [uniReady, setUniReady] = useState(false);
+  const [caseReady, setCaseReady] = useState(false);
+  const [caseStudiesFlagOn, setCaseStudiesFlagOn] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,6 +159,19 @@ export default function EnterDesksClient() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    fetch("/api/feature-flags-public", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setCaseStudiesFlagOn(data?.flags?.page_tab_case_studies !== false);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const t = window.setTimeout(() => setHeroReady(true), 40);
     return () => window.clearTimeout(t);
   }, []);
@@ -165,10 +180,12 @@ export default function EnterDesksClient() {
     if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
       setDesksReady(true);
       setUniReady(true);
+      setCaseReady(true);
       return;
     }
     const nodes = [
       { id: "desks", set: setDesksReady },
+      { id: "case-studies-strip", set: setCaseReady },
       { id: "university", set: setUniReady },
     ] as const;
     const obs = new IntersectionObserver(
@@ -177,6 +194,7 @@ export default function EnterDesksClient() {
           if (!e.isIntersecting) continue;
           const id = (e.target as HTMLElement).id;
           if (id === "desks") setDesksReady(true);
+          if (id === "case-studies-strip") setCaseReady(true);
           if (id === "university") setUniReady(true);
         }
       },
@@ -187,7 +205,7 @@ export default function EnterDesksClient() {
       if (el) obs.observe(el);
     }
     return () => obs.disconnect();
-  }, [config.university.enabled]);
+  }, [config.university.enabled, config.caseStudies.enabled, caseStudiesFlagOn]);
 
   useEffect(() => {
     let cancelled = false;
@@ -374,6 +392,45 @@ export default function EnterDesksClient() {
             })}
           </div>
         </section>
+
+        {caseStudiesFlagOn && config.caseStudies.enabled && (
+          <section
+            id="case-studies-strip"
+            className={`relative mt-8 overflow-hidden rounded-2xl border border-cyan-500/25 bg-zinc-950/70 p-5 sm:p-6 transition-all duration-700 ease-out ${
+              caseReady ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+            }`}
+          >
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-cyan-500/15 via-emerald-500/5 to-transparent" />
+            <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="max-w-xl space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-300/90">
+                  {config.caseStudies.eyebrow}
+                </p>
+                <h2 className="font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-white sm:text-2xl">
+                  {config.caseStudies.title}
+                </h2>
+                <p className="text-sm leading-relaxed text-zinc-400">{config.caseStudies.blurb}</p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {config.caseStudies.chips.map((chip) => (
+                    <Link
+                      key={chip.href}
+                      href={chip.href}
+                      className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-medium text-cyan-100/90 transition-colors hover:border-cyan-300/50 hover:bg-cyan-500/20"
+                    >
+                      {chip.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+              <Link
+                href={config.caseStudies.href}
+                className="inline-flex shrink-0 items-center justify-center rounded-md bg-cyan-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-cyan-300"
+              >
+                {config.caseStudies.cta}
+              </Link>
+            </div>
+          </section>
+        )}
 
         {config.university.enabled && (
           <section
@@ -680,6 +737,11 @@ export default function EnterDesksClient() {
         {ft.showWins && (
           <Link href={ft.winsHref} className="hover:text-zinc-300">
             {ft.winsLabel}
+          </Link>
+        )}
+        {caseStudiesFlagOn && ft.showCaseStudies && (
+          <Link href={ft.caseStudiesHref} className="hover:text-zinc-300">
+            {ft.caseStudiesLabel}
           </Link>
         )}
       </footer>
