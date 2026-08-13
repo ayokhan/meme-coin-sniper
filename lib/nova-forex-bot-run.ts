@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/db";
 import { normalizeForexSymbol, getForexCandles } from "@/lib/forex-market";
+import { pipSizeForForexSymbol, pipsToPrice } from "@/lib/forex-pips";
 import { getForexSpotMid, usesSpotCalibration } from "@/lib/forex-spot-feed";
 import { ema, maCrossoverSignal } from "@/lib/trading-bot-ta";
 import { resolveForexBrokerForSession } from "@/lib/forex-broker-session";
@@ -17,25 +18,14 @@ import {
   closeMetaApiPositionsBySymbol,
 } from "@/lib/metaapi";
 
+export { pipSizeForForexSymbol, pipsToPrice };
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
 function parseFloatSafe(s: string): number {
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
-}
-
-/** Pip size by instrument family — JPY pairs 0.01, metals 0.1, indices 1.0, else 0.0001. */
-export function pipSizeForForexSymbol(symbol: string): number {
-  const s = normalizeForexSymbol(symbol);
-  if (s.includes("JPY")) return 0.01;
-  if (s === "XAUUSD" || s === "XAGUSD") return 0.1;
-  if (/^(NAS100|US30|SPX500|US100|UK100|GER40|JPN225)/.test(s)) return 1.0;
-  return 0.0001;
-}
-
-export function pipsToPrice(symbol: string, pips: number): number {
-  return pips * pipSizeForForexSymbol(symbol);
 }
 
 /** MT4/MT5-style symbol (no slash) from our market-watch symbol. */

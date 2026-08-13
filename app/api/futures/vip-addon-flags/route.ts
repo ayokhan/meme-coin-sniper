@@ -11,7 +11,7 @@ export async function GET() {
   try {
     // Session read kept for parity/auditing, but visibility is flag-driven for all users.
     const session = await getServerSession(authOptions);
-    const [novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBotAccess, novaForexScalpBotAccess] = await Promise.all([
+    const [novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaPulsePnlCalculator, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBotAccess, novaForexScalpBotAccess] = await Promise.all([
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_EAGLE),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_LIQUIDATION_MAP),
@@ -23,6 +23,7 @@ export async function GET() {
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_PRICE_FACTOR),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_RUNNER),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_SCALP_AGENT),
+      getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_PULSE_PNL_CALCULATOR),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_Q_FIB),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_EXTRA),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_PATTERN_DETECTOR),
@@ -34,7 +35,7 @@ export async function GET() {
     ]);
     const novaForexBot = novaForexBotAccess.ok;
     const novaForexScalpBot = novaForexScalpBotAccess.ok;
-    return NextResponse.json({ success: true, novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBot, novaForexScalpBot });
+    return NextResponse.json({ success: true, novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaPulsePnlCalculator, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBot, novaForexScalpBot });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to read flags";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

@@ -98,6 +98,8 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_DEEP_MEME_AGENT: 'nova_deep_meme_agent',
   /** VIP: Nova Scalp Agent under Nova Pulse → Futures (leveraged scalp entry/exit + Quick Wins scanner). Default OFF until admin enables. */
   NOVA_SCALP_AGENT: 'nova_scalp_agent',
+  /** VIP: Calculate PnL under Nova Pulse (crypto + forex risk/lot math, optional RORO meter). Default OFF until admin enables. */
+  NOVA_PULSE_PNL_CALCULATOR: 'nova_pulse_pnl_calculator',
   /** VIP: NovaQ Fib subtab under NovaForecast Agent (Fibonacci retracement from pivot swings; classic NovaQ unchanged). Default OFF until admin enables. */
   NOVA_Q_FIB: 'nova_q_fib',
   /** VIP: Nova Extra subtab under NovaForecast Agent (intraday UTC hour/range long-short seasonality). Default OFF until admin enables. */

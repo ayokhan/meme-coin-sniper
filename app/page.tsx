@@ -1212,6 +1212,7 @@ function Dashboard() {
     novaFuturesNarratives: boolean;
     novaMemeIntelligence: boolean;
     novaScalpAgent: boolean;
+    novaPulsePnlCalculator: boolean;
     novaQFib: boolean;
     novaExtra: boolean;
     novaPatternDetector: boolean;
@@ -1241,6 +1242,7 @@ function Dashboard() {
           novaFuturesNarratives: !!d.novaFuturesNarratives,
           novaMemeIntelligence: !!d.novaMemeIntelligence,
           novaScalpAgent: !!d.novaScalpAgent,
+          novaPulsePnlCalculator: !!d.novaPulsePnlCalculator,
           novaQFib: !!d.novaQFib,
           novaExtra: !!d.novaExtra,
           novaPatternDetector: !!d.novaPatternDetector,
@@ -1260,6 +1262,7 @@ function Dashboard() {
             novaFuturesNarratives: false,
             novaMemeIntelligence: false,
             novaScalpAgent: false,
+            novaPulsePnlCalculator: false,
             novaQFib: false,
             novaExtra: false,
             novaPatternDetector: false,
@@ -1639,7 +1642,7 @@ function Dashboard() {
   const [dashboardUrlReady, setDashboardUrlReady] = useState(false);
   /** Sub-tab under Nova Forex Bots (kept in URL so Scalp handoffs survive sync). */
   const [forexBotSubTab, setForexBotSubTab] = useState<"forex-bot" | "scalp-bot" | null>(null);
-  const [novaPulseSubTab, setNovaPulseSubTab] = useState<"futures" | "forex">("futures");
+  const [novaPulseSubTab, setNovaPulseSubTab] = useState<"futures" | "forex" | "pnl">("futures");
 
   const applyDashboardPathResult = useCallback((result: DashboardPathApplyResult) => {
     setTopTabFilter(result.filter);
@@ -1722,7 +1725,7 @@ function Dashboard() {
           setNovaForecastSubTab(forecast);
         }
         const pulse = url.searchParams.get("pulse");
-        if (pulse === "futures" || pulse === "forex") {
+        if (pulse === "futures" || pulse === "forex" || pulse === "pnl") {
           setNovaPulseSubTab(pulse);
         }
         const forex = url.searchParams.get("forex");
@@ -1823,7 +1826,7 @@ function Dashboard() {
       setNovaForecastSubTab(forecast);
     }
     const pulse = params.get("pulse");
-    if (pulse === "futures" || pulse === "forex") {
+    if (pulse === "futures" || pulse === "forex" || pulse === "pnl") {
       setNovaPulseSubTab(pulse);
     }
     if (tab === "nova-forex" && params.get("forex") === "nova-scalp") {
@@ -8489,6 +8492,7 @@ function Dashboard() {
                   canShareCoach={isOwner || isCoachUser}
                   novaScalpAgent={!!vipFuturesAddons?.novaScalpAgent}
                   novaForexScalpAgent={!!vipFuturesAddons?.novaForexScalpAgent}
+                  novaPulsePnlCalculator={!!vipFuturesAddons?.novaPulsePnlCalculator}
                   novaForexBot={!!vipFuturesAddons?.novaForexBot}
                   novaForexScalpBot={!!vipFuturesAddons?.novaForexScalpBot}
                   subTab={novaPulseSubTab}

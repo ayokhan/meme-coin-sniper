@@ -120,6 +120,21 @@ export async function getNovaScalpAgentAccess(session: Session | null): Promise<
   return base;
 }
 
+export async function getNovaPulsePnlCalculatorAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const base = await assertVip(session);
+  if (!base.ok) return base;
+  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_PULSE_PNL_CALCULATOR);
+  if (!on) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Calculate PnL is not available on your account yet. Contact support if you need access.",
+      disabled: true,
+    };
+  }
+  return base;
+}
+
 export async function getNovaQFibAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
   const base = await assertVip(session);
   if (!base.ok) return base;

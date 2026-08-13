@@ -217,6 +217,11 @@ function mapHlIntervalToYahoo(hlInterval: string, limit: number): IntervalMap {
       if (n <= 90) return { yahooInterval: "1d", range: "3mo" };
       if (n <= 180) return { yahooInterval: "1d", range: "6mo" };
       return { yahooInterval: "1d", range: "2y" };
+    case "1w":
+      return { yahooInterval: "1wk", range: n <= 26 ? "6mo" : "2y" };
+    case "1M":
+    case "1mo":
+      return { yahooInterval: "1mo", range: "2y" };
     default:
       return { yahooInterval: "15m", range: "5d" };
   }
