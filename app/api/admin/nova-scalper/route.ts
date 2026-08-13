@@ -107,7 +107,12 @@ function toConfig(row: Record<string, unknown>) {
     instId,
     marginMode: row.marginMode === "isolated" ? "isolated" : "cross",
     side: row.side === "short" ? "short" : "long",
-    entryTrigger: row.entryTrigger === "cross_up" ? "cross_up" : "cross_down",
+    entryTrigger:
+      row.entryTrigger === "cross_up"
+        ? "cross_up"
+        : row.entryTrigger === "immediate"
+          ? "immediate"
+          : "cross_down",
     leverage: row.leverage,
     entryPrice: row.entryPrice,
     exitPrice: row.exitPrice,
@@ -259,7 +264,12 @@ export async function PATCH(request: Request) {
         marginCurrency: quote,
         marginMode: body.marginMode === "isolated" ? "isolated" : "cross",
         side: body.side === "short" ? "short" : "long",
-        entryTrigger: body.entryTrigger === "cross_up" ? "cross_up" : "cross_down",
+        entryTrigger:
+          body.entryTrigger === "cross_up"
+            ? "cross_up"
+            : body.entryTrigger === "immediate"
+              ? "immediate"
+              : "cross_down",
         leverage: Math.floor(Number(body.leverage) || 5),
         entryPrice,
         exitPrice,

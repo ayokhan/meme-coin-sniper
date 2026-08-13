@@ -1402,7 +1402,7 @@ model NovaScalperConfig {
   marginCurrency   String   @default("USDT")
   marginMode       String   @default("cross") // cross | isolated
   side             String   @default("long") // long | short
-  /** cross_down | cross_up — long dip = cross_down (price crosses down through entry); long breakout = cross_up */
+  /** cross_down | cross_up | immediate — long dip = cross_down; long breakout = cross_up; market/at-entry = immediate */
   entryTrigger     String   @default("cross_down")
   leverage         Int      @default(5)
   entryPrice       Float

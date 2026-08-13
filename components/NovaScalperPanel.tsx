@@ -28,7 +28,7 @@ type ScalperConfig = {
   instId: string;
   marginMode: "cross" | "isolated";
   side: "long" | "short";
-  entryTrigger: "cross_down" | "cross_up";
+  entryTrigger: "cross_down" | "cross_up" | "immediate";
   leverage: number;
   entryPrice: number;
   exitPrice: number;
@@ -71,7 +71,7 @@ export default function NovaScalperPanel() {
   const [success, setSuccess] = useState<string | null>(null);
   const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
   const prefillAppliedRef = useRef(false);
-  const [autoSec, setAutoSec] = useState<0 | 15 | 30 | 60>(0);
+  const [autoSec, setAutoSec] = useState<0 | 15 | 30 | 60>(15);
   const [userBlofinConfigured, setUserBlofinConfigured] = useState<boolean | null>(null);
   const [blofinKeysForm, setBlofinKeysForm] = useState({
     apiKey: "",
@@ -167,7 +167,12 @@ export default function NovaScalperPanel() {
               instrumentPair: pair,
               instId: "",
               side: prefill.side,
-              entryTrigger: scalperEntryTriggerFor(prefill.side),
+              entryTrigger:
+                prefill.entryTrigger === "immediate" ||
+                prefill.entryTrigger === "cross_up" ||
+                prefill.entryTrigger === "cross_down"
+                  ? prefill.entryTrigger
+                  : scalperEntryTriggerFor(prefill.side),
               entryPrice: prefill.entryPrice,
               exitPrice: prefill.exitPrice,
               stopLossPrice:
@@ -834,9 +839,12 @@ export default function NovaScalperPanel() {
             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Entry trigger</label>
             <select
               value={config.entryTrigger}
-              onChange={(e) => setField("entryTrigger", e.target.value as "cross_down" | "cross_up")}
+              onChange={(e) =>
+                setField("entryTrigger", e.target.value as "cross_down" | "cross_up" | "immediate")
+              }
               className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
             >
+              <option value="immediate">Immediate (next tick — enter now at live)</option>
               <option value="cross_down">
                 Cross down (long: dip to entry · short: breakdown through entry)
               </option>
@@ -969,6 +977,11 @@ export default function NovaScalperPanel() {
             </select>
             {config.enabled && autoSec > 0 && (
               <span className="text-xs text-slate-600 dark:text-slate-300">Runs only while this tab is open.</span>
+            )}
+            {config.enabled && autoSec === 0 && (
+              <span className="text-xs text-amber-700 dark:text-amber-300">
+                Auto tick is off — the bot will not retry a failed buy unless you click Check price now.
+              </span>
             )}
           </div>
 
@@ -1157,6 +1170,13 @@ export default function NovaScalperPanel() {
               <p className="mt-0.5 text-xs font-medium text-foreground leading-snug">
                 {config.lastTickAt ? new Date(config.lastTickAt).toLocaleString() : "—"}
               </p>
+              {config.enabled &&
+                config.lastTickAt &&
+                Date.now() - Date.parse(config.lastTickAt) > 90_000 && (
+                  <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                    Stale — turn Auto tick on or tap Check price now.
+                  </p>
+                )}
             </div>
           </div>
 
@@ -1171,7 +1191,20 @@ export default function NovaScalperPanel() {
           {config.lastError && (
             <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
               <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              <span>{config.lastError}</span>
+              <div className="space-y-2 min-w-0">
+                <span>{config.lastError}</span>
+                {/market (buy|sell) failed|all operations failed/i.test(config.lastError) && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 text-xs bg-rose-700 hover:bg-rose-800 text-white"
+                    onClick={() => void tick()}
+                    disabled={ticking || !config.enabled}
+                  >
+                    {ticking ? "Retrying…" : "Retry entry now"}
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </CardContent>

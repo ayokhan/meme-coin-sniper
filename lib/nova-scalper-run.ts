@@ -51,9 +51,18 @@ type ScalperRow = {
   attachTpsl: boolean;
   tpslTpPct: number | null;
   tpslSlPct: number | null;
+  lastAction?: string | null;
+  lastError?: string | null;
 };
 
+function parseEntryTrigger(raw: string | null | undefined): "cross_down" | "cross_up" | "immediate" {
+  if (raw === "cross_up") return "cross_up";
+  if (raw === "immediate") return "immediate";
+  return "cross_down";
+}
+
 function shouldEnter(side: string, trigger: string, entry: number, lastRef: number, price: number): boolean {
+  if (trigger === "immediate") return Number.isFinite(price) && price > 0;
   const t = trigger === "cross_up" ? "cross_up" : "cross_down";
   if (side === "long") {
     if (t === "cross_down") return lastRef >= entry && price <= entry;
@@ -61,6 +70,11 @@ function shouldEnter(side: string, trigger: string, entry: number, lastRef: numb
   }
   if (t === "cross_up") return lastRef <= entry && price >= entry;
   return lastRef >= entry && price <= entry;
+}
+
+function looksLikeFailedMarketEntry(action: string | null | undefined, err: string | null | undefined): boolean {
+  const t = `${action ?? ""} ${err ?? ""}`;
+  return /market (buy|sell) failed/i.test(t);
 }
 
 function shouldExit(side: string, exit: number, lastRef: number, price: number): boolean {
@@ -191,7 +205,8 @@ export async function runNovaScalperTick(
     return { ok: true, message: "Primed price reference. Next tick evaluates entry/exit crosses." };
   }
 
-  const trigger = row.entryTrigger === "cross_up" ? "cross_up" : "cross_down";
+  const failedEntryRetry = looksLikeFailedMarketEntry(row.lastAction, row.lastError);
+  const trigger = failedEntryRetry ? "immediate" : parseEntryTrigger(row.entryTrigger);
 
   if (row.inPosition || hasExchangePosition) {
     if (row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && stopHit(side, row.stopLossPrice, price)) {
@@ -269,6 +284,16 @@ export async function runNovaScalperTick(
       lastAction: `Open/pending order(s) on ${instId}; skipping new entry until order(s) complete or cancel.`,
     });
     return { ok: true, message: "Pending orders on this contract; not opening another entry." };
+  }
+
+  if (row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && stopHit(side, row.stopLossPrice, price)) {
+    await updateRow({
+      lastRefPrice: price,
+      lastTickAt: new Date(),
+      lastError: null,
+      lastAction: `Not entering — live ~${price} already through stop ${row.stopLossPrice}. Refresh the scalp plan.`,
+    });
+    return { ok: true, message: "Skipped entry; stop already hit." };
   }
 
   if (!shouldEnter(side, trigger, row.entryPrice, lastRef, price)) {
@@ -352,7 +377,9 @@ export async function runNovaScalperTick(
     await updateRow({
       lastError: err,
       lastTickAt: new Date(),
-      lastAction: `Entry cross @ ~${price} — market ${orderSide} failed: ${err}${levNote}`,
+      lastRefPrice: price,
+      entryTrigger: "immediate",
+      lastAction: `Entry @ ~${price} — market ${orderSide} failed: ${err}${levNote} Next tick will retry at live.`,
     });
     return { ok: false, error: ord.error };
   }
@@ -388,13 +415,18 @@ export async function runNovaScalperTick(
     }
   }
 
-  await updateRow({
+  const afterOpen: Record<string, unknown> = {
     inPosition: true,
     lastRefPrice: price,
     lastTickAt: new Date(),
     lastError: tpslNote.includes("failed") ? tpslNote.trim() : null,
     lastAction: `Opened ${side} ${sizeStr} @ ~${price}.${levNote}${tpslNote} Will close at exit ${row.exitPrice} or stop.`,
-  });
+  };
+  if (trigger === "immediate") {
+    afterOpen.entryTrigger = side === "short" ? "cross_up" : "cross_down";
+    afterOpen.lastAction = `${afterOpen.lastAction} Next entries need a price cross.`;
+  }
+  await updateRow(afterOpen);
 
   return { ok: true, message: `Entered ${side}. Monitoring exit/stop.` };
 }

@@ -31,6 +31,8 @@ export type NovaScalperPrefill = {
   marginUsd: number;
   /** When set, overrides the active config's margin mode (Pulse PnL assumes isolated). */
   marginMode?: "cross" | "isolated";
+  /** When set, Scalper uses this instead of inferring cross up/down from side. */
+  entryTrigger?: "cross_down" | "cross_up" | "immediate";
   /** Human-readable origin, e.g. "Nova Scalp Agent" or "Quick Win". */
   source: string;
   createdAt: string;
@@ -46,8 +48,12 @@ export function scalperInstrumentPairFor(symbol: string): string {
   return `${s}/USDT`;
 }
 
-/** Long dips into entry (cross down); short rallies into entry (cross up). */
-export function scalperEntryTriggerFor(side: "long" | "short"): "cross_down" | "cross_up" {
+/** Long dips into entry (cross down); short rallies into entry (cross up). Market / at-entry → immediate. */
+export function scalperEntryTriggerFor(
+  side: "long" | "short",
+  opts?: { entryMode?: "limit" | "market" | null; enterNow?: boolean }
+): "cross_down" | "cross_up" | "immediate" {
+  if (opts?.enterNow || opts?.entryMode === "market") return "immediate";
   return side === "long" ? "cross_down" : "cross_up";
 }
 

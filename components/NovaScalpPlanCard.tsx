@@ -44,7 +44,11 @@ import {
 } from "@/lib/nova-scalp-plan-watch";
 import type { ScalpPlanMarket } from "@/lib/scalp-plan-market";
 import { scalpPlanFeedbackApi } from "@/lib/scalp-plan-market";
-import { NOVA_SCALPER_HANDOFF_URL, writeNovaScalperPrefill } from "@/lib/nova-scalper-prefill";
+import {
+  NOVA_SCALPER_HANDOFF_URL,
+  scalperEntryTriggerFor,
+  writeNovaScalperPrefill,
+} from "@/lib/nova-scalper-prefill";
 import {
   NOVA_FOREX_SCALPER_HANDOFF_URL,
   forexScalperEntryTriggerFor,
@@ -466,6 +470,12 @@ export function NovaScalpPlanCard({
       return;
     }
 
+    const enterNow =
+      result.entryMode === "market" ||
+      planStatus === "at_entry" ||
+      (livePrice != null &&
+        result.entryPrice != null &&
+        Math.abs(livePrice - (result.entryPrice as number)) / (result.entryPrice as number) <= 0.0015);
     const prefill = {
       symbol: result.symbol,
       side: result.side as "long" | "short",
@@ -474,6 +484,11 @@ export function NovaScalpPlanCard({
       stopLossPrice: result.recommendedStopPrice ?? result.stopLossPrice ?? null,
       leverage: result.leverage,
       marginUsd: result.amountUsd,
+      marginMode: "isolated" as const,
+      entryTrigger: scalperEntryTriggerFor(result.side as "long" | "short", {
+        entryMode: result.entryMode,
+        enterNow,
+      }),
       source: "Nova Scalp Agent",
       createdAt: new Date().toISOString(),
     };
