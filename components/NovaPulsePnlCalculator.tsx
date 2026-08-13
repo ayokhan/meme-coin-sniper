@@ -365,8 +365,8 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
           }
           setError(null);
           setResult(out);
-          if (out.lots != null) setLots(out.lots.toFixed(2));
-          if (out.marginUsd > 0) setMarginUsd(out.marginUsd.toFixed(2));
+          if (out.lots != null && sizeMode === "custom") setLots(out.lots.toFixed(2));
+          if (out.marginUsd > 0 && sizeMode === "custom") setMarginUsd(out.marginUsd.toFixed(2));
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Quote failed");
@@ -457,7 +457,8 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
     return out.ok ? out : null;
   }, [market, symbol, side, entry, tpPrice, slPrice, leverage, marginUsd, lots, accountUsd, riskPct, sizeMode, usdJpy]);
 
-  const shown = result ?? preview;
+  /** Live preview wins so changing leverage/size updates the card without a stale Calculate snapshot. */
+  const shown = preview ?? result;
 
   const sendToScalper = () => {
     if (!shown) return;
@@ -618,9 +619,17 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
                   min={1}
                   max={maxLev}
                   value={leverage}
-                  onChange={(e) => setLeverage(e.target.value)}
+                  onChange={(e) => {
+                    setLeverage(e.target.value);
+                    setResult(null);
+                  }}
                   className={INPUT}
                 />
+                {market === "crypto" && sizeMode === "risk" && (
+                  <span className="block text-[11px] text-muted-foreground">
+                    With risk-% sizing, leverage changes margin and liquidation — not the dollar stop risk.
+                  </span>
+                )}
               </label>
               <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs text-muted-foreground">Entry</span>
@@ -901,13 +910,36 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
                           </div>
                         </>
                       )}
-                      <div className="col-span-2">
-                        <dt className="text-[11px] text-muted-foreground">Margin / notional</dt>
-                        <dd className="font-mono text-xs">
-                          {fmtUsdAbs(shown.marginUsd)} · {fmtUsdAbs(shown.notionalUsd)} @ {shown.leverage}x
-                        </dd>
+                      <div>
+                        <dt className="text-[11px] text-muted-foreground">Margin required</dt>
+                        <dd className="font-mono">{fmtUsdAbs(shown.marginUsd)}</dd>
                       </div>
+                      <div>
+                        <dt className="text-[11px] text-muted-foreground">Notional @ {shown.leverage}x</dt>
+                        <dd className="font-mono">{fmtUsdAbs(shown.notionalUsd)}</dd>
+                      </div>
+                      {shown.estimatedLiquidationPrice != null && (
+                        <div className="col-span-2">
+                          <dt className="text-[11px] text-muted-foreground">Est. isolated liq</dt>
+                          <dd className="font-mono">
+                            {formatQuotePrice(shown.estimatedLiquidationPrice)}
+                            {shown.estimatedLiqDistancePct != null ? (
+                              <span className="text-[11px] text-muted-foreground font-sans">
+                                {" "}
+                                · {shown.estimatedLiqDistancePct.toFixed(2)}% from entry
+                              </span>
+                            ) : null}
+                          </dd>
+                        </div>
+                      )}
                     </dl>
+                    {shown.sizedFromRisk && shown.market === "crypto" && (
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Risk-% sizes notional from the stop, so {fmtUsdAbs(shown.amountAtRiskUsd)} at SL stays the same
+                        at any leverage. {shown.leverage}x only changes how much margin that notional needs (
+                        {fmtUsdAbs(shown.marginUsd)}) and where liquidation sits.
+                      </p>
+                    )}
                   </div>
 
                   {shown.pipValueUsdPerLot != null && (
@@ -946,9 +978,11 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
                         <dd className="font-mono font-medium text-emerald-600 dark:text-emerald-400">
                           {fmtUsd(shown.profitIfTpUsd)}
                           <span className="block text-[11px] font-normal text-muted-foreground">
+                            {shown.returnOnMarginIfTpPct >= 0 ? "+" : ""}
+                            {shown.returnOnMarginIfTpPct.toFixed(1)}% on margin ({shown.leverage}x)
                             {shown.accountIfTp
-                              ? `${shown.accountIfTp.pctOfStart >= 0 ? "+" : ""}${shown.accountIfTp.pctOfStart.toFixed(2)}% of account · bal ${fmtUsdAbs(shown.accountIfTp.currentBalance)}`
-                              : `${shown.returnOnMarginIfTpPct.toFixed(1)}% on margin`}
+                              ? ` · ${shown.accountIfTp.pctOfStart >= 0 ? "+" : ""}${shown.accountIfTp.pctOfStart.toFixed(2)}% of account`
+                              : ""}
                           </span>
                         </dd>
                       </div>
@@ -957,9 +991,10 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
                         <dd className="font-mono font-medium text-rose-600 dark:text-rose-400">
                           {fmtUsd(shown.lossIfSlUsd)}
                           <span className="block text-[11px] font-normal text-muted-foreground">
+                            {shown.returnOnMarginIfSlPct.toFixed(1)}% on margin ({shown.leverage}x)
                             {shown.accountIfSl
-                              ? `${shown.accountIfSl.pctOfStart.toFixed(2)}% of account · bal ${fmtUsdAbs(shown.accountIfSl.currentBalance)}`
-                              : `${shown.returnOnMarginIfSlPct.toFixed(1)}% on margin`}
+                              ? ` · ${shown.accountIfSl.pctOfStart.toFixed(2)}% of account`
+                              : ""}
                           </span>
                         </dd>
                       </div>
@@ -984,14 +1019,6 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
                     </dl>
                   </div>
 
-                  {shown.estimatedLiquidationPrice != null && (
-                    <p className="text-[11px] text-muted-foreground font-mono">
-                      Est. isolated liq {formatQuotePrice(shown.estimatedLiquidationPrice)}
-                      {shown.estimatedLiqDistancePct != null
-                        ? ` · ${shown.estimatedLiqDistancePct.toFixed(2)}% from entry`
-                        : ""}
-                    </p>
-                  )}
                   {shown.stopBeyondEstimatedLiq && (
                     <p className="text-[11px] rounded-md border border-rose-400/40 bg-rose-500/10 px-2.5 py-1.5 text-rose-800 dark:text-rose-200">
                       Stop is beyond estimated liquidation — size down or tighten the stop.
