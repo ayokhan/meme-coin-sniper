@@ -29,6 +29,8 @@ export type NovaScalperPrefill = {
   leverage: number;
   /** USD margin to open with. */
   marginUsd: number;
+  /** When set, overrides the active config's margin mode (Pulse PnL assumes isolated). */
+  marginMode?: "cross" | "isolated";
   /** Human-readable origin, e.g. "Nova Scalp Agent" or "Quick Win". */
   source: string;
   createdAt: string;

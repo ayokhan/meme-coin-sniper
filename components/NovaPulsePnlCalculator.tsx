@@ -176,7 +176,7 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
   const [slSource, setSlSource] = useState<LevelField>("pct");
   const [accountUsd, setAccountUsd] = useState("1000");
   const [riskPct, setRiskPct] = useState("1");
-  const [sizeMode, setSizeMode] = useState<"risk" | "custom">("risk");
+  const [sizeMode, setSizeMode] = useState<"margin" | "stop" | "custom">("stop");
   const [marginUsd, setMarginUsd] = useState("100");
   const [lots, setLots] = useState("0.10");
   const [livePrice, setLivePrice] = useState<number | null>(null);
@@ -269,11 +269,13 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
       setLeverage("20");
       setTpSource("pips");
       setSlSource("pips");
+      setSizeMode("stop");
     } else {
       setSymbol("BTC");
       setLeverage("10");
       setTpSource("pct");
       setSlSource("pct");
+      setSizeMode("margin");
     }
     setEntry("");
     setLivePrice(null);
@@ -355,7 +357,8 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
             lots: n(lots) || null,
             accountUsd: n(accountUsd) || null,
             riskPct: n(riskPct) || null,
-            sizeFromRisk: sizeMode === "risk",
+            sizeFromRisk: sizeMode === "stop",
+            sizeMode,
             usdJpy: jpy,
           });
           if (!out.ok) {
@@ -451,7 +454,8 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
       lots: n(lots) || null,
       accountUsd: n(accountUsd) || null,
       riskPct: n(riskPct) || null,
-      sizeFromRisk: sizeMode === "risk",
+      sizeFromRisk: sizeMode === "stop",
+      sizeMode,
       usdJpy,
     });
     return out.ok ? out : null;
@@ -495,6 +499,7 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
           stopLossPrice: shown.levels.stopLossPrice,
           leverage: shown.leverage,
           marginUsd: shown.marginUsd,
+          marginMode: "isolated",
           source: "Nova Pulse Calculate PnL",
           createdAt: new Date().toISOString(),
         }),
@@ -625,9 +630,14 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
                   }}
                   className={INPUT}
                 />
-                {market === "crypto" && sizeMode === "risk" && (
+                {market === "crypto" && sizeMode === "margin" && (
                   <span className="block text-[11px] text-muted-foreground">
-                    With risk-% sizing, leverage changes margin and liquidation — not the dollar stop risk.
+                    PnL = margin × leverage × price move. 10x on $1 margin → $10 position.
+                  </span>
+                )}
+                {market === "crypto" && sizeMode === "stop" && (
+                  <span className="block text-[11px] text-muted-foreground">
+                    Stop-loss budget keeps dollar risk fixed — extra leverage only reduces margin.
                   </span>
                 )}
               </label>
@@ -789,17 +799,38 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1">
-                <span className="text-xs text-muted-foreground">Account size (USD)</span>
-                <input type="number" min={0} value={accountUsd} onChange={(e) => setAccountUsd(e.target.value)} className={INPUT} />
+                <span className="text-xs text-muted-foreground">Account equity (USD)</span>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Optional"
+                  value={accountUsd}
+                  onChange={(e) => setAccountUsd(e.target.value)}
+                  className={INPUT}
+                />
+                <span className="block text-[11px] text-muted-foreground">
+                  Your futures wallet. Needed for risk-% / margin-% sizing and “% of account”. Skip if you type custom margin.
+                </span>
               </label>
               <label className="space-y-1">
-                <span className="text-xs text-muted-foreground">Risk % of account</span>
+                <span className="text-xs text-muted-foreground">
+                  {market === "crypto" && sizeMode === "margin" ? "Margin % of account" : "Risk % of account"}
+                </span>
                 <input type="number" min={0.1} max={100} step={0.1} value={riskPct} onChange={(e) => setRiskPct(e.target.value)} className={INPUT} />
               </label>
               <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs text-muted-foreground">Position size</span>
-                <select value={sizeMode} onChange={(e) => setSizeMode(e.target.value as "risk" | "custom")} className={INPUT}>
-                  <option value="risk">From risk % (recommended)</option>
+                <select
+                  value={sizeMode}
+                  onChange={(e) => setSizeMode(e.target.value as "margin" | "stop" | "custom")}
+                  className={INPUT}
+                >
+                  {market === "crypto" && (
+                    <option value="margin">Margin × leverage (recommended)</option>
+                  )}
+                  <option value="stop">
+                    {market === "forex" ? "From risk % (recommended)" : "Cap loss at stop (SL = risk %)"}
+                  </option>
                   <option value="custom">{market === "forex" ? "Custom lots" : "Custom margin"}</option>
                 </select>
               </label>
@@ -929,15 +960,29 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
                                 · {shown.estimatedLiqDistancePct.toFixed(2)}% from entry
                               </span>
                             ) : null}
+                            {shown.estimatedLiqLossUsd != null ? (
+                              <span className="block text-rose-600 dark:text-rose-400">
+                                {fmtUsd(shown.estimatedLiqLossUsd)}
+                                {shown.estimatedLiqLossPctOfMargin != null
+                                  ? ` · ${shown.estimatedLiqLossPctOfMargin.toFixed(1)}% of margin`
+                                  : ""}
+                              </span>
+                            ) : null}
                           </dd>
                         </div>
                       )}
                     </dl>
-                    {shown.sizedFromRisk && shown.market === "crypto" && (
+                    {shown.market === "crypto" && shown.sizeMethod === "margin" && (
                       <p className="text-[11px] text-muted-foreground leading-snug">
-                        Risk-% sizes notional from the stop, so {fmtUsdAbs(shown.amountAtRiskUsd)} at SL stays the same
-                        at any leverage. {shown.leverage}x only changes how much margin that notional needs (
-                        {fmtUsdAbs(shown.marginUsd)}) and where liquidation sits.
+                        Dollar PnL scales with leverage: {fmtUsdAbs(shown.marginUsd)} margin × {shown.leverage}x ={" "}
+                        {fmtUsdAbs(shown.notionalUsd)} notional. A {shown.levels.tpPct.toFixed(2)}% move →{" "}
+                        {fmtUsd(shown.profitIfTpUsd)} ({shown.returnOnMarginIfTpPct.toFixed(0)}% on margin).
+                      </p>
+                    )}
+                    {shown.market === "crypto" && shown.sizeMethod === "stop" && (
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Stop-loss budget keeps {fmtUsdAbs(shown.amountAtRiskUsd)} at SL at any leverage. Extra leverage
+                        only reduces margin ({fmtUsdAbs(shown.marginUsd)}) and moves liquidation.
                       </p>
                     )}
                   </div>
@@ -998,6 +1043,23 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
                           </span>
                         </dd>
                       </div>
+                      {shown.estimatedLiqLossUsd != null && shown.estimatedLiquidationPrice != null && (
+                        <div className="col-span-2">
+                          <dt className="text-[11px] text-muted-foreground">If liquidated (isolated est.)</dt>
+                          <dd className="font-mono font-medium text-rose-600 dark:text-rose-400">
+                            {fmtUsd(shown.estimatedLiqLossUsd)}
+                            <span className="block text-[11px] font-normal text-muted-foreground">
+                              at {formatQuotePrice(shown.estimatedLiquidationPrice)}
+                              {shown.estimatedLiqLossPctOfMargin != null
+                                ? ` · ${shown.estimatedLiqLossPctOfMargin.toFixed(1)}% of ${fmtUsdAbs(shown.marginUsd)} margin`
+                                : ""}
+                              {shown.estimatedLiqDistancePct != null
+                                ? ` · ${shown.estimatedLiqDistancePct.toFixed(2)}% from entry`
+                                : ""}
+                            </span>
+                          </dd>
+                        </div>
+                      )}
                       {shown.accountIfSl?.recoveryPct != null && (
                         <div className="col-span-2 text-[11px] text-muted-foreground">
                           After the stop you need about{" "}

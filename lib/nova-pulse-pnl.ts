@@ -35,8 +35,13 @@ export type PulsePnlInput = {
   lots?: number | null;
   accountUsd?: number | null;
   riskPct?: number | null;
-  /** Size so SL loss ≈ account × risk%. Overrides margin/lots when account + risk are set. */
+  /**
+   * stop — size so SL loss ≈ account × risk% (notional stays put if leverage changes).
+   * margin — use risk% of account as isolated margin; notional and $ PnL scale with leverage.
+   * Omit / custom — use marginUsd / lots as entered.
+   */
   sizeFromRisk?: boolean;
+  sizeMode?: "stop" | "margin" | "custom";
   usdJpy?: number | null;
 };
 
@@ -78,9 +83,14 @@ export type PulsePnlResult = {
   accountIfTp: AccountGainLoss | null;
   accountIfSl: AccountGainLoss | null;
   sizedFromRisk: boolean;
+  /** How the position was sized (crypto). */
+  sizeMethod: "stop" | "margin" | "custom";
   riskBudgetUsd: number | null;
   estimatedLiquidationPrice: number | null;
   estimatedLiqDistancePct: number | null;
+  /** USD PnL if price hits estimated isolated liq (negative for the losing side). */
+  estimatedLiqLossUsd: number | null;
+  estimatedLiqLossPctOfMargin: number | null;
   stopBeyondEstimatedLiq: boolean | null;
   notes: string[];
 };
@@ -169,21 +179,36 @@ export function calculatePulsePnl(raw: PulsePnlInput): PulsePnlResult | PulsePnl
   const riskPct = num(raw.riskPct);
   const riskBudget =
     account > 0 && riskPct > 0 ? (account * riskPct) / 100 : null;
-  const wantRiskSize = !!raw.sizeFromRisk && riskBudget != null && riskBudget > 0;
+  const sizeMode: "stop" | "margin" | "custom" =
+    raw.sizeMode === "stop" || raw.sizeMode === "margin" || raw.sizeMode === "custom"
+      ? raw.sizeMode
+      : raw.sizeFromRisk
+        ? "stop"
+        : "custom";
 
   let marginUsd = Math.max(0, num(raw.marginUsd) || 0);
   let lots: number | null = market === "forex" ? Math.max(0, num(raw.lots) || 0) || null : null;
   let sizedFromRisk = false;
+  let sizeMethod: "stop" | "margin" | "custom" = "custom";
 
   if (market === "crypto") {
-    if (wantRiskSize && slPctAbs > 0) {
-      // lossUsd = margin * (slPct/100) * leverage  →  margin = risk / (slPct/100 * lev)
-      marginUsd = riskBudget! / ((slPctAbs / 100) * leverage);
+    if (sizeMode === "margin" && riskBudget != null && riskBudget > 0) {
+      // Exchange-style: PnL = margin × leverage × % move. Raising leverage raises $ PnL.
+      marginUsd = riskBudget;
       sizedFromRisk = true;
-      notes.push(`Sized so stop ≈ ${riskPct}% of account ($${riskBudget!.toFixed(2)}).`);
+      sizeMethod = "margin";
+      notes.push(
+        `Margin = ${riskPct}% of account ($${riskBudget.toFixed(2)}). Position ${leverage}x → $${(riskBudget * leverage).toFixed(2)} notional.`
+      );
+    } else if (sizeMode === "stop" && riskBudget != null && slPctAbs > 0) {
+      // Keep $ at stop fixed — extra leverage only reduces margin.
+      marginUsd = riskBudget / ((slPctAbs / 100) * leverage);
+      sizedFromRisk = true;
+      sizeMethod = "stop";
+      notes.push(`Sized so stop ≈ ${riskPct}% of account ($${riskBudget.toFixed(2)}).`);
     }
     if (!(marginUsd > 0)) {
-      return { ok: false, error: "Enter USD margin, or account size + risk % to size from the stop." };
+      return { ok: false, error: "Enter USD margin, or account size + risk % to size the position." };
     }
     const notionalUsd = marginUsd * leverage;
     const profitIfTpUsd = cryptoPnlUsd(side, entry, tp, marginUsd, leverage);
@@ -197,12 +222,21 @@ export function calculatePulsePnl(raw: PulsePnlInput): PulsePnlResult | PulsePnl
       leverage,
       positionNotionalUsdt: notionalUsd,
     });
+    const liqLossUsd =
+      liq.liquidationPrice != null
+        ? cryptoPnlUsd(side, entry, liq.liquidationPrice, marginUsd, leverage)
+        : null;
     const stopBeyond =
       liq.liquidationPrice != null
         ? side === "long"
           ? sl <= liq.liquidationPrice
           : sl >= liq.liquidationPrice
         : null;
+    if (sizeMethod === "margin" && riskBudget != null && amountAtRiskUsd > riskBudget * 1.02) {
+      notes.push(
+        `Stop would lose $${amountAtRiskUsd.toFixed(2)} (${((amountAtRiskUsd / account) * 100).toFixed(2)}% of account) — more than the ${riskPct}% margin budget. Tighten SL or cut leverage.`
+      );
+    }
     if (stopBeyond) {
       notes.push("Stop is beyond estimated isolated liquidation — the broker may liquidate first.");
     }
@@ -244,9 +278,13 @@ export function calculatePulsePnl(raw: PulsePnlInput): PulsePnlResult | PulsePnl
       accountIfTp: account > 0 ? accountGainLoss(account, profitIfTpUsd) : null,
       accountIfSl: account > 0 ? accountGainLoss(account, lossIfSlUsd) : null,
       sizedFromRisk,
+      sizeMethod,
       riskBudgetUsd: riskBudget,
       estimatedLiquidationPrice: liq.liquidationPrice,
       estimatedLiqDistancePct: liq.liqDistancePct,
+      estimatedLiqLossUsd: liqLossUsd,
+      estimatedLiqLossPctOfMargin:
+        liqLossUsd != null && marginUsd > 0 ? (liqLossUsd / marginUsd) * 100 : null,
       stopBeyondEstimatedLiq: stopBeyond,
       notes,
     };
@@ -257,11 +295,11 @@ export function calculatePulsePnl(raw: PulsePnlInput): PulsePnlResult | PulsePnl
     return { ok: false, error: "Could not compute pip value. Check symbol and stop distance." };
   }
 
-  if (wantRiskSize) {
-    const rawLots = riskBudget! / (slPips * pipValue);
+  if ((sizeMode === "stop" || sizeMode === "margin") && riskBudget != null && riskBudget > 0) {
+    const rawLots = riskBudget / (slPips * pipValue);
     lots = Math.round(rawLots * 100) / 100;
     sizedFromRisk = true;
-    notes.push(`Lots sized so stop ≈ ${riskPct}% of account ($${riskBudget!.toFixed(2)}), BabyPips-style.`);
+    notes.push(`Lots sized so stop ≈ ${riskPct}% of account ($${riskBudget.toFixed(2)}), BabyPips-style.`);
   } else if (lots != null && lots > 0) {
     /* keep lots */
   } else if (marginUsd > 0) {
@@ -335,9 +373,12 @@ export function calculatePulsePnl(raw: PulsePnlInput): PulsePnlResult | PulsePnl
     accountIfTp: account > 0 ? accountGainLoss(account, profitIfTpUsd) : null,
     accountIfSl: account > 0 ? accountGainLoss(account, lossIfSlUsd) : null,
     sizedFromRisk,
+    sizeMethod: sizedFromRisk ? "stop" : "custom",
     riskBudgetUsd: riskBudget,
     estimatedLiquidationPrice: null,
     estimatedLiqDistancePct: null,
+    estimatedLiqLossUsd: null,
+    estimatedLiqLossPctOfMargin: null,
     stopBeyondEstimatedLiq: null,
     notes,
   };

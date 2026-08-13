@@ -175,6 +175,10 @@ export default function NovaScalperPanel() {
                   ? prefill.stopLossPrice
                   : null,
               leverage,
+              marginMode:
+                prefill.marginMode === "isolated" || prefill.marginMode === "cross"
+                  ? prefill.marginMode
+                  : c.marginMode,
               positionSizeUsdt:
                 Number.isFinite(prefill.marginUsd) && prefill.marginUsd > 0
                   ? prefill.marginUsd
@@ -184,7 +188,9 @@ export default function NovaScalperPanel() {
       )
     );
     setPrefillNotice(
-      `Loaded ${prefill.side.toUpperCase()} ${pair} from ${prefill.source}. Review the levels below, then Save. Nothing is placed until you Save and run a tick.`
+      `Loaded ${prefill.side.toUpperCase()} ${pair} from ${prefill.source}${
+        prefill.marginMode ? ` · ${prefill.marginMode}` : ""
+      }. Review the levels below, then Save. Nothing is placed until you Save and run a tick.`
     );
     clearNovaScalperPrefill();
   }, [loading, activeConfigId, configs.length]);
