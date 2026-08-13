@@ -76,7 +76,13 @@ import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
 import TradingBotPanel from "@/components/TradingBotPanel";
 import { NOVASTARIS_OPEN_AI_AGENT, openNovaStarisAiAgent } from "@/lib/novastaris-events";
-import { fomoTokenUrl } from "@/lib/meme-token-links";
+import { dexscreenerTokenUrl, fomoTokenUrl, memeLinkChainFromStored } from "@/lib/meme-token-links";
+import {
+  detectMemeContractFormat,
+  memeAgentChainLabel,
+  type MemeAgentChain,
+  type MemeAgentChainMode,
+} from "@/lib/meme-contract-format";
 import PropFirmBotPanel from "@/components/PropFirmBotPanel";
 import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
@@ -828,7 +834,8 @@ function Dashboard() {
   const [memeSortDir, setMemeSortDir] = useState<MemeTableSortDir>("desc");
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
-  const [aiAnalysisChain, setAiAnalysisChain] = useState<"solana" | "bsc">("solana");
+  const [aiAnalysisChain, setAiAnalysisChain] = useState<MemeAgentChainMode>("auto");
+  const [aiAnalysisResolvedChain, setAiAnalysisResolvedChain] = useState<MemeAgentChain | null>(null);
   type AiAgentSubTab = "meme" | "chart";
   const [aiAgentSubTab, setAiAgentSubTab] = useState<AiAgentSubTab>("meme");
   type QuotaWindowSnapshot = {
@@ -1139,6 +1146,7 @@ function Dashboard() {
       lpLocked?: boolean | null;
       topHolderPercent?: number | null;
       holderCount?: number | null;
+      chain?: string;
     };
     ragEnabled?: boolean;
     ragUsed?: boolean;
@@ -2174,13 +2182,15 @@ function Dashboard() {
 
   useEffect(() => {
     const onOpenAiAgent = (e: Event) => {
-      const ce = e as CustomEvent<{ contractAddress?: string; chain?: "solana" | "bsc" }>;
+      const ce = e as CustomEvent<{ contractAddress?: string; chain?: MemeAgentChain }>;
       const ca = ce.detail?.contractAddress?.trim() ?? "";
       if (!ca) return;
+      const chain = ce.detail?.chain;
       setActiveTab("ai-analysis");
       setAiAgentSubTab("meme");
       setAiAnalysisCa(ca);
-      setAiAnalysisChain(ce.detail?.chain === "bsc" ? "bsc" : "solana");
+      setAiAnalysisChain(chain === "bsc" || chain === "ethereum" || chain === "solana" ? chain : "auto");
+      setAiAnalysisResolvedChain(chain === "bsc" || chain === "ethereum" || chain === "solana" ? chain : null);
       setAiAnalysisResult(null);
       setAiAnalysisError(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -3463,26 +3473,34 @@ function Dashboard() {
       setAiAnalysisError("Sign in or register to use NovaStaris AI Agent.");
       return;
     }
-    if (aiAnalysisChain === "bsc" && !/^0x[0-9a-fA-F]{40}$/.test(ca)) {
-      setAiAnalysisError("Invalid BSC address. Use 0x followed by 40 hex characters.");
+    const format = detectMemeContractFormat(ca);
+    if (format === "invalid") {
+      setAiAnalysisError("Paste a Solana mint (base58) or an EVM contract (0x + 40 hex).");
       return;
     }
     setAiAnalysisError(null);
     setAiAnalysisResult(null);
+    setAiAnalysisResolvedChain(null);
     setAiAnalysisFeedbackSent(null);
     setAiAnalysisFeedbackNote("");
     setAiAnalysisLoading(true);
     try {
       const amountNum = aiAnalysisAmountUsd.trim() ? parseFloat(aiAnalysisAmountUsd.replace(/,/g, "")) : NaN;
         const amountUsd = Number.isFinite(amountNum) && amountNum > 0 ? amountNum : undefined;
-      const endpoint = aiAnalysisChain === "bsc" ? "/api/ai-analyze-bsc" : "/api/ai-analyze";
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/ai-analyze-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contractAddress: ca, ...(amountUsd != null ? { amountUsd } : {}) }),
+        body: JSON.stringify({
+          contractAddress: ca,
+          chain: aiAnalysisChain,
+          ...(amountUsd != null ? { amountUsd } : {}),
+        }),
       });
       const data = await res.json();
       if (data.success) {
+        const resolved: MemeAgentChain =
+          data.resolvedChain === "bsc" || data.resolvedChain === "ethereum" ? data.resolvedChain : "solana";
+        setAiAnalysisResolvedChain(resolved);
         setAiAnalysisResult({
           score: data.score,
           signal: data.signal === "buy" ? "buy" : "no_buy",
@@ -3490,7 +3508,7 @@ function Dashboard() {
           narrativeAssessment: data.narrativeAssessment,
           amountRiskNote: data.amountRiskNote,
           recommendations: data.recommendations,
-          tokenInfo: { ...data.tokenInfo, contractAddress: ca },
+          tokenInfo: { ...data.tokenInfo, contractAddress: ca, chain: resolved },
           ragEnabled: data.ragEnabled === true,
           ragUsed: data.ragUsed === true,
           ragConfigured: data.ragConfigured === true,
@@ -3500,7 +3518,7 @@ function Dashboard() {
         if (aiAgentOnboardingShow) setAiAgentOnboardingStep(3);
       } else {
         if (res.status === 401 && data.locked) setAiAnalysisError(data.error || "Sign in or register to use NovaStaris AI Agent.");
-        else if (res.status === 429 && data.limitReached) setAiAnalysisError(data.error || "Daily Meme Coins Agent limit reached (Solana + BSC combined). Upgrade to VIP for unlimited use.");
+        else if (res.status === 429 && data.limitReached) setAiAnalysisError(data.error || "Daily Meme Coins Agent limit reached (Solana, BSC, and ETH combined). Upgrade to VIP for unlimited use.");
         else if (res.status === 503) setAiAnalysisError(data.error || "Meme Coins Agent is temporarily unavailable.");
         else if (res.status === 403 && data.locked) setAiAnalysisError(data.error || "Subscribe to access NovaStaris AI Agent.");
         else {
@@ -3549,7 +3567,7 @@ function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contractAddress: ca,
-          chain: aiAnalysisChain,
+          chain: aiAnalysisResolvedChain ?? (aiAnalysisChain === "auto" ? "solana" : aiAnalysisChain),
           symbol: aiAnalysisResult?.tokenInfo?.symbol,
           name: aiAnalysisResult?.tokenInfo?.name,
         }),
@@ -3596,7 +3614,11 @@ function Dashboard() {
           narrativeAssessment: data.result.narrativeAssessment,
           amountRiskNote: data.result.amountRiskNote,
           recommendations: data.result.recommendations,
-          tokenInfo: { ...data.result.tokenInfo, contractAddress },
+          tokenInfo: {
+            ...data.result.tokenInfo,
+            contractAddress,
+            chain: pinnedTokens.find((p) => p.contractAddress === contractAddress)?.chain,
+          },
         });
         setAiAnalysisCa(contractAddress);
         await fetchPinnedTokens();
@@ -3731,7 +3753,10 @@ function Dashboard() {
   const viewPinnedResult = (p: PinnedItem) => {
     const r = p.analysisResult as { score?: number; signal?: string; reasons?: string[]; recommendations?: { supportResistance?: string; marketStructure?: string; buyZoneMcap?: string; takeProfitPct?: string; stopLossPct?: string }; tokenInfo?: { symbol?: string; name?: string; [k: string]: unknown } } | null;
     if (!r) return;
-    setAiAnalysisChain((p.chain === "bsc" ? "bsc" : "solana"));
+    const pinChain: MemeAgentChain =
+      p.chain === "bsc" || p.chain === "ethereum" ? p.chain : "solana";
+    setAiAnalysisChain(pinChain);
+    setAiAnalysisResolvedChain(pinChain);
     setAiAnalysisResult({
       score: r.score ?? 0,
       signal: r.signal === "buy" ? "buy" : "no_buy",
@@ -3739,7 +3764,7 @@ function Dashboard() {
       narrativeAssessment: (r as { narrativeAssessment?: string }).narrativeAssessment,
       amountRiskNote: (r as { amountRiskNote?: string }).amountRiskNote,
       recommendations: r.recommendations,
-      tokenInfo: { ...r.tokenInfo, contractAddress: p.contractAddress },
+      tokenInfo: { ...r.tokenInfo, contractAddress: p.contractAddress, chain: pinChain },
     });
     setAiAnalysisCa(p.contractAddress);
   };
@@ -5272,13 +5297,13 @@ function Dashboard() {
                       <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-300/60 dark:border-emerald-700/60 bg-emerald-50/90 dark:bg-emerald-950/40 px-3 py-1.5 text-sm">
                         <span className="font-semibold text-emerald-700 dark:text-emerald-300">VIP</span>
                         <span className="text-emerald-800/90 dark:text-emerald-200/90">
-                          Unlimited {aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana + BSC)" : "Chart Analysis"} uses.
+                          Unlimited {aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana, BSC, ETH)" : "Chart Analysis"} uses.
                         </span>
                       </div>
                     );
                   }
                   const featureLabel =
-                    aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana + BSC)" : "Chart Analysis";
+                    aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana, BSC, ETH)" : "Chart Analysis";
                   const windowLabel = (w: "daily" | "weekly" | "monthly") =>
                     w === "daily" ? "Daily" : w === "weekly" ? "Weekly" : "Monthly";
                   const resetHint = (w: "daily" | "weekly" | "monthly") =>
@@ -5326,7 +5351,7 @@ function Dashboard() {
                   }
                   return (
                     <p className="mb-4 text-sm text-muted-foreground">
-                      Free plan: {usageParts.join(" · ")} — Solana and BSC share the same limits.{" "}
+                      Free plan: {usageParts.join(" · ")} — Solana, BSC, and ETH share the same limits.{" "}
                       <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">{t("nav.upgradeVip")}</Link> for unlimited.
                     </p>
                   );
@@ -5346,10 +5371,17 @@ function Dashboard() {
                   <AiAgentOnboardingPanel
                     step={aiAgentOnboardingStep}
                     onStepChange={setAiAgentOnboardingStep}
-                    chain={aiAnalysisChain}
-                    onChainChange={(c) => { setAiAnalysisChain(c); setAiAnalysisError(null); }}
                     contractAddress={aiAnalysisCa}
-                    onContractAddressChange={setAiAnalysisCa}
+                    onContractAddressChange={(v) => {
+                      setAiAnalysisCa(v);
+                      const fmt = detectMemeContractFormat(v);
+                      if (
+                        (fmt === "solana" && (aiAnalysisChain === "bsc" || aiAnalysisChain === "ethereum")) ||
+                        (fmt === "evm" && aiAnalysisChain === "solana")
+                      ) {
+                        setAiAnalysisChain("auto");
+                      }
+                    }}
                     amountUsd={aiAnalysisAmountUsd}
                     onAmountUsdChange={setAiAnalysisAmountUsd}
                     onAnalyze={runAiAnalysis}
@@ -5381,17 +5413,17 @@ function Dashboard() {
                           {pinnedTokens.map((p) => {
                             const res = p.analysisResult as { score?: number; signal?: string; tokenInfo?: { symbol?: string } } | null;
                             const last = p.lastAnalyzedAt ? `${Math.round((Date.now() - new Date(p.lastAnalyzedAt).getTime()) / 60000)}m ago` : "pending";
-                            const pinDexUrl = p.chain === "bsc" ? `https://dexscreener.com/bsc/${p.contractAddress}` : `https://dexscreener.com/solana/${p.contractAddress}`;
+                            const pinDexUrl = dexscreenerTokenUrl(p.contractAddress, p.chain);
                             return (
                               <li key={p.contractAddress} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-900/80 px-3 py-2 text-sm">
                                 <div className="min-w-0">
                                   <span className="font-medium text-zinc-900 dark:text-zinc-100">{p.symbol || res?.tokenInfo?.symbol || "—"}</span>
-                                  <span className="text-xs text-muted-foreground ml-2">Score {res?.score ?? "—"} · {last}</span>
+                                  <span className="text-xs text-muted-foreground ml-2">{memeAgentChainLabel(p.chain ?? "solana")} · Score {res?.score ?? "—"} · {last}</span>
                                 </div>
                                 <div className="flex gap-1.5 shrink-0">
                                   <Button type="button" variant="outline" size="sm" onClick={() => viewPinnedResult(p)} className="text-xs">View</Button>
                                   <a href={pinDexUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800">Dex</a>
-                                  <a href={fomoTokenUrl(p.contractAddress, p.chain === "bsc" ? "bsc" : "solana")} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800">FOMO</a>
+                                  <a href={fomoTokenUrl(p.contractAddress, memeLinkChainFromStored(p.chain))} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800">FOMO</a>
                                   <Button type="button" variant="outline" size="sm" onClick={() => refreshPinnedAnalysis(p.contractAddress)} disabled={refreshingPin === p.contractAddress} className="text-xs">{refreshingPin === p.contractAddress ? "…" : "Refresh"}</Button>
                                   <Button type="button" variant="ghost" size="sm" onClick={() => unpinToken(p.contractAddress)} className="text-xs text-rose-600 dark:text-rose-400">Unpin</Button>
                                 </div>
@@ -5403,27 +5435,8 @@ function Dashboard() {
                     </div>
                   </details>
                 )}
-                <div className="flex flex-wrap items-center gap-2 mb-4">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Chain:</span>
-                  <button
-                    type="button"
-                    onClick={() => { setAiAnalysisChain("solana"); setAiAnalysisError(null); setAiAnalysisResult(null); }}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium ${aiAnalysisChain === "solana" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"}`}
-                  >
-                    Solana
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setAiAnalysisChain("bsc"); setAiAnalysisError(null); setAiAnalysisResult(null); }}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium ${aiAnalysisChain === "bsc" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"}`}
-                  >
-                    BSC
-                  </button>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {aiAnalysisChain === "bsc"
-                    ? "Enter a BSC token contract address (0x + 40 hex chars). Optionally add the amount you plan to invest. NovaStaris AI will analyze on-chain data, security, and give buy zone, take profit & stop loss. Daily limit is shared with Solana."
-                    : "Enter a Solana token contract address (CA). Optionally add the amount you plan to invest so the AI can say if it's too risky for the token's liquidity. NovaStaris AI will analyze on-chain data, security, support/resistance, and give buy zone, take profit & stop loss. Daily limit is shared with BSC."}
+                <p className="text-sm text-muted-foreground mb-3">
+                  Paste any Solana mint or EVM 0x contract. We detect the chain from the address and the live DexScreener pool (BSC first, then ETH). Robinhood, Base, and other EVMs are not analyzed yet. Optional amount helps size risk vs liquidity.
                 </p>
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex-1 min-w-[200px]">
@@ -5431,9 +5444,20 @@ function Dashboard() {
                     <input
                       id="ai-ca"
                       type="text"
-                      placeholder={aiAnalysisChain === "bsc" ? "e.g. 0x1234... (BSC contract)" : "e.g. So11111111111111111111111111111111111111112"}
+                      placeholder="Solana mint or 0x contract (BSC / ETH)"
                       value={aiAnalysisCa}
-                      onChange={(e) => { setAiAnalysisCa(e.target.value); setAiAnalysisError(null); }}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setAiAnalysisCa(v);
+                        setAiAnalysisError(null);
+                        const fmt = detectMemeContractFormat(v);
+                        if (
+                          (fmt === "solana" && (aiAnalysisChain === "bsc" || aiAnalysisChain === "ethereum")) ||
+                          (fmt === "evm" && aiAnalysisChain === "solana")
+                        ) {
+                          setAiAnalysisChain("auto");
+                        }
+                      }}
                       className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     />
                   </div>
@@ -5457,6 +5481,48 @@ function Dashboard() {
                     {aiAnalysisLoading ? "Analyzing…" : "Analyze"}
                   </Button>
                 </div>
+                {(() => {
+                  const fmt = detectMemeContractFormat(aiAnalysisCa);
+                  const modeBtn = (mode: MemeAgentChainMode, label: string) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => { setAiAnalysisChain(mode); setAiAnalysisError(null); }}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium ${
+                        aiAnalysisChain === mode
+                          ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                          : "bg-zinc-200/70 dark:bg-zinc-700/70 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                  const detected =
+                    fmt === "solana"
+                      ? "Detected: Solana mint"
+                      : fmt === "evm"
+                        ? aiAnalysisResolvedChain === "bsc" || aiAnalysisResolvedChain === "ethereum"
+                          ? `Detected: EVM · analyzed as ${memeAgentChainLabel(aiAnalysisResolvedChain)}`
+                          : "Detected: EVM — we'll use the live BSC or ETH pool"
+                        : aiAnalysisCa.trim()
+                          ? "Paste a Solana mint or 0x contract"
+                          : null;
+                  return (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {detected && (
+                        <span className="text-xs text-zinc-600 dark:text-zinc-400">{detected}</span>
+                      )}
+                      <span className="text-[11px] text-muted-foreground">Mode:</span>
+                      {modeBtn("auto", "Auto")}
+                      {fmt !== "solana" && (
+                        <>
+                          {modeBtn("bsc", "Force BSC")}
+                          {modeBtn("ethereum", "Force ETH")}
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
                 {status === "authenticated" && (
                   <AiAgentMonitorPanel
                     enabled={status === "authenticated"}
@@ -5480,6 +5546,8 @@ function Dashboard() {
                       setAiAnalysisError(null);
                       setAiAnalysisCa("");
                       setAiAnalysisAmountUsd("");
+                      setAiAnalysisChain("auto");
+                      setAiAnalysisResolvedChain(null);
                       setPinSuccess(null);
                       setAiAnalysisFeedbackSent(null);
                       setAiAnalysisFeedbackNote("");

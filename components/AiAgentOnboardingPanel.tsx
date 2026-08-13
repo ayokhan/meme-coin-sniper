@@ -8,8 +8,6 @@ export type AiAgentOnboardingStep = 1 | 2 | 3;
 type Props = {
   step: AiAgentOnboardingStep;
   onStepChange: (step: AiAgentOnboardingStep) => void;
-  chain: "solana" | "bsc";
-  onChainChange: (chain: "solana" | "bsc") => void;
   contractAddress: string;
   onContractAddressChange: (value: string) => void;
   amountUsd: string;
@@ -26,8 +24,6 @@ type Props = {
 export default function AiAgentOnboardingPanel({
   step,
   onStepChange,
-  chain,
-  onChainChange,
   contractAddress,
   onContractAddressChange,
   amountUsd,
@@ -41,7 +37,7 @@ export default function AiAgentOnboardingPanel({
   onDismiss,
 }: Props) {
   const steps: { n: AiAgentOnboardingStep; label: string }[] = [
-    { n: 1, label: "Pick chain" },
+    { n: 1, label: "Paste contract" },
     { n: 2, label: "Analyze token" },
     { n: 3, label: "Pin (optional)" },
   ];
@@ -90,47 +86,41 @@ export default function AiAgentOnboardingPanel({
 
       {step === 1 && (
         <div className="space-y-3">
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">Which chain are you hunting on?</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => onChainChange("solana")}
-              className={`px-4 py-2 rounded-md text-sm font-medium ${
-                chain === "solana"
-                  ? "bg-cyan-500 text-white dark:bg-cyan-600"
-                  : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300"
-              }`}
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">
+            Paste a Solana mint or an EVM 0x contract. We detect Solana vs BSC/ETH from the address and the live pool — no chain tab needed.
+          </p>
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="flex-1 min-w-[200px]">
+              <input
+                type="text"
+                placeholder="Solana mint or 0x…"
+                value={contractAddress}
+                onChange={(e) => onContractAddressChange(e.target.value)}
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+              />
+            </div>
+            <Button
+              size="sm"
+              className="bg-cyan-600 hover:bg-cyan-700"
+              onClick={() => onStepChange(2)}
+              disabled={!contractAddress.trim()}
             >
-              Solana
-            </button>
-            <button
-              type="button"
-              onClick={() => onChainChange("bsc")}
-              className={`px-4 py-2 rounded-md text-sm font-medium ${
-                chain === "bsc"
-                  ? "bg-cyan-500 text-white dark:bg-cyan-600"
-                  : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300"
-              }`}
-            >
-              BSC
-            </button>
+              Continue →
+            </Button>
           </div>
-          <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700" onClick={() => onStepChange(2)}>
-            Continue →
-          </Button>
         </div>
       )}
 
       {step === 2 && (
         <div className="space-y-3">
           <p className="text-sm text-zinc-700 dark:text-zinc-300">
-            Paste a {chain === "bsc" ? "BSC" : "Solana"} contract address and run Analyze (or use the form below).
+            Run Analyze (or use the form below). We&apos;ll pick Solana, BSC, or ETH from the contract.
           </p>
           <div className="flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-[200px]">
               <input
                 type="text"
-                placeholder={chain === "bsc" ? "0x…" : "Solana CA…"}
+                placeholder="Solana mint or 0x…"
                 value={contractAddress}
                 onChange={(e) => onContractAddressChange(e.target.value)}
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"

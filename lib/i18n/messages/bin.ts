@@ -144,7 +144,7 @@ export const bin: DeepPartialMessages = {
   "lockDesc": {
     "surge": "Surge shows tokens with high volume in 5m–24h windows.",
     "transactions": "Transactions shows buys vs sells (24h) and activity.",
-    "ai-analysis": "Meme Coins Agent scores Solana tokens 0–100. Chart Analysis reads your uploaded chart for futures levels. Free registered users get 2 uses per day each; VIP is unlimited.",
+    "ai-analysis": "Meme Coins Agent scores Solana, BSC, and ETH tokens 0–100. Chart Analysis reads your uploaded chart for futures levels. Free registered users get 2 uses per day each; VIP is unlimited.",
     "futures": "Institutional workflow, top altcoins, hot perps, and liquidation map for futures trading.",
     "nova-futures-narratives": "Nova Futures Narratives combines headline noise with CFTC institutional positioning. VIP only.",
     "nova-eagle": "Nova Eagle surfaces sampled large perp positions and skew heuristics. VIP only.",

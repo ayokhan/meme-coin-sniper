@@ -1,21 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { runAiAnalysis } from '@/lib/ai-analyze';
-import { runAiAnalysisBsc } from '@/lib/ai-analyze-bsc';
+import { runAiAnalysisEvm } from '@/lib/ai-analyze-bsc';
 import { assertAiAgentAccess, recordAiAgentUsage } from '@/lib/ai-agent-quota';
+import { resolveMemeAgentContract, type MemeAgentChainMode } from '@/lib/meme-contract-detect';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
-
-function isValidSolanaAddress(address: string): boolean {
-  if (!address || typeof address !== 'string') return false;
-  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address.trim());
-}
-
-function isValidBscAddress(address: string): boolean {
-  if (!address || typeof address !== 'string') return false;
-  return /^0x[0-9a-fA-F]{40}$/.test(address.trim());
-}
 
 type AiSnapshot = {
   signal: string;
@@ -36,7 +27,7 @@ type Body = {
   amountUsd?: number;
 };
 
-/** Logged-in users: poll-friendly full token AI snapshot. Each poll counts toward Meme Coins Agent daily quota (Solana + BSC combined). */
+/** Logged-in users: poll-friendly full token AI snapshot. Each poll counts toward Meme Coins Agent daily quota (Solana, BSC, and ETH combined). */
 export async function POST(request: Request) {
   try {
     const { session, isPaid, userId } = await getSessionAndSubscription();
@@ -56,7 +47,6 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json().catch(() => ({}))) as Body;
-    const chain = body.chain === 'bsc' ? 'bsc' : 'solana';
     const contract = String(body.contract ?? '').trim();
     if (!contract) {
       return NextResponse.json({ success: false, error: 'Enter a contract address.' }, { status: 400 });
@@ -65,18 +55,20 @@ export async function POST(request: Request) {
     const amountUsd =
       typeof body.amountUsd === 'number' && Number.isFinite(body.amountUsd) && body.amountUsd > 0 ? body.amountUsd : undefined;
 
-    if (chain === 'bsc') {
-      if (!isValidBscAddress(contract)) {
-        return NextResponse.json({ success: false, error: 'Invalid BSC contract address (0x + 40 hex).' }, { status: 400 });
-      }
-    } else if (!isValidSolanaAddress(contract)) {
-      return NextResponse.json({ success: false, error: 'Invalid Solana contract address.' }, { status: 400 });
+    const mode: MemeAgentChainMode =
+      body.chain === 'bsc' || body.chain === 'ethereum' || body.chain === 'solana' || body.chain === 'auto'
+        ? body.chain
+        : 'auto';
+    const resolved = await resolveMemeAgentContract(contract, mode);
+    if (!resolved.ok) {
+      return NextResponse.json({ success: false, error: resolved.error }, { status: 400 });
     }
+    const chain = resolved.chain;
 
     const result =
-      chain === 'bsc'
-        ? await runAiAnalysisBsc(contract, amountUsd != null ? { amountUsd } : undefined)
-        : await runAiAnalysis(contract, amountUsd != null ? { amountUsd } : undefined);
+      chain === 'solana'
+        ? await runAiAnalysis(resolved.contractAddress, amountUsd != null ? { amountUsd } : undefined)
+        : await runAiAnalysisEvm(resolved.contractAddress, chain, amountUsd != null ? { amountUsd } : undefined);
 
     if (userId) await recordAiAgentUsage(userId, 'meme_agent').catch(() => {});
 

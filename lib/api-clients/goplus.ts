@@ -41,18 +41,33 @@ export async function checkSolanaTokenSecurity(mintAddress: string): Promise<GoP
   }
 }
 
-/** BSC (Binance Smart Chain) token security. Chain id 56. */
-export async function checkBscTokenSecurity(contractAddress: string): Promise<GoPlusSecurityData | null> {
+async function checkEvmTokenSecurityLegacy(
+  contractAddress: string,
+  chainId: 1 | 56
+): Promise<GoPlusSecurityData | null> {
   try {
-    const addr = contractAddress.replace(/^0x/, "").toLowerCase();
-    const response = await axios.get("https://api.gopluslabs.io/api/v1/token_security/56", {
-      params: { contract_addresses: addr },
+    const raw = contractAddress.trim();
+    const no0x = raw.replace(/^0x/i, "").toLowerCase();
+    const with0x = `0x${no0x}`;
+    const response = await axios.get(`https://api.gopluslabs.io/api/v1/token_security/${chainId}`, {
+      params: { contract_addresses: with0x },
       timeout: 10000,
     });
-    return response.data.result?.[addr] || null;
+    const result = response.data.result ?? {};
+    return (result[with0x] || result[no0x] || result[raw.toLowerCase()] || null) as GoPlusSecurityData | null;
   } catch {
     return null;
   }
+}
+
+/** BSC (Binance Smart Chain) token security. Chain id 56. */
+export async function checkBscTokenSecurity(contractAddress: string): Promise<GoPlusSecurityData | null> {
+  return checkEvmTokenSecurityLegacy(contractAddress, 56);
+}
+
+/** Ethereum token security. Chain id 1. */
+export async function checkEthTokenSecurity(contractAddress: string): Promise<GoPlusSecurityData | null> {
+  return checkEvmTokenSecurityLegacy(contractAddress, 1);
 }
 
 export function calculateSecurityScore(data: GoPlusSecurityData): number {

@@ -1,8 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { CLAUDE_SONNET_MODEL } from '@/lib/anthropic-models';
-import { getBscToken, extractSocials } from '@/lib/api-clients/dexscreener';
+import { getBscToken, getEthToken, extractSocials } from '@/lib/api-clients/dexscreener';
 import {
   checkBscTokenSecurity,
+  checkEthTokenSecurity,
   getSecuritySummary,
   getTopHolderPercentage,
   isLPLocked,
@@ -51,19 +52,24 @@ export type AnalysisResult = {
   };
 };
 
-export async function runAiAnalysisBsc(contractAddress: string, options?: { amountUsd?: number }): Promise<AnalysisResult> {
+export async function runAiAnalysisEvm(
+  contractAddress: string,
+  chain: 'bsc' | 'ethereum' = 'bsc',
+  options?: { amountUsd?: number }
+): Promise<AnalysisResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('NovaStaris AI Agent is not configured.');
   }
 
+  const chainLabel = chain === 'ethereum' ? 'Ethereum' : 'BSC (Binance Smart Chain)';
   const [dexData, securityData] = await Promise.all([
-    getBscToken(contractAddress),
-    checkBscTokenSecurity(contractAddress),
+    chain === 'ethereum' ? getEthToken(contractAddress) : getBscToken(contractAddress),
+    chain === 'ethereum' ? checkEthTokenSecurity(contractAddress) : checkBscTokenSecurity(contractAddress),
   ]);
 
   if (!dexData) {
     throw new Error(
-      'Token not found on DexScreener (BSC). Use the token contract address (0x + 40 hex). If you copied the DexScreener URL, try the token address shown under the token name on the page, or check for typos.'
+      `Token not found on DexScreener (${chain === 'ethereum' ? 'Ethereum' : 'BSC'}). Use the token contract address (0x + 40 hex). If you copied the DexScreener URL, try the token address shown under the token name on the page, or check for typos.`
     );
   }
 
@@ -80,7 +86,7 @@ export async function runAiAnalysisBsc(contractAddress: string, options?: { amou
   const mcap = dexData.fdv ?? undefined;
 
   const tokenSummary = {
-    chain: 'BSC (Binance Smart Chain)',
+    chain: chainLabel,
     symbol: dexData.baseToken.symbol,
     name: dexData.baseToken.name,
     contractAddress: dexData.baseToken.address,
@@ -109,7 +115,7 @@ export async function runAiAnalysisBsc(contractAddress: string, options?: { amou
     ? `\nThe user is considering investing $${amountUsd.toLocaleString()}. Add a field "amountRiskNote": one short line saying whether this amount is too risky given liquidity/mcap (e.g. "Investing $500 in a $20k liquidity pool is very risky — consider a smaller size" or "Amount is reasonable relative to liquidity").\n`
     : '';
 
-  const prompt = `You are an expert meme-coin analyst. Analyze this BSC (Binance Smart Chain) token and provide a score, signal, reasons, narrative assessment, AND trading levels.
+  const prompt = `You are an expert meme-coin analyst. Analyze this ${chainLabel} token and provide a score, signal, reasons, narrative assessment, AND trading levels.
 
 Token data (JSON):
 ${JSON.stringify(tokenSummary, null, 2)}
@@ -119,7 +125,7 @@ NARRATIVE MATTERS: Meme coins are driven by narratives. A strong, viral narrativ
 
 Score (0-100): 0-25 = avoid, 26-50 = risky/speculative, 51-75 = moderate potential, 76-100 = stronger metrics. Factor in liquidity, volume, security (honeypot, mintable, top holder %), socials, price action, AND narrative strength (viral potential, community/KOL buzz).
 Signal: "buy" only if score >= 51 and no critical security issues; otherwise "no_buy".
-BSC meme coins are highly volatile; a good score now can change in minutes.
+EVM meme coins are highly volatile; a good score now can change in minutes.
 
 You MUST include:
 - narrativeAssessment: one short line assessing the meme's narrative (e.g. "Strong: fits [trend], has Twitter/Telegram and volume suggests buzz" or "Weak: no clear story or community links" or "Moderate: theme present but need to confirm CT/KOL pickup"). This drives how much narrative should influence the score.
@@ -223,4 +229,8 @@ Keep reasons short. Include at least one reason that references narrative/viral 
       holderCount,
     },
   };
+}
+
+export async function runAiAnalysisBsc(contractAddress: string, options?: { amountUsd?: number }): Promise<AnalysisResult> {
+  return runAiAnalysisEvm(contractAddress, 'bsc', options);
 }

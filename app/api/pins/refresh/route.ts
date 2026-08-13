@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { prisma } from '@/lib/db';
 import { runAiAnalysis } from '@/lib/ai-analyze';
-import { runAiAnalysisBsc } from '@/lib/ai-analyze-bsc';
+import { runAiAnalysisEvm } from '@/lib/ai-analyze-bsc';
 import { assertAiAgentAccess, recordAiAgentUsage } from '@/lib/ai-agent-quota';
 
 /**
  * POST /api/pins/refresh — run AI re-analysis for one pinned token and save result.
- * Counts toward Meme Coins Agent daily quota (Solana + BSC combined).
+ * Counts toward Meme Coins Agent daily quota (Solana, BSC, and ETH combined).
  */
 export async function POST(request: Request) {
   try {
@@ -50,8 +50,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Pin not found.' }, { status: 404 });
     }
 
-    const chain = (pin.chain === 'bsc' ? 'bsc' : 'solana') as 'solana' | 'bsc';
-    const result = chain === 'bsc' ? await runAiAnalysisBsc(contractAddress) : await runAiAnalysis(contractAddress);
+    const chain = pin.chain === 'bsc' ? 'bsc' : pin.chain === 'ethereum' ? 'ethereum' : 'solana';
+    const result =
+      chain === 'solana'
+        ? await runAiAnalysis(contractAddress)
+        : await runAiAnalysisEvm(contractAddress, chain);
 
     await recordAiAgentUsage(userId, 'meme_agent').catch(() => {});
 

@@ -29,8 +29,15 @@ export const DEFAULT_MEME_TABLE_HINT_BANNER: MemeTableAnalyzeHintBannerConfig = 
     "Tap the purple Analyze button on any pair. Prefer pasting a contract? Use Open AI Agent.",
   vipTitle: "Unlimited AI on every row",
   vipBody:
-    "Tap the purple Analyze button on any Solana or BSC pair — unlimited Meme Agent. Or open AI Agent to paste a contract.",
+    "Tap the purple Analyze button on any row — unlimited Meme Agent. Or open AI Agent to paste a Solana, BSC, or ETH contract.",
 };
+
+/** Refresh admin-saved copy that still says Solana/BSC only. */
+function withEthInChainCopy(text: string): string {
+  return text
+    .replace(/\bSolana or BSC\b/gi, "Solana, BSC, or ETH")
+    .replace(/\bSolana \+ BSC\b/g, "Solana, BSC, ETH");
+}
 
 type Row = MemeTableAnalyzeHintBannerConfig & { updatedAt?: Date };
 
@@ -54,11 +61,11 @@ function normalize(row: Partial<Row>): MemeTableAnalyzeHintBannerConfig {
     enabled: row.enabled ?? d.enabled,
     headline: (row.headline ?? d.headline).trim() || d.headline,
     guestTitle: (row.guestTitle ?? d.guestTitle).trim() || d.guestTitle,
-    guestBody: (row.guestBody ?? d.guestBody).trim() || d.guestBody,
+    guestBody: withEthInChainCopy((row.guestBody ?? d.guestBody).trim() || d.guestBody),
     freeTitle: (row.freeTitle ?? d.freeTitle).trim() || d.freeTitle,
-    freeBody: (row.freeBody ?? d.freeBody).trim() || d.freeBody,
+    freeBody: withEthInChainCopy((row.freeBody ?? d.freeBody).trim() || d.freeBody),
     vipTitle: (row.vipTitle ?? d.vipTitle).trim() || d.vipTitle,
-    vipBody: (row.vipBody ?? d.vipBody).trim() || d.vipBody,
+    vipBody: withEthInChainCopy((row.vipBody ?? d.vipBody).trim() || d.vipBody),
   };
 }
 

@@ -20,7 +20,7 @@ export function getNextStepForPath(path: DashboardPath | null): NextStepConfig |
     case "meme":
       return {
         title: "Do this first: run AI analysis",
-        description: "From Go Hunting, pick a pair — or paste a Solana contract on AI Agent.",
+        description: "From Go Hunting, pick a pair — or paste a Solana, BSC, or ETH contract on AI Agent.",
         ctaLabel: "Open AI Agent",
         action: { type: "tab", tab: "ai-analysis" },
       };

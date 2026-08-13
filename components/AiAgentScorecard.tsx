@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, CheckCircle2, MinusCircle, Pin, RotateCcw, XCircle } from "lucide-react";
+import { memeAgentChainLabel } from "@/lib/meme-contract-format";
 
 export type AiAgentScorecardResult = {
   score: number;
@@ -41,6 +42,7 @@ export type AiAgentScorecardResult = {
     lpLocked?: boolean | null;
     topHolderPercent?: number | null;
     holderCount?: number | null;
+    chain?: string;
   };
   ragEnabled?: boolean;
   ragUsed?: boolean;
@@ -254,6 +256,11 @@ export default function AiAgentScorecard({
               </h3>
               {info.name && (
                 <span className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{info.name}</span>
+              )}
+              {info.chain && (
+                <Badge variant="outline" className="text-[11px] font-medium px-2 py-0 h-5">
+                  {memeAgentChainLabel(info.chain)}
+                </Badge>
               )}
             </div>
             {info.contractAddress && (

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { NoticeInline } from "@/components/NoticeBanner";
+import type { MemeAgentChainMode } from "@/lib/meme-contract-format";
 
 const INTERVALS_MS = [
   { label: "30 sec", ms: 30_000 },
@@ -15,7 +16,7 @@ type Props = {
   enabled: boolean;
   quotaExhausted: boolean;
   onUsageRecorded?: () => void;
-  syncChain: "solana" | "bsc";
+  syncChain: MemeAgentChainMode;
   syncContract: string;
   syncAmountUsd?: string;
 };
@@ -28,7 +29,7 @@ export default function AiAgentMonitorPanel({
   syncContract,
   syncAmountUsd,
 }: Props) {
-  const [monitorChain, setMonitorChain] = useState<"solana" | "bsc">("solana");
+  const [monitorChain, setMonitorChain] = useState<MemeAgentChainMode>("auto");
   const [monitorContract, setMonitorContract] = useState("");
   const [monitorOn, setMonitorOn] = useState(false);
   const [intervalMs, setIntervalMs] = useState(60_000);
@@ -102,7 +103,7 @@ export default function AiAgentMonitorPanel({
       <div>
         <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">AI monitor (auto-refresh)</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Each poll runs a full NovaStaris AI analysis and <strong className="text-zinc-700 dark:text-zinc-300">counts toward your Meme Coins Agent daily limit</strong> (Solana + BSC combined). VIP: unlimited.
+          Each poll runs a full NovaStaris AI analysis and <strong className="text-zinc-700 dark:text-zinc-300">counts toward your Meme Coins Agent daily limit</strong> (Solana, BSC, and ETH combined). VIP: unlimited.
         </p>
       </div>
       {quotaExhausted && (
@@ -115,23 +116,12 @@ export default function AiAgentMonitorPanel({
         </NoticeInline>
       )}
       <div className="flex flex-wrap items-end gap-2">
-        <div>
-          <label className="text-[11px] text-muted-foreground block mb-0.5">Chain</label>
-          <select
-            value={monitorChain}
-            onChange={(e) => setMonitorChain(e.target.value === "bsc" ? "bsc" : "solana")}
-            className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
-          >
-            <option value="solana">Solana</option>
-            <option value="bsc">BSC</option>
-          </select>
-        </div>
         <div className="min-w-[200px] flex-1">
           <label className="text-[11px] text-muted-foreground block mb-0.5">Contract</label>
           <input
             value={monitorContract}
             onChange={(e) => setMonitorContract(e.target.value)}
-            placeholder={monitorChain === "bsc" ? "0x…" : "Mint address"}
+            placeholder="Solana mint or 0x…"
             className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800 font-mono"
           />
         </div>

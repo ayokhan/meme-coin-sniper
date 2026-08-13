@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { runAiAnalysis } from '@/lib/ai-analyze';
-import { runAiAnalysisBsc } from '@/lib/ai-analyze-bsc';
+import { runAiAnalysisEvm } from '@/lib/ai-analyze-bsc';
 import { isOwnerEmail } from '@/lib/auth';
 import { assertAiAgentAccess, recordAiAgentUsage } from '@/lib/ai-agent-quota';
 import { getActiveSubscription } from '@/lib/subscription';
@@ -132,10 +132,11 @@ export async function GET(request: Request) {
           skippedQuota++;
           continue;
         }
-        const chain = pin.chain === 'bsc' ? 'bsc' : 'solana';
-        const result = chain === 'bsc'
-          ? await runAiAnalysisBsc(pin.contractAddress)
-          : await runAiAnalysis(pin.contractAddress);
+        const chain = pin.chain === 'bsc' ? 'bsc' : pin.chain === 'ethereum' ? 'ethereum' : 'solana';
+        const result =
+          chain === 'solana'
+            ? await runAiAnalysis(pin.contractAddress)
+            : await runAiAnalysisEvm(pin.contractAddress, chain);
         await recordAiAgentUsage(pin.userId, 'meme_agent').catch(() => {});
         await prismaAny.pinnedToken.update({
           where: { id: pin.id },

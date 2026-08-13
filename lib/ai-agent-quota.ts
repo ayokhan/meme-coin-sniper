@@ -12,7 +12,7 @@ const FEATURE_FLAG_BY_TYPE: Record<AiAgentFeature, string> = {
 };
 
 const FEATURE_LABEL: Record<AiAgentFeature, string> = {
-  meme_agent: "Meme Coins Agent (Solana + BSC)",
+  meme_agent: "Meme Coins Agent (Solana, BSC, ETH)",
   chart_analysis: "NovaStaris AI Chart Analysis",
 };
 
@@ -305,7 +305,7 @@ function limitReachedMessage(feature: AiAgentFeature, window: QuotaWindow, limit
     return `Weekly limit reached (${limit} free ${label} uses this week on the free plan — resets Monday UTC). ${upgrade}`;
   }
   const extra =
-    feature === "meme_agent" ? " — Solana and BSC combined" : "";
+    feature === "meme_agent" ? " — Solana, BSC, and ETH combined" : "";
   return `Daily limit reached (${limit} free ${label} uses today on the free plan${extra} — resets at midnight UTC). ${upgrade}`;
 }
 

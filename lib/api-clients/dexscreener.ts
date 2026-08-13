@@ -392,28 +392,35 @@ export async function getTrendingBscPairs(limit = 80): Promise<DexPair[]> {
   }
 }
 
-/** Normalize BSC address to 0x + 40 hex lowercase (no 0x prefix for API path). */
-function normalizeBscAddress(input: string): string {
-  const s = (input || '').trim().replace(/^0x/i, '');
-  return s.toLowerCase();
+function normalizeEvmAddress(input: string): string {
+  return (input || "").trim().replace(/^0x/i, "").toLowerCase();
 }
 
-export async function getBscToken(contractAddress: string): Promise<DexPair | null> {
-  const addrNorm = normalizeBscAddress(contractAddress);
-  const addrWith0x = addrNorm ? `0x${addrNorm}` : '';
+const ETH_CHAIN_IDS = ["ethereum", "eth"];
 
+async function getEvmTokenOnChain(
+  contractAddress: string,
+  dexChain: "bsc" | "ethereum",
+  chainIds: string[]
+): Promise<DexPair | null> {
+  const addrNorm = normalizeEvmAddress(contractAddress);
+  const addrWith0x = addrNorm ? `0x${addrNorm}` : "";
   const pickBest = (pairs: DexPair[]) => {
-    const bscPairs = pairs.filter((p) => BSC_CHAIN_IDS.includes((p.chainId || '').toLowerCase()));
-    if (bscPairs.length === 0) return null;
+    const matched = pairs.filter((p) => chainIds.includes((p.chainId || "").toLowerCase()));
+    if (matched.length === 0) return null;
     const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
-    return bscPairs.sort((a, b) => usd(b) - usd(a))[0];
+    return matched.sort((a, b) => usd(b) - usd(a))[0];
+  };
+  const matchesAddr = (p: DexPair) => {
+    const base = (p.baseToken?.address || "").replace(/^0x/i, "").toLowerCase();
+    const pair = (p.pairAddress || "").replace(/^0x/i, "").split(":")[0].toLowerCase();
+    return !!addrNorm && (base === addrNorm || pair === addrNorm);
   };
 
   try {
-    // 1) Token lookup by base token address (tokens/v1 expects the token contract, not the pair address)
     if (addrNorm.length === 40) {
       const response = await axios.get<DexPair[] | { pairs?: DexPair[] }>(
-        `https://api.dexscreener.com/tokens/v1/bsc/${addrNorm}`,
+        `https://api.dexscreener.com/tokens/v1/${dexChain}/${addrWith0x}`,
         { timeout: 15000 }
       );
       const raw = response.data;
@@ -421,21 +428,43 @@ export async function getBscToken(contractAddress: string): Promise<DexPair | nu
       const best = pickBest(pairs);
       if (best) return best;
     }
-
-    // 2) Fallback: search by address (works when user pastes pair address from DexScreener URL, or token address with typo)
-    const searchRes = await axios.get<{ pairs?: DexPair[] }>(
-      `${DEXSCREENER_BASE}/latest/dex/search`,
-      { params: { q: addrWith0x || contractAddress.trim() }, timeout: 15000 }
-    );
-    const searchPairs = searchRes.data?.pairs ?? [];
-    const matching = searchPairs.filter((p) => {
-      const base = (p.baseToken?.address || '').replace(/^0x/, '').toLowerCase();
-      const pair = (p.pairAddress || '').replace(/^0x/, '').split(':')[0].toLowerCase();
-      return addrNorm && (base === addrNorm || pair === addrNorm);
+    const searchRes = await axios.get<{ pairs?: DexPair[] }>(`${DEXSCREENER_BASE}/latest/dex/search`, {
+      params: { q: addrWith0x || contractAddress.trim() },
+      timeout: 15000,
     });
-    return pickBest(matching);
+    return pickBest((searchRes.data?.pairs ?? []).filter(matchesAddr));
   } catch {
     return null;
+  }
+}
+
+export async function getBscToken(contractAddress: string): Promise<DexPair | null> {
+  return getEvmTokenOnChain(contractAddress, "bsc", BSC_CHAIN_IDS);
+}
+
+export async function getEthToken(contractAddress: string): Promise<DexPair | null> {
+  return getEvmTokenOnChain(contractAddress, "ethereum", ETH_CHAIN_IDS);
+}
+
+/** Search DexScreener for a token address across chains (for auto-detect). */
+export async function searchDexScreenerTokenPairs(contractAddress: string): Promise<DexPair[]> {
+  const addrNorm = normalizeEvmAddress(contractAddress);
+  const q = addrNorm.length === 40 ? `0x${addrNorm}` : contractAddress.trim();
+  if (!q) return [];
+  try {
+    const searchRes = await axios.get<{ pairs?: DexPair[] }>(`${DEXSCREENER_BASE}/latest/dex/search`, {
+      params: { q },
+      timeout: 15000,
+    });
+    const pairs = searchRes.data?.pairs ?? [];
+    if (addrNorm.length !== 40) return pairs;
+    return pairs.filter((p) => {
+      const base = (p.baseToken?.address || "").replace(/^0x/i, "").toLowerCase();
+      const pair = (p.pairAddress || "").replace(/^0x/i, "").split(":")[0].toLowerCase();
+      return base === addrNorm || pair === addrNorm;
+    });
+  } catch {
+    return [];
   }
 }
 

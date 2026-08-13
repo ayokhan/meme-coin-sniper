@@ -14,8 +14,8 @@ function isValidBscAddress(address: string): boolean {
 
 function validateAddressByChain(contractAddress: string, chain: string): { ok: boolean; error?: string } {
   const addr = contractAddress.trim();
-  if (chain === 'bsc') {
-    if (!isValidBscAddress(addr)) return { ok: false, error: 'Invalid BSC address. Use 0x followed by 40 hex characters.' };
+  if (chain === 'bsc' || chain === 'ethereum') {
+    if (!isValidBscAddress(addr)) return { ok: false, error: 'Invalid EVM address. Use 0x followed by 40 hex characters.' };
   } else {
     if (!isValidSolanaAddress(addr)) return { ok: false, error: 'Invalid Solana address.' };
   }
@@ -65,7 +65,8 @@ export async function POST(request: Request) {
     if (!contractAddress) {
       return NextResponse.json({ success: false, error: 'Missing contractAddress.' }, { status: 400 });
     }
-    const chain = (body.chain === 'bsc' ? 'bsc' : 'solana') as 'solana' | 'bsc';
+    const chain =
+      body.chain === 'bsc' ? 'bsc' : body.chain === 'ethereum' ? 'ethereum' : 'solana';
     const validation = validateAddressByChain(contractAddress, chain);
     if (!validation.ok) {
       return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
@@ -116,7 +117,7 @@ export async function DELETE(request: Request) {
     if (!contractAddress) {
       return NextResponse.json({ success: false, error: 'Missing contractAddress query.' }, { status: 400 });
     }
-    // Accept either Solana or BSC format so unpinning works for both chains
+    // Accept Solana mint or EVM 0x so unpinning works across chains
     if (!isValidSolanaAddress(contractAddress) && !isValidBscAddress(contractAddress)) {
       return NextResponse.json({ success: false, error: 'Invalid contract address.' }, { status: 400 });
     }
