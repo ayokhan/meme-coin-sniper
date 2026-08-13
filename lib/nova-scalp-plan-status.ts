@@ -1,10 +1,17 @@
-import type { NovaScalpAnalysis, ScalpSide } from "@/lib/nova-scalp-agent";
+import {
+  liveThroughLimit,
+  rewardRiskRatio,
+  SCALP_MIN_REWARD_RISK,
+  type NovaScalpAnalysis,
+  type ScalpSide,
+} from "@/lib/nova-scalp-agent";
 
 export type ScalpPlanStatus =
   | "active"
   | "at_entry"
   | "invalidated"
   | "target_hit"
+  | "missed"
   | "stale"
   | "no_entry";
 
@@ -77,14 +84,14 @@ export function formatDistanceLabel(
       : `${abs}% above target`;
   }
 
-  // entry — waiting for fill
+  // entry — through the limit in the trade direction = better fill now, not a bounce wait
   if (side === "long") {
     return liveVsLevel > 0
-      ? `${abs}% above entry — wait for pullback`
+      ? `${abs}% above entry — enter now (don't wait for pullback)`
       : `${abs}% below entry`;
   }
   return liveVsLevel < 0
-    ? `${abs}% below entry — wait for bounce`
+    ? `${abs}% below entry — enter now (don't wait for bounce)`
     : `${abs}% above entry`;
 }
 
@@ -118,6 +125,10 @@ export function computeScalpPlanStatus(input: {
     if (input.entryMode === "market" || Math.abs(livePrice - entryPrice) <= entryZone) {
       return "at_entry";
     }
+    if (liveThroughLimit("long", livePrice, entryPrice)) {
+      const rr = rewardRiskRatio("long", livePrice, exitPrice, structuralStop);
+      return rr >= SCALP_MIN_REWARD_RISK ? "at_entry" : "missed";
+    }
     return "active";
   }
 
@@ -126,6 +137,10 @@ export function computeScalpPlanStatus(input: {
     if (livePrice <= exitPrice) return "target_hit";
     if (input.entryMode === "market" || Math.abs(livePrice - entryPrice) <= entryZone) {
       return "at_entry";
+    }
+    if (liveThroughLimit("short", livePrice, entryPrice)) {
+      const rr = rewardRiskRatio("short", livePrice, exitPrice, structuralStop);
+      return rr >= SCALP_MIN_REWARD_RISK ? "at_entry" : "missed";
     }
     return "active";
   }
@@ -168,6 +183,8 @@ export function planStatusLabel(
       return stopFmt ? `Invalidated — price hit stop ${stopFmt}` : "Invalidated — refresh plan";
     case "target_hit":
       return "Target reached before entry — re-scan";
+    case "missed":
+      return "Too late to chase — remaining R:R under 1. Don't wait for a bounce.";
     case "stale":
       return "Stale (30+ min) — refresh recommended";
     default:
@@ -191,6 +208,9 @@ export function planStatusHint(
   if (status === "target_hit") {
     return "Price reached the exit target before you entered. Run a fresh scan.";
   }
+  if (status === "missed") {
+    return "Live already moved through the limit toward the target. Remaining reward is smaller than stop risk — skip this wait and refresh for a new plan.";
+  }
   if (status === "stale") {
     return "Levels are old. Refresh for a new plan based on current structure.";
   }
@@ -206,7 +226,7 @@ export function planStatusHint(
         : ctx.livePrice < ctx.entryPrice
           ? "rise"
           : "drop";
-    return `Watching live price — flips to "At entry zone" when price ${need}s to your limit (~12s). Prefer Watch over Refresh: Refresh can wipe a waiting plan if structure turns mid-range.`;
+    return `Watching live price — flips to "At entry zone" when price ${need}s to your limit (~12s). If price already went the other way toward the target, don't wait for a bounce — refresh for an enter-now plan. Prefer Watch over Refresh while still waiting.`;
   }
   return "Status updates automatically every ~12s. Turn on Watch to get alerts if you leave this tab.";
 }
@@ -219,6 +239,7 @@ export function planStatusTone(
       return "good";
     case "invalidated":
     case "target_hit":
+    case "missed":
       return "bad";
     case "stale":
       return "warn";

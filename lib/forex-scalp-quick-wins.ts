@@ -5,6 +5,7 @@ import {
   analyzeScalpSetup,
   isValidScalpTimeframeId,
   QUICK_WIN_MIN_OSCILLATION_SCORE,
+  SCALP_ENTRY_NEAR_PCT,
   scalpCandlesRequest,
   scalpTimeframeConfig,
   type NovaScalpNearSetup,
@@ -113,10 +114,16 @@ export function evaluateQuickWinForex(input: {
     maxLeverage: FOREX_SCALP_MAX_LEVERAGE,
   });
 
+  const price = input.currentPrice;
   if (
     (analysis.side === "long" || analysis.side === "short") &&
     analysis.entryPrice != null &&
-    analysis.exitPrice != null
+    analysis.exitPrice != null &&
+    (oscillation.momentumBias === "neutral" || oscillation.momentumBias === analysis.side) &&
+    (analysis.entryMode === "market" ||
+      (price != null &&
+        price > 0 &&
+        (Math.abs(price - analysis.entryPrice) / price) * 100 <= SCALP_ENTRY_NEAR_PCT))
   ) {
     const side = analysis.side;
     return {

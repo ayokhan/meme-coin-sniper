@@ -42,7 +42,7 @@ function toneClass(tone: ReturnType<typeof planStatusTone>): string {
 function sortPlans(plans: WatchedScalpPlan[]): WatchedScalpPlan[] {
   const rank = (s: ScalpPlanStatus) => {
     if (s === "at_entry") return 0;
-    if (s === "invalidated" || s === "target_hit") return 1;
+    if (s === "invalidated" || s === "target_hit" || s === "missed") return 1;
     if (s === "stale") return 2;
     return 3;
   };

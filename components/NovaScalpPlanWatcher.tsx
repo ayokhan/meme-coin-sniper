@@ -18,7 +18,7 @@ import {
 } from "@/lib/nova-scalp-plan-watch";
 import { scalpPlanWatchLabel } from "@/lib/scalp-plan-market";
 
-const NOTIFY_STATUSES: ScalpPlanStatus[] = ["at_entry", "invalidated", "target_hit", "stale"];
+const NOTIFY_STATUSES: ScalpPlanStatus[] = ["at_entry", "invalidated", "target_hit", "missed", "stale"];
 
 function notifyScalpStatus(
   analysis: NovaScalpAnalysis,

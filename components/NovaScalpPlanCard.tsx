@@ -352,7 +352,10 @@ export function NovaScalpPlanCard({
   const statusTone = planStatusTone(planStatus);
   const showPlanMonitor = result.side === "long" || result.side === "short";
   const planInvalidated =
-    planStatus === "invalidated" || planStatus === "target_hit" || planStatus === "stale";
+    planStatus === "invalidated" ||
+    planStatus === "target_hit" ||
+    planStatus === "missed" ||
+    planStatus === "stale";
   const statusLabel = planStatusLabel(planStatus, statusCtx);
   const statusHint = planStatusHint(planStatus, statusCtx);
 
@@ -515,7 +518,7 @@ export function NovaScalpPlanCard({
         market === "forex"
           ? "border-zinc-300/60 dark:border-zinc-700"
           : "border-violet-300/50 dark:border-violet-800/50"
-      } ${planStatus === "invalidated" || planStatus === "target_hit" ? "opacity-80" : ""}`}
+      } ${planStatus === "invalidated" || planStatus === "target_hit" || planStatus === "missed" ? "opacity-80" : ""}`}
     >
       <CardHeader className="pb-2 space-y-2">
         <div className="flex flex-wrap items-center gap-2 justify-between">
@@ -972,7 +975,9 @@ export function NovaScalpPlanCard({
                 ? "This plan is invalidated — price hit the structural stop before entry."
                 : planStatus === "target_hit"
                   ? "Target was hit before you entered — run a fresh scan."
-                  : "This plan is stale — refresh for updated levels."}
+                  : planStatus === "missed"
+                    ? "Too late to chase — price already moved through the limit. Refresh for an enter-now plan."
+                    : "This plan is stale — refresh for updated levels."}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button

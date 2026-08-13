@@ -34,6 +34,25 @@ export type ScalpSide = "long" | "short" | "no_entry";
 export type ScalpEntryMode = "limit" | "market";
 
 export const SCALP_ENTRY_NEAR_PCT = 0.15;
+/** Skip / don't chase when reward to target is smaller than risk to stop. */
+export const SCALP_MIN_REWARD_RISK = 1;
+
+export function rewardRiskRatio(
+  side: "long" | "short",
+  entry: number,
+  exit: number,
+  stop: number
+): number {
+  const reward = side === "long" ? exit - entry : entry - exit;
+  const risk = side === "long" ? entry - stop : stop - entry;
+  if (!(risk > 0) || !Number.isFinite(reward)) return 0;
+  return reward / risk;
+}
+
+/** True when live has already passed the limit in the trade direction. */
+export function liveThroughLimit(side: "long" | "short", live: number, entry: number): boolean {
+  return side === "long" ? live >= entry : live <= entry;
+}
 
 export type NovaScalpAnalysis = {
   symbol: string;
@@ -291,9 +310,86 @@ export function recommendedStopPrice(
   return side === "long" ? Math.max(structural, risk) : Math.min(structural, risk);
 }
 
-export function detectEntryMode(enterNow: number, limitEntry: number): ScalpEntryMode {
-  const diffPct = (Math.abs(enterNow - limitEntry) / enterNow) * 100;
+export function detectEntryMode(
+  enterNow: number,
+  limitEntry: number,
+  side?: "long" | "short"
+): ScalpEntryMode {
+  if (side === "long" && enterNow >= limitEntry) return "market";
+  if (side === "short" && enterNow <= limitEntry) return "market";
+  const denom = Math.abs(enterNow) > 0 ? enterNow : limitEntry;
+  if (!(denom > 0)) return "limit";
+  const diffPct = (Math.abs(enterNow - limitEntry) / denom) * 100;
   return diffPct <= SCALP_ENTRY_NEAR_PCT ? "market" : "limit";
+}
+
+function capStopToLive(
+  side: "long" | "short",
+  live: number,
+  structural: number,
+  span: number,
+  tickSize: number | null
+): number {
+  const cap = Math.max(span * 0.22, live * 0.0025);
+  const raw = side === "short" ? Math.min(structural, live + cap) : Math.max(structural, live - cap);
+  return roundPx(raw, live, tickSize);
+}
+
+/**
+ * Don't publish bounce/pullback limits that live has already left.
+ * If price is through the limit, enter at live with a tighter stop when R:R still ≥ 1.
+ */
+function finalizeEnterableEntry(params: {
+  side: "long" | "short";
+  price: number;
+  entry: number;
+  exit: number;
+  sl: number;
+  span: number;
+  tickSize: number | null;
+}): {
+  side: ScalpSide;
+  entry: number;
+  sl: number;
+  skipReconfirm: boolean;
+  skipRationale: string | null;
+} {
+  const { side, price, exit, span, tickSize } = params;
+  let { entry, sl } = params;
+  const waitPct = price > 0 ? (Math.abs(price - entry) / price) * 100 : 0;
+  const through = liveThroughLimit(side, price, entry);
+  const far = waitPct > SCALP_ENTRY_NEAR_PCT;
+
+  if (far) {
+    const slNow = capStopToLive(side, price, sl, span, tickSize);
+    const entryNow = roundPx(price, price, tickSize);
+    const rr = rewardRiskRatio(side, entryNow, exit, slNow);
+    if (rr >= SCALP_MIN_REWARD_RISK) {
+      return { side, entry: entryNow, sl: slNow, skipReconfirm: true, skipRationale: null };
+    }
+    return {
+      side: "no_entry",
+      entry,
+      sl,
+      skipReconfirm: true,
+      skipRationale: through
+        ? "Price already moved through the limit toward the target. Remaining R:R from live is under 1 — don't wait for a bounce into a worse fill, and don't chase."
+        : "Limit entry is too far from live for a scalp fill, and R:R from live is under 1.",
+    };
+  }
+
+  const rr = rewardRiskRatio(side, entry, exit, sl);
+  if (rr < SCALP_MIN_REWARD_RISK) {
+    return {
+      side: "no_entry",
+      entry,
+      sl,
+      skipReconfirm: true,
+      skipRationale:
+        "Reward to the target is smaller than risk to the stop from this entry — no clear scalp.",
+    };
+  }
+  return { side, entry, sl, skipReconfirm: false, skipRationale: null };
 }
 
 function emptyPlanMeta(
@@ -377,7 +473,10 @@ function reconfirmWaitingLimitPlan(params: {
     if (price <= exit) return null;
   }
 
-  const entryMode = detectEntryMode(price, entry);
+  // Price already through the limit toward the target — don't keep a bounce/pullback wait.
+  if (liveThroughLimit(side, price, entry)) return null;
+
+  const entryMode = detectEntryMode(price, entry, side);
   const riskStop = riskStopFromMaxLossPct(side, entry, params.leverage, params.maxLossPctOnMargin, params.tickSize);
   const recStop = recommendedStopPrice(side, sl, riskStop);
   const distPct = Math.abs((exit - entry) / entry) * 100;
@@ -549,9 +648,28 @@ export function analyzeScalpSetup(input: {
     sl = roundPx(high + buffer * 0.65, price, tickSize);
   }
 
+  let skipReconfirm = false;
+  let skipRationale: string | null = null;
+  if (side === "long" || side === "short") {
+    const finalized = finalizeEnterableEntry({
+      side,
+      price,
+      entry,
+      exit,
+      sl,
+      span,
+      tickSize,
+    });
+    side = finalized.side;
+    entry = finalized.entry;
+    sl = finalized.sl;
+    skipReconfirm = finalized.skipReconfirm;
+    skipRationale = finalized.skipRationale;
+  }
+
   if (side === "no_entry") {
     const kept =
-      input.reconfirm && price != null
+      !skipReconfirm && input.reconfirm && price != null
         ? reconfirmWaitingLimitPlan({
             anchor: input.reconfirm,
             symbol,
@@ -594,6 +712,7 @@ export function analyzeScalpSetup(input: {
       trendlineBias,
       blendedDirection,
       rationale:
+        skipRationale ??
         "No clear scalp edge: price is mid-range or structure/trendline conflict. Wait for retest of range low (long) or high (short), or pick a tighter timeframe. Tip: while Waiting for limit entry, use Watch — Refresh rebuilds the setup and can flip to NO ENTRY.",
       disclaimer: NOVA_SCALP_DISCLAIMER,
     };
@@ -601,7 +720,7 @@ export function analyzeScalpSetup(input: {
 
   const limitEntry = entry;
   const enterNowPrice = price;
-  const entryMode = detectEntryMode(enterNowPrice, limitEntry);
+  const entryMode = detectEntryMode(enterNowPrice, limitEntry, side);
   const riskStop = riskStopFromMaxLossPct(side, limitEntry, leverage, maxLossPctOnMargin, tickSize);
   const recStop = recommendedStopPrice(side, sl, riskStop);
 
@@ -616,8 +735,8 @@ export function analyzeScalpSetup(input: {
 
   const entryNote =
     entryMode === "market"
-      ? " Enter now — price is at the limit zone."
-      : ` Wait for limit entry near ${roundPx(limitEntry, price, tickSize).toLocaleString()}.`;
+      ? " Enter now at live — don't wait for a bounce or pullback."
+      : ` Wait for limit entry near ${roundPx(limitEntry, price, tickSize).toLocaleString()} (only a small fill improvement).`;
 
   const rationale =
     side === "long"
@@ -691,7 +810,12 @@ export function evaluateQuickWinPerp(
   if (
     (analysis.side === "long" || analysis.side === "short") &&
     analysis.entryPrice != null &&
-    analysis.exitPrice != null
+    analysis.exitPrice != null &&
+    (oscillation.momentumBias === "neutral" || oscillation.momentumBias === analysis.side) &&
+    (analysis.entryMode === "market" ||
+      (price != null &&
+        price > 0 &&
+        (Math.abs(price - analysis.entryPrice) / price) * 100 <= SCALP_ENTRY_NEAR_PCT))
   ) {
     const side = analysis.side;
     return {
