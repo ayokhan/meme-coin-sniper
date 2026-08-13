@@ -79,6 +79,63 @@ async function privateRequest<T>(
   return { code: json.code ?? String(res.status), msg: json.msg ?? "", data: json.data };
 }
 
+/** Nested `{ code, msg }` from Blofin data[] — top-level is often just "All operations failed". */
+function blofinNestedError(data: unknown): string | null {
+  const rows = Array.isArray(data) ? data : data && typeof data === "object" ? [data] : [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const r = row as Record<string, unknown>;
+    const code = String(r.code ?? r.sCode ?? "");
+    const msg = String(r.msg ?? r.sMsg ?? "").trim();
+    if (msg && code !== "0") return msg;
+  }
+  return null;
+}
+
+export function formatBlofinApiError(out: { code: string; msg: string; data?: unknown }): string {
+  const nested = blofinNestedError(out.data);
+  const top = (out.msg || "").trim();
+  if (nested && (!top || /^all operations failed$/i.test(top) || top === String(out.code))) {
+    return nested;
+  }
+  if (nested && top && nested !== top) return `${nested} (${top})`;
+  return top || out.code || "Blofin request failed";
+}
+
+function decimalsFromStep(step: number): number {
+  if (!(step > 0) || !Number.isFinite(step)) return 1;
+  const s = String(step);
+  if (/e-/i.test(s)) {
+    const exp = Number(s.split(/e-/i)[1]);
+    return Number.isFinite(exp) ? exp : 1;
+  }
+  const i = s.indexOf(".");
+  return i >= 0 ? Math.min(8, s.length - i - 1) : 0;
+}
+
+/** Round contract size to exchange min/lot (not always 1 decimal). */
+export function roundBlofinSize(size: number, minSize: number, lotSize: number): string {
+  const step = Math.max(lotSize > 0 ? lotSize : 0, minSize > 0 ? minSize : 0, 1e-12);
+  const n = Math.max(minSize, Math.floor(size / step + 1e-12) * step);
+  return n.toFixed(decimalsFromStep(step));
+}
+
+export function clampBlofinLeverage(requested: number, maxLeverageStr?: string | null): {
+  leverage: number;
+  clampedFrom: number | null;
+  maxLeverage: number;
+} {
+  const maxParsed = maxLeverageStr != null ? Number(maxLeverageStr) : NaN;
+  const maxLeverage = Number.isFinite(maxParsed) && maxParsed > 0 ? Math.min(125, maxParsed) : 125;
+  const want = Math.max(1, Math.min(125, Number(requested) || 1));
+  const leverage = Math.min(want, maxLeverage);
+  return {
+    leverage,
+    clampedFrom: want > maxLeverage ? want : null,
+    maxLeverage,
+  };
+}
+
 function assertBlofinOk(out: { code: string; msg: string }, label: string): void {
   if (out.code !== "0") {
     throw new Error(out.msg?.trim() || `Blofin ${label} failed (code ${out.code}). Check API keys and Demo/Live mode.`);
@@ -260,7 +317,7 @@ export async function setLeverage(
   const body: Record<string, unknown> = { instId, leverage: String(leverage), marginMode };
   if (config.brokerId) body.brokerId = config.brokerId;
   const out = await privateRequest("POST", "/api/v1/account/set-leverage", body, options?.demo, options?.config);
-  if (out.code !== "0") return { ok: false, error: out.msg || out.code };
+  if (out.code !== "0") return { ok: false, error: formatBlofinApiError(out) };
   return { ok: true };
 }
 
@@ -279,7 +336,7 @@ export async function closePositionViaApi(
   const body: Record<string, unknown> = { instId, marginMode, positionSide };
   if (config.brokerId) body.brokerId = config.brokerId;
   const out = await privateRequest<{ instId?: string; positionSide?: string }>("POST", "/api/v1/trade/close-position", body, options?.demo, options?.config);
-  if (out.code !== "0") return { ok: false, error: out.msg || out.code };
+  if (out.code !== "0") return { ok: false, error: formatBlofinApiError(out) };
   return { ok: true };
 }
 
@@ -294,7 +351,7 @@ export async function cancelOrder(
   const body: Record<string, unknown> = { instId, orderId };
   if (config.brokerId) body.brokerId = config.brokerId;
   const out = await privateRequest<{ orderId?: string }>("POST", "/api/v1/trade/cancel-order", body, options?.demo, options?.config);
-  if (out.code !== "0") return { ok: false, error: out.msg || out.code };
+  if (out.code !== "0") return { ok: false, error: formatBlofinApiError(out) };
   return { ok: true };
 }
 
@@ -320,7 +377,7 @@ export async function placeLimitOrder(
   };
   if (config.brokerId) body.brokerId = config.brokerId;
   const out = await privateRequest<{ orderId?: string }[] | { orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo, options?.config);
-  if (out.code !== "0") return { ok: false, error: out.msg || out.code };
+  if (out.code !== "0") return { ok: false, error: formatBlofinApiError(out) };
   const data = out.data;
   const orderId = Array.isArray(data) ? data[0]?.orderId : (data as { orderId?: string } | undefined)?.orderId;
   return { ok: true, orderId };
@@ -347,7 +404,7 @@ export async function placeMarketOrder(
   if (config.brokerId) body.brokerId = config.brokerId;
   if (options?.reduceOnly) body.reduceOnly = true;
   const out = await privateRequest<{ orderId?: string }[] | { orderId?: string }>("POST", "/api/v1/trade/order", body, options?.demo, options?.config);
-  if (out.code !== "0") return { ok: false, error: out.msg || out.code };
+  if (out.code !== "0") return { ok: false, error: formatBlofinApiError(out) };
   const data = out.data;
   const orderId = Array.isArray(data) ? data[0]?.orderId : (data as { orderId?: string } | undefined)?.orderId;
   return { ok: true, orderId };
@@ -455,7 +512,7 @@ export async function placeTPSLOrder(
     if (attempt > 0) await new Promise((r) => setTimeout(r, 400 * attempt));
     const out = await privateRequest<{ tpslId?: string }>("POST", path, body, options?.demo, options?.config);
     if (out.code === "0") return { ok: true };
-    lastErr = out.msg || out.code || lastErr;
+    lastErr = formatBlofinApiError(out) || lastErr;
   }
   return { ok: false, error: lastErr };
 }
@@ -466,6 +523,11 @@ export type BlofinInstrumentInfo = {
   settleCurrency: string;
   /** Minimum price increment (e.g. "0.01" for SOL-USDT). */
   tickSize: string;
+  lotSize: string;
+  maxLeverage: string;
+  maxMarketSize: string;
+  state: string;
+  assetClass: string;
 };
 
 /** Get instrument info. options.config: per-user config. */
@@ -474,7 +536,18 @@ export async function getInstrument(
   options?: { demo?: boolean; config?: BlofinConfig | null }
 ): Promise<BlofinInstrumentInfo | null> {
   const out = await publicRequest<
-    { instId: string; minSize: string; contractValue: string; settleCurrency: string; tickSize?: string }[]
+    {
+      instId: string;
+      minSize: string;
+      contractValue: string;
+      settleCurrency: string;
+      tickSize?: string;
+      lotSize?: string;
+      maxLeverage?: string;
+      maxMarketSize?: string;
+      state?: string;
+      assetClass?: string;
+    }[]
   >(`/api/v1/market/instruments?instId=${encodeURIComponent(instId)}`, options?.demo, options?.config);
   if (out.code !== "0" || !out.data?.length) return null;
   const d = out.data[0];
@@ -483,6 +556,11 @@ export async function getInstrument(
     contractValue: d.contractValue,
     settleCurrency: d.settleCurrency,
     tickSize: String(d.tickSize ?? ""),
+    lotSize: String(d.lotSize ?? d.minSize ?? ""),
+    maxLeverage: String(d.maxLeverage ?? ""),
+    maxMarketSize: String(d.maxMarketSize ?? ""),
+    state: String(d.state ?? ""),
+    assetClass: String(d.assetClass ?? ""),
   };
 }
 

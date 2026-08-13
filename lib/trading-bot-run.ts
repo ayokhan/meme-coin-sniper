@@ -17,6 +17,8 @@ import {
   toBlofinBar,
   isBlofinConfigured,
   getConfig as getBlofinEnvConfig,
+  roundBlofinSize,
+  clampBlofinLeverage,
   type Candle,
   type BlofinConfig,
 } from "@/lib/blofin";
@@ -121,13 +123,6 @@ async function resolveSignal(
   }
 
   return { signal: simpleSignal(candles), message: undefined };
-}
-
-/** Round size to minSize and lotSize (e.g. 0.1 step). */
-function roundSize(size: number, minSize: number, lotSize: number): string {
-  const step = Math.max(lotSize, minSize);
-  const n = Math.max(minSize, Math.floor(size / step) * step);
-  return n.toFixed(1);
 }
 
 export async function runTradingBotCycle(
@@ -286,10 +281,11 @@ export async function runTradingBotCycle(
     }
 
     // Position size in config = margin (USDT). Notional = margin × leverage so exchange margin matches.
-    const notionalUsdt = bot.positionSizeUsdt * (bot.leverage ?? 1);
+    const { leverage: lev } = clampBlofinLeverage(bot.leverage ?? 1, instRes.maxLeverage);
+    const notionalUsdt = bot.positionSizeUsdt * lev;
     const sizeContracts = notionalUsdt / (lastPrice * contractValue);
-    const lotSize = parseFloatSafe(instRes.minSize);
-    const sizeStr = roundSize(sizeContracts, minSize, lotSize);
+    const lotSize = parseFloatSafe(instRes.lotSize) || minSize;
+    const sizeStr = roundBlofinSize(sizeContracts, minSize, lotSize);
     if (parseFloat(sizeStr) < minSize) {
       const err = `Position size below minimum (min ${minSize} contracts)`;
       await updateLastRun(err, "no_trade", err);
@@ -297,10 +293,11 @@ export async function runTradingBotCycle(
     }
 
     const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
-    const leverageOk = await setLeverage(instId, bot.leverage, marginMode, { demo: isDemo, config: blofinConfig });
+    const leverageOk = await setLeverage(instId, lev, marginMode, { demo: isDemo, config: blofinConfig });
     if (!leverageOk.ok) {
-      console.warn("setLeverage:", leverageOk.error);
-      // continue anyway
+      const err = leverageOk.error ?? "Set leverage failed";
+      await updateLastRun(err, "no_trade", err);
+      return { ok: false, error: err };
     }
 
     const side = signal === "long" ? "buy" : "sell";
@@ -445,11 +442,14 @@ export async function placeLimitOrderTradingBot(options: {
   const contractValue = parseFloatSafe(instRes.contractValue);
   const minSize = parseFloatSafe(instRes.minSize);
   if (contractValue <= 0) return { ok: false, error: "Invalid contract value." };
-  const notionalUsdt = bot.positionSizeUsdt * (bot.leverage ?? 1);
+  const { leverage: lev } = clampBlofinLeverage(bot.leverage ?? 1, instRes.maxLeverage);
+  const notionalUsdt = bot.positionSizeUsdt * lev;
   const sizeContracts = notionalUsdt / (options.price * contractValue);
-  const sizeStr = roundSize(sizeContracts, minSize, minSize);
+  const lotSize = parseFloatSafe(instRes.lotSize) || minSize;
+  const sizeStr = roundBlofinSize(sizeContracts, minSize, lotSize);
   if (parseFloat(sizeStr) < minSize) return { ok: false, error: `Size below minimum (${minSize} contracts).` };
-  await setLeverageBlofin(instId, bot.leverage, marginMode, blofinOpts);
+  const levRes = await setLeverageBlofin(instId, lev, marginMode, blofinOpts);
+  if (!levRes.ok) return { ok: false, error: levRes.error ?? "Set leverage failed" };
   const side = options.side === "long" ? "buy" : "sell";
   const result = await placeLimitOrderBlofin(instId, side, sizeStr, String(options.price), marginMode, blofinOpts);
   if (!result.ok) return { ok: false, error: result.error };

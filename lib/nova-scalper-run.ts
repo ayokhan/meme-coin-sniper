@@ -14,6 +14,8 @@ import {
   placeTPSLOrder,
   closePositionViaApi,
   getConfig as getBlofinEnvConfig,
+  roundBlofinSize,
+  clampBlofinLeverage,
   type BlofinConfig,
 } from "@/lib/blofin";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
@@ -25,12 +27,6 @@ const db = prisma as any;
 function parseFloatSafe(s: string): number {
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
-}
-
-function roundSize(size: number, minSize: number, lotSize: number): string {
-  const step = Math.max(lotSize, minSize);
-  const n = Math.max(minSize, Math.floor(size / step) * step);
-  return n.toFixed(1);
 }
 
 type ScalperRow = {
@@ -289,9 +285,18 @@ export async function runNovaScalperTick(
     });
     return { ok: false, error: "Could not load instrument." };
   }
+  if (instRes.state && instRes.state !== "live") {
+    const err = `${instId} is not live on Blofin (${instRes.state}).`;
+    await updateRow({
+      lastError: err,
+      lastTickAt: new Date(),
+      lastAction: `Entry cross detected, but ${err}`,
+    });
+    return { ok: false, error: err };
+  }
   const contractValue = parseFloatSafe(instRes.contractValue);
   const minSize = parseFloatSafe(instRes.minSize);
-  const lotSize = minSize;
+  const lotSize = parseFloatSafe(instRes.lotSize) || minSize;
   if (contractValue <= 0) {
     await updateRow({
       lastError: "Invalid contract value",
@@ -301,10 +306,14 @@ export async function runNovaScalperTick(
     return { ok: false, error: "Invalid contract value." };
   }
 
-  const lev = Math.max(1, Math.min(125, row.leverage || 1));
+  const { leverage: lev, clampedFrom } = clampBlofinLeverage(row.leverage || 1, instRes.maxLeverage);
+  const levNote =
+    clampedFrom != null
+      ? ` Leverage clamped ${clampedFrom}x → ${lev}x (Blofin max for ${instId}${instRes.assetClass ? ` · ${instRes.assetClass}` : ""}).`
+      : "";
   const notionalUsdt = row.positionSizeUsdt * lev;
   const sizeContracts = notionalUsdt / (price * contractValue);
-  const sizeStr = roundSize(sizeContracts, minSize, lotSize);
+  const sizeStr = roundBlofinSize(sizeContracts, minSize, lotSize);
   if (parseFloat(sizeStr) < minSize) {
     const err = `Size below minimum (${minSize} contracts). Increase margin or leverage.`;
     await updateRow({
@@ -315,7 +324,27 @@ export async function runNovaScalperTick(
     return { ok: false, error: err };
   }
 
-  await setLeverage(instId, lev, marginMode, blofinOpts);
+  const maxMarket = parseFloatSafe(instRes.maxMarketSize);
+  if (maxMarket > 0 && parseFloat(sizeStr) > maxMarket) {
+    const err = `Size ${sizeStr} exceeds max market size ${maxMarket} for ${instId}. Lower margin.`;
+    await updateRow({
+      lastError: err,
+      lastTickAt: new Date(),
+      lastAction: `Entry cross @ ~${price}, but ${err}`,
+    });
+    return { ok: false, error: err };
+  }
+
+  const levRes = await setLeverage(instId, lev, marginMode, blofinOpts);
+  if (!levRes.ok) {
+    const err = levRes.error ?? "Set leverage failed";
+    await updateRow({
+      lastError: err,
+      lastTickAt: new Date(),
+      lastAction: `Entry cross @ ~${price} — set leverage ${lev}x failed: ${err}`,
+    });
+    return { ok: false, error: err };
+  }
   const orderSide = side === "long" ? "buy" : "sell";
   const ord = await placeMarketOrder(instId, orderSide, sizeStr, marginMode, blofinOpts);
   if (!ord.ok) {
@@ -323,7 +352,7 @@ export async function runNovaScalperTick(
     await updateRow({
       lastError: err,
       lastTickAt: new Date(),
-      lastAction: `Entry cross @ ~${price} — market ${orderSide} failed: ${err}`,
+      lastAction: `Entry cross @ ~${price} — market ${orderSide} failed: ${err}${levNote}`,
     });
     return { ok: false, error: ord.error };
   }
@@ -364,7 +393,7 @@ export async function runNovaScalperTick(
     lastRefPrice: price,
     lastTickAt: new Date(),
     lastError: tpslNote.includes("failed") ? tpslNote.trim() : null,
-    lastAction: `Opened ${side} ${sizeStr} @ ~${price}.${tpslNote} Will close at exit ${row.exitPrice} or stop.`,
+    lastAction: `Opened ${side} ${sizeStr} @ ~${price}.${levNote}${tpslNote} Will close at exit ${row.exitPrice} or stop.`,
   });
 
   return { ok: true, message: `Entered ${side}. Monitoring exit/stop.` };
