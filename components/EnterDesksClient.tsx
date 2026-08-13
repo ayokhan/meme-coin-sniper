@@ -228,7 +228,8 @@ export default function EnterDesksClient() {
     };
   }, []);
 
-  const desks = config.desks.filter((d) => d.enabled);
+  /** Prop firm stays in the app, but not on the public desk picker until the product is ready. */
+  const desks = config.desks.filter((d) => d.enabled && d.id !== "prop");
   const ig = config.instagram;
   const ft = config.footer;
 
@@ -334,7 +335,7 @@ export default function EnterDesksClient() {
           </h2>
           <p className="max-w-2xl text-sm text-zinc-400">{config.desksBlurb}</p>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {desks.map((desk, i) => {
               const style = DESK_STYLES[desk.id];
               return (

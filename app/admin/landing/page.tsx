@@ -237,13 +237,19 @@ export default function AdminLandingPage() {
                     <label className="flex items-center gap-2 text-xs">
                       <input
                         type="checkbox"
-                        checked={desk.enabled}
+                        checked={desk.id === "prop" ? false : desk.enabled}
+                        disabled={desk.id === "prop"}
                         onChange={(e) => patchDesk(desk.id, { enabled: e.target.checked })}
                         className="rounded"
                       />
                       Visible
                     </label>
                   </div>
+                  {desk.id === "prop" && (
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      Hidden on the public landing for now (product not ready). The in-app Prop Firm tab is unchanged.
+                    </p>
+                  )}
                   <input
                     className={fieldClass}
                     placeholder="Title"

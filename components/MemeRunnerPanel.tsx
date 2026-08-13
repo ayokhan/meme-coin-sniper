@@ -11,6 +11,7 @@ import { formatMemeRunnerShareForCoach } from "@/lib/meme-runner/format";
 import { getChainMeta, memeRunnerAgentChain } from "@/lib/meme-runner/chain-meta";
 import { launchpadExternalUrl } from "@/lib/meme-runner/launchpads";
 import { openNovaStarisAiAgent } from "@/lib/novastaris-events";
+import { fomoTokenUrl } from "@/lib/meme-token-links";
 import type { MemeRunnerChain, MemeRunnerLane, MemeRunnerSolConfig, MemeRunnerToken } from "@/lib/meme-runner/types";
 
 function fmtUsd(n: number | null | undefined) {
@@ -164,6 +165,14 @@ function TokenCard({
             Chart <ExternalLink className="h-3 w-3" />
           </a>
         )}
+        <a
+          href={fomoTokenUrl(t.contractAddress, t.chain)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-0.5 text-cyan-600 hover:underline"
+        >
+          FOMO <ExternalLink className="h-3 w-3" />
+        </a>
         {(() => {
           const padUrl = launchpadExternalUrl(t.chain, t.launchpadId, t.contractAddress);
           if (!padUrl) return null;

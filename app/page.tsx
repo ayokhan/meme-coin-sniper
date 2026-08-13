@@ -75,7 +75,8 @@ import NarrativesPanel from "@/components/NarrativesPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
 import TradingBotPanel from "@/components/TradingBotPanel";
-import { NOVASTARIS_OPEN_AI_AGENT } from "@/lib/novastaris-events";
+import { NOVASTARIS_OPEN_AI_AGENT, openNovaStarisAiAgent } from "@/lib/novastaris-events";
+import { fomoTokenUrl } from "@/lib/meme-token-links";
 import PropFirmBotPanel from "@/components/PropFirmBotPanel";
 import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
@@ -4096,6 +4097,8 @@ function Dashboard() {
   const bscScanUrl = (t: Token) => `https://bscscan.com/token/${t.contractAddress}`;
   const pumpFunUrl = (t: Token) => `https://pump.fun/coin/${t.contractAddress}`;
   const gmgnUrl = (t: Token) => `https://gmgn.ai/sol/token/${encodeURIComponent(t.contractAddress)}`;
+  const fomoUrl = (t: { contractAddress: string }, chain: "solana" | "bsc" = "solana") =>
+    fomoTokenUrl(t.contractAddress, chain);
   const maestroUrl = (t: Token) =>
     `https://t.me/maestro?start=${encodeURIComponent(t.contractAddress)}`;
   const ttfTelegramUrl = (t: Token) =>
@@ -5198,6 +5201,24 @@ function Dashboard() {
               </div>
             ) : activeTab === "ai-analysis" ? (
               <div className={`mx-3 sm:mx-6 py-6 sm:py-8 ${aiAgentSubTab === "meme" ? "max-w-4xl" : "max-w-2xl"}`}>
+                <div className="mb-5 flex items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/partners/novastaris-logo.svg"
+                    alt="NovaStaris"
+                    width={168}
+                    height={40}
+                    className="h-8 w-auto sm:h-9"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold tracking-tight text-zinc-900 dark:text-white sm:text-base">
+                      NovaStaris AI Agent
+                    </p>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      Analyze first. Then trade on Dex, GMGN, or FOMO.
+                    </p>
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-2 mb-6">
                   <Button
                     variant={aiAgentSubTab === "meme" ? "default" : "outline"}
@@ -5370,6 +5391,7 @@ function Dashboard() {
                                 <div className="flex gap-1.5 shrink-0">
                                   <Button type="button" variant="outline" size="sm" onClick={() => viewPinnedResult(p)} className="text-xs">View</Button>
                                   <a href={pinDexUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800">Dex</a>
+                                  <a href={fomoTokenUrl(p.contractAddress, p.chain === "bsc" ? "bsc" : "solana")} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800">FOMO</a>
                                   <Button type="button" variant="outline" size="sm" onClick={() => refreshPinnedAnalysis(p.contractAddress)} disabled={refreshingPin === p.contractAddress} className="text-xs">{refreshingPin === p.contractAddress ? "…" : "Refresh"}</Button>
                                   <Button type="button" variant="ghost" size="sm" onClick={() => unpinToken(p.contractAddress)} className="text-xs text-rose-600 dark:text-rose-400">Unpin</Button>
                                 </div>
@@ -9167,6 +9189,7 @@ function Dashboard() {
                           <span className="font-mono text-cyan-600 dark:text-cyan-400">{a.symbol ?? "—"}</span>
                           <span className="text-muted-foreground">({a.walletAddress.slice(0, 4)}…{a.walletAddress.slice(-4)})</span>
                           <a href={`https://dexscreener.com/solana/${a.contractAddress}`} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">Dex</a>
+                          <a href={fomoTokenUrl(a.contractAddress)} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">FOMO</a>
                         </li>
                       ))}
                     </ul>
@@ -9239,7 +9262,11 @@ function Dashboard() {
                                   {a.sentAt ? new Date(a.sentAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : "—"}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <a href={`https://dexscreener.com/solana/${a.contractAddress}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
+                                  <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                    <MemeTokenTableActions contractAddress={a.contractAddress} chain="solana" variant="quiet" />
+                                    <a href={`https://dexscreener.com/solana/${a.contractAddress}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
+                                    <a href={fomoTokenUrl(a.contractAddress)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">FOMO</a>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -9295,9 +9322,11 @@ function Dashboard() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <MemeTokenTableActions contractAddress={a.contractAddress} chain="solana" variant="quiet" />
                             <a href={`https://dexscreener.com/solana/${a.contractAddress}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
                             <a href={`https://pump.fun/coin/${a.contractAddress}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Pump</a>
                             <a href={`https://gmgn.ai/sol/token/${encodeURIComponent(a.contractAddress)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">GMGN</a>
+                            <a href={fomoTokenUrl(a.contractAddress)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">FOMO</a>
                             <a href={`https://t.me/maestro?start=${encodeURIComponent(a.contractAddress)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="Maestro">Maestro</a>
                             {isPaid && (
                               <a href={`https://t.me/ttf_sol_bot?start=${encodeURIComponent(a.contractAddress)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="TTF Telegram">TTF</a>
@@ -9648,6 +9677,7 @@ function Dashboard() {
                               <div className="flex items-center justify-end gap-1.5 flex-wrap">
                                 <MemeTokenTableActions contractAddress={w.contractAddress} chain={(w.chain ?? "solana") === "bsc" ? "bsc" : "solana"} />
                                 <a href={dexUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Dex</a>
+                                <a href={fomoTokenUrl(w.contractAddress, (w.chain ?? "solana") === "bsc" ? "bsc" : "solana")} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">FOMO</a>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -9760,6 +9790,7 @@ function Dashboard() {
                           <a href={dexUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Dex</a>
                           <a href={pumpFunUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">Pump</a>
                           <a href={gmgnUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">GMGN</a>
+                          <a href={fomoUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50">FOMO</a>
                           <a href={maestroUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="Maestro">Maestro</a>
                           {isPaid && <a href={ttfTelegramUrl(t)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50" title="TTF Telegram">TTF</a>}
                         </div>
@@ -9938,8 +9969,21 @@ function Dashboard() {
                               >
                                 Dex
                               </a>
+                              <a
+                                href={fomoUrl(tok)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={memeTableExtLinkQuietClass}
+                              >
+                                FOMO
+                              </a>
                               <MemeRowMoreMenu
                                 items={[
+                                  {
+                                    type: "action",
+                                    label: "NovaStaris AI Agent",
+                                    onClick: () => openNovaStarisAiAgent(tok.contractAddress, "solana"),
+                                  },
                                   {
                                     type: "action",
                                     label: "Copy ID",
@@ -10000,6 +10044,7 @@ function Dashboard() {
                           {activeTab === "bsc" ? (
                             <>
                               <a href={dexUrlBsc(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
+                              <a href={fomoUrl(tok, "bsc")} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">FOMO</a>
                               <a href={bscScanUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">BscScan</a>
                             </>
                           ) : (
@@ -10007,6 +10052,7 @@ function Dashboard() {
                               <a href={dexUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
                               <a href={pumpFunUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Pump</a>
                               <a href={gmgnUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">GMGN</a>
+                              <a href={fomoUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">FOMO</a>
                               <a href={maestroUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors" title="Open in Maestro Telegram bot">Maestro</a>
                             </>
                           )}

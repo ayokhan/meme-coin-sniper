@@ -127,7 +127,7 @@ export const DEFAULT_ENTER_LANDING: EnterLandingConfig = {
     },
     {
       id: "prop",
-      enabled: true,
+      enabled: false,
       title: "Prop firm desk",
       line: "Challenge workflows on your rules. Preview the room — VIP to run.",
       cta: "Preview Prop Firm",
