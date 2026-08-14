@@ -2,6 +2,7 @@ import type { Session } from "next-auth";
 import { isOwnerSession } from "@/lib/auth";
 import { getSubscriptionTier } from "@/lib/subscription";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
+import { getOwnerOnlyTabIds } from "@/lib/tab-owner-only";
 export type VipFuturesAddonAccess =
   | { ok: true; userId: string }
   | { ok: false; status: number; error: string; disabled?: boolean };
@@ -31,13 +32,23 @@ export async function getNovaEagleAccess(session: Session | null): Promise<VipFu
 }
 
 export async function getCryptoBuddieAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
-  const base = await assertVip(session);
-  if (!base.ok) return base;
-  const on = await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE);
-  if (!on) {
-    return { ok: false, status: 403, error: "Crypto Buddie is not available on your account yet. Contact support if you need access.", disabled: true };
+  const access = await assertTriStateFlag(
+    session,
+    FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE,
+    FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE_OWNER_ONLY,
+    "Crypto Buddie is not available on your account yet. Contact support if you need access."
+  );
+  if (!access.ok) return access;
+  const ownerOnlyTabs = await getOwnerOnlyTabIds();
+  if (ownerOnlyTabs.includes("crypto-buddie") && !isOwnerSession(session)) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Crypto Buddie is not available on your account yet. Contact support if you need access.",
+      disabled: true,
+    };
   }
-  return base;
+  return access;
 }
 
 export async function getNovaFuturesNarrativesAccess(session: Session | null): Promise<VipFuturesAddonAccess> {

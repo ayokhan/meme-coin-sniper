@@ -145,6 +145,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
     match: (k) => k === "page_tab_nova_job_agent" || k === "nova_job_agent_owner_only",
   },
   {
+    id: "crypto-buddie",
+    title: "Crypto Buddie",
+    match: (k) => k === "nova_crypto_buddie" || k === "nova_crypto_buddie_owner_only",
+  },
+  {
     id: "wallet-subs",
     title: "Wallet Tracker agents",
     match: (k) =>
@@ -456,7 +461,12 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   nova_crypto_buddie: {
     label: "Crypto Buddie (Crypto Futures)",
     description:
-      "When ON, VIP users see the Crypto Buddie subtab: ranked perps for short-horizon style reads plus optional Sol/BSC AI monitor polling. Default OFF until you enable it.",
+      "Master switch for the Crypto Buddie subtab. Use Off / Owner only / All VIP below. Default OFF until you enable it.",
+  },
+  nova_crypto_buddie_owner_only: {
+    label: "Crypto Buddie — owner only",
+    description:
+      "When ON (and Crypto Buddie master is ON), only you see the tab and API. Turn OFF for all VIP.",
   },
   nova_scalp_agent: {
     label: "Nova Scalp Agent (Nova Pulse → Futures)",
@@ -1007,11 +1017,12 @@ export default function AdminFeatureFlagsPage() {
     return "other";
   };
   const hideFromFlagsList = (key: string) =>
-    key.startsWith("page_tab_") && key !== "page_tab_nova_job_agent";
+    (key.startsWith("page_tab_") && key !== "page_tab_nova_job_agent") ||
+    key === "nova_crypto_buddie_owner_only";
   const groupedFlags = FLAG_GROUPS.map((g) => ({
     ...g,
     entries: flagEntries.filter(([key]) => !hideFromFlagsList(key) && flagGroupId(key) === g.id),
-  })).filter((g) => g.entries.length > 0 || g.id === "nova-jobs-agent");
+  })).filter((g) => g.entries.length > 0 || g.id === "nova-jobs-agent" || g.id === "crypto-buddie");
 
   return (
     <div className="max-w-3xl">
@@ -1381,6 +1392,70 @@ export default function AdminFeatureFlagsPage() {
                                       void setForexAudience(
                                         "page_tab_nova_job_agent",
                                         "nova_job_agent_owner_only",
+                                        opt.id
+                                      )
+                                    }
+                                  >
+                                    {busy && audience !== opt.id ? "…" : opt.label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : group.id === "crypto-buddie" ? (
+                      <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                        <p className="text-xs text-muted-foreground">
+                          Crypto Buddie is <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong>. Use{" "}
+                          <strong className="text-zinc-800 dark:text-zinc-200">Owner only</strong> while you test, then{" "}
+                          <strong className="text-zinc-800 dark:text-zinc-200">All VIP</strong> when ready. You can also lock the
+                          tab from Admin → Product visibility.
+                        </p>
+                        {(() => {
+                          const audience = forexAudienceFromFlags(
+                            "nova_crypto_buddie",
+                            "nova_crypto_buddie_owner_only"
+                          );
+                          const busy = toggling === "nova_crypto_buddie";
+                          return (
+                            <div className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3 space-y-3">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">Crypto Buddie</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Ranked short-horizon perp reads plus optional Sol/BSC AI monitor under Crypto Futures.
+                                  </p>
+                                </div>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    audience === "off"
+                                      ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                      : audience === "owner"
+                                        ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  }`}
+                                >
+                                  {audience === "off" ? "OFF" : audience === "owner" ? "OWNER ONLY" : "ALL VIP"}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(
+                                  [
+                                    { id: "off" as const, label: "Off" },
+                                    { id: "owner" as const, label: "Owner only (test)" },
+                                    { id: "vip" as const, label: "All VIP" },
+                                  ] as const
+                                ).map((opt) => (
+                                  <Button
+                                    key={opt.id}
+                                    size="sm"
+                                    variant={audience === opt.id ? "default" : "outline"}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void setForexAudience(
+                                        "nova_crypto_buddie",
+                                        "nova_crypto_buddie_owner_only",
                                         opt.id
                                       )
                                     }

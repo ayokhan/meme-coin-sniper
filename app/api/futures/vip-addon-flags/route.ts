@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
-import { getNovaForexBotAccess, getNovaForexScalpBotAccess } from "@/lib/vip-futures-addon-access";
+import { getNovaForexBotAccess, getNovaForexScalpBotAccess, getCryptoBuddieAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +11,9 @@ export async function GET() {
   try {
     // Session read kept for parity/auditing, but visibility is flag-driven for all users.
     const session = await getServerSession(authOptions);
-    const [novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaPulsePnlCalculator, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBotAccess, novaForexScalpBotAccess] = await Promise.all([
+    const [novaEagle, cryptoBuddieAccess, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaPulsePnlCalculator, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBotAccess, novaForexScalpBotAccess] = await Promise.all([
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_EAGLE),
-      getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_CRYPTO_BUDDIE),
+      getCryptoBuddieAccess(session),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_LIQUIDATION_MAP),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FUTURES_NARRATIVES),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_MEME_INTELLIGENCE),
@@ -35,6 +35,7 @@ export async function GET() {
     ]);
     const novaForexBot = novaForexBotAccess.ok;
     const novaForexScalpBot = novaForexScalpBotAccess.ok;
+    const cryptoBuddie = cryptoBuddieAccess.ok;
     return NextResponse.json({ success: true, novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaPulsePnlCalculator, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBot, novaForexScalpBot });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to read flags";

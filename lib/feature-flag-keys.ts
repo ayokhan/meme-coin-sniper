@@ -74,6 +74,11 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_EAGLE: 'nova_eagle',
   /** VIP: Crypto Buddie subtab under Crypto Futures (scalp-style ranking + optional Sol/BSC AI monitor). Default OFF until admin enables. */
   NOVA_CRYPTO_BUDDIE: 'nova_crypto_buddie',
+  /**
+   * When ON (and master ON), only the owner sees Crypto Buddie.
+   * Default ON so you can test, then turn OFF for All VIP. Pair with NOVA_CRYPTO_BUDDIE.
+   */
+  NOVA_CRYPTO_BUDDIE_OWNER_ONLY: 'nova_crypto_buddie_owner_only',
   /** VIP: Liquidation Map subtab under Crypto Futures (symbol search + liquidity map analysis). Default OFF until admin enables. */
   NOVA_LIQUIDATION_MAP: 'nova_liquidation_map',
   /** VIP: Nova Futures Narratives tab (headline + institutional narrative read). Default OFF until admin enables. */
