@@ -1,5 +1,4 @@
 import {
-  liveThroughLimit,
   rewardRiskRatio,
   SCALP_MIN_REWARD_RISK,
   type NovaScalpAnalysis,
@@ -84,14 +83,14 @@ export function formatDistanceLabel(
       : `${abs}% above target`;
   }
 
-  // entry — through the limit in the trade direction = better fill now, not a bounce wait
+  // entry — waiting for fill
   if (side === "long") {
     return liveVsLevel > 0
-      ? `${abs}% above entry — enter now (don't wait for pullback)`
+      ? `${abs}% above entry — wait for pullback`
       : `${abs}% below entry`;
   }
   return liveVsLevel < 0
-    ? `${abs}% below entry — enter now (don't wait for bounce)`
+    ? `${abs}% below entry — wait for bounce`
     : `${abs}% above entry`;
 }
 
@@ -118,29 +117,23 @@ export function computeScalpPlanStatus(input: {
   if (entryPrice == null || exitPrice == null || structuralStop == null) return "active";
 
   const entryZone = (SCALP_ENTRY_ZONE_PCT / 100) * entryPrice;
+  const inEntryZone = Math.abs(livePrice - entryPrice) <= entryZone;
 
   if (side === "long") {
     if (livePrice <= structuralStop) return "invalidated";
     if (livePrice >= exitPrice) return "target_hit";
-    if (input.entryMode === "market" || Math.abs(livePrice - entryPrice) <= entryZone) {
-      return "at_entry";
-    }
-    if (liveThroughLimit("long", livePrice, entryPrice)) {
-      const rr = rewardRiskRatio("long", livePrice, exitPrice, structuralStop);
-      return rr >= SCALP_MIN_REWARD_RISK ? "at_entry" : "missed";
-    }
+    if (inEntryZone) return "at_entry";
     return "active";
   }
 
   if (side === "short") {
     if (livePrice >= structuralStop) return "invalidated";
     if (livePrice <= exitPrice) return "target_hit";
-    if (input.entryMode === "market" || Math.abs(livePrice - entryPrice) <= entryZone) {
-      return "at_entry";
-    }
-    if (liveThroughLimit("short", livePrice, entryPrice)) {
+    if (inEntryZone) return "at_entry";
+    // Already dumped through the short limit with no R:R left — don't wait 30 min for a bounce.
+    if (livePrice < entryPrice) {
       const rr = rewardRiskRatio("short", livePrice, exitPrice, structuralStop);
-      return rr >= SCALP_MIN_REWARD_RISK ? "at_entry" : "missed";
+      if (rr < SCALP_MIN_REWARD_RISK) return "missed";
     }
     return "active";
   }
@@ -226,7 +219,7 @@ export function planStatusHint(
         : ctx.livePrice < ctx.entryPrice
           ? "rise"
           : "drop";
-    return `Watching live price — flips to "At entry zone" when price ${need}s to your limit (~12s). If price already went the other way toward the target, don't wait for a bounce — refresh for an enter-now plan. Prefer Watch over Refresh while still waiting.`;
+    return `Watching live price — flips to "At entry zone" when price ${need}s to your limit (~12s). Prefer Watch over Refresh: Refresh can wipe a waiting plan if structure turns mid-range.`;
   }
   return "Status updates automatically every ~12s. Turn on Watch to get alerts if you leave this tab.";
 }
