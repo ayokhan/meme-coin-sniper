@@ -20,6 +20,7 @@ import {
 } from "@/lib/blofin";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
 import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
+import { stopLossForActualFill } from "@/lib/nova-scalp-agent";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -85,6 +86,25 @@ function shouldExit(side: string, exit: number, lastRef: number, price: number):
 function stopHit(side: string, stop: number, price: number): boolean {
   if (side === "long") return price <= stop;
   return price >= stop;
+}
+
+function liveStopPrice(
+  row: ScalperRow,
+  side: "long" | "short",
+  fillPrice: number,
+  tickSize?: number | null
+): number | null {
+  return stopLossForActualFill({
+    side,
+    planEntry: row.entryPrice,
+    planStop:
+      row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && row.stopLossPrice > 0
+        ? row.stopLossPrice
+        : null,
+    fillPrice,
+    leverage: row.leverage || 1,
+    tickSize,
+  });
 }
 
 /** Match Blofin instId variants (BTC-USDT vs BTC/USDT). */
@@ -208,8 +228,12 @@ export async function runNovaScalperTick(
   const failedEntryRetry = looksLikeFailedMarketEntry(row.lastAction, row.lastError);
   const trigger = failedEntryRetry ? "immediate" : parseEntryTrigger(row.entryTrigger);
 
+  const posAvgPx = hasExchangePosition && positions[0]?.avgPx ? parseFloatSafe(positions[0].avgPx) : 0;
+
   if (row.inPosition || hasExchangePosition) {
-    if (row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && stopHit(side, row.stopLossPrice, price)) {
+    const fillForStop = posAvgPx > 0 ? posAvgPx : row.entryPrice;
+    const stop = liveStopPrice(row, side, fillForStop);
+    if (stop != null && Number.isFinite(stop) && stopHit(side, stop, price)) {
       const cl = await closePositionViaApi(instId, marginMode, "net", blofinOpts);
       if (!cl.ok) {
         const err = cl.error ?? "Stop close failed";
@@ -384,13 +408,27 @@ export async function runNovaScalperTick(
     return { ok: false, error: ord.error };
   }
 
+  let fillPrice = price;
+  try {
+    const opened = await getPositions(instId, blofinOpts);
+    const avg = opened[0]?.avgPx ? parseFloatSafe(opened[0].avgPx) : 0;
+    if (avg > 0) fillPrice = avg;
+  } catch {
+    /* ticker last is the fallback */
+  }
+
+  const tickSize = parseFloatSafe(instRes.tickSize);
+  const slForFill = liveStopPrice(row, side, fillPrice, tickSize > 0 ? tickSize : null);
+  const slTightened =
+    slForFill != null &&
+    row.stopLossPrice != null &&
+    Number.isFinite(row.stopLossPrice) &&
+    Math.abs(slForFill - row.stopLossPrice) > 1e-12;
+
   let tpslNote = "";
   if (row.attachTpsl) {
     const tpAbs = row.exitPrice > 0 ? row.exitPrice : null;
-    const slAbs =
-      row.stopLossPrice != null && Number.isFinite(row.stopLossPrice) && row.stopLossPrice > 0
-        ? row.stopLossPrice
-        : null;
+    const slAbs = slForFill;
     const tpPct = row.tpslTpPct ?? 0;
     const slPct = row.tpslSlPct ?? 0;
     if (tpAbs || slAbs || tpPct > 0 || slPct > 0) {
@@ -399,7 +437,7 @@ export async function runNovaScalperTick(
         orderSide,
         sizeStr,
         marginMode,
-        price,
+        fillPrice,
         // Prefer plan absolute levels; pct only fills gaps when abs missing.
         tpAbs ? 0 : tpPct,
         slAbs ? 0 : slPct,
@@ -410,17 +448,21 @@ export async function runNovaScalperTick(
         }
       );
       tpslNote = tpsl.ok
-        ? " TP/SL attached on Blofin."
+        ? ` TP/SL attached on Blofin${slForFill != null ? ` (SL ${slForFill})` : ""}.`
         : ` TP/SL attach failed: ${tpsl.error ?? "unknown"} (soft exit via cron still active).`;
     }
   }
 
+  const stopNote =
+    slForFill != null
+      ? ` or stop ${slForFill}${slTightened ? " (moved with fill to keep planned margin risk)" : ""}`
+      : "";
   const afterOpen: Record<string, unknown> = {
     inPosition: true,
-    lastRefPrice: price,
+    lastRefPrice: fillPrice,
     lastTickAt: new Date(),
     lastError: tpslNote.includes("failed") ? tpslNote.trim() : null,
-    lastAction: `Opened ${side} ${sizeStr} @ ~${price}.${levNote}${tpslNote} Will close at exit ${row.exitPrice} or stop.`,
+    lastAction: `Opened ${side} ${sizeStr} @ ~${fillPrice}.${levNote}${tpslNote} Will close at exit ${row.exitPrice}${stopNote}.`,
   };
   if (trigger === "immediate") {
     afterOpen.entryTrigger = side === "short" ? "cross_up" : "cross_down";

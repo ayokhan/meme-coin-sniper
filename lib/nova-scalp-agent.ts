@@ -310,6 +310,52 @@ export function recommendedStopPrice(
   return side === "long" ? Math.max(structural, risk) : Math.min(structural, risk);
 }
 
+/** Margin loss % implied by plan entry → plan stop at this leverage. */
+export function plannedLossPctOnMargin(
+  side: "long" | "short",
+  entry: number,
+  stop: number,
+  leverage: number
+): number {
+  if (!(entry > 0) || !Number.isFinite(entry) || !Number.isFinite(stop)) return 0;
+  const movePct = side === "long" ? ((entry - stop) / entry) * 100 : ((stop - entry) / entry) * 100;
+  if (!(movePct > 0) || !Number.isFinite(movePct)) return 0;
+  return movePct * Math.max(1, leverage);
+}
+
+/**
+ * After a market fill that differs from plan entry, keep the same $ risk on margin
+ * by moving the stop with the fill. Never widens past the plan stop.
+ */
+export function stopLossForActualFill(args: {
+  side: "long" | "short";
+  planEntry: number;
+  planStop: number | null;
+  fillPrice: number;
+  leverage: number;
+  fallbackMaxLossPctOnMargin?: number;
+  tickSize?: number | null;
+}): number | null {
+  const { side, fillPrice, leverage } = args;
+  if (!(fillPrice > 0) || !Number.isFinite(fillPrice)) {
+    return args.planStop != null && Number.isFinite(args.planStop) && args.planStop > 0 ? args.planStop : null;
+  }
+
+  let maxLossPct = args.fallbackMaxLossPctOnMargin ?? 5;
+  if (args.planStop != null && Number.isFinite(args.planStop) && args.planStop > 0 && args.planEntry > 0) {
+    const planned = plannedLossPctOnMargin(side, args.planEntry, args.planStop, leverage);
+    if (planned > 0) maxLossPct = planned;
+  }
+
+  const fromFill = riskStopFromMaxLossPct(side, fillPrice, leverage, maxLossPct, args.tickSize);
+  const planStop =
+    args.planStop != null && Number.isFinite(args.planStop) && args.planStop > 0 ? args.planStop : null;
+  const chosen = planStop != null ? recommendedStopPrice(side, planStop, fromFill) : fromFill;
+  if (side === "long" && !(chosen < fillPrice)) return fromFill < fillPrice ? fromFill : null;
+  if (side === "short" && !(chosen > fillPrice)) return fromFill > fillPrice ? fromFill : null;
+  return chosen;
+}
+
 export function detectEntryMode(enterNow: number, limitEntry: number): ScalpEntryMode {
   const denom = Math.abs(enterNow) > 0 ? enterNow : limitEntry;
   if (!(denom > 0)) return "limit";

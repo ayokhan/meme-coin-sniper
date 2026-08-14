@@ -766,7 +766,8 @@ export function NovaScalpPlanCard({
                 : "—"}
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              At stop (invalidation) · ${result.amountUsd} margin · {result.leverage}x
+              If filled at plan entry · ${result.amountUsd} margin · {result.leverage}x. A worse fill moves the
+              Blofin stop with it so this $ risk stays capped.
             </p>
             {result.lossAtRiskStopUsd != null &&
               result.lossAtRiskStopUsd !== result.lossAtStopUsd && (
