@@ -885,10 +885,10 @@ export default function NovaJobAgentPanel() {
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Base resume is saved here. <strong>AI adjust</strong> rewrites this base using the{" "}
-            <em>selected</em> job description(s) below. <strong>Prepare selected</strong> /{" "}
-            <strong>Paste JD</strong> create a separate tuned resume + cover letter per application without
-            replacing your base (unless you choose AI adjust).
+            Base resume is saved here. <strong>AI adjust</strong> rewrites this base from your real experience
+            using the <em>selected</em> job(s) — it will not paste posting language into the resume.{" "}
+            <strong>Prepare selected</strong> / <strong>Paste JD</strong> create a separate tuned resume + cover
+            letter per application without replacing your base (unless you choose AI adjust).
           </p>
           <textarea
             className="w-full min-h-[220px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm font-mono"
@@ -941,8 +941,9 @@ export default function NovaJobAgentPanel() {
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Paste job description</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
-            Paste any JD (LinkedIn, company site, email). Nova Agent tunes a copy of your resume and writes a cover
-            letter. Your base resume stays unchanged.
+            Paste any JD (LinkedIn, company site, email). Nova rewrites your real experience in your own words for
+            that role — it will not copy the posting into the resume — then writes a cover letter. Your base resume
+            stays unchanged.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
