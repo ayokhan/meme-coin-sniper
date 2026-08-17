@@ -154,7 +154,7 @@ async function computeBiggestWins(
   return {
     wins,
     note:
-      "Biggest wins are approximated from the largest realized PnL on recently closed positions among the current top traders on this leaderboard (Polymarket public data API). Filters by time use resolved-position timestamps in UTC; totals may differ slightly from polymarket.com.",
+      "Biggest wins are approximated from the largest realized PnL on recently closed positions among the current top traders on this leaderboard. Filters by time use resolved-position timestamps in UTC; totals may differ slightly from polymarket.com.",
   };
 }
 
