@@ -1103,9 +1103,6 @@ function Dashboard() {
   const [scanning, setScanning] = useState<"idle" | "scan" | "twitter">("idle");
   const [error, setError] = useState<string | null>(null);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
-  const [dexTest, setDexTest] = useState<{ ok: boolean; message: string; newPairs?: number; trending?: number; sample?: string } | null>(null);
-  const [moralisTest, setMoralisTest] = useState<{ ok: boolean; message: string; count?: number } | null>(null);
-  const [twitterTest, setTwitterTest] = useState<{ ok: boolean; message: string; missing?: string[] } | null>(null);
   const [aiAnalysisCa, setAiAnalysisCa] = useState("");
   const [aiAnalysisAmountUsd, setAiAnalysisAmountUsd] = useState("");
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
@@ -3845,53 +3842,6 @@ function Dashboard() {
   const formatVol = (v: number | null | undefined) =>
     v != null ? `$${(v / 1000).toFixed(1)}k` : "—";
 
-  const testDexScreener = async () => {
-    setDexTest(null);
-    try {
-      const res = await fetch("/api/test-dexscreener");
-      const data = await res.json();
-      setDexTest({
-        ok: data.success,
-        message: data.message || (data.success ? "DexScreener OK" : "DexScreener failed"),
-        newPairs: data.newPairsCount,
-        trending: data.trendingCount,
-        sample: data.sample?.symbol ? `${data.sample.symbol} (${data.sample.dexId})` : undefined,
-      });
-    } catch {
-      setDexTest({ ok: false, message: "Request failed" });
-    }
-  };
-
-  const testMoralis = async () => {
-    setMoralisTest(null);
-    try {
-      const res = await fetch("/api/test-moralis");
-      const data = await res.json();
-      setMoralisTest({
-        ok: data.success,
-        message: data.message || (data.success ? "Moralis OK" : "Moralis failed"),
-        count: data.count,
-      });
-    } catch {
-      setMoralisTest({ ok: false, message: "Request failed" });
-    }
-  };
-
-  const testTwitter = async () => {
-    setTwitterTest(null);
-    try {
-      const res = await fetch("/api/test-twitter");
-      const data = await res.json();
-      setTwitterTest({
-        ok: data.success,
-        message: data.message || (data.success ? "Twitter scan OK" : "Twitter scan failed"),
-        missing: data.missing || [],
-      });
-    } catch {
-      setTwitterTest({ ok: false, message: "Request failed" });
-    }
-  };
-
   const runScan = async (type: "scan" | "twitter") => {
     if (type === "twitter" && !canAccessCtScanEffective) {
       setError("CT Scan is VIP on-demand. Contact support to request access.");
@@ -4602,77 +4552,6 @@ function Dashboard() {
             </span>
           </div>
         )}
-        {isOwner && (
-          <div className="mb-6 flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={testDexScreener}
-              className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50"
-            >
-              Test DexScreener
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={testMoralis}
-              className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50"
-            >
-              Test Moralis
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={testTwitter}
-              className="border-zinc-200 dark:border-zinc-700 hover:border-cyan-400/50 dark:hover:border-cyan-500/50"
-            >
-              Test Twitter Scan
-            </Button>
-          </div>
-        )}
-        {isOwner && dexTest && (
-          <div
-            className={`mb-6 rounded-xl border px-4 py-3 text-sm shadow-sm ${
-              dexTest.ok
-                ? "border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200"
-                : "border-red-200/80 dark:border-red-800/80 bg-red-50/90 dark:bg-red-950/40 text-red-800 dark:text-red-200"
-            }`}
-          >
-            <strong>DexScreener:</strong> {dexTest.message}
-            {dexTest.ok && (
-              <span className="ml-2">
-                — Go Hunting (new pairs): {dexTest.newPairs ?? "—"}, Trending: {dexTest.trending ?? "—"}
-                {dexTest.sample && ` · Sample: ${dexTest.sample}`}
-              </span>
-            )}
-          </div>
-        )}
-        {moralisTest && (
-          <div
-            className={`mb-6 rounded-xl border px-4 py-3 text-sm shadow-sm ${
-              moralisTest.ok
-                ? "border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200"
-                : "border-red-200/80 dark:border-red-800/80 bg-red-50/90 dark:bg-red-950/40 text-red-800 dark:text-red-200"
-            }`}
-          >
-            <strong>Moralis (Pump.fun):</strong> {moralisTest.message}
-            {moralisTest.count !== undefined && (
-              <span className="ml-2">— New tokens: {moralisTest.count}</span>
-            )}
-          </div>
-        )}
-        {isOwner && twitterTest && (
-          <div
-            className={`mb-6 rounded-xl border px-4 py-3 text-sm shadow-sm ${
-              twitterTest.ok
-                ? "border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200"
-                : "border-red-200/80 dark:border-red-800/80 bg-red-50/90 dark:bg-red-950/40 text-red-800 dark:text-red-200"
-            }`}
-          >
-            <strong>Twitter scan:</strong> {twitterTest.message}
-          </div>
-        )}
-
         <Card className="rounded-2xl border-zinc-200/90 dark:border-zinc-800/90 bg-white dark:bg-zinc-900 shadow-lg dark:shadow-none dark:shadow-[0_0_0_1px_rgba(34,211,238,0.06)] overflow-hidden">
           <CardHeader className="pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80">
             <CardTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-100">

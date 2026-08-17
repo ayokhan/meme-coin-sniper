@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions, isOwnerEmail } from "@/lib/auth";
 import { getPumpFunNewTokens, isMoralisConfigured } from "@/lib/api-clients/moralis";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 
@@ -9,6 +11,10 @@ import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
  */
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!isOwnerEmail(session?.user?.email ?? null)) {
+      return NextResponse.json({ success: false, message: "Owner only." }, { status: 403 });
+    }
     const moralisGoHunting = await getFeatureFlag(FEATURE_FLAG_KEYS.MORALIS_GO_HUNTING);
     if (!moralisGoHunting) {
       return NextResponse.json({

@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions, isOwnerEmail } from "@/lib/auth";
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!isOwnerEmail(session?.user?.email ?? null)) {
+      return NextResponse.json({ success: false, message: "Owner only." }, { status: 403 });
+    }
     const missing: string[] = [];
     if (!process.env.APIFY_API_TOKEN) missing.push("APIFY_API_TOKEN");
     if (!process.env.ANTHROPIC_API_KEY) missing.push("ANTHROPIC_API_KEY");

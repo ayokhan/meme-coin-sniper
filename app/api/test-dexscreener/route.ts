@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions, isOwnerEmail } from "@/lib/auth";
 import {
   getNewSolanaPairs,
   getTrendingSolanaPairs,
@@ -12,6 +14,11 @@ const DEXSCREENER_BASE = "https://api.dexscreener.com";
  * 2. Then run our filtered getNewSolanaPairs / getTrendingSolanaPairs.
  */
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!isOwnerEmail(session?.user?.email ?? null)) {
+    return NextResponse.json({ success: false, message: "Owner only." }, { status: 403 });
+  }
+
   const diagnostic: Record<string, unknown> = {};
 
   try {
