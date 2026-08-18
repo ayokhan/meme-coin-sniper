@@ -6,7 +6,7 @@ import { fetchTopTradersForSession } from "@/lib/hyperliquid-top-traders-session
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-/** Owner: admin list (LeverageWallet). Logged-in user: their UserLeverageWallet list. */
+/** Global LeverageWallet rows; logged-in users also include their own list. */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

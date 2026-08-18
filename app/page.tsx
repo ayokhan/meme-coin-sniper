@@ -1460,6 +1460,8 @@ function Dashboard() {
   const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
   const [topTradersLoading, setTopTradersLoading] = useState(false);
   const [topTradersError, setTopTradersError] = useState<string | null>(null);
+  const [hidingGlobalTrader, setHidingGlobalTrader] = useState<string | null>(null);
+  const [leverageGlobalHideError, setLeverageGlobalHideError] = useState<string | null>(null);
   const [leverageTradersDateFilter, setLeverageTradersDateFilter] = useState<"all" | "today">("all");
   const [leverageTraderFavoriteAddresses, setLeverageTraderFavoriteAddresses] = useState<Set<string>>(() => new Set());
   useEffect(() => {
@@ -2525,6 +2527,34 @@ function Dashboard() {
       setTopTradersError("Failed to load top traders.");
     } finally {
       setTopTradersLoading(false);
+    }
+  };
+
+  const hideLeverageTraderFromGlobal = async (address: string, displayName: string) => {
+    if (typeof window !== "undefined" && !window.confirm(
+      `Hide ${displayName} from the global list for all users? You can restore it from Nova Admin → Leverage Wallet Tracker.`,
+    )) {
+      return;
+    }
+    setHidingGlobalTrader(address);
+    setLeverageGlobalHideError(null);
+    try {
+      const res = await fetch("/api/admin/leverage-wallet-tracker/wallets", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, global: false }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setLeverageGlobalHideError(data.error ?? "Failed to hide wallet from global list.");
+        return;
+      }
+      const key = address.toLowerCase();
+      setTopTradersData((prev) => prev.filter((t) => t.address.toLowerCase() !== key));
+    } catch {
+      setLeverageGlobalHideError("Failed to hide wallet from global list.");
+    } finally {
+      setHidingGlobalTrader(null);
     }
   };
 
@@ -9359,6 +9389,7 @@ function Dashboard() {
                       {topTradersLoading ? t("common.loading") : t("nav.refresh")}
                     </Button>
                     {topTradersError && <p className="text-sm text-rose-600 dark:text-rose-400">{topTradersError}</p>}
+                    {leverageGlobalHideError && <p className="text-sm text-rose-600 dark:text-rose-400">{leverageGlobalHideError}</p>}
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                       <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Recent activity (in-app alerts)</h4>
                       <p className="text-xs text-muted-foreground mb-2">
@@ -9511,6 +9542,22 @@ function Dashboard() {
                                   <span className="font-mono truncate max-w-full">{displayName}</span>
                                 )}
                                 <button type="button" onClick={() => openTraderHistory(t.address, t.nickname ?? null)} className="text-muted-foreground hover:text-cyan-600 dark:hover:text-cyan-400 underline shrink-0">History</button>
+                                {isOwner && t.isGlobal !== false && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      void hideLeverageTraderFromGlobal(t.address, displayName);
+                                    }}
+                                    disabled={hidingGlobalTrader?.toLowerCase() === t.address.toLowerCase()}
+                                    className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 disabled:opacity-50"
+                                    aria-label={`Hide ${displayName} from global list`}
+                                    title="Hide from global list for all users"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
                               </span>
                             );
                             return t.positions.length === 0

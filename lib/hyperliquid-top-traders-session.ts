@@ -74,7 +74,7 @@ type TraderSeedRow = { address: string; nickname: string | null };
 
 type TopTraderSeeds = {
   rows: TraderSeedRow[];
-  /** `null` means every hydrated row is treated as global sample (owner session). */
+  /** `null` means every hydrated row is treated as global (owner session on the global list). */
   globalAddressesForResponse: Set<string> | null;
 };
 
@@ -105,21 +105,27 @@ async function getTopTraderSeedsForSession(session: Session): Promise<TopTraderS
   let globalAddressesForResponse: Set<string> | null = null;
   if (isOwnerSession(session)) {
     let adminRows = await leverageDb.leverageWallet.findMany({
-      where: { active: true },
+      where: { active: true, global: true },
       orderBy: { createdAt: "asc" },
     });
     if (adminRows.length === 0) {
-      const { APEXLIQUID_TOP_TRADERS } = await import("@/lib/config/apexliquid-top-traders");
-      for (const { address } of APEXLIQUID_TOP_TRADERS) {
-        const addr = address.trim().toLowerCase();
-        if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) continue;
-        await leverageDb.leverageWallet.upsert({
-          where: { address: addr },
-          create: { address: addr, active: true, alertEnabled: false },
-          update: {},
+      const totalWallets = await leverageDb.leverageWallet.count();
+      if (totalWallets === 0) {
+        const { APEXLIQUID_TOP_TRADERS } = await import("@/lib/config/apexliquid-top-traders");
+        for (const { address } of APEXLIQUID_TOP_TRADERS) {
+          const addr = address.trim().toLowerCase();
+          if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) continue;
+          await leverageDb.leverageWallet.upsert({
+            where: { address: addr },
+            create: { address: addr, active: true, alertEnabled: false },
+            update: {},
+          });
+        }
+        adminRows = await leverageDb.leverageWallet.findMany({
+          where: { active: true, global: true },
+          orderBy: { createdAt: "asc" },
         });
       }
-      adminRows = await leverageDb.leverageWallet.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } });
     }
     rows = adminRows.map((r) => ({ address: r.address, nickname: r.nickname }));
     globalAddressesForResponse = null;
