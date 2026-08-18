@@ -6,6 +6,7 @@ import {
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
 import { WELCOME_EMAIL } from "@/lib/welcome-email";
+import { WHY_TRADERS_EMAIL } from "@/lib/why-traders-email";
 import { VIP_SOFT_PITCH_EMAIL } from "@/lib/vip-pitch-email";
 import { VIP_EXPIRY_POST_EMAIL, VIP_EXPIRY_PRE_EMAIL } from "@/lib/vip-expiry-email";
 import {
@@ -32,6 +33,7 @@ export type AdminEmailFormat = "rich" | "plain";
 export type AdminEmailPresetId =
   | "custom"
   | "welcome"
+  | "why-traders"
   | "deepdive-meme"
   | "deepdive-futures"
   | "deepdive-forex"
@@ -96,6 +98,19 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     ctaLabel: "Open Start here",
     ctaUrl: START_HERE,
     defaultAudience: "new",
+  },
+  {
+    id: "why-traders",
+    label: "Why top traders start here",
+    blurb: "Brand blast — punchy hero + what you can do",
+    subject: WHY_TRADERS_EMAIL.subject,
+    body: WHY_TRADERS_EMAIL.body,
+    template: "why-traders",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: WHY_TRADERS_EMAIL.ctaLabel,
+    ctaUrl: WHY_TRADERS_EMAIL.ctaUrl,
+    defaultAudience: "newsletter",
   },
   {
     id: "deepdive-meme",

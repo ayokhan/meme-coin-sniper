@@ -275,6 +275,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       }
       const p = getAdminEmailPreset(id);
       if (!p) return;
+      if (p.template === "why-traders") setFormat("rich");
       setDraft({
         subject: p.subject,
         body: p.body,
@@ -588,6 +589,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           {format === "rich" && draft.template === "welcome" && (
             <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
               Welcome rich layout is on (NovaStaris banner, path card, Open Start here CTA).
+            </p>
+          )}
+          {format === "rich" && draft.template === "why-traders" && (
+            <p className="text-xs text-indigo-700 dark:text-indigo-300 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-3 py-2">
+              Brand blast rich layout is on (blue frame, gradient hero, dark card, Choose your desk CTA).
             </p>
           )}
           {format === "rich" && draft.template === "nova-branded" && (

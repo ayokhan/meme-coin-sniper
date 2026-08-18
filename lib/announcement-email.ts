@@ -9,7 +9,8 @@ export type AnnouncementEmailTemplate =
   | "forex-rebate"
   | "affiliate"
   | "welcome"
-  | "nova-branded";
+  | "nova-branded"
+  | "why-traders";
 
 export type RecentRegistrant = {
   email: string;
@@ -43,6 +44,7 @@ const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").
 const FOREX_BOTS_URL = `${APP_ORIGIN}/?tab=nova-forex-bot#forex-partner-rebate`;
 const AFFILIATE_URL = `${APP_ORIGIN}/affiliate`;
 const START_HERE_URL = `${APP_ORIGIN}/start-here`;
+const ENTER_URL = `${APP_ORIGIN}/enter`;
 
 /** NovaStaris-only email header (no partner logo). */
 function novaBrandHeaderEmailHtml(eyebrow: string): string {
@@ -257,6 +259,105 @@ export function buildNovaBrandedEmailHtml(args: {
   return emailShell(inner);
 }
 
+/** Dark campaign shell: blue frame + charcoal card. */
+function whyTradersEmailShell(inner: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
+<body style="margin:0;padding:0;background:#2563eb;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#2563eb" style="background:#2563eb;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#18181b" style="max-width:560px;background:#18181b;border-radius:16px;overflow:hidden;">
+          ${inner}
+          <tr>
+            <td bgcolor="#18181b" style="padding:20px 28px 28px 28px;border-top:1px solid #27272a;">
+              <p style="margin:0 0 6px 0;font-size:12px;line-height:1.5;color:#a1a1aa;">
+                You received this from NovaStaris. Manage preferences in your
+                <a href="${APP_ORIGIN}/account" style="color:#5eead4;text-decoration:underline;">account settings</a>.
+              </p>
+              <p style="margin:0;font-size:12px;color:#71717a;">
+                <a href="${APP_ORIGIN}" style="color:#71717a;text-decoration:none;">novastaris.ai</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+}
+
+function whyTradersCtaButtonHtml(label: string, url: string): string {
+  return `
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px auto 8px auto;border-collapse:collapse;">
+  <tr>
+    <td align="center" bgcolor="#14b8a6" style="border-radius:10px;background:#14b8a6;">
+      <a href="${escapeHtml(url)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#042f2e;text-decoration:none;border-radius:10px;">
+        ${escapeHtml(label)}
+      </a>
+    </td>
+  </tr>
+</table>`.trim();
+}
+
+/** Brand blast: punchy hero + “on NovaStaris you can” list. */
+export function buildWhyTradersEmailHtml(args?: {
+  body?: string;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+}): string {
+  const customBody = (args?.body ?? "").trim();
+  const ctaLabel = args?.ctaLabel?.trim() || "Choose your desk";
+  const ctaUrl = args?.ctaUrl?.trim() || ENTER_URL;
+  const introHtml = customBody
+    ? `<td bgcolor="#ffffff" style="padding:28px 28px 8px 28px;background:#ffffff;">
+        ${announcementBodyToHtml(customBody)}
+        <div style="margin:8px 0 8px 0;text-align:center;">${ctaButtonHtml(ctaLabel, ctaUrl)}</div>
+      </td>`
+    : `<td bgcolor="#18181b" style="padding:28px 28px 8px 28px;background:#18181b;">
+        <p style="margin:0 0 18px 0;font-size:16px;line-height:1.55;color:#e4e4e7;font-style:italic;">
+          The best traders don&apos;t wait for a signal — they trade where it starts.
+        </p>
+        <p style="margin:0 0 12px 0;font-size:15px;color:#fafafa;">On NovaStaris you can:</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px 0;border-collapse:collapse;">
+          <tr>
+            <td style="background:#27272a;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 10px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Hunt new Solana and BSC pairs as they appear</p>
+              <p style="margin:0 0 10px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Follow wallets that already moved</p>
+              <p style="margin:0 0 10px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Run AI on a contract — buy zone, take profit &amp; stop loss</p>
+              <p style="margin:0 0 10px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Read crypto futures and forex from one desk</p>
+              <p style="margin:0;font-size:15px;line-height:1.45;color:#f4f4f5;">Learn the playbook free in Trading University</p>
+            </td>
+          </tr>
+        </table>
+        ${whyTradersCtaButtonHtml(ctaLabel, ctaUrl)}
+        <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#a1a1aa;text-align:center;">
+          Questions? Use Chat or Support in the app — this inbox is not monitored.<br />
+          Or open <a href="${ENTER_URL}" style="color:#5eead4;">novastaris.ai/enter</a>
+        </p>
+      </td>`;
+
+  const inner = `
+    <tr>
+      <td align="center" bgcolor="#1e1b4b" style="background:#1e1b4b;background-image:linear-gradient(135deg,#1d4ed8 0%,#4f46e5 52%,#7c3aed 100%);padding:36px 28px 32px 28px;">
+        <p style="margin:0 0 14px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#c7d2fe;">
+          NovaStaris
+        </p>
+        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:1.25;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">
+          Where top traders make their first move
+        </p>
+      </td>
+    </tr>
+    <tr>
+      ${introHtml}
+    </tr>`;
+
+  return whyTradersEmailShell(inner);
+}
+
 /** Polished welcome / Start here email with NovaStaris brand banner. */
 export function buildWelcomeEmailHtml(args?: { body?: string }): string {
   const customBody = (args?.body ?? "").trim();
@@ -417,6 +518,14 @@ export function buildAnnouncementEmailHtml(args: {
     });
   }
 
+  if (args.template === "why-traders") {
+    return buildWhyTradersEmailHtml({
+      body: shouldUseCustomWhyTradersIntro(args.body) ? args.body : undefined,
+      ctaLabel: args.ctaLabel,
+      ctaUrl: args.ctaUrl,
+    });
+  }
+
   if (args.template === "nova-branded") {
     return buildNovaBrandedEmailHtml({
       body: args.body,
@@ -465,6 +574,19 @@ function shouldUseCustomWelcomeIntro(body: string): boolean {
   if (!t) return false;
   // Stock welcome template — use structured HTML (banner + path card + CTA)
   if (t.includes("Pick your path") && t.includes("Meme coin hunter") && t.includes("start-here")) return false;
+  return true;
+}
+
+function shouldUseCustomWhyTradersIntro(body: string): boolean {
+  const t = body.trim();
+  if (!t) return false;
+  if (
+    t.includes("On NovaStaris you can") &&
+    t.includes("trade where it starts") &&
+    t.includes("/enter")
+  ) {
+    return false;
+  }
   return true;
 }
 
@@ -752,6 +874,7 @@ export async function sendAnnouncementEmails(args: {
       (template === "forex-rebate" ||
         template === "affiliate" ||
         template === "welcome" ||
+        template === "why-traders" ||
         template === "nova-branded")
     )
   ) {
