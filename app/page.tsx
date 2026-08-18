@@ -9500,7 +9500,7 @@ function Dashboard() {
                       <Table className="table-fixed w-full min-w-0 text-xs" style={{ tableLayout: "fixed" }}>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[13%] py-1.5 px-1.5 text-xs">Trader</TableHead>
+                            <TableHead className="w-[16%] py-1.5 px-1.5 text-xs">Trader</TableHead>
                             <TableHead className="w-[8%] py-1.5 px-1.5 text-xs">Account</TableHead>
                             <TableHead className="w-[11%] py-1.5 px-1.5 text-xs" title="Last fill (open/add/reduce/close) in last 7 days">Active</TableHead>
                             <TableHead className="w-[6%] py-1.5 px-1.5 text-xs">Symbol</TableHead>
@@ -9551,17 +9551,17 @@ function Dashboard() {
                                       void hideLeverageTraderFromGlobal(t.address, displayName);
                                     }}
                                     disabled={hidingGlobalTrader?.toLowerCase() === t.address.toLowerCase()}
-                                    className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 disabled:opacity-50"
+                                    className="text-rose-600 dark:text-rose-400 hover:underline shrink-0 disabled:opacity-50"
                                     aria-label={`Hide ${displayName} from global list`}
                                     title="Hide from global list for all users"
                                   >
-                                    <X className="h-3.5 w-3.5" />
+                                    {hidingGlobalTrader?.toLowerCase() === t.address.toLowerCase() ? "Hiding…" : "Remove"}
                                   </button>
                                 )}
                               </span>
                             );
                             return t.positions.length === 0
-                              ? [<TableRow key={t.address}><TableCell className="font-mono py-1.5 px-1.5 truncate max-w-0">{traderCell}</TableCell><TableCell className="font-mono py-1.5 px-1.5">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-muted-foreground py-1.5 px-1.5 truncate" title="Last fill in last 7d">{lastTradeStr}</TableCell><TableCell colSpan={8} className="text-muted-foreground py-1.5 px-1.5">No open positions</TableCell></TableRow>]
+                              ? [<TableRow key={t.address}><TableCell className="font-mono py-1.5 px-1.5 align-top overflow-visible whitespace-normal">{traderCell}</TableCell><TableCell className="font-mono py-1.5 px-1.5">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-muted-foreground py-1.5 px-1.5 truncate" title="Last fill in last 7d">{lastTradeStr}</TableCell><TableCell colSpan={8} className="text-muted-foreground py-1.5 px-1.5">No open positions</TableCell></TableRow>]
                               : t.positions.map((pos, i) => (
                                   <TableRow key={`${t.address}-${pos.coin}-${i}`}>
                                     {(() => {
@@ -9572,7 +9572,7 @@ function Dashboard() {
                                         <>
                                     {i === 0 ? (
                                       <>
-                                        <TableCell className="align-top py-1.5 px-1.5 truncate max-w-0" rowSpan={t.positions.length}>{traderCell}</TableCell>
+                                        <TableCell className="align-top py-1.5 px-1.5 overflow-visible whitespace-normal" rowSpan={t.positions.length}>{traderCell}</TableCell>
                                         <TableCell className="font-mono align-top py-1.5 px-1.5" rowSpan={t.positions.length}>{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
                                       </>
                                     ) : null}
