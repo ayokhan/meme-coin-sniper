@@ -9,7 +9,7 @@ import axios from "axios";
 import { type DexPair } from "@/lib/api-clients/dexscreener";
 import { fetchGoogleNewsHeadlines } from "@/lib/nova-crypto-narratives";
 
-export type NarrativeTimeframe = "4h" | "daily" | "weekly";
+export type NarrativeTimeframe = "5m" | "15m" | "30m" | "1h" | "4h" | "daily" | "weekly";
 
 export type NarrativeItem = {
   name: string;
@@ -29,10 +29,18 @@ export type NarrativeScanResult = {
   aiGenerated: boolean;
 };
 
+function minutesForTimeframe(tf: NarrativeTimeframe): number {
+  if (tf === "5m") return 5;
+  if (tf === "15m") return 15;
+  if (tf === "30m") return 30;
+  if (tf === "1h") return 60;
+  if (tf === "4h") return 240;
+  if (tf === "daily") return 1440;
+  return 10080;
+}
+
 function hoursForTimeframe(tf: NarrativeTimeframe): number {
-  if (tf === "4h") return 4;
-  if (tf === "daily") return 24;
-  return 168;
+  return minutesForTimeframe(tf) / 60;
 }
 
 function filterPairsByAge(pairs: DexPair[], maxAgeHours: number): DexPair[] {
@@ -97,7 +105,8 @@ export async function runNarrativeScan(timeframe: NarrativeTimeframe): Promise<N
     .map((h) => h.title)
     .join("\n");
 
-  const timeframeLabel = timeframe === "4h" ? "last 4 hours" : timeframe === "daily" ? "last 24 hours" : "last 7 days";
+  const tfLabels: Record<NarrativeTimeframe, string> = { "5m": "last 5 minutes", "15m": "last 15 minutes", "30m": "last 30 minutes", "1h": "last 1 hour", "4h": "last 4 hours", daily: "last 24 hours", weekly: "last 7 days" };
+  const timeframeLabel = tfLabels[timeframe];
 
   const prompt = `You are a meme coin narrative analyst. Given a list of recently launched meme coins and trending crypto headlines, identify the TOP NARRATIVES that traders should watch.
 

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 /* ---------- Types ---------- */
 
-type NarrativeTimeframe = "4h" | "daily" | "weekly";
+type NarrativeTimeframe = "5m" | "15m" | "30m" | "1h" | "4h" | "daily" | "weekly";
 
 type TopCoin = {
   name: string;
@@ -385,7 +385,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
         <div className="space-y-4">
           {/* Timeframe + Scan */}
           <div className="flex flex-wrap items-center gap-2">
-            {(["4h", "daily", "weekly"] as NarrativeTimeframe[]).map((tf) => (
+            {(["5m", "15m", "30m", "1h", "4h", "daily", "weekly"] as NarrativeTimeframe[]).map((tf) => (
               <Button
                 key={tf}
                 size="sm"
@@ -393,7 +393,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
                 onClick={() => handleTimeframeChange(tf)}
                 disabled={loading}
               >
-                {tf === "4h" ? "Last 4h" : tf === "daily" ? "Today" : "This week"}
+                {{ "5m": "5 min", "15m": "15 min", "30m": "30 min", "1h": "1 hour", "4h": "4 hours", daily: "24h", weekly: "7 days" }[tf]}
               </Button>
             ))}
             {!result && !loading && (

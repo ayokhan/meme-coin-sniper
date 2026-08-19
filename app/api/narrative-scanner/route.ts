@@ -99,8 +99,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const timeframe: NarrativeTimeframe =
-      body.timeframe === "4h" ? "4h" : body.timeframe === "weekly" ? "weekly" : "daily";
+    const validTf = new Set(["5m", "15m", "30m", "1h", "4h", "daily", "weekly"]);
+    const timeframe: NarrativeTimeframe = validTf.has(body.timeframe) ? body.timeframe : "daily";
 
     const result = await runNarrativeScan(timeframe);
 
