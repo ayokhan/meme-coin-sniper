@@ -5,7 +5,8 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { CLAUDE_SONNET_MODEL } from "@/lib/anthropic-models";
-import { fetchChainPairsViaSearch, type DexPair } from "@/lib/api-clients/dexscreener";
+import axios from "axios";
+import { type DexPair } from "@/lib/api-clients/dexscreener";
 import { fetchGoogleNewsHeadlines } from "@/lib/nova-crypto-narratives";
 
 export type NarrativeTimeframe = "4h" | "daily" | "weekly";
@@ -54,18 +55,42 @@ function buildPairSummaries(pairs: DexPair[], limit = 200): string {
     .join("\n");
 }
 
+async function quickDexSearch(queries: string[]): Promise<DexPair[]> {
+  const seen = new Set<string>();
+  const all: DexPair[] = [];
+  const results = await Promise.allSettled(
+    queries.map((q) =>
+      axios.get<{ pairs?: DexPair[] }>("https://api.dexscreener.com/latest/dex/search", {
+        params: { q },
+        timeout: 10000,
+      })
+    )
+  );
+  for (const r of results) {
+    if (r.status !== "fulfilled") continue;
+    for (const p of r.value.data?.pairs ?? []) {
+      const chain = (p.chainId || "").toLowerCase();
+      if (chain !== "solana" && chain !== "bsc" && chain !== "bnb") continue;
+      if (seen.has(p.pairAddress)) continue;
+      seen.add(p.pairAddress);
+      all.push(p);
+    }
+  }
+  return all;
+}
+
 export async function runNarrativeScan(timeframe: NarrativeTimeframe): Promise<NarrativeScanResult> {
   const maxAge = hoursForTimeframe(timeframe);
 
-  const [solPairs, bscPairs, headlines] = await Promise.all([
-    fetchChainPairsViaSearch("solana").catch(() => [] as DexPair[]),
-    fetchChainPairsViaSearch("bsc").catch(() => [] as DexPair[]),
+  const searchQueries = ["meme coin", "pump", "new token", "PEPE", "DOGE", "solana", "bsc"];
+
+  const [pairs, headlines] = await Promise.all([
+    quickDexSearch(searchQueries).catch(() => [] as DexPair[]),
     fetchGoogleNewsHeadlines("crypto meme coin trending", 20).catch(() => []),
   ]);
 
-  const allPairs = [...solPairs, ...bscPairs];
-  const recentPairs = filterPairsByAge(allPairs, maxAge);
-  const pairText = buildPairSummaries(recentPairs.length > 0 ? recentPairs : allPairs.slice(0, 150));
+  const recentPairs = filterPairsByAge(pairs, maxAge);
+  const pairText = buildPairSummaries(recentPairs.length > 0 ? recentPairs : pairs.slice(0, 150));
 
   const headlinesText = headlines
     .slice(0, 15)
@@ -151,7 +176,7 @@ Sort by heat descending. No markdown, no explanation, just the JSON array.`;
     timeframe,
     narratives,
     scannedAt: new Date().toISOString(),
-    pairsScanned: recentPairs.length || allPairs.length,
+    pairsScanned: recentPairs.length || pairs.length,
     aiGenerated: true,
   };
 }

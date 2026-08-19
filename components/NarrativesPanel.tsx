@@ -269,21 +269,31 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
     setError(null);
     setLimitLocked(false);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 55000);
       const res = await fetch("/api/narrative-scanner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ timeframe: tf }),
+        signal: controller.signal,
       });
-      const data = await res.json();
+      clearTimeout(timeout);
+      const text = await res.text();
+      let data: Record<string, unknown>;
+      try { data = JSON.parse(text); } catch { data = { success: false, error: text || "Server returned invalid response." }; }
       if (!res.ok || !data.success) {
         if (data.limitReached || data.locked) setLimitLocked(true);
-        setError(data.error || "Scan failed.");
+        setError((data.error as string) || "Scan failed.");
         return;
       }
       setResult(data.result as ScanResult);
-    } catch {
-      setError("Network error — try again.");
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        setError("Scan timed out — try again or pick a shorter timeframe.");
+      } else {
+        setError("Network error — check your connection and try again.");
+      }
     } finally {
       setLoading(false);
     }
