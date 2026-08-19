@@ -7892,7 +7892,7 @@ function Dashboard() {
               )
             ) : activeTab === "narratives" ? (
               <div className="mx-3 sm:mx-6 py-6 sm:py-8">
-                <NarrativesPanel />
+                <NarrativesPanel isPaid={isPaid} />
               </div>
             ) : activeTab === "trading-bot" ? (
               (() => {
