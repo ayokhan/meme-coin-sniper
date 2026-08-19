@@ -114,7 +114,7 @@ TASK: Identify 5-10 distinct narrative themes from the data above. For each narr
 2. Assign a heat score 0-100 (based on how many coins + volume + headline presence)
 3. Direction: "rising" (gaining momentum), "peaking" (at peak), or "fading" (losing steam)
 4. Count how many coins in the list match this narrative
-5. List the top 3 coins (by volume) that match, with their name, symbol, address, chain, volume, and price change
+5. List the top 5 coins (by volume) that match, with their name, symbol, address, chain, volume, and price change
 6. List 2-4 keywords that define this narrative
 7. One-sentence summary of why this narrative matters right now
 
@@ -153,7 +153,7 @@ Sort by heat descending. No markdown, no explanation, just the JSON array.`;
           : "rising") as "rising" | "peaking" | "fading",
         coinCount: Number(item.coinCount) || 0,
         topCoins: Array.isArray(item.topCoins)
-          ? (item.topCoins as Record<string, unknown>[]).slice(0, 3).map((c) => ({
+          ? (item.topCoins as Record<string, unknown>[]).slice(0, 5).map((c) => ({
               name: String(c.name ?? ""),
               symbol: String(c.symbol ?? ""),
               address: String(c.address ?? ""),

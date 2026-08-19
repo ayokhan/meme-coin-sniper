@@ -102,10 +102,11 @@ function HeatBar({ heat }: { heat: number }) {
   const color = heat >= 70 ? "bg-emerald-500" : heat >= 40 ? "bg-amber-500" : "bg-zinc-400";
   return (
     <div className="flex items-center gap-2">
+      <span className="text-[10px] text-muted-foreground shrink-0">Heat</span>
       <div className="flex-1 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
         <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${heat}%` }} />
       </div>
-      <span className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300 w-7 text-right">{heat}</span>
+      <span className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300 w-12 text-right">{heat}/100</span>
     </div>
   );
 }
@@ -117,6 +118,58 @@ function formatVol(n: number): string {
 }
 
 /* ---------- Sub-components ---------- */
+
+function CoinRow({ coin: c }: { coin: TopCoin }) {
+  const [copied, setCopied] = useState(false);
+  const shortAddr = c.address ? `${c.address.slice(0, 6)}…${c.address.slice(-4)}` : "";
+
+  const copyCA = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(c.address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const analyzeUrl = c.chain === "bsc" || c.chain === "bnb"
+    ? `/?tab=ai-analysis&chain=bsc&ca=${c.address}`
+    : `/?tab=ai-analysis&ca=${c.address}`;
+
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 px-3 py-2">
+      <div className="min-w-0 space-y-0.5">
+        <div>
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{c.name}</span>
+          <span className="text-xs text-muted-foreground ml-1.5">{c.symbol}</span>
+          <span className="text-[10px] text-muted-foreground ml-1.5">{c.chain}</span>
+        </div>
+        {c.address && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-mono text-muted-foreground">{shortAddr}</span>
+            <button
+              onClick={copyCA}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors"
+            >
+              {copied ? "Copied!" : "Copy CA"}
+            </button>
+            <a
+              href={analyzeUrl}
+              onClick={(e) => e.stopPropagation()}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/25 transition-colors"
+            >
+              AI Analyze
+            </a>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="text-xs text-muted-foreground">{formatVol(c.volumeUsd)}</span>
+        <span className={`text-xs font-mono ${c.priceChange24h >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+          {c.priceChange24h >= 0 ? "+" : ""}{c.priceChange24h.toFixed(1)}%
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function NarrativeCard({ item }: { item: NarrativeItem }) {
   const [expanded, setExpanded] = useState(false);
@@ -161,19 +214,7 @@ function NarrativeCard({ item }: { item: NarrativeItem }) {
               <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Top coins</p>
               <div className="space-y-1.5">
                 {item.topCoins.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 px-3 py-2">
-                    <div className="min-w-0">
-                      <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{c.name}</span>
-                      <span className="text-xs text-muted-foreground ml-1.5">{c.symbol}</span>
-                      <span className="text-[10px] text-muted-foreground ml-1.5">{c.chain}</span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs text-muted-foreground">{formatVol(c.volumeUsd)}</span>
-                      <span className={`text-xs font-mono ${c.priceChange24h >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
-                        {c.priceChange24h >= 0 ? "+" : ""}{c.priceChange24h.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
+                  <CoinRow key={i} coin={c} />
                 ))}
               </div>
             </div>
