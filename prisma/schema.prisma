@@ -323,6 +323,21 @@ model AiAgentQuotaConfig {
   updatedAt                    DateTime @updatedAt
 }
 
+model NarrativeScannerConfig {
+  id                String   @id @default("default")
+  enabled           Boolean  @default(true)
+  freeDailyLimit    Int      @default(1)
+  vipDailyLimit     Int      @default(5)
+  updatedAt         DateTime @updatedAt
+}
+
+model NarrativeScannerUserLimit {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  dailyLimit     Int
+  updatedAt      DateTime @updatedAt
+}
+
 /** Admin-tunable Go Hunting refresh limits (guest / free / VIP). Owner bypasses all limits. */
 model GoHuntingRefreshConfig {
   id                         String   @id @default("default")

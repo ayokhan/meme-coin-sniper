@@ -467,6 +467,94 @@ export default function AdminProductVisibilityPage() {
           </div>
         </CardContent>
       </Card>
+      <NarrativeScannerConfigCard />
     </div>
+  );
+}
+
+/* ---------- Narrative Scanner Config ---------- */
+
+function NarrativeScannerConfigCard() {
+  const [cfg, setCfg] = useState<{ enabled: boolean; freeDailyLimit: number; vipDailyLimit: number } | null>(null);
+  const [userLimits, setUserLimits] = useState<{ userId: string; dailyLimit: number }[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [newUserId, setNewUserId] = useState("");
+  const [newLimit, setNewLimit] = useState(10);
+
+  useEffect(() => {
+    fetch("/api/admin/narrative-scanner-config")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) { setCfg(d.config); setUserLimits(d.userLimits ?? []); } });
+  }, []);
+
+  const save = async (patch: Record<string, unknown>) => {
+    setSaving(true);
+    const r = await fetch("/api/admin/narrative-scanner-config", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    const d = await r.json();
+    if (d.success) setCfg(d.config);
+    setSaving(false);
+  };
+
+  const setIndividual = async () => {
+    if (!newUserId.trim()) return;
+    await fetch("/api/admin/narrative-scanner-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "set", userId: newUserId.trim(), dailyLimit: newLimit }) });
+    setUserLimits((prev) => [...prev.filter((u) => u.userId !== newUserId.trim()), { userId: newUserId.trim(), dailyLimit: newLimit }]);
+    setNewUserId("");
+  };
+
+  const removeIndividual = async (userId: string) => {
+    await fetch("/api/admin/narrative-scanner-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "remove", userId }) });
+    setUserLimits((prev) => prev.filter((u) => u.userId !== userId));
+  };
+
+  if (!cfg) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Narrative Scanner Config</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={cfg.enabled} onChange={() => save({ enabled: !cfg.enabled })} disabled={saving} className="rounded" />
+          Scanner enabled (visible to users)
+        </label>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-muted-foreground">Free daily limit</label>
+            <input type="number" min={0} className="w-full mt-1 px-2 py-1 rounded border text-sm bg-background" value={cfg.freeDailyLimit} onChange={(e) => setCfg({ ...cfg, freeDailyLimit: +e.target.value })} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">VIP daily limit</label>
+            <input type="number" min={0} className="w-full mt-1 px-2 py-1 rounded border text-sm bg-background" value={cfg.vipDailyLimit} onChange={(e) => setCfg({ ...cfg, vipDailyLimit: +e.target.value })} />
+          </div>
+        </div>
+
+        <Button size="sm" disabled={saving} onClick={() => save({ freeDailyLimit: cfg.freeDailyLimit, vipDailyLimit: cfg.vipDailyLimit })}>
+          {saving ? "Saving…" : "Save limits"}
+        </Button>
+
+        <div className="border-t pt-3">
+          <p className="text-xs font-semibold mb-2">Individual user overrides</p>
+          {userLimits.length > 0 && (
+            <div className="space-y-1 mb-2">
+              {userLimits.map((u) => (
+                <div key={u.userId} className="flex items-center justify-between gap-2 text-xs bg-zinc-50 dark:bg-zinc-900 rounded px-2 py-1">
+                  <span className="font-mono truncate">{u.userId}</span>
+                  <span>{u.dailyLimit}/day</span>
+                  <button onClick={() => removeIndividual(u.userId)} className="text-red-500 hover:text-red-700">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2 items-end">
+            <input placeholder="User ID" value={newUserId} onChange={(e) => setNewUserId(e.target.value)} className="flex-1 px-2 py-1 rounded border text-xs bg-background" />
+            <input type="number" min={0} value={newLimit} onChange={(e) => setNewLimit(+e.target.value)} className="w-16 px-2 py-1 rounded border text-xs bg-background" />
+            <Button size="sm" variant="outline" onClick={setIndividual}>Set</Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

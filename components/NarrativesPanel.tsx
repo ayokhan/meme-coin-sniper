@@ -455,7 +455,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
               </p>
               {!isPaid && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Free plan: 1 scan per day. Pro/VIP: unlimited.
+                  Free plan: 1 scan/day. VIP: 5 scans/day. Owner: unlimited.
                 </p>
               )}
             </div>

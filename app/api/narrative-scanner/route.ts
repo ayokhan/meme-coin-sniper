@@ -7,7 +7,6 @@ import { prisma } from "@/lib/db";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const FREE_DAILY_LIMIT = 1;
 const SOURCE = "narrative_scanner";
 
 function getDayBounds(): { start: Date; end: Date } {
@@ -17,6 +16,29 @@ function getDayBounds(): { start: Date; end: Date } {
   const end = new Date(start);
   end.setUTCDate(end.getUTCDate() + 1);
   return { start, end };
+}
+
+type PrismaExt = typeof prisma & {
+  narrativeScannerConfig?: {
+    findUnique: (a: { where: { id: string } }) => Promise<{ enabled: boolean; freeDailyLimit: number; vipDailyLimit: number } | null>;
+  };
+  narrativeScannerUserLimit?: {
+    findUnique: (a: { where: { userId: string } }) => Promise<{ dailyLimit: number } | null>;
+  };
+};
+
+async function getConfig() {
+  const db = (prisma as unknown as PrismaExt).narrativeScannerConfig;
+  if (!db) return { enabled: true, freeDailyLimit: 1, vipDailyLimit: 5 };
+  const row = await db.findUnique({ where: { id: "default" } });
+  return row ?? { enabled: true, freeDailyLimit: 1, vipDailyLimit: 5 };
+}
+
+async function getUserLimit(userId: string): Promise<number | null> {
+  const db = (prisma as unknown as PrismaExt).narrativeScannerUserLimit;
+  if (!db) return null;
+  const row = await db.findUnique({ where: { userId } });
+  return row?.dailyLimit ?? null;
 }
 
 export async function POST(request: Request) {
@@ -31,23 +53,45 @@ export async function POST(request: Request) {
       );
     }
 
-    const isOwner = isOwnerSession(session);
-    const unlimited = isPaid || isOwner;
+    const config = await getConfig();
 
-    if (!unlimited) {
+    if (!config.enabled) {
+      const isOwner = isOwnerSession(session);
+      if (!isOwner) {
+        return NextResponse.json(
+          { success: false, error: "Narrative Scanner is currently disabled by admin.", locked: true },
+          { status: 403 }
+        );
+      }
+    }
+
+    const isOwner = isOwnerSession(session);
+
+    if (!isOwner) {
+      const individualLimit = await getUserLimit(userId);
+      const dailyLimit = individualLimit ?? (isPaid ? config.vipDailyLimit : config.freeDailyLimit);
+
+      if (dailyLimit === 0) {
+        return NextResponse.json(
+          { success: false, error: "Your access to the Narrative Scanner has been disabled.", locked: true },
+          { status: 403 }
+        );
+      }
+
       const { start, end } = getDayBounds();
       const usedToday = await prisma.usageAnalysisEvent.count({
         where: { userId, source: SOURCE, createdAt: { gte: start, lt: end } },
       });
-      if (usedToday >= FREE_DAILY_LIMIT) {
+
+      if (usedToday >= dailyLimit) {
         return NextResponse.json(
           {
             success: false,
-            error: `Daily limit reached (${FREE_DAILY_LIMIT} free Narrative Scanner scan per day — resets at midnight UTC). Upgrade to Pro or VIP for unlimited access.`,
+            error: `Daily limit reached (${dailyLimit} scan${dailyLimit !== 1 ? "s" : ""} per day — resets midnight UTC).${!isPaid ? " Upgrade to Pro or VIP for more." : ""}`,
             locked: true,
             limitReached: true,
             used: usedToday,
-            limit: FREE_DAILY_LIMIT,
+            limit: dailyLimit,
           },
           { status: 429 }
         );
@@ -60,7 +104,7 @@ export async function POST(request: Request) {
 
     const result = await runNarrativeScan(timeframe);
 
-    if (!unlimited) {
+    if (!isOwner) {
       await prisma.usageAnalysisEvent.create({
         data: { userId, source: SOURCE },
       });
