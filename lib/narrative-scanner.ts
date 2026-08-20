@@ -1,12 +1,17 @@
 /**
- * Narrative Scanner: clusters DexScreener new-pair names + Google Trends
+ * Narrative Scanner: clusters fresh DexScreener pairs + headlines
  * into actionable narrative themes via Claude.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
 import { CLAUDE_SONNET_MODEL } from "@/lib/anthropic-models";
 import axios from "axios";
-import { type DexPair } from "@/lib/api-clients/dexscreener";
+import {
+  type DexPair,
+  getNewSolanaPairsFromWebSocket,
+  getVolumeForWindow,
+  type SurgeWindow,
+} from "@/lib/api-clients/dexscreener";
 import { fetchGoogleNewsHeadlines } from "@/lib/nova-crypto-narratives";
 
 export type NarrativeTimeframe = "5m" | "15m" | "30m" | "1h" | "4h" | "daily" | "weekly";
@@ -39,26 +44,92 @@ function minutesForTimeframe(tf: NarrativeTimeframe): number {
   return 10080;
 }
 
-function hoursForTimeframe(tf: NarrativeTimeframe): number {
-  return minutesForTimeframe(tf) / 60;
+function surgeWindowFor(tf: NarrativeTimeframe): SurgeWindow {
+  if (tf === "5m") return "m5";
+  if (tf === "15m") return "m15";
+  if (tf === "30m") return "m30";
+  if (tf === "1h") return "h1";
+  if (tf === "4h") return "h6";
+  return "h24";
 }
 
-function filterPairsByAge(pairs: DexPair[], maxAgeHours: number): DexPair[] {
-  const cutoff = Date.now() - maxAgeHours * 60 * 60 * 1000;
-  return pairs.filter((p) => {
-    const created = p.pairCreatedAt < 1e12 ? p.pairCreatedAt * 1000 : p.pairCreatedAt;
-    return created >= cutoff;
-  });
+function isShortTf(tf: NarrativeTimeframe): boolean {
+  return tf === "5m" || tf === "15m" || tf === "30m" || tf === "1h";
 }
 
-function buildPairSummaries(pairs: DexPair[], limit = 200): string {
-  const sorted = [...pairs].sort((a, b) => (b.volume?.h24 ?? 0) - (a.volume?.h24 ?? 0));
-  return sorted
+function pairCreatedMs(p: DexPair): number {
+  const created = p.pairCreatedAt ?? 0;
+  return created < 1e12 ? created * 1000 : created;
+}
+
+function windowVolume(p: DexPair, tf: NarrativeTimeframe): number {
+  return getVolumeForWindow(p, surgeWindowFor(tf));
+}
+
+function windowChange(p: DexPair, tf: NarrativeTimeframe): number {
+  if (tf === "5m") return p.priceChange?.m5 ?? p.priceChange?.h1 ?? 0;
+  if (tf === "15m" || tf === "30m" || tf === "1h") return p.priceChange?.h1 ?? p.priceChange?.m5 ?? 0;
+  if (tf === "4h") return p.priceChange?.h6 ?? p.priceChange?.h1 ?? p.priceChange?.h24 ?? 0;
+  return p.priceChange?.h24 ?? 0;
+}
+
+function recentTxnCount(p: DexPair): number {
+  const h1 = p.txns?.h1;
+  const h6 = p.txns?.h6;
+  const h24 = p.txns?.h24;
+  if (h1) return (h1.buys ?? 0) + (h1.sells ?? 0);
+  if (h6) return (h6.buys ?? 0) + (h6.sells ?? 0);
+  if (h24) return (h24.buys ?? 0) + (h24.sells ?? 0);
+  return 0;
+}
+
+/** Drop rugs / dead pools: need liquidity + recent flow. */
+function isAlivePair(p: DexPair, tf: NarrativeTimeframe): boolean {
+  const liq = p.liquidity?.usd ?? 0;
+  const vol = windowVolume(p, tf);
+  const txns = recentTxnCount(p);
+  const change = windowChange(p, tf);
+
+  const minLiq = isShortTf(tf) ? 1500 : 3000;
+  const minVol =
+    tf === "5m" ? 200 :
+    tf === "15m" ? 500 :
+    tf === "30m" ? 1000 :
+    tf === "1h" ? 2000 :
+    tf === "4h" ? 5000 :
+    8000;
+
+  if (liq < minLiq) return false;
+  if (vol < minVol && txns < 8) return false;
+  // Hard dumps with no buy flow look dead
+  if (change <= -70 && txns < 20) return false;
+  return true;
+}
+
+function filterPairsForTimeframe(pairs: DexPair[], tf: NarrativeTimeframe): DexPair[] {
+  const maxAgeMin = minutesForTimeframe(tf);
+  // Short windows: allow a little slack so we still get a usable sample
+  const ageSlack = isShortTf(tf) ? Math.max(maxAgeMin, Math.min(maxAgeMin * 2, 90)) : maxAgeMin;
+  const cutoff = Date.now() - ageSlack * 60 * 1000;
+
+  return pairs
+    .filter((p) => {
+      const created = pairCreatedMs(p);
+      if (!created || created < cutoff) return false;
+      return isAlivePair(p, tf);
+    })
+    .sort((a, b) => windowVolume(b, tf) - windowVolume(a, tf));
+}
+
+function buildPairSummaries(pairs: DexPair[], tf: NarrativeTimeframe, limit = 120): string {
+  return pairs
     .slice(0, limit)
     .map((p) => {
-      const vol = p.volume?.h24 ?? 0;
-      const change = p.priceChange?.h24 ?? 0;
-      return `${p.baseToken.name} (${p.baseToken.symbol}) | chain:${p.chainId} | vol24h:$${vol.toLocaleString()} | change:${change > 0 ? "+" : ""}${change.toFixed(1)}% | addr:${p.baseToken.address}`;
+      const vol = windowVolume(p, tf);
+      const change = windowChange(p, tf);
+      const ageMin = Math.max(0, Math.round((Date.now() - pairCreatedMs(p)) / 60000));
+      const liq = Math.round(p.liquidity?.usd ?? 0);
+      return `${p.baseToken.name} (${p.baseToken.symbol}) | chain:${p.chainId} | age:${ageMin}m | liq:$${liq} | vol:$${Math.round(vol).toLocaleString()} | chg:${change > 0 ? "+" : ""}${change.toFixed(1)}% | addr:${p.baseToken.address}`;
     })
     .join("\n");
 }
@@ -70,7 +141,7 @@ async function quickDexSearch(queries: string[]): Promise<DexPair[]> {
     queries.map((q) =>
       axios.get<{ pairs?: DexPair[] }>("https://api.dexscreener.com/latest/dex/search", {
         params: { q },
-        timeout: 10000,
+        timeout: 8000,
       })
     )
   );
@@ -87,47 +158,118 @@ async function quickDexSearch(queries: string[]): Promise<DexPair[]> {
   return all;
 }
 
-export async function runNarrativeScan(timeframe: NarrativeTimeframe): Promise<NarrativeScanResult> {
-  const maxAge = hoursForTimeframe(timeframe);
+/** HTTP source of recently profiled/boosted tokens (works on serverless without WS). */
+async function fetchLatestProfilePairs(): Promise<DexPair[]> {
+  try {
+    const [profiles, boosts] = await Promise.all([
+      axios.get<{ chainId?: string; tokenAddress?: string }[]>("https://api.dexscreener.com/token-profiles/latest/v1", { timeout: 7000 }).catch(() => ({ data: [] })),
+      axios.get<{ chainId?: string; tokenAddress?: string }[]>("https://api.dexscreener.com/token-boosts/latest/v1", { timeout: 7000 }).catch(() => ({ data: [] })),
+    ]);
+    const addrs = new Map<string, string>(); // address -> chain
+    for (const row of [...(profiles.data ?? []), ...(boosts.data ?? [])]) {
+      const chain = (row.chainId || "").toLowerCase();
+      if (chain !== "solana" && chain !== "bsc" && chain !== "bnb") continue;
+      if (!row.tokenAddress) continue;
+      addrs.set(row.tokenAddress, chain);
+    }
+    const list = [...addrs.keys()].slice(0, 30);
+    if (list.length === 0) return [];
+    const res = await axios.get<{ pairs?: DexPair[] }>(
+      `https://api.dexscreener.com/latest/dex/tokens/${list.join(",")}`,
+      { timeout: 8000 }
+    );
+    return res.data?.pairs ?? [];
+  } catch {
+    return [];
+  }
+}
 
-  const searchQueries = ["meme coin", "pump", "new token", "PEPE", "DOGE", "solana", "bsc"];
+async function fetchFreshPairs(tf: NarrativeTimeframe): Promise<DexPair[]> {
+  const seen = new Set<string>();
+  const all: DexPair[] = [];
+  const push = (pairs: DexPair[]) => {
+    for (const p of pairs) {
+      if (!p?.pairAddress || seen.has(p.pairAddress)) continue;
+      seen.add(p.pairAddress);
+      all.push(p);
+    }
+  };
 
-  const [pairs, headlines] = await Promise.all([
-    quickDexSearch(searchQueries).catch(() => [] as DexPair[]),
-    fetchGoogleNewsHeadlines("crypto meme coin trending", 20).catch(() => []),
+  // Newest Solana pairs (WS) + latest profiles (HTTP) + light search
+  const wsTimeout = isShortTf(tf) ? 7000 : 9000;
+  const [wsPairs, profilePairs, searchPairs] = await Promise.all([
+    getNewSolanaPairsFromWebSocket(wsTimeout).catch(() => [] as DexPair[]),
+    fetchLatestProfilePairs().catch(() => [] as DexPair[]),
+    quickDexSearch(
+      isShortTf(tf)
+        ? ["solana", "pump", "bsc"]
+        : ["meme coin", "pump", "solana", "bsc", "PEPE"]
+    ).catch(() => [] as DexPair[]),
   ]);
 
-  const recentPairs = filterPairsByAge(pairs, maxAge);
-  const pairText = buildPairSummaries(recentPairs.length > 0 ? recentPairs : pairs.slice(0, 150));
+  push(wsPairs);
+  push(profilePairs);
+  push(searchPairs);
+  return all;
+}
+
+export async function runNarrativeScan(timeframe: NarrativeTimeframe): Promise<NarrativeScanResult> {
+  const wantHeadlines = !isShortTf(timeframe); // skip news on ultra-short windows (speed)
+
+  const [pairs, headlines] = await Promise.all([
+    fetchFreshPairs(timeframe),
+    wantHeadlines
+      ? fetchGoogleNewsHeadlines("crypto meme coin trending", 12).catch(() => [])
+      : Promise.resolve([] as { title: string }[]),
+  ]);
+
+  const filtered = filterPairsForTimeframe(pairs, timeframe);
+  // Never dump stale pairs into a short scan — better empty than dead coins
+  const working = filtered.length > 0
+    ? filtered
+    : (!isShortTf(timeframe)
+        ? pairs.filter((p) => isAlivePair(p, timeframe)).sort((a, b) => windowVolume(b, timeframe) - windowVolume(a, timeframe)).slice(0, 100)
+        : []);
+
+  const pairText = buildPairSummaries(working, timeframe, isShortTf(timeframe) ? 80 : 120);
 
   const headlinesText = headlines
-    .slice(0, 15)
+    .slice(0, 10)
     .map((h) => h.title)
     .join("\n");
 
-  const tfLabels: Record<NarrativeTimeframe, string> = { "5m": "last 5 minutes", "15m": "last 15 minutes", "30m": "last 30 minutes", "1h": "last 1 hour", "4h": "last 4 hours", daily: "last 24 hours", weekly: "last 7 days" };
+  const tfLabels: Record<NarrativeTimeframe, string> = {
+    "5m": "last 5 minutes",
+    "15m": "last 15 minutes",
+    "30m": "last 30 minutes",
+    "1h": "last 1 hour",
+    "4h": "last 4 hours",
+    daily: "last 24 hours",
+    weekly: "last 7 days",
+  };
   const timeframeLabel = tfLabels[timeframe];
 
-  const prompt = `You are a meme coin narrative analyst. Given a list of recently launched meme coins and trending crypto headlines, identify the TOP NARRATIVES that traders should watch.
+  if (working.length === 0) {
+    return {
+      timeframe,
+      narratives: [],
+      scannedAt: new Date().toISOString(),
+      pairsScanned: 0,
+      aiGenerated: false,
+    };
+  }
+
+  const prompt = `You are a meme coin narrative analyst. Identify LIVE narratives from FRESH launches only.
 
 TIMEFRAME: ${timeframeLabel}
+IMPORTANT: Prefer coins that are young and still moving. Ignore dead/rugged names. Cluster by theme from token NAMES/SYMBOLS.
 
-RECENT MEME COIN LAUNCHES (name | symbol | chain | volume | price change | address):
-${pairText || "(no pairs available)"}
+COINS (name | symbol | chain | age | liquidity | window vol | change | address):
+${pairText}
 
-TRENDING HEADLINES:
-${headlinesText || "(no headlines available)"}
+${headlinesText ? `HEADLINES:\n${headlinesText}` : ""}
 
-TASK: Identify 5-10 distinct narrative themes from the data above. For each narrative:
-1. Give it a short, catchy name (e.g. "AI Agents", "Trump Politics", "Dog Coins", "Aliens")
-2. Assign a heat score 0-100 (based on how many coins + volume + headline presence)
-3. Direction: "rising" (gaining momentum), "peaking" (at peak), or "fading" (losing steam)
-4. Count how many coins in the list match this narrative
-5. List the top 5 coins (by volume) that match, with their name, symbol, address, chain, volume, and price change
-6. List 2-4 keywords that define this narrative
-7. One-sentence summary of why this narrative matters right now
-
-Return ONLY valid JSON array. Each item:
+Return 4-8 narratives as ONLY a JSON array:
 {
   "name": "string",
   "heat": number,
@@ -137,13 +279,12 @@ Return ONLY valid JSON array. Each item:
   "keywords": ["string"],
   "summary": "string"
 }
-
-Sort by heat descending. No markdown, no explanation, just the JSON array.`;
+Sort by heat desc. No markdown.`;
 
   const client = new Anthropic();
   const msg = await client.messages.create({
     model: CLAUDE_SONNET_MODEL,
-    max_tokens: 4000,
+    max_tokens: isShortTf(timeframe) ? 2500 : 3500,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -185,7 +326,7 @@ Sort by heat descending. No markdown, no explanation, just the JSON array.`;
     timeframe,
     narratives,
     scannedAt: new Date().toISOString(),
-    pairsScanned: recentPairs.length || pairs.length,
-    aiGenerated: true,
+    pairsScanned: working.length,
+    aiGenerated: narratives.length > 0,
   };
 }

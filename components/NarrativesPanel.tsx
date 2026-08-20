@@ -299,7 +299,7 @@ type SubTab = "scanner" | "diy";
 
 export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
   const [subTab, setSubTab] = useState<SubTab>("scanner");
-  const [timeframe, setTimeframe] = useState<NarrativeTimeframe>("daily");
+  const [timeframe, setTimeframe] = useState<NarrativeTimeframe>("30m");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -311,7 +311,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
     setLimitLocked(false);
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 55000);
+      const timeout = setTimeout(() => controller.abort(), 58000);
       const res = await fetch("/api/narrative-scanner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -331,7 +331,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
       setResult(data.result as ScanResult);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
-        setError("Scan timed out — try again or pick a shorter timeframe.");
+        setError("Scan timed out — try again in a moment.");
       } else {
         setError("Network error — check your connection and try again.");
       }
@@ -339,11 +339,6 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
       setLoading(false);
     }
   }, []);
-
-  const handleTimeframeChange = (tf: NarrativeTimeframe) => {
-    setTimeframe(tf);
-    scan(tf);
-  };
 
   return (
     <div className="max-w-2xl mx-auto pb-8">
@@ -389,25 +384,23 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
               <Button
                 key={tf}
                 size="sm"
-                variant={timeframe === tf && result?.timeframe === tf ? "default" : "outline"}
-                onClick={() => handleTimeframeChange(tf)}
+                variant={timeframe === tf ? "default" : "outline"}
+                onClick={() => setTimeframe(tf)}
                 disabled={loading}
               >
                 {{ "5m": "5 min", "15m": "15 min", "30m": "30 min", "1h": "1 hour", "4h": "4 hours", daily: "24h", weekly: "7 days" }[tf]}
               </Button>
             ))}
-            {!result && !loading && (
-              <Button size="sm" onClick={() => scan(timeframe)} disabled={loading} className="ml-auto">
-                Scan narratives
-              </Button>
-            )}
+            <Button size="sm" onClick={() => scan(timeframe)} disabled={loading} className="ml-auto">
+              {result ? "Refresh" : "Scan narratives"}
+            </Button>
           </div>
 
           {/* Status */}
           {loading && (
             <div className="flex items-center gap-3 py-8 justify-center">
               <div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-muted-foreground">Scanning narratives… (takes ~15s)</span>
+              <span className="text-sm text-muted-foreground">Scanning fresh launches…</span>
             </div>
           )}
 
@@ -427,11 +420,8 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
             <>
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
-                  {result.narratives.length} narrative{result.narratives.length !== 1 ? "s" : ""} found · {result.pairsScanned} pairs scanned · {new Date(result.scannedAt).toLocaleTimeString()}
+                  {result.narratives.length} narrative{result.narratives.length !== 1 ? "s" : ""} · {result.pairsScanned} live pairs · {new Date(result.scannedAt).toLocaleTimeString()}
                 </p>
-                <Button size="sm" variant="ghost" onClick={() => scan(timeframe)} disabled={loading} className="text-xs">
-                  Refresh
-                </Button>
               </div>
               <div className="space-y-3">
                 {result.narratives.map((item, i) => (
@@ -440,7 +430,9 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
               </div>
               {result.narratives.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  No strong narratives detected for this timeframe. Try a wider window.
+                  {result.pairsScanned === 0
+                    ? "No fresh live pairs in this window right now. Try 30 min or 1 hour."
+                    : "No strong narrative cluster yet — try a slightly wider window."}
                 </p>
               )}
             </>
@@ -451,7 +443,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
             <div className="text-center py-10 space-y-3">
               <p className="text-4xl">🔍</p>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Select a timeframe and hit <strong>Scan narratives</strong> to discover what themes are driving meme coin launches right now.
+                Pick a timeframe (start with <strong>30 min</strong>) and hit <strong>Scan narratives</strong> to catch themes forming now — not dead 24h coins.
               </p>
               {!isPaid && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
