@@ -42,7 +42,6 @@ export async function GET(request: Request) {
     pinnedReanalyze?: { ok: boolean; updated?: number; message?: string };
     tradingBot?: { ok: boolean; message?: string; error?: string };
     perpNewListing?: { ok: boolean; newListings?: number; sent?: number; message?: string };
-    perpDigest?: { ok: boolean; message?: string };
     perpAlerts?: { ok: boolean; triggered?: number; message?: string };
     blofinEarlyBreakout?: { ok: boolean; triggered?: number; skipped?: string; message?: string };
     novaScalper?: { ok: boolean; processed?: number; skipped?: boolean; message?: string };
@@ -197,17 +196,8 @@ export async function GET(request: Request) {
     results.perpNewListing = { ok: false, message: e instanceof Error ? e.message : 'Perp new listing failed' };
   }
 
-  try {
-    const authDigest = request.headers.get('authorization');
-    const digestRes = await fetch(`${base}/api/cron/perp-digest`, {
-      cache: 'no-store',
-      headers: authDigest ? { Authorization: authDigest } : {},
-    });
-    const digestData = await digestRes.json().catch(() => ({}));
-    results.perpDigest = { ok: digestData.success === true, message: digestData.error };
-  } catch (e) {
-    results.perpDigest = { ok: false, message: e instanceof Error ? e.message : 'Perp digest failed' };
-  }
+  // Daily Futures Wrap runs on dedicated /api/cron/perp-digest (00:05 UTC) — not here —
+  // so master cron OFF does not block the wrap, and this heavy chain stays lighter.
 
   try {
     const authAlerts = request.headers.get('authorization');

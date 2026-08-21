@@ -1,46 +1,36 @@
-# Perp digest / Daily Futures Wrap: when it runs and where email comes from
+# Perp digest / Daily Futures Wrap: when it runs and CPU
 
-## Where does the Morning Futures Brief come from?
+## Why you might not see content yet
 
-**Auto-generated once per day** (no per-user AI, no scraping loop):
+1. Open **Crypto Futures → Daily Wrap** (orange button). Hard-refresh if needed.
+2. Until the wrap cron runs once, the panel says “No wrap yet”.
+3. **Master cron OFF does not block the wrap anymore** — wrap has its own light cron.
 
-1. Vercel Cron hits `/api/cron` at **00:00 UTC**.
-2. That calls `/api/cron/perp-digest`, which:
-   - Pulls live Hyperliquid perp data (majors, momentum, funding, new listings)
-   - Builds **Hot Topics** + **Market Updates**
-   - **Upserts** a `FuturesDailyWrap` row for today’s UTC date
-   - Sends Telegram + Morning Futures Brief email
+## CPU: does this increase usage?
 
-In-app **Crypto Futures → Daily Wrap** only **reads** the stored row (cheap).
+**Barely**, if you keep the **heavy master cron OFF** and only enable the wrap cron:
 
-## When does the digest run?
+| Job | When | Cost |
+|-----|------|------|
+| Master `/api/cron` | 00:00 UTC | Heavy (scans, wallets, bots…) — keep OFF to save CPU |
+| **Daily Wrap** `/api/cron/perp-digest` | **00:05 UTC** | Light: ~1 Hyperliquid API call + DB upsert + optional emails |
+| Emails `/api/cron/emails` | 00:15 UTC | Light VIP emails only |
 
-- **Vercel Cron** in `vercel.json`: path `/api/cron`, schedule **`0 0 * * *`** = **once per day at 00:00 UTC**.
-- Master switch: **Admin → Feature flags → “Vercel scheduled cron (master)”** (`vercel_cron_enabled`).
-  - When **OFF**, `/api/cron` returns `skipped: true` and the wrap is **not** built.
-  - When **ON**, the full chain runs (including perp digest / Daily Wrap).
+Opening Daily Wrap in the app only **reads** stored JSON — no market fetch per visitor.
 
-How to confirm cron is on:
+## Feature flags (Admin → Feature flags → “Vercel & usage”)
 
-1. **Admin → Feature flags** — ensure **Vercel scheduled cron (master)** is ON.
-2. **Vercel Dashboard → Project → Settings → Cron Jobs** — `/api/cron` should be listed (`0 0 * * *`).
-3. After midnight UTC (or a manual trigger), check **Crypto Futures → Daily Wrap** for today’s entry, or `DIGEST_EMAIL_TO` inbox for “Morning Futures Brief”.
+| Flag | Purpose |
+|------|---------|
+| **Daily Futures Wrap cron (lightweight)** (`futures_daily_wrap_cron`) | ON = build wrap daily. OFF = zero auto wrap CPU. **Default ON.** |
+| **Send digest to newsletter subscribers** | ON = email teasers to opt-ins. OFF = only `DIGEST_EMAIL_TO` + Telegram. **Default OFF.** |
+| **Vercel scheduled cron (master)** | Heavy chain — leave OFF for CPU. |
 
-## Where does the email come from?
-
-- **Provider:** Resend (`RESEND_API_KEY`, `RESEND_FROM`).
-- **Subject:** `Morning Futures Brief | <date>`
-- **Who receives it:**
-  1. **`DIGEST_EMAIL_TO`** — full wrap HTML
-  2. **Newsletter subscribers** — if feature flag **“Send digest to newsletter subscribers”** is ON — teaser HTML with CTA into the app
-
-Manual send: **Admin → Emails → preset “Morning Futures Brief”**.
-
-## How to test without waiting for midnight UTC
+## Seed today without waiting
 
 ```http
-GET https://your-production-url.vercel.app/api/cron/perp-digest
-Authorization: Bearer YOUR_CRON_SECRET
+GET https://novastaris.ai/api/cron/perp-digest
+Authorization: Bearer <CRON_SECRET>
 ```
 
-Or trigger the full master cron: `GET /api/cron` with the same header.
+Requires `futures_daily_wrap_cron` ON.

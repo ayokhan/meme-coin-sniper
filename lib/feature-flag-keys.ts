@@ -54,8 +54,14 @@ export const FEATURE_FLAG_KEYS = {
   OWNER_FIRST_BUY_ALERTS: 'owner_first_buy_alerts',
   /** Send Top Leverage Traders new-trade alerts to Telegram when an alert-enabled wallet changes positions. */
   TELEGRAM_LEVERAGE_ALERTS: 'telegram_leverage_alerts',
-  /** Send perp digest to users who opted in to newsletter. When OFF, digest goes only to Telegram and DIGEST_EMAIL_TO. */
+  /** Send Morning Futures Brief email to newsletter subscribers. When OFF, digest email goes only to DIGEST_EMAIL_TO. */
   DIGEST_TO_NEWSLETTER_SUBSCRIBERS: 'digest_to_newsletter_subscribers',
+  /**
+   * Dedicated lightweight cron /api/cron/perp-digest (Daily Futures Wrap + optional emails).
+   * Independent of vercel_cron_enabled — keep this ON with master cron OFF to avoid heavy CPU.
+   * One Hyperliquid fetch + DB upsert per day. Default ON.
+   */
+  FUTURES_DAILY_WRAP_CRON: 'futures_daily_wrap_cron',
   /** NovaConnect social portal (Nova Connect tab, community rules, and links). When OFF, Nova Connect tab is hidden. */
   NOVA_CONNECT: 'nova_connect',
   /** Server batch job /api/cron/nova-scalper: run NovaScalper ticks for enabled users. Default OFF; Admin → Feature flags → NovaScalper overnight automation. */

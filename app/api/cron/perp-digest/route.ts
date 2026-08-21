@@ -14,14 +14,26 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Cron-only: Build + store Daily Futures Wrap, send Telegram + Morning Futures Brief email.
- * Content is auto-generated from Hyperliquid perp data (once/day). Called from main cron.
+ * Dedicated lightweight cron: Daily Futures Wrap + optional Morning Brief emails.
+ * Independent of master /api/cron (keep master OFF for CPU; keep this ON for the wrap).
+ * Auth: Bearer CRON_SECRET.
+ * Flag: futures_daily_wrap_cron (Admin → Feature flags).
  */
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
   if (secret && auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const wrapCronEnabled = await getFeatureFlag(FEATURE_FLAG_KEYS.FUTURES_DAILY_WRAP_CRON);
+  if (!wrapCronEnabled) {
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      message:
+        "Daily Futures Wrap cron disabled in Admin → Feature flags → Daily Futures Wrap cron.",
+    });
   }
 
   try {

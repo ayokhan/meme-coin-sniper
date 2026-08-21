@@ -116,6 +116,9 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
     title: "Vercel & usage (cost control)",
     match: (k) =>
       k === "vercel_cron_enabled" ||
+      k === "email_notifications_cron" ||
+      k === "futures_daily_wrap_cron" ||
+      k === "digest_to_newsletter_subscribers" ||
       k === "analytics_ping_enabled" ||
       k === "login_location_intel" ||
       k === "live_activity_enabled" ||
@@ -415,11 +418,6 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Telegram Top Leverage Traders alerts",
     description: "Send Telegram when an alert-enabled leverage wallet changes positions (cron). Toggle per wallet in Nova Admin → Leverage Wallet Tracker.",
   },
-  digest_to_newsletter_subscribers: {
-    label: "Send digest to newsletter subscribers",
-    description:
-      "When ON, the Morning Futures Brief (Daily Wrap teaser) is emailed to users who opted in at registration. When OFF, digest goes only to Telegram and DIGEST_EMAIL_TO. In-app Daily Wrap still updates when master cron runs.",
-  },
   nova_connect: {
     label: "NovaConnect (social portal)",
     description: "Enable the NovaConnect tab (social feed + community rules). When OFF, the NovaConnect tab is hidden for all users.",
@@ -617,7 +615,17 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   vercel_cron_enabled: {
     label: "Vercel scheduled cron (master)",
     description:
-      "When ON, Vercel runs /api/cron once daily (00:00 UTC): Birdeye scan, CT/Twitter scan, wallet Telegram alerts, leverage alerts, pinned token re-analyze, trading bot, perp listing/digest/alerts, Blofin breakout, NovaScalper batch (if enabled), meme leaderboard refresh (if enabled). Does NOT send VIP emails anymore — those use the separate Email notifications cron. Turn OFF to skip the heavy chain and save CPU. Manual Scan buttons still work.",
+      "When ON, Vercel runs /api/cron once daily (00:00 UTC): Birdeye scan, CT/Twitter scan, wallet Telegram alerts, leverage alerts, pinned token re-analyze, trading bot, perp listing/alerts, Blofin breakout, NovaScalper batch (if enabled), meme leaderboard refresh (if enabled). Does NOT include Daily Futures Wrap or VIP emails anymore — those use dedicated light crons. Turn OFF to skip the heavy chain and save CPU. Manual Scan buttons still work.",
+  },
+  futures_daily_wrap_cron: {
+    label: "Daily Futures Wrap cron (lightweight)",
+    description:
+      "When ON (default), Vercel runs /api/cron/perp-digest daily at 00:05 UTC: one Hyperliquid fetch, store Daily Wrap, Telegram + optional Morning Brief emails. Independent of the heavy master cron — keep this ON while master is OFF. When OFF, no auto wrap/emails (in-app Daily Wrap tab still visible but empty until you trigger manually).",
+  },
+  digest_to_newsletter_subscribers: {
+    label: "Send digest to newsletter subscribers",
+    description:
+      "When ON, the Morning Futures Brief teaser is emailed to users who opted in at registration. When OFF, digest email goes only to DIGEST_EMAIL_TO (plus Telegram). Requires Daily Futures Wrap cron ON. In-app Daily Wrap still updates when the wrap cron runs.",
   },
   email_notifications_cron: {
     label: "Email notifications cron (dedicated)",
