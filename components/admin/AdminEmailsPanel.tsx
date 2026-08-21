@@ -598,8 +598,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             </p>
           )}
           {format === "rich" && draft.template === "futures-morning-brief" && (
-            <p className="text-xs text-orange-700 dark:text-orange-300 rounded-md border border-orange-500/30 bg-orange-500/10 px-3 py-2">
-              Morning Futures Brief layout (dark digest + orange keywords). Bullet lines become teasers; CTA opens Daily Wrap. Also auto-sent by cron when digest-to-newsletter is ON.
+            <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
+              Morning Futures Brief layout (dark digest + teal keywords). Bullet lines become teasers; CTA opens Daily Wrap. Also auto-sent by cron when digest-to-newsletter is ON.
             </p>
           )}
           {format === "rich" && draft.template === "nova-branded" && (
@@ -773,33 +773,50 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-medium">Recipients ({recipients.length})</p>
-              {draft.audience !== "new" && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    if (!stats) return;
-                    const list =
-                      draft.audience === "newsletter"
-                        ? stats.newsletterEmails
-                        : draft.audience === "free"
-                          ? stats.freeEmails ?? []
-                          : draft.audience === "vip"
-                            ? stats.vipEmails ?? []
-                            : draft.audience === "inactive7d"
-                              ? stats.inactive7dEmails ?? []
-                              : draft.audience === "trial"
-                                ? stats.trialEmails ?? []
-                                : draft.audience === "trial-expiring"
-                                  ? stats.trialExpiringEmails ?? []
-                                  : stats.allEmails;
-                    setRecipients([...list]);
-                  }}
-                >
-                  Reset from audience
-                </Button>
-              )}
+              <div className="flex flex-wrap items-center gap-1">
+                {recipients.length > 0 && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-zinc-500 hover:text-red-600 dark:hover:text-red-400"
+                    onClick={() => {
+                      setRecipients([]);
+                      setSelectedNewEmails(new Set());
+                      setRecipientsLocked(false);
+                    }}
+                  >
+                    Clear all
+                  </Button>
+                )}
+                {draft.audience !== "new" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (!stats) return;
+                      const list =
+                        draft.audience === "newsletter"
+                          ? stats.newsletterEmails
+                          : draft.audience === "free"
+                            ? stats.freeEmails ?? []
+                            : draft.audience === "vip"
+                              ? stats.vipEmails ?? []
+                              : draft.audience === "inactive7d"
+                                ? stats.inactive7dEmails ?? []
+                                : draft.audience === "trial"
+                                  ? stats.trialEmails ?? []
+                                  : draft.audience === "trial-expiring"
+                                    ? stats.trialExpiringEmails ?? []
+                                    : stats.allEmails;
+                      setRecipients([...list]);
+                    }}
+                  >
+                    Reset from audience
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto rounded-md border p-2 bg-zinc-50/80 dark:bg-zinc-900/50">
               {recipients.length === 0 ? (

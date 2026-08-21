@@ -17,7 +17,7 @@ function HighlightText({ text, highlights }: { text: string; highlights: string[
     <>
       {parts.map((part, i) =>
         sorted.some((h) => h === part) ? (
-          <span key={i} className="font-semibold text-orange-400">
+          <span key={i} className="font-semibold text-teal-400">
             {part}
           </span>
         ) : (
@@ -39,7 +39,7 @@ function Section({
 }) {
   return (
     <section className="mb-8">
-      <h3 className="mb-3 text-sm font-bold uppercase tracking-[0.12em] text-orange-400">{title}</h3>
+      <h3 className="mb-3 text-sm font-bold uppercase tracking-[0.12em] text-teal-400">{title}</h3>
       <ul className="space-y-4">
         {items.map((item) => (
           <li key={item.id} className="text-[15px] leading-relaxed text-zinc-200">
@@ -48,7 +48,7 @@ function Section({
               <button
                 type="button"
                 onClick={() => onOpenHref(item.href!)}
-                className="ml-2 text-xs text-orange-400/80 underline-offset-2 hover:underline"
+                className="ml-2 text-xs text-teal-400/80 underline-offset-2 hover:underline"
               >
                 Open
               </button>
@@ -147,7 +147,7 @@ export default function FuturesDailyWrapPanel({
           {isOwner ? (
             <Button
               size="sm"
-              className="mt-4 bg-orange-500 text-zinc-950 hover:bg-orange-600"
+              className="mt-4 bg-teal-500 text-zinc-950 hover:bg-teal-600"
               disabled={publishing}
               onClick={() => void publishToday()}
             >
@@ -165,7 +165,7 @@ export default function FuturesDailyWrapPanel({
             {isOwner ? (
               <Button
                 size="sm"
-                className="bg-orange-500 text-zinc-950 hover:bg-orange-600"
+                className="bg-teal-500 text-zinc-950 hover:bg-teal-600"
                 disabled={publishing}
                 onClick={() => void publishToday()}
               >
@@ -225,7 +225,7 @@ export default function FuturesDailyWrapPanel({
                     type="button"
                     onClick={() => void load(a.dateKey)}
                     className={`flex w-full items-center justify-between gap-3 py-3 text-left text-sm transition-colors ${
-                      active ? "text-orange-400" : "text-zinc-300 hover:text-zinc-100"
+                      active ? "text-teal-400" : "text-zinc-300 hover:text-zinc-100"
                     }`}
                   >
                     <span className="truncate font-medium">{a.title}</span>

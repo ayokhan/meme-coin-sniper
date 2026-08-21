@@ -6536,7 +6536,7 @@ function Dashboard() {
                   <Button
                     variant={futuresView === "daily-wrap" ? "default" : "outline"}
                     size="sm"
-                    className={futuresView === "daily-wrap" ? "bg-orange-500 hover:bg-orange-600 text-zinc-950" : ""}
+                    className={futuresView === "daily-wrap" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
                     onClick={() => setFuturesView("daily-wrap")}
                   >
                     Daily Wrap

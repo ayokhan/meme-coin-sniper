@@ -5,7 +5,7 @@ import type { FuturesWrapItem } from "@/lib/futures-daily-wrap";
 import { FUTURES_WRAP_APP_URL } from "@/lib/futures-daily-wrap";
 
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
-const ACCENT = "#f97316"; // orange keyword highlight (Blofin-like)
+const ACCENT = "#14b8a6"; // NovaStaris teal
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
