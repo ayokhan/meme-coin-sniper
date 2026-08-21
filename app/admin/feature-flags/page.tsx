@@ -417,7 +417,8 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   },
   digest_to_newsletter_subscribers: {
     label: "Send digest to newsletter subscribers",
-    description: "When ON, the perp digest is also emailed to users who opted in at registration. When OFF, digest goes only to Telegram and DIGEST_EMAIL_TO.",
+    description:
+      "When ON, the Morning Futures Brief (Daily Wrap teaser) is emailed to users who opted in at registration. When OFF, digest goes only to Telegram and DIGEST_EMAIL_TO. In-app Daily Wrap still updates when master cron runs.",
   },
   nova_connect: {
     label: "NovaConnect (social portal)",

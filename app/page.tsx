@@ -54,6 +54,7 @@ import AiChartAnalysisPanel from "@/components/AiChartAnalysisPanel";
 import NovaEaglePanel from "@/components/NovaEaglePanel";
 import CryptoBuddiePanel from "@/components/CryptoBuddiePanel";
 import FuturesLiquidationMapPanel from "@/components/FuturesLiquidationMapPanel";
+import FuturesDailyWrapPanel from "@/components/FuturesDailyWrapPanel";
 import NovaMemeIntelligencePanel from "@/components/NovaMemeIntelligencePanel";
 import NovaPerpWalletAnalystPanel from "@/components/NovaPerpWalletAnalystPanel";
 import MemeLeaderboardPanel from "@/components/MemeLeaderboardPanel";
@@ -1207,7 +1208,7 @@ function Dashboard() {
   } | null>(null);
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
-  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map">("workflow");
+  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map" | "daily-wrap">("workflow");
   const { shouldShow: showFuturesOnboardingPrompt, dismiss: dismissFuturesOnboarding } = useFuturesOnboarding();
   const [futuresOnboardingForce, setFuturesOnboardingForce] = useState(false);
 
@@ -1709,7 +1710,7 @@ function Dashboard() {
           setActiveTab("ai-analysis");
           setAiAgentSubTab("chart");
         } else if (fv && URL_FUTURES_VIEWS.has(fv)) {
-          setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map");
+          setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map" | "daily-wrap");
         }
         const sym = url.searchParams.get("symbol")?.trim().toUpperCase();
         if (sym) setFuturesSymbol(sym);
@@ -1810,7 +1811,7 @@ function Dashboard() {
       setActiveTab("ai-analysis");
       setAiAgentSubTab("chart");
     } else if (fv && URL_FUTURES_VIEWS.has(fv)) {
-      setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map");
+      setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map" | "daily-wrap");
     }
     const sym = params.get("symbol")?.trim().toUpperCase();
     if (sym) setFuturesSymbol(sym);
@@ -6533,6 +6534,14 @@ function Dashboard() {
                 <PathFirstActionBanner tab="futures" className="mb-4" />
                 <div className="flex flex-wrap items-center gap-2 mb-6">
                   <Button
+                    variant={futuresView === "daily-wrap" ? "default" : "outline"}
+                    size="sm"
+                    className={futuresView === "daily-wrap" ? "bg-orange-500 hover:bg-orange-600 text-zinc-950" : ""}
+                    onClick={() => setFuturesView("daily-wrap")}
+                  >
+                    Daily Wrap
+                  </Button>
+                  <Button
                     variant={futuresView === "workflow" ? "default" : "outline"}
                     size="sm"
                     className={futuresView === "workflow" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
@@ -6576,7 +6585,9 @@ function Dashboard() {
                     Quick start
                   </Button>
                 </div>
-                {futuresView === "workflow" ? (
+                {futuresView === "daily-wrap" ? (
+                  <FuturesDailyWrapPanel onNavigateHref={openDashboardToolHref} />
+                ) : futuresView === "workflow" ? (
                   <FuturesWorkflow />
                 ) : futuresView === "altcoins" ? (
                   <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 max-w-full">

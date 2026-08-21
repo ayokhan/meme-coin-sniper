@@ -276,6 +276,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       const p = getAdminEmailPreset(id);
       if (!p) return;
       if (p.template === "why-traders") setFormat("rich");
+      if (p.template === "futures-morning-brief") setFormat("rich");
       setDraft({
         subject: p.subject,
         body: p.body,
@@ -594,6 +595,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           {format === "rich" && draft.template === "why-traders" && (
             <p className="text-xs text-indigo-700 dark:text-indigo-300 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-3 py-2">
               Brand blast rich layout is on (blue frame, gradient hero, dark card, Choose your desk CTA).
+            </p>
+          )}
+          {format === "rich" && draft.template === "futures-morning-brief" && (
+            <p className="text-xs text-orange-700 dark:text-orange-300 rounded-md border border-orange-500/30 bg-orange-500/10 px-3 py-2">
+              Morning Futures Brief layout (dark digest + orange keywords). Bullet lines become teasers; CTA opens Daily Wrap. Also auto-sent by cron when digest-to-newsletter is ON.
             </p>
           )}
           {format === "rich" && draft.template === "nova-branded" && (

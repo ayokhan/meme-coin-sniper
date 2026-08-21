@@ -1,24 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getTrendingPerps, getPerpsByCoins } from "@/lib/api-clients/hyperliquid";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { sendEmail } from "@/lib/send-email";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
+import { upsertTodaysFuturesDailyWrap } from "@/lib/futures-daily-wrap";
+import { futuresWrapDb } from "@/lib/futures-daily-wrap-db";
+import {
+  buildMorningFuturesBriefEmailHtml,
+  morningFuturesBriefSubject,
+} from "@/lib/futures-daily-wrap-email";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const NEW_DAYS = 7;
-const TOP_MOMENTUM = 8;
-const TOP_NEW = 5;
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 /**
- * Cron-only: Send daily perp digest to Telegram and optionally to email (DIGEST_EMAIL_TO).
- * Hot new (7d) + top momentum. Called from main cron.
+ * Cron-only: Build + store Daily Futures Wrap, send Telegram + Morning Futures Brief email.
+ * Content is auto-generated from Hyperliquid perp data (once/day). Called from main cron.
  */
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
@@ -28,86 +25,78 @@ export async function GET(request: Request) {
   }
 
   try {
-    const now = new Date();
-    const newCutoff = new Date(now.getTime() - NEW_DAYS * 24 * 60 * 60 * 1000);
+    const wrapRow = await upsertTodaysFuturesDailyWrap();
+    const stored = await futuresWrapDb.futuresDailyWrap.findUnique({
+      where: { dateKey: wrapRow.dateKey },
+      select: {
+        telegramHtml: true,
+        hotTopics: true,
+        marketUpdates: true,
+        emailTeaser: true,
+        title: true,
+        publishedAt: true,
+      },
+    });
 
-    const [trending, newRows] = await Promise.all([
-      getTrendingPerps(TOP_MOMENTUM),
-      (prisma as any).knownPerpSymbol?.findMany?.({
-        where: { firstSeenAt: { gte: newCutoff } },
-        select: { symbol: true },
-        orderBy: { firstSeenAt: "desc" },
-        take: TOP_NEW,
-      }) ?? Promise.resolve([]),
-    ]);
+    const telegramText =
+      stored?.telegramHtml ??
+      `📊 <b>${wrapRow.title}</b>\n\nOpen: https://novastaris.ai/?tab=futures&futures=daily-wrap`;
+    const telegramOk = await sendTelegramMessage(telegramText);
 
-    const newSymbols = Array.isArray(newRows) ? newRows.map((r: { symbol: string }) => r.symbol) : [];
-    let newPerps: { coin: string; dayPct: number }[] = [];
-    if (newSymbols.length > 0) {
-      newPerps = await getPerpsByCoins(newSymbols);
-    }
+    const teaser = (stored?.emailTeaser as typeof wrapRow.emailTeaser) ?? wrapRow.emailTeaser;
+    const hotTopics = (stored?.hotTopics as typeof wrapRow.hotTopics) ?? wrapRow.hotTopics;
+    const marketUpdates =
+      (stored?.marketUpdates as typeof wrapRow.marketUpdates) ?? wrapRow.marketUpdates;
+    const title = stored?.title ?? wrapRow.title;
+    const publishedAt = stored?.publishedAt ?? new Date(wrapRow.publishedAt);
 
-    const momentumLine =
-      trending.length > 0
-        ? trending
-            .slice(0, TOP_MOMENTUM)
-            .map((p) => `${p.coin} ${p.dayPct >= 0 ? "+" : ""}${p.dayPct.toFixed(1)}%`)
-            .join(" · ")
-        : "—";
-    const newLine =
-      newPerps.length > 0
-        ? newPerps
-            .slice(0, TOP_NEW)
-            .map((p) => `${p.coin} ${p.dayPct >= 0 ? "+" : ""}${p.dayPct.toFixed(1)}%`)
-            .join(" · ")
-        : "None in last 7d";
+    const teaserHtml = buildMorningFuturesBriefEmailHtml({
+      title,
+      publishedAt,
+      teaser,
+      full: false,
+    });
+    const fullHtml = buildMorningFuturesBriefEmailHtml({
+      title,
+      publishedAt,
+      teaser,
+      full: true,
+      hotTopics,
+      marketUpdates,
+    });
+    const subject = morningFuturesBriefSubject(title);
 
-    const text = [
-      "📊 <b>NovaStaris Perp Digest</b>",
-      "",
-      "🔥 <b>Hot new (7d):</b> " + newLine,
-      "📈 <b>Top momentum (24h):</b> " + momentumLine,
-      "",
-      "🔗 <a href=\"https://app.hyperliquid.xyz\">Trade on Hyperliquid</a> · <a href=\"https://novastaris.ai\">NovaStaris</a>",
-    ].join("\n");
-
-    let telegramOk = await sendTelegramMessage(text);
-
-    const html = [
-      "<h2>NovaStaris Perp Digest</h2>",
-      "<p><strong>Hot new (7d):</strong> " + escapeHtml(newLine) + "</p>",
-      "<p><strong>Top momentum (24h):</strong> " + escapeHtml(momentumLine) + "</p>",
-      "<p><a href=\"https://app.hyperliquid.xyz\">Trade on Hyperliquid</a> · <a href=\"https://novastaris.ai\">NovaStaris</a></p>",
-    ].join("");
-
-    // Optional: send same digest to email if DIGEST_EMAIL_TO is set (comma-separated addresses)
-    const digestEmailTo = process.env.DIGEST_EMAIL_TO?.trim();
     let emailOk = false;
+    const digestEmailTo = process.env.DIGEST_EMAIL_TO?.trim();
     if (digestEmailTo) {
       const toAddresses = digestEmailTo.split(",").map((e) => e.trim()).filter(Boolean);
       for (const to of toAddresses) {
-        const sent = await sendEmail(to, "NovaStaris Perp Digest", html);
+        const sent = await sendEmail(to, subject, fullHtml);
         if (sent) emailOk = true;
         await new Promise((r) => setTimeout(r, 200));
       }
     }
 
-    // If admin enabled "Send digest to newsletter subscribers", email all opted-in users
     const sendToSubscribers = await getFeatureFlag(FEATURE_FLAG_KEYS.DIGEST_TO_NEWSLETTER_SUBSCRIBERS);
     if (sendToSubscribers) {
-      const subscribers = await (prisma as any).user.findMany({
+      const subscribers = await prisma.user.findMany({
         where: { newsletterOptIn: true, email: { not: null } },
         select: { email: true },
       });
       for (const u of subscribers) {
         const to = u.email!;
-        const sent = await sendEmail(to, "NovaStaris Perp Digest", html);
+        const sent = await sendEmail(to, subject, teaserHtml);
         if (sent) emailOk = true;
         await new Promise((r) => setTimeout(r, 200));
       }
     }
 
-    return NextResponse.json({ success: telegramOk, emailSent: emailOk });
+    return NextResponse.json({
+      success: telegramOk,
+      emailSent: emailOk,
+      dateKey: wrapRow.dateKey,
+      wrapId: wrapRow.id,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Perp digest failed";
     console.error("Cron perp-digest:", e);

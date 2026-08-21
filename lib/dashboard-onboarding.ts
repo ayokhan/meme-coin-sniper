@@ -209,4 +209,11 @@ export const URL_TAB_IDS = new Set([
   "nova-store",
 ]);
 
-export const URL_FUTURES_VIEWS = new Set(["ai", "workflow", "altcoins", "hot-perps", "liquidation-map"]);
+export const URL_FUTURES_VIEWS = new Set([
+  "ai",
+  "workflow",
+  "altcoins",
+  "hot-perps",
+  "liquidation-map",
+  "daily-wrap",
+]);

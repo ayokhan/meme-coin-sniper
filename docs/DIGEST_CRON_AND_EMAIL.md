@@ -1,33 +1,46 @@
-# Perp digest: when it runs and where email comes from
+# Perp digest / Daily Futures Wrap: when it runs and where email comes from
+
+## Where does the Morning Futures Brief come from?
+
+**Auto-generated once per day** (no per-user AI, no scraping loop):
+
+1. Vercel Cron hits `/api/cron` at **00:00 UTC**.
+2. That calls `/api/cron/perp-digest`, which:
+   - Pulls live Hyperliquid perp data (majors, momentum, funding, new listings)
+   - Builds **Hot Topics** + **Market Updates**
+   - **Upserts** a `FuturesDailyWrap` row for today’s UTC date
+   - Sends Telegram + Morning Futures Brief email
+
+In-app **Crypto Futures → Daily Wrap** only **reads** the stored row (cheap).
 
 ## When does the digest run?
 
-The **perp digest** (Telegram + email) is sent only when the **main cron** runs:
+- **Vercel Cron** in `vercel.json`: path `/api/cron`, schedule **`0 0 * * *`** = **once per day at 00:00 UTC**.
+- Master switch: **Admin → Feature flags → “Vercel scheduled cron (master)”** (`vercel_cron_enabled`).
+  - When **OFF**, `/api/cron` returns `skipped: true` and the wrap is **not** built.
+  - When **ON**, the full chain runs (including perp digest / Daily Wrap).
 
-- **Vercel Cron** is configured in `vercel.json`: path `/api/cron`, schedule **`0 0 * * *`** = **once per day at 00:00 UTC** (midnight UTC).
-- The main cron (`/api/cron`) calls `/api/cron/perp-digest`, which builds the digest, sends to Telegram, then sends email to `DIGEST_EMAIL_TO` and (if the feature flag is on) to newsletter subscribers.
+How to confirm cron is on:
 
-So you will see at most **one digest per day**, shortly after midnight UTC. If you’re in a different timezone, that can be evening or early morning local time.
+1. **Admin → Feature flags** — ensure **Vercel scheduled cron (master)** is ON.
+2. **Vercel Dashboard → Project → Settings → Cron Jobs** — `/api/cron` should be listed (`0 0 * * *`).
+3. After midnight UTC (or a manual trigger), check **Crypto Futures → Daily Wrap** for today’s entry, or `DIGEST_EMAIL_TO` inbox for “Morning Futures Brief”.
 
 ## Where does the email come from?
 
-- **Provider:** All digest (and other app) emails are sent via **Resend** (https://resend.com).
-- **“From” address:** Set by the **`RESEND_FROM`** env var in Vercel (e.g. `NovaStaris <noreply@yourdomain.com>` or, if you don’t set it, the default `NovaStaris <onboarding@resend.dev>`).  
-  Resend usually requires a **verified domain** for custom “from” addresses; a plain Gmail address may be rejected.
-- **Who receives the digest email:**
-  1. **Fixed list:** Every address in **`DIGEST_EMAIL_TO`** (comma-separated), e.g. `novastaris.ai@gmail.com`.
-  2. **Newsletter subscribers:** If the admin feature flag **“Send digest to newsletter subscribers”** is ON, every user with `newsletterOptIn: true` and an email also receives the digest.
+- **Provider:** Resend (`RESEND_API_KEY`, `RESEND_FROM`).
+- **Subject:** `Morning Futures Brief | <date>`
+- **Who receives it:**
+  1. **`DIGEST_EMAIL_TO`** — full wrap HTML
+  2. **Newsletter subscribers** — if feature flag **“Send digest to newsletter subscribers”** is ON — teaser HTML with CTA into the app
 
-## Why might no message be sent?
-
-1. **Cron hasn’t run yet** — It only runs at 00:00 UTC each day.
-2. **CRON_SECRET** — Must be set in Vercel. Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` to `/api/cron`. If it’s missing or wrong, the cron returns 401 and the digest is never called.
-3. **Telegram** — `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` must be set in Vercel; otherwise the Telegram send fails or is skipped.
-4. **Email** — `RESEND_API_KEY` must be set. If `DIGEST_EMAIL_TO` is empty and the “newsletter subscribers” flag is OFF (or there are no subscribers), no digest email is sent. If `RESEND_FROM` is a Gmail address, Resend may reject it; use their default or a verified domain.
+Manual send: **Admin → Emails → preset “Morning Futures Brief”**.
 
 ## How to test without waiting for midnight UTC
 
-- Call the digest endpoint manually with the same auth Vercel uses:
-  - `GET https://your-production-url.vercel.app/api/cron/perp-digest`
-  - Header: `Authorization: Bearer YOUR_CRON_SECRET`
-- Or trigger the full cron: `GET https://your-production-url.vercel.app/api/cron` with the same header (this runs the digest plus other cron jobs).
+```http
+GET https://your-production-url.vercel.app/api/cron/perp-digest
+Authorization: Bearer YOUR_CRON_SECRET
+```
+
+Or trigger the full master cron: `GET /api/cron` with the same header.

@@ -27,6 +27,8 @@ import {
 } from "@/lib/paid-strategy-call";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
+import { FUTURES_WRAP_APP_URL } from "@/lib/futures-daily-wrap";
+import { morningFuturesBriefPlainBody } from "@/lib/futures-daily-wrap-email";
 
 export type AdminEmailFormat = "rich" | "plain";
 
@@ -34,6 +36,7 @@ export type AdminEmailPresetId =
   | "custom"
   | "welcome"
   | "why-traders"
+  | "futures-morning-brief"
   | "deepdive-meme"
   | "deepdive-futures"
   | "deepdive-forex"
@@ -110,6 +113,35 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "blofin",
     ctaLabel: WHY_TRADERS_EMAIL.ctaLabel,
     ctaUrl: WHY_TRADERS_EMAIL.ctaUrl,
+    defaultAudience: "newsletter",
+  },
+  {
+    id: "futures-morning-brief",
+    label: "Morning Futures Brief",
+    blurb: "Login driver — teaser bullets → Daily Wrap in app (auto also via cron)",
+    subject: "Morning Futures Brief | Today",
+    body: morningFuturesBriefPlainBody([
+      {
+        id: "1",
+        text: "Bitcoin and ETH 24h moves lead the majors — open the wrap for mark prices and funding.",
+        highlights: ["Bitcoin", "ETH"],
+      },
+      {
+        id: "2",
+        text: "Top perp momentum and Hot new listings are summarized in Crypto Futures → Daily Wrap.",
+        highlights: ["Hot new", "Daily Wrap"],
+      },
+      {
+        id: "3",
+        text: "Funding extremes flag long-heavy vs short-heavy books — size with Liquidation Map.",
+        highlights: ["Funding", "Liquidation Map"],
+      },
+    ]),
+    template: "futures-morning-brief",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: "Read full Market Wrap in app",
+    ctaUrl: FUTURES_WRAP_APP_URL,
     defaultAudience: "newsletter",
   },
   {

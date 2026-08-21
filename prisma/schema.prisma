@@ -62,6 +62,25 @@ model KnownPerpSymbol {
   firstSeenAt DateTime @default(now())
 }
 
+/** Daily Futures Market Wrap — built once by cron, served cheaply in-app + email. */
+model FuturesDailyWrap {
+  id             String   @id @default(cuid())
+  /** UTC calendar day key, e.g. 2026-08-21 */
+  dateKey        String   @unique
+  title          String
+  publishedAt    DateTime
+  /** [{ id, text, highlights: string[], href?: string }] */
+  hotTopics      Json
+  /** same shape as hotTopics */
+  marketUpdates  Json
+  /** Short teaser bullets for morning brief email (2–3 items) */
+  emailTeaser    Json
+  telegramHtml   String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([publishedAt])
+}
+
 /** Perp alerts: notify when condition is met (new listing, 5m % above/below threshold). Subscribers only; limits by tier. */
 model PerpAlert {
   id              String    @id @default(cuid())

@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
 import { partnerLogosEmailHtml, type PartnerBrandEmail } from "@/lib/partner-logos-email";
 import { sendEmailDetailed } from "@/lib/send-email";
+import {
+  buildMorningFuturesBriefEmailHtml,
+} from "@/lib/futures-daily-wrap-email";
+import type { FuturesWrapItem } from "@/lib/futures-daily-wrap";
 
 export type AnnouncementAudience = "newsletter" | "all";
 
@@ -10,7 +14,8 @@ export type AnnouncementEmailTemplate =
   | "affiliate"
   | "welcome"
   | "nova-branded"
-  | "why-traders";
+  | "why-traders"
+  | "futures-morning-brief";
 
 export type RecentRegistrant = {
   email: string;
@@ -46,16 +51,16 @@ const AFFILIATE_URL = `${APP_ORIGIN}/affiliate`;
 const START_HERE_URL = `${APP_ORIGIN}/start-here`;
 const ENTER_URL = `${APP_ORIGIN}/enter`;
 
-/** NovaStaris-only email header (no partner logo). */
+/** NovaStaris-only email header (no partner logo). Premium dark standard. */
 function novaBrandHeaderEmailHtml(eyebrow: string): string {
   return `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0;border-collapse:collapse;">
   <tr>
-    <td align="center" style="background:#0a0a0b;background-image:linear-gradient(135deg,#0a0a0b 0%,#18181b 50%,#1e1b4b 100%);padding:28px 24px 24px 24px;">
-      <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#a1a1aa;">
+    <td align="center" style="background:#0a0a0b;background-image:linear-gradient(160deg,#0a0a0b 0%,#18181b 55%,#134e4a 140%);padding:32px 24px 28px 24px;">
+      <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#5eead4;">
         ${escapeHtml(eyebrow)}
       </p>
-      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;color:#fafafa;letter-spacing:-0.02em;">NovaStaris</p>
+      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;color:#fafafa;letter-spacing:-0.02em;">NovaStaris</p>
     </td>
   </tr>
 </table>`.trim();
@@ -80,7 +85,7 @@ export function announcementBodyToHtml(body: string): string {
     }
     const tag = listType;
     parts.push(
-      `<${tag} style="margin:0 0 16px 0;padding-left:20px;color:#3f3f46;">${listItems
+      `<${tag} style="margin:0 0 16px 0;padding-left:20px;color:#d4d4d8;">${listItems
         .map((li) => `<li style="margin:0 0 6px 0;">${li}</li>`)
         .join("")}</${tag}>`
     );
@@ -123,10 +128,10 @@ export function announcementBodyToHtml(body: string): string {
 
     if (isHeading && !line.toLowerCase().startsWith("hi ")) {
       parts.push(
-        `<p style="margin:20px 0 8px 0;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#18181b;">${escapeHtml(line)}</p>`
+        `<p style="margin:20px 0 8px 0;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5eead4;">${escapeHtml(line)}</p>`
       );
     } else {
-      parts.push(`<p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">${escapeHtml(line)}</p>`);
+      parts.push(`<p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">${escapeHtml(line)}</p>`);
     }
   }
   flushList();
@@ -137,8 +142,8 @@ function ctaButtonHtml(label: string, url: string): string {
   return `
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px auto 8px auto;border-collapse:collapse;">
   <tr>
-    <td align="center" bgcolor="#0d9488" style="border-radius:10px;background:#0d9488;">
-      <a href="${escapeHtml(url)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">
+    <td align="center" bgcolor="#14b8a6" style="border-radius:10px;background:#14b8a6;">
+      <a href="${escapeHtml(url)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#042f2e;text-decoration:none;border-radius:10px;">
         ${escapeHtml(label)}
       </a>
     </td>
@@ -146,25 +151,26 @@ function ctaButtonHtml(label: string, url: string): string {
 </table>`.trim();
 }
 
+/** Premium dark shell — shared standard for all rich NovaStaris emails. */
 function emailShell(inner: string): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
-<body style="margin:0;padding:0;background:#e4e4e7;font-family:Arial,Helvetica,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e4e4e7;padding:24px 12px;">
+<body style="margin:0;padding:0;background:#09090b;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#09090b;padding:24px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #d4d4d8;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#0a0a0b;border-radius:16px;overflow:hidden;border:1px solid #27272a;">
           ${inner}
           <tr>
-            <td style="padding:20px 28px 28px 28px;border-top:1px solid #f4f4f5;">
+            <td style="padding:20px 28px 28px 28px;border-top:1px solid #27272a;">
               <p style="margin:0 0 6px 0;font-size:12px;line-height:1.5;color:#71717a;">
                 You received this from NovaStaris. Manage preferences in your
-                <a href="${APP_ORIGIN}/account" style="color:#0d9488;text-decoration:underline;">account settings</a>.
+                <a href="${APP_ORIGIN}/account" style="color:#5eead4;text-decoration:underline;">account settings</a>.
               </p>
-              <p style="margin:0;font-size:12px;color:#a1a1aa;">
-                <a href="${APP_ORIGIN}" style="color:#a1a1aa;text-decoration:none;">novastaris.ai</a>
+              <p style="margin:0;font-size:12px;color:#52525b;">
+                <a href="${APP_ORIGIN}" style="color:#52525b;text-decoration:none;">novastaris.ai</a>
               </p>
             </td>
           </tr>
@@ -186,8 +192,8 @@ export function buildForexRebateEmailHtml(args: {
   const introHtml = customBody
     ? announcementBodyToHtml(customBody)
     : `
-      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">Hi there,</p>
-      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">Hi there,</p>
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
         We’re sharing a simple rebate with NovaStaris members who trade forex through our TIOmarkets partnership.
       </p>`;
 
@@ -199,31 +205,31 @@ export function buildForexRebateEmailHtml(args: {
     </tr>
     <tr>
       <td style="padding:28px 28px 8px 28px;">
-        <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#0d9488;font-weight:700;">Partner rebate</p>
-        <h1 style="margin:0 0 16px 0;font-size:24px;line-height:1.25;color:#18181b;font-weight:700;">Earn $2 USDC per lot</h1>
+        <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#5eead4;font-weight:700;">Partner rebate</p>
+        <h1 style="margin:0 0 16px 0;font-size:24px;line-height:1.25;color:#fafafa;font-weight:700;">Earn $2 USDC per lot</h1>
         ${introHtml}
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px 0;border-collapse:collapse;">
           <tr>
-            <td style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:16px 18px;">
-              <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:0.06em;">The offer</p>
-              <p style="margin:0 0 6px 0;font-size:15px;color:#134e4a;"><strong>$2 USDC</strong> for every standard lot you trade</p>
-              <p style="margin:0;font-size:15px;color:#134e4a;">Paid to your <strong>Solana USDC wallet</strong></p>
+            <td style="background:#134e4a;border:1px solid #0f766e;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:0.06em;">The offer</p>
+              <p style="margin:0 0 6px 0;font-size:15px;color:#ccfbf1;"><strong>$2 USDC</strong> for every standard lot you trade</p>
+              <p style="margin:0;font-size:15px;color:#ccfbf1;">Paid to your <strong>Solana USDC wallet</strong></p>
             </td>
           </tr>
         </table>
-        <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#18181b;">How to join</p>
-        <ol style="margin:0 0 20px 0;padding-left:20px;color:#3f3f46;font-size:15px;line-height:1.55;">
+        <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5eead4;">How to join</p>
+        <ol style="margin:0 0 20px 0;padding-left:20px;color:#d4d4d8;font-size:15px;line-height:1.55;">
           <li style="margin:0 0 8px 0;">Sign in to NovaStaris → Focus → Bots → Nova Forex Bots</li>
           <li style="margin:0 0 8px 0;">Tap “Register on TIOmarkets” and open your Unlimited Leverage account through our link</li>
           <li style="margin:0 0 8px 0;">Connect your MT4/MT5 login in NovaStaris</li>
           <li style="margin:0 0 8px 0;">Tap “Submit rebate details” and enter your name, MT login, and Solana USDC wallet</li>
         </ol>
-        <p style="margin:0 0 20px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
+        <p style="margin:0 0 20px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
           Once your details are on file and your trading volume is confirmed, we’ll send your rebate in USDC.
         </p>
         ${ctaButtonHtml("Open Nova Forex Bots", FOREX_BOTS_URL)}
         <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
-          Or open <a href="${FOREX_BOTS_URL}" style="color:#0d9488;">novastaris.ai → Nova Forex Bots</a>
+          Or open <a href="${FOREX_BOTS_URL}" style="color:#5eead4;">novastaris.ai → Nova Forex Bots</a>
         </p>
       </td>
     </tr>`;
@@ -313,7 +319,7 @@ export function buildWhyTradersEmailHtml(args?: {
   const ctaLabel = args?.ctaLabel?.trim() || "Choose your desk";
   const ctaUrl = args?.ctaUrl?.trim() || ENTER_URL;
   const introHtml = customBody
-    ? `<td bgcolor="#ffffff" style="padding:28px 28px 8px 28px;background:#ffffff;">
+    ? `<td bgcolor="#0a0a0b" style="padding:28px 28px 8px 28px;background:#0a0a0b;">
         ${announcementBodyToHtml(customBody)}
         <div style="margin:8px 0 8px 0;text-align:center;">${ctaButtonHtml(ctaLabel, ctaUrl)}</div>
       </td>`
@@ -364,8 +370,8 @@ export function buildWelcomeEmailHtml(args?: { body?: string }): string {
   const introHtml = customBody
     ? announcementBodyToHtml(customBody)
     : `
-      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">Hi there,</p>
-      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">Hi there,</p>
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
         Welcome to NovaStaris. You&apos;re in — the dashboard has many tabs, so don&apos;t open everything on day one.
         Pick one path below and start there.
       </p>`;
@@ -375,17 +381,17 @@ export function buildWelcomeEmailHtml(args?: { body?: string }): string {
     : `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px 0;border-collapse:collapse;">
           <tr>
-            <td style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:16px 18px;">
-              <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:0.06em;">Pick your path</p>
-              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>1. Meme coin hunter</strong> — Go Hunting, Trending, Surge, then AI Agent</p>
-              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>2. Crypto futures</strong> — Crypto Futures. VIP: NovaForecast</p>
-              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>3. Forex trading</strong> — Nova Forex Agent (XAUUSD, FX, indices)</p>
-              <p style="margin:0 0 8px 0;font-size:15px;color:#134e4a;"><strong>4. Wallet tracking</strong> — Wallet Tracker, Coach Calls</p>
-              <p style="margin:0;font-size:15px;color:#134e4a;"><strong>5. Prediction markets</strong> — Nova Polymarket</p>
+            <td style="background:#134e4a;border:1px solid #0f766e;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:0.06em;">Pick your path</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#ccfbf1;"><strong>1. Meme coin hunter</strong> — Go Hunting, Trending, Surge, then AI Agent</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#ccfbf1;"><strong>2. Crypto futures</strong> — Crypto Futures. VIP: NovaForecast</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#ccfbf1;"><strong>3. Forex trading</strong> — Nova Forex Agent (XAUUSD, FX, indices)</p>
+              <p style="margin:0 0 8px 0;font-size:15px;color:#ccfbf1;"><strong>4. Wallet tracking</strong> — Wallet Tracker, Coach Calls</p>
+              <p style="margin:0;font-size:15px;color:#ccfbf1;"><strong>5. Prediction markets</strong> — Nova Polymarket</p>
             </td>
           </tr>
         </table>
-        <p style="margin:0 0 20px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
+        <p style="margin:0 0 20px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
           Need the full map of every major tab? Open <strong>Start here</strong>.
         </p>`;
 
@@ -397,14 +403,14 @@ export function buildWelcomeEmailHtml(args?: { body?: string }): string {
     </tr>
     <tr>
       <td style="padding:28px 28px 8px 28px;">
-        <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#0d9488;font-weight:700;">Welcome to NovaStaris</p>
-        <h1 style="margin:0 0 16px 0;font-size:24px;line-height:1.25;color:#18181b;font-weight:700;">Start here — pick one path</h1>
+        <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#5eead4;font-weight:700;">Welcome to NovaStaris</p>
+        <h1 style="margin:0 0 16px 0;font-size:24px;line-height:1.25;color:#fafafa;font-weight:700;">Start here — pick one path</h1>
         ${introHtml}
         ${pathsBlock}
         ${ctaButtonHtml("Open Start here", START_HERE_URL)}
         <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
           Stuck? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.<br />
-          Or open <a href="${START_HERE_URL}" style="color:#0d9488;">novastaris.ai/start-here</a>
+          Or open <a href="${START_HERE_URL}" style="color:#5eead4;">novastaris.ai/start-here</a>
         </p>
       </td>
     </tr>`;
@@ -418,8 +424,8 @@ export function buildAffiliateEmailHtml(args?: { body?: string }): string {
   const introHtml = customBody
     ? announcementBodyToHtml(customBody)
     : `
-      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">Hi there,</p>
-      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">Hi there,</p>
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
         You can now earn with the NovaStaris Affiliate Program — share your link and get paid when friends go VIP.
       </p>`;
 
@@ -431,31 +437,31 @@ export function buildAffiliateEmailHtml(args?: { body?: string }): string {
     </tr>
     <tr>
       <td style="padding:28px 28px 8px 28px;">
-        <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#6366f1;font-weight:700;">Earn with NovaStaris</p>
-        <h1 style="margin:0 0 16px 0;font-size:24px;line-height:1.25;color:#18181b;font-weight:700;">Earn 10% on VIP referrals</h1>
+        <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#a5b4fc;font-weight:700;">Earn with NovaStaris</p>
+        <h1 style="margin:0 0 16px 0;font-size:24px;line-height:1.25;color:#fafafa;font-weight:700;">Earn 10% on VIP referrals</h1>
         ${introHtml}
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px 0;border-collapse:collapse;">
           <tr>
-            <td style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:16px 18px;">
-              <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:0.06em;">The offer</p>
-              <p style="margin:0 0 6px 0;font-size:15px;color:#312e81;"><strong>10%</strong> of the VIP subscription fee when someone you refer subscribes</p>
-              <p style="margin:0;font-size:15px;color:#312e81;">Payouts every <strong>Friday</strong> after verification</p>
+            <td style="background:#1e1b4b;border:1px solid #4338ca;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;color:#a5b4fc;text-transform:uppercase;letter-spacing:0.06em;">The offer</p>
+              <p style="margin:0 0 6px 0;font-size:15px;color:#e0e7ff;"><strong>10%</strong> of the VIP subscription fee when someone you refer subscribes</p>
+              <p style="margin:0;font-size:15px;color:#e0e7ff;">Payouts every <strong>Friday</strong> after verification</p>
             </td>
           </tr>
         </table>
-        <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#18181b;">How to join</p>
-        <ol style="margin:0 0 20px 0;padding-left:20px;color:#3f3f46;font-size:15px;line-height:1.55;">
+        <p style="margin:0 0 8px 0;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5eead4;">How to join</p>
+        <ol style="margin:0 0 20px 0;padding-left:20px;color:#d4d4d8;font-size:15px;line-height:1.55;">
           <li style="margin:0 0 8px 0;">Sign in to NovaStaris</li>
           <li style="margin:0 0 8px 0;">Open Affiliate (or go to novastaris.ai/affiliate)</li>
           <li style="margin:0 0 8px 0;">Copy your unique referral link</li>
           <li style="margin:0 0 8px 0;">Share it with friends</li>
         </ol>
-        <p style="margin:0 0 20px 0;font-size:15px;line-height:1.55;color:#3f3f46;">
+        <p style="margin:0 0 20px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
           When they subscribe to VIP through your link, you earn 10%. Commissions start as Pending verification, then get marked Paid.
         </p>
         ${ctaButtonHtml("Get your referral link", AFFILIATE_URL)}
         <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
-          Or open <a href="${AFFILIATE_URL}" style="color:#6366f1;">novastaris.ai/affiliate</a>
+          Or open <a href="${AFFILIATE_URL}" style="color:#a5b4fc;">novastaris.ai/affiliate</a>
         </p>
       </td>
     </tr>`;
@@ -535,6 +541,33 @@ export function buildAnnouncementEmailHtml(args: {
     });
   }
 
+  if (args.template === "futures-morning-brief") {
+    // Prefer structured body from admin; otherwise treat lines as teaser bullets
+    const lines = args.body
+      .split(/\n/)
+      .map((l) => l.replace(/^([•\-\*]|\d+[.)])\s*/, "").trim())
+      .filter(Boolean)
+      .slice(0, 6);
+    const teaser: FuturesWrapItem[] = lines.map((text, i) => ({
+      id: `manual-${i}`,
+      text,
+      highlights: [],
+    }));
+    if (teaser.length === 0) {
+      teaser.push({
+        id: "fallback",
+        text: "Your Daily Market Wrap is ready in Crypto Futures — open the app for Hot Topics and Market Updates.",
+        highlights: ["Daily Market Wrap", "Crypto Futures"],
+      });
+    }
+    return buildMorningFuturesBriefEmailHtml({
+      title: "Daily Market Wrap",
+      publishedAt: new Date(),
+      teaser,
+      full: false,
+    });
+  }
+
   const header = args.includePartnerLogos ? partnerLogosEmailHtml(args.partnerBrand ?? "blofin") : "";
   const cta =
     args.ctaLabel && args.ctaUrl
@@ -545,6 +578,7 @@ export function buildAnnouncementEmailHtml(args: {
     ${header ? `<tr><td style="padding:0;">${header}</td></tr>` : ""}
     <tr>
       <td style="padding:28px;">
+        ${!header ? novaBrandHeaderEmailHtml("NovaStaris") : ""}
         ${announcementBodyToHtml(args.body)}
         ${cta}
       </td>
@@ -875,7 +909,8 @@ export async function sendAnnouncementEmails(args: {
         template === "affiliate" ||
         template === "welcome" ||
         template === "why-traders" ||
-        template === "nova-branded")
+        template === "nova-branded" ||
+        template === "futures-morning-brief")
     )
   ) {
     throw new Error("Message body is required.");
