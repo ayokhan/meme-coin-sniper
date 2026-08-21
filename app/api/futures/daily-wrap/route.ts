@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions, isOwnerEmail } from "@/lib/auth";
 import {
   getFuturesDailyWrapByDateKey,
   getLatestFuturesDailyWrap,
   listFuturesDailyWrapArchive,
+  upsertTodaysFuturesDailyWrap,
 } from "@/lib/futures-daily-wrap";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Public read of stored Daily Futures Wrap (built once by cron — cheap to serve).
@@ -30,7 +34,7 @@ export async function GET(request: Request) {
       return NextResponse.json({
         success: true,
         wrap: null,
-        message: "No Daily Wrap yet — it publishes with the daily cron (00:00 UTC).",
+        message: "No Daily Wrap yet.",
       });
     }
 
@@ -39,6 +43,27 @@ export async function GET(request: Request) {
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to load Daily Wrap";
     console.error("GET /api/futures/daily-wrap:", e);
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
+
+/**
+ * Owner-only: build + store today's wrap (no Telegram/email — use cron for that).
+ * Use when today's wrap was missed and you need content in-app immediately.
+ */
+export async function POST() {
+  const session = await getServerSession(authOptions);
+  if (!isOwnerEmail(session?.user?.email ?? null)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const wrap = await upsertTodaysFuturesDailyWrap();
+    const archive = await listFuturesDailyWrapArchive(14);
+    return NextResponse.json({ success: true, wrap, archive });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Failed to publish Daily Wrap";
+    console.error("POST /api/futures/daily-wrap:", e);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

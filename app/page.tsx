@@ -6586,7 +6586,7 @@ function Dashboard() {
                   </Button>
                 </div>
                 {futuresView === "daily-wrap" ? (
-                  <FuturesDailyWrapPanel onNavigateHref={openDashboardToolHref} />
+                  <FuturesDailyWrapPanel onNavigateHref={openDashboardToolHref} isOwner={isOwner} />
                 ) : futuresView === "workflow" ? (
                   <FuturesWorkflow />
                 ) : futuresView === "altcoins" ? (

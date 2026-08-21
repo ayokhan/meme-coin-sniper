@@ -62,13 +62,16 @@ function Section({
 
 export default function FuturesDailyWrapPanel({
   onNavigateHref,
+  isOwner = false,
 }: {
-  /** Optional: parent handles in-app navigation for wrap deep links */
   onNavigateHref?: (href: string) => void;
+  /** Owner can publish today's wrap without waiting for cron */
+  isOwner?: boolean;
 }) {
   const [wrap, setWrap] = useState<FuturesDailyWrapPayload | null>(null);
   const [archive, setArchive] = useState<ArchiveItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
@@ -95,6 +98,26 @@ export default function FuturesDailyWrapPanel({
     }
   }, []);
 
+  const publishToday = useCallback(async () => {
+    setPublishing(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/futures/daily-wrap", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        setError(data.error ?? `Error ${res.status}`);
+        return;
+      }
+      setWrap(data.wrap ?? null);
+      setArchive(Array.isArray(data.archive) ? data.archive : []);
+      if (data.wrap?.dateKey) setSelectedDate(data.wrap.dateKey);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to publish");
+    } finally {
+      setPublishing(false);
+    }
+  }, []);
+
   useEffect(() => {
     void load(null);
   }, [load]);
@@ -118,33 +141,64 @@ export default function FuturesDailyWrapPanel({
       </p>
       {loading && !wrap ? (
         <p className="py-12 text-center text-sm text-zinc-500">Loading Daily Wrap…</p>
-      ) : error ? (
-        <p className="py-8 text-center text-sm text-red-400">{error}</p>
+      ) : error && !wrap ? (
+        <div className="py-8 text-center">
+          <p className="text-sm text-red-400">{error}</p>
+          {isOwner ? (
+            <Button
+              size="sm"
+              className="mt-4 bg-orange-500 text-zinc-950 hover:bg-orange-600"
+              disabled={publishing}
+              onClick={() => void publishToday()}
+            >
+              {publishing ? "Publishing…" : "Publish today"}
+            </Button>
+          ) : null}
+        </div>
       ) : !wrap ? (
         <div className="py-10 text-center">
           <h2 className="mb-2 text-xl font-semibold text-zinc-100">Daily Market Wrap</h2>
-          <p className="text-sm text-zinc-500">
-            No wrap yet. It publishes automatically with the daily cron (00:00 UTC).
-          </p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={() => void load(null)}>
-            Refresh
-          </Button>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => void load(null)}>
+              Refresh
+            </Button>
+            {isOwner ? (
+              <Button
+                size="sm"
+                className="bg-orange-500 text-zinc-950 hover:bg-orange-600"
+                disabled={publishing}
+                onClick={() => void publishToday()}
+              >
+                {publishing ? "Publishing…" : "Publish today"}
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : (
         <>
-          <h2 className="mb-1 text-center text-2xl font-semibold tracking-tight text-zinc-50">
-            {wrap.title}
-          </h2>
-          {publishedLabel ? (
-            <p className="mb-8 text-center text-xs text-zinc-500">{publishedLabel}</p>
-          ) : null}
+          <div className="mb-8 flex flex-col items-center gap-2">
+            <h2 className="text-center text-2xl font-semibold tracking-tight text-zinc-50">
+              {wrap.title}
+            </h2>
+            {publishedLabel ? (
+              <p className="text-center text-xs text-zinc-500">{publishedLabel}</p>
+            ) : null}
+            {isOwner ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={publishing}
+                onClick={() => void publishToday()}
+              >
+                {publishing ? "Refreshing…" : "Refresh today’s wrap"}
+              </Button>
+            ) : null}
+            {error ? <p className="text-sm text-red-400">{error}</p> : null}
+          </div>
 
           <Section title="Hot Topics" items={wrap.hotTopics} onOpenHref={onNavigateHref} />
           <Section title="Market Updates" items={wrap.marketUpdates} onOpenHref={onNavigateHref} />
-
-          <p className="mt-2 text-center text-[11px] text-zinc-600">
-            Auto-generated from live Hyperliquid perp data · Not financial advice
-          </p>
         </>
       )}
 

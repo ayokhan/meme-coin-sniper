@@ -82,7 +82,6 @@ function wrapShell(inner: string): string {
           <tr>
             <td style="padding:20px 28px 28px 28px;border-top:1px solid #27272a;">
               <p style="margin:0 0 6px 0;font-size:12px;line-height:1.5;color:#71717a;">
-                Auto-generated from live Hyperliquid perp data. Not financial advice.
                 Manage preferences in your
                 <a href="${APP_ORIGIN}/account" style="color:${ACCENT};text-decoration:underline;">account settings</a>.
               </p>
@@ -179,7 +178,5 @@ export function morningFuturesBriefPlainBody(teaser: FuturesWrapItem[]): string 
     ...lines,
     "",
     `Open the full Daily Market Wrap: ${FUTURES_WRAP_APP_URL}`,
-    "",
-    "Auto-generated from live Hyperliquid perp data. Not financial advice.",
   ].join("\n");
 }
