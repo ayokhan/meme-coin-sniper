@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 
 /** Shipped defaults when no DB row exists for a tab. */
 export const DEFAULT_TAB_NEW_BADGES: Record<string, string> = {
+  "daily-wrap": "2026-09-15T23:59:59.999Z",
   "nova-futures-narratives": "2026-05-31T23:59:59.999Z",
   "nova-eagle": "2026-05-31T23:59:59.999Z",
   "crypto-buddie": "2026-05-31T23:59:59.999Z",
@@ -23,6 +24,7 @@ export const TAB_NEW_BADGE_OPTIONS: { id: string; label: string }[] = [
   { id: "surge", label: "Surge" },
   { id: "transactions", label: "Transactions" },
   { id: "ai-analysis", label: "NovaStaris AI Agent" },
+  { id: "daily-wrap", label: "Daily Wrap" },
   { id: "futures", label: "Crypto Futures" },
   { id: "nova-futures-narratives", label: "Nova Futures Narratives" },
   { id: "nova-eagle", label: "Nova Eagle" },

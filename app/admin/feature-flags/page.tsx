@@ -276,6 +276,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Tab: Crypto Futures",
     description: "Show/hide the Crypto Futures tab in the main GUI.",
   },
+  page_tab_daily_wrap: {
+    label: "Tab: Daily Wrap",
+    description:
+      "Show/hide the Daily Wrap top-level tab. Public — no login required. Default ON.",
+  },
   page_tab_trending_perps: {
     label: "Tab: Trending perps",
     description: "Show/hide the Trending perps tab in the main GUI.",

@@ -6,7 +6,8 @@ import { futuresWrapDb as prisma } from "@/lib/futures-daily-wrap-db";
 import { getTrendingPerps, getPerpsByCoins, type TrendingPerp } from "@/lib/api-clients/hyperliquid";
 
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
-export const FUTURES_WRAP_APP_URL = `${APP_ORIGIN}/?tab=futures&futures=daily-wrap`;
+/** Public top-level tab — no login required. */
+export const FUTURES_WRAP_APP_URL = `${APP_ORIGIN}/?tab=daily-wrap`;
 export const FUTURES_HOT_PERPS_URL = `${APP_ORIGIN}/?tab=futures&futures=hot-perps`;
 export const FUTURES_WORKFLOW_URL = `${APP_ORIGIN}/?tab=futures&futures=workflow`;
 export const FUTURES_LIQ_URL = `${APP_ORIGIN}/?tab=futures&futures=liquidation-map`;

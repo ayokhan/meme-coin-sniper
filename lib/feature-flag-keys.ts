@@ -18,6 +18,8 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_TRANSACTIONS: 'page_tab_transactions',
   PAGE_TAB_AI_ANALYSIS: 'page_tab_ai_analysis',
   PAGE_TAB_FUTURES: 'page_tab_futures',
+  /** Public Daily Market Wrap top-level tab (no login). Default ON. */
+  PAGE_TAB_DAILY_WRAP: 'page_tab_daily_wrap',
   PAGE_TAB_TRENDING_PERPS: 'page_tab_trending_perps',
   PAGE_TAB_PERP_RADAR: 'page_tab_perp_radar',
   PAGE_TAB_NARRATIVES: 'page_tab_narratives',

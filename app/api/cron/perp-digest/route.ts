@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 
     const telegramText =
       stored?.telegramHtml ??
-      `📊 <b>${wrapRow.title}</b>\n\nOpen: https://novastaris.ai/?tab=futures&futures=daily-wrap`;
+      `📊 <b>${wrapRow.title}</b>\n\nOpen: https://novastaris.ai/?tab=daily-wrap`;
     const telegramOk = await sendTelegramMessage(telegramText);
 
     const teaser = (stored?.emailTeaser as typeof wrapRow.emailTeaser) ?? wrapRow.emailTeaser;

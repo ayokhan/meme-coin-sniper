@@ -155,7 +155,7 @@ export function buildMorningFuturesBriefEmailHtml(args: MorningBriefEmailArgs): 
         </table>
         ${ctaButton(args.full ? "Open Daily Wrap in app" : "Read full Market Wrap in app", FUTURES_WRAP_APP_URL)}
         <p style="margin:12px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
-          Or open <a href="${FUTURES_WRAP_APP_URL}" style="color:${ACCENT};">Crypto Futures → Daily Wrap</a>
+          Or open <a href="${FUTURES_WRAP_APP_URL}" style="color:${ACCENT};">Daily Wrap</a>
         </p>
       </td>
     </tr>`;

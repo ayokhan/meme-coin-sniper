@@ -2,7 +2,7 @@
 
 ## Why you might not see content yet
 
-1. Open **Crypto Futures → Daily Wrap** (orange button). Hard-refresh if needed.
+1. Open the **Daily Wrap** top-level tab (`/?tab=daily-wrap`). Hard-refresh if needed.
 2. Until the wrap cron runs once, the panel says “No wrap yet”.
 3. **Master cron OFF does not block the wrap anymore** — wrap has its own light cron.
 

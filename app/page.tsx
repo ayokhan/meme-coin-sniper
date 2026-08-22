@@ -241,6 +241,7 @@ type TabId =
   | "wallets"
   | "transactions"
   | "ai-analysis"
+  | "daily-wrap"
   | "futures"
   | "trending-perps"
   | "perp-radar"
@@ -283,6 +284,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   surge: "page_tab_surge",
   transactions: "page_tab_transactions",
   "ai-analysis": "page_tab_ai_analysis",
+  "daily-wrap": "page_tab_daily_wrap",
   futures: "page_tab_futures",
   "trending-perps": "page_tab_trending_perps",
   "perp-radar": "page_tab_perp_radar",
@@ -320,6 +322,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "surge",
   "transactions",
   "ai-analysis",
+  "daily-wrap",
   "futures",
   "trending-perps",
   "perp-radar",
@@ -624,7 +627,7 @@ function Dashboard() {
 
   const matchesTopTabFilter = (tab: TabId) => {
     if (topTabFilter === "all") return true;
-    const coreTabs: TabId[] = ["new", "trending", "bsc", "watchlist", "nova-connect", "trading-university", "nova-store"];
+    const coreTabs: TabId[] = ["new", "trending", "daily-wrap", "bsc", "watchlist", "nova-connect", "trading-university", "nova-store"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
     const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence", "chris-clayton", "nova-job-agent"];
     const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-forex-bot", "nova-ultimate"];
@@ -1208,7 +1211,7 @@ function Dashboard() {
   } | null>(null);
   const [futuresAnalysisLoading, setFuturesAnalysisLoading] = useState(false);
   const [futuresAnalysisError, setFuturesAnalysisError] = useState<string | null>(null);
-  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map" | "daily-wrap">("workflow");
+  const [futuresView, setFuturesView] = useState<"ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map">("workflow");
   const { shouldShow: showFuturesOnboardingPrompt, dismiss: dismissFuturesOnboarding } = useFuturesOnboarding();
   const [futuresOnboardingForce, setFuturesOnboardingForce] = useState(false);
 
@@ -1709,8 +1712,10 @@ function Dashboard() {
         if (fv === "ai") {
           setActiveTab("ai-analysis");
           setAiAgentSubTab("chart");
+        } else if (fv === "daily-wrap") {
+          setActiveTab("daily-wrap");
         } else if (fv && URL_FUTURES_VIEWS.has(fv)) {
-          setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map" | "daily-wrap");
+          setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map");
         }
         const sym = url.searchParams.get("symbol")?.trim().toUpperCase();
         if (sym) setFuturesSymbol(sym);
@@ -1810,8 +1815,10 @@ function Dashboard() {
     if (fv === "ai") {
       setActiveTab("ai-analysis");
       setAiAgentSubTab("chart");
+    } else if (fv === "daily-wrap") {
+      setActiveTab("daily-wrap");
     } else if (fv && URL_FUTURES_VIEWS.has(fv)) {
-      setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map" | "daily-wrap");
+      setFuturesView(fv as "ai" | "workflow" | "altcoins" | "hot-perps" | "liquidation-map");
     }
     const sym = params.get("symbol")?.trim().toUpperCase();
     if (sym) setFuturesSymbol(sym);
@@ -2330,7 +2337,7 @@ function Dashboard() {
       if (status === "authenticated") fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-job-agent" || tab === "realtor-os" || tab === "nova-store" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-pulse" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
+    if (tab === "futures" || tab === "daily-wrap" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-job-agent" || tab === "realtor-os" || tab === "nova-store" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-pulse" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -3432,7 +3439,7 @@ function Dashboard() {
 
   // Auto-refresh: Go Hunting / Trending / Surge share VIP daily limit; auto off unless admin enables.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-pulse" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent" || activeTab === "realtor-os" || activeTab === "nova-store") return;
+    if (activeTab === "ai-analysis" || activeTab === "daily-wrap" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-pulse" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent" || activeTab === "realtor-os" || activeTab === "nova-store") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
@@ -4644,6 +4651,12 @@ function Dashboard() {
                 )}
                 {showTopTab("ai-analysis") && (
                   <TabsTrigger value="ai-analysis" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.ai-analysis")}</TabsTrigger>
+                )}
+                {showTopTab("daily-wrap") && (
+                  <TabsTrigger value="daily-wrap" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-teal-500 data-[state=active]:text-white dark:data-[state=active]:bg-teal-600`}>
+                    {t("tabs.daily-wrap")}
+                    <TopTabNewPill show={isNewTopTab("daily-wrap")} />
+                  </TabsTrigger>
                 )}
                 {showTopTab("futures") && (
                   <TabsTrigger value="futures" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.futures")}</TabsTrigger>
@@ -6529,18 +6542,14 @@ function Dashboard() {
               </div>
             ) : activeTab === "meme-intelligence" ? (
               <NovaMemeIntelligencePanel />
+            ) : activeTab === "daily-wrap" ? (
+              <div className="mx-3 sm:mx-6 py-6 sm:py-8">
+                <FuturesDailyWrapPanel onNavigateHref={openDashboardToolHref} isOwner={isOwner} />
+              </div>
             ) : activeTab === "futures" ? (
               <div className="mx-3 sm:mx-6 py-6 sm:py-8">
                 <PathFirstActionBanner tab="futures" className="mb-4" />
                 <div className="flex flex-wrap items-center gap-2 mb-6">
-                  <Button
-                    variant={futuresView === "daily-wrap" ? "default" : "outline"}
-                    size="sm"
-                    className={futuresView === "daily-wrap" ? "bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700" : ""}
-                    onClick={() => setFuturesView("daily-wrap")}
-                  >
-                    Daily Wrap
-                  </Button>
                   <Button
                     variant={futuresView === "workflow" ? "default" : "outline"}
                     size="sm"
@@ -6585,9 +6594,7 @@ function Dashboard() {
                     Quick start
                   </Button>
                 </div>
-                {futuresView === "daily-wrap" ? (
-                  <FuturesDailyWrapPanel onNavigateHref={openDashboardToolHref} isOwner={isOwner} />
-                ) : futuresView === "workflow" ? (
+                {futuresView === "workflow" ? (
                   <FuturesWorkflow />
                 ) : futuresView === "altcoins" ? (
                   <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 max-w-full">

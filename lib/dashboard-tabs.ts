@@ -8,6 +8,7 @@ export type DashboardTabId =
   | "wallets"
   | "transactions"
   | "ai-analysis"
+  | "daily-wrap"
   | "futures"
   | "trending-perps"
   | "perp-radar"
@@ -41,6 +42,7 @@ export const DASHBOARD_TAB_ORDER: DashboardTabId[] = [
   "surge",
   "transactions",
   "ai-analysis",
+  "daily-wrap",
   "futures",
   "trending-perps",
   "perp-radar",
@@ -79,6 +81,7 @@ export const TAB_SHORT_LABELS: Record<DashboardTabId, string> = {
   wallets: "Wallets",
   transactions: "Txns",
   "ai-analysis": "AI Agent",
+  "daily-wrap": "Daily Wrap",
   futures: "Futures",
   "trending-perps": "Perps",
   "perp-radar": "Radar",

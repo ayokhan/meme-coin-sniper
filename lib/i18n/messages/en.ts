@@ -157,6 +157,7 @@ export const en = {
     surge: "Surge",
     transactions: "Transactions",
     "ai-analysis": "NovaStaris AI Agent",
+    "daily-wrap": "Daily Wrap",
     futures: "Crypto Futures",
     "nova-futures-narratives": "Nova Futures Narratives",
     "nova-eagle": "Nova Eagle",

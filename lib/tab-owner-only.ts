@@ -14,6 +14,7 @@ export const OWNER_ONLY_MANAGED_TABS = [
   "surge",
   "transactions",
   "ai-analysis",
+  "daily-wrap",
   "futures",
   "trending-perps",
   "perp-radar",

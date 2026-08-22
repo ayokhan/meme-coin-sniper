@@ -181,6 +181,7 @@ export const URL_TAB_IDS = new Set([
   "wallets",
   "transactions",
   "ai-analysis",
+  "daily-wrap",
   "futures",
   "trending-perps",
   "perp-radar",
@@ -215,5 +216,4 @@ export const URL_FUTURES_VIEWS = new Set([
   "altcoins",
   "hot-perps",
   "liquidation-map",
-  "daily-wrap",
 ]);
