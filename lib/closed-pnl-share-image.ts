@@ -511,13 +511,38 @@ export function drawAnalysisShareCard(
   ctx.fillStyle = "#fff";
   ctx.font = "700 42px system-ui, sans-serif";
   ctx.fillText("Trading results", pad, pad + 58);
-  ctx.font = "500 18px system-ui, sans-serif";
-  ctx.fillStyle = "#94a3b8";
-  const sub = [periodLabel, modeLabel, new Date().toLocaleDateString()].filter(Boolean).join(" · ");
-  ctx.fillText(sub, pad, pad + 96);
+
+  // Period + date — large/bold for WhatsApp / IG story readability
+  const metaY = pad + 100;
+  let metaX = pad;
+  if (periodLabel) {
+    ctx.font = "700 17px system-ui, sans-serif";
+    const pillText = periodLabel.toUpperCase();
+    const pillW = ctx.measureText(pillText).width + 32;
+    roundRect(ctx, metaX, metaY - 26, pillW, 38, 10);
+    ctx.fillStyle = "rgba(0,212,255,0.22)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,212,255,0.55)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = CYAN;
+    ctx.fillText(pillText, metaX + 16, metaY - 2);
+    metaX += pillW + 16;
+  }
+  const dateStr = new Date().toLocaleDateString(undefined, {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+  });
+  const tailParts = [modeLabel, dateStr].filter(Boolean);
+  if (tailParts.length) {
+    ctx.font = "700 24px system-ui, sans-serif";
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillText(tailParts.join(" · "), metaX, metaY - 2);
+  }
 
   const statW = (W - 2 * pad - 36) / 4;
-  const statY = pad + 140;
+  const statY = pad + 158;
   const stats: { label: string; value: string; color: string }[] = [
     { label: "TRADES", value: String(analysis.totalTrades), color: "#f8fafc" },
     { label: "WINS", value: String(analysis.wins), color: GREEN },
