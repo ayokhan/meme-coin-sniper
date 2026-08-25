@@ -625,12 +625,12 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   futures_daily_wrap_cron: {
     label: "Daily Futures Wrap cron (lightweight)",
     description:
-      "When ON (default), Vercel runs /api/cron/perp-digest daily at 00:05 UTC: one Hyperliquid fetch, store Daily Wrap, Telegram + optional Morning Brief emails. Independent of the heavy master cron — keep this ON while master is OFF. When OFF, no auto wrap/emails (in-app Daily Wrap tab still visible but empty until you trigger manually).",
+      "When ON (default), Vercel runs /api/cron/perp-digest daily at 00:05 UTC: one Hyperliquid fetch, store Daily Wrap, Telegram + optional Daily Futures Brief emails. Independent of the heavy master cron — keep this ON while master is OFF. When OFF, no auto wrap/emails (in-app Daily Wrap tab still visible but empty until you trigger manually).",
   },
   digest_to_newsletter_subscribers: {
     label: "Send digest to newsletter subscribers",
     description:
-      "When ON, the Morning Futures Brief teaser is emailed to users who opted in at registration. When OFF, digest email goes only to DIGEST_EMAIL_TO (plus Telegram). Requires Daily Futures Wrap cron ON. In-app Daily Wrap still updates when the wrap cron runs.",
+      "When ON, the Daily Futures Brief teaser is emailed to users who opted in at registration. When OFF, digest email goes only to DIGEST_EMAIL_TO (plus Telegram). Requires Daily Futures Wrap cron ON. In-app Daily Wrap still updates when the wrap cron runs.",
   },
   email_notifications_cron: {
     label: "Email notifications cron (dedicated)",

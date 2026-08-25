@@ -1,5 +1,5 @@
 /**
- * Morning Futures Brief + Daily Market Wrap email HTML (Blofin-style dark digest).
+ * Daily Futures Brief + Daily Market Wrap email HTML (NovaStaris dark digest).
  */
 import type { FuturesWrapItem } from "@/lib/futures-daily-wrap";
 import { FUTURES_WRAP_APP_URL } from "@/lib/futures-daily-wrap";
@@ -164,16 +164,16 @@ export function buildMorningFuturesBriefEmailHtml(args: MorningBriefEmailArgs): 
 }
 
 export function morningFuturesBriefSubject(title: string): string {
-  // "Daily Market Wrap | Aug 21" → "Morning Futures Brief | Aug 21"
+  // "Daily Market Wrap | Aug 21" → "Daily Futures Brief | Aug 21"
   const datePart = title.includes("|") ? title.split("|").slice(1).join("|").trim() : title;
-  return `Morning Futures Brief | ${datePart}`;
+  return `Daily Futures Brief | ${datePart}`;
 }
 
 /** Plain-text fallback body for admin presets / logs. */
 export function morningFuturesBriefPlainBody(teaser: FuturesWrapItem[]): string {
   const lines = teaser.map((t) => `• ${t.text}`);
   return [
-    "Your Morning Futures Brief is ready.",
+    "Your Daily Futures Brief is ready.",
     "",
     ...lines,
     "",

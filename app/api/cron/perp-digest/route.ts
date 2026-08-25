@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Dedicated lightweight cron: Daily Futures Wrap + optional Morning Brief emails.
+ * Dedicated lightweight cron: Daily Futures Wrap + optional Daily Futures Brief emails.
  * Independent of master /api/cron (keep master OFF for CPU; keep this ON for the wrap).
  * Auth: Bearer CRON_SECRET.
  * Flag: futures_daily_wrap_cron (Admin → Feature flags).
